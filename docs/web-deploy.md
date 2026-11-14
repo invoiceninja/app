@@ -58,6 +58,16 @@ The old page registered `flutter_service_worker.js?v=<server version>` at the si
 - **Every link opens in a new tab.** "Last used" is remembered in `localStorage` (`invoiceninja.landing.last`) when either web app is opened from the page; the page never redirects on its own. A "has moved" banner shows when the old app's `flutter.*` keys are in this origin's `localStorage`, and an "out of date" note when it runs as an installed app.
 - **The screenshots are hand-made.** The React one is the public demo (`react.invoicing.co/demo`) at 1440×900, scaled to 960×600, with the dashboard on All Time grouped by Month (the demo's data only spans its last few months, so All Time is the range that fills the chart's width; a fixed range or a weekly grouping leaves it mostly flat) and the pointer off the chart, so no tooltip shows. Retaken 2026-11-15.
 
+## A minimum-OS change needs a backend PR
+
+The landing page names each platform's minimum OS (`apps.json`'s `min_os`), and hosted serves the page from the backend's git, not from this repo. So raising the iOS or macOS deployment target (`ios/Podfile`, `macos/Podfile`), Android's `minSdk`, or the Windows floor takes three steps:
+
+1. Update `min_os` in `tools/web_deploy/landing/apps.json`. `test/lint/landing_apps_test.dart` fails until it matches, and its failure message names the next two steps.
+2. Run `tools/web_deploy/export_landing.sh <invoiceninja checkout>`.
+3. Open a backend PR with the result.
+
+Until that PR is deployed, invoicing.co shows the old minimum. Nothing fails in the meantime: `web.yml` only warns that the backend's copy differs. The same goes for any other `apps.json` change, such as a store link switched at a store's launch.
+
 ## Web sign-in
 
 Decided 2026-11-13: the web build signs in with Google, Microsoft and Apple on the hosted page, and with Microsoft on a self-hosted server that sets `MICROSOFT_CLIENT_ID`, as admin-portal's web app did. Passkeys are below, in docs/passkeys.md § Related origins.

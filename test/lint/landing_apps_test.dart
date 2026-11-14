@@ -10,7 +10,17 @@ import 'package:flutter_test/flutter_test.dart';
 /// requirement in front of every visitor with nothing failing. This test reads
 /// each one back from the build files. It also keeps every link on the page
 /// https, the same rule `render_landing.py` enforces when it renders.
+///
+/// Fixing the JSON is only half the job: hosted serves the page from the
+/// backend's git, so a changed minimum also needs
+/// `tools/web_deploy/export_landing.sh` and a backend PR (docs/web-deploy.md
+/// § A minimum-OS change needs a backend PR).
 void main() {
+  const backendPr =
+      'update tools/web_deploy/landing/apps.json, then run '
+      'tools/web_deploy/export_landing.sh <invoiceninja checkout> and open a '
+      'backend PR: hosted serves the landing page from invoiceninja/invoiceninja';
+
   final data =
       jsonDecode(File('tools/web_deploy/landing/apps.json').readAsStringSync())
           as Map<String, dynamic>;
@@ -37,12 +47,12 @@ void main() {
 
   test('iPhone & iPad names the iOS deployment target', () {
     final target = podfilePlatform('ios/Podfile', 'ios');
-    expect(minOs('ios'), 'iOS ${major(target)} or later');
+    expect(minOs('ios'), 'iOS ${major(target)} or later', reason: backendPr);
   });
 
   test('Mac names the macOS deployment target', () {
     final target = podfilePlatform('macos/Podfile', 'osx');
-    expect(minOs('mac'), 'macOS ${major(target)} or later');
+    expect(minOs('mac'), 'macOS ${major(target)} or later', reason: backendPr);
   });
 
   test('Android names the Android version of minSdk', () {
@@ -70,13 +80,17 @@ void main() {
       35: '15',
     };
     expect(versions, contains(api), reason: 'add API $api to this table');
-    expect(minOs('android'), 'Android ${versions[api]} or later');
+    expect(
+      minOs('android'),
+      'Android ${versions[api]} or later',
+      reason: backendPr,
+    );
   });
 
   test("Windows names Flutter's Windows floor", () {
     // Flutter's Windows embedder supports Windows 10 and later; this app sets
     // no stricter floor of its own.
-    expect(minOs('windows'), 'Windows 10 or later');
+    expect(minOs('windows'), 'Windows 10 or later', reason: backendPr);
   });
 
   test('every link on the page is https', () {
