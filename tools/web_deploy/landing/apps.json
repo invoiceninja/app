@@ -4,7 +4,6 @@
     "react": { "url": "https://app.invoicing.co", "source": "https://github.com/invoiceninja/web" },
     "app": { "url": "https://admin.invoicing.co", "source": "https://github.com/invoiceninja/app" }
   },
-  "client_portal": "https://invoicing.co/client/",
   "platforms": [
     {
       "id": "windows", "group": "desktop", "name": "Windows", "icon": "windows", "color": "#0078D4",
