@@ -56,7 +56,7 @@ The old page registered `flutter_service_worker.js?v=<server version>` at the si
 - **Store links name each store's live listing.** Until a store's v2 goes live they are v1's (`com.invoiceninja.app`, the v1 App Store and Microsoft IDs); switch each with that store's launch (`docs/going-live.md`).
 - **What the visitor arrived with goes on to the app they pick:** a sign-up link's `?signup=true` and `?rc=` (React's `#/register?rc=`, this app's query), UTM tags, and an old bookmark's `#/route` (to this app only, whose router maps admin-portal's routes; React's differ). The backend renders the page ahead of its `?login` / `?signup` redirect so the query is still there.
 - **Every link opens in a new tab.** "Last used" is remembered in `localStorage` (`invoiceninja.landing.last`) when either web app is opened from the page; the page never redirects on its own. A "has moved" banner shows when the old app's `flutter.*` keys are in this origin's `localStorage`, and an "out of date" note when it runs as an installed app.
-- **The screenshots are hand-made.** The React one is the public demo (`react.invoicing.co/demo`); retake it with data in its chart (the dashboard's range set to Last 365 days) when the demo account is in English.
+- **The screenshots are hand-made.** The React one is the public demo (`react.invoicing.co/demo`) at 1440×900, scaled to 960×600, with the dashboard on This Year grouped by Month (the demo's data only spans its last few months, so a longer range or a weekly grouping leaves the chart mostly flat) and the pointer off the chart, so no tooltip shows. Retaken 2026-11-15.
 
 ## Web sign-in
 
