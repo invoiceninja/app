@@ -14,8 +14,15 @@ server="${1:?usage: export_landing.sh <invoiceninja checkout>}"
   || { echo "!! $server is not an invoiceninja checkout" >&2; exit 1; }
 here="$(cd "$(dirname "$0")" && pwd)"
 
+# Rendered aside first: a render that refuses (a placeholder left, a non-https
+# URL) must leave the checkout as it was.
+out=$(mktemp -d)
+trap 'rm -rf "$out"' EXIT
+python3 "$here/render_landing.py" --assets-base /landing/ \
+  --assets-dir "$out/public/landing" -o "$out/index.html"
+
 rm -rf "$server/public/landing"
 mkdir -p "$server/resources/views/landing"
-python3 "$here/render_landing.py" --assets-base /landing/ \
-  --assets-dir "$server/public/landing" -o "$server/resources/views/landing/index.html"
+mv "$out/public/landing" "$server/public/landing"
+mv "$out/index.html" "$server/resources/views/landing/index.html"
 echo "Wrote the landing page into $server. Review with: git -C '$server' status"

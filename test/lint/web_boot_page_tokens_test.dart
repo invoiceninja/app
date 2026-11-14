@@ -6,8 +6,9 @@ import 'package:flutter_test/flutter_test.dart';
 /// repository's release would be compiled into PHP on every server, and no
 /// allow-list of Blade syntax held up in review. So the boot page reaches the
 /// backend as plain HTML whose `__IN_*__` tokens the backend fills, each with
-/// an escaped value (`Ninja::flutterWebPage`), and the landing page as plain
-/// HTML it serves as a file (docs/web-deploy.md § Going live).
+/// an escaped value (`Ninja::flutterWebPage`). The landing page, committed
+/// to the backend instead (`export_landing.sh`), is plain HTML it serves as a
+/// file (docs/web-deploy.md § The landing page).
 ///
 /// The backend fills exactly the tokens in `render_boot_page.py`'s `TOKENS`
 /// and blanks any other. A new token therefore needs the backend first, in its

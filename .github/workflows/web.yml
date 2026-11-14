@@ -161,6 +161,15 @@ jobs:
           # backend commits its copy (tools/web_deploy/export_landing.sh).
           python3 tools/web_deploy/render_landing.py --assets-base /landing/ \
             --assets-dir landing-check/public/landing -o landing-check/index.html
+          # Nothing else notices when the backend's copy falls behind (a store
+          # link switched, a minimum OS bumped): say so, without failing.
+          committed=https://raw.githubusercontent.com/invoiceninja/invoiceninja/v5-develop/resources/views/landing/index.html
+          if curl -fsSL "$committed" -o landing-check/committed.html; then
+            cmp -s landing-check/index.html landing-check/committed.html \
+              || echo "::warning::The landing page in invoiceninja/invoiceninja (v5-develop) differs from this one. Run tools/web_deploy/export_landing.sh and open a backend PR."
+          else
+            echo "::notice::No landing page in invoiceninja/invoiceninja v5-develop to compare with yet."
+          fi
 
           # Hosted: the build at the root of the Pages site, its static boot page
           # naming the API, a 404 page (Pages would otherwise answer a missing
