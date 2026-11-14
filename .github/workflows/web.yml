@@ -7,11 +7,12 @@ name: Deploy to Web
 #                https://invoicing.co as the API (`data-api-url`).
 #   self-hosted  the `server/` tree, attached to this repo's GitHub Release as
 #                invoiceninja-web-<version>.tar.gz: public/flutter/ and
-#                resources/views/flutter/index.html (the app's boot page), plus
-#                resources/views/landing/index.html and public/landing/
-#                (the invoicing.co landing page). The backend's release
-#                workflow unpacks it into the server tarball; nothing is ever
-#                committed to invoiceninja/invoiceninja.
+#                resources/views/flutter/index.html (the app's boot page). The
+#                backend's release workflow unpacks it into the server tarball;
+#                no build is ever committed to invoiceninja/invoiceninja. (The
+#                invoicing.co landing page is committed there instead, by
+#                tools/web_deploy/export_landing.sh: hosted deploys with a git
+#                pull. This workflow only renders it, as a check.)
 #
 # Modes: `test` builds both trees and runs every gate, publishing nothing.
 # `preview` also deploys `pages/` to the Pages preview branch. `production`
@@ -151,14 +152,15 @@ jobs:
           # page, plain HTML whose __IN_*__ tokens the backend fills: nothing in
           # the tarball is compiled or run on a server. The installed PWA's
           # start_url and scope are the site root, one level up from the folder.
-          mkdir -p server/public/flutter server/resources/views/flutter server/resources/views/landing
+          mkdir -p server/public/flutter server/resources/views/flutter
           rsync -a "${excludes[@]}" build/web/ server/public/flutter/
           jq '.start_url = "../" | .scope = "../"' build/web/manifest.json > server/public/flutter/manifest.json
           python3 tools/web_deploy/render_boot_page.py --server --version "$v" \
             -o server/resources/views/flutter/index.html
-          # The invoicing.co landing page, built from landing/apps.json.
+          # The invoicing.co landing page, rendered only to check apps.json: the
+          # backend commits its copy (tools/web_deploy/export_landing.sh).
           python3 tools/web_deploy/render_landing.py --assets-base /landing/ \
-            --assets-dir server/public/landing -o server/resources/views/landing/index.html
+            --assets-dir landing-check/public/landing -o landing-check/index.html
 
           # Hosted: the build at the root of the Pages site, its static boot page
           # naming the API, a 404 page (Pages would otherwise answer a missing

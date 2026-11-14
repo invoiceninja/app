@@ -20,8 +20,8 @@ tar -tvzf "$archive" | awk '$1 !~ /^[-d]/ { bad = 1 } END { exit bad }' \
 if grep_list | grep -E '(^|/)\.\.?(/|$)'; then
   fail "a relative path"
 fi
-if grep_list | grep -Ev '^(public/|resources/|resources/views/|resources/views/(flutter|landing)/|resources/views/(flutter|landing)/index\.html|public/(flutter|landing)/.*)$'; then
-  fail "files outside the four paths"
+if grep_list | grep -Ev '^(public/|resources/|resources/views/|resources/views/flutter/|resources/views/flutter/index\.html|public/flutter/.*)$'; then
+  fail "files outside the two paths"
 fi
 if grep_list | grep -E '^public/' | grep -Ev '/$' | grep -Eiv '(/[^/.]+|/\.gitkeep|\.(js|mjs|wasm|json|css|png|jpg|jpeg|gif|webp|svg|ico|ttf|otf|woff|woff2|frag|bin|txt|map))$'; then
   fail "a file type the server doesn't accept under public/"
@@ -32,7 +32,7 @@ fi
 if grep_list | grep -E '/\.' | grep -Ev '/\.gitkeep$'; then
   fail "a dotfile"
 fi
-for part in public/flutter/flutter_bootstrap.js resources/views/flutter/index.html resources/views/landing/index.html; do
+for part in public/flutter/flutter_bootstrap.js resources/views/flutter/index.html; do
   grep -qxF "$part" <<< "$list" || fail "no $part"
 done
 echo "The server will accept $archive."
