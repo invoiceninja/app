@@ -281,7 +281,7 @@ const List<ReleaseNotes> kReleaseNotes = [
       ReleaseHighlight(
         icon: Icons.inventory_2_outlined,
         title: 'Purchase orders use cost',
-        body: "A product added to a purchase order fills in its cost.",
+        body: 'A product added to a purchase order fills in its cost.',
         target: ReleaseHighlightRoute(
           '/purchase_orders',
           module: EntityType.purchaseOrder,
