@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import 'package:admin/app/design_tokens.dart';
+import 'package:admin/app/env.dart';
+import 'package:admin/ui/features/dashboard/widgets/dashboard_density.dart';
 
 /// Tabular row layout used by the dashboard list cards, matching the v2
 /// `InvoiceTable` (`docs/design/v2/screens.jsx:357-390`):
@@ -61,28 +63,43 @@ class DashboardEntityTable extends StatelessWidget {
   Widget build(BuildContext context) {
     final tokens = context.inTheme;
     final h = cellPadding ?? 16;
-    final rowPadding = compact
-        ? EdgeInsets.symmetric(horizontal: h, vertical: 10)
-        : EdgeInsets.symmetric(horizontal: h, vertical: 14);
+    // Compact (`docs/list-density.md` § The dashboard) takes a pointer row to
+    // 32 px; touch keeps the 10 px that lets a finger hit it.
+    final denseRows = dashboardDense(context) && !Env.isTouchPrimary;
+    final v = compact ? (denseRows ? 6.0 : 10.0) : 14.0;
+    // The outer edges take the card's own inset, so the first column starts
+    // under the card's title and the last ends under its links; [h] is only
+    // the gutter between columns.
+    final edge = InSpacing.lg(context);
+    EdgeInsetsGeometry cellPad(int i, double vertical) =>
+        EdgeInsetsDirectional.fromSTEB(
+          i == 0 ? edge : h,
+          vertical,
+          i == headers.length - 1 ? edge : h,
+          vertical,
+        );
 
     return Table(
       columnWidths: columnWidths,
       defaultVerticalAlignment: TableCellVerticalAlignment.middle,
       children: [
-        _headerRow(tokens, h),
+        _headerRow(tokens, (i) => cellPad(i, dashboardDense(context) ? 4 : 10)),
         for (var i = 0; i < rows.length; i++)
           _dataRow(
             context,
             tokens,
             rows[i],
-            rowPadding,
+            (c) => cellPad(c, v),
             isLast: i == rows.length - 1,
           ),
       ],
     );
   }
 
-  TableRow _headerRow(InTheme tokens, double h) {
+  TableRow _headerRow(
+    InTheme tokens,
+    EdgeInsetsGeometry Function(int column) padding,
+  ) {
     return TableRow(
       decoration: BoxDecoration(
         color: tokens.surfaceAlt,
@@ -94,7 +111,7 @@ class DashboardEntityTable extends StatelessWidget {
             label: headers[i],
             alignment: cellAlignments[i] ?? AlignmentDirectional.centerStart,
             tokens: tokens,
-            horizontalPadding: h,
+            padding: padding(i),
           ),
       ],
     );
@@ -104,7 +121,7 @@ class DashboardEntityTable extends StatelessWidget {
     BuildContext context,
     InTheme tokens,
     DashboardEntityTableRow row,
-    EdgeInsets padding, {
+    EdgeInsetsGeometry Function(int column) padding, {
     required bool isLast,
   }) {
     return TableRow(
@@ -117,7 +134,7 @@ class DashboardEntityTable extends StatelessWidget {
         for (var i = 0; i < row.cells.length; i++)
           _bodyCell(
             child: row.cells[i],
-            padding: padding,
+            padding: padding(i),
             alignment: cellAlignments[i] ?? AlignmentDirectional.centerStart,
             onTap: i < (row.cellTaps?.length ?? 0) ? row.cellTaps![i] : null,
             // The label rides cell 0 and the rest fall silent, so the row is a
@@ -131,7 +148,7 @@ class DashboardEntityTable extends StatelessWidget {
 
   Widget _bodyCell({
     required Widget child,
-    required EdgeInsets padding,
+    required EdgeInsetsGeometry padding,
     required AlignmentGeometry alignment,
     VoidCallback? onTap,
     String? semanticsLabel,
@@ -190,23 +207,20 @@ class _HeaderCell extends StatelessWidget {
     required this.label,
     required this.alignment,
     required this.tokens,
-    required this.horizontalPadding,
+    required this.padding,
   });
 
   final String label;
   final AlignmentGeometry alignment;
   final InTheme tokens;
-  final double horizontalPadding;
+  final EdgeInsetsGeometry padding;
 
   @override
   Widget build(BuildContext context) {
     return TableCell(
       verticalAlignment: TableCellVerticalAlignment.middle,
       child: Padding(
-        padding: EdgeInsets.symmetric(
-          horizontal: horizontalPadding,
-          vertical: 10,
-        ),
+        padding: padding,
         child: Align(
           alignment: alignment,
           child: Text(

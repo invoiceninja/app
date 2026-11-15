@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'package:admin/app/design_tokens.dart';
+import 'package:admin/app/env.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/data/models/domain/dashboard/dashboard_card_config.dart';
 import 'package:admin/data/models/domain/dashboard/dashboard_panel_pref.dart';
@@ -839,6 +840,13 @@ class _PanelsPaneState extends State<_PanelsPane> {
         padding: EdgeInsets.only(bottom: InSpacing.md(context)),
         child: rowFor(pastDue, 0, pinned: true),
       ),
+      // The Density preference closes the list rather than joining the fixed
+      // footer: that footer is one `Wrap` run because the dialog has no height
+      // for a second, and as the list's footer the control scrolls instead.
+      footer: Padding(
+        padding: EdgeInsets.only(top: InSpacing.md(context)),
+        child: const _DensityControl(),
+      ),
       itemCount: rest.length,
       onReorderItem: vm.reorderTrailingPanels,
       itemBuilder: (context, i) => rowFor(rest[i], i, pinned: false),
@@ -898,6 +906,103 @@ class _HideEmptyPanelsSwitch extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+/// The device's Density preference (`docs/list-density.md` § Where the
+/// setting lives) — the same controller, keys and segments as Device Settings
+/// → Appearance → Density, surfaced here because someone who finds the
+/// dashboard too loose reaches for Customize, not Settings.
+///
+/// The panel list's footer, below a rule: it scrolls with the rows, so it
+/// costs the dialog no fixed height. The control sits beside the text where
+/// there is room and drops under it, full width, where there is not (a phone,
+/// a long locale, a large text size). On touch the segments keep 44 px.
+class _DensityControl extends StatelessWidget {
+  const _DensityControl();
+
+  /// The narrowest row that still holds the text beside the control.
+  static const double _kInlineMinWidth = 460;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.inTheme;
+    final theme = Theme.of(context);
+    final density = context.read<Services>().listDensity;
+    final touch = Env.isTouchPrimary;
+    final text = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          context.tr('display_density'),
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: tokens.ink,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          context.tr('display_density_help'),
+          style: theme.textTheme.bodySmall?.copyWith(color: tokens.ink2),
+        ),
+      ],
+    );
+    Widget control({required bool fill}) => SegmentedButton<bool>(
+      key: const ValueKey('customize_density'),
+      showSelectedIcon: false,
+      style: touch
+          ? const ButtonStyle(
+              visualDensity: VisualDensity.standard,
+              minimumSize: WidgetStatePropertyAll(Size(0, InSizes.touchTarget)),
+            )
+          : null,
+      expandedInsets: fill ? EdgeInsets.zero : null,
+      segments: [
+        ButtonSegment(value: false, label: Text(context.tr('normal'))),
+        ButtonSegment(value: true, label: Text(context.tr('compact'))),
+      ],
+      // Derived from `isCompact`, so a value this build doesn't know still
+      // selects a segment rather than none.
+      selected: {density.isCompact},
+      onSelectionChanged: (s) => density.setCompact(s.first),
+    );
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        border: Border(top: BorderSide(color: tokens.border)),
+      ),
+      child: Padding(
+        padding: EdgeInsets.only(top: InSpacing.md(context)),
+        child: ValueListenableBuilder<String>(
+          valueListenable: density,
+          builder: (context, _, _) => LayoutBuilder(
+            builder: (context, constraints) {
+              final inline =
+                  constraints.maxWidth >= _kInlineMinWidth &&
+                  MediaQuery.textScalerOf(context).scale(1) <= 1.3;
+              if (inline) {
+                return Row(
+                  children: [
+                    Expanded(child: text),
+                    SizedBox(width: InSpacing.md(context)),
+                    control(fill: false),
+                  ],
+                );
+              }
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  text,
+                  const SizedBox(height: InSpacing.sm),
+                  control(fill: true),
+                ],
+              );
+            },
+          ),
+        ),
+      ),
     );
   }
 }

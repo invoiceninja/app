@@ -51,9 +51,20 @@ On a phone, the two-line tile goes from 72 px to about 57 px per row.
   - A flip rebuilds only the widgets that read it, never `MaterialApp`.
   - With no scope above (most widget tests), every reader gets Normal. That is why the
     lint test pins that `main.dart` mounts it: nothing else would notice it was missing.
-- **The one control.** Device Settings → Theme → List density, a `SegmentedSettingRow`
-  under Font Size, the other "how much fits on screen" control. It is searchable and
-  works at every width.
+- **The one control.** Device Settings → Theme → **Density** (`display_density`), a
+  `SegmentedSettingRow` under Font Size, the other "how much fits on screen" control. It
+  is searchable and works at every width.
+  - It was "List density" until Compact reached past lists. The pref key
+    (`list_density`) and the `ListDensity*` names are historical and stay: renaming the
+    key would reset everyone's choice. The label needed new keys (`display_density`,
+    `display_density_help`) because `_app_pending.json` cannot reword a key that every
+    locale had already translated.
+  - Two more doors open onto the same preference, never a second setting: the first-run
+    Welcome (docs/first-run-welcome.md § The density choice) and the footer of the
+    dashboard's Customize → Panels list (`_DensityControl` in
+    `manage_dashboard_cards_sheet.dart`), because someone who finds the dashboard too
+    loose reaches for Customize, not Settings. That one closes the scrolling panel list
+    rather than joining the fixed footer, which has no height for a second run.
   - There is deliberately no toggle in the list toolbar. One shipped briefly beside the
     Columns button and was removed: a setting changed once per device does not earn a
     permanent slot in every list's header, and the slot cost the search field width it
@@ -84,10 +95,81 @@ The record-screen rows are the one place Compact reaches above a record's tabs
 everyone (`docs/detail-screen-layout.md` § The phone record layout); what is left is taste —
 a tile 8 px shorter and tighter cards — so it rides the preference rather than being a
 default. The profile cards are `DashboardCardShell`s, the same widget as the dashboard's,
-so the trim is gated on `RecordColumnScope` (mounted by `EntityRecordColumn`): the
-dashboard stays out of scope. The compact tile is still above the 44 px touch target. The content sets a tile's
+so the trim is gated on `RecordColumnScope` (mounted by `EntityRecordColumn`) or
+`DashboardScope` (§ The dashboard), never on the edit forms that share the shell. The compact tile is still above the 44 px touch target. The content sets a tile's
 height at normal text, not the floor, so the padding has to tighten with it or the lower
 floor does nothing.
+
+## The dashboard
+
+Compact reaches the dashboard too (5.1.26), after a long-time desktop user reported that the
+dashboard took more scrolling to show what one glance at 5.0 used to show. Every dashboard
+widget reads the preference through `dashboardDense(context)`
+(`lib/ui/features/dashboard/widgets/dashboard_density.dart`), so one grep finds them all.
+
+**`dense`, never `compact`.** On the dashboard `compact:` already means the phone form
+(`NeedsAttentionBand.compact`, `DashboardRecordRow.compact`, each panel card's `compact:`,
+`DashboardEntityTable.compact`). Reusing the word would put two meanings on one parameter.
+
+**`DashboardScope` keeps the forms out.** `DashboardCardShell` is also the section card of
+several edit forms. Its dense branch runs only inside `RecordColumnScope` (the record
+screen's profile) or `DashboardScope` (mounted around each dashboard body's `ListView`), so
+an edit form keeps its size. The shadow comes off only inside `DashboardScope`.
+
+Measured at 1440×900 on the demo company:
+
+| | 5.0 | 5.1 Normal | 5.1 Compact |
+|---|---|---|---|
+| Needs-attention band | none | 155 px | 87 px |
+| Figures | 3 tiles, 108 px | 4 figures, 104 px | 4 figures, ~68 px |
+| Chart plot | ~137 | ~245 | ~190 |
+| List rows above the fold | 6 (side panel) | 0 | 5 (Invoices & Quotes) |
+
+What changes, Normal → Compact (pointer first, touch in brackets where it differs):
+
+| Surface | Normal | Compact |
+|---|---|---|
+| Page inset / zone gaps / group gaps | 24 / 24 / 16 | 16 / 12 / 12; period bar → figures 8 |
+| Card corner radius (`dashboardCardRadius`) | `r3` (14) | `r2` (10) |
+| `DashboardCardShell` header top / bottom, body vertical | `lg` / `md`, `md` | `md` / `sm`, `sm` (the record screen's dense branch) |
+| Band list header and failed-saves line floors | 40 [44] | 32 [44] |
+| `DashboardRecordRow` action box / vertical padding | 32 / 6 [44 / 6] | 28 / 2 [44 / 0] → a 32 px row [44] |
+| Stacked band row | 64 [76] | 52 [64] |
+| Phone-form row (`compact: true`) | 60, padding `sm` | 52, padding `xs` |
+| Figure cards (`OutstandingFigureCard`, `PeriodFiguresCard`, `KpiCard`) floor | 104 | 64 (`kFigureCardMinHeightDense`); a phone's period card 72 |
+| Figure padding / value sizes | `lg` all round; 26 / 22 (configured 24) | `lg` × `md`; 22 / 20 (configured 20) |
+| Figure sub-line ("17 unpaid", the trend) | its own line | on the value's line (`_InlineSubline`); a phone's three narrow cells keep their trend line |
+| Chart legend | its own line in the body | in the header row on the wide layout (a `Wrap`, so it can answer `IntrinsicHeight`); a phone keeps it in the body |
+| Chart plot floor beside Activity / stacked aspect | 220 / 2.4 | 168 / 3.2 (phone 3.0) |
+| Activity rows (`ActivityRowDensity.cardDense`) | 26 px avatar, 10 px padding, 2-line title | 22 px avatar, 4 px padding, 1-line title |
+| Invoices & Quotes strip | `md` padding | the list's own `dense:` form, `sm` padding |
+| Invoices & Quotes table rows / column header | 10 / 10 vertical | 6 [10] / 4 |
+| Mini task calendar cells | 32 [38] | 26 [38] |
+| "Nothing booked this month" | its own line under the grid | beside the month in the nav row |
+| Wide list panels' rows (`DashboardListCard.preview` null) | 5 | 8 (`kDensePanelRows`); the lists already fetch 50, so no fetch changes. The phone keeps 3. |
+| Phone band with one tab and no sum | View All in a 44 px footer | View All on the tab's line (a `Wrap`, so a long locale drops it to its own line) |
+| Phone section gaps | `lg` | `sm` |
+
+**Changed for both densities in the same pass** (the designer's "cards in cards"
+proposals, signed off by Hillel):
+
+- Dashboard cards paint no shadow (`shadow1`): the 1 px border carries the edge. Inside
+  `DashboardScope` only — a record screen's profile cards and the edit forms keep theirs.
+- The needs-attention band has no outer title: it was a header stacked on the list headers
+  inside it. A `Semantics` label keeps the region named.
+- Count badges inside the band's tabs and the wrapped (dashboard) status strip are fill-only
+  (`SidebarBadge.bordered: false`); the rail and the entity lists' strip keep the hairline.
+- The dashboard table's first and last columns take the card's own inset (`lg`), so the
+  first column starts under the card title.
+
+Left alone: the top bar (it shares `InSizes.headerBand` with the sidebar), the setup
+checklist's content (a new account's first screen),
+and type sizes other than the figures'.
+
+`test/ui/features/dashboard/widgets/dashboard_density_test.dart` measures the rows (32
+pointer, 44 touch, 52 / 64 stacked), the inline figure caption, the figure floor growing
+at 2× text, and the shell staying unchanged outside `DashboardScope`; the band test pins
+the dropped title and the kept semantics label.
 
 ## Why it is built this way
 
@@ -114,9 +196,9 @@ The header band is out of scope, so cutting the card's horizontal inset would br
 alignment.
 
 **The status tabs take a `dense` parameter instead of reading the scope.** The dashboard's
-Invoices & Quotes panel uses the same widget in its `wrap: true` form, and the dashboard is
-out of scope. A parameter set only by the list scaffold keeps it that way, and keeps the
-widget presentational.
+Invoices & Quotes panel uses the same widget in its `wrap: true` form. Two callers set it —
+the list scaffold, and that panel through `dashboardDense` — and the lint pins both, which
+keeps the widget presentational and any other reuse at its own size.
 
 **Floors, never heights.** Every change is padding or a `minHeight`. A larger text scale,
 or a two-line tile, still grows the row instead of clipping it (CLAUDE.md § Design system,
@@ -127,9 +209,8 @@ rule 1).
 - **The header band (search row).** Its height is shared with the sidebar's company row
   across the seam (`InSizes.headerBand`).
 - **The embedded list toolbar.** It keeps its 16 / 16 gap.
-- **The dashboard.** That includes its `DashboardRecordRow` lists and the wrapped status
-  strip.
-- **Forms, the sidebar, and reports.**
+- **Forms, the sidebar, and reports.** That includes the edit forms that reuse
+  `DashboardCardShell` (`DashboardScope` is what keeps them out).
 - **The settings-hosted lists** (tax rates, payment terms, groups, users, …). They are
   `ListTile`s in a `FormSection` (`SettingsEntityListScaffold`), with no 72 px floor to
   remove.
@@ -144,8 +225,8 @@ rule 1).
   anything else — instead of `entityListRowHeight(context)` / `EntityListRowFloor`
 - `lib/main.dart` stops mounting `ListDensityScope` (a commented-out mount counts as
   missing)
-- any `EntityListStatusTabs(` call other than the list scaffold's passes `dense:`, which
-  is what keeps the dashboard strip out of scope
+- any `EntityListStatusTabs(` call other than the list scaffold's passes `dense:` — the
+  one exception is `billing_pipeline_card.dart`, and only as `dense: dashboardDense(…)`
 
 `test/ui/core/list/list_density_test.dart` measures the actual rows: 72 under Normal, 40
 with a pointer and 52 on touch under Compact. It also checks that a dense strip is 8 px

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/env.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/features/dashboard/widgets/dashboard_density.dart';
 import 'package:admin/ui/features/dashboard/view_models/async_section.dart';
 import 'package:admin/ui/features/dashboard/widgets/delta_chip.dart';
 
@@ -48,12 +49,9 @@ class _FigureSurface extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = context.inTheme;
-    final radius = BorderRadius.circular(InRadii.r3);
+    final radius = BorderRadius.circular(dashboardCardRadius(context));
     return DecoratedBox(
-      decoration: BoxDecoration(
-        borderRadius: radius,
-        boxShadow: tokens.shadow1,
-      ),
+      decoration: BoxDecoration(borderRadius: radius),
       child: Material(
         color: tokens.surface,
         clipBehavior: Clip.antiAlias,
@@ -278,10 +276,30 @@ class OutstandingFigureCard extends StatelessWidget {
     final tokens = context.inTheme;
     final label = context.tr('outstanding');
     final known = showsLoadedValue;
+    // Compact (`docs/list-density.md` § The dashboard): the caption joins the
+    // value's line, and the card's floor and vertical padding come down.
+    final dense = dashboardDense(context);
+    final captionText = known && caption != null
+        ? Text(
+            caption!,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: tokens.ink2),
+          )
+        : null;
+    final valueWidget = FigureValue(
+      state: state,
+      value: value,
+      fontSize: valueFontSize,
+    );
     final body = ConstrainedBox(
-      constraints: const BoxConstraints(minHeight: kFigureCardMinHeight),
+      constraints: BoxConstraints(
+        minHeight: dense ? kFigureCardMinHeightDense : kFigureCardMinHeight,
+      ),
       child: Padding(
-        padding: EdgeInsets.all(InSpacing.lg(context)),
+        padding: _figurePadding(context, dense: dense),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           // From the top, like the period cells beside it, so the captions of
@@ -300,18 +318,15 @@ class OutstandingFigureCard extends StatelessWidget {
                 _FigureRetry(state: state, onRetry: onRetry),
               ],
             ),
-            const SizedBox(height: 4),
-            FigureValue(state: state, value: value, fontSize: valueFontSize),
-            if (known && caption != null) ...[
-              const SizedBox(height: 2),
-              Text(
-                caption!,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(
-                  context,
-                ).textTheme.bodySmall?.copyWith(color: tokens.ink2),
-              ),
+            SizedBox(height: dense ? 2 : 4),
+            if (dense && captionText != null)
+              _InlineSubline(value: valueWidget, subline: captionText)
+            else ...[
+              valueWidget,
+              if (captionText != null) ...[
+                const SizedBox(height: 2),
+                captionText,
+              ],
             ],
           ],
         ),
@@ -346,6 +361,7 @@ class PeriodFiguresCard extends StatelessWidget {
     required this.figures,
     this.onRetry,
     this.valueFontSize = 22,
+    this.inlineDelta = true,
   });
 
   final ValueSectionState state;
@@ -354,12 +370,22 @@ class PeriodFiguresCard extends StatelessWidget {
   final VoidCallback? onRetry;
   final double valueFontSize;
 
+  /// Whether Compact may put each trend on its value's line. A phone's three
+  /// narrow cells cannot take it; they keep the trend on a line of its own
+  /// and give up only padding.
+  final bool inlineDelta;
+
   @override
   Widget build(BuildContext context) {
     final tokens = context.inTheme;
+    final dense = dashboardDense(context);
     return _FigureSurface(
       child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: kFigureCardMinHeight),
+        constraints: BoxConstraints(
+          minHeight: !dense
+              ? kFigureCardMinHeight
+              : (inlineDelta ? kFigureCardMinHeightDense : 72),
+        ),
         child: Stack(
           children: [
             IntrinsicHeight(
@@ -378,6 +404,7 @@ class PeriodFiguresCard extends StatelessWidget {
                         figure: figures[i],
                         state: state,
                         valueFontSize: valueFontSize,
+                        inlineDelta: inlineDelta,
                       ),
                     ),
                   ],
@@ -403,11 +430,13 @@ class _PeriodCell extends StatelessWidget {
     required this.figure,
     required this.state,
     required this.valueFontSize,
+    required this.inlineDelta,
   });
 
   final PeriodFigure figure;
   final ValueSectionState state;
   final double valueFontSize;
+  final bool inlineDelta;
 
   @override
   Widget build(BuildContext context) {
@@ -415,40 +444,38 @@ class _PeriodCell extends StatelessWidget {
         state == ValueSectionState.ready || state == ValueSectionState.stale;
     final delta = figure.deltaPercent;
     final onTap = known ? figure.onTap : null;
-    final body = Padding(
-      padding: EdgeInsets.all(InSpacing.lg(context)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Align(
-            alignment: AlignmentDirectional.centerStart,
-            child: _FigureCaption(label: figure.label, linked: onTap != null),
-          ),
-          const SizedBox(height: 4),
-          FigureValue(
-            state: state,
-            value: figure.value,
-            fontSize: valueFontSize,
-          ),
-          const SizedBox(height: 2),
-          // The line is kept even with no trend to draw, so the three cells
-          // put their values on one baseline.
-          SizedBox(
-            height: 18 * MediaQuery.textScalerOf(context).scale(1),
-            child: known && delta != null
-                ? Align(
-                    alignment: AlignmentDirectional.centerStart,
-                    child: DeltaChip(
-                      percent: delta,
-                      goodDirection: figure.goodDirection,
-                    ),
-                  )
-                : null,
-          ),
-        ],
-      ),
+    final dense = dashboardDense(context);
+    final valueWidget = FigureValue(
+      state: state,
+      value: figure.value,
+      fontSize: valueFontSize,
     );
+    final chip = known && delta != null
+        ? DeltaChip(percent: delta, goodDirection: figure.goodDirection)
+        : null;
+    final Widget body;
+    if (dense && inlineDelta) {
+      body = Padding(
+        padding: _figurePadding(context, dense: true),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: _FigureCaption(label: figure.label, linked: onTap != null),
+            ),
+            const SizedBox(height: 2),
+            if (chip == null)
+              valueWidget
+            else
+              _InlineSubline(value: valueWidget, subline: chip),
+          ],
+        ),
+      );
+    } else {
+      body = _stackedBody(context, onTap, valueWidget, chip, dense: dense);
+    }
     return Semantics(
       container: true,
       label: known
@@ -458,6 +485,49 @@ class _PeriodCell extends StatelessWidget {
       onTap: onTap,
       child: ExcludeSemantics(
         child: onTap == null ? body : InkWell(onTap: onTap, child: body),
+      ),
+    );
+  }
+
+  /// Caption, value and the trend on a line of its own — Normal everywhere,
+  /// and Compact in a phone's narrow cells.
+  Widget _stackedBody(
+    BuildContext context,
+    VoidCallback? onTap,
+    Widget valueWidget,
+    Widget? chip, {
+    required bool dense,
+  }) {
+    return Padding(
+      padding: dense
+          ? EdgeInsets.symmetric(
+              horizontal: InSpacing.lg(context),
+              vertical: InSpacing.sm,
+            )
+          : EdgeInsets.all(InSpacing.lg(context)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: _FigureCaption(label: figure.label, linked: onTap != null),
+          ),
+          const SizedBox(height: 4),
+          valueWidget,
+          const SizedBox(height: 2),
+          // The line is kept even with no trend to draw, so the three cells
+          // put their values on one baseline.
+          SizedBox(
+            height: 18 * MediaQuery.textScalerOf(context).scale(1),
+            child: chip == null
+                ? null
+                : Align(
+                    alignment: AlignmentDirectional.centerStart,
+                    child: chip,
+                  ),
+          ),
+        ],
       ),
     );
   }
@@ -482,3 +552,33 @@ class _PeriodCell extends StatelessWidget {
 /// zero, since the totals did load. (Before they load the cards draw a
 /// skeleton and never read this.)
 Decimal figureAmount(Decimal? amount) => amount ?? Decimal.zero;
+
+/// A figure card's padding: [InSpacing.lg] all round, or under Compact the
+/// same sides over `md` top and bottom.
+EdgeInsets _figurePadding(BuildContext context, {required bool dense}) => dense
+    ? EdgeInsets.symmetric(
+        horizontal: InSpacing.lg(context),
+        vertical: InSpacing.md(context),
+      )
+    : EdgeInsets.all(InSpacing.lg(context));
+
+/// Compact's one-line figure: the value, then its caption or trend beside it
+/// rather than under it ("\$57,905.00  17 unpaid"). The value keeps the room
+/// it needs and the subline ellipsises; both scale with the text size, so the
+/// card's floor is still a floor.
+class _InlineSubline extends StatelessWidget {
+  const _InlineSubline({required this.value, required this.subline});
+
+  final Widget value;
+  final Widget subline;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    crossAxisAlignment: CrossAxisAlignment.center,
+    children: [
+      Flexible(flex: 3, child: value),
+      const SizedBox(width: InSpacing.sm),
+      Flexible(flex: 2, child: subline),
+    ],
+  );
+}

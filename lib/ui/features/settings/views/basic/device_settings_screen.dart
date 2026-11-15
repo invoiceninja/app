@@ -54,7 +54,7 @@ import 'package:admin/utils/formatting.dart';
 const kDeviceSettingsAppearanceSearchKeys = <String>[
   'theme',
   'font_size',
-  'list_density',
+  'display_density',
   'customize_colors',
   ...kListStatusTabsSearchKeys,
   'show_seconds',
@@ -553,12 +553,14 @@ class _FontSizeRow extends StatelessWidget {
   }
 }
 
-/// Device-local list density (Normal / Compact) — how tightly entity lists
-/// pack their rows. Next to Font Size, the other "how much fits on screen"
-/// control; the same preference as the toggle beside a list's Columns button.
-/// Same shape as the theme rows above so the segments line up; the subtitle
-/// says what the setting is for, since the selected segment already says which
-/// one is on. See `docs/list-density.md`.
+/// Device-local density (Normal / Compact) — how tightly lists, record pages
+/// and the dashboard pack their content. Labelled "Density" rather than "List
+/// density" since it reaches past lists; the pref key and the `ListDensity*`
+/// names are historical. Next to Font Size, the other "how much fits on
+/// screen" control, and the same control the first-run Welcome offers. Same
+/// shape as the theme rows above so the segments line up; the subtitle says
+/// what the setting is for, since the selected segment already says which one
+/// is on. See `docs/list-density.md`.
 class _ListDensityRow extends StatelessWidget {
   const _ListDensityRow({required this.controller});
 
@@ -570,8 +572,8 @@ class _ListDensityRow extends StatelessWidget {
       valueListenable: controller,
       builder: (context, _, _) => SegmentedSettingRow(
         leading: const Icon(Icons.density_medium_outlined),
-        title: context.tr('list_density'),
-        subtitle: context.tr('list_density_help'),
+        title: context.tr('display_density'),
+        subtitle: context.tr('display_density_help'),
         control: SegmentedButton<bool>(
           showSelectedIcon: false,
           segments: [

@@ -43,6 +43,7 @@ import 'package:admin/ui/features/dashboard/widgets/chart_card.dart';
 import 'package:admin/ui/features/dashboard/widgets/configured_cards_grid.dart';
 import 'package:admin/ui/features/dashboard/widgets/dashboard_attention_slot.dart';
 import 'package:admin/ui/features/dashboard/widgets/dashboard_create_fab.dart';
+import 'package:admin/ui/features/dashboard/widgets/dashboard_density.dart';
 import 'package:admin/ui/features/dashboard/widgets/dashboard_mobile_app_bar.dart';
 import 'package:admin/ui/features/dashboard/widgets/dashboard_panel_grid.dart';
 import 'package:admin/ui/features/dashboard/widgets/dashboard_period_bar.dart';
@@ -963,7 +964,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final enabled = _enabledPanels();
     final showFigures = _showsFigures;
     final expensesOn = _moduleOn(EntityType.expense);
-    final zoneGap = const SizedBox(height: InSpacing.xl);
+    // Compact (`docs/list-density.md` § The dashboard): the zones close up
+    // to `md`, the page inset to `lg`, and the period controls sit right on
+    // the figures they govern.
+    final dense = dashboardDense(context);
+    final zoneSpace = dense ? InSpacing.md(context) : InSpacing.xl;
+    final groupSpace = dense ? InSpacing.md(context) : InSpacing.lg(context);
+    final zoneGap = SizedBox(height: zoneSpace);
     final children = <Widget>[
       // The setup checklist leads a new company; one child whether or not it
       // draws, like the band under it.
@@ -985,7 +992,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 !hidden.contains(DashboardKind.pastDue),
             compact: false,
             rowLimit: kAttentionRows,
-            gap: InSpacing.xl,
+            gap: zoneSpace,
             actions: _attentionActions(),
             failedSaves: _failedSaves,
             onReviewFailedSaves: () => _safeNavigate('/sync/outbox'),
@@ -1002,7 +1009,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           _vm.kpiListenable,
           () => DashboardPeriodBar(vm: _vm, formatter: formatter),
         ),
-        SizedBox(height: InSpacing.lg(context)),
+        SizedBox(height: dense ? InSpacing.sm : InSpacing.lg(context)),
         sectionListenable(
           Listenable.merge([_vm.kpiListenable, _vm.attentionListenable]),
           () => KpiRow(
@@ -1027,7 +1034,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _vm.dashboardCards.isEmpty
             ? const SizedBox.shrink()
             : Padding(
-                padding: EdgeInsets.only(top: InSpacing.lg(context)),
+                padding: EdgeInsets.only(top: groupSpace),
                 child: ConfiguredCardsGrid(
                   vm: _vm,
                   formatter: formatter,
@@ -1035,7 +1042,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   onOpenCard: _openConfiguredCard,
                 ),
               ),
-        SizedBox(height: InSpacing.lg(context)),
+        SizedBox(height: groupSpace),
       ],
       _chartAndActivity(context, width, formatter, showChart: showFigures),
       zoneGap,
@@ -1045,9 +1052,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
       zoneGap,
     ];
 
-    return ListView(
-      padding: const EdgeInsets.all(InSpacing.xl),
-      children: children,
+    return DashboardScope(
+      child: ListView(
+        padding: EdgeInsets.all(dense ? InSpacing.lg(context) : InSpacing.xl),
+        children: children,
+      ),
     );
   }
 
@@ -1074,13 +1083,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
       // two end on one line; stacked, it keeps its own proportions.
       () => ChartCard(vm: _vm, formatter: formatter, fillHeight: sideBySide),
     );
+    final gutter = dashboardDense(context)
+        ? InSpacing.md(context)
+        : InSpacing.lg(context);
     if (sideBySide) {
       return IntrinsicHeight(
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Expanded(flex: 17, child: chart),
-            SizedBox(width: InSpacing.lg(context)),
+            SizedBox(width: gutter),
             Expanded(
               flex: 10,
               child: DashboardPanelCell(stretched: true, child: activity),
@@ -1092,7 +1104,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Column(
       children: [
         chart,
-        SizedBox(height: InSpacing.lg(context)),
+        SizedBox(height: gutter),
         activity,
       ],
     );
@@ -1228,7 +1240,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
         builders: builders,
         hidden: hidden,
         columns: width >= kDashboardTwoColumnPane ? 2 : 1,
-        gap: InSpacing.lg(context),
+        gap: dashboardDense(context)
+            ? InSpacing.md(context)
+            : InSpacing.lg(context),
         onShowPanels: () => openManageDashboardCards(
           context,
           vm: _vm,

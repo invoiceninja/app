@@ -7,6 +7,7 @@ import 'package:admin/ui/features/activity/activity_deep_link.dart';
 import 'package:admin/ui/features/activity/widgets/activity_feed_row.dart';
 import 'package:admin/ui/features/dashboard/helpers/activity_formatter.dart';
 import 'package:admin/ui/features/dashboard/view_models/async_section.dart';
+import 'package:admin/ui/features/dashboard/widgets/dashboard_density.dart';
 import 'package:admin/ui/features/dashboard/widgets/card_shell.dart';
 import 'package:admin/ui/features/dashboard/widgets/dashboard_panel_grid.dart';
 import 'package:admin/ui/features/dashboard/widgets/list_card.dart';
@@ -68,7 +69,11 @@ class ActivityCard extends StatelessWidget {
       case ListSectionState.failed:
         return DashboardPanelError(onRetry: onRetry);
       case ListSectionState.loading:
-        return const ActivityFeedSkeleton();
+        return ActivityFeedSkeleton(
+          density: dashboardDense(context)
+              ? ActivityRowDensity.cardDense
+              : ActivityRowDensity.card,
+        );
       case ListSectionState.empty:
         return DashboardPanelMessage(title: context.tr('no_activity_yet'));
       case ListSectionState.rows:
@@ -80,7 +85,7 @@ class ActivityCard extends StatelessWidget {
     return Column(
       children: [
         for (var i = 0; i < visible.length; i++) ...[
-          _row(formatter, visible[i]),
+          _row(context, formatter, visible[i]),
           if (i != visible.length - 1)
             Divider(height: 1, thickness: 1, color: tokens.border),
         ],
@@ -90,12 +95,18 @@ class ActivityCard extends StatelessWidget {
 
   /// A row is only a navigation target when the activity references an entity;
   /// [ActivityFeedRow] renders the rest inert rather than as a dead tap.
-  Widget _row(ActivityFormatter formatter, DashboardActivity a) {
+  Widget _row(
+    BuildContext context,
+    ActivityFormatter formatter,
+    DashboardActivity a,
+  ) {
     final render = formatter.format(a);
     return ActivityFeedRow(
       render: render,
       meta: render.meta,
-      density: ActivityRowDensity.card,
+      density: dashboardDense(context)
+          ? ActivityRowDensity.cardDense
+          : ActivityRowDensity.card,
       onTap: activityDeepLinkTarget(a) == null ? null : () => onActivityTap(a),
     );
   }

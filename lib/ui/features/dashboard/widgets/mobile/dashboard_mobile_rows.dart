@@ -12,6 +12,7 @@ import 'package:admin/ui/features/invoices/widgets/invoice_status_pill.dart';
 import 'package:admin/ui/features/quotes/widgets/quote_status_pill.dart';
 import 'package:admin/utils/formatting.dart';
 import 'package:admin/ui/core/widgets/ltr_value.dart';
+import 'package:admin/ui/features/dashboard/widgets/dashboard_density.dart';
 
 /// The narrow layout's row for the Invoices & Quotes panel:
 ///
@@ -114,7 +115,11 @@ class _RowShell extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+        // Compact closes the row to ~52 (`docs/list-density.md` § The
+        // dashboard); the whole row is the target, so it stays above 44.
+        padding: dashboardDense(context)
+            ? const EdgeInsets.fromLTRB(14, 6, 14, 6)
+            : const EdgeInsets.fromLTRB(14, 12, 14, 12),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

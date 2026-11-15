@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import 'package:admin/app/design_tokens.dart';
+import 'package:admin/app/env.dart';
 import 'package:admin/app/router.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/domain/dashboard/billing_status_tabs.dart';
@@ -17,6 +18,7 @@ import 'package:admin/ui/core/list/entity_list_status_tabs.dart';
 import 'package:admin/ui/features/dashboard/view_models/billing_pipeline_view_model.dart';
 import 'package:admin/ui/features/dashboard/widgets/billing_pipeline_table.dart';
 import 'package:admin/ui/features/dashboard/widgets/card_shell.dart';
+import 'package:admin/ui/features/dashboard/widgets/dashboard_density.dart';
 import 'package:admin/ui/features/dashboard/widgets/list_card_skeleton.dart';
 import 'package:admin/ui/features/dashboard/widgets/mobile/dashboard_mobile_rows.dart';
 import 'package:admin/utils/formatting.dart';
@@ -303,11 +305,14 @@ class _DashboardBillingPipelineCardState
         if (match != null) _onTapTab(match);
       },
       wrap: true,
+      // Compact takes the list strip's own dense form, and the padding
+      // around it closes up to match (`docs/list-density.md` § The dashboard).
+      dense: dashboardDense(context),
       contentPadding: EdgeInsetsDirectional.fromSTEB(
         InSpacing.lg(context),
-        InSpacing.md(context),
+        dashboardDense(context) ? InSpacing.sm : InSpacing.md(context),
         InSpacing.lg(context),
-        InSpacing.md(context),
+        dashboardDense(context) ? InSpacing.sm : InSpacing.md(context),
       ),
     );
   }
@@ -375,15 +380,20 @@ class _DashboardBillingPipelineCardState
     // (`_MultiColumnGrid` stretches each row to its tallest cell), and on
     // mobile everything below it slides.
     return ConstrainedBox(
-      constraints: BoxConstraints(minHeight: _rowLimit * _rowHeight),
+      constraints: BoxConstraints(minHeight: _rowLimit * _rowHeight(context)),
       child: _bodyContent(context, rows, showType),
     );
   }
 
   /// Measured height of one rendered row per layout — the narrow shell is
   /// number+pill over the client name (~63), the wide table a single line of
-  /// cells at 10 px vertical padding (~44).
-  double get _rowHeight => widget.narrow ? 63 : 44;
+  /// cells at 10 px vertical padding (~44). Compact: 52 narrow, and 32 wide
+  /// with a pointer (6 px padding; touch keeps 10).
+  double _rowHeight(BuildContext context) {
+    if (!dashboardDense(context)) return widget.narrow ? 63 : 44;
+    if (widget.narrow) return 52;
+    return Env.isTouchPrimary ? 44 : 32;
+  }
 
   Widget _bodyContent(
     BuildContext context,

@@ -128,6 +128,22 @@ The first child of both dashboard bodies, above the needs-attention band — and
 
 **Its buttons have their own keys** (`setup_finish`, `setup_back`, `setup_change`, `welcome_lets_go`, `checklist_retry`): several shared Transifex keys render wrong on these first screens (es `lets_go` reads "Sign in", ja `finish_setup` "setup has completed"), and an overlay cannot replace a real — if wrong — bundle translation.
 
+## The density choice
+
+The Welcome offers the Normal / Compact density (docs/list-density.md) as a control, **Fit more on screen** (`_DensityChoice` in `welcome_dialog.dart`). It came from a forum thread: a law firm moving from the previous app found 5.1 too loose on a desktop, and the setting that answers it was buried in Device Settings.
+
+| Welcome | Pointer (desktop, web with a mouse) | Touch (phone, tablet) |
+|---|---|---|
+| What's changed | yes | yes |
+| Get started | yes | no |
+
+- **Who** is `welcomeOffersDensity` (`welcome_content.dart`), pure and table-tested. Every pointer user, not only the detected ones: previous-app detection is a guess (step 3 above), so most of those users land on Get started, and density is a desktop complaint. Touch gets it only on What's changed: the touch layout is the tuned default and the sheet is already tall, but someone known to come from the previous app had its denser rows on their phone too, and the preference is per device.
+- **It takes a row's place** (`welcomeRowLimit`): the lists show two highlights when it shows, so the Welcome still shows three things and one button. On What's changed it sits under the data callout (the previous-app user's second question); on Get started it closes the list.
+- **A tap applies it, nothing else does.** The same segments and controller as Device Settings → Density. The screen behind the Welcome is the preview: `ListDensityScope` sits above the router's Navigator, so the dashboard reflows around the dialog. A tap neither closes the Welcome nor counts as reading it, and the arm guard covers it like every other control. Nothing is pre-applied: a silent layout change on a guess is a worse first impression than one tap.
+- **The controller is read by the opener** (`showWelcomeDialog`) and handed to `WelcomeCard`: the Welcome's route is on the root navigator, which can sit above where `Services` is provided. With none (a harness), the choice is left out and the lists keep three rows.
+- **Layout.** In the dialog the control sits at the row's end, wrapping under the text below 460 px of row or above 1.3x text. In the sheet it is under the text, full width, at 44 px.
+- Existing 5.1 users, who will not see the Welcome again, hear about it through the release notes instead.
+
 ## Motion and haptics
 
 The wizard, the checklist and the Welcome are the first surfaces built on `InMotion` and `InHaptics`; the rule, the tokens and their motion table are in docs/motion-and-haptics.md.

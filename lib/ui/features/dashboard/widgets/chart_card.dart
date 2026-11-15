@@ -15,6 +15,7 @@ import 'package:admin/ui/features/dashboard/helpers/totals_math.dart';
 import 'package:admin/ui/features/dashboard/view_models/async_section.dart';
 import 'package:admin/ui/features/dashboard/view_models/dashboard_view_model.dart';
 import 'package:admin/ui/core/widgets/ltr_value.dart';
+import 'package:admin/ui/features/dashboard/widgets/dashboard_density.dart';
 
 /// Floor of the plot's height when it fills its card rather than keeping an
 /// aspect ratio — what the card asks for when the row's other card is shorter.
@@ -45,10 +46,15 @@ class ChartCard extends StatelessWidget {
     required this.vm,
     required this.formatter,
     this.fillHeight = false,
+    this.legendMayJoinHeader = true,
   });
 
   final DashboardViewModel vm;
   final Formatter formatter;
+
+  /// Whether Compact may move the legend into the header row. The phone body
+  /// passes false: its header has room for the title and the grouping only.
+  final bool legendMayJoinHeader;
 
   /// Take the height the parent gives (it must be bounded) instead of sizing
   /// the plot by aspect ratio.
@@ -93,17 +99,24 @@ class ChartCard extends StatelessWidget {
       ),
     };
 
+    // Compact (`docs/list-density.md` § The dashboard): on the wide layout the
+    // legend joins the header row, and the plot gives up some of its floor.
+    // A phone keeps the legend in the body — its header has no room.
+    final dense = dashboardDense(context);
+    final legendInHeader = dense && legendMayJoinHeader;
     final body = Padding(
       padding: EdgeInsets.symmetric(
         horizontal: InSpacing.lg(context),
-        vertical: InSpacing.md(context),
+        vertical: dense ? InSpacing.sm : InSpacing.md(context),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: fillHeight ? MainAxisSize.max : MainAxisSize.min,
         children: [
-          _legend(context, tokens),
-          const SizedBox(height: 8),
+          if (!legendInHeader) ...[
+            _legend(context, tokens),
+            const SizedBox(height: 8),
+          ],
           if (fillHeight)
             // The plot is a POSITIONED child, and that is load-bearing. The
             // host lays this card out beside the activity feed with
@@ -117,8 +130,10 @@ class ChartCard extends StatelessWidget {
             Expanded(
               child: Stack(
                 children: [
-                  const SizedBox(
-                    height: kChartMinPlotHeight,
+                  SizedBox(
+                    height: dense
+                        ? kChartMinPlotHeightDense
+                        : kChartMinPlotHeight,
                     width: double.infinity,
                   ),
                   Positioned.fill(child: plot),
@@ -126,7 +141,10 @@ class ChartCard extends StatelessWidget {
               ),
             )
           else
-            AspectRatio(aspectRatio: 2.4, child: plot),
+            AspectRatio(
+              aspectRatio: !dense ? 2.4 : (legendMayJoinHeader ? 3.2 : 3.0),
+              child: plot,
+            ),
         ],
       ),
     );
@@ -138,9 +156,8 @@ class ChartCard extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: tokens.surface,
-        borderRadius: BorderRadius.circular(InRadii.r3),
+        borderRadius: BorderRadius.circular(dashboardCardRadius(context)),
         border: Border.all(color: tokens.border),
-        boxShadow: tokens.shadow1,
       ),
       child: Material(
         type: MaterialType.transparency,
@@ -148,7 +165,13 @@ class ChartCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: fillHeight ? MainAxisSize.max : MainAxisSize.min,
           children: [
-            _header(context, tokens, series, axis),
+            _header(
+              context,
+              tokens,
+              series,
+              axis,
+              legendInHeader: legendInHeader,
+            ),
             Divider(height: 1, thickness: 1, color: tokens.border),
             if (fillHeight) Expanded(child: body) else body,
           ],
@@ -161,26 +184,36 @@ class ChartCard extends StatelessWidget {
     BuildContext context,
     InTheme tokens,
     DashboardChartSeries? series,
-    ChartAxis axis,
-  ) {
+    ChartAxis axis, {
+    required bool legendInHeader,
+  }) {
+    final vertical = legendInHeader ? InSpacing.sm : InSpacing.md(context);
+    final title = Text(
+      context.tr('overview'),
+      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+        color: tokens.ink,
+        fontWeight: FontWeight.w600,
+      ),
+    );
     return Padding(
       padding: EdgeInsets.fromLTRB(
         InSpacing.lg(context),
-        InSpacing.md(context),
+        vertical,
         InSpacing.lg(context),
-        InSpacing.md(context),
+        vertical,
       ),
       child: Row(
         children: [
-          Expanded(
-            child: Text(
-              context.tr('overview'),
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                color: tokens.ink,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
+          if (legendInHeader) ...[
+            title,
+            SizedBox(width: InSpacing.md(context)),
+            // A `Wrap`, which answers an intrinsic height for its width, so a
+            // narrow card wraps the legend to two lines inside the header
+            // rather than overflowing — and the `IntrinsicHeight` row this card
+            // sits in can still measure it.
+            Expanded(child: _legend(context, tokens)),
+          ] else
+            Expanded(child: title),
           const SizedBox(width: 8),
           _groupingControl(context, series, axis),
         ],
@@ -525,8 +558,13 @@ class _RevenueLineChartState extends State<_RevenueLineChart> {
     // plot. On a phone that clipped the opening date ("01/Aug/2026" rendered as
     // "1/Aug/2026") and pushed the closing one under the right-hand value axis.
     // `fromTitleMeta` clamps both back inside the axis box.
+    //
+    // `space: 4`, not the default 8: the axis reserves 18 px, and 8 plus a
+    // 10 px label's ~13 px line box cut the dates' descenders off at the
+    // card's edge.
     return SideTitleWidget(
       meta: meta,
+      space: 4,
       fitInside: SideTitleFitInsideData.fromTitleMeta(meta),
       child: Text(
         widget.formatter.date(buckets[idx].toIso()),

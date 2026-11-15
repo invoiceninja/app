@@ -258,6 +258,17 @@ List<ReleaseNotes> releasesToShow({
 
 const List<ReleaseNotes> kReleaseNotes = [
   ReleaseNotes(
+    version: '5.1.26',
+    items: [
+      ReleaseNoteItem(
+        'Updated: Compact density now covers the dashboard too: fewer gaps, '
+        'figures on one line and more rows on the first screen. The setting '
+        'is now called Density (Device Settings > Appearance), and it is also '
+        "in the dashboard's Customize panel.",
+      ),
+    ],
+  ),
+  ReleaseNotes(
     version: '5.1.25',
     highlights: [
       ReleaseHighlight(

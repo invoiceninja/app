@@ -18,7 +18,7 @@ class UpcomingRecurringInvoicesCard extends StatelessWidget {
     required this.onRecurringTap,
     required this.onViewAll,
     required this.onRetry,
-    this.preview = 5,
+    this.preview,
   });
 
   final AsyncSection<List<DashboardRecurringInvoiceRow>> section;
@@ -29,7 +29,7 @@ class UpcomingRecurringInvoicesCard extends StatelessWidget {
   final void Function(DashboardRecurringInvoiceRow) onRecurringTap;
   final VoidCallback onViewAll;
   final VoidCallback onRetry;
-  final int preview;
+  final int? preview;
 
   @override
   Widget build(BuildContext context) {

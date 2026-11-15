@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/env.dart';
+import 'package:admin/app/list_density_controller.dart';
 import 'package:admin/app/resync_controller.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/app/shortcuts/keyboard_shortcuts_controller.dart';
@@ -73,11 +74,21 @@ Future<WelcomeResult?> showWelcomeDialog(
   required WelcomeKind kind,
   VoidCallback? onSwipeClosed,
 }) {
-  final session = context.read<Services>().auth.session.value;
+  final services = context.read<Services>();
+  final session = services.auth.session.value;
   final surfaces = currentReleaseNoteSurfaces();
+  // Read here, from the opener: the Welcome's route sits on the root
+  // navigator, which may be above where Services is provided.
+  ListDensityController? density;
+  try {
+    density = services.listDensity;
+  } catch (_) {
+    density = null;
+  }
   Widget card(bool sheet) => WelcomeCard(
     initialList: welcomeListFor(kind),
     session: session,
+    density: density,
     surfaces: surfaces,
     reachable: (a) => welcomeActionReachable(session, a),
     asSheet: sheet,
@@ -206,7 +217,13 @@ class WelcomeCard extends StatefulWidget {
     required this.reachable,
     this.asSheet = false,
     this.onSwipeClosed,
+    this.density,
   });
+
+  /// The device's density preference, which the Welcome offers to set. Null
+  /// where there is none (a harness): the choice is then left out and the
+  /// lists keep their three rows.
+  final ListDensityController? density;
 
   /// A swipe down closed the sheet — deliberate, unlike a teardown, though
   /// both pop it with no result.
@@ -300,14 +317,26 @@ class _WelcomeCardState extends State<WelcomeCard> {
     final narrow = MediaQuery.sizeOf(context).shortestSide < kWelcomeSheetBelow;
     final hPad = narrow ? InSpacing.lg(context) + 4 : InSpacing.xl;
 
+    final density = widget.density;
+    final whatsChanged = _list == WelcomeList.whatsChanged;
+    final offersDensity =
+        density != null &&
+        welcomeOffersDensity(whatsChanged: whatsChanged, touch: _touch);
     final items = visibleWelcomeItems(
-      _list == WelcomeList.getStarted
-          ? kWelcomeGetStarted
-          : kWelcomeWhatsChanged,
+      whatsChanged ? kWelcomeWhatsChanged : kWelcomeGetStarted,
       surfaces: widget.surfaces,
       reachable: widget.reachable,
       touch: _touch,
+      limit: welcomeRowLimit(offersDensity: offersDensity),
     );
+    final densityChoice = offersDensity
+        ? _DensityChoice(
+            controller: density,
+            whatsChanged: whatsChanged,
+            sheet: narrow,
+            guard: _guard,
+          )
+        : null;
 
     final body = SingleChildScrollView(
       controller: _scroll,
@@ -336,12 +365,22 @@ class _WelcomeCardState extends State<WelcomeCard> {
                 key: ValueKey(_list),
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  if (_list == WelcomeList.whatsChanged) ...[
+                  if (whatsChanged) ...[
                     _DataCallout(session: widget.session),
                     SizedBox(height: InSpacing.lg(context)),
+                    // The previous-app user's second question, right after
+                    // "is my data here?": can it look the way it used to.
+                    if (densityChoice != null) ...[
+                      densityChoice,
+                      const SizedBox(height: InSpacing.sm),
+                    ],
                   ],
                   for (final item in items) _row(context, item),
-                  if (_list == WelcomeList.whatsChanged) _cantFind(context),
+                  // A newcomer's closing "make it yours" note, not the
+                  // first thing they read.
+                  // In the rows' own rhythm: no extra gap above it.
+                  if (!whatsChanged && densityChoice != null) densityChoice,
+                  if (whatsChanged) _cantFind(context),
                 ],
               ),
             ),
@@ -764,6 +803,158 @@ class _DataCallout extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// "Fit more on screen" — the Normal / Compact choice, applied on tap
+/// (docs/first-run-welcome.md § The density choice).
+///
+/// A control, not a [WelcomeItem]: those leave the Welcome, this stays. The
+/// same segments as Device Settings' Density row, over the same controller,
+/// so whoever later goes looking finds the identical control there. The
+/// preview is the screen behind the Welcome: `ListDensityScope` sits above the
+/// router's Navigator, so a tap reflows it around the dialog. A tap neither
+/// closes the Welcome nor counts as reading it, and nothing changes until one
+/// — a silent switch on a guess about who came from the previous app would be
+/// a confusing first impression.
+class _DensityChoice extends StatelessWidget {
+  const _DensityChoice({
+    required this.controller,
+    required this.whatsChanged,
+    required this.sheet,
+    required this.guard,
+  });
+
+  final ListDensityController controller;
+  final bool whatsChanged;
+
+  /// The bottom sheet: the control drops under the text, full width, at a
+  /// thumb's height.
+  final bool sheet;
+
+  /// The card's half-second arm guard — the Welcome opens on its own, often
+  /// under a pointer mid-click.
+  final VoidCallback Function(VoidCallback action) guard;
+
+  /// The narrowest row that still holds the text beside the control; below
+  /// it (a long locale, a large text size) the control wraps under the text.
+  static const double _kInlineMinWidth = 460;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.inTheme;
+    final title = context.tr('welcome_density_title');
+    final text = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: TextStyle(
+            fontSize: 14,
+            height: 1.35,
+            fontWeight: FontWeight.w600,
+            color: tokens.ink,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          context.tr(
+            whatsChanged
+                ? 'welcome_density_body_old_app'
+                : 'welcome_density_body',
+          ),
+          style: TextStyle(fontSize: 13, height: 1.4, color: tokens.ink3),
+        ),
+      ],
+    );
+    final tile = Container(
+      width: 36,
+      height: 36,
+      decoration: BoxDecoration(
+        color: tokens.accentSoft,
+        borderRadius: BorderRadius.circular(InRadii.r2),
+      ),
+      child: Icon(
+        Icons.density_medium_outlined,
+        size: 20,
+        color: tokens.accentInk,
+      ),
+    );
+    final gap = InSpacing.md(context);
+    return Semantics(
+      container: true,
+      explicitChildNodes: true,
+      child: Padding(
+        padding: const EdgeInsets.all(InSpacing.sm),
+        child: ValueListenableBuilder<String>(
+          valueListenable: controller,
+          builder: (context, _, _) => LayoutBuilder(
+            builder: (context, constraints) {
+              final inline =
+                  !sheet &&
+                  constraints.maxWidth >= _kInlineMinWidth &&
+                  MediaQuery.textScalerOf(context).scale(1) <= 1.3;
+              final control = _control(context, fill: !inline);
+              if (inline) {
+                return Row(
+                  children: [
+                    tile,
+                    SizedBox(width: gap),
+                    Expanded(child: text),
+                    SizedBox(width: gap),
+                    control,
+                  ],
+                );
+              }
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  tile,
+                  SizedBox(width: gap),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        text,
+                        const SizedBox(height: InSpacing.sm),
+                        control,
+                      ],
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _control(BuildContext context, {required bool fill}) {
+    final touch = Env.isTouchPrimary;
+    return SegmentedButton<bool>(
+      key: const ValueKey('welcome_density'),
+      showSelectedIcon: false,
+      // The desktop theme is compact; on a finger the segments keep 44.
+      style: touch || sheet
+          ? const ButtonStyle(
+              visualDensity: VisualDensity.standard,
+              minimumSize: WidgetStatePropertyAll(Size(0, InSizes.touchTarget)),
+            )
+          : null,
+      expandedInsets: fill ? EdgeInsets.zero : null,
+      segments: [
+        ButtonSegment(value: false, label: Text(context.tr('normal'))),
+        ButtonSegment(value: true, label: Text(context.tr('compact'))),
+      ],
+      // Derived from `isCompact`, so a stored value this build doesn't know
+      // still selects a segment (Normal) rather than none.
+      selected: {controller.isCompact},
+      onSelectionChanged: (s) => guard(() {
+        unawaited(InHaptics.selection());
+        unawaited(controller.setCompact(s.first));
+      })(),
     );
   }
 }

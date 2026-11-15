@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:admin/app/design_tokens.dart';
+import 'package:admin/app/env.dart';
 import 'package:admin/data/models/domain/dashboard/dashboard_activity.dart';
 import 'package:admin/ui/features/dashboard/helpers/activity_formatter.dart';
 import 'package:admin/utils/formatting.dart';
@@ -60,6 +61,12 @@ enum ActivityRowDensity {
   /// The dashboard card's compact row — 26 px circle, 12.5/11 px text.
   card,
 
+  /// [card] under the Compact density preference (`docs/list-density.md`
+  /// § The dashboard): a 22 px circle, 4 px vertical padding and a one-line
+  /// title. The row deep-links to the record and the full feed is one tap
+  /// away, so the clamp costs nothing that cannot be reached.
+  cardDense,
+
   /// Full-page / detail-section row — 28 px rounded square, body text styles.
   page,
 }
@@ -98,7 +105,8 @@ class ActivityFeedRow extends StatelessWidget {
   /// Null → the row is not a navigation target and must not look like one.
   final VoidCallback? onTap;
 
-  bool get _isCard => density == ActivityRowDensity.card;
+  bool get _isCard => density != ActivityRowDensity.page;
+  bool get _isDense => density == ActivityRowDensity.cardDense;
 
   @override
   Widget build(BuildContext context) {
@@ -106,10 +114,10 @@ class ActivityFeedRow extends StatelessWidget {
     final theme = Theme.of(context);
     final (bg, fg) = activityToneColors(tokens, render.tone);
 
-    final avatarSize = _isCard ? 26.0 : 28.0;
+    final avatarSize = _isDense ? 22.0 : (_isCard ? 26.0 : 28.0);
     final padded = Padding(
       padding: _isCard
-          ? const EdgeInsets.symmetric(vertical: 10, horizontal: 4)
+          ? EdgeInsets.symmetric(vertical: _isDense ? 4 : 10, horizontal: 4)
           : const EdgeInsets.symmetric(vertical: InSpacing.sm),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -123,7 +131,11 @@ class ActivityFeedRow extends StatelessWidget {
               shape: _isCard ? BoxShape.circle : BoxShape.rectangle,
               borderRadius: _isCard ? null : BorderRadius.circular(InRadii.r2),
             ),
-            child: Icon(render.icon, size: _isCard ? 14 : 16, color: fg),
+            child: Icon(
+              render.icon,
+              size: _isDense ? 12 : (_isCard ? 14 : 16),
+              color: fg,
+            ),
           ),
           SizedBox(width: _isCard ? 10 : InSpacing.md(context)),
           Expanded(
@@ -141,7 +153,7 @@ class ActivityFeedRow extends StatelessWidget {
                   // to six lines (`add_comment_dialog.dart`), the row's tap
                   // deep-links to the *entity* rather than to the note, and
                   // there is no other place on those screens to read the rest.
-                  maxLines: _isCard ? 2 : null,
+                  maxLines: _isDense ? 1 : (_isCard ? 2 : null),
                   overflow: _isCard ? TextOverflow.ellipsis : null,
                   style: _isCard
                       ? TextStyle(
@@ -172,8 +184,21 @@ class ActivityFeedRow extends StatelessWidget {
         ],
       ),
     );
+    // The dense card row is ~42 px with 4 px padding; on touch it keeps the
+    // 44 px target.
+    final floored = _isDense && Env.isTouchPrimary
+        ? ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: InSizes.touchTarget),
+            child: Align(
+              alignment: AlignmentDirectional.centerStart,
+              widthFactor: 1,
+              heightFactor: 1,
+              child: padded,
+            ),
+          )
+        : padded;
     final content = spine == ActivityFeedSpine.none || _isCard
-        ? padded
+        ? floored
         : Stack(
             children: [
               PositionedDirectional(
@@ -241,12 +266,13 @@ class ActivityFeedSkeleton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = context.inTheme;
-    final isCard = density == ActivityRowDensity.card;
-    final avatarSize = isCard ? 26.0 : 28.0;
+    final isCard = density != ActivityRowDensity.page;
+    final isDense = density == ActivityRowDensity.cardDense;
+    final avatarSize = isDense ? 22.0 : (isCard ? 26.0 : 28.0);
     return Column(
       children: List.generate(count, (i) {
         return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 10),
+          padding: EdgeInsets.symmetric(vertical: isDense ? 4 : 10),
           child: Row(
             children: [
               Container(

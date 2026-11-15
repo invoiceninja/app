@@ -97,6 +97,23 @@ class WelcomeItem {
 /// and one button.
 const int kWelcomeMaxRows = 3;
 
+/// Whether the Welcome offers the Normal / Compact density choice
+/// (docs/first-run-welcome.md § The density choice).
+///
+/// Always on What's changed: someone who came from the previous app had its
+/// denser layout on every device, and the preference is per device. On Get
+/// started only where the pointer is not a finger: previous-app detection is a
+/// guess, so most of those users land here, and density is a desktop
+/// complaint — while a phone's touch layout is the tuned default and its sheet
+/// is already tall.
+bool welcomeOffersDensity({required bool whatsChanged, required bool touch}) =>
+    whatsChanged || !touch;
+
+/// How many highlight rows a list shows beside the density choice: one fewer,
+/// so the Welcome still shows three things and one button.
+int welcomeRowLimit({required bool offersDensity}) =>
+    offersDensity ? kWelcomeMaxRows - 1 : kWelcomeMaxRows;
+
 /// Get started — how this app works, for someone who already invoices.
 const List<WelcomeItem> kWelcomeGetStarted = [
   WelcomeItem(

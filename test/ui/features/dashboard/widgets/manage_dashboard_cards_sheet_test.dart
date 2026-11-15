@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 
 import 'package:admin/app/design_tokens.dart';
+import 'package:admin/app/list_density_controller.dart';
 import 'package:admin/app/hide_empty_panels_controller.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/app/theme.dart';
@@ -42,15 +43,18 @@ class _FakeAuth implements AuthRepository {
       throw UnimplementedError(invocation.memberName.toString());
 }
 
-/// Only `auth.session` (it flags module-disabled rows) and `hideEmptyPanels`
-/// (the footer switch and the "Hidden while empty" caption) are reachable from
-/// the Panels tab; everything else falls through to [noSuchMethod].
+/// Only `auth.session` (it flags module-disabled rows), `hideEmptyPanels`
+/// (the footer switch and the "Hidden while empty" caption) and `listDensity`
+/// (the footer's Density control) are reachable from the Panels tab;
+/// everything else falls through to [noSuchMethod].
 class _FakeServices implements Services {
-  _FakeServices(this.auth, this.hideEmptyPanels);
+  _FakeServices(this.auth, this.hideEmptyPanels, this.listDensity);
   @override
   final AuthRepository auth;
   @override
   final HideEmptyPanelsController hideEmptyPanels;
+  @override
+  final ListDensityController listDensity;
   @override
   dynamic noSuchMethod(Invocation invocation) =>
       throw UnimplementedError(invocation.memberName.toString());
@@ -81,6 +85,7 @@ void main() {
   late FakeDashboardRepo repo;
   late DashboardViewModel vm;
   late HideEmptyPanelsController pref;
+  late ListDensityController density;
 
   setUp(() async {
     db = AppDatabase(NativeDatabase.memory());
@@ -88,6 +93,7 @@ void main() {
     // Automatic. This harness's window is not a phone (see `openPanels`), so
     // automatic resolves to off here.
     pref = HideEmptyPanelsController(prefs: DevicePrefsStore(db));
+    density = ListDensityController(prefs: DevicePrefsStore(db));
     vm = DashboardViewModel(
       repo: repo,
       companyId: 'co',
@@ -106,6 +112,7 @@ void main() {
   tearDown(() async {
     vm.dispose();
     pref.dispose();
+    density.dispose();
     await db.close();
   });
 
@@ -136,6 +143,7 @@ void main() {
         value: _FakeServices(
           _FakeAuth(ValueNotifier(_session(enabledModules: enabledModules))),
           pref,
+          density,
         ),
         child: MaterialApp(
           localizationsDelegates: kTestLocalizationsDelegates,
@@ -197,6 +205,62 @@ void main() {
 
     expect(find.byIcon(Icons.push_pin_outlined), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  // The second door to the Density preference (docs/list-density.md § Where
+  // the setting lives): someone who finds the dashboard too loose reaches for
+  // Customize, not Settings.
+  group('Density', () {
+    final control = find.byKey(const ValueKey('customize_density'));
+
+    /// The control closes a lazily built list, so scroll the list to it.
+    Future<void> reach(WidgetTester tester) async {
+      await tester.scrollUntilVisible(
+        control,
+        120,
+        scrollable: find
+            .descendant(
+              of: find.byType(ReorderableListView),
+              matching: find.byType(Scrollable),
+            )
+            .first,
+      );
+      await tester.pump();
+    }
+
+    testWidgets('closes the panel list and flips the preference', (
+      tester,
+    ) async {
+      await openPanels(tester);
+      await reach(tester);
+      expect(control, findsOneWidget);
+      expect(density.isCompact, isFalse);
+
+      await tester.tap(
+        find.descendant(of: control, matching: find.text('Compact')),
+      );
+      await tester.pump();
+      expect(density.isCompact, isTrue);
+      // A device preference, not a panel edit: Reset stays disabled.
+      expect(vm.panelsAreDefault, isTrue);
+    });
+
+    testWidgets('keeps a 44 px target on a phone', (tester) async {
+      await openPanels(tester, phone: const Size(390, 844));
+      await reach(tester);
+      expect(
+        tester.getSize(control).height,
+        greaterThanOrEqualTo(InSizes.touchTarget),
+      );
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('fits at 2x text on a phone', (tester) async {
+      await openPanels(tester, phone: const Size(390, 844), textScale: 2);
+      await reach(tester);
+      expect(control, findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
   });
 
   // invoiceninja/flutter#161. The switch shares the footer's single run with

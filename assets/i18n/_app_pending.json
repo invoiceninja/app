@@ -616,8 +616,8 @@
   "link_other_server": "This link is for a different Invoice Ninja server",
   "linked_payment": "Linked payment",
   "list": "List",
-  "list_density": "List density",
-  "list_density_help": "Compact fits more rows on screen",
+  "display_density": "Density",
+  "display_density_help": "Compact fits more on screen, including the dashboard",
   "lists": "Lists",
   "live": "Live",
   "load_more_failed_with_error": "Couldn't load more: :error",
@@ -2040,5 +2040,8 @@
   "image_added": "Image added, :count of :max",
   "image_removed": "Image removed",
   "send_limit_reached": "You've reached the limit for messages. Please try again later.",
-  "image_not_readable": "That file couldn't be attached as an image."
+  "image_not_readable": "That file couldn't be attached as an image.",
+  "welcome_density_title": "Fit more on screen",
+  "welcome_density_body_old_app": "Compact is closer to the previous app's layout. You can change it any time in Device Settings.",
+  "welcome_density_body": "Compact tightens lists, records and the dashboard. You can change it any time in Device Settings."
 }

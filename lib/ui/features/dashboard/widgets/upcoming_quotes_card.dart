@@ -28,7 +28,7 @@ class UpcomingQuotesCard extends StatelessWidget {
     required this.onViewAll,
     required this.onRetry,
     this.remind,
-    this.preview = 5,
+    this.preview,
   });
 
   final AsyncSection<List<DashboardQuoteRow>> section;
@@ -43,7 +43,7 @@ class UpcomingQuotesCard extends StatelessWidget {
 
   /// Send a reminder for a row, or null when it is not offered for it.
   final RecordRowCallback? Function(DashboardQuoteRow row)? remind;
-  final int preview;
+  final int? preview;
 
   @override
   Widget build(BuildContext context) {
@@ -96,7 +96,7 @@ class ExpiredQuotesCard extends StatelessWidget {
     required this.onQuoteTap,
     required this.onViewAll,
     required this.onRetry,
-    this.preview = 5,
+    this.preview,
   });
 
   final AsyncSection<List<DashboardQuoteRow>> section;
@@ -107,7 +107,7 @@ class ExpiredQuotesCard extends StatelessWidget {
   final void Function(DashboardQuoteRow) onQuoteTap;
   final VoidCallback onViewAll;
   final VoidCallback onRetry;
-  final int preview;
+  final int? preview;
 
   @override
   Widget build(BuildContext context) {

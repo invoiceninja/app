@@ -783,12 +783,12 @@ void main() {
         surface: tall,
         media: phone,
       );
-      expect(find.text('Needs your attention'), findsOneWidget);
+      expect(find.byType(NeedsAttentionBand), findsOneWidget);
 
       repo.pastDue.add(const []);
       await settle(tester);
 
-      expect(find.text('Needs your attention'), findsNothing);
+      expect(find.byType(NeedsAttentionBand), findsNothing);
       expect(find.text('Nothing past due'), findsNothing);
     });
 
@@ -906,13 +906,13 @@ void main() {
         surface: tall,
         media: phone,
       );
-      expect(find.text('Needs your attention'), findsOneWidget);
+      expect(find.byType(NeedsAttentionBand), findsOneWidget);
       final chart = tester.element(find.byType(ChartCard));
 
       repo.pastDue.add(const []);
       await settle(tester);
 
-      expect(find.text('Needs your attention'), findsNothing);
+      expect(find.byType(NeedsAttentionBand), findsNothing);
       expect(tester.element(find.byType(ChartCard)), same(chart));
     });
 

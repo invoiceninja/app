@@ -5,6 +5,7 @@ import 'package:admin/data/models/domain/dashboard/dashboard_list_rows.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/features/dashboard/view_models/async_section.dart';
 import 'package:admin/ui/features/dashboard/widgets/card_shell.dart';
+import 'package:admin/ui/features/dashboard/widgets/dashboard_density.dart';
 import 'package:admin/ui/features/dashboard/widgets/dashboard_panel_grid.dart';
 import 'package:admin/ui/features/dashboard/widgets/list_card_skeleton.dart';
 
@@ -45,7 +46,7 @@ class DashboardListCard<T> extends StatelessWidget {
     this.emptySubtitle,
     this.onViewAll,
     this.onRetry,
-    this.preview = 5,
+    this.preview,
   });
 
   final String title;
@@ -60,7 +61,12 @@ class DashboardListCard<T> extends StatelessWidget {
   final String? emptySubtitle;
   final VoidCallback? onViewAll;
   final VoidCallback? onRetry;
-  final int preview;
+
+  /// Rows shown. Null is the dashboard's default: 5, or under Compact
+  /// [kDensePanelRows] — the rows are 32 px there, so eight cost about what
+  /// five did (`docs/list-density.md` § The dashboard). The phone passes its
+  /// own 3.
+  final int? preview;
 
   @override
   Widget build(BuildContext context) {
@@ -107,7 +113,12 @@ class DashboardListCard<T> extends StatelessWidget {
           subtitle: emptySubtitle,
         );
       case ListSectionState.rows:
-        return bodyBuilder(context, section.data!.take(preview).toList());
+        return bodyBuilder(
+          context,
+          section.data!
+              .take(preview ?? (dashboardDense(context) ? kDensePanelRows : 5))
+              .toList(),
+        );
     }
   }
 }
@@ -126,7 +137,12 @@ class DashboardPanelMessage extends StatelessWidget {
     final tokens = context.inTheme;
     final theme = Theme.of(context);
     return Padding(
-      padding: EdgeInsets.all(InSpacing.lg(context)),
+      padding: dashboardDense(context)
+          ? EdgeInsets.symmetric(
+              horizontal: InSpacing.lg(context),
+              vertical: InSpacing.sm,
+            )
+          : EdgeInsets.all(InSpacing.lg(context)),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,

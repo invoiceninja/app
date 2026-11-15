@@ -15,6 +15,7 @@ import 'package:admin/ui/features/dashboard/helpers/needs_attention.dart';
 import 'package:admin/ui/features/dashboard/helpers/when_text.dart';
 import 'package:admin/ui/features/dashboard/view_models/async_section.dart';
 import 'package:admin/ui/features/dashboard/widgets/card_shell.dart';
+import 'package:admin/ui/features/dashboard/widgets/dashboard_density.dart';
 import 'package:admin/ui/features/dashboard/widgets/dashboard_record_row.dart';
 import 'package:admin/ui/features/dashboard/widgets/list_card_skeleton.dart';
 import 'package:admin/ui/features/shell/widgets/sidebar_badge.dart';
@@ -296,14 +297,24 @@ class _NeedsAttentionBandState extends State<NeedsAttentionBand> {
     ].reduce(math.max);
     final reserved = math.min(widget.rowLimit, tallest);
 
+    // Compact, one tab and no sum to show: View All joins the tab's line
+    // instead of costing a 44 px footer of its own.
+    final linkInStrip =
+        dashboardDense(context) &&
+        tabs.length == 1 &&
+        selected != AttentionTab.pastDue;
     return _card(context, [
       ?alert,
       if (widget.state == ListSectionState.failed) _retryLine(context),
-      _tabStrip(context, tabs, selected),
+      _tabStrip(context, tabs, selected, viewAll: linkInStrip),
       ConstrainedBox(
         constraints: BoxConstraints(
           minHeight:
-              reserved * dashboardRecordRowExtent(compact: widget.compact),
+              reserved *
+              dashboardRecordRowExtent(
+                compact: widget.compact,
+                dense: dashboardDense(context),
+              ),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -311,27 +322,35 @@ class _NeedsAttentionBandState extends State<NeedsAttentionBand> {
           children: _rows(context, selected, limit: widget.rowLimit),
         ),
       ),
-      _footer(context, selected),
+      if (!linkInStrip) _footer(context, selected),
     ]);
   }
 
   // ---------------------------------------------------------------------------
   // Chrome
 
-  Widget _card(BuildContext context, List<Widget> children) =>
-      DashboardCardShell(
-        title: context.tr('needs_your_attention'),
-        padding: EdgeInsets.zero,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: children,
-        ),
-      );
+  /// The band draws no title of its own: it would be a header stacked
+  /// directly on the list headers inside it ("Needs your attention" over
+  /// "Quotes Expiring 3 · View All"), the dashboard's version of a card in a
+  /// card. The region keeps its name for a screen reader, and each list
+  /// header is already a level-2 heading.
+  Widget _card(BuildContext context, List<Widget> children) => Semantics(
+    container: true,
+    explicitChildNodes: true,
+    label: context.tr('needs_your_attention'),
+    child: DashboardCardShell(
+      padding: EdgeInsets.zero,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: children,
+      ),
+    ),
+  );
 
   EdgeInsets _statePadding(BuildContext context) => EdgeInsets.symmetric(
     horizontal: InSpacing.lg(context),
-    vertical: InSpacing.md(context),
+    vertical: dashboardDense(context) ? InSpacing.sm : InSpacing.md(context),
   );
 
   /// Nothing past due, nothing due soon, no quote expiring. One line, not a
@@ -344,9 +363,8 @@ class _NeedsAttentionBandState extends State<NeedsAttentionBand> {
     return Container(
       decoration: BoxDecoration(
         color: tokens.surface,
-        borderRadius: BorderRadius.circular(InRadii.r3),
+        borderRadius: BorderRadius.circular(dashboardCardRadius(context)),
         border: Border.all(color: tokens.border),
-        boxShadow: tokens.shadow1,
       ),
       clipBehavior: Clip.antiAlias,
       child: Material(
@@ -404,7 +422,9 @@ class _NeedsAttentionBandState extends State<NeedsAttentionBand> {
         onTap: onTap,
         child: ConstrainedBox(
           constraints: BoxConstraints(
-            minHeight: Env.isTouchPrimary ? InSizes.touchTarget : 40,
+            minHeight: Env.isTouchPrimary
+                ? InSizes.touchTarget
+                : (dashboardDense(context) ? 32 : 40),
           ),
           child: Padding(
             padding: EdgeInsets.symmetric(horizontal: InSpacing.lg(context)),
@@ -476,8 +496,21 @@ class _NeedsAttentionBandState extends State<NeedsAttentionBand> {
   Widget _tabStrip(
     BuildContext context,
     List<AttentionTab> tabs,
-    AttentionTab selected,
-  ) {
+    AttentionTab selected, {
+    bool viewAll = false,
+  }) {
+    Widget tabButton(AttentionTab tab) => _AttentionTabButton(
+      key: ValueKey(tab),
+      label: context.tr(_tabLabelKey(tab)),
+      count: widget.attention.countFor(tab),
+      // Red is for what is already late; a deadline still ahead is not an
+      // alarm.
+      tone: tab == AttentionTab.pastDue
+          ? SidebarBadgeTone.danger
+          : SidebarBadgeTone.neutral,
+      active: tab == selected,
+      onTap: () => setState(() => _picked = tab),
+    );
     return Padding(
       padding: EdgeInsets.fromLTRB(
         InSpacing.md(context),
@@ -488,25 +521,30 @@ class _NeedsAttentionBandState extends State<NeedsAttentionBand> {
       // Wrapped, not scrolled: each tab carries a count, and a tab pushed off
       // the edge hides a number rather than a destination
       // (`docs/dashboard-panels.md` § A strip of counts is payload).
-      child: Wrap(
-        spacing: 4,
-        runSpacing: 4,
-        children: [
-          for (final tab in tabs)
-            _AttentionTabButton(
-              key: ValueKey(tab),
-              label: context.tr(_tabLabelKey(tab)),
-              count: widget.attention.countFor(tab),
-              // Red is for what is already late; a deadline still ahead is not
-              // an alarm.
-              tone: tab == AttentionTab.pastDue
-                  ? SidebarBadgeTone.danger
-                  : SidebarBadgeTone.neutral,
-              active: tab == selected,
-              onTap: () => setState(() => _picked = tab),
+      child: viewAll
+          // A `Wrap`, not a `Row`: in a long locale or at a large text size
+          // the link drops to a line of its own instead of overflowing.
+          ? Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: InSpacing.sm,
+              runSpacing: 4,
+              children: [
+                tabButton(tabs.single),
+                DashboardCardFooterLink(
+                  label:
+                      '${context.tr('view_all')} '
+                      '(${widget.attention.countFor(tabs.single)})',
+                  onTap: () => widget.onViewAll(tabs.single),
+                  touchFloor: true,
+                ),
+              ],
+            )
+          : Wrap(
+              spacing: 4,
+              runSpacing: 4,
+              children: [for (final tab in tabs) tabButton(tab)],
             ),
-        ],
-      ),
     );
   }
 
@@ -821,8 +859,9 @@ class _CountBadge extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
       decoration: BoxDecoration(
         color: badge.bg,
+        // Fill only: the badge sits in a tab on a card, and a hairline here
+        // was a border inside a fill inside a border.
         borderRadius: BorderRadius.circular(InRadii.r1),
-        border: Border.all(color: tokens.border),
       ),
       child: Text(
         '$count',
@@ -869,7 +908,9 @@ class _ListHeader extends StatelessWidget {
         border: Border(bottom: BorderSide(color: tokens.border)),
       ),
       constraints: BoxConstraints(
-        minHeight: Env.isTouchPrimary ? InSizes.touchTarget : 40,
+        minHeight: Env.isTouchPrimary
+            ? InSizes.touchTarget
+            : (dashboardDense(context) ? 32 : 40),
       ),
       padding: EdgeInsetsDirectional.only(
         start: InSpacing.lg(context),

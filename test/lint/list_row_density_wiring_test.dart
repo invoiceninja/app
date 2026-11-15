@@ -22,10 +22,11 @@ import 'package:flutter_test/flutter_test.dart';
 ///    reader answers Normal, which is exactly what every widget test that
 ///    doesn't mount one expects, so no other test would notice.
 ///
-/// And one the other way round: only the list scaffold passes `dense:` to
-/// `EntityListStatusTabs`. The dashboard's Invoices & Quotes panel reuses that
-/// strip in its wrapped form, and the dashboard is outside the density's
-/// scope.
+/// And one the other way round: only the list scaffold and the dashboard's
+/// Invoices & Quotes panel pass `dense:` to `EntityListStatusTabs`, and the
+/// panel passes it through `dashboardDense` — the dashboard follows Compact
+/// (`docs/list-density.md` § The dashboard), so the strip there must follow
+/// the same preference and nothing else.
 void main() {
   test('every entity-list tile pads through listRowPadding', () {
     final tiles = Directory('lib/ui/features')
@@ -97,6 +98,9 @@ void main() {
         if (!RegExp(r'\bdense\s*:').hasMatch(args)) continue;
         if (f.path.endsWith('entity_list_screen_scaffold.dart')) {
           seenScaffold = true;
+        } else if (f.path.endsWith('billing_pipeline_card.dart') &&
+            RegExp(r'\bdense\s*:\s*dashboardDense\(').hasMatch(args)) {
+          // The dashboard's strip, on the dashboard's own preference read.
         } else {
           offenders.add(f.path);
         }
@@ -111,8 +115,8 @@ void main() {
       offenders,
       isEmpty,
       reason:
-          'Only the entity list follows the list density. The dashboard '
-          'reuses this strip and is out of the density\'s scope.',
+          'Only the entity list and the dashboard (through dashboardDense) '
+          'follow the density. Any other reuse of this strip keeps its size.',
     );
   });
 }

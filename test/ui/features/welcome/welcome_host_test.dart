@@ -10,6 +10,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import 'package:admin/app/design_tokens.dart';
+import 'package:admin/app/list_density_controller.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/app/theme.dart';
 import 'package:admin/app/welcome_controller.dart';
@@ -38,10 +39,17 @@ class _FakeAuth implements AuthRepository {
 }
 
 class _FakeServices implements Services {
-  _FakeServices(AuthSession? session)
+  _FakeServices(AuthSession? session, {this.density})
     : auth = _FakeAuth(ValueNotifier(session));
   @override
   final AuthRepository auth;
+
+  /// Null leaves the Welcome without a density to set, as most of these
+  /// tests do: the choice is then left out and the lists keep three rows.
+  final ListDensityController? density;
+  @override
+  ListDensityController get listDensity =>
+      density ?? (throw UnimplementedError('listDensity'));
   @override
   final UnsavedChangesGuard unsavedChangesGuard = UnsavedChangesGuard();
   @override
@@ -82,6 +90,7 @@ void main() {
     SignInFacts? signIn,
     Size size = const Size(1280, 900),
     AuthSession? session,
+    ListDensityController? density,
   }) async {
     tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
@@ -100,7 +109,7 @@ void main() {
         localizationsDelegates: kTestLocalizationsDelegates,
         supportedLocales: kTestSupportedLocales,
         home: Provider<Services>.value(
-          value: _FakeServices(session ?? _session()),
+          value: _FakeServices(session ?? _session(), density: density),
           child: ChangeNotifierProvider<WelcomeController?>.value(
             value: controller,
             child: const WelcomeHost(child: Scaffold(body: SizedBox())),
@@ -349,6 +358,7 @@ void main() {
       Size size = const Size(800, 900),
       double textScale = 1,
       TextDirection direction = TextDirection.ltr,
+      ListDensityController? density,
     }) async {
       tester.view.physicalSize = size;
       tester.view.devicePixelRatio = 1;
@@ -372,6 +382,7 @@ void main() {
                 session: _session(),
                 surfaces: const {ReleaseNoteSurface.nativePhone},
                 reachable: reachable ?? (_) => true,
+                density: density,
               ),
             ),
           ),
@@ -423,5 +434,110 @@ void main() {
         expect(tester.takeException(), isNull);
       });
     }
+
+    group('the density choice', () {
+      ListDensityController density() {
+        final c = ListDensityController(prefs: DevicePrefsStore(null));
+        addTearDown(c.dispose);
+        return c;
+      }
+
+      final itemRows = find.byWidgetPredicate(
+        (w) =>
+            w.key is ValueKey<String> &&
+            (w.key! as ValueKey<String>).value.startsWith('welcome_item_'),
+      );
+      final choice = find.byKey(const ValueKey('welcome_density'));
+
+      testWidgets(
+        'is offered on Get started with a pointer, in a row\'s place',
+        (tester) async {
+          await pumpCard(
+            tester,
+            list: WelcomeList.getStarted,
+            density: density(),
+          );
+          expect(choice, findsOneWidget);
+          expect(find.text('Fit more on screen'), findsOneWidget);
+          expect(itemRows, findsNWidgets(2));
+        },
+        variant: TargetPlatformVariant.only(TargetPlatform.macOS),
+      );
+
+      testWidgets('is not offered on Get started on touch', (tester) async {
+        await pumpCard(
+          tester,
+          list: WelcomeList.getStarted,
+          density: density(),
+        );
+        expect(choice, findsNothing);
+        expect(itemRows, findsNWidgets(3));
+      });
+
+      testWidgets('is offered on What\'s changed on touch, too', (
+        tester,
+      ) async {
+        await pumpCard(
+          tester,
+          list: WelcomeList.whatsChanged,
+          size: const Size(390, 844),
+          density: density(),
+        );
+        expect(choice, findsOneWidget);
+        expect(itemRows, findsNWidgets(2));
+        // A thumb's height in the sheet, and the whole width under the text.
+        expect(tester.getSize(choice).height, greaterThanOrEqualTo(44));
+        expect(tester.takeException(), isNull);
+      });
+
+      testWidgets('without a density to set, the lists keep three rows', (
+        tester,
+      ) async {
+        await pumpCard(tester, list: WelcomeList.whatsChanged);
+        expect(choice, findsNothing);
+        expect(itemRows, findsNWidgets(3));
+      });
+
+      for (final (name, size, scale) in [
+        ('a small phone at 2x text', const Size(360, 720), 2.0),
+        ('a dialog at 1.4x text', const Size(800, 900), 1.4),
+      ]) {
+        testWidgets('lays out on $name', (tester) async {
+          await pumpCard(
+            tester,
+            list: WelcomeList.whatsChanged,
+            size: size,
+            textScale: scale,
+            density: density(),
+          );
+          expect(choice, findsOneWidget);
+          expect(tester.takeException(), isNull);
+        });
+      }
+    });
   });
+
+  testWidgets(
+    'a tap on Compact applies it at once and leaves the Welcome open',
+    (tester) async {
+      final density = ListDensityController(prefs: DevicePrefsStore(null));
+      addTearDown(density.dispose);
+      final c = await pump(tester, signIn: fromOldApp, density: density);
+      await arrive(tester);
+      expect(density.isCompact, isFalse, reason: 'nothing changes unasked');
+      expect(find.text(_title), findsOneWidget);
+      expect(find.byKey(const ValueKey('welcome_density')), findsOneWidget);
+      await tester.tap(
+        find.descendant(
+          of: find.byKey(const ValueKey('welcome_density')),
+          matching: find.text('Compact'),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(density.isCompact, isTrue);
+      expect(find.text(_title), findsOneWidget, reason: 'still open');
+      expect(c.autoOpens, isTrue, reason: 'a choice is not reading it');
+    },
+    variant: TargetPlatformVariant.only(TargetPlatform.macOS),
+  );
 }

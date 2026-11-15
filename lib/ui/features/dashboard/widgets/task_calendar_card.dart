@@ -13,6 +13,7 @@ import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/list/entity_list_constants.dart';
 import 'package:admin/ui/core/utils/calendar_week_start.dart';
 import 'package:admin/ui/features/dashboard/widgets/card_shell.dart';
+import 'package:admin/ui/features/dashboard/widgets/dashboard_density.dart';
 import 'package:admin/ui/features/dashboard/widgets/task_calendar_grid_mini.dart';
 import 'package:admin/ui/features/tasks/view_models/task_calendar_view_model.dart';
 import 'package:admin/utils/formatting.dart';
@@ -250,6 +251,11 @@ class _DashboardTaskCalendarCardState extends State<DashboardTaskCalendarCard>
     // that never arrived. The dimming waits only on `hasLoaded`, or it would
     // flicker on every month change.
     final ready = _vm.hasLoaded && _vm.isVisibleWindowLoaded;
+    final showNote = ready && !hasVisibleLoad;
+    // Compact puts the note beside the month instead of under the grid: this
+    // card sets the height of whichever panel shares its row, and a line
+    // here was an empty band under that neighbour.
+    final noteInNav = showNote && dashboardDense(context);
 
     return Padding(
       padding: EdgeInsets.fromLTRB(
@@ -262,7 +268,11 @@ class _DashboardTaskCalendarCardState extends State<DashboardTaskCalendarCard>
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _navRow(context, tokens),
+          _navRow(
+            context,
+            tokens,
+            note: noteInNav ? context.tr('availability_nothing_booked') : null,
+          ),
           // Until the Drift watch emits, every day would read as free — which
           // a surface about availability must not assert. Dimmed rather than
           // replaced by a skeleton, because the geometry is already correct
@@ -294,7 +304,7 @@ class _DashboardTaskCalendarCardState extends State<DashboardTaskCalendarCard>
           // day is 8 hours" hint would never change and would cost a line on
           // every glance; this appears only when the grid would otherwise look
           // broken — a new account, or a month still wide open.
-          if (ready && !hasVisibleLoad)
+          if (showNote && !noteInNav)
             Padding(
               padding: const EdgeInsets.only(top: 6),
               child: Text(
@@ -312,7 +322,7 @@ class _DashboardTaskCalendarCardState extends State<DashboardTaskCalendarCard>
     );
   }
 
-  Widget _navRow(BuildContext context, InTheme tokens) {
+  Widget _navRow(BuildContext context, InTheme tokens, {String? note}) {
     final locale = widget.formatter.settings.locale;
     // The empty→null guard matters: `DateFormat` misbehaves on `''`.
     final tag = locale.isEmpty ? null : locale;
@@ -333,8 +343,21 @@ class _DashboardTaskCalendarCardState extends State<DashboardTaskCalendarCard>
       children: [
         _navButton(Icons.chevron_left, context.tr('previous'), _vm.prevMonth),
         Expanded(
-          child: Text(
-            label,
+          child: Text.rich(
+            TextSpan(
+              text: label,
+              children: [
+                if (note != null)
+                  TextSpan(
+                    text: ' · $note',
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w400,
+                      color: tokens.ink3,
+                    ),
+                  ),
+              ],
+            ),
             textAlign: TextAlign.center,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,

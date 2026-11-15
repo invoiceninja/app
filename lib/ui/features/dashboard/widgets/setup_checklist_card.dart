@@ -12,6 +12,7 @@ import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/utils/haptics.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/features/dashboard/view_models/setup_checklist_view_model.dart';
+import 'package:admin/ui/features/dashboard/widgets/dashboard_density.dart';
 
 /// The routes the checklist leads to.
 const String kChecklistLogoRoute = '/settings/company_details/logo';
@@ -360,9 +361,8 @@ class _SetupChecklistCardState extends State<SetupChecklistCard> {
       key: const ValueKey('setup_checklist'),
       decoration: BoxDecoration(
         color: tokens.surface,
-        borderRadius: BorderRadius.circular(InRadii.r3),
+        borderRadius: BorderRadius.circular(dashboardCardRadius(context)),
         border: Border.all(color: tokens.border),
-        boxShadow: tokens.shadow1,
       ),
       padding: EdgeInsets.fromLTRB(pad, pad, pad, InSpacing.sm),
       child: Column(

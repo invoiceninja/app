@@ -612,8 +612,8 @@
   "link_other_server": "Dieser Link gehört zu einem anderen Invoice Ninja-Server",
   "linked_payment": "Verknüpfte Zahlung",
   "list": "Liste",
-  "list_density": "Listendichte",
-  "list_density_help": "Kompakt zeigt mehr Zeilen auf dem Bildschirm",
+  "display_density": "Dichte",
+  "display_density_help": "Kompakt zeigt mehr auf dem Bildschirm, auch im Dashboard",
   "lists": "Listen",
   "live": "Live",
   "load_more_failed_with_error": "Weitere Einträge konnten nicht geladen werden: :error",
@@ -1876,5 +1876,8 @@
   "image_added": "Bild hinzugefügt, :count von :max",
   "image_removed": "Bild entfernt",
   "send_limit_reached": "Sie haben das Nachrichtenlimit erreicht. Bitte versuchen Sie es später erneut.",
-  "image_not_readable": "Diese Datei konnte nicht als Bild angehängt werden."
+  "image_not_readable": "Diese Datei konnte nicht als Bild angehängt werden.",
+  "welcome_density_title": "Mehr auf einen Blick",
+  "welcome_density_body_old_app": "Kompakt kommt dem Layout der bisherigen App näher. Sie können es jederzeit in den Geräte-Einstellungen ändern.",
+  "welcome_density_body": "Kompakt verdichtet Listen, Datensätze und das Dashboard. Sie können es jederzeit in den Geräte-Einstellungen ändern."
 }

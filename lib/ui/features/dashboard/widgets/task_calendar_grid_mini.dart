@@ -6,6 +6,7 @@ import 'package:admin/data/models/value/date.dart';
 import 'package:admin/domain/tasks/task_day_load.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/calendar_weekday_header.dart';
+import 'package:admin/ui/features/dashboard/widgets/dashboard_density.dart';
 import 'package:admin/utils/formatting.dart';
 
 /// The compact month grid behind the dashboard's task-calendar panel: a
@@ -184,6 +185,7 @@ class _LoadDayCell extends StatelessWidget {
       height: miniCalendarCellExtent(
         touch: Env.isTouchPrimary,
         scaler: MediaQuery.textScalerOf(context),
+        dense: dashboardDense(context),
       ),
       // `excludeSemantics` drops the descendant InkWell's tap ACTION along with
       // its text node, so the action has to be re-declared here or the cell
@@ -320,7 +322,12 @@ int _tintAlpha(DayLoadBucket bucket) => switch (bucket) {
 /// already ~364 px tall on a phone. The date-range popover makes the same trade
 /// at 36 for the same reason; 38 is a little more generous because these cells
 /// also carry a load bar.
+///
+/// Under Compact ([dense]) a pointer cell is 26; touch keeps 38. This card
+/// sets the height of whichever panel shares its grid row (`IntrinsicHeight`),
+/// so its rows decide more of the page than their own.
 double miniCalendarCellExtent({
   required bool touch,
   required TextScaler scaler,
-}) => scaler.scale(touch ? 38.0 : 32.0);
+  bool dense = false,
+}) => scaler.scale(touch ? 38.0 : (dense ? 26.0 : 32.0));

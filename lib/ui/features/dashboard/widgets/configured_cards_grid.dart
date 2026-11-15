@@ -12,6 +12,7 @@ import 'package:admin/ui/features/dashboard/helpers/range_dates.dart';
 import 'package:admin/ui/features/dashboard/helpers/totals_math.dart';
 import 'package:admin/ui/features/dashboard/view_models/dashboard_view_model.dart';
 import 'package:admin/ui/features/dashboard/view_models/async_section.dart';
+import 'package:admin/ui/features/dashboard/widgets/dashboard_density.dart';
 import 'package:admin/ui/features/dashboard/widgets/delta_chip.dart';
 import 'package:admin/ui/features/dashboard/widgets/kpi_card.dart';
 import 'package:admin/ui/features/dashboard/widgets/section_listenable.dart';
@@ -85,7 +86,9 @@ class ConfiguredCardsGrid extends StatelessWidget {
           final cards = vm.dashboardCards;
           final sizes = metricCardRows(cards.length, width);
           final perRow = metricCardsPerRow(width);
-          final gap = InSpacing.lg(context);
+          final gap = dashboardDense(context)
+              ? InSpacing.md(context)
+              : InSpacing.lg(context);
           final rows = <Widget>[];
           var at = 0;
           for (final size in sizes) {

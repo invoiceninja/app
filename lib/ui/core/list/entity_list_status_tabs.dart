@@ -556,6 +556,9 @@ class _StatusTabButton extends StatelessWidget {
                         // rail, the badge still renders at zero — "Draft 0" is
                         // the answer to the question the tab asks.
                         tone: count == 0 ? SidebarBadgeTone.neutral : tab.tone,
+                        // The wrapped form is the dashboard's, where the tab
+                        // is already a fill on a card.
+                        bordered: !wrapped,
                       );
                     },
                   ),

@@ -2,10 +2,16 @@ import 'dart:async';
 import 'dart:ui' show SemanticsRole;
 
 import 'package:decimal/decimal.dart';
+import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:admin/app/design_tokens.dart';
+import 'package:admin/app/list_density_controller.dart';
+import 'package:admin/data/db/app_database.dart';
+import 'package:admin/data/prefs/device_prefs_store.dart';
+import 'package:admin/ui/core/list/list_density_scope.dart';
+import 'package:admin/ui/features/dashboard/widgets/dashboard_density.dart';
 import 'package:admin/app/theme.dart';
 import 'package:admin/data/models/domain/dashboard/dashboard_list_rows.dart';
 import 'package:admin/data/models/value/company_format_settings.dart';
@@ -145,6 +151,7 @@ void main() {
     int failedSaves = 0,
     double width = 1160,
     double textScale = 1,
+    ListDensityController? density,
   }) async {
     tester.view.physicalSize = Size(width, 1400);
     tester.view.devicePixelRatio = 1;
@@ -154,12 +161,22 @@ void main() {
         localizationsDelegates: kTestLocalizationsDelegates,
         supportedLocales: kTestSupportedLocales,
         theme: buildInTheme(InTheme.light),
-        builder: (context, child) => MediaQuery(
-          data: MediaQuery.of(
-            context,
-          ).copyWith(textScaler: TextScaler.linear(textScale)),
-          child: child!,
-        ),
+        builder: (context, child) {
+          final scaled = MediaQuery(
+            data: MediaQuery.of(
+              context,
+            ).copyWith(textScaler: TextScaler.linear(textScale)),
+            child: child!,
+          );
+          // Compact, as the dashboard mounts it: the preference's scope over
+          // the dashboard's marker.
+          return density == null
+              ? scaled
+              : ListDensityScope(
+                  controller: density,
+                  child: DashboardScope(child: scaled),
+                );
+        },
         home: Scaffold(
           body: SingleChildScrollView(
             child: NeedsAttentionBand(
@@ -208,6 +225,69 @@ void main() {
     remindQuote: (q) =>
         quotes ? () async => log.add('remind-quote:${q.id}') : null,
   );
+
+  // The band's own title was a header stacked on the list headers inside it,
+  // so it goes in both densities — but the region keeps its name for a
+  // screen reader (`docs/list-density.md` § The dashboard).
+  group('Compact', () {
+    late AppDatabase db;
+    late ListDensityController density;
+    setUp(() async {
+      db = AppDatabase(NativeDatabase.memory());
+      final prefs = DevicePrefsStore(db);
+      await prefs.load();
+      density = ListDensityController(prefs: prefs);
+      await density.setCompact(true);
+    });
+    tearDown(() async {
+      density.dispose();
+      await db.close();
+    });
+
+    testWidgets('drops the title, keeps the region named', (tester) async {
+      final handle = tester.ensureSemantics();
+      await pumpBand(
+        tester,
+        attention: attention(pastDue: [late1], quotes: [expiring]),
+        density: density,
+      );
+      expect(find.text('Needs your attention'), findsNothing);
+      expect(find.bySemanticsLabel('Needs your attention'), findsOneWidget);
+      handle.dispose();
+    });
+
+    testWidgets('one tab on a phone puts View All on the tab line', (
+      tester,
+    ) async {
+      await pumpBand(
+        tester,
+        attention: attention(pastDue: const [], quotes: [expiring, expiring2]),
+        compact: true,
+        // The test font's glyphs are a full em wide; 700 holds what a real
+        // 390 px phone does.
+        width: 700,
+        density: density,
+      );
+      final link = tester.getRect(find.textContaining('View All'));
+      final tab = tester.getRect(find.text('Quotes Expiring'));
+      expect(link.center.dy, closeTo(tab.center.dy, 4));
+      await tester.tap(find.textContaining('View All'));
+      expect(viewAll, [AttentionTab.quotesExpiring]);
+    });
+
+    testWidgets('Normal drops it too, and keeps the name', (tester) async {
+      final handle = tester.ensureSemantics();
+      await density.setCompact(false);
+      await pumpBand(
+        tester,
+        attention: attention(pastDue: [late1], quotes: [expiring]),
+        density: density,
+      );
+      expect(find.text('Needs your attention'), findsNothing);
+      expect(find.bySemanticsLabel('Needs your attention'), findsOneWidget);
+      handle.dispose();
+    });
+  });
 
   // On a wide screen the band was three short rows stretched across 1,160 px
   // — the Remind button 700 px from the name it acted on — under a tab strip

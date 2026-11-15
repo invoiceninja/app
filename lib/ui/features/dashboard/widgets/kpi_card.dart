@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/features/dashboard/widgets/dashboard_density.dart';
 import 'package:admin/ui/features/dashboard/widgets/delta_chip.dart';
 import 'package:admin/ui/features/dashboard/widgets/kpi_sparkline.dart';
 import 'package:admin/ui/core/widgets/ltr_value.dart';
@@ -77,12 +78,22 @@ class KpiCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final tokens = context.inTheme;
     final sparkColor = tone == KpiTone.overdue ? tokens.overdue : tokens.paid;
-    final radius = BorderRadius.circular(InRadii.r3);
+    final radius = BorderRadius.circular(dashboardCardRadius(context));
     final clickable = onTap != null;
+    // Compact (`docs/list-density.md` § The dashboard): a lower floor, less
+    // vertical padding and a smaller value; the sub-captions keep their lines.
+    final dense = dashboardDense(context);
     final Widget inner = ConstrainedBox(
-      constraints: const BoxConstraints(minHeight: kKpiCardMinHeight),
+      constraints: BoxConstraints(
+        minHeight: dense ? kFigureCardMinHeightDense : kKpiCardMinHeight,
+      ),
       child: Padding(
-        padding: EdgeInsets.all(InSpacing.lg(context)),
+        padding: dense
+            ? EdgeInsets.symmetric(
+                horizontal: InSpacing.lg(context),
+                vertical: InSpacing.md(context),
+              )
+            : EdgeInsets.all(InSpacing.lg(context)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.center,
@@ -119,7 +130,7 @@ class KpiCard extends StatelessWidget {
                 maxLines: 1,
                 softWrap: false,
                 style: moneyTextStyle(
-                  fontSize: 24,
+                  fontSize: dense ? 20 : 24,
                   fontWeight: FontWeight.w500,
                   letterSpacing: -0.4,
                   height: 1.25,
@@ -194,10 +205,7 @@ class KpiCard extends StatelessWidget {
           : inner,
     );
     final Widget result = DecoratedBox(
-      decoration: BoxDecoration(
-        borderRadius: radius,
-        boxShadow: tokens.shadow1,
-      ),
+      decoration: BoxDecoration(borderRadius: radius),
       child: surface,
     );
     if (semanticsLabel == null) return result;

@@ -178,6 +178,50 @@ void main() {
     expect(shown.map((i) => i.id), ['offline', 'reports', 'tasks']);
   });
 
+  group('the density choice', () {
+    test('is offered on every What\'s changed, and on Get started only off '
+        'touch', () {
+      for (final (whatsChanged, touch, offered) in const [
+        (true, false, true),
+        (true, true, true),
+        (false, false, true),
+        (false, true, false),
+      ]) {
+        expect(
+          welcomeOffersDensity(whatsChanged: whatsChanged, touch: touch),
+          offered,
+          reason: 'whatsChanged: $whatsChanged, touch: $touch',
+        );
+      }
+    });
+
+    test('takes a row\'s place, so the Welcome still shows three things', () {
+      expect(welcomeRowLimit(offersDensity: false), kWelcomeMaxRows);
+      expect(welcomeRowLimit(offersDensity: true), kWelcomeMaxRows - 1);
+      final rows = visibleWelcomeItems(
+        kWelcomeWhatsChanged,
+        surfaces: const {},
+        reachable: (_) => true,
+        limit: welcomeRowLimit(offersDensity: true),
+      );
+      expect(rows.map((i) => i.id), ['offline', 'reports']);
+    });
+
+    test('its copy resolves to English, with no em dash', () {
+      for (final k in const [
+        'display_density',
+        'display_density_help',
+        'welcome_density_title',
+        'welcome_density_body_old_app',
+        'welcome_density_body',
+      ]) {
+        final v = english[k] as String?;
+        expect(v, isNotNull, reason: k);
+        expect(v, isNot(contains('\u2014')), reason: k);
+      }
+    });
+  });
+
   test('every route the Welcome and the checklist open is a real route', () {
     EntityHandlers nonSpec(EntityType type, String routePath) => EntityHandlers(
       type: type,

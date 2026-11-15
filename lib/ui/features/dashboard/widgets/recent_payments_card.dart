@@ -22,7 +22,7 @@ class RecentPaymentsCard extends StatelessWidget {
     required this.onPaymentTap,
     required this.onViewAll,
     required this.onRetry,
-    this.preview = 5,
+    this.preview,
   });
 
   final AsyncSection<List<DashboardPaymentRow>> section;
@@ -33,7 +33,7 @@ class RecentPaymentsCard extends StatelessWidget {
   final void Function(DashboardPaymentRow) onPaymentTap;
   final VoidCallback onViewAll;
   final VoidCallback onRetry;
-  final int preview;
+  final int? preview;
 
   /// `Payment::STATUS_COMPLETED`.
   static const int _completed = 4;

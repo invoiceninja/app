@@ -5,6 +5,7 @@ import 'package:admin/app/env.dart';
 import 'package:admin/ui/core/detail/entity_record_column.dart';
 import 'package:admin/ui/core/list/list_density_scope.dart';
 import 'package:admin/ui/core/widgets/link_text.dart';
+import 'package:admin/ui/features/dashboard/widgets/dashboard_density.dart';
 
 /// Shared shell every dashboard card uses: bordered surface card with an
 /// optional title row + trailing link, optional inner padding override, and a
@@ -99,6 +100,7 @@ class DashboardCardShell extends StatelessWidget {
     final tokens = context.inTheme;
     final hasHeader = title != null || trailing != null;
     final dense = _dense(context);
+    final onDashboard = DashboardScope.contains(context);
     final Widget body = Padding(
       padding:
           padding ??
@@ -111,9 +113,13 @@ class DashboardCardShell extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: tokens.surface,
-        borderRadius: BorderRadius.circular(InRadii.r3),
+        borderRadius: BorderRadius.circular(
+          onDashboard ? dashboardCardRadius(context) : InRadii.r3,
+        ),
         border: Border.all(color: tokens.border),
-        boxShadow: tokens.shadow1,
+        // On the dashboard the border alone carries the edge; the record
+        // screen's profile cards and the edit forms keep their shadow.
+        boxShadow: onDashboard ? null : tokens.shadow1,
       ),
       // Transparent Material so descendant ListTiles/InkWells have a Material
       // ancestor for ink — Flutter 3.44 asserts otherwise (the Container
@@ -135,12 +141,12 @@ class DashboardCardShell extends StatelessWidget {
     );
   }
 
-  /// The Compact density preference, on a record screen's profile only — the
-  /// dashboard's cards are that screen's content and keep their size
+  /// The Compact density preference, on a record screen's profile and on the
+  /// dashboard — never on the edit forms that also use this shell
   /// (`docs/list-density.md` § What Compact changes).
   static bool _dense(BuildContext context) =>
       ListDensityScope.isCompactOf(context) &&
-      RecordColumnScope.contains(context);
+      (RecordColumnScope.contains(context) || DashboardScope.contains(context));
 
   Widget _header(BuildContext context, ThemeData theme, InTheme tokens) {
     final dense = _dense(context);

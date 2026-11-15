@@ -4,6 +4,7 @@ import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/env.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/ltr_value.dart';
+import 'package:admin/ui/features/dashboard/widgets/dashboard_density.dart';
 
 /// One thing a dashboard row can do. A `Future`, so the button can show that
 /// it is working — the actions here fetch the record before they act on it.
@@ -45,18 +46,39 @@ const double _kRowPadding = 6;
 /// The [stacked] form adds its first line above the action box; the same sum
 /// whether or not a row has actions, so the hairlines of neighbouring columns
 /// meet.
-double dashboardRecordRowExtent({required bool compact, bool stacked = false}) {
-  if (compact) return 60;
-  final single = dashboardRowActionExtent() + 2 * _kRowPadding;
+///
+/// [dense] is the Compact density preference (`dashboard_density.dart` —
+/// never [compact], which is the phone form): the action box and the padding
+/// shrink together, so the "box plus padding, exactly" rule above holds in
+/// both. The phone form keeps its two text lines and loses only padding.
+double dashboardRecordRowExtent({
+  required bool compact,
+  bool stacked = false,
+  bool dense = false,
+}) {
+  if (compact) return dense ? 52 : 60;
+  final single =
+      dashboardRowActionExtent(dense: dense) + 2 * _rowPadding(dense: dense);
   return stacked ? single + _kStackedFirstLine : single;
+}
+
+/// A single-line row's vertical padding: [_kRowPadding], or under Compact
+/// [kDenseRowPad] with a pointer and nothing on touch, where the 44 px action
+/// box already is the row.
+double _rowPadding({required bool dense}) {
+  if (!dense) return _kRowPadding;
+  return Env.isTouchPrimary ? 0 : kDenseRowPad;
 }
 
 /// Height of a stacked row's first line at the default text size.
 const double _kStackedFirstLine = 20;
 
 /// One action button's box: the touch target on touch, a compact 32 otherwise.
-double dashboardRowActionExtent() =>
-    Env.isTouchPrimary ? InSizes.touchTarget : 32;
+/// Under Compact ([dense]) the pointer box is [kDenseActionExtent]; touch
+/// never drops below the target.
+double dashboardRowActionExtent({bool dense = false}) => Env.isTouchPrimary
+    ? InSizes.touchTarget
+    : (dense ? kDenseActionExtent : 32);
 
 /// A record on the dashboard: which one, where it stands, how much, and what
 /// can be done about it.
@@ -166,11 +188,14 @@ class _DashboardRecordRowState extends State<DashboardRecordRow> {
     Widget money,
     List<Widget> actionWidgets,
   ) {
-    final extent = dashboardRowActionExtent();
+    final dense = dashboardDense(context);
+    final extent = dashboardRowActionExtent(dense: dense);
     // An icon is a glyph centred in a larger box, so the last glyph's edge
     // sits inside the row's. The amount takes the same inset, or the figure
     // and the icons under it end on two different lines.
-    final inset = actionWidgets.isEmpty ? 0.0 : (extent - _kActionGlyph) / 2;
+    final inset = actionWidgets.isEmpty
+        ? 0.0
+        : (extent - _actionGlyph(dense: dense)) / 2;
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -214,6 +239,7 @@ class _DashboardRecordRowState extends State<DashboardRecordRow> {
     final tokens = context.inTheme;
     final theme = Theme.of(context);
     final w = widget;
+    final dense = dashboardDense(context);
 
     final identity = Text.rich(
       TextSpan(
@@ -267,8 +293,8 @@ class _DashboardRecordRowState extends State<DashboardRecordRow> {
     final actionWidgets = <Widget>[
       if (w.leading != null && !w.compact)
         SizedBox(
-          width: dashboardRowActionExtent(),
-          height: dashboardRowActionExtent(),
+          width: dashboardRowActionExtent(dense: dense),
+          height: dashboardRowActionExtent(dense: dense),
           child: Center(child: w.leading),
         ),
       for (var i = 0; i < shownActions.length; i++)
@@ -334,12 +360,15 @@ class _DashboardRecordRowState extends State<DashboardRecordRow> {
           minHeight: dashboardRecordRowExtent(
             compact: w.compact,
             stacked: w.stacked,
+            dense: dense,
           ),
         ),
         child: Padding(
           padding: EdgeInsets.symmetric(
             horizontal: InSpacing.lg(context),
-            vertical: w.compact ? InSpacing.sm : _kRowPadding,
+            vertical: w.compact
+                ? (dense ? InSpacing.xs : InSpacing.sm)
+                : _rowPadding(dense: dense),
           ),
           child: content,
         ),
@@ -350,6 +379,10 @@ class _DashboardRecordRowState extends State<DashboardRecordRow> {
 
 /// Size of an action's glyph in its icon-only form.
 const double _kActionGlyph = 18;
+
+/// [_kActionGlyph], one step smaller in the Compact pointer box.
+double _actionGlyph({required bool dense}) =>
+    dense && !Env.isTouchPrimary ? 16 : _kActionGlyph;
 
 class _RowActionButton extends StatelessWidget {
   const _RowActionButton({
@@ -364,13 +397,14 @@ class _RowActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final extent = dashboardRowActionExtent();
+    final dense = dashboardDense(context);
+    final extent = dashboardRowActionExtent(dense: dense);
     final Widget glyph = busy
         ? const SizedBox.square(
             dimension: 14,
             child: CircularProgressIndicator(strokeWidth: 2),
           )
-        : Icon(action.icon, size: _kActionGlyph);
+        : Icon(action.icon, size: _actionGlyph(dense: dense));
     // A fixed box, whatever the button's own idea of its size: Material adds
     // to an icon button's footprint by platform density and tap-target
     // padding, and the row's height is promised above.

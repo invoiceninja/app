@@ -25,6 +25,7 @@ import 'package:admin/ui/features/dashboard/widgets/kpi_row.dart';
 import 'package:admin/ui/features/dashboard/widgets/manage_dashboard_cards_sheet.dart';
 import 'package:admin/ui/features/dashboard/widgets/needs_attention_band.dart';
 import 'package:admin/ui/features/dashboard/widgets/recent_payments_card.dart';
+import 'package:admin/ui/features/dashboard/widgets/dashboard_density.dart';
 import 'package:admin/ui/features/dashboard/widgets/section_listenable.dart';
 import 'package:admin/ui/features/dashboard/widgets/task_calendar_card.dart';
 import 'package:admin/ui/features/dashboard/widgets/upcoming_invoices_card.dart';
@@ -186,115 +187,134 @@ class MobileDashboardBody extends StatelessWidget {
     required Set<String> hidden,
     required bool expensesOn,
   }) {
+    // The side gutter stays `lg` under Compact; only the gaps between the
+    // sections, and the gap above the first, close up.
     final gutter = InSpacing.lg(context);
     final pastDueOn = enabled.contains(DashboardKind.pastDue);
-    return ListView(
-      padding: EdgeInsets.fromLTRB(
-        gutter,
-        gutter,
-        gutter,
-        gutter + fabClearance,
-      ),
-      children: [
-        ?leading,
-        // The band leads, and it is ONE child either way — band and gap, or a
-        // zero-size box: the list matches unkeyed children by index, so a slot
-        // that came and went would shift, and rebuild, everything below it.
-        // Past-due's order slot is ignored; only its show / hide switch counts.
-        DashboardAttentionSlot(
-          vm: vm,
-          formatter: formatter,
-          show:
-              pastDueOn &&
-              _panelVisible(DashboardKind.pastDue) &&
-              !hidden.contains(DashboardKind.pastDue),
-          compact: true,
-          rowLimit: kAttentionRows,
-          gap: InSpacing.lg(context),
-          actions: attentionActions,
-          failedSaves: failedSaves,
-          onReviewFailedSaves: onReviewFailedSaves,
-          onInvoiceTap: onInvoiceTap,
-          onQuoteTap: onQuoteTap,
-          onViewAll: onAttentionViewAll,
+    return DashboardScope(
+      child: ListView(
+        padding: EdgeInsets.fromLTRB(
+          gutter,
+          dashboardDense(context) ? InSpacing.sm : gutter,
+          gutter,
+          gutter + fabClearance,
         ),
-        if (showFigures) ...[
-          sectionListenable(
-            Listenable.merge([vm.kpiListenable, vm.attentionListenable]),
-            () => buildOutstandingCard(
-              context,
-              vm: vm,
-              formatter: formatter,
-              pastDueCount: pastDueOn && vm.pastDue.data != null
-                  ? vm.attention().pastDueCount
-                  : null,
-              onTap: onOutstandingTap,
-              valueFontSize: 30,
+        children: [
+          ?leading,
+          // The band leads, and it is ONE child either way — band and gap, or a
+          // zero-size box: the list matches unkeyed children by index, so a slot
+          // that came and went would shift, and rebuild, everything below it.
+          // Past-due's order slot is ignored; only its show / hide switch counts.
+          DashboardAttentionSlot(
+            vm: vm,
+            formatter: formatter,
+            show:
+                pastDueOn &&
+                _panelVisible(DashboardKind.pastDue) &&
+                !hidden.contains(DashboardKind.pastDue),
+            compact: true,
+            rowLimit: kAttentionRows,
+            gap: _sectionGap(context),
+            actions: attentionActions,
+            failedSaves: failedSaves,
+            onReviewFailedSaves: onReviewFailedSaves,
+            onInvoiceTap: onInvoiceTap,
+            onQuoteTap: onQuoteTap,
+            onViewAll: onAttentionViewAll,
+          ),
+          if (showFigures) ...[
+            sectionListenable(
+              Listenable.merge([vm.kpiListenable, vm.attentionListenable]),
+              () => buildOutstandingCard(
+                context,
+                vm: vm,
+                formatter: formatter,
+                pastDueCount: pastDueOn && vm.pastDue.data != null
+                    ? vm.attention().pastDueCount
+                    : null,
+                onTap: onOutstandingTap,
+                valueFontSize: dashboardDense(context) ? 26 : 30,
+              ),
             ),
-          ),
-          SizedBox(height: InSpacing.lg(context)),
-          // The controls for the figures and the chart, directly above them.
-          // Rebuilt by the screen's global notify (the filter) and by the
-          // totals (whether there is a second currency to offer).
-          sectionListenable(
-            vm.kpiListenable,
-            () =>
-                DashboardPeriodBar(vm: vm, formatter: formatter, compact: true),
-          ),
-          SizedBox(height: InSpacing.md(context)),
-          sectionListenable(
-            vm.kpiListenable,
-            () => buildPeriodCard(
-              context,
-              vm: vm,
-              formatter: formatter,
-              showExpenses: expensesOn,
-              onInvoicesTap: onInvoicesTap,
-              onPaidTap: onPaidTap,
-              valueFontSize: 16,
+            SizedBox(height: _sectionGap(context)),
+            // The controls for the figures and the chart, directly above them.
+            // Rebuilt by the screen's global notify (the filter) and by the
+            // totals (whether there is a second currency to offer).
+            sectionListenable(
+              vm.kpiListenable,
+              () => DashboardPeriodBar(
+                vm: vm,
+                formatter: formatter,
+                compact: true,
+              ),
             ),
-          ),
-          SizedBox(height: InSpacing.lg(context)),
-          // The user's own metric cards. One child either way — see the band.
-          ListenableBuilder(
-            listenable: vm,
-            builder: (context, _) => vm.dashboardCards.isEmpty
-                ? const SizedBox.shrink()
-                : Padding(
-                    padding: EdgeInsets.only(bottom: InSpacing.lg(context)),
-                    child: ConfiguredCardsGrid(
-                      vm: vm,
-                      formatter: formatter,
-                      onManage: () => openManageDashboardCards(context, vm: vm),
-                      onOpenCard: onOpenCard,
+            SizedBox(height: InSpacing.md(context)),
+            sectionListenable(
+              vm.kpiListenable,
+              () => buildPeriodCard(
+                context,
+                vm: vm,
+                formatter: formatter,
+                showExpenses: expensesOn,
+                onInvoicesTap: onInvoicesTap,
+                onPaidTap: onPaidTap,
+                valueFontSize: 16,
+                // Three cells across a phone leave no room beside the value.
+                inlineDelta: false,
+              ),
+            ),
+            SizedBox(height: _sectionGap(context)),
+            // The user's own metric cards. One child either way — see the band.
+            ListenableBuilder(
+              listenable: vm,
+              builder: (context, _) => vm.dashboardCards.isEmpty
+                  ? const SizedBox.shrink()
+                  : Padding(
+                      padding: EdgeInsets.only(bottom: _sectionGap(context)),
+                      child: ConfiguredCardsGrid(
+                        vm: vm,
+                        formatter: formatter,
+                        onManage: () =>
+                            openManageDashboardCards(context, vm: vm),
+                        onOpenCard: onOpenCard,
+                      ),
                     ),
-                  ),
-          ),
+            ),
+            sectionListenable(
+              vm.chartCardListenable,
+              () => ChartCard(
+                vm: vm,
+                formatter: formatter,
+                legendMayJoinHeader: false,
+              ),
+            ),
+            SizedBox(height: _sectionGap(context)),
+          ],
+          // The list panels in the user's saved order (past-due excluded — it is
+          // the band above). Each visible, module-enabled panel emits its card +
+          // a trailing spacer, so hiding one never orphans a gap.
+          ..._trailingPanels(context, tokens, enabled: enabled, hidden: hidden),
+          _hiddenPanelsLink(context, enabled: enabled, hidden: hidden),
+          // Last: a feed of what already happened is the least urgent thing on
+          // the page, and it used to sit above every panel.
           sectionListenable(
-            vm.chartCardListenable,
-            () => ChartCard(vm: vm, formatter: formatter),
+            vm.listenableFor(DashboardKind.activities),
+            () => ActivityCard(
+              section: vm.activities,
+              onViewAll: onAllActivities,
+              onRetry: () => vm.retry(DashboardKind.activities),
+              onActivityTap: onActivityTap,
+            ),
           ),
-          SizedBox(height: InSpacing.lg(context)),
         ],
-        // The list panels in the user's saved order (past-due excluded — it is
-        // the band above). Each visible, module-enabled panel emits its card +
-        // a trailing spacer, so hiding one never orphans a gap.
-        ..._trailingPanels(context, tokens, enabled: enabled, hidden: hidden),
-        _hiddenPanelsLink(context, enabled: enabled, hidden: hidden),
-        // Last: a feed of what already happened is the least urgent thing on
-        // the page, and it used to sit above every panel.
-        sectionListenable(
-          vm.listenableFor(DashboardKind.activities),
-          () => ActivityCard(
-            section: vm.activities,
-            onViewAll: onAllActivities,
-            onRetry: () => vm.retry(DashboardKind.activities),
-            onActivityTap: onActivityTap,
-          ),
-        ),
-      ],
+      ),
     );
   }
+
+  /// The gap between the phone's sections: `lg`, or under Compact
+  /// [InSpacing.sm] (`docs/list-density.md` § The dashboard).
+  static double _sectionGap(BuildContext context) =>
+      dashboardDense(context) ? InSpacing.sm : InSpacing.lg(context);
 
   /// "2 empty panels hidden", closing the page — the one hint a phone gives
   /// that "Hide empty panels" is leaving something out (invoiceninja/flutter#161).
@@ -320,7 +340,7 @@ class MobileDashboardBody extends StatelessWidget {
     return Padding(
       // It carries its own gap, like a panel: the activity feed follows, and a
       // line that came and went would otherwise leave it hard against it.
-      padding: EdgeInsets.only(bottom: InSpacing.lg(context)),
+      padding: EdgeInsets.only(bottom: _sectionGap(context)),
       child: Align(
         alignment: AlignmentDirectional.centerStart,
         child: DashboardCardFooterLink(
@@ -452,7 +472,7 @@ class MobileDashboardBody extends StatelessWidget {
       if (!p.visible || !enabled.contains(p.kind)) continue;
       if (hidden.contains(p.kind)) continue;
       out.add(KeyedSubtree(key: ValueKey(p.kind), child: build()));
-      out.add(SizedBox(height: InSpacing.lg(context)));
+      out.add(SizedBox(height: _sectionGap(context)));
     }
     return out;
   }

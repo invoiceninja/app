@@ -12,10 +12,17 @@ class SidebarBadge extends StatelessWidget {
     required this.count,
     this.active = false,
     this.tone = SidebarBadgeTone.neutral,
+    this.bordered = true,
     super.key,
   });
 
   final int count;
+
+  /// The hairline around the chip. On the rail and a list's status strip it
+  /// separates a neutral badge from the surface it shares; inside a filled
+  /// tab on a card (the dashboard's wrapped strip) it is a border inside a
+  /// fill inside a border, so that form drops it.
+  final bool bordered;
 
   /// Whether the row this badge sits on is the selected one. Only affects the
   /// [SidebarBadgeTone.neutral] palette — see [colorsFor].
@@ -32,7 +39,7 @@ class SidebarBadge extends StatelessWidget {
       decoration: BoxDecoration(
         color: colors.bg,
         borderRadius: BorderRadius.circular(InRadii.r1),
-        border: Border.all(color: tokens.border),
+        border: bordered ? Border.all(color: tokens.border) : null,
       ),
       child: Text(
         count > 999 ? '999+' : '$count',

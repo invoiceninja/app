@@ -9,6 +9,7 @@ import 'package:admin/ui/features/dashboard/helpers/needs_attention.dart';
 import 'package:admin/ui/features/dashboard/helpers/totals_math.dart';
 import 'package:admin/ui/features/dashboard/view_models/async_section.dart';
 import 'package:admin/ui/features/dashboard/view_models/dashboard_view_model.dart';
+import 'package:admin/ui/features/dashboard/widgets/dashboard_density.dart';
 import 'package:admin/ui/features/dashboard/widgets/dashboard_figures.dart';
 import 'package:admin/ui/features/dashboard/widgets/delta_chip.dart';
 import 'package:admin/utils/formatting.dart';
@@ -77,6 +78,9 @@ class KpiRow extends StatelessWidget {
       onInvoicesTap: onInvoicesTap,
       onPaidTap: onPaidTap,
     );
+    final gap = dashboardDense(context)
+        ? InSpacing.md(context)
+        : InSpacing.lg(context);
     return LayoutBuilder(
       builder: (context, constraints) {
         if (constraints.maxWidth < kFiguresOneRowWidth) {
@@ -85,7 +89,7 @@ class KpiRow extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               outstanding,
-              SizedBox(height: InSpacing.lg(context)),
+              SizedBox(height: gap),
               period,
             ],
           );
@@ -96,7 +100,7 @@ class KpiRow extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Expanded(flex: 10, child: outstanding),
-              SizedBox(width: InSpacing.lg(context)),
+              SizedBox(width: gap),
               Expanded(flex: showExpenses ? 30 : 20, child: period),
             ],
           ),
@@ -114,7 +118,7 @@ OutstandingFigureCard buildOutstandingCard(
   required Formatter formatter,
   required AttentionCount? pastDueCount,
   required VoidCallback? onTap,
-  double valueFontSize = 26,
+  double? valueFontSize,
 }) {
   final currencyKey = selectedCurrencyKey(vm.filter.currencyId);
   final bucket = selectCurrencyTotals(vm.outstanding.data, currencyKey);
@@ -134,7 +138,8 @@ OutstandingFigureCard buildOutstandingCard(
     caption: caption,
     onTap: onTap,
     onRetry: () => vm.retry(DashboardKind.totalsOutstanding),
-    valueFontSize: valueFontSize,
+    // The wide card's own size, one step smaller under Compact.
+    valueFontSize: valueFontSize ?? (dashboardDense(context) ? 22 : 26),
   );
 }
 
@@ -146,7 +151,8 @@ PeriodFiguresCard buildPeriodCard(
   required bool showExpenses,
   required VoidCallback? onInvoicesTap,
   required VoidCallback? onPaidTap,
-  double valueFontSize = 22,
+  double? valueFontSize,
+  bool inlineDelta = true,
 }) {
   final currencyKey = selectedCurrencyKey(vm.filter.currencyId);
   final DashboardCurrencyTotals? current = selectCurrencyTotals(
@@ -164,7 +170,8 @@ PeriodFiguresCard buildPeriodCard(
   return PeriodFiguresCard(
     state: vm.totals.valueState,
     onRetry: () => vm.retry(DashboardKind.totalsCurrent),
-    valueFontSize: valueFontSize,
+    valueFontSize: valueFontSize ?? (dashboardDense(context) ? 20 : 22),
+    inlineDelta: inlineDelta,
     figures: [
       PeriodFigure(
         label: context.tr('invoices'),

@@ -27,7 +27,7 @@ class UpcomingInvoicesCard extends StatelessWidget {
     required this.onViewAll,
     required this.onRetry,
     this.enterPayment,
-    this.preview = 5,
+    this.preview,
   });
 
   final AsyncSection<List<DashboardInvoiceRow>> section;
@@ -42,7 +42,7 @@ class UpcomingInvoicesCard extends StatelessWidget {
 
   /// Enter Payment for a row, or null when it is not offered for it.
   final RecordRowCallback? Function(DashboardInvoiceRow row)? enterPayment;
-  final int preview;
+  final int? preview;
 
   @override
   Widget build(BuildContext context) {

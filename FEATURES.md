@@ -1261,7 +1261,7 @@ Field-level breakdown of every option under each settings panel. Source of truth
 |---|---|---|---|---|---|
 | Theme (light / dark / system, local) | — | ✅ | ✅ | ✅ | |
 | Font Size (text scale, local) | — | ✅ | ✅ | ✅ | |
-| List density — Normal / Compact rows and list chrome, for more records on screen (local; Device Settings only) | — | — | ✅ | | |
+| Density — Normal / Compact for entity lists, record screens and the dashboard, for more on screen (local; Device Settings, and offered in the first-run Welcome) | — | — | ✅ | | |
 | Show seconds — adds seconds to the kanban cards' timers, durations past a day and time-entry start / end times (local, off by default; running timers always tick seconds) | — | — | ✅ | | |
 | Downloads folder — a desktop Download is saved straight into it, with the path and an Open action in the toast; Windows / Linux can choose the folder, macOS shows Downloads read-only (local) | — | ✅ | ✅ | | |
 | Biometric Authentication toggle | — | ✅ | ✅ | ✅ | |
