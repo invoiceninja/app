@@ -5,6 +5,7 @@ import 'package:admin/data/repositories/dashboard_repository.dart';
 import 'package:admin/ui/features/dashboard/helpers/needs_attention.dart';
 import 'package:admin/ui/features/dashboard/view_models/async_section.dart';
 import 'package:admin/ui/features/dashboard/view_models/dashboard_view_model.dart';
+import 'package:admin/ui/features/dashboard/widgets/dashboard_panel_menu_host.dart';
 import 'package:admin/ui/features/dashboard/widgets/needs_attention_band.dart';
 import 'package:admin/ui/features/dashboard/widgets/section_listenable.dart';
 import 'package:admin/utils/formatting.dart';
@@ -71,26 +72,34 @@ class DashboardAttentionSlot extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              NeedsAttentionBand(
-                // Hidden by preference but held open by the alert: show the
-                // alert over the quiet line, not rows the user switched off.
-                attention: show
-                    ? vm.attention(
-                        companyCurrencyId: formatter.settings.currencyId,
-                      )
-                    : NeedsAttention.none,
-                state: show ? vm.pastDue.listState : ListSectionState.empty,
-                formatter: formatter,
-                today: vm.today,
-                compact: compact,
-                rowLimit: rowLimit,
-                actions: actions,
-                onInvoiceTap: onInvoiceTap,
-                onQuoteTap: onQuoteTap,
-                onViewAll: onViewAll,
-                onRetry: () => vm.retry(DashboardKind.pastDue),
-                failedSaves: failed,
-                onReviewFailedSaves: onReviewFailedSaves,
+              withDashboardPanelMenu(
+                context,
+                vm: vm,
+                kind: DashboardKind.pastDue,
+                child: NeedsAttentionBand(
+                  // Hidden by preference but held open by the alert: show the
+                  // alert over the quiet line, not rows the user switched off.
+                  attention: show
+                      ? vm.attention(
+                          companyCurrencyId: formatter.settings.currencyId,
+                        )
+                      : NeedsAttention.none,
+                  state: show ? vm.pastDue.listState : ListSectionState.empty,
+                  formatter: formatter,
+                  today: vm.today,
+                  compact: compact,
+                  rowLimit: rowLimit,
+                  actions: actions,
+                  onInvoiceTap: onInvoiceTap,
+                  onQuoteTap: onQuoteTap,
+                  onViewAll: onViewAll,
+                  onRetry: () => vm.retry(DashboardKind.pastDue),
+                  failedSaves: failed,
+                  onReviewFailedSaves: onReviewFailedSaves,
+                  // Held open only by the alert, the band is already hidden:
+                  // nothing to offer a Hide for.
+                  showMenu: show,
+                ),
               ),
               SizedBox(height: gap),
             ],

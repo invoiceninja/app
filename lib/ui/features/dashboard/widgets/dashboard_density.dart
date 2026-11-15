@@ -8,7 +8,7 @@ import 'package:admin/ui/core/list/list_density_scope.dart';
 ///
 /// **`dense`, never `compact`.** On the dashboard `compact:` already means the
 /// phone form — `NeedsAttentionBand.compact`, `DashboardRecordRow.compact`,
-/// each panel card's `compact:` and `DashboardEntityTable.compact` — so the
+/// and each panel card's `compact:` — so the
 /// preference is called `dense` everywhere here, and every dashboard widget
 /// reads it through [dashboardDense] so one grep finds them all.
 

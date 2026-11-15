@@ -44,7 +44,7 @@ void main() {
   /// `past due · pipeline / upcoming · calendar`.
   final builders = <String, Widget Function()>{
     DashboardKind.pastDue: () => const Text('Past due'),
-    DashboardKind.invoicesAndQuotes: () => const _Probe('pipeline'),
+    DashboardKind.invoicesPipeline: () => const _Probe('pipeline'),
     DashboardKind.upcomingInvoices: () => const Text('Upcoming'),
     DashboardKind.taskCalendar: () => const _Probe('calendar'),
   };
@@ -227,30 +227,51 @@ void main() {
     double gridWidth(WidgetTester tester) =>
         tester.getSize(find.byType(DashboardPanelGrid)).width;
 
-    testWidgets('Invoices & Quotes takes a whole row', (tester) async {
+    testWidgets('Invoices and Quotes pair as one row', (tester) async {
       await pumpGrid(
         tester,
         prefs: shown([
-          DashboardKind.invoicesAndQuotes,
+          DashboardKind.invoicesPipeline,
+          DashboardKind.quotesPipeline,
           DashboardKind.upcomingInvoices,
-          DashboardKind.recentPayments,
         ]),
         panels: {
-          DashboardKind.invoicesAndQuotes: () => box('pipeline', 60),
+          DashboardKind.invoicesPipeline: () => box('invoices', 60),
+          DashboardKind.quotesPipeline: () => box('quotes', 60),
           DashboardKind.upcomingInvoices: () => box('upcoming', 60),
-          DashboardKind.recentPayments: () => box('payments', 60),
         },
       );
 
       final full = gridWidth(tester);
-      expect(rectOf(tester, 'pipeline').width, full);
-      // The other two pair up beneath it.
-      expect(rectOf(tester, 'upcoming').width, lessThan(full / 2));
-      expect(rectOf(tester, 'upcoming').top, rectOf(tester, 'payments').top);
-      expect(
-        rectOf(tester, 'upcoming').top,
-        greaterThan(rectOf(tester, 'pipeline').bottom),
+      expect(rectOf(tester, 'invoices').width, lessThan(full / 2));
+      expect(rectOf(tester, 'invoices').top, rectOf(tester, 'quotes').top);
+      // The odd one out is the list panel, never either of them.
+      expect(rectOf(tester, 'upcoming').width, full);
+    });
+
+    testWidgets('only a spanning cell in two columns says it spans', (
+      tester,
+    ) async {
+      final seen = <String, bool>{};
+      Widget probe(String label) => Builder(
+        builder: (context) {
+          seen[label] = DashboardPanelCell.spansOf(context);
+          return box(label, 60);
+        },
       );
+      final panels = {
+        DashboardKind.upcomingInvoices: () => probe('upcoming'),
+        DashboardKind.recentPayments: () => probe('payments'),
+        DashboardKind.upcomingQuotes: () => probe('quotes'),
+      };
+      final prefs = shown(panels.keys.toList());
+      await pumpGrid(tester, prefs: prefs, panels: panels);
+      expect(seen, {'upcoming': false, 'payments': false, 'quotes': true});
+
+      // One column: every panel is a row of its own at a width the
+      // single-line row was made for, so none flows into two columns.
+      await pumpGrid(tester, prefs: prefs, panels: panels, columns: 1);
+      expect(seen.values, everyElement(isFalse));
     });
 
     testWidgets('an odd one out spans — no row is left half empty', (

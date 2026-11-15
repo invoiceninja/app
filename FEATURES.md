@@ -130,10 +130,12 @@ the honest default.
 | Configurable dashboard cards (Dashboard Fields) | ✅ | ✅ | ✅ | ✅ | |
 | Dashboard cards — task estimate / due / overdue metrics (6 server fields added 2026-08-31) | ✅ | — | ✅ | | React on its develop branch (ui#3356), unreleased |
 | Reorder + show/hide dashboard panels (synced across devices) | — | — | ✅ | ✅ | |
+| Hide a dashboard panel (or the needs-attention band) from its own ⋮ menu — Hide with Undo, Customize opens the Panels tab | — | — | ✅ | | |
 | Hide empty dashboard panels — list panels with nothing to show are left off, with an "N empty panels hidden" link on phones (device-local; on by default on phones, off on tablets / desktop) | — | — | ✅ | | |
 | Dashboard prefs synced server-side (cross-device) | ✅ | ✅ | ✅ | ✅ | v2: the cards (shared with React in `react_settings.dashboard_fields`), the chart grouping (React's `default_view`), the legend and the panel arrangement, through `company_user.react_settings`; the date range stays per device. v1 keeps its cards in `company_user.settings` in another format, which v2 leaves alone (`docs/dashboard-panels.md`) |
 | Task calendar panel — month grid, days colour-coded by hours booked | — | — | ✅ | | |
-| Invoices & Quotes panel — one card, status tabs with live counts, most recent first | ❌ | ❌ | ✅ | | flutter#155 |
+| Invoices and Quotes panels — a half-width card each, status tabs with live counts, most recent first | ❌ | ❌ | ✅ | | flutter#155 |
+| A list panel spanning a two-column row flows its rows into two columns | — | — | ✅ | | |
 | Dashboard panel order — a new panel lands at its declared slot, not last | — | — | ✅ | | |
 | Quick-create `+` — a floating button (phone layout) opens a sheet of everything the user may create, gated by module and `create_*` permission; replaces the app-bar New Invoice icon and the New Client / Enter Expense tiles (flutter#164). The wide layout shows the same creates as buttons in its fixed top bar | ✅ | ❌ | ✅ | | |
 | Panel → filtered list deep-links (View All / KPI cards carry matching filters) | — | — | ✅ | ✅ | |

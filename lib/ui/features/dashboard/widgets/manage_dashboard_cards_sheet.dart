@@ -812,6 +812,15 @@ class _PanelsPaneState extends State<_PanelsPane> {
               ? 'restricted'
               : 'module_disabled',
           hiddenWhileEmpty: hidden.contains(p.kind),
+          // The band never shows its own title — only its lists' — so the row
+          // names them, or "Needs your attention" matches nothing on screen.
+          caption: p.kind == DashboardKind.pastDue
+              ? [
+                  context.tr('past_due'),
+                  context.tr('attention_due_soon'),
+                  context.tr('attention_quotes_expiring'),
+                ].join(' · ')
+              : null,
           pinned: pinned,
           onToggle: () => vm.togglePanelVisibility(p.kind),
         );
@@ -1018,7 +1027,12 @@ class _PanelRow extends StatelessWidget {
     required this.hiddenWhileEmpty,
     required this.pinned,
     required this.onToggle,
+    this.caption,
   });
+
+  /// What the panel holds, under its title — for a panel whose title is not
+  /// printed on the dashboard.
+  final String? caption;
 
   final int index;
   final String title;
@@ -1090,6 +1104,11 @@ class _PanelRow extends StatelessWidget {
                 else if (visible && hiddenWhileEmpty)
                   Text(
                     context.tr('hidden_while_empty'),
+                    style: TextStyle(fontSize: 11, color: tokens.ink3),
+                  )
+                else if (caption != null)
+                  Text(
+                    caption!,
                     style: TextStyle(fontSize: 11, color: tokens.ink3),
                   ),
               ],

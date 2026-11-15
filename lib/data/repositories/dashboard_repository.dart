@@ -55,13 +55,25 @@ class DashboardKind {
   /// that has no stream).
   static const String taskCalendar = 'task_calendar';
 
-  /// The consolidated Invoices & Quotes strip (invoiceninja/flutter#155). Like
+  /// The Invoices panel: a status strip with live counts over the most recent
+  /// invoices (invoiceninja/flutter#155, split from the one Invoices & Quotes
+  /// panel so each half-width card keeps the shared row grammar). Like
   /// [taskCalendar] it is **Drift-backed** — it watches the local invoices and
   /// quotes tables — so it belongs in [panelKinds] only, never in [listKinds]
   /// (which `refreshAll` iterates, firing a `/dashboard` fetch for an endpoint
   /// that has no such kind) nor in [allKinds] (which seeds a per-section
   /// notifier for a section that has no stream).
-  static const String invoicesAndQuotes = 'invoices_and_quotes';
+  static const String invoicesPipeline = 'invoices_pipeline';
+
+  /// The Quotes panel — [invoicesPipeline]'s twin over the quotes table.
+  static const String quotesPipeline = 'quotes_pipeline';
+
+  /// The single Invoices & Quotes panel the two above replaced. Never a panel
+  /// kind any more: it survives only so `DashboardViewModel._parsePanels` can
+  /// map a saved arrangement that names it onto both halves, in its place and
+  /// with its visibility — or a user who had hidden it would see two new
+  /// cards appear.
+  static const String legacyInvoicesAndQuotes = 'invoices_and_quotes';
 
   /// Every list-card kind. These aren't filter-keyed.
   static const List<String> listKinds = [
@@ -91,8 +103,8 @@ class DashboardKind {
   ///
   /// Not all of these are list cards, and not all are cache-backed:
   /// [taskCalendar] renders a month grid straight off the local tasks table,
-  /// and [invoicesAndQuotes] a status strip off the local invoices and quotes
-  /// tables.
+  /// and [invoicesPipeline] / [quotesPipeline] a status strip each off the
+  /// local invoices and quotes tables.
   /// A new kind goes at the slot it should occupy: `DashboardViewModel._hydrate`
   /// places anything missing from a saved arrangement **at its canonical rank**
   /// here, relative to the kinds that arrangement already holds. (It appended,
@@ -105,11 +117,13 @@ class DashboardKind {
   /// `DashboardViewModel` derives that set from these two lists.
   static const List<String> panelKinds = [
     pastDue,
-    // Second, immediately below "Needs your attention": it is a superset of
-    // three of the panels beneath it, so leading with it is the honest order —
-    // and a strip of counts is the one panel meant to be glanced at rather
-    // than read, which is worth little at the bottom of a phone page.
-    invoicesAndQuotes,
+    // Second, immediately below "Needs your attention": they are supersets of
+    // panels beneath them, so leading with them is the honest order — and a
+    // strip of counts is meant to be glanced at rather than read, which is
+    // worth little at the bottom of a phone page. Adjacent, so on a wide
+    // screen they pair as one row (`layoutPanelRows`).
+    invoicesPipeline,
+    quotesPipeline,
     upcomingInvoices,
     recentPayments,
     upcomingQuotes,

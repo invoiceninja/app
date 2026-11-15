@@ -28,6 +28,7 @@ import 'package:admin/ui/core/list/entity_list_status_tabs.dart';
 import 'package:admin/ui/features/invoices/view_models/invoice_edit_view_model.dart';
 import 'package:admin/ui/features/quotes/view_models/quote_edit_view_model.dart';
 import 'package:admin/ui/features/dashboard/widgets/billing_pipeline_card.dart';
+import 'package:admin/ui/features/quotes/widgets/quote_status_pill.dart';
 import 'package:admin/utils/formatting.dart';
 
 import '../../../../_localization_helper.dart';
@@ -204,7 +205,12 @@ class _FakeServices implements Services {
     required this.invoices,
     required this.quotes,
     required this.clients,
+    this.counts = const {},
   });
+
+  /// Each tab's count by mode id; a mode not named here counts 1, so the
+  /// occasional tabs (`kOccasionalBillingTabs`) are on the strip.
+  final Map<String, int> counts;
   @override
   final InvoiceRepository invoices;
   @override
@@ -243,7 +249,7 @@ class _FakeServices implements Services {
     String modeId = 'total',
   }) {
     counted.add((type, modeId));
-    return _multi(0);
+    return _multi(counts[modeId] ?? 1);
   }
 
   @override
@@ -289,6 +295,7 @@ Future<void> _pump(
   ValueNotifier<_Props>? props,
   bool narrow = true,
   bool tall = false,
+  EntityType entity = EntityType.quote,
   String? initialTabId,
   void Function(String?)? onTabChanged,
   ScrollController? controller,
@@ -311,8 +318,7 @@ Future<void> _pump(
                   formatter: _formatter,
                   refreshNonce: v.refreshNonce,
                   narrow: narrow,
-                  includeInvoices: true,
-                  includeQuotes: true,
+                  entity: entity,
                   initialTabId: v.initialTabId ?? initialTabId,
                   onTabChanged: onTabChanged ?? (_) {},
                 ),
@@ -366,10 +372,12 @@ Future<void> _pump(
 _FakeServices _services({
   List<Invoice> invoices = const [],
   List<Quote> quotes = const [],
+  Map<String, int> counts = const {},
 }) => _FakeServices(
   invoices: _FakeInvoiceRepo(rows: invoices),
   quotes: _FakeQuoteRepo(rows: quotes),
   clients: _FakeClientRepo(),
+  counts: counts,
 );
 
 /// intl ships only `en_US` initialised; the app loads the rest through
@@ -412,7 +420,6 @@ void main() {
     expect(strip.tabs.map((t) => t.labelKey), [
       'all',
       'draft',
-      'unpaid',
       'sent',
       'approved',
       'rejected',
@@ -421,13 +428,79 @@ void main() {
     ]);
   });
 
-  testWidgets('a quote-only tab never asks the invoice side for its mode', (
+  testWidgets(
+    'Rejected, Cancelled and Expired show only with something in them',
+    (tester) async {
+      await _pump(
+        tester,
+        services: _services(
+          counts: const {'rejected': 0, 'cancelled': 0, 'expired': 2},
+        ),
+        nav: _Nav(),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<EntityListStatusTabs>(find.byType(EntityListStatusTabs))
+            .tabs
+            .map((t) => t.labelKey),
+        ['all', 'draft', 'sent', 'approved', 'expired'],
+      );
+    },
+  );
+
+  testWidgets('an empty occasional tab stays while it is the selected one', (
     tester,
   ) async {
-    // THE test. `InvoiceDao.badgeModePredicate` returns null for 'approved',
-    // and both DAO seams treat null as "no narrowing" — so forwarding the tab's
-    // own id to both halves would list and count EVERY invoice in the company,
-    // and it would type-check.
+    // A restored tab must not vanish from under the user, nor leave the strip
+    // with nothing selected.
+    await _pump(
+      tester,
+      services: _services(
+        counts: const {'rejected': 0, 'cancelled': 0, 'expired': 0},
+      ),
+      nav: _Nav(),
+      initialTabId: 'rejected',
+    );
+    await tester.pumpAndSettle();
+    final strip = tester.widget<EntityListStatusTabs>(
+      find.byType(EntityListStatusTabs),
+    );
+    expect(strip.tabs.map((t) => t.labelKey), [
+      'all',
+      'draft',
+      'sent',
+      'approved',
+      'rejected',
+    ]);
+    expect(strip.selectedIndex, 4);
+  });
+
+  testWidgets('the Invoices card has its own four tabs, Overdue included', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      services: _services(),
+      nav: _Nav(),
+      entity: EntityType.invoice,
+    );
+    expect(
+      tester
+          .widget<EntityListStatusTabs>(find.byType(EntityListStatusTabs))
+          .tabs
+          .map((t) => t.labelKey),
+      ['all', 'draft', 'unpaid', 'overdue'],
+    );
+  });
+
+  testWidgets('the Quotes card never asks invoices for anything', (
+    tester,
+  ) async {
+    // `InvoiceDao.badgeModePredicate` returns null for 'approved', and both
+    // DAO seams treat null as "no narrowing" — so a quote mode reaching the
+    // invoice side would list and count EVERY invoice in the company, and it
+    // would type-check.
     final services = _services();
     await _pump(tester, services: services, nav: _Nav());
 
@@ -436,30 +509,35 @@ void main() {
 
     final invoiceRepo = services.invoices as _FakeInvoiceRepo;
     final quoteRepo = services.quotes as _FakeQuoteRepo;
-    expect(
-      invoiceRepo.watchedModes,
-      isNot(contains('approved')),
-      reason: 'invoices do not participate in Approved',
-    );
+    expect(invoiceRepo.watchedModes, isEmpty);
+    expect(invoiceRepo.fetches, isEmpty);
     expect(quoteRepo.watchedModes, contains('approved'));
     expect(
-      services.counted,
-      isNot(contains((EntityType.invoice, 'approved'))),
+      services.counted.where((c) => c.$1 == EntityType.invoice),
+      isEmpty,
       reason: 'the count seam fails open the same way the row seam does',
     );
     expect(services.counted, contains((EntityType.quote, 'approved')));
   });
 
-  testWidgets('a mixed tab subscribes both halves', (tester) async {
+  testWidgets('the Invoices card never asks quotes for anything', (
+    tester,
+  ) async {
     final services = _services();
-    await _pump(tester, services: services, nav: _Nav());
+    await _pump(
+      tester,
+      services: services,
+      nav: _Nav(),
+      entity: EntityType.invoice,
+    );
     await tester.tap(find.text('Draft'));
     await tester.pumpAndSettle();
     expect(
       (services.invoices as _FakeInvoiceRepo).watchedModes,
       contains('draft'),
     );
-    expect((services.quotes as _FakeQuoteRepo).watchedModes, contains('draft'));
+    expect((services.quotes as _FakeQuoteRepo).watchedModes, isEmpty);
+    expect(services.counted.where((c) => c.$1 == EntityType.quote), isEmpty);
   });
 
   testWidgets('the top-up ignores the cursor, or it fetches only a delta', (
@@ -470,24 +548,25 @@ void main() {
     // delta rather than a true first page — which would make the local-only
     // Rejected tab's top-up do nothing at all.
     final services = _services();
-    await _pump(tester, services: services, nav: _Nav());
+    await _pump(
+      tester,
+      services: services,
+      nav: _Nav(),
+      entity: EntityType.invoice,
+    );
     await tester.pumpAndSettle();
     final repo = services.invoices as _FakeInvoiceRepo;
     expect(repo.fetchIgnoredCursor, isNotEmpty);
     expect(repo.fetchIgnoredCursor.every((v) => v), isTrue);
   });
 
-  testWidgets('the All tab costs one request per entity, not five', (
-    tester,
-  ) async {
-    // `All` is the tab the panel opens on, so this runs on the app's LANDING
-    // route for both entities. A five-page walk each would add ten requests to
-    // the cold-start fan-out to fill five rows that page 1 — sorted
-    // newest-first — already contains.
+  testWidgets('the All tab costs one request, not five', (tester) async {
+    // `All` is the tab each panel opens on, so this runs on the app's LANDING
+    // route. A five-page walk would add requests to the cold-start fan-out to
+    // fill rows that page 1 — sorted newest-first — already contains.
     final services = _services();
     await _pump(tester, services: services, nav: _Nav());
     await tester.pumpAndSettle();
-    expect((services.invoices as _FakeInvoiceRepo).fetches, hasLength(1));
     expect((services.quotes as _FakeQuoteRepo).fetches, hasLength(1));
   });
 
@@ -539,7 +618,12 @@ void main() {
       quotes: _FakeQuoteRepo(),
       clients: _FakeClientRepo(),
     );
-    await _pump(tester, services: services, nav: _Nav());
+    await _pump(
+      tester,
+      services: services,
+      nav: _Nav(),
+      entity: EntityType.invoice,
+    );
     await tester.pumpAndSettle();
 
     // The SAME bucket, twice — a different tab would take a different key and
@@ -573,7 +657,12 @@ void main() {
       quotes: _FakeQuoteRepo(),
       clients: _FakeClientRepo(),
     );
-    await _pump(tester, services: services, nav: _Nav());
+    await _pump(
+      tester,
+      services: services,
+      nav: _Nav(),
+      entity: EntityType.invoice,
+    );
     await tester.pumpAndSettle();
 
     expect(find.text("Couldn't load"), findsOneWidget);
@@ -600,7 +689,12 @@ void main() {
       quotes: _FakeQuoteRepo(),
       clients: _FakeClientRepo(),
     );
-    await _pump(tester, services: services, nav: _Nav());
+    await _pump(
+      tester,
+      services: services,
+      nav: _Nav(),
+      entity: EntityType.invoice,
+    );
     await tester.pumpAndSettle();
 
     expect(find.text("Couldn't load"), findsNothing);
@@ -608,16 +702,27 @@ void main() {
     expect(find.textContaining('i1', findRichText: true), findsWidgets);
   });
 
-  testWidgets('rows merge both entities, newest first', (tester) async {
-    final services = _services(
-      invoices: [_invoice('i1')], // 2026-09-14
-      quotes: [_quote('q1')], // 2026-09-13
+  testWidgets("All names each row's status; a status tab does not repeat it", (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      services: _services(quotes: [_quote('q1')]),
+      nav: _Nav(),
     );
-    await _pump(tester, services: services, nav: _Nav());
     await tester.pumpAndSettle();
-    final iy = tester.getTopLeft(find.textContaining('i1')).dy;
-    final qy = tester.getTopLeft(find.textContaining('q1')).dy;
-    expect(iy, lessThan(qy), reason: 'the later date leads');
+    expect(find.byType(QuoteStatusPill), findsOneWidget);
+
+    // The pill says "Draft" too.
+    await tester.tap(
+      find.descendant(
+        of: find.byType(EntityListStatusTabs),
+        matching: find.text('Draft'),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.textContaining('q1', findRichText: true), findsWidgets);
+    expect(find.byType(QuoteStatusPill), findsNothing);
   });
 
   testWidgets('a row opens its own record, by entity type', (tester) async {
@@ -628,12 +733,12 @@ void main() {
       nav: nav,
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.textContaining('q1'));
+    await tester.tap(find.textContaining('q1', findRichText: true).first);
     await tester.pumpAndSettle();
     expect(nav.location, '/quotes/q1');
   });
 
-  testWidgets('the footer links carry the tab as a badge_mode intent', (
+  testWidgets('View All opens the list on the tab the strip shows', (
     tester,
   ) async {
     final nav = _Nav();
@@ -641,12 +746,7 @@ void main() {
     await tester.tap(find.text('Expired'));
     await tester.pumpAndSettle();
 
-    // Quote-only tab → one link, and it goes to quotes.
-    expect(find.text('Invoices'), findsNothing);
-    // The footer sits below the 600 px test viewport on this card.
-    await tester.ensureVisible(find.text('Quotes'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Quotes'));
+    await tester.tap(find.text('View All'));
     await tester.pumpAndSettle();
     expect(nav.location, '/quotes');
   });
@@ -822,7 +922,13 @@ void main() {
     final services = _services();
     final props = ValueNotifier(const _Props());
     addTearDown(props.dispose);
-    await _pump(tester, services: services, nav: _Nav(), props: props);
+    await _pump(
+      tester,
+      services: services,
+      nav: _Nav(),
+      props: props,
+      entity: EntityType.invoice,
+    );
     await tester.pumpAndSettle();
     final repo = services.invoices as _FakeInvoiceRepo;
     final initial = repo.fetches.length;
@@ -846,7 +952,13 @@ void main() {
     final services = _services();
     final props = ValueNotifier(const _Props());
     addTearDown(props.dispose);
-    await _pump(tester, services: services, nav: _Nav(), props: props);
+    await _pump(
+      tester,
+      services: services,
+      nav: _Nav(),
+      props: props,
+      entity: EntityType.invoice,
+    );
     await tester.pumpAndSettle();
     final repo = services.invoices as _FakeInvoiceRepo;
     final before = repo.watchedModes.length;

@@ -108,8 +108,8 @@ widget reads the preference through `dashboardDense(context)`
 (`lib/ui/features/dashboard/widgets/dashboard_density.dart`), so one grep finds them all.
 
 **`dense`, never `compact`.** On the dashboard `compact:` already means the phone form
-(`NeedsAttentionBand.compact`, `DashboardRecordRow.compact`, each panel card's `compact:`,
-`DashboardEntityTable.compact`). Reusing the word would put two meanings on one parameter.
+(`NeedsAttentionBand.compact`, `DashboardRecordRow.compact`, each panel card's `compact:`).
+Reusing the word would put two meanings on one parameter.
 
 **`DashboardScope` keeps the forms out.** `DashboardCardShell` is also the section card of
 several edit forms. Its dense branch runs only inside `RecordColumnScope` (the record
@@ -142,8 +142,8 @@ What changes, Normal → Compact (pointer first, touch in brackets where it diff
 | Chart legend | its own line in the body | in the header row on the wide layout (a `Wrap`, so it can answer `IntrinsicHeight`); a phone keeps it in the body |
 | Chart plot floor beside Activity / stacked aspect | 220 / 2.4 | 168 / 3.2 (phone 3.0) |
 | Activity rows (`ActivityRowDensity.cardDense`) | 26 px avatar, 10 px padding, 2-line title | 22 px avatar, 4 px padding, 1-line title |
-| Invoices & Quotes strip | `md` padding | the list's own `dense:` form, `sm` padding |
-| Invoices & Quotes table rows / column header | 10 / 10 vertical | 6 [10] / 4 |
+| Invoices and Quotes strips | `md` padding | the list's own `dense:` form, `sm` padding |
+| Invoices and Quotes rows | 5 `DashboardRecordRow`s | 8, like the other wide list panels |
 | Mini task calendar cells | 32 [38] | 26 [38] |
 | "Nothing booked this month" | its own line under the grid | beside the month in the nav row |
 | Wide list panels' rows (`DashboardListCard.preview` null) | 5 | 8 (`kDensePanelRows`); the lists already fetch 50, so no fetch changes. The phone keeps 3. |
@@ -196,8 +196,8 @@ The header band is out of scope, so cutting the card's horizontal inset would br
 alignment.
 
 **The status tabs take a `dense` parameter instead of reading the scope.** The dashboard's
-Invoices & Quotes panel uses the same widget in its `wrap: true` form. Two callers set it —
-the list scaffold, and that panel through `dashboardDense` — and the lint pins both, which
+Invoices and Quotes panels use the same widget in its `wrap: true` form. Two callers set it —
+the list scaffold, and those panels through `dashboardDense` — and the lint pins both, which
 keeps the widget presentational and any other reuse at its own size.
 
 **Floors, never heights.** Every change is padding or a `minHeight`. A larger text scale,

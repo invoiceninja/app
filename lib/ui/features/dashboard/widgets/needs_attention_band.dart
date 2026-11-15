@@ -16,6 +16,7 @@ import 'package:admin/ui/features/dashboard/helpers/when_text.dart';
 import 'package:admin/ui/features/dashboard/view_models/async_section.dart';
 import 'package:admin/ui/features/dashboard/widgets/card_shell.dart';
 import 'package:admin/ui/features/dashboard/widgets/dashboard_density.dart';
+import 'package:admin/ui/features/dashboard/widgets/dashboard_panel_menu.dart';
 import 'package:admin/ui/features/dashboard/widgets/dashboard_record_row.dart';
 import 'package:admin/ui/features/dashboard/widgets/list_card_skeleton.dart';
 import 'package:admin/ui/features/shell/widgets/sidebar_badge.dart';
@@ -107,6 +108,7 @@ class NeedsAttentionBand extends StatefulWidget {
     this.rowLimit = kAttentionRows,
     this.failedSaves = 0,
     this.onReviewFailedSaves,
+    this.showMenu = false,
   });
 
   final NeedsAttention attention;
@@ -144,6 +146,12 @@ class NeedsAttentionBand extends StatefulWidget {
   /// work outranks an unpaid invoice.
   final int failedSaves;
   final VoidCallback? onReviewFailedSaves;
+
+  /// Draw the `⋮` (Hide / Customize) from the enclosing
+  /// `DashboardPanelMenuScope`: at the end of the last list's header side by
+  /// side, of the tab strip when tabbed, and of the quiet line. The band has
+  /// no header of its own to hang it on.
+  final bool showMenu;
 
   @override
   State<NeedsAttentionBand> createState() => _NeedsAttentionBandState();
@@ -208,6 +216,14 @@ class _NeedsAttentionBandState extends State<NeedsAttentionBand> {
     AttentionTab.quotesExpiring => widget.attention.quotesExpiring.length,
   };
 
+  /// The `⋮` from the enclosing `DashboardPanelMenuScope`, or null when
+  /// [NeedsAttentionBand.showMenu] is off or there is no scope.
+  Widget? _menu(BuildContext context) {
+    if (!widget.showMenu) return null;
+    final scope = DashboardPanelMenuScope.maybeOf(context);
+    return scope == null ? null : DashboardPanelMenuButton(scope: scope);
+  }
+
   // ---------------------------------------------------------------------------
   // Side by side
 
@@ -228,7 +244,14 @@ class _NeedsAttentionBandState extends State<NeedsAttentionBand> {
         flexes: [...slots, if (used < maxSlots) maxSlots - used],
         columns: [
           for (var i = 0; i < tabs.length; i++)
-            _list(context, tabs[i], slots[i]),
+            _list(
+              context,
+              tabs[i],
+              slots[i],
+              // The band's top-end corner — unless an unused column sits there,
+              // in which case the last list still carries it.
+              menu: i == tabs.length - 1 ? _menu(context) : null,
+            ),
           // A column no list can use stays empty: sharing it out would only
           // push each row's amount and buttons away from its name again.
           if (used < maxSlots) const SizedBox.shrink(),
@@ -239,7 +262,12 @@ class _NeedsAttentionBandState extends State<NeedsAttentionBand> {
 
   /// One list: its header across the columns it was given, and under it its
   /// rows, filled column by column.
-  Widget _list(BuildContext context, AttentionTab tab, int columns) {
+  Widget _list(
+    BuildContext context,
+    AttentionTab tab,
+    int columns, {
+    Widget? menu,
+  }) {
     final rows = _rows(
       context,
       tab,
@@ -258,6 +286,7 @@ class _NeedsAttentionBandState extends State<NeedsAttentionBand> {
           danger: tab == AttentionTab.pastDue,
           sum: _provenSum(tab),
           onViewAll: () => widget.onViewAll(tab),
+          menu: menu,
         ),
         _ColumnsFrame(
           // As many columns as the list was given, even when its rows fill
@@ -306,7 +335,10 @@ class _NeedsAttentionBandState extends State<NeedsAttentionBand> {
     return _card(context, [
       ?alert,
       if (widget.state == ListSectionState.failed) _retryLine(context),
-      _tabStrip(context, tabs, selected, viewAll: linkInStrip),
+      _withMenu(
+        context,
+        _tabStrip(context, tabs, selected, viewAll: linkInStrip),
+      ),
       ConstrainedBox(
         constraints: BoxConstraints(
           minHeight:
@@ -374,40 +406,60 @@ class _NeedsAttentionBandState extends State<NeedsAttentionBand> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             ?alert,
-            Padding(
-              padding: _statePadding(context),
-              child: Wrap(
-                crossAxisAlignment: WrapCrossAlignment.center,
-                spacing: InSpacing.sm,
-                runSpacing: 4,
-                children: [
-                  Icon(
-                    Icons.check_circle_outline,
-                    size: 18,
-                    color: tokens.paid,
-                  ),
-                  Text(
-                    context.tr('nothing_past_due'),
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: tokens.ink,
-                      fontWeight: FontWeight.w600,
+            _withMenu(
+              context,
+              Padding(
+                padding: _statePadding(context),
+                child: Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: InSpacing.sm,
+                  runSpacing: 4,
+                  children: [
+                    Icon(
+                      Icons.check_circle_outline,
+                      size: 18,
+                      color: tokens.paid,
                     ),
-                  ),
-                  if (next != null && nextOn != null)
-                    LinkText(
-                      label:
-                          '${context.tr('next_due')}: '
-                          '${_identity(next.number, next.clientName)} · '
-                          '${dueText(context, nextOn, widget.today)}',
-                      onTap: () => widget.onInvoiceTap(next),
-                      style: TextStyle(fontSize: 13, color: tokens.ink2),
+                    Text(
+                      context.tr('nothing_past_due'),
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: tokens.ink,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                ],
+                    if (next != null && nextOn != null)
+                      LinkText(
+                        label:
+                            '${context.tr('next_due')}: '
+                            '${_identity(next.number, next.clientName)} · '
+                            '${dueText(context, nextOn, widget.today)}',
+                        onTap: () => widget.onInvoiceTap(next),
+                        style: TextStyle(fontSize: 13, color: tokens.ink2),
+                      ),
+                  ],
+                ),
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  /// [child] with the band's `⋮` at its end, vertically centred, or [child]
+  /// alone when there is no menu. The menu keeps its own end gap: [child]
+  /// carries its padding on every side.
+  Widget _withMenu(BuildContext context, Widget child) {
+    final menu = _menu(context);
+    if (menu == null) return child;
+    return Row(
+      children: [
+        Expanded(child: child),
+        Padding(
+          padding: EdgeInsetsDirectional.only(end: InSpacing.lg(context) - 6),
+          child: menu,
+        ),
+      ],
     );
   }
 
@@ -887,10 +939,14 @@ class _ListHeader extends StatelessWidget {
     required this.danger,
     required this.sum,
     required this.onViewAll,
+    this.menu,
   });
 
   final String label;
   final AttentionCount count;
+
+  /// The band's `⋮`, after View all — on the last list only.
+  final Widget? menu;
 
   /// The past-due list: its badge takes the danger tone.
   final bool danger;
@@ -977,6 +1033,7 @@ class _ListHeader extends StatelessWidget {
             onTap: onViewAll,
             touchFloor: true,
           ),
+          if (menu != null) ...[const SizedBox(width: 4), menu!],
         ],
       ),
     );

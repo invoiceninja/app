@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:decimal/decimal.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -16,21 +17,34 @@ import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/list/deep_link_filter_intent.dart';
 import 'package:admin/ui/core/list/entity_list_status_tabs.dart';
 import 'package:admin/ui/features/dashboard/view_models/billing_pipeline_view_model.dart';
-import 'package:admin/ui/features/dashboard/widgets/billing_pipeline_table.dart';
+import 'package:admin/data/models/value/date.dart';
+import 'package:admin/ui/core/widgets/client_name_label.dart';
+import 'package:admin/ui/core/widgets/party_money_cell.dart';
 import 'package:admin/ui/features/dashboard/widgets/card_shell.dart';
+import 'package:admin/ui/features/dashboard/widgets/dashboard_panel_grid.dart';
+import 'package:admin/ui/features/dashboard/widgets/dashboard_record_row.dart';
+import 'package:admin/ui/features/invoices/widgets/invoice_status_pill.dart';
+import 'package:admin/ui/features/quotes/widgets/quote_status_pill.dart';
 import 'package:admin/ui/features/dashboard/widgets/dashboard_density.dart';
 import 'package:admin/ui/features/dashboard/widgets/list_card_skeleton.dart';
-import 'package:admin/ui/features/dashboard/widgets/mobile/dashboard_mobile_rows.dart';
 import 'package:admin/utils/formatting.dart';
 
-/// Rows shown per layout. Three on a phone matches `_needsAttentionCard`, the
-/// other card on this screen that narrows on mobile: the panel already sits
-/// ~1150 px down, so two fewer rows is ~125 px less scrolling per tab.
+/// Rows shown on a phone — the same three as every other phone panel.
 const int kBillingPipelineNarrowRows = 3;
-const int kBillingPipelineWideRows = 5;
 
-/// Dashboard panel consolidating invoices and quotes behind one status strip
-/// with live counts (invoiceninja/flutter#155).
+/// Rows shown on a wide screen: the dashboard's list-panel count, five, or
+/// [kDensePanelRows] under Compact — so the card is as tall as the panel
+/// paired beside it.
+int billingPipelineWideRows(BuildContext context) =>
+    dashboardDense(context) ? kDensePanelRows : 5;
+
+/// The Invoices or the Quotes panel: [entity]'s most recent documents behind a
+/// status strip with live counts (invoiceninja/flutter#155).
+///
+/// It was one Invoices & Quotes card across the whole dashboard, drawn as a
+/// six-column table — and a short row stretched over ~1,100 px put all the
+/// slack between the client's name and the status. As two half-width cards
+/// each row is the shared [DashboardRecordRow], like every panel beside it.
 ///
 /// Drift-backed, so — like the task calendar — several things here are
 /// load-bearing and invisible at the call site.
@@ -59,8 +73,7 @@ class DashboardBillingPipelineCard extends StatefulWidget {
     required this.formatter,
     required this.refreshNonce,
     required this.narrow,
-    required this.includeInvoices,
-    required this.includeQuotes,
+    required this.entity,
     required this.initialTabId,
     required this.onTabChanged,
   });
@@ -77,12 +90,11 @@ class DashboardBillingPipelineCard extends StatefulWidget {
   /// `LayoutBuilder` — see the class doc.
   final bool narrow;
 
-  /// Which halves participate. Passed down from the two hosts rather than
-  /// re-derived here: `enabledPanelKinds` is the one place the module ×
-  /// permission gate lives, and a fourth copy is exactly what it exists to
-  /// prevent.
-  final bool includeInvoices;
-  final bool includeQuotes;
+  /// [EntityType.invoice] or [EntityType.quote]. Whether this company may
+  /// show it at all is `enabledPanelKinds`' decision, made by the host.
+  final EntityType entity;
+
+  bool get _invoices => entity == EntityType.invoice;
 
   /// The tab id restored from `nav_state`, or null for `All`. Persisted by the
   /// host (it owns the dashboard's per-company blob), healed here — a stored id
@@ -123,8 +135,15 @@ class _DashboardBillingPipelineCardState
     _vm = _buildVm();
   }
 
+  /// Rows the view model watches: the most any density shows, so a density
+  /// change needs no new view model — [_shown] slices.
   int get _rowLimit =>
-      widget.narrow ? kBillingPipelineNarrowRows : kBillingPipelineWideRows;
+      widget.narrow ? kBillingPipelineNarrowRows : kDensePanelRows;
+
+  /// Rows on screen.
+  int _shown(BuildContext context) => widget.narrow
+      ? kBillingPipelineNarrowRows
+      : billingPipelineWideRows(context);
 
   BillingPipelineViewModel _buildVm() {
     final registry = _services.entityRegistry;
@@ -132,9 +151,10 @@ class _DashboardBillingPipelineCardState
       invoiceModes:
           registry[EntityType.invoice]?.badgeModes ?? kDefaultBadgeModes,
       quoteModes: registry[EntityType.quote]?.badgeModes ?? kDefaultBadgeModes,
-      includeInvoices: widget.includeInvoices,
-      includeQuotes: widget.includeQuotes,
+      includeInvoices: widget._invoices,
+      includeQuotes: !widget._invoices,
     );
+    _watchOccasionalTabs();
     // A stored tab this company can no longer use — quotes module switched off,
     // `view_quote` revoked, a mode retired — degrades to `All`. Without the
     // heal the strip shows nothing selected and the view model subscribes to a
@@ -144,12 +164,48 @@ class _DashboardBillingPipelineCardState
       invoices: _services.invoices,
       quotes: _services.quotes,
       companyId: widget.companyId,
-      includeInvoices: widget.includeInvoices,
-      includeQuotes: widget.includeQuotes,
+      includeInvoices: widget._invoices,
+      includeQuotes: !widget._invoices,
       tabs: _tabs,
       rowLimit: _rowLimit,
       initialTab: initial,
     );
+  }
+
+  /// Live counts of the tabs in [kOccasionalBillingTabs], which the strip
+  /// shows only while they hold something.
+  final Map<String, int> _occasionalCounts = {};
+  final List<StreamSubscription<int>> _occasionalSubs = [];
+
+  void _watchOccasionalTabs() {
+    for (final sub in _occasionalSubs) {
+      unawaited(sub.cancel());
+    }
+    _occasionalSubs.clear();
+    _occasionalCounts.clear();
+    for (final tab in _tabs) {
+      if (!kOccasionalBillingTabs.contains(tab.id)) continue;
+      _occasionalSubs.add(
+        _countStream(tab).listen((n) {
+          if (!mounted || _occasionalCounts[tab.id] == n) return;
+          setState(() => _occasionalCounts[tab.id] = n);
+        }, onError: (Object _) {}),
+      );
+    }
+  }
+
+  /// The strip's tabs: every tab but an occasional one with nothing in it —
+  /// unless it is the selected tab, which never vanishes from under the user
+  /// (a restored `expired`, or the count dropping to zero while it is open).
+  List<BillingStatusTab> _visibleTabs() {
+    final selected = _vm.tab?.id;
+    return [
+      for (final t in _tabs)
+        if (!kOccasionalBillingTabs.contains(t.id) ||
+            t.id == selected ||
+            (_occasionalCounts[t.id] ?? 0) > 0)
+          t,
+    ];
   }
 
   @override
@@ -157,8 +213,7 @@ class _DashboardBillingPipelineCardState
     super.didUpdateWidget(oldWidget);
     if (oldWidget.companyId != widget.companyId ||
         oldWidget.formatter != widget.formatter ||
-        oldWidget.includeInvoices != widget.includeInvoices ||
-        oldWidget.includeQuotes != widget.includeQuotes ||
+        oldWidget.entity != widget.entity ||
         oldWidget.narrow != widget.narrow) {
       // A company switch usually tears this subtree down, but not when the new
       // company's formatter is already cached — then only this runs. (The wide
@@ -174,7 +229,7 @@ class _DashboardBillingPipelineCardState
       // The restored tab arriving late, which is the ONLY ordering production
       // produces: the dashboard body mounts as soon as its formatter resolves
       // — a microtask on a warm navigation — while the `nav_state` read that
-      // fills `billingTab` is still in flight and never notifies on its own.
+      // fills the saved tab is still in flight and never notifies on its own.
       // Reading `initialTabId` in `initState` alone therefore drops it every
       // time, making the persisted tab write-only.
       final restored = billingStatusTabById(_tabs, widget.initialTabId);
@@ -191,6 +246,9 @@ class _DashboardBillingPipelineCardState
 
   @override
   void dispose() {
+    for (final sub in _occasionalSubs) {
+      unawaited(sub.cancel());
+    }
     _vm.dispose();
     super.dispose();
   }
@@ -205,8 +263,8 @@ class _DashboardBillingPipelineCardState
   /// `badge_mode` is the list's own local-first filter key, and
   /// `GenericListViewModel._applyIntentState` already sanitizes an unknown one
   /// — it was written anticipating this producer.
-  void _openList(EntityType type, String? modeId) {
-    final path = type == EntityType.invoice ? '/invoices' : '/quotes';
+  void _openList(String? modeId) {
+    final path = widget._invoices ? '/invoices' : '/quotes';
     final narrowed = modeId != null && modeId != kBadgeModeTotal;
     context.go(
       path,
@@ -239,34 +297,35 @@ class _DashboardBillingPipelineCardState
 
   Widget _card(BuildContext context) {
     final tab = _vm.tab;
-    final links = _footerLinks(context, tab);
+    final modeId = widget._invoices ? tab?.invoiceModeId : tab?.quoteModeId;
+    final centred =
+        DashboardPanelCell.stretchedOf(context) &&
+        _vm.firstLoadResolved &&
+        _vm.rows.isEmpty;
     return DashboardCardShell(
-      title: context.tr('invoices_and_quotes'),
-      // Wide puts the links in the header; narrow cannot — the title sits in an
-      // `Expanded` with the trailing widget unbounded, so the title is what
-      // gives way, and "Invoices & Quotes" plus two links already fills an
-      // English phone card.
-      trailing: widget.narrow ? null : links,
-      // Edge-flush, like `DashboardListCard`: the strip's bottom rule has to
-      // reach both borders, and the default `InSpacing.lg` inset would also
-      // make the table's width budget ~32 px optimistic.
+      title: context.tr(widget._invoices ? 'invoices' : 'quotes'),
+      // One destination — the list, on the tab the strip shows.
+      trailing: DashboardCardFooterLink(
+        label: context.tr('view_all'),
+        onTap: () => _openList(modeId),
+      ),
+      onHeaderTap: Env.isTouchPrimary ? () => _openList(modeId) : null,
+      // Edge-flush, like `DashboardListCard`: the strip's bottom rule and the
+      // rows' hairlines reach both borders.
       padding: EdgeInsets.zero,
+      // Beside a taller neighbour the card is stretched to its height; an
+      // empty or failed tab then centres its line in the space below the
+      // strip instead of leaving a hollow box under it.
+      bodyFills: centred,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
           _strip(context),
-          _body(context, tab),
-          if (widget.narrow)
-            Padding(
-              padding: EdgeInsets.fromLTRB(
-                InSpacing.lg(context),
-                0,
-                InSpacing.lg(context),
-                InSpacing.md(context),
-              ),
-              child: links,
-            ),
+          if (centred)
+            Expanded(child: _body(context, tab))
+          else
+            _body(context, tab),
         ],
       ),
     );
@@ -274,9 +333,10 @@ class _DashboardBillingPipelineCardState
 
   Widget _strip(BuildContext context) {
     final selected = _vm.tab;
+    final tabs = _visibleTabs();
     final index = selected == null
         ? 0
-        : _tabs.indexWhere((t) => t.id == selected.id);
+        : tabs.indexWhere((t) => t.id == selected.id);
     // The strip speaks `ResolvedStatusTab`; the panel speaks
     // `BillingStatusTab`. The adapter is keyed on `countModeId` — NOT
     // `listModeId`, which is null for `All` — and resolving back through it is
@@ -285,7 +345,7 @@ class _DashboardBillingPipelineCardState
       for (final t in _tabs) t.mode?.id ?? kBadgeModeTotal: t,
     };
     final resolved = [
-      for (final t in _tabs)
+      for (final t in tabs)
         ResolvedStatusTab(t.mode, const <String, Set<String>>{}),
     ];
     return EntityListStatusTabs(
@@ -296,9 +356,7 @@ class _DashboardBillingPipelineCardState
       showCounts: _vm.firstLoadResolved,
       // Encodes which halves participate — the strip caches one stream per tab
       // on this key alone, so a module change must not reuse stale counts.
-      streamKey:
-          'billing:${widget.companyId}:'
-          '${widget.includeInvoices}${widget.includeQuotes}',
+      streamKey: 'pipeline:${widget.entity.name}:${widget.companyId}',
       countStream: (modeId) => _countStream(byCountMode[modeId]),
       onTap: (t) {
         final match = byCountMode[t.countModeId];
@@ -317,116 +375,69 @@ class _DashboardBillingPipelineCardState
     );
   }
 
-  /// One tab's count, summed across the halves that participate.
+  /// One tab's count.
   ///
-  /// **Never forwards the tab's own id to both entities.** `watchBadgeCount`
+  /// **Never forwards a mode this entity doesn't declare.** `watchBadgeCount`
   /// does `if (extra != null) q.where(extra)`, so a mode a DAO does not
-  /// recognise skips the WHERE and counts *every active row* — the quote-only
-  /// `approved` would silently add every invoice in the company.
+  /// recognise skips the WHERE and counts *every active row*; a tab's
+  /// per-entity id is null exactly when the entity has no such mode.
   Stream<int> _countStream(BillingStatusTab? tab) {
-    if (tab == null) return Stream<int>.value(0);
-    final invoiceId = widget.includeInvoices ? tab.invoiceModeId : null;
-    final quoteId = widget.includeQuotes ? tab.quoteModeId : null;
-    Stream<int> watch(EntityType type, String modeId) =>
-        _services.watchEntityCount(type, widget.companyId, modeId: modeId);
-
-    if (invoiceId != null && quoteId != null) {
-      // Deliberately not `combineLatest2`: it returns a single-subscription
-      // stream, and the strip caches these and re-listens whenever `showCounts`
-      // flips (the first-load gate, a company rebind, a refresh re-arm), which
-      // would throw "Stream has already been listened to".
-      return _sum(
-        watch(EntityType.invoice, invoiceId),
-        watch(EntityType.quote, quoteId),
-      );
-    }
-    if (invoiceId != null) return watch(EntityType.invoice, invoiceId);
-    if (quoteId != null) return watch(EntityType.quote, quoteId);
-    return Stream<int>.value(0);
-  }
-
-  /// Re-listenable combine: emits as soon as either side has a value, treating
-  /// the other as 0 until it arrives, so a slow half never stalls the badge.
-  static Stream<int> _sum(Stream<int> a, Stream<int> b) =>
-      Stream<int>.multi((controller) {
-        int? left;
-        int? right;
-        void emit() {
-          if (left == null && right == null) return;
-          controller.add((left ?? 0) + (right ?? 0));
-        }
-
-        final subA = a.listen((v) {
-          left = v;
-          emit();
-        }, onError: controller.addError);
-        final subB = b.listen((v) {
-          right = v;
-          emit();
-        }, onError: controller.addError);
-        controller.onCancel = () async {
-          await subA.cancel();
-          await subB.cancel();
-        };
-      });
-
-  Widget _body(BuildContext context, BillingStatusTab? tab) {
-    final rows = _vm.rows;
-    final showType = tab?.isMixed ?? false;
-    // A floor, never a fixed height: a fixed one clamps the line box and slices
-    // Inter Tight's descenders past ~1.14x text scale, and would clip a cell
-    // that wrapped. Sized for a FULL tab so the card is stable in both
-    // directions — in the wide grid a growing body resizes the card beside it
-    // (`_MultiColumnGrid` stretches each row to its tallest cell), and on
-    // mobile everything below it slides.
-    return ConstrainedBox(
-      constraints: BoxConstraints(minHeight: _rowLimit * _rowHeight(context)),
-      child: _bodyContent(context, rows, showType),
+    final modeId = widget._invoices ? tab?.invoiceModeId : tab?.quoteModeId;
+    if (modeId == null) return Stream<int>.value(0);
+    return _services.watchEntityCount(
+      widget.entity,
+      widget.companyId,
+      modeId: modeId,
     );
   }
 
-  /// Measured height of one rendered row per layout — the narrow shell is
-  /// number+pill over the client name (~63), the wide table a single line of
-  /// cells at 10 px vertical padding (~44). Compact: 52 narrow, and 32 wide
-  /// with a pointer (6 px padding; touch keeps 10).
-  double _rowHeight(BuildContext context) {
-    if (!dashboardDense(context)) return widget.narrow ? 63 : 44;
-    if (widget.narrow) return 52;
-    return Env.isTouchPrimary ? 44 : 32;
+  Widget _body(BuildContext context, BillingStatusTab? tab) {
+    final shown = _shown(context);
+    final rows = _vm.rows.take(shown).toList();
+    // A floor, never a fixed height: a fixed one clamps the line box and slices
+    // Inter Tight's descenders past ~1.14x text scale. Sized for a FULL tab so
+    // the card is stable in both directions — in the wide grid a growing body
+    // resizes the card beside it, and on mobile everything below it slides.
+    final floor =
+        shown *
+        dashboardRecordRowExtent(
+          compact: widget.narrow,
+          dense: dashboardDense(context),
+        );
+    return ConstrainedBox(
+      constraints: BoxConstraints(minHeight: floor),
+      child: _bodyContent(context, rows, tab),
+    );
   }
 
   Widget _bodyContent(
     BuildContext context,
     List<BillingPipelineRow> rows,
-    bool showType,
+    BillingStatusTab? tab,
   ) {
     if (!_vm.firstLoadResolved && rows.isEmpty) {
       return Padding(
         padding: EdgeInsets.all(InSpacing.lg(context)),
-        child: ListCardSkeleton(rowCount: _rowLimit),
+        child: ListCardSkeleton(rowCount: _shown(context)),
       );
     }
     if (rows.isEmpty && _vm.tabLoadFailed) return _failed(context);
     if (rows.isEmpty) return _empty(context);
-    if (widget.narrow) {
-      return Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (final row in rows)
-            MobileBillingPipelineRow(
-              row: row,
-              formatter: widget.formatter,
-              showType: showType,
-              onTap: () => _openRecord(row),
-            ),
-        ],
-      );
-    }
-    return BillingPipelineTable(
-      rows: rows,
-      formatter: widget.formatter,
-      showType: showType,
-      onOpen: _openRecord,
+    // On a status tab every row has that status, so a pill on each would
+    // repeat the selected tab; `All` mixes them and needs it.
+    final pills = tab?.isAll ?? true;
+    return DashboardRecordRows(
+      rows: [
+        for (final row in rows)
+          _PipelineRow(
+            key: ValueKey('${row.type.name}:${row.id}'),
+            row: row,
+            formatter: widget.formatter,
+            compact: widget.narrow,
+            pill: pills,
+            onTap: () => _openRecord(row),
+          ),
+      ],
     );
   }
 
@@ -493,34 +504,65 @@ class _DashboardBillingPipelineCardState
       ),
     );
   }
+}
 
-  Widget _footerLinks(BuildContext context, BillingStatusTab? tab) {
-    final invoiceId = widget.includeInvoices ? tab?.invoiceModeId : null;
-    final quoteId = widget.includeQuotes ? tab?.quoteModeId : null;
-    return Wrap(
-      alignment: WrapAlignment.end,
-      // Real separation: two 12 px labels 8 px apart is a mis-tap that silently
-      // opens the wrong list, with no undo.
-      spacing: InSpacing.lg(context),
-      runSpacing: InSpacing.sm,
-      children: [
-        // `touchFloor` because this card cannot wire
-        // `DashboardCardShell.onHeaderTap` — that contract requires a single
-        // destination and a merged tab has two — so the links carry the target
-        // themselves.
-        if (invoiceId != null)
-          DashboardCardFooterLink(
-            label: context.tr('invoices'),
-            onTap: () => _openList(EntityType.invoice, invoiceId),
-            touchFloor: true,
-          ),
-        if (quoteId != null)
-          DashboardCardFooterLink(
-            label: context.tr('quotes'),
-            onTap: () => _openList(EntityType.quote, quoteId),
-            touchFloor: true,
-          ),
-      ],
+/// One document as a [DashboardRecordRow]: number · client, its status pill
+/// (on `All`) and date, and the amount in the client's currency.
+class _PipelineRow extends StatelessWidget {
+  const _PipelineRow({
+    super.key,
+    required this.row,
+    required this.formatter,
+    required this.compact,
+    required this.pill,
+    required this.onTap,
+  });
+
+  final BillingPipelineRow row;
+  final Formatter formatter;
+  final bool compact;
+  final bool pill;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.inTheme;
+    final pillStyle = TextStyle(
+      fontSize: 11,
+      fontWeight: FontWeight.w600,
+      color: tokens.ink,
+    );
+    final date = row.date;
+    return PartyCurrencyBuilder(
+      clientId: row.clientId,
+      builder: (context, currencyId) => DashboardRecordRow(
+        number: row.number,
+        client: '',
+        // `link: false` is the default: the whole row is one destination.
+        clientLabel: ClientNameLabel(clientId: row.clientId),
+        badge: !pill
+            ? null
+            : row.type == EntityType.invoice
+            ? InvoiceStatusPill(
+                statusId: row.statusId,
+                dotSize: 6,
+                textStyle: pillStyle,
+                hasBounce: row.hasBounce,
+              )
+            : QuoteStatusPill(
+                statusId: row.statusId,
+                dotSize: 6,
+                textStyle: pillStyle,
+                hasBounce: row.hasBounce,
+              ),
+        lead: date is Date ? formatter.date(date.toIso()) : '',
+        amount: formatter.money(
+          row.amount as Decimal,
+          clientCurrencyId: currencyId,
+        ),
+        onTap: onTap,
+        compact: compact,
+      ),
     );
   }
 }

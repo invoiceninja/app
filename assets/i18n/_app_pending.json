@@ -2046,5 +2046,7 @@
   "image_not_readable": "That file couldn't be attached as an image.",
   "welcome_density_title": "Fit more on screen",
   "welcome_density_body_old_app": "Compact is closer to the previous app's layout. You can change it any time in Device Settings.",
-  "welcome_density_body": "Compact tightens lists, records and the dashboard. You can change it any time in Device Settings."
+  "welcome_density_body": "Compact tightens lists, records and the dashboard. You can change it any time in Device Settings.",
+  "panel_hidden": ":panel hidden",
+  "show_panel_again_in_customize": "Turn it back on in Customize."
 }

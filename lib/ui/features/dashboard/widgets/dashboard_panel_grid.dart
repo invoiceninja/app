@@ -29,9 +29,8 @@ import 'package:admin/ui/features/dashboard/helpers/panel_rows.dart';
 ///   pinned.
 ///
 /// **Which panels share a row is `layoutPanelRows`' decision**, not "fill two
-/// columns in order": Invoices & Quotes always takes a whole row, the rest
-/// pair up, and an odd one out gives a table the row rather than leaving half
-/// of it empty. The pure function is unit-tested on every subset; this widget
+/// columns in order": panels pair up, and an odd one out gives a list panel
+/// the row — its rows in two columns — rather than leaving half of it empty. The pure function is unit-tested on every subset; this widget
 /// only draws its answer.
 ///
 /// The `builders` map stays with the screen — `dashboard_panel_wiring_test`
@@ -49,10 +48,24 @@ class DashboardPanelCell extends InheritedWidget {
   const DashboardPanelCell({
     super.key,
     required this.stretched,
+    this.spans = false,
     required super.child,
   });
 
   final bool stretched;
+
+  /// The panel takes a whole row of the two-column grid — the odd one out
+  /// (`layoutPanelRows`). Its list then flows into two columns
+  /// (`DashboardRecordRows`), because one row stretched across ~1,100 px put
+  /// all the slack between the client's name and the amount.
+  final bool spans;
+
+  /// Whether the nearest cell spans a two-column row. False with none above,
+  /// and in a one-column grid, where every panel is a row of its own at a
+  /// width the single-line row was made for.
+  static bool spansOf(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<DashboardPanelCell>()?.spans ??
+      false;
 
   /// Whether the nearest cell is a stretched one. False with none above.
   static bool stretchedOf(BuildContext context) =>
@@ -63,7 +76,7 @@ class DashboardPanelCell extends InheritedWidget {
 
   @override
   bool updateShouldNotify(DashboardPanelCell oldWidget) =>
-      oldWidget.stretched != stretched;
+      oldWidget.stretched != stretched || oldWidget.spans != spans;
 }
 
 class DashboardPanelGrid extends StatefulWidget {
@@ -159,7 +172,11 @@ class _DashboardPanelGridState extends State<DashboardPanelGrid> {
 
   Widget _row(PanelRow row, Map<String, Widget> cards) {
     final first = cards[row.first]!;
-    if (row.spans) return first;
+    if (row.spans) {
+      return widget.columns >= 2
+          ? DashboardPanelCell(stretched: false, spans: true, child: first)
+          : first;
+    }
     final second = row.second == null ? null : cards[row.second];
     // `IntrinsicHeight` + stretch: the two cards of a row end on one line
     // whatever each holds. It is why nothing under a panel may be a

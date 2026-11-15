@@ -385,19 +385,23 @@ class DashboardViewModel extends ChangeNotifier {
 
   // ─── Public actions ──────────────────────────────────────────────────
 
-  /// Selected tab of the Invoices & Quotes panel, null for `All`.
+  /// Selected tab of the Invoices or Quotes panel ([entity]), null for `All`.
   ///
   /// Per company, because which tabs exist depends on the company's modules and
   /// the user's permissions there. The panel heals a value it can no longer
   /// offer back to `All` rather than rendering nothing selected.
-  String? get billingTab => _billingTab;
-  String? _billingTab;
+  String? pipelineTab(EntityType entity) => _pipelineTabs[entity];
+  final Map<EntityType, String> _pipelineTabs = {};
 
   /// Called on a user tap only — never on hydrate, or every cold start would
   /// rewrite `nav_state`.
-  void setBillingTab(String? id) {
-    if (_billingTab == id) return;
-    _billingTab = id;
+  void setPipelineTab(EntityType entity, String? id) {
+    if (_pipelineTabs[entity] == id) return;
+    if (id == null) {
+      _pipelineTabs.remove(entity);
+    } else {
+      _pipelineTabs[entity] = id;
+    }
     _schedulePersist();
   }
 
@@ -553,8 +557,18 @@ class DashboardViewModel extends ChangeNotifier {
   void togglePanelVisibility(String kind) {
     final idx = panelPrefs.indexWhere((p) => p.kind == kind);
     if (idx < 0) return;
+    setPanelVisible(kind, !panelPrefs[idx].visible);
+  }
+
+  /// Idempotent, unlike [togglePanelVisibility] — the panel menu's Hide and
+  /// its toast's Undo each say which state they want, so a double tap or an
+  /// Undo after the user already switched it back in Customize cannot flip
+  /// it the wrong way.
+  void setPanelVisible(String kind, bool visible) {
+    final idx = panelPrefs.indexWhere((p) => p.kind == kind);
+    if (idx < 0 || panelPrefs[idx].visible == visible) return;
     final next = [...panelPrefs];
-    next[idx] = next[idx].copyWith(visible: !next[idx].visible);
+    next[idx] = next[idx].copyWith(visible: visible);
     panelPrefs = next;
     notifyListeners();
     _schedulePersist(sync: _Synced.panels);
@@ -1200,13 +1214,18 @@ class DashboardViewModel extends ChangeNotifier {
       );
       if (cards != null) dashboardCards = cards;
 
-      // The Invoices & Quotes panel's selected tab. Restored alongside the date
-      // range, which is a far stronger filter living in this same blob — it
-      // re-scopes the KPIs, the chart and every list card, where this narrows
-      // one card whose own control sits 8 px above the rows it filters.
-      final billingTab = dash['billingTab'];
-      if (billingTab is String && billingTab.isNotEmpty) {
-        _billingTab = billingTab;
+      // The Invoices and Quotes panels' selected tabs. Restored alongside the
+      // date range, which is a far stronger filter living in this same blob —
+      // it re-scopes the KPIs, the chart and every list card, where these
+      // narrow one card whose own control sits 8 px above the rows it filters.
+      //
+      // `billingTab` is the single panel's, from before the split: it seeds
+      // both, and each card heals an id its entity doesn't offer (`sent` on
+      // Invoices) back to `All`.
+      final legacy = dash['billingTab'];
+      for (final (entity, key) in _pipelineTabKeys) {
+        final v = dash[key] ?? legacy;
+        if (v is String && v.isNotEmpty) _pipelineTabs[entity] = v;
       }
 
       // When `panels` is absent (every pre-upgrade install), panelPrefs keeps
@@ -1241,7 +1260,7 @@ class DashboardViewModel extends ChangeNotifier {
     if (raw is! List) return null;
     final seen = <String>{};
     final loaded = <DashboardPanelPref>[];
-    for (final p in raw) {
+    for (final p in _splitLegacyPipeline(raw)) {
       final pref = DashboardPanelPref.tryParse(p);
       // Keep only known panel kinds; dedupe by kind.
       if (pref != null &&
@@ -1295,6 +1314,33 @@ class DashboardViewModel extends ChangeNotifier {
     }
     return loaded;
   }
+
+  /// [raw] with the single Invoices & Quotes panel a save from before the split
+  /// names replaced by the two that replaced it, **in its place and with its
+  /// visibility**. Left to the canonical-rank placement instead, both would
+  /// arrive visible — two new cards for a user who had hidden the one — and
+  /// at their default slot rather than where that user had dragged it.
+  static List<Object?> _splitLegacyPipeline(List<Object?> raw) => [
+    for (final p in raw)
+      if (DashboardPanelPref.tryParse(p) case final pref?
+          when pref.kind == DashboardKind.legacyInvoicesAndQuotes) ...[
+        DashboardPanelPref(
+          kind: DashboardKind.invoicesPipeline,
+          visible: pref.visible,
+        ).toJson(),
+        DashboardPanelPref(
+          kind: DashboardKind.quotesPipeline,
+          visible: pref.visible,
+        ).toJson(),
+      ] else
+        p,
+  ];
+
+  /// The `nav_state` keys of the two panels' selected tabs.
+  static const _pipelineTabKeys = [
+    (EntityType.invoice, 'invoicesTab'),
+    (EntityType.quote, 'quotesTab'),
+  ];
 
   /// A stored legend selection, or null when [raw] is not a list or names no
   /// series — the chart is never left empty.
@@ -1461,7 +1507,8 @@ class DashboardViewModel extends ChangeNotifier {
         'chartGrouping': chartGrouping.name,
         'dashboardCards': dashboardCards.map((c) => c.toJson()).toList(),
         'panels': panelPrefs.map((p) => p.toJson()).toList(),
-        if (_billingTab != null) 'billingTab': _billingTab,
+        for (final (entity, key) in _pipelineTabKeys)
+          if (_pipelineTabs[entity] case final tab?) key: tab,
       };
       doc[companyId] = companyMap;
       await navStateDao.saveFilters(

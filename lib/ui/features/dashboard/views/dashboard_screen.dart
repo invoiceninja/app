@@ -46,6 +46,7 @@ import 'package:admin/ui/features/dashboard/widgets/dashboard_create_fab.dart';
 import 'package:admin/ui/features/dashboard/widgets/dashboard_density.dart';
 import 'package:admin/ui/features/dashboard/widgets/dashboard_mobile_app_bar.dart';
 import 'package:admin/ui/features/dashboard/widgets/dashboard_panel_grid.dart';
+import 'package:admin/ui/features/dashboard/widgets/dashboard_panel_menu_host.dart';
 import 'package:admin/ui/features/dashboard/widgets/dashboard_period_bar.dart';
 import 'package:admin/ui/features/dashboard/widgets/dashboard_top_bar.dart';
 import 'package:admin/ui/features/dashboard/widgets/hidden_empty_panels_builder.dart';
@@ -1130,6 +1131,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
     // ones the user hid and the ones with nothing to show, and keys each with
     // a `GlobalKey` so a panel that changes row keeps its element — see that
     // widget for why the old per-card `ValueKey` never did.
+    // The Invoices and Quotes panels — one card, one entity each.
+    Widget pipeline(EntityType entity) => DashboardBillingPipelineCard(
+      companyId: _companyId,
+      formatter: formatter,
+      refreshNonce: _vm.panelRefreshNonce,
+      narrow: false,
+      entity: entity,
+      initialTabId: _vm.pipelineTab(entity),
+      onTabChanged: (id) => _vm.setPipelineTab(entity, id),
+    );
     final builders = <String, Widget Function()>{
       if (on(DashboardKind.upcomingInvoices))
         DashboardKind.upcomingInvoices: () => sectionListenable(
@@ -1201,23 +1212,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
       // `ListenableBuilder` over a task view model, and there is no
       // `dashboard_cache` section for this kind to listen to.
       // Drift-backed, so no `sectionListenable` wrapper here either.
-      if (on(DashboardKind.invoicesAndQuotes))
-        DashboardKind.invoicesAndQuotes: () {
-          final halves = billingPipelineHalves(
-            moduleOn: (t) => me?.moduleEnabled(t) ?? false,
-            can: (p) => me?.can(p) ?? false,
-          );
-          return DashboardBillingPipelineCard(
-            companyId: _companyId,
-            formatter: formatter,
-            refreshNonce: _vm.panelRefreshNonce,
-            narrow: false,
-            includeInvoices: halves.invoices,
-            includeQuotes: halves.quotes,
-            initialTabId: _vm.billingTab,
-            onTabChanged: _vm.setBillingTab,
-          );
-        },
+      if (on(DashboardKind.invoicesPipeline))
+        DashboardKind.invoicesPipeline: () => pipeline(EntityType.invoice),
+      if (on(DashboardKind.quotesPipeline))
+        DashboardKind.quotesPipeline: () => pipeline(EntityType.quote),
       if (on(DashboardKind.taskCalendar))
         DashboardKind.taskCalendar: () => DashboardTaskCalendarCard(
           companyId: _companyId,
@@ -1237,7 +1235,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
       force: _checklistOverEmpty,
       builder: (context, hidden) => DashboardPanelGrid(
         panelPrefs: _vm.panelPrefs,
-        builders: builders,
+        // Each panel gets its Hide / Customize `⋮` (`DashboardPanelMenuScope`).
+        builders: {
+          for (final e in builders.entries)
+            e.key: () => withDashboardPanelMenu(
+              context,
+              vm: _vm,
+              kind: e.key,
+              child: e.value(),
+            ),
+        },
         hidden: hidden,
         columns: width >= kDashboardTwoColumnPane ? 2 : 1,
         gap: dashboardDense(context)

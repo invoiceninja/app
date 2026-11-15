@@ -347,7 +347,7 @@ another run's error. The after-sync run shows no toast (the Sync toast already r
 its failure shows as `lastRefreshed` staying put, plus the error state of the sections that render
 one — configured cards, and list cards with nothing cached. The KPI row and the chart render none.
 
-**The Drift-backed panels re-arm off their own nonce.** The Invoices & Quotes and task-calendar
+**The Drift-backed panels re-arm off their own nonce.** The Invoices, Quotes and task-calendar
 panels refetch their own server window when their `refreshNonce` changes from one non-null value to
 another; a first stamp is their initial load. That nonce used to be `lastRefreshed`, so every clean
 Sync cleared their loaded flags, re-downloaded pages the pass had just fetched in full, and blinked

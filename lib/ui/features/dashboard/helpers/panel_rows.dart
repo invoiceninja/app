@@ -37,57 +37,34 @@ class PanelRow {
 }
 
 /// Lays [kinds] — the panels to show, in the user's order — out as rows with
-/// no empty half row.
+/// as few empty half rows as possible.
 ///
 /// The grid used to fill two columns in order, so an odd number of panels left
 /// half a row blank, and which panel sat beside the gap changed every time one
 /// emptied out and was hidden. The rules, in order:
 ///
-///  * **Invoices & Quotes always takes a whole row.** Its tab strip and its
-///    wider rows are the one thing here that gains from the width, and a fixed
-///    width means it never flips between half and full as its neighbours come
-///    and go.
-///  * **Everything else pairs up in order**, within the run of panels between
-///    two full-width rows.
-///  * **A run with an odd count gives one table the whole row**, chosen so the
-///    rest still pair in order: the last panel at an even position in the run
-///    that is not the calendar.
-///  * **The task calendar is never stretched** — its month grid is capped at
-///    440 px, so across a whole row it is an island — and never left alone
-///    beside a gap unless it is the only panel in its run.
+///  * **Panels pair up in order.**
+///  * **An odd count gives one list panel the whole row**, chosen so the rest
+///    still pair in order: the last panel at an even position that may span.
+///    A spanning list panel flows its rows into two columns
+///    (`DashboardRecordRows`), so it fills the width instead of stretching
+///    each row across it.
+///  * **[kNeverSpanPanels] are never stretched.** The task calendar's month
+///    grid is capped at 440 px, so across a whole row it is an island; the
+///    Invoices and Quotes panels lead with a status strip whose tabs would
+///    sit in one corner. When none of the panels could span, the last one
+///    keeps its half and the other half stays empty.
 ///
 /// With one column every panel is its own row.
 List<PanelRow> layoutPanelRows(List<String> kinds, {required int columns}) {
   if (columns <= 1) {
     return [for (final k in kinds) PanelRow.span(k)];
   }
-  final rows = <PanelRow>[];
-  var run = <String>[];
-
-  void flushRun() {
-    if (run.isEmpty) return;
-    rows.addAll(_layoutRun(run));
-    run = <String>[];
-  }
-
-  for (final kind in kinds) {
-    if (kind == DashboardKind.invoicesAndQuotes) {
-      flushRun();
-      rows.add(PanelRow.span(kind));
-    } else {
-      run.add(kind);
-    }
-  }
-  flushRun();
-  return rows;
-}
-
-List<PanelRow> _layoutRun(List<String> run) {
   // Which panel, if any, takes a whole row so that the others pair.
   var spanAt = -1;
-  if (run.length.isOdd) {
-    for (var i = run.length - 1; i >= 0; i -= 2) {
-      if (run[i] != DashboardKind.taskCalendar) {
+  if (kinds.length.isOdd) {
+    for (var i = kinds.length - 1; i >= 0; i -= 2) {
+      if (!kNeverSpanPanels.contains(kinds[i])) {
         spanAt = i;
         break;
       }
@@ -95,18 +72,26 @@ List<PanelRow> _layoutRun(List<String> run) {
   }
   final rows = <PanelRow>[];
   var i = 0;
-  while (i < run.length) {
+  while (i < kinds.length) {
     if (i == spanAt) {
-      rows.add(PanelRow.span(run[i]));
+      rows.add(PanelRow.span(kinds[i]));
       i += 1;
-    } else if (i + 1 < run.length) {
-      rows.add(PanelRow.pair(run[i], run[i + 1]));
+    } else if (i + 1 < kinds.length) {
+      rows.add(PanelRow.pair(kinds[i], kinds[i + 1]));
       i += 2;
     } else {
-      // Only reachable for a run that is the calendar on its own.
-      rows.add(PanelRow.half(run[i]));
+      // Only reachable when no panel at an even position may span.
+      rows.add(PanelRow.half(kinds[i]));
       i += 1;
     }
   }
   return rows;
 }
+
+/// Panels that keep their half rather than span a row — see
+/// [layoutPanelRows].
+const Set<String> kNeverSpanPanels = {
+  DashboardKind.taskCalendar,
+  DashboardKind.invoicesPipeline,
+  DashboardKind.quotesPipeline,
+};

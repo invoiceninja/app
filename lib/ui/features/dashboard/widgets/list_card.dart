@@ -27,8 +27,7 @@ String viewAllLabel(BuildContext context, List<Object?> rows) {
 /// header link.
 ///
 /// The body slot is **edge-flush** — the shell adds no padding around the
-/// `bodyBuilder` result. This lets a `DashboardEntityTable` header strip
-/// stretch the full width of the card. The other states add their own padding.
+/// `bodyBuilder` result, so the rows' hairlines reach both borders. The other states add their own padding.
 ///
 /// **Empty and failed are one line each.** They used to be an `EmptyState`
 /// with a 64 px icon and an `ErrorView` in a fixed 200 px box — a box the
@@ -54,7 +53,7 @@ class DashboardListCard<T> extends StatelessWidget {
 
   /// Builds the data body once the section is ready and non-empty. Receives
   /// the already-sliced preview list (length ≤ [preview]). Each card supplies
-  /// a `DashboardEntityTable` for its row layout.
+  /// `DashboardRecordRows` for its row layout.
   final Widget Function(BuildContext, List<T>) bodyBuilder;
 
   final String emptyTitle;

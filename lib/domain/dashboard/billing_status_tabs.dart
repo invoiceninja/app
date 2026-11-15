@@ -1,5 +1,7 @@
-/// The tab set for the dashboard's consolidated Invoices & Quotes panel
-/// (invoiceninja/flutter#155).
+/// The tab sets for the dashboard's Invoices and Quotes panels
+/// (invoiceninja/flutter#155). They were one consolidated panel, whose mixed
+/// tabs (`All`, `Draft`) summed both entities; the machinery for that is kept
+/// because it costs nothing, but each panel now passes one entity.
 ///
 /// A **view over two existing catalogs**, never a third one. Each tab names, per
 /// entity, the [SidebarBadgeMode] id that entity contributes to it — so the
@@ -95,10 +97,9 @@ class BillingStatusTab {
 ///
 /// **Derived, not invented.** Filtered to each entity's participating ids this
 /// reproduces that entity's own `kListStatusTabs` order exactly — invoices read
-/// `draft, unpaid` (their strip minus the deliberately-omitted `overdue`) and
-/// quotes read `draft, sent, approved, rejected, cancelled, expired` — so the
-/// panel can
-/// never disagree with the list its footer links land on.
+/// `draft, unpaid, overdue` and quotes read
+/// `draft, sent, approved, rejected, cancelled, expired` — so a panel can never
+/// disagree with the list its View All lands on.
 /// `billing_status_tabs_test` pins that property in both directions.
 ///
 /// `unpaid` sits second rather than last because it is not a lifecycle *stage*:
@@ -107,12 +108,14 @@ class BillingStatusTab {
 /// cross-cutting money state goes. Parking it last would cost the strip's most actionable
 /// number the most horizontal travel.
 ///
-/// `overdue` is omitted deliberately: the shipped "Needs your attention" panel
-/// already lists past-due invoices, and a second surface for it would compete
-/// with that one rather than add anything.
+/// `overdue` was left out while invoices shared a strip with seven quote
+/// tabs, because "Needs your attention" already lists past-due invoices. On
+/// the Invoices card's own strip it is the third of four tabs, and leaving it
+/// out made that strip disagree with the invoice list's.
 const List<String> kBillingPipelineTabOrder = [
   'draft',
   'unpaid',
+  'overdue',
   'sent',
   'approved',
   'rejected',
@@ -123,6 +126,13 @@ const List<String> kBillingPipelineTabOrder = [
   'cancelled',
   'expired',
 ];
+
+/// Tabs a dashboard strip shows only while they hold something: a quote's
+/// terminal outcomes other than Approved. Most companies have none on most
+/// days, and three zero-count tabs wrapped the Quotes card's strip onto a
+/// second line to say so. The list's own strip keeps them — there they are
+/// the way to find one. Approved stays: it is the outcome being worked for.
+const Set<String> kOccasionalBillingTabs = {'rejected', 'cancelled', 'expired'};
 
 /// The panel's strip: `All` first, then every tab at least one participating
 /// entity declares.

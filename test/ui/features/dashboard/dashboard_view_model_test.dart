@@ -18,6 +18,7 @@ import 'package:admin/data/repositories/dashboard_repository.dart';
 import 'package:admin/data/repositories/statics_repository.dart';
 import 'package:admin/data/services/realtime/realtime_service.dart';
 import 'package:admin/data/services/statics_service.dart';
+import 'package:admin/domain/entity_type.dart';
 import 'package:admin/ui/features/dashboard/view_models/dashboard_view_model.dart';
 
 import '_fake_dashboard_repo.dart';
@@ -436,10 +437,11 @@ void main() {
       var globalHits = 0;
       vm.addListener(() => globalHits++);
       // Indices are of the panels beneath the pinned past-due band.
-      vm.reorderTrailingPanels(0, 2); // invoices & quotes → third of the rest
+      vm.reorderTrailingPanels(0, 2); // Invoices → third of the rest
       expect(vm.panelPrefs.first.kind, DashboardKind.pastDue);
-      expect(vm.panelPrefs[1].kind, DashboardKind.upcomingInvoices);
-      expect(vm.panelPrefs[3].kind, DashboardKind.invoicesAndQuotes);
+      expect(vm.panelPrefs[1].kind, DashboardKind.quotesPipeline);
+      expect(vm.panelPrefs[2].kind, DashboardKind.upcomingInvoices);
+      expect(vm.panelPrefs[3].kind, DashboardKind.invoicesPipeline);
       expect(vm.panelsAreDefault, isFalse);
       expect(globalHits, greaterThanOrEqualTo(1));
     });
@@ -473,7 +475,7 @@ void main() {
       'reorderTrailingPanels reorders the rest, preserves past-due slot',
       () {
         // Default: past-due at index 0. Move the first trailing panel
-        // (invoices & quotes) to the end of the trailing block — the target
+        // (Invoices) to the end of the trailing block — the target
         // index is the trailing COUNT, so it tracks the panel set rather than
         // being a literal that silently stops meaning "the end".
         final trailing = vm.panelPrefs
@@ -482,13 +484,14 @@ void main() {
         vm.reorderTrailingPanels(0, trailing);
         expect(vm.panelPrefs.map((p) => p.kind), const [
           'past_due', // pinned, unchanged
+          'quotes_pipeline',
           'upcoming_invoices',
           'recent_payments',
           'upcoming_quotes',
           'expired_quotes',
           'upcoming_recurring',
           'task_calendar',
-          'invoices_and_quotes',
+          'invoices_pipeline',
         ]);
       },
     );
@@ -496,7 +499,7 @@ void main() {
     test('persists and rehydrates panel order + visibility', () async {
       final writer = newVm(persistDebounce: const Duration(milliseconds: 5));
       await Future<void>.delayed(const Duration(milliseconds: 20));
-      writer.reorderTrailingPanels(0, 4); // invoices & quotes → mid-list
+      writer.reorderTrailingPanels(0, 4); // Invoices → mid-list
       writer.togglePanelVisibility(DashboardKind.upcomingQuotes); // hide
       await Future<void>.delayed(const Duration(milliseconds: 40));
       final expectedOrder = writer.panelPrefs.map((p) => p.kind).toList();
@@ -600,11 +603,12 @@ void main() {
         // layout let past-due be dragged. Past-due is pinned first on every
         // layout now, so hydrate moves it to the front *before* placing the
         // missing kinds — each of which is anchored on its last smaller-ranked
-        // predecessor, so `invoices_and_quotes` lands directly beneath the band
+        // predecessor, so `invoices_pipeline` lands directly beneath the band
         // rather than far down the page beside a stranded past-due slot.
         expect(reader.panelPrefs.map((p) => p.kind), const [
           'past_due',
-          'invoices_and_quotes',
+          'invoices_pipeline',
+          'quotes_pipeline',
           'upcoming_invoices',
           'recent_payments',
           'upcoming_quotes',
@@ -612,7 +616,7 @@ void main() {
           'upcoming_recurring',
           'task_calendar',
         ]);
-        expect(reader.panelPrefs.length, 8);
+        expect(reader.panelPrefs.length, DashboardKind.panelKinds.length);
         expect(
           reader.panelPrefs
               .firstWhere((p) => p.kind == DashboardKind.recentPayments)
@@ -631,22 +635,28 @@ void main() {
       },
     );
 
-    test('the billing tab round-trips, and hydrate never writes', () async {
+    test("each panel's tab round-trips, and hydrate never writes", () async {
       final writer = newVm(persistDebounce: const Duration(milliseconds: 5));
       await Future<void>.delayed(const Duration(milliseconds: 20));
-      expect(writer.billingTab, isNull, reason: 'All is the resting state');
-      writer.setBillingTab('expired');
+      expect(
+        writer.pipelineTab(EntityType.quote),
+        isNull,
+        reason: 'All is the resting state',
+      );
+      writer.setPipelineTab(EntityType.quote, 'expired');
+      writer.setPipelineTab(EntityType.invoice, 'overdue');
       await Future<void>.delayed(const Duration(milliseconds: 30));
       writer.dispose();
 
       final reader = newVm();
       await Future<void>.delayed(const Duration(milliseconds: 20));
-      expect(reader.billingTab, 'expired');
+      expect(reader.pipelineTab(EntityType.quote), 'expired');
+      expect(reader.pipelineTab(EntityType.invoice), 'overdue');
 
       // A no-op set must not schedule a write, or an unrelated rebuild could
       // churn nav_state.
       final before = await db.navStateDao.current();
-      reader.setBillingTab('expired');
+      reader.setPipelineTab(EntityType.quote, 'expired');
       await Future<void>.delayed(const Duration(milliseconds: 30));
       expect((await db.navStateDao.current())?.updatedAt, before?.updatedAt);
       reader.dispose();
@@ -660,7 +670,7 @@ void main() {
       // default.
       final old = [
         for (final k in DashboardKind.panelKinds)
-          if (k != DashboardKind.invoicesAndQuotes) '$k|1',
+          if (k != DashboardKind.upcomingRecurring) '$k|1',
       ];
       await db.navStateDao.saveFilters(
         filtersJson: jsonEncode({
@@ -675,6 +685,74 @@ void main() {
       expect(reader.panelPrefs.map((p) => p.kind), DashboardKind.panelKinds);
       expect(reader.panelsAreDefault, isTrue);
       reader.dispose();
+    });
+    group('the split of Invoices & Quotes', () {
+      Future<DashboardViewModel> hydrated(
+        Map<String, Object?> dashboard,
+      ) async {
+        await db.navStateDao.saveFilters(
+          filtersJson: jsonEncode({
+            'co': {'dashboard': dashboard},
+          }),
+          now: 1,
+        );
+        final vm = newVm();
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+        addTearDown(vm.dispose);
+        return vm;
+      }
+
+      test(
+        'a saved panel becomes both, in its place and hidden if it was',
+        () async {
+          final vm = await hydrated({
+            'panels': [
+              'past_due|1',
+              'upcoming_invoices|1',
+              'invoices_and_quotes|0',
+              'recent_payments|1',
+            ],
+          });
+          final kinds = vm.panelPrefs.map((p) => p.kind).toList();
+          final at = kinds.indexOf(DashboardKind.invoicesPipeline);
+          expect(kinds[at - 1], DashboardKind.upcomingInvoices);
+          expect(kinds[at + 1], DashboardKind.quotesPipeline);
+          expect(kinds[at + 2], DashboardKind.recentPayments);
+          for (final k in [
+            DashboardKind.invoicesPipeline,
+            DashboardKind.quotesPipeline,
+          ]) {
+            expect(
+              vm.panelPrefs.firstWhere((p) => p.kind == k).visible,
+              isFalse,
+              reason: '$k keeps the hidden panel hidden',
+            );
+          }
+        },
+      );
+
+      test('the old default is the new default', () async {
+        final vm = await hydrated({
+          'panels': [
+            'past_due|1',
+            'invoices_and_quotes|1',
+            'upcoming_invoices|1',
+            'recent_payments|1',
+            'upcoming_quotes|1',
+            'expired_quotes|1',
+            'upcoming_recurring|1',
+            'task_calendar|1',
+          ],
+        });
+        expect(vm.panelPrefs.map((p) => p.kind), DashboardKind.panelKinds);
+        expect(vm.panelsAreDefault, isTrue);
+      });
+
+      test("the old panel's saved tab seeds both", () async {
+        final vm = await hydrated({'billingTab': 'draft'});
+        expect(vm.pipelineTab(EntityType.invoice), 'draft');
+        expect(vm.pipelineTab(EntityType.quote), 'draft');
+      });
     });
   });
 
@@ -981,10 +1059,12 @@ void main() {
           reason: 'its show / hide choice is kept',
         );
         // The rest keep the order they were saved in.
-        expect(reader.panelPrefs.skip(1).take(3).map((p) => p.kind), [
+        // The pre-split panel becomes both of its halves, where it was.
+        expect(reader.panelPrefs.skip(1).take(4).map((p) => p.kind), [
           'upcoming_invoices',
           'recent_payments',
-          'invoices_and_quotes',
+          'invoices_pipeline',
+          'quotes_pipeline',
         ]);
         reader.dispose();
       },

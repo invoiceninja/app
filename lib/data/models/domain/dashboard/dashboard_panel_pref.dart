@@ -4,9 +4,9 @@ import 'package:admin/data/repositories/dashboard_repository.dart';
 /// position) and whether it's shown. The panel set is fixed to
 /// [DashboardKind.panelKinds], so unlike [DashboardCardConfig] there's nothing
 /// to compose: a panel is just a [kind] + a [visible] flag. Most of those kinds
-/// are server-cached list cards; [DashboardKind.taskCalendar] and
-/// [DashboardKind.invoicesAndQuotes] are Drift-backed, which changes nothing
-/// here.
+/// are server-cached list cards; [DashboardKind.taskCalendar],
+/// [DashboardKind.invoicesPipeline] and [DashboardKind.quotesPipeline] are
+/// Drift-backed, which changes nothing here.
 ///
 /// Persisted device-locally in the `dashboard` nav_state envelope as an ordered
 /// array of `"<kind>|<1|0>"` strings (array order = render order). Hand-written
@@ -68,7 +68,10 @@ String panelTitleKey(String kind) => switch (kind) {
   // for symmetry with its six siblings, so the switch reads as the complete
   // map it is rather than leaving one kind to look like an oversight.
   DashboardKind.taskCalendar => 'task_calendar',
-  // Also a no-op by construction, and written out for the same reason.
-  DashboardKind.invoicesAndQuotes => 'invoices_and_quotes',
+  // The entity's own plural: the card is that entity's recent documents
+  // behind its status strip, and the list its View All lands on has the
+  // same title.
+  DashboardKind.invoicesPipeline => 'invoices',
+  DashboardKind.quotesPipeline => 'quotes',
   _ => kind,
 };

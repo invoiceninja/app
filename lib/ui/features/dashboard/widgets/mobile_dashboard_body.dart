@@ -16,6 +16,7 @@ import 'package:admin/ui/features/dashboard/view_models/dashboard_view_model.dar
 import 'package:admin/ui/features/dashboard/widgets/activity_card.dart';
 import 'package:admin/ui/features/dashboard/widgets/billing_pipeline_card.dart';
 import 'package:admin/ui/features/dashboard/widgets/card_shell.dart';
+import 'package:admin/ui/features/dashboard/widgets/dashboard_panel_menu_host.dart';
 import 'package:admin/ui/features/dashboard/widgets/chart_card.dart';
 import 'package:admin/ui/features/dashboard/widgets/configured_cards_grid.dart';
 import 'package:admin/ui/features/dashboard/widgets/dashboard_attention_slot.dart';
@@ -374,6 +375,16 @@ class MobileDashboardBody extends StatelessWidget {
     // mints a notifier for a kind that has no section, so a Drift-backed panel
     // would hang off a `Listenable` that can never fire and read, wrongly, as
     // if it were fed by `dashboard_cache`.
+    // The Invoices and Quotes panels — one card, one entity each.
+    Widget pipeline(EntityType entity) => DashboardBillingPipelineCard(
+      companyId: vm.companyId,
+      formatter: formatter,
+      refreshNonce: vm.panelRefreshNonce,
+      narrow: true,
+      entity: entity,
+      initialTabId: vm.pipelineTab(entity),
+      onTabChanged: (id) => vm.setPipelineTab(entity, id),
+    );
     final builders = <String, Widget Function()>{
       // The same cards the wide grid uses, in their stacked form: one row
       // grammar and one set of states on both layouts. Three rows rather than
@@ -442,23 +453,8 @@ class MobileDashboardBody extends StatelessWidget {
           onRetry: () => vm.retry(DashboardKind.upcomingRecurring),
         ),
       ),
-      DashboardKind.invoicesAndQuotes: () {
-        final me = context.read<Services>().auth.session.value?.currentCompany;
-        final halves = billingPipelineHalves(
-          moduleOn: (t) => me?.moduleEnabled(t) ?? false,
-          can: (p) => me?.can(p) ?? false,
-        );
-        return DashboardBillingPipelineCard(
-          companyId: vm.companyId,
-          formatter: formatter,
-          refreshNonce: vm.panelRefreshNonce,
-          narrow: true,
-          includeInvoices: halves.invoices,
-          includeQuotes: halves.quotes,
-          initialTabId: vm.billingTab,
-          onTabChanged: vm.setBillingTab,
-        );
-      },
+      DashboardKind.invoicesPipeline: () => pipeline(EntityType.invoice),
+      DashboardKind.quotesPipeline: () => pipeline(EntityType.quote),
       DashboardKind.taskCalendar: () => DashboardTaskCalendarCard(
         companyId: vm.companyId,
         formatter: formatter,
@@ -471,7 +467,17 @@ class MobileDashboardBody extends StatelessWidget {
       if (build == null) continue; // past-due / unknown → not a trailing panel
       if (!p.visible || !enabled.contains(p.kind)) continue;
       if (hidden.contains(p.kind)) continue;
-      out.add(KeyedSubtree(key: ValueKey(p.kind), child: build()));
+      out.add(
+        KeyedSubtree(
+          key: ValueKey(p.kind),
+          child: withDashboardPanelMenu(
+            context,
+            vm: vm,
+            kind: p.kind,
+            child: build(),
+          ),
+        ),
+      );
       out.add(SizedBox(height: _sectionGap(context)));
     }
     return out;

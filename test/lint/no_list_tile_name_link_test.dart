@@ -25,7 +25,7 @@ import 'package:flutter_test/flutter_test.dart';
 /// The allowlist names the *permitted* files rather than globbing the
 /// forbidden ones on purpose: scoping this to `*_list_tile.dart` would miss a
 /// `link: true` added to `kanban_card.dart`, `task_daily_entry_row.dart`,
-/// `weekly_grid.dart` or `dashboard_mobile_rows.dart` — all narrow surfaces
+/// `weekly_grid.dart` or `billing_pipeline_card.dart` — all narrow surfaces
 /// with a whole-row tap that render a party name as plain text today. This way
 /// every new narrow surface is safe by default, and the allowlist is the
 /// deliberate escape valve, which is why there is no `// lint: allow-…`

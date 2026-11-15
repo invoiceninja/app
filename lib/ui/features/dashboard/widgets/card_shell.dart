@@ -6,6 +6,7 @@ import 'package:admin/ui/core/detail/entity_record_column.dart';
 import 'package:admin/ui/core/list/list_density_scope.dart';
 import 'package:admin/ui/core/widgets/link_text.dart';
 import 'package:admin/ui/features/dashboard/widgets/dashboard_density.dart';
+import 'package:admin/ui/features/dashboard/widgets/dashboard_panel_menu.dart';
 
 /// Shared shell every dashboard card uses: bordered surface card with an
 /// optional title row + trailing link, optional inner padding override, and a
@@ -150,28 +151,50 @@ class DashboardCardShell extends StatelessWidget {
 
   Widget _header(BuildContext context, ThemeData theme, InTheme tokens) {
     final dense = _dense(context);
+    final menu = DashboardPanelMenuScope.maybeOf(context);
+    final top = dense ? InSpacing.md(context) : InSpacing.lg(context);
+    final bottom = dense ? InSpacing.sm : InSpacing.md(context);
+    // With a panel menu the band's vertical padding moves from the row onto
+    // the title, so the 44 px touch button sits *inside* the band (title plus
+    // padding, ~40–48 px) instead of adding its height on top of it — every
+    // phone panel header would otherwise have grown ~20 px.
+    final titleText = title == null
+        ? null
+        : Text(
+            title!,
+            style: theme.textTheme.titleSmall?.copyWith(
+              color: tokens.ink,
+              fontWeight: FontWeight.w600,
+            ),
+          );
     final row = Padding(
       padding: EdgeInsetsDirectional.fromSTEB(
         InSpacing.lg(context),
-        dense ? InSpacing.md(context) : InSpacing.lg(context),
-        InSpacing.lg(context),
-        dense ? InSpacing.sm : InSpacing.md(context),
+        menu == null ? top : 0,
+        // The button's own slack stands in for part of the end inset.
+        menu == null ? InSpacing.lg(context) : InSpacing.lg(context) - 6,
+        menu == null ? bottom : 0,
       ),
       child: Row(
         children: [
-          if (title != null)
+          if (titleText != null)
             Expanded(
-              child: Text(
-                title!,
-                style: theme.textTheme.titleSmall?.copyWith(
-                  color: tokens.ink,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+              child: menu == null
+                  ? titleText
+                  : Padding(
+                      padding: EdgeInsets.only(top: top, bottom: bottom),
+                      child: titleText,
+                    ),
             )
           else
             const Spacer(),
           if (trailing != null) trailing!,
+          // A dashboard panel's Hide / Customize menu — only under a host's
+          // `DashboardPanelMenuScope`, so record and edit screens never see it.
+          if (menu != null) ...[
+            const SizedBox(width: InSpacing.xs),
+            DashboardPanelMenuButton(scope: menu),
+          ],
         ],
       ),
     );

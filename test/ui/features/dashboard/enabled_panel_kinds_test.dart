@@ -94,66 +94,50 @@ void main() {
     });
 
     test('billing modules on but neither view permission → hidden', () {
-      // Same argument: it reads the local invoices/quotes tables, so without
-      // the permission its strip would paint seven confident zeroes.
+      // Same argument: they read the local invoices/quotes tables, so without
+      // the permission their strips would paint confident zeroes.
       // Not `isEmpty`: the four server-fed invoice/quote panels are
       // module-gated only and still render — that is the asymmetry.
-      expect(
-        _for(const {EntityType.invoice, EntityType.quote}),
-        isNot(contains(DashboardKind.invoicesAndQuotes)),
-      );
+      final kinds = _for(const {EntityType.invoice, EntityType.quote});
+      expect(kinds, isNot(contains(DashboardKind.invoicesPipeline)));
+      expect(kinds, isNot(contains(DashboardKind.quotesPipeline)));
     });
 
-    test('either half alone is enough to render the panel', () {
-      // The panel is a union: a quotes-only company still gets a useful strip,
-      // it just has fewer tabs and one footer link.
+    test('each panel follows its own module and view permission', () {
       expect(
         _for(const {EntityType.invoice}, permissions: _allPermissions),
-        contains(DashboardKind.invoicesAndQuotes),
+        allOf(
+          contains(DashboardKind.invoicesPipeline),
+          isNot(contains(DashboardKind.quotesPipeline)),
+        ),
       );
       expect(
         _for(const {EntityType.quote}, permissions: _allPermissions),
-        contains(DashboardKind.invoicesAndQuotes),
-      );
-    });
-
-    test('billingPipelineHalves reports exactly which halves participate', () {
-      // The panel needs more than a bool — which tabs exist, which streams to
-      // open and which footer links to show all follow from this, and
-      // re-deriving it inside the widget would be the copy this file prevents.
-      bool on(Set<EntityType> m, EntityType t) => m.contains(t);
-      ({bool invoices, bool quotes}) halves(
-        Set<EntityType> modules,
-        Set<String> perms,
-      ) => billingPipelineHalves(
-        moduleOn: (t) => on(modules, t),
-        can: perms.contains,
-      );
-
-      expect(
-        halves(const {EntityType.invoice, EntityType.quote}, _allPermissions),
-        (invoices: true, quotes: true),
-      );
-      expect(halves(const {EntityType.invoice}, _allPermissions), (
-        invoices: true,
-        quotes: false,
-      ));
-      expect(
-        halves(
-          const {EntityType.invoice, EntityType.quote},
-          const {'view_quote'},
+        allOf(
+          contains(DashboardKind.quotesPipeline),
+          isNot(contains(DashboardKind.invoicesPipeline)),
         ),
-        (invoices: false, quotes: true),
+      );
+      expect(
+        _for(
+          const {EntityType.invoice, EntityType.quote},
+          permissions: const {'view_quote'},
+        ),
+        allOf(
+          contains(DashboardKind.quotesPipeline),
+          isNot(contains(DashboardKind.invoicesPipeline)),
+        ),
       );
     });
 
     test('no other panel is permission-gated', () {
-      // Dropping every permission must leave exactly these two behind.
+      // Dropping every permission must leave exactly these three behind.
       final withPerms = _for(_allModules, permissions: _allPermissions);
       final without = _for(_allModules);
       expect(withPerms.difference(without), {
         DashboardKind.taskCalendar,
-        DashboardKind.invoicesAndQuotes,
+        DashboardKind.invoicesPipeline,
+        DashboardKind.quotesPipeline,
       });
     });
   });

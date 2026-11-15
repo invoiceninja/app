@@ -2,7 +2,8 @@ import 'package:admin/data/repositories/dashboard_repository.dart';
 import 'package:admin/ui/features/dashboard/helpers/panel_rows.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-const _iq = DashboardKind.invoicesAndQuotes;
+const _inv = DashboardKind.invoicesPipeline;
+const _quo = DashboardKind.quotesPipeline;
 const _cal = DashboardKind.taskCalendar;
 const _a = DashboardKind.upcomingInvoices;
 const _b = DashboardKind.recentPayments;
@@ -13,19 +14,26 @@ const _e = DashboardKind.upcomingRecurring;
 void main() {
   group('two columns', () {
     test('the default arrangement leaves no half row empty', () {
-      expect(layoutPanelRows([_iq, _a, _b, _c, _d, _e, _cal], columns: 2), [
-        const PanelRow.span(_iq),
-        const PanelRow.pair(_a, _b),
-        const PanelRow.pair(_c, _d),
-        const PanelRow.pair(_e, _cal),
-      ]);
+      expect(
+        layoutPanelRows([_inv, _quo, _a, _b, _c, _d, _e, _cal], columns: 2),
+        [
+          const PanelRow.pair(_inv, _quo),
+          const PanelRow.pair(_a, _b),
+          const PanelRow.pair(_c, _d),
+          const PanelRow.pair(_e, _cal),
+        ],
+      );
     });
 
-    test('Invoices & Quotes takes a whole row wherever the user put it', () {
-      expect(layoutPanelRows([_a, _b, _iq, _c, _d], columns: 2), [
-        const PanelRow.pair(_a, _b),
-        const PanelRow.span(_iq),
-        const PanelRow.pair(_c, _d),
+    test('Invoices and Quotes are never the panel that is stretched', () {
+      // Their status strips would sit in one corner of a whole row.
+      expect(layoutPanelRows([_a, _inv, _quo], columns: 2), [
+        const PanelRow.span(_a),
+        const PanelRow.pair(_inv, _quo),
+      ]);
+      expect(layoutPanelRows([_inv, _a, _quo], columns: 2), [
+        const PanelRow.pair(_inv, _a),
+        const PanelRow.half(_quo),
       ]);
     });
 
@@ -63,11 +71,9 @@ void main() {
 
     test('the calendar on its own keeps its half width', () {
       expect(layoutPanelRows([_cal], columns: 2), [const PanelRow.half(_cal)]);
-      // Cut off from the other panels by the full-width row, it is still on
-      // its own.
-      expect(layoutPanelRows([_a, _b, _iq, _cal], columns: 2), [
-        const PanelRow.pair(_a, _b),
-        const PanelRow.span(_iq),
+      // With only panels that may not span, the last keeps its half.
+      expect(layoutPanelRows([_inv, _quo, _cal], columns: 2), [
+        const PanelRow.pair(_inv, _quo),
         const PanelRow.half(_cal),
       ]);
     });
@@ -81,7 +87,7 @@ void main() {
     });
 
     test('every panel is placed exactly once, in order', () {
-      const all = [_iq, _a, _b, _c, _d, _e, _cal];
+      const all = [_inv, _quo, _a, _b, _c, _d, _e, _cal];
       // Every ordered subset the user could reach by hiding panels.
       for (var mask = 0; mask < (1 << all.length); mask++) {
         final kinds = [
@@ -95,11 +101,21 @@ void main() {
         expect(placed, kinds, reason: 'order changed for $kinds');
         for (final r in rows) {
           if (r.spans) {
-            expect(r.first, isNot(_cal), reason: 'calendar stretched: $kinds');
+            expect(
+              kNeverSpanPanels,
+              isNot(contains(r.first)),
+              reason: '${r.first} stretched: $kinds',
+            );
           }
           if (r.second == null && !r.spans) {
-            // The only half row allowed: a calendar with no table in its run.
-            expect(r.first, _cal, reason: 'empty half row in $kinds');
+            // The only half row allowed: the last panel, when no panel at an
+            // even position could take the row.
+            expect(r, rows.last, reason: 'half row mid-page in $kinds');
+            expect(
+              kNeverSpanPanels,
+              contains(r.first),
+              reason: 'empty half row in $kinds',
+            );
           }
         }
       }
@@ -107,8 +123,8 @@ void main() {
   });
 
   test('one column: every panel is its own row', () {
-    expect(layoutPanelRows([_iq, _a, _cal], columns: 1), [
-      const PanelRow.span(_iq),
+    expect(layoutPanelRows([_inv, _a, _cal], columns: 1), [
+      const PanelRow.span(_inv),
       const PanelRow.span(_a),
       const PanelRow.span(_cal),
     ]);

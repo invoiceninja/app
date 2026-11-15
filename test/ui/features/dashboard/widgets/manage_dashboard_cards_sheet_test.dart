@@ -193,9 +193,10 @@ void main() {
           'past-due is the band that leads the page — its order is ignored, '
           'so a drag handle here would be a dead control',
     );
-    // Every kind but the pinned past-due one.
+    // Every kind but the pinned past-due one — the last may sit below the
+    // list's fold in this 600 px window, built but off-screen.
     expect(
-      find.byIcon(Icons.drag_indicator),
+      find.byIcon(Icons.drag_indicator, skipOffstage: false),
       findsNWidgets(DashboardKind.panelKinds.length - 1),
     );
   });

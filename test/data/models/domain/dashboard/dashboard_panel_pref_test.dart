@@ -63,10 +63,8 @@ void main() {
         'upcoming_recurring_invoices',
       );
       expect(panelTitleKey(DashboardKind.taskCalendar), 'task_calendar');
-      expect(
-        panelTitleKey(DashboardKind.invoicesAndQuotes),
-        'invoices_and_quotes',
-      );
+      expect(panelTitleKey(DashboardKind.invoicesPipeline), 'invoices');
+      expect(panelTitleKey(DashboardKind.quotesPipeline), 'quotes');
       expect(panelTitleKey('unknown'), 'unknown'); // fallthrough
     });
 
@@ -79,7 +77,8 @@ void main() {
       // install and first on a fresh one.)
       expect(DashboardKind.panelKinds, const [
         'past_due',
-        'invoices_and_quotes',
+        'invoices_pipeline',
+        'quotes_pipeline',
         'upcoming_invoices',
         'recent_payments',
         'upcoming_quotes',
@@ -96,7 +95,8 @@ void main() {
       // which reads, from the panel, exactly like a section that is merely slow.
       for (final kind in const [
         DashboardKind.taskCalendar,
-        DashboardKind.invoicesAndQuotes,
+        DashboardKind.invoicesPipeline,
+        DashboardKind.quotesPipeline,
       ]) {
         expect(DashboardKind.listKinds, isNot(contains(kind)), reason: kind);
         expect(DashboardKind.allKinds, isNot(contains(kind)), reason: kind);

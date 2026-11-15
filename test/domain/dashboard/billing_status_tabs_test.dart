@@ -29,6 +29,7 @@ void main() {
         '', // All
         'draft',
         'unpaid',
+        'overdue',
         'sent',
         'approved',
         'rejected',
@@ -59,8 +60,10 @@ void main() {
       }
 
       // Invoice-only.
-      expect(byId['unpaid']!.quoteModeId, isNull);
-      expect(byId['unpaid']!.invoiceModeId, 'unpaid');
+      for (final id in ['unpaid', 'overdue']) {
+        expect(byId[id]!.quoteModeId, isNull, reason: id);
+        expect(byId[id]!.invoiceModeId, id, reason: id);
+      }
 
       // Mixed.
       expect(byId['draft']!.invoiceModeId, 'draft');
@@ -73,7 +76,7 @@ void main() {
     });
 
     test('a missing half drops its tabs and its side of a mixed one', () {
-      expect(idsOf(tabs(quotes: false)), ['', 'draft', 'unpaid']);
+      expect(idsOf(tabs(quotes: false)), ['', 'draft', 'unpaid', 'overdue']);
       expect(idsOf(tabs(invoices: false)), [
         '',
         'draft',
@@ -99,14 +102,13 @@ void main() {
     // The reason the panel can never disagree with the list its footer links
     // land on: filtered to each entity, the panel order IS that entity's own
     // `kListStatusTabs` order. This fails the day someone reorders a strip.
-    test('the invoice subsequence is the Invoices strip, minus overdue', () {
+    test('the invoice subsequence is the Invoices strip', () {
       final mine = [
         for (final id in kBillingPipelineTabOrder)
           if (isKnownStatusTabMode(EntityType.invoice, id)) id,
       ];
       final strip = [
-        for (final s in kListStatusTabs[EntityType.invoice]!)
-          if (s.modeId != 'overdue') s.modeId,
+        for (final s in kListStatusTabs[EntityType.invoice]!) s.modeId,
       ];
       expect(mine, strip);
     });
@@ -122,7 +124,7 @@ void main() {
       expect(mine, strip);
     });
 
-    test('the order holds every tabbable mode of either entity but overdue', () {
+    test('the order holds every tabbable mode of either entity', () {
       // Both directions. The forward one catches a typo; the REVERSE one is
       // what catches a mode added to a list catalog later that never reaches
       // the panel — which nothing else would say out loud.
@@ -132,11 +134,10 @@ void main() {
       };
       expect(
         kBillingPipelineTabOrder.toSet(),
-        union.difference({'overdue'}),
+        union,
         reason:
-            'overdue is omitted deliberately — "Needs your attention" already '
-            'lists past-due invoices. Any OTHER difference is a tab that '
-            'silently never reaches the panel, or one that names nothing.',
+            'a difference is a tab that silently never reaches the panel, or '
+            'one that names nothing',
       );
     });
 

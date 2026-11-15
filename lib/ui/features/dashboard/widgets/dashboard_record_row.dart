@@ -5,6 +5,7 @@ import 'package:admin/app/env.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/ltr_value.dart';
 import 'package:admin/ui/features/dashboard/widgets/dashboard_density.dart';
+import 'package:admin/ui/features/dashboard/widgets/dashboard_panel_grid.dart';
 
 /// One thing a dashboard row can do. A `Future`, so the button can show that
 /// it is working — the actions here fetch the record before they act on it.
@@ -127,11 +128,23 @@ class DashboardRecordRow extends StatefulWidget {
     this.fact,
     this.actions = const [],
     this.leading,
+    this.clientLabel,
+    this.badge,
   }) : assert(!(compact && stacked), 'compact and stacked are two forms');
 
   /// The record's number; a dash when it has none yet.
   final String number;
   final String client;
+
+  /// Draws the client in place of [client], for a row that holds only the
+  /// client's id (a `ClientNameLabel`). It inherits the identity line's text
+  /// style, so pass it no style of its own.
+  final Widget? clientLabel;
+
+  /// A status pill after [lead], at the end of its slot — for a list whose rows
+  /// differ by status (the Invoices and Quotes panels' `All` tab), where the
+  /// lead alone cannot say which is a draft.
+  final Widget? badge;
 
   /// Where it stands — "12 days late", "due in 3 days", a date. Empty when the
   /// record has nothing to say here: the slot is unlabelled, so a dash in it
@@ -241,22 +254,49 @@ class _DashboardRecordRowState extends State<DashboardRecordRow> {
     final w = widget;
     final dense = dashboardDense(context);
 
-    final identity = Text.rich(
-      TextSpan(
-        children: [
-          TextSpan(
-            text: w.number.isEmpty ? '—' : w.number,
-            style: const TextStyle(fontWeight: FontWeight.w600),
-          ),
-          if (w.client.isNotEmpty) TextSpan(text: ' · ${w.client}'),
-        ],
-      ),
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-      style: theme.textTheme.bodyMedium?.copyWith(color: tokens.ink),
+    final identityStyle = theme.textTheme.bodyMedium?.copyWith(
+      color: tokens.ink,
     );
+    final clientLabel = w.clientLabel;
+    final Widget identity = clientLabel == null
+        ? Text.rich(
+            TextSpan(
+              children: [
+                TextSpan(
+                  text: w.number.isEmpty ? '—' : w.number,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                if (w.client.isNotEmpty) TextSpan(text: ' · ${w.client}'),
+              ],
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: identityStyle,
+          )
+        // The number keeps its width; the client gives way.
+        : DefaultTextStyle.merge(
+            style: identityStyle,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            child: Row(
+              children: [
+                Text.rich(
+                  TextSpan(
+                    children: [
+                      TextSpan(
+                        text: w.number.isEmpty ? '—' : w.number,
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      const TextSpan(text: ' · '),
+                    ],
+                  ),
+                ),
+                Flexible(child: clientLabel),
+              ],
+            ),
+          );
 
-    final status = Text.rich(
+    final statusText = Text.rich(
       TextSpan(
         children: [
           TextSpan(
@@ -277,6 +317,20 @@ class _DashboardRecordRowState extends State<DashboardRecordRow> {
         fontSize: 12.5,
       ),
     );
+    final badge = w.badge;
+    // The lead first, the pill at the slot's end: a pill is as wide as its
+    // word, so a date placed after it started at a different x on every row.
+    // Led by the date, the dates line up with each other and with the lead of
+    // every other panel, and the pills form their own column by the amount.
+    final Widget status = badge == null
+        ? statusText
+        : Row(
+            children: [
+              Expanded(child: statusText),
+              const SizedBox(width: InSpacing.sm),
+              badge,
+            ],
+          );
 
     final money = LtrText(
       w.amount,
@@ -316,11 +370,21 @@ class _DashboardRecordRowState extends State<DashboardRecordRow> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [identity, const SizedBox(height: 2), status],
+                  // The pill goes under the amount here, not on this line:
+                  // the amount's width varies by row, so a pill ending where
+                  // it begins would sit at a different x on every row.
+                  children: [identity, const SizedBox(height: 2), statusText],
                 ),
               ),
               const SizedBox(width: InSpacing.sm),
-              money,
+              if (badge == null)
+                money
+              else
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [money, const SizedBox(height: 2), badge],
+                ),
               if (actionWidgets.isNotEmpty) const SizedBox(width: 4),
               ...actionWidgets,
             ],
@@ -333,7 +397,9 @@ class _DashboardRecordRowState extends State<DashboardRecordRow> {
               // else to the client's name, which is what was being cut.
               Expanded(flex: 3, child: identity),
               const SizedBox(width: 12),
-              Expanded(flex: 2, child: status),
+              // A pill ahead of the lead needs an equal share, or at 1,000 px
+              // "Partial/Deposit" left the date as "2…".
+              Expanded(flex: w.badge == null ? 2 : 3, child: status),
               const SizedBox(width: 12),
               // A fixed column, right-aligned, so amounts line up down the
               // card; a long one scales down rather than pushing the buttons.
@@ -442,6 +508,40 @@ class DashboardRecordRows extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // A panel spanning a two-column grid row flows its rows into two columns,
+    // the earlier half on the start side: one row stretched across the whole
+    // dashboard is the gap the Invoices & Quotes split was made to remove.
+    if (!DashboardPanelCell.spansOf(context) || rows.length < 2) {
+      return _column(context, rows);
+    }
+    final tokens = context.inTheme;
+    final split = (rows.length + 1) ~/ 2;
+    // The divider is an overlay, not `IntrinsicHeight`: the start column is a
+    // row taller than the end one, and the line should run the full height.
+    return Stack(
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: _column(context, rows.sublist(0, split))),
+            const SizedBox(width: 1),
+            Expanded(child: _column(context, rows.sublist(split))),
+          ],
+        ),
+        Positioned.fill(
+          child: Row(
+            children: [
+              const Spacer(),
+              VerticalDivider(width: 1, thickness: 1, color: tokens.border),
+              const Spacer(),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _column(BuildContext context, List<Widget> rows) {
     final tokens = context.inTheme;
     return Column(
       mainAxisSize: MainAxisSize.min,

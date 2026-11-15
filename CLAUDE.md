@@ -502,7 +502,7 @@ A one-tap status strip above every entity list (invoiceninja/flutter#98) — a *
 - **No strip on an embedded list; the strip renders whenever a tab is active, even with the device setting off** (`DevicePrefKeys.statusTabs`, default on).
 - **Counts are active-only, and a zero renders in the neutral palette.**
 - **The strip's edge fades are gated on the scroll position, like `EntityDetailTabs`'.** → `docs/entity-lists.md`
-- **The strip has a second, wrapped layout, used only by the dashboard's Invoices & Quotes panel — and selection there is a fill, not the underline.** → `docs/dashboard-panels.md`
+- **The strip has a second, wrapped layout, used only by the dashboard's Invoices and Quotes panels — and selection there is a fill, not the underline.** → `docs/dashboard-panels.md`
 - **A status tab and the Status chip are one filter — picking a tab drops the chip, setting the chip moves the strip to All, and a stored slot holding both keeps the tab (`exclusiveStatusFilters`, `kStatusChipServerKeys`, healed by `normalizeSnapshot`).** → `docs/entity-lists.md`
 - **Quote `rejected` is a tab but not a chip, and the difference is what reaches the wire.** → `docs/entity-lists.md`
 
@@ -546,7 +546,7 @@ Panels are ordered and hidden per user — `DashboardKind.panelKinds` is the reg
 - **The month window is fetched by the view model, month-aligned.** → `docs/dashboard-panels.md`
 - **`hasLoaded` is not enough to claim availability, and the gate is not `Opacity`.** → `docs/dashboard-panels.md`
 - **The "today" marker takes `onAccent`, never `accentInk`.** → `docs/dashboard-panels.md`
-- **The Invoices & Quotes panel is a *view* over two badge catalogs, and both DAO seams fail OPEN on a mode they don't recognise.** → `docs/dashboard-panels.md`
+- **The Invoices and Quotes panels are a *view* over the badge catalogs, and both DAO seams fail OPEN on a mode they don't recognise.** → `docs/dashboard-panels.md`
 - **A strip whose items carry counts wraps; one that carries navigation scrolls.** → `docs/dashboard-panels.md`
 - **"Most recent" needs a tie-break, and `created_at == 0` means *newest*.** → `docs/dashboard-panels.md`
 - **A tabbed card is the one panel whose empty state may be the generic string.** → `docs/dashboard-panels.md`
