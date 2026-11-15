@@ -648,6 +648,20 @@ void main() {
     });
 
     test(
+      'ready is per company: company A working never makes B ready',
+      () async {
+        await ensure(admin: true);
+        expect(phone.tapToPayReadyFor('co_a'), isTrue);
+        expect(phone.tapToPayReadyFor('co_b'), isFalse);
+        expect(phone.tapToPayLinkedFor('co_b'), isNull);
+        // A switch to B: the reset forgets A's answer for everyone.
+        await phone.reset();
+        expect(phone.tapToPayReadyFor('co_a'), isFalse);
+        expect(phone.tapToPayLinkedFor('co_a'), isNull);
+      },
+    );
+
+    test(
       'the linked state is in memory only, and a resume forgets it',
       () async {
         platform.connectAnswers.add(

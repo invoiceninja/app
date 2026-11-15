@@ -300,7 +300,7 @@ class TapToPayEnableView extends StatelessWidget {
                 child: CircularProgressIndicator(strokeWidth: 2),
               ),
             )
-          else
+          else if (steps.isNotEmpty)
             _Steps(steps: steps, done: doneSteps),
         ];
       case TapToPayEnableStage.preparing:
@@ -359,8 +359,11 @@ class TapToPayEnableView extends StatelessWidget {
             background: tokens.overdueSoft,
             text: problem ?? context.tr('terminal_error_unknown'),
           ),
-          SizedBox(height: InSpacing.md(context)),
-          _Steps(steps: steps, done: doneSteps),
+          // A first load that failed knows no steps: no empty card.
+          if (steps.isNotEmpty) ...[
+            SizedBox(height: InSpacing.md(context)),
+            _Steps(steps: steps, done: doneSteps),
+          ],
         ];
       case TapToPayEnableStage.ready:
         return [

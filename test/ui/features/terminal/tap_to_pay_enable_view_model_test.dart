@@ -240,6 +240,33 @@ void main() {
     expect(model.stage, TapToPayEnableStage.ready);
   });
 
+  test('an iOS Apple wants updated says so first: no prompt, no Card '
+      'present change, and Retry looks again', () async {
+    platform.status = TerminalPermission.denied;
+    repo.configAnswer = setupOnly;
+    platform.support = const TerminalDeviceSupport(
+      tapToPay: true,
+      bluetooth: true,
+      osUpdateRequired: true,
+    );
+    await terminal.refreshDevice();
+    final model = vm();
+    await model.start();
+    expect(model.stage, TapToPayEnableStage.failed);
+    expect(model.problem?.code, TerminalErrorCode.unsupportedOs);
+    expect(asked, 0);
+    expect(enabled, isEmpty);
+    expect(platform.connects, isEmpty);
+
+    platform.support = const TerminalDeviceSupport(
+      tapToPay: true,
+      bluetooth: true,
+    );
+    await model.start();
+    expect(model.stage, TapToPayEnableStage.ready);
+    expect(enabled, ['cg_1']);
+  });
+
   test('no Stripe gateway: an admin is told to connect Stripe', () async {
     repo.configAnswer = const TerminalConfig(
       enabled: true,

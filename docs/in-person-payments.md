@@ -373,21 +373,32 @@ it once it works, and the offer at the end of onboarding. iPhone only, like ever
   `LocationPreAlertDialog`, then iOS; Open settings when blocked or Location Services are off, and
   it runs again on the way back), the Stripe Location, Apple's terms, the education — then Ready,
   "You're ready to take cards", with [Done] [Open invoices], and `DevicePrefKeys.tapToPayAnnounced`
-  (account scope). The intro lists only the steps still needed; errors stay inline with Retry; a
+  (account scope) — only the one-time announcement flag (the awareness modal's), never "it works
+  here": that is per company, `tapToPayReadyFor(companyId)` (this company's linked answer, or a
+  reader connected for it). An iOS Apple wants updated fails first, with the update message,
+  before any prompt or Card present change; Retry looks again. The intro lists only the steps still needed; errors stay inline with Retry; a
   member with Card present off, or an unlinked account, is told to ask an admin. Close is quiet: the
   connect lives in the controller, so setup carries on.
 - **Device Settings → Card readers** draws `TapToPayTile` on an iPhone that can: Checking, Not set
   up [Turn on], the reader's progress while it gets ready, Ready [How to use], ask an admin, or
-  update iOS — from `TerminalController` (`tapToPayConnecting` notifies). Before general
-  availability (no entitlement) there is still no row.
+  update iOS — from `TerminalController` (`tapToPayConnecting` notifies). Turn on shows only to
+  someone who can finish it (`canSetUpTapToPayOnIPhone`, which includes the Pro plan); anyone else
+  reads the status and the server's reason below. Before general availability (no entitlement)
+  there is still no row.
 - **The setup checklist's optional row**, "Set up Tap to Pay on iPhone", is last and never counted:
   offered only where `canSetUpTapToPayOnIPhone` holds (the invoice action's facts without an
-  invoice), done once announced or linked, and it retires with the card.
-- **The end of onboarding.** On an iPhone, Stripe Connect opens in the in-app browser; the app polls
-  `company_gateways` (`StripeConnectWatcher`, every few seconds) because the browser says nothing
-  when it's done, closes it when a Stripe gateway appears, and offers the enable screen
-  (`offerTapToPayOnIPhone`) to someone who can finish it. The same offer follows a Stripe gateway
-  saved with API keys, once the outbox has sent it. While Stripe is still reviewing the account
+  invoice), done once it works for this company, and it retires with the card. The dashboard asks
+  for `terminal/config` only on an iPhone that can take Tap to Pay on iPhone.
+- **The end of onboarding.** Only on an iPhone that can take Tap to Pay on iPhone, for someone who
+  can finish it (`watchesStripeConnect`), Stripe Connect opens in the in-app browser — everyone
+  else keeps the system browser, unchanged. The app polls `company_gateways`
+  (`StripeConnectWatcher`, every 3 s for up to 10 minutes, stopping when the screen leaves or the
+  company changes) because the browser says nothing when it's done. It compares id → `updatedAt`,
+  since the server reuses an existing Stripe Connect gateway; on a change it closes the browser and
+  offers the enable screen (`offerTapToPayOnIPhone`, which does nothing — no call, no toast — unless
+  the phone can and the user is eligible). A new Stripe gateway saved with API keys gets the same
+  offer once the outbox has sent it and the server's config lists that gateway, while the user is
+  still on the gateways' pages; an edit never does. While Stripe is still reviewing the account
   (`card_payments_active` false, also read from `setup_gateways` when the server sends it), the app
   says approval is pending instead.
 - **Education below iOS 18** (no `ProximityReaderDiscovery`) is the app's own dialog: contactless

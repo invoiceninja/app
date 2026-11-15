@@ -108,6 +108,14 @@ class TapToPayEnableViewModel extends ChangeNotifier {
     _loading = true;
     _notify();
     try {
+      // App Review 1.4: below iOS 17.6, say to update — before any prompt
+      // or any change to Card present.
+      final device = _terminal.device ?? await _terminal.refreshDevice();
+      if (_disposed) return;
+      if (device.osUpdateRequired) {
+        _fail(const CollectProblem(code: TerminalErrorCode.unsupportedOs));
+        return;
+      }
       if (_terminal.reader?.kind == TerminalReaderKind.tapToPay) {
         // Already connected for this company: nothing left to set up.
         _stage = TapToPayEnableStage.ready;
@@ -182,6 +190,16 @@ class TapToPayEnableViewModel extends ChangeNotifier {
     if (_busy || _disposed) return;
     await load();
     if (_disposed || _stage == TapToPayEnableStage.ready) return;
+    if (_problem?.code == TerminalErrorCode.unsupportedOs) {
+      // Retry looks again: the phone may have been updated meanwhile.
+      final device = await _terminal.refreshDevice();
+      if (_disposed || device.osUpdateRequired) return;
+      _loadFuture = null;
+      _problem = null;
+      _stage = TapToPayEnableStage.intro;
+      await load();
+      if (_disposed || _stage != TapToPayEnableStage.intro) return;
+    }
     _busy = true;
     _problem = null;
     _needsSettings = false;

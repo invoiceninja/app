@@ -268,44 +268,76 @@ void main() {
   });
 
   group('Stripe Connect in the in-app browser', () {
-    test('a new Stripe gateway closes the browser and says so', () async {
-      final counts = [1, 1, 2];
+    test('a new Stripe gateway, or one the server updated, closes the browser '
+        'and says so', () async {
+      final answers = <StripeGatewaySnapshot>[
+        {'g1': 10},
+        {'g1': 10},
+        {'g1': 11},
+      ];
       var closed = 0;
       final watcher = StripeConnectWatcher(
-        countStripeGateways: () async => counts.removeAt(0),
+        snapshot: () async => answers.removeAt(0),
         closeBrowser: () async => closed++,
         interval: Duration.zero,
       );
-      expect(await watcher.watch(before: 1), isTrue);
+      expect(await watcher.watch(before: {'g1': 10}), isTrue);
       expect(closed, 1);
-      expect(counts, isEmpty);
+      expect(answers, isEmpty, reason: 'the reused gateway counted');
+
+      final fresh = StripeConnectWatcher(
+        snapshot: () async => {'g1': 10, 'g2': 1},
+        closeBrowser: () async => closed++,
+        interval: Duration.zero,
+      );
+      expect(await fresh.watch(before: {'g1': 10}), isTrue);
     });
 
     test('nothing new before it stops: the browser is left alone', () async {
       var asked = 0;
       var closed = 0;
       final watcher = StripeConnectWatcher(
-        countStripeGateways: () async => ++asked > 3 ? 0 : 0,
+        snapshot: () async {
+          asked++;
+          return {'g1': 10};
+        },
         closeBrowser: () async => closed++,
         interval: const Duration(milliseconds: 1),
         timeout: const Duration(milliseconds: 30),
       );
-      expect(await watcher.watch(before: 0), isFalse);
+      expect(await watcher.watch(before: {'g1': 10}), isFalse);
       expect(closed, 0);
       expect(asked, greaterThan(0));
+    });
+
+    test('the screen left or the company changed: it stops', () async {
+      var wanted = true;
+      var asked = 0;
+      final watcher = StripeConnectWatcher(
+        snapshot: () async {
+          asked++;
+          wanted = false;
+          return const {};
+        },
+        closeBrowser: () async {},
+        stillWanted: () => wanted,
+        interval: Duration.zero,
+      );
+      expect(await watcher.watch(before: const {}), isFalse);
+      expect(asked, 1);
     });
 
     test('a failed check is tried again; cancel stops it', () async {
       var asked = 0;
       final watcher = StripeConnectWatcher(
-        countStripeGateways: () async {
+        snapshot: () async {
           asked++;
           throw Exception('offline');
         },
         closeBrowser: () async {},
         interval: Duration.zero,
       );
-      final watching = watcher.watch(before: 0);
+      final watching = watcher.watch(before: const {});
       await pumpEventQueue();
       watcher.cancel();
       expect(await watching, isFalse);

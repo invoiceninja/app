@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 
@@ -204,12 +205,16 @@ class _CompanyGatewayEditScreenState extends State<CompanyGatewayEditScreen> {
         );
       },
       onSaved: (ctx, vm, saved) {
-        // A Stripe gateway saved with API keys on an iPhone: once the server
-        // has it, Tap to Pay on iPhone is offered (App Review 3.4).
-        if (isIPhonePlatform() && saved.gatewayKey == kGatewayStripe) {
+        // A new Stripe gateway saved with API keys on an iPhone: once the
+        // server has it, Tap to Pay on iPhone is offered (App Review 3.4).
+        if (offersTapToPayAfterSave(
+          isCreate: vm.isCreate,
+          gatewayKey: saved.gatewayKey,
+        )) {
           unawaited(
             _offerTapToPayOnceSaved(
               Navigator.of(ctx, rootNavigator: true).context,
+              saved.id,
             ),
           );
         }
@@ -381,20 +386,36 @@ class _Tab extends StatelessWidget {
 bool _isHosted(BuildContext context) =>
     context.read<Services>().auth.session.value?.isHosted ?? false;
 
+/// Only a just-created Stripe gateway (API keys) on an iPhone leads to the
+/// offer; an edit never does.
+bool offersTapToPayAfterSave({
+  required bool isCreate,
+  required String gatewayKey,
+  bool? iPhone,
+}) =>
+    (iPhone ?? isIPhonePlatform()) && isCreate && gatewayKey == kGatewayStripe;
+
 /// Sends the saved gateway to the server, then offers Tap to Pay on iPhone
 /// ([offerTapToPayOnIPhone]) from [context] — the root navigator's, which
-/// outlives the edit screen. A gateway the server doesn't have yet
-/// (offline) offers nothing: the config it reads doesn't list it.
-Future<void> _offerTapToPayOnceSaved(BuildContext context) async {
+/// outlives the edit screen — only when the server's answer lists that very
+/// gateway, and only while the user is still on the gateways' pages. Offline
+/// (still a `tmp_` id after the drain) it offers nothing.
+Future<void> _offerTapToPayOnceSaved(BuildContext context, String id) async {
   final services = context.read<Services>();
   final companyId = services.auth.session.value?.currentCompanyId ?? '';
   if (companyId.isEmpty || !services.terminal.platformReady) return;
+  final router = GoRouter.maybeOf(context);
+  String? realId;
   try {
     await services.sync
         .drainOnce(companyId: companyId)
         .timeout(const Duration(seconds: 30));
+    realId = await services.companyGateways.resolveId(id);
   } catch (_) {
     return;
   }
-  if (context.mounted) await offerTapToPayOnIPhone(context);
+  if (realId.startsWith('tmp_') || !context.mounted) return;
+  final here = router?.routerDelegate.currentConfiguration.uri.path ?? '';
+  if (router != null && !here.startsWith('/settings/company_gateways')) return;
+  await offerTapToPayOnIPhone(context, onlyGatewayId: realId);
 }

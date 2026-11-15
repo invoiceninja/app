@@ -5,7 +5,6 @@ import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/data/models/value/gateway.dart';
 import 'package:admin/domain/gateway_constants.dart';
-import 'package:admin/domain/terminal/terminal_eligibility.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/utils/external_url.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
@@ -40,21 +39,19 @@ class _OAuthStubCardState extends State<OAuthStubCard> {
     super.dispose();
   }
 
-  /// Stripe Connect on an iPhone that can take Tap to Pay on iPhone: opened
-  /// in the in-app browser and watched, so the app can close it and offer
-  /// Tap to Pay on iPhone once the gateway exists (App Review 3.4).
-  bool _watchesStripe(Services services) =>
-      isIPhonePlatform() &&
-      widget.gateway.id == kGatewayStripeConnect &&
-      services.terminal.platformReady;
-
   /// The company's Stripe Connect gateways, as the server has them now.
-  Future<int> _countStripe(Services services, String companyId) async {
+  Future<StripeGatewaySnapshot> _stripeSnapshot(
+    Services services,
+    String companyId,
+  ) async {
     await services.companyGateways.refreshAll(companyId: companyId);
     final rows = await services.companyGateways
         .watchPage(companyId: companyId)
         .first;
-    return rows.where((g) => g.gatewayKey == kGatewayStripeConnect).length;
+    return {
+      for (final g in rows)
+        if (g.gatewayKey == kGatewayStripeConnect) g.id: g.updatedAt,
+    };
   }
 
   @override
@@ -148,26 +145,48 @@ class _OAuthStubCardState extends State<OAuthStubCard> {
         }
         return;
       }
-      if (_watchesStripe(services)) {
-        final companyId = session.currentCompanyId;
-        final before = await _countStripe(services, companyId);
-        final ok = await openInAppBrowser(url);
-        if (!ok) {
-          if (context.mounted) {
-            Notify.error(context, context.tr('failed_to_open_url'));
+      // Stripe Connect on an iPhone that can take Tap to Pay on iPhone, for
+      // someone who can finish it: opened in the in-app browser and watched,
+      // so the app can close it and offer Tap to Pay on iPhone (App Review
+      // 3.4). Anyone else: the system browser, as before.
+      final companyId = session.currentCompanyId;
+      if (await watchesStripeConnect(
+        services.terminal,
+        gatewayKey: widget.gateway.id,
+        companyId: companyId,
+      )) {
+        StripeGatewaySnapshot? before;
+        try {
+          before = await _stripeSnapshot(services, companyId);
+        } catch (_) {
+          // Best effort: without it, the system browser as before.
+        }
+        if (before != null) {
+          final ok = await openInAppBrowser(url);
+          if (!ok) {
+            if (context.mounted) {
+              Notify.error(context, context.tr('failed_to_open_url'));
+            }
+            return;
+          }
+          if (!context.mounted) return;
+          setState(() => _busy = false);
+          _watcher?.cancel();
+          final route = ModalRoute.of(context);
+          final watcher = _watcher = StripeConnectWatcher(
+            snapshot: () => _stripeSnapshot(services, companyId),
+            closeBrowser: closeInAppBrowser,
+            // The screen left, or another company: stop.
+            stillWanted: () =>
+                mounted &&
+                (route?.isCurrent ?? true) &&
+                services.auth.session.value?.currentCompanyId == companyId,
+          );
+          if (await watcher.watch(before: before) && context.mounted) {
+            await offerTapToPayOnIPhone(context);
           }
           return;
         }
-        if (mounted) setState(() => _busy = false);
-        _watcher?.cancel();
-        final watcher = _watcher = StripeConnectWatcher(
-          countStripeGateways: () => _countStripe(services, companyId),
-          closeBrowser: closeInAppBrowser,
-        );
-        if (await watcher.watch(before: before) && context.mounted) {
-          await offerTapToPayOnIPhone(context);
-        }
-        return;
       }
       final ok = await openExternal(url);
       if (!ok && context.mounted) {

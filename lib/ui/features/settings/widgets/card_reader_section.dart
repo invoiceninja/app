@@ -177,11 +177,8 @@ class _CardReaderSectionState extends State<CardReaderSection> {
     if (companyId == null) return TapToPayTileState.checking;
     if (device.osUpdateRequired) return TapToPayTileState.updateIos;
     if (_terminal.tapToPayConnecting) return TapToPayTileState.preparing;
-    if (_terminal.reader?.kind == TerminalReaderKind.tapToPay ||
-        _terminal.tapToPayLinked == true ||
-        _terminal.tapToPayAnnounced) {
-      return TapToPayTileState.ready;
-    }
+    // This company's state, never the per-user announcement.
+    if (_terminal.tapToPayReadyFor(companyId)) return TapToPayTileState.ready;
     if (_terminal.configState(companyId) == TerminalConfigState.loading) {
       return TapToPayTileState.checking;
     }
@@ -195,7 +192,8 @@ class _CardReaderSectionState extends State<CardReaderSection> {
               kTapToPayIPhoneCountries.contains(g.accountCountry),
         ) ??
         false;
-    if (!isAdmin && (_terminal.tapToPayLinked == false || !cardPresentOn)) {
+    if (!isAdmin &&
+        (_terminal.tapToPayLinkedFor(companyId) == false || !cardPresentOn)) {
       return TapToPayTileState.askAdmin;
     }
     return TapToPayTileState.notSetUp;
@@ -281,7 +279,14 @@ class _CardReaderSectionState extends State<CardReaderSection> {
                 builder: (context, progress, _) => TapToPayTile(
                   state: _tileState(device!),
                   progress: progress,
-                  onTurnOn: () => unawaited(showTapToPayEnableScreen(context)),
+                  // Only someone who can finish it (the plan, a Stripe
+                  // gateway); anyone else reads the status, and the server's
+                  // reason below.
+                  onTurnOn:
+                      _companyId != null &&
+                          _terminal.canSetUpTapToPayOnIPhone(_companyId)
+                      ? () => unawaited(showTapToPayEnableScreen(context))
+                      : null,
                   onHowToUse: () => unawaited(
                     showHowToTap(context, accountCountry: _accountCountry()),
                   ),

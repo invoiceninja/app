@@ -8,6 +8,7 @@ import 'package:admin/app/env.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/app/welcome_controller.dart';
 import 'package:admin/domain/setup_checklist.dart';
+import 'package:admin/domain/terminal/terminal_eligibility.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/l10n/tap_to_pay_names.dart';
 import 'package:admin/ui/core/utils/haptics.dart';
@@ -133,12 +134,16 @@ class _DashboardSetupChecklistSlotState
             if (!terminal.canSetUpTapToPayOnIPhone(widget.companyId)) {
               return null;
             }
-            return terminal.tapToPayAnnounced ||
-                terminal.tapToPayLinked == true;
+            return terminal.tapToPayReadyFor(widget.companyId);
           },
           tapToPayChanges: services.terminal,
         )..addListener(_onVm);
-        services.terminal.ensureConfig(widget.companyId);
+        // Only an iPhone that can take Tap to Pay on iPhone asks: Android and
+        // every other iPhone make no call from here.
+        if (isIPhonePlatform() &&
+            (services.terminal.device?.tapToPay ?? false)) {
+          services.terminal.ensureConfig(widget.companyId);
+        }
       }
     } else if (!_collapsing) {
       _dropVm();

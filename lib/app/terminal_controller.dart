@@ -74,6 +74,7 @@ class TerminalController extends ChangeNotifier {
       onLowBattery: () => _fanOut((e) => e.onLowBattery?.call()),
       onTermsAccepted: () {
         _linked = true;
+        _linkedCompany = _account?.split('/').first;
         _fanOut((e) => e.onTermsAccepted?.call());
       },
     );
@@ -399,16 +400,19 @@ class TerminalController extends ChangeNotifier {
 
   /// Someone here can finish turning Tap to Pay on iPhone on for [companyId]
   /// — the facts the invoice's action is offered on, without an invoice: an
-  /// iPhone that can, the platform, `create_payment`, the release flag, and
-  /// a Stripe gateway in an iPhone country (Card present on or off), or for
-  /// an admin with none a company in an iPhone country. For the enable
-  /// screen's entry points (Device Settings, the checklist, onboarding).
+  /// iPhone that can, the platform, `create_payment`, the release flag, the
+  /// Pro plan, and a Stripe gateway in an iPhone country (Card present on or
+  /// off), or for an admin with none a company in an iPhone country. For the
+  /// enable screen's entry points (Device Settings, the checklist,
+  /// onboarding). An iOS Apple wants updated still counts: those entry
+  /// points then lead to the update message (1.4).
   bool canSetUpTapToPayOnIPhone(String companyId) {
     if (!_tapToPayIPhoneDevice || !platformReady || !_canCreatePayment()) {
       return false;
     }
     final config = configFor(companyId);
-    if (config == null || !config.enabled) return false;
+    // A hosted plan below Pro takes no card payments in person.
+    if (config == null || !config.enabled || !config.planOk) return false;
     final iPhoneGateway = config.gateways.any(
       (g) =>
           g.cardPaymentsActive &&
@@ -568,6 +572,22 @@ class TerminalController extends ChangeNotifier {
   bool? get tapToPayLinked => _linked;
   bool? _linked;
 
+  /// The company [tapToPayLinked] was found out for.
+  String? _linkedCompany;
+
+  /// [tapToPayLinked] for [companyId] only: null when the last answer was
+  /// another company's.
+  bool? tapToPayLinkedFor(String companyId) =>
+      _linkedCompany == companyId ? _linked : null;
+
+  /// Tap to Pay on iPhone works for [companyId] now: its Stripe account has
+  /// accepted Apple's terms, or this phone's reader is connected for it.
+  /// Per company — never the per-user `tapToPayAnnounced`.
+  bool tapToPayReadyFor(String companyId) =>
+      tapToPayLinkedFor(companyId) == true ||
+      (_reader?.kind == TerminalReaderKind.tapToPay &&
+          (_account?.startsWith('$companyId/') ?? false));
+
   /// Bumped by every [reset]: a connect that started before one gives up.
   int _session = 0;
 
@@ -659,6 +679,7 @@ class TerminalController extends ChangeNotifier {
     check();
     if (connected != null && connected.kind == TerminalReaderKind.tapToPay) {
       _linked = true;
+      _linkedCompany = companyId;
       return connected;
     }
     try {
@@ -676,10 +697,12 @@ class TerminalController extends ChangeNotifier {
         rethrow;
       }
       _linked = true;
+      _linkedCompany = companyId;
       return reader;
     } on TerminalError catch (e) {
       if (session == _session && e.code == TerminalErrorCode.termsNotAccepted) {
         _linked = false;
+        _linkedCompany = companyId;
       }
       rethrow;
     } finally {

@@ -88,7 +88,7 @@ class TapToPayTile extends StatelessWidget {
       ),
       // Tonal: the app theme paints every FilledButton in the accent, so the
       // soft colours are set here.
-      TapToPayTileState.notSetUp => FilledButton.tonal(
+      TapToPayTileState.notSetUp when onTurnOn != null => FilledButton.tonal(
         style: FilledButton.styleFrom(
           minimumSize: const Size(64, 40),
           backgroundColor: tokens.accentSoft,
