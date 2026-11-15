@@ -89,6 +89,18 @@
     <control>touch</control>
   </supports>
   <releases>
+    <release version="5.1.26" date="2026-11-15">
+      <description>
+        <ul>
+          <li>Dashboard: Invoices and Quotes are two panels, each with status tabs</li>
+          <li>Hide any dashboard panel from its own menu</li>
+          <li>Compact density now covers the dashboard</li>
+          <li>Purchase orders fill in a product's cost</li>
+          <li>Long item names can be read in full</li>
+          <li>Creating a product from a line item asks for its price</li>
+        </ul>
+      </description>
+    </release>
     <release version="5.1.25" date="2026-11-12">
       <description>
         <ul>
