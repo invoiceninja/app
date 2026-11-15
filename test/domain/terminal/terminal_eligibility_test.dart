@@ -79,11 +79,13 @@ void main() {
   group('reader choice', () {
     TerminalReaderChoice choice({
       bool tapToPayDevice = true,
+      bool iPhone = false,
       String country = 'US',
       bool bluetoothDevice = true,
       bool readerUsed = false,
     }) => terminalReaderChoice(
       tapToPayDevice: tapToPayDevice,
+      iPhone: iPhone,
       accountCountry: country,
       bluetoothDevice: bluetoothDevice,
       readerUsed: readerUsed,
@@ -92,6 +94,24 @@ void main() {
     test('Tap to Pay on a capable phone in a supported country', () {
       expect(choice(), TerminalReaderChoice.tapToPay);
       expect(choice(country: 'GB'), TerminalReaderChoice.tapToPay);
+    });
+
+    test("an iPhone uses Stripe's iPhone countries, not Android's", () {
+      expect(choice(iPhone: true), TerminalReaderChoice.tapToPay);
+      expect(
+        choice(iPhone: true, country: 'CZ'),
+        TerminalReaderChoice.tapToPay,
+      );
+      expect(
+        choice(country: 'GI'),
+        TerminalReaderChoice.tapToPay,
+        reason: 'Gibraltar has Tap to Pay on Android',
+      );
+      expect(
+        choice(iPhone: true, country: 'GI'),
+        TerminalReaderChoice.none,
+        reason: 'but not on iPhone',
+      );
     });
 
     test('Bluetooth only once a reader has been used here — not on every '

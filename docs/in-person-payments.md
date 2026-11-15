@@ -236,8 +236,32 @@ request.
 - **iOS** — `StripeTerminalBridge` in `ios/Runner/AppDelegate.swift` asks for location while in
   use; for a Bluetooth reader a refused Bluetooth permission is `blocked` (iOS asks for it itself
   when a scan starts). A prompt iOS never shows is answered after 2 minutes. `deviceSupport`
-  reports `entitlementMissing` for Tap to Pay on iPhone, hardcoded: it changes in code once Apple
-  grants `com.apple.developer.proximity-reader.payment.acceptance`.
+  reports Tap to Pay on iPhone only when the build is signed with
+  `com.apple.developer.proximity-reader.payment.acceptance`, on iOS 16.4+ (PIN entry), on an
+  iPhone Apple says can (`PaymentCardReader.isSupported`: XS or later, never the simulator).
+
+## Tap to Pay on iPhone is signed into Debug builds only, until Apple grants distribution
+
+Apple granted the **development** entitlement on 2026-11-15; TestFlight and the App Store need the
+**distribution** one, which Apple grants after reviewing three recordings (new user, existing user,
+checkout) and its App Review Requirements Checklist. A profile without it fails every upload, so:
+
+- **Debug signs with `ios/Runner/RunnerDebug.entitlements`** (`Runner.entitlements` plus the key);
+  Release and Profile sign with `Runner.entitlements`, which mustn't have it yet.
+- **The app learns which from the `IN_TAP_TO_PAY_ENTITLED` build setting** (YES for Debug only),
+  through Info.plist `INTapToPayEntitled`; without it `deviceSupport` says `entitlementMissing`
+  and the phone offers a Bluetooth reader instead. `ios_entitlements_test` keeps the setting,
+  the two files and Info.plist in step.
+- **When distribution is granted:** add the key to `Runner.entitlements`, set
+  `IN_TAP_TO_PAY_ENTITLED = YES` for Release and Profile (and Debug can sign with
+  `Runner.entitlements` again), regenerate the profiles, update the `APPLE_*` signing secrets if the
+  profile is stored there.
+- **Countries differ by platform:** an iPhone checks `kTapToPayIPhoneCountries`, Android
+  `kTapToPayAndroidCountries` (Stripe's two lists).
+- **Apple's "How to Tap"** (`showHowToTap`: `ProximityReaderDiscovery` on iOS 18+, our own dialog
+  before that) shows once per account before its first Tap to Pay collection on an iPhone
+  (`DevicePrefKeys.howToTapShown`), and from Device Settings → Card readers → How to use. App Review
+  requires both.
 
 Stripe takes no payment with device location services off (`locationServicesEnabled`). Whether
 Stripe accepts iOS's reduced ("approximate") accuracy is untested — check on a phone.

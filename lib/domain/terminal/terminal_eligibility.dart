@@ -29,6 +29,17 @@ const Set<String> kTapToPayAndroidCountries = {
   'LI', 'LT', 'LU', 'LV', 'MT', 'MX', 'RO', 'SI', 'SK', //
 };
 
+/// Account countries where Stripe offers Tap to Pay on iPhone, generally
+/// available or in public preview (docs.stripe.com/terminal/payments/
+/// setup-reader/tap-to-pay?platform=ios, read 2026-11-15). Not the same as
+/// Android's: no Gibraltar, and Liechtenstein and Malaysia only in preview.
+const Set<String> kTapToPayIPhoneCountries = {
+  'AT', 'AU', 'BE', 'CA', 'CH', 'CZ', 'DE', 'DK', 'ES', 'FI', 'FR', //
+  'GB', 'IE', 'IT', 'LU', 'NL', 'NZ', 'PL', 'PT', 'SE', 'SG', 'US', //
+  'BG', 'CY', 'EE', 'HK', 'HR', 'HU', 'JP', 'LI', 'LT', 'LV', 'MT', //
+  'MX', 'MY', 'NO', 'RO', 'SI', 'SK', //
+};
+
 enum TerminalAvailability {
   hidden,
 
@@ -40,16 +51,21 @@ enum TerminalAvailability {
 /// How the app may read a card here.
 enum TerminalReaderChoice { tapToPay, bluetooth, none }
 
-/// [tapToPayDevice]: this phone can do Tap to Pay. [readerUsed]: a Bluetooth
-/// reader has been connected in this app before — the action isn't offered
-/// to every phone that merely has Bluetooth.
+/// [tapToPayDevice]: this phone can do Tap to Pay. [iPhone]: it's an iPhone,
+/// whose Tap to Pay countries differ from Android's. [readerUsed]: a
+/// Bluetooth reader has been connected in this app before — the action isn't
+/// offered to every phone that merely has Bluetooth.
 TerminalReaderChoice terminalReaderChoice({
   required bool tapToPayDevice,
+  required bool iPhone,
   required String accountCountry,
   required bool bluetoothDevice,
   required bool readerUsed,
 }) {
-  if (tapToPayDevice && kTapToPayAndroidCountries.contains(accountCountry)) {
+  final countries = iPhone
+      ? kTapToPayIPhoneCountries
+      : kTapToPayAndroidCountries;
+  if (tapToPayDevice && countries.contains(accountCountry)) {
     return TerminalReaderChoice.tapToPay;
   }
   if (kCardPresentBluetooth && bluetoothDevice && readerUsed) {

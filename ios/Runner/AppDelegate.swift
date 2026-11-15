@@ -2,6 +2,7 @@ import CoreBluetooth
 import CoreLocation
 import Flutter
 import ImageIO
+import ProximityReader
 import UIKit
 import Vision
 
@@ -307,6 +308,7 @@ final class StripeTerminalBridge: NSObject, CLLocationManagerDelegate {
     channel.setMethodCallHandler { call, result in
       switch call.method {
       case "deviceSupport": shared.deviceSupport(result)
+      case "showHowToTap": shared.showHowToTap(result)
       case "requestPermissions":
         let kind = (call.arguments as? [String: Any])?["kind"] as? String
         shared.requestPermissions(kind: kind, result)
@@ -322,17 +324,53 @@ final class StripeTerminalBridge: NSObject, CLLocationManagerDelegate {
   }
 
   private func deviceSupport(_ result: @escaping FlutterResult) {
+    let blocker = tapToPayBlocker()
     // locationServicesEnabled blocks, so it stays off the main thread.
     DispatchQueue.global(qos: .userInitiated).async {
       let enabled = CLLocationManager.locationServicesEnabled()
       DispatchQueue.main.async {
         result([
-          "tapToPay": false,
+          "tapToPay": blocker == nil,
           "bluetooth": true,
           "nfcEnabled": true,
           "locationServicesEnabled": enabled,
-          "tapToPayBlocker": "entitlementMissing",
+          "tapToPayBlocker": blocker.map { $0 as Any } ?? NSNull(),
         ])
+      }
+    }
+  }
+
+  /// Why this phone can't take Tap to Pay, or nil when it can. The build must be
+  /// signed with the entitlement (Info.plist INTapToPayEntitled, from the
+  /// IN_TAP_TO_PAY_ENTITLED build setting: Debug only until Apple grants the
+  /// distribution entitlement); PIN entry needs iOS 16.4; and Apple says which
+  /// iPhones can (XS or later, not the simulator).
+  private func tapToPayBlocker() -> String? {
+    let entitled = Bundle.main.object(forInfoDictionaryKey: "INTapToPayEntitled") as? String
+    guard entitled == "YES" else { return "entitlementMissing" }
+    guard #available(iOS 16.4, *) else { return "unsupportedOs" }
+    return PaymentCardReader.isSupported ? nil : "unsupportedDevice"
+  }
+
+  /// Apple's "How to Tap" merchant education, which App Review requires before
+  /// Tap to Pay is used (ProximityReaderDiscovery, iOS 18+). Answers true when
+  /// shown; false on an older iOS or a failure, and the app shows its own.
+  private func showHowToTap(_ result: @escaping FlutterResult) {
+    guard #available(iOS 18.0, *) else { return result(false) }
+    Task { @MainActor in
+      do {
+        let discovery = ProximityReaderDiscovery()
+        let content = try await discovery.content(for: .payment(.howToTap))
+        guard let root = UIApplication.shared.connectedScenes
+          .compactMap({ ($0 as? UIWindowScene)?.keyWindow?.rootViewController })
+          .first
+        else { return result(false) }
+        var top = root
+        while let presented = top.presentedViewController { top = presented }
+        try await discovery.presentContent(content, from: top)
+        result(true)
+      } catch {
+        result(false)
       }
     }
   }

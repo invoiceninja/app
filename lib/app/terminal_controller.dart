@@ -297,11 +297,19 @@ class TerminalController extends ChangeNotifier {
     }
   }
 
+  /// Apple's "How to Tap" explainer is still owed before this account's first
+  /// Tap to Pay on iPhone collection (docs/in-person-payments.md).
+  bool get howToTapDue => !(_prefs.read(DevicePrefKeys.howToTapShown) ?? false);
+
+  Future<void> markHowToTapShown() =>
+      _prefs.write(DevicePrefKeys.howToTapShown, true);
+
   /// How a card can be read for [gateway] on this phone.
   TerminalReaderChoice readerChoiceFor(String accountCountry) {
     final device = _device;
     return terminalReaderChoice(
       tapToPayDevice: device?.tapToPay ?? false,
+      iPhone: !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS,
       accountCountry: accountCountry,
       bluetoothDevice: device?.bluetooth ?? false,
       readerUsed: _readerUsed || _reader?.kind == TerminalReaderKind.bluetooth,

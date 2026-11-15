@@ -22,6 +22,8 @@ class StripeTerminal {
 
   static Future<bool> openSettings() async => false;
 
+  static Future<bool> showHowToTap() async => false;
+
   static Future<void> initialize({
     required String account,
     required Future<String> Function() fetchToken,

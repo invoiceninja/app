@@ -312,6 +312,16 @@ abstract final class DevicePrefKeys {
     PrefScope.account,
   );
 
+  /// Apple's "How to Tap" explainer has been shown before this account's
+  /// first Tap to Pay on iPhone collection (App Review requires it;
+  /// `showHowToTap`, docs/in-person-payments.md). Account scope: each merchant
+  /// signing in on this phone sees it once.
+  static const howToTapShown = PrefKey<bool>(
+    'how_to_tap_shown',
+    PrefCodec.boolean,
+    PrefScope.account,
+  );
+
   /// Card payments that may have been charged and that the server hadn't
   /// answered for when the app last knew: `{paymentIntentId: {company,
   /// invoice}}` (`TerminalController`). Checked when the invoice opens, and
@@ -357,6 +367,7 @@ abstract final class DevicePrefKeys {
     welcome,
     cardReaderUsed,
     pendingCardPayments,
+    howToTapShown,
   ];
 
   /// The rows a data wipe leaves in place: the [PrefScope.device] keys and the

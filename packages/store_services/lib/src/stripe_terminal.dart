@@ -131,6 +131,21 @@ class StripeTerminal {
     }
   }
 
+  /// Shows Apple's "How to Tap" merchant education for Tap to Pay on iPhone
+  /// (ProximityReaderDiscovery, iOS 18+), which App Review requires. False
+  /// when it couldn't — another platform, an older iOS, a failure — and the
+  /// app then shows its own instructions.
+  static Future<bool> showHowToTap() async {
+    if (!isAvailable) return false;
+    try {
+      return await _channel.invokeMethod<bool>('showHowToTap') ?? false;
+    } on PlatformException {
+      return false;
+    } on MissingPluginException {
+      return false;
+    }
+  }
+
   /// Starts the SDK for [account] (the company), with [fetchToken] answering
   /// its connection-token requests. The SDK starts once per process and
   /// caches a token and a reader session, so another account [reset]s

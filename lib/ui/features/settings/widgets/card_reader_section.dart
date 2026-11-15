@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 import 'package:store_services/store_services.dart';
@@ -12,6 +13,7 @@ import 'package:admin/data/services/terminal_server_error.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/features/settings/widgets/form_section.dart';
+import 'package:admin/ui/features/terminal/how_to_tap.dart';
 import 'package:admin/ui/features/terminal/terminal_error_text.dart';
 import 'package:admin/ui/features/terminal/widgets/reader_picker_sheet.dart';
 
@@ -178,6 +180,16 @@ class _CardReaderSectionState extends State<CardReaderSection> {
                         _ => 'terminal_tap_to_pay_unavailable',
                       }),
               ),
+              // Apple wants its "How to Tap" reachable after the first time.
+              trailing:
+                  tapToPay &&
+                      !kIsWeb &&
+                      defaultTargetPlatform == TargetPlatform.iOS
+                  ? TextButton(
+                      onPressed: () => showHowToTap(context),
+                      child: Text(context.tr('terminal_how_to_tap_short')),
+                    )
+                  : null,
             ),
             if (kCardPresentBluetooth)
               ListTile(

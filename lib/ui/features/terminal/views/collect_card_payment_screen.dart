@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:decimal/decimal.dart';
+import 'package:flutter/foundation.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 import 'package:store_services/store_services.dart';
@@ -18,6 +19,7 @@ import 'package:admin/ui/core/widgets/form_save_scope.dart';
 import 'package:admin/ui/core/widgets/ltr_value.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
 import 'package:admin/ui/core/widgets/qr_code_image.dart';
+import 'package:admin/ui/features/terminal/how_to_tap.dart';
 import 'package:admin/ui/features/terminal/terminal_error_text.dart';
 import 'package:admin/ui/features/terminal/view_models/collect_card_payment_view_model.dart';
 import 'package:admin/ui/features/terminal/widgets/reader_picker_sheet.dart';
@@ -83,6 +85,7 @@ class _CollectCardPaymentScreenState extends State<CollectCardPaymentScreen> {
   /// 0–1 while the reader installs an update, else null.
   double? _updateProgress;
   CollectStage? _lastStage;
+  ReaderState? _lastReaderState;
 
   @override
   void initState() {
@@ -197,6 +200,10 @@ class _CollectCardPaymentScreenState extends State<CollectCardPaymentScreen> {
   void _onChanged() {
     if (!mounted) return;
     _syncPrecision();
+    if (_vm.readerState != _lastReaderState) {
+      _lastReaderState = _vm.readerState;
+      if (_lastReaderState == ReaderState.ready) _maybeShowHowToTap();
+    }
     final stage = _vm.stage;
     if (stage != _lastStage) {
       _lastStage = stage;
@@ -210,6 +217,17 @@ class _CollectCardPaymentScreenState extends State<CollectCardPaymentScreen> {
       }
     }
     setState(() {});
+  }
+
+  /// Apple's "How to Tap", once per account before its first Tap to Pay on
+  /// iPhone collection: App Review requires it (docs/in-person-payments.md).
+  void _maybeShowHowToTap() {
+    final terminal = _services.terminal;
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.iOS) return;
+    if (_vm.readerChoice != TerminalReaderChoice.tapToPay) return;
+    if (!terminal.howToTapDue) return;
+    unawaited(terminal.markHowToTapShown());
+    unawaited(showHowToTap(context));
   }
 
   @override
