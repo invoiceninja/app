@@ -71,14 +71,17 @@ android {
 // F-Droid's split-APK versionCode: build * 10 + ABI digit, overriding Flutter's
 // <digit> * 1000 + build so a new release outranks every ABI of an old one
 // (docs/fdroid.md § The F-Droid recipe). Runs after Flutter's own override,
-// which the plugin registers when it is applied above.
+// which the plugin registers when it is applied above. The build number is
+// read from `flutter.versionCode` (pubspec's +N): since Flutter 3.50
+// `variant.versionCode` already carries Flutter's ABI offset (2029 for build
+// 29 on arm64), which made 20292 where F-Droid expects 292.
 val abiCodes = mapOf("armeabi-v7a" to 1, "arm64-v8a" to 2, "x86_64" to 3)
 android.applicationVariants.configureEach {
     val variant = this
     variant.outputs.forEach { output ->
         val abiVersionCode = abiCodes[output.filters.find { it.filterType == "ABI" }?.identifier]
         if (abiVersionCode != null) {
-            (output as ApkVariantOutputImpl).versionCodeOverride = variant.versionCode * 10 + abiVersionCode
+            (output as ApkVariantOutputImpl).versionCodeOverride = flutter.versionCode * 10 + abiVersionCode
         }
     }
 }

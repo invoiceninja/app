@@ -114,7 +114,7 @@ void main() {
     expect(
       gradle,
       contains(
-        'versionCodeOverride = variant.versionCode * 10 + abiVersionCode',
+        'versionCodeOverride = flutter.versionCode * 10 + abiVersionCode',
       ),
       reason:
           'without the override Flutter gives the split APK '

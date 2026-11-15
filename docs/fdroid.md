@@ -495,8 +495,11 @@ vary: the image or the JDK. Compare their build log with our `toolchain.txt`, th
   - **The override wins because of when it registers.** The Flutter plugin registers its own
     `applicationVariants.configureEach` (`FlutterPlugin.kt`'s `addFlutterTasks`) when it is
     applied in `plugins {}`. Ours comes later in the script, so it runs second for each
-    variant. `variant.versionCode` is pubspec's `+N`, not Flutter's per-output override. An
-    AAB or a universal APK has no ABI filter, so Play's versionCode is untouched.
+    variant. The build number comes from `flutter.versionCode` (pubspec's `+N`), never
+    `variant.versionCode`: since Flutter 3.50 that already carries Flutter's ABI offset
+    (2029 for build 29 on arm64), which built 20292 where the recipe says 292 and failed
+    5.1.26's first run. An AAB or a universal APK has no ABI filter, so Play's versionCode
+    is untouched.
   - `test/lint/fdroid_recipe_test.dart` reads the digits from `abiCodes` and fails if the
     override line goes missing. `fdroid build` would then reject the APK, whose versionCode
     no longer matches the recipe.
