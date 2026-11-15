@@ -32,6 +32,7 @@ _UserCompanyApi _$UserCompanyApiFromJson(
   account: AccountEnvelopeApi.fromJson(json['account'] as Map<String, dynamic>),
   settings:
       json['settings'] as Map<String, dynamic>? ?? const <String, dynamic>{},
+  notifications: _reactSettingsFromJson(json['notifications']),
   reactSettings: _reactSettingsFromJson(json['react_settings']),
   user: json['user'] == null
       ? const UserSummaryApi()
@@ -49,6 +50,7 @@ Map<String, dynamic> _$UserCompanyApiToJson(_UserCompanyApi instance) =>
       'token': instance.token,
       'account': instance.account,
       'settings': instance.settings,
+      'notifications': instance.notifications,
       'react_settings': instance.reactSettings,
       'user': instance.user,
       'ninja_portal_url': instance.ninjaPortalUrl,

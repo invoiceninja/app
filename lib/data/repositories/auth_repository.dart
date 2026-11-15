@@ -15,7 +15,7 @@ import 'package:admin/data/repositories/auth/auth_session.dart';
 import 'package:admin/data/repositories/company_repository.dart'
     show kCompanyWireName;
 import 'package:admin/data/repositories/user_settings_repository.dart'
-    show applyServerReactSettings, kUserSettingsWireName;
+    show applyServerSettings;
 import 'package:admin/data/services/api_client.dart';
 import 'package:admin/data/services/api_credentials.dart';
 import 'package:admin/data/services/auth_service.dart';
@@ -2247,46 +2247,17 @@ class AuthRepository {
       // the rest under `extra_json` so the PUT we'll later send preserves
       // every field the new app doesn't yet model.
       for (final uc in response.data) {
-        // Don't clobber a pending local edit: a `user_settings` PUT parked
-        // in the outbox (offline, 412 password gate) still owns this row —
-        // overwriting it with server data visually reverts the edit while
-        // the mutation is still queued. This table has no `is_dirty`
-        // column, so the queued outbox row IS the dirty marker. Mirrors
-        // `upsertAllPreservingDirty`'s contract for entity tables.
-        final pendingSettingsEdit = await _db.outboxDao.hasActiveRowsFor(
+        // A `user_settings` change parked in the outbox (offline, 412
+        // password gate) is laid over the server's copy rather than reverted
+        // by it — this table has no `is_dirty` column, so the queued row is
+        // the dirty marker. `react_settings` is not stored: it is React's.
+        await applyServerSettings(
+          _db,
           companyId: uc.company.id,
-          entityType: kUserSettingsWireName,
+          userId: uc.user.id,
+          settings: uc.settings,
+          nowMs: nowMs,
         );
-        if (!pendingSettingsEdit) {
-          final settings = uc.settings;
-          final tableColumns = settings['table_columns'];
-          final extra = Map<String, dynamic>.from(settings)
-            ..remove('table_columns');
-          await _db.userSettingsDao.upsert(
-            UserSettingsCompanion(
-              companyId: Value(uc.company.id),
-              userId: Value(uc.user.id),
-              tableColumnsJson: Value(
-                jsonEncode(
-                  tableColumns is Map ? tableColumns : <String, dynamic>{},
-                ),
-              ),
-              extraJson: Value(jsonEncode(extra)),
-              updatedAt: Value(nowMs),
-            ),
-          );
-        }
-        // `react_settings` has its own outbox rows, which carry patches, so a
-        // queued one is laid over the server's blob rather than skipping it.
-        final reactSettings = uc.reactSettings;
-        if (reactSettings != null) {
-          await applyServerReactSettings(
-            _db,
-            companyId: uc.company.id,
-            server: reactSettings,
-            nowMs: nowMs,
-          );
-        }
       }
       // Auth user record. /refresh's `data[N].user` carries the full
       // profile shape — first/last name, signature, language_id,
@@ -2330,6 +2301,9 @@ class AuthRepository {
           'has_password': uc.user.hasPassword,
           'company_user': <String, dynamic>{
             'settings': uc.settings,
+            // What a non-admin's settings PUT has to carry
+            // (`UserSettingsRepository.putBodyFor`).
+            'notifications': ?uc.notifications,
             'is_admin': uc.isAdmin,
             'is_owner': uc.isOwner,
             'permissions': uc.permissions,

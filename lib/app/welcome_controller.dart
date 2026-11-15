@@ -43,7 +43,7 @@ class WelcomeController extends ChangeNotifier {
   final bool isDemoBuild;
   final bool demoMode;
 
-  /// Tells the server this user has been welcomed (a `react_settings` patch),
+  /// Tells the server this user has been welcomed (a `company_user.settings` change),
   /// so another device does not greet them again. Best effort.
   final Future<void> Function()? onWelcomed;
 

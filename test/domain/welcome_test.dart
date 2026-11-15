@@ -69,7 +69,7 @@ void main() {
             react: [
               null,
               {
-                kWelcomeReactSettingsKey: {'v': 1},
+                kWelcomeSettingsKey: {'v': 1},
               },
             ],
           ),
@@ -86,7 +86,33 @@ void main() {
               {'dashboard_fields_per_row_mobile': 2},
             ],
             react: [
-              {kOwnReactSettingsKey: <String, dynamic>{}},
+              {kOwnSettingsKey: <String, dynamic>{}},
+            ],
+          ),
+        ),
+        isNull,
+      );
+    });
+
+    test('the flag is read from company_user.settings, where it is written '
+        'now', () {
+      expect(
+        decideWelcome(
+          facts(
+            settings: [
+              {
+                kWelcomeSettingsKey: {'v': 1},
+              },
+            ],
+          ),
+        ),
+        isNull,
+      );
+      expect(
+        decideWelcome(
+          facts(
+            settings: [
+              {kOwnSettingsKey: <String, dynamic>{}},
             ],
           ),
         ),
@@ -100,7 +126,7 @@ void main() {
           facts(
             isSignup: true,
             react: [
-              {kWelcomeReactSettingsKey: <String, dynamic>{}},
+              {kWelcomeSettingsKey: <String, dynamic>{}},
             ],
           ),
         ),

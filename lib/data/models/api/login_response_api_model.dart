@@ -112,11 +112,15 @@ abstract class UserCompanyApi with _$UserCompanyApi {
     @Default(SessionTokenApi()) SessionTokenApi token,
     required AccountEnvelopeApi account,
     @Default(<String, dynamic>{}) Map<String, dynamic> settings,
-    // `company_user.react_settings` — the React client's preferences, where
-    // the dashboard syncs (`UserSettingsRepository.patchReactSettings`). Null
-    // when the response doesn't carry it, which must never be read as "empty":
-    // the blob is written back whole. Loose on purpose — a bad value here
-    // must not drop the company through `tolerantList`.
+    // `company_user.notifications`; null when the response doesn't carry it.
+    // Loose for the same reason as `reactSettings`.
+    @JsonKey(fromJson: _reactSettingsFromJson)
+    Map<String, dynamic>? notifications,
+    // `company_user.react_settings` — the React client's preferences. Read
+    // only to tell whether an earlier build welcomed this user
+    // (`SignInFacts`); this app stores and writes nothing there. Loose on
+    // purpose — a bad value here must not drop the company through
+    // `tolerantList`.
     @JsonKey(name: 'react_settings', fromJson: _reactSettingsFromJson)
     Map<String, dynamic>? reactSettings,
     @JsonKey(name: 'user') @Default(UserSummaryApi()) UserSummaryApi user,

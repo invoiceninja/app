@@ -65,7 +65,7 @@ void main() {
       if (oldApp) {'dashboard_fields_per_row_desktop': 3},
     ],
     reactSettings: [
-      if (welcomedElsewhere) {kWelcomeReactSettingsKey: <String, dynamic>{}},
+      if (welcomedElsewhere) {kWelcomeSettingsKey: <String, dynamic>{}},
     ],
     companyCount: companies,
   );

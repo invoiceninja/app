@@ -1729,10 +1729,10 @@ class Services implements SidebarBadgeContext {
       onWelcomed: () async {
         final companyId = auth.session.value?.currentCompanyId ?? '';
         if (companyId.isEmpty) return;
-        await welcomeUserSettings.patchReactSettings(
+        await welcomeUserSettings.patchSettings(
           companyId: companyId,
           patch: {
-            kWelcomeReactSettingsKey: {
+            kWelcomeSettingsKey: {
               'v': 1,
               'at': DateTime.now().millisecondsSinceEpoch,
             },
@@ -2051,7 +2051,12 @@ class Services implements SidebarBadgeContext {
           api: userSettingsApi,
           repo: userSettingsRepo,
         ),
-        user: UserSyncDispatcher(api: usersApi, repo: userRepo, auth: auth),
+        user: UserSyncDispatcher(
+          api: usersApi,
+          repo: userRepo,
+          auth: auth,
+          userSettings: userSettingsRepo,
+        ),
         outbox: db.outboxDao,
       ),
     );

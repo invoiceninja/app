@@ -15,10 +15,9 @@ import 'package:admin/ui/features/dashboard/view_models/dashboard_view_model.dar
 
 import '_fake_dashboard_repo.dart';
 
-/// The dashboard's cross-device sync through `company_user.react_settings`:
-/// the cards in React's own `dashboard_fields`, the grouping in React's
-/// `dashboard_charts.default_view`, the legend and panels under
-/// `flutter_dashboard`. `docs/dashboard-panels.md`.
+/// The dashboard's cross-device sync through `company_user.settings`: the
+/// cards, the grouping, the legend and the panels under `flutter_dashboard`,
+/// and nothing in React's `react_settings`. `docs/dashboard-panels.md`.
 void main() {
   late AppDatabase db;
   late FakeDashboardRepo repo;
@@ -52,15 +51,26 @@ void main() {
     await db.close();
   });
 
-  Future<void> seedReactSettings(Map<String, Object?>? blob) =>
-      db.userSettingsDao.upsert(
-        UserSettingsCompanion(
-          companyId: const Value('co'),
-          userId: const Value('u1'),
-          updatedAt: const Value(0),
-          reactSettingsJson: Value(blob == null ? null : jsonEncode(blob)),
-        ),
-      );
+  /// [settings] null leaves the row out: no login has stored it yet.
+  Future<void> seedSettings(Map<String, Object?>? settings) async {
+    if (settings == null) return;
+    await db.userSettingsDao.upsert(
+      UserSettingsCompanion(
+        companyId: const Value('co'),
+        userId: const Value('u1'),
+        updatedAt: const Value(0),
+        extraJson: Value(jsonEncode(settings)),
+      ),
+    );
+  }
+
+  Future<void> capture(Map<String, dynamic> settings) => applyServerSettings(
+    db,
+    companyId: 'co',
+    userId: 'u1',
+    settings: settings,
+    nowMs: 2,
+  );
 
   Future<void> seedNavState(Map<String, Object?> dashboard) =>
       db.navStateDao.saveFilters(
@@ -89,8 +99,7 @@ void main() {
 
   Future<List<OutboxRow>> outbox() => db.select(db.outbox).get();
 
-  test('the synced blob wins over this device\'s nav_state, and React\'s '
-      'card keys (index suffix, empty count format) are read', () async {
+  test('the synced settings win over this device\'s nav_state', () async {
     // Past-due leads every saved arrangement; the rest reversed.
     final reversed = [
       DashboardKind.pastDue,
@@ -101,12 +110,10 @@ void main() {
     await seedNavState({
       'dashboardCards': [activeInvoices.key],
     });
-    await seedReactSettings({
-      'dashboard_fields': ['overdue_tasks|total|count||0'],
-      'preferences': {
-        'dashboard_charts': {'default_view': 'week'},
-      },
+    await seedSettings({
       'flutter_dashboard': {
+        'cards': [overdueTasks.key],
+        'grouping': 'week',
         'panels': [for (final k in reversed) '$k|0'],
         'chart_series': ['expenses'],
       },
@@ -121,56 +128,44 @@ void main() {
     expect(await outbox(), isEmpty);
   });
 
-  test('a change is written to react_settings in React\'s format', () async {
-    await seedReactSettings({'show_pdf_preview': true});
+  test('a change is written under flutter_dashboard, beside the old app\'s '
+      'keys', () async {
+    await seedSettings({
+      'accent_color': '#fff',
+      'dashboard_fields': [
+        {'field': 'total_active_invoices'},
+      ],
+    });
     final vm = await newVm();
     vm.addCard(overdueTasks);
     vm.setChartGrouping(ChartGrouping.day);
     await settle();
-    final blob = await settings.getReactSettings('co');
-    expect(blob!['show_pdf_preview'], isTrue);
-    expect(blob['dashboard_fields'], ['overdue_tasks|total|count||0']);
-    expect((blob['preferences'] as Map)['dashboard_charts'], {
-      'default_view': 'day',
-    });
-    expect(
-      blob.containsKey('flutter_dashboard'),
-      isFalse,
-      reason: 'only what changed is written',
-    );
+    final blob = await settings.getSettings('co');
+    expect(blob!['accent_color'], '#fff');
+    expect(blob['dashboard_fields'], [
+      {'field': 'total_active_invoices'},
+    ], reason: 'the old app\'s own cards are neither read nor written');
+    expect(blob['flutter_dashboard'], {
+      'cards': [overdueTasks.key],
+      'grouping': 'day',
+    }, reason: 'only what changed is written');
     expect(await outbox(), hasLength(1));
   });
 
   test('a change sends only its own path — never this device\'s copy of the '
-      'rest, which may be older than React\'s', () async {
-    await seedReactSettings({
-      'dashboard_fields': [activeInvoices.toReactKey()],
+      'rest, which may be older than another device\'s', () async {
+    await seedSettings({
+      'flutter_dashboard': {
+        'cards': [activeInvoices.key],
+      },
     });
     final vm = await newVm();
     vm.toggleChartSeries(ChartSeriesId.expenses);
     await settle();
     final queued = await outbox();
-    expect(reactSettingsPatchOf(queued.single.payload).keys, {
+    expect(UserSettingsChange.tryDecode(queued.single.payload)!.patch.keys, {
       'flutter_dashboard.chart_series',
     });
-  });
-
-  test('a card React has but this build cannot read survives a card change '
-      'here', () async {
-    const future = 'some_future_field|current|sum|money|0';
-    await seedReactSettings({
-      'dashboard_fields': [activeInvoices.toReactKey(), future],
-    });
-    final vm = await newVm();
-    expect(vm.dashboardCards, [activeInvoices]);
-    vm.addCard(overdueTasks);
-    await settle();
-    final blob = await settings.getReactSettings('co');
-    expect(blob!['dashboard_fields'], [
-      activeInvoices.toReactKey(),
-      overdueTasks.toReactKey(),
-      future,
-    ]);
   });
 
   test(
@@ -179,54 +174,53 @@ void main() {
       await seedNavState({
         'dashboardCards': [activeInvoices.key],
       });
-      await seedReactSettings({});
+      await seedSettings({});
       final vm = await newVm();
       expect(vm.dashboardCards, [activeInvoices]);
-      final blob = await settings.getReactSettings('co');
-      expect(blob!['dashboard_fields'], [
-        'active_invoices|current|sum|money|0',
+      final blob = await settings.getSettings('co');
+      expect((blob!['flutter_dashboard'] as Map)['cards'], [
+        activeInvoices.key,
       ]);
     },
   );
 
   test('a device with nothing customised writes nothing', () async {
-    await seedReactSettings({});
+    await seedSettings({});
     await newVm();
     expect(await outbox(), isEmpty);
-    expect(await settings.getReactSettings('co'), isEmpty);
+    expect(await settings.getSettings('co'), isEmpty);
   });
 
   test(
-    'before the blob is captured the dashboard stays device-local',
+    'before a login stored the settings the dashboard stays device-local',
     () async {
-      await seedReactSettings(null);
+      await seedSettings(null);
       final vm = await newVm();
       vm.addCard(activeInvoices);
       await settle();
       expect(vm.dashboardCards, [activeInvoices]);
       expect(await outbox(), isEmpty);
-      expect(await settings.getReactSettings('co'), isNull);
+      expect(await settings.getSettings('co'), isNull);
     },
   );
 
   test('a change from another device arriving by /refresh replaces the cards '
       'live: the new one is fetched, the dropped one purged', () async {
-    await seedReactSettings({
-      'dashboard_fields': [activeInvoices.toReactKey()],
+    await seedSettings({
+      'flutter_dashboard': {
+        'cards': [activeInvoices.key],
+      },
     });
     final vm = await newVm();
     expect(vm.dashboardCards, [activeInvoices]);
     var notified = 0;
     vm.addListener(() => notified++);
 
-    await applyServerReactSettings(
-      db,
-      companyId: 'co',
-      server: {
-        'dashboard_fields': [overdueTasks.toReactKey()],
+    await capture({
+      'flutter_dashboard': {
+        'cards': [overdueTasks.key],
       },
-      nowMs: 2,
-    );
+    });
     await settle();
     expect(vm.dashboardCards, [overdueTasks]);
     expect(notified, greaterThan(0));
@@ -236,40 +230,19 @@ void main() {
 
   test('a capture landing before a local change is written does not revert '
       'it', () async {
-    await seedReactSettings({});
+    await seedSettings({});
     final vm = await newVm();
     vm.addCard(activeInvoices);
-    // The /refresh still holds the server's pre-change blob.
-    await applyServerReactSettings(
-      db,
-      companyId: 'co',
-      server: {'dark_mode': true},
-      nowMs: 2,
-    );
+    // The /refresh still holds the server's pre-change settings.
+    await capture({'accent_color': '#000'});
     await settle();
     expect(vm.dashboardCards, [activeInvoices]);
-    final blob = await settings.getReactSettings('co');
-    expect(blob!['dark_mode'], isTrue);
-    expect(blob['dashboard_fields'], [activeInvoices.toReactKey()]);
+    final blob = await settings.getSettings('co');
+    expect(blob!['accent_color'], '#000');
+    expect((blob['flutter_dashboard'] as Map)['cards'], [activeInvoices.key]);
   });
 
-  test('card keys round-trip through React\'s format', () {
-    for (final c in [activeInvoices, overdueTasks]) {
-      expect(DashboardCardConfig.fromReactKey(c.toReactKey()), c);
-    }
-    expect(
-      DashboardCardConfig.fromReactKey('nope|current|sum|money|0'),
-      isNull,
-    );
-    expect(
-      DashboardCardConfig.fromReactKey('logged_tasks|current|sum|time|3'),
-      const DashboardCardConfig(
-        field: 'logged_tasks',
-        period: CardPeriod.current,
-        calculate: CardCalc.sum,
-        format: CardFormat.time,
-      ),
-    );
+  test('a stored panel entry parses', () {
     expect(
       DashboardPanelPref.tryParse('${DashboardKind.pastDue}|1'),
       const DashboardPanelPref(kind: DashboardKind.pastDue, visible: true),

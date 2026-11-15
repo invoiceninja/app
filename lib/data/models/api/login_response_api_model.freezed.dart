@@ -301,7 +301,7 @@ as Map<String, dynamic>,
 /// @nodoc
 mixin _$UserCompanyApi {
 
-@JsonKey(name: 'is_admin') bool get isAdmin;@JsonKey(name: 'is_owner') bool get isOwner; String get permissions;@JsonKey(name: 'permissions_updated_at') int get permissionsUpdatedAt; CompanyEnvelopeApi get company; SessionTokenApi get token; AccountEnvelopeApi get account; Map<String, dynamic> get settings;@JsonKey(name: 'react_settings', fromJson: _reactSettingsFromJson) Map<String, dynamic>? get reactSettings;@JsonKey(name: 'user') UserSummaryApi get user;@JsonKey(name: 'ninja_portal_url') String get ninjaPortalUrl;
+@JsonKey(name: 'is_admin') bool get isAdmin;@JsonKey(name: 'is_owner') bool get isOwner; String get permissions;@JsonKey(name: 'permissions_updated_at') int get permissionsUpdatedAt; CompanyEnvelopeApi get company; SessionTokenApi get token; AccountEnvelopeApi get account; Map<String, dynamic> get settings;@JsonKey(fromJson: _reactSettingsFromJson) Map<String, dynamic>? get notifications;@JsonKey(name: 'react_settings', fromJson: _reactSettingsFromJson) Map<String, dynamic>? get reactSettings;@JsonKey(name: 'user') UserSummaryApi get user;@JsonKey(name: 'ninja_portal_url') String get ninjaPortalUrl;
 /// Create a copy of UserCompanyApi
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -315,20 +315,20 @@ $UserCompanyApiCopyWith<UserCompanyApi> get copyWith => _$UserCompanyApiCopyWith
 @override
 bool operator ==(Object other) {
   final _this = this as UserCompanyApi;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is UserCompanyApi&&(identical(other.isAdmin, _this.isAdmin) || other.isAdmin == _this.isAdmin)&&(identical(other.isOwner, _this.isOwner) || other.isOwner == _this.isOwner)&&(identical(other.permissions, _this.permissions) || other.permissions == _this.permissions)&&(identical(other.permissionsUpdatedAt, _this.permissionsUpdatedAt) || other.permissionsUpdatedAt == _this.permissionsUpdatedAt)&&(identical(other.company, _this.company) || other.company == _this.company)&&(identical(other.token, _this.token) || other.token == _this.token)&&(identical(other.account, _this.account) || other.account == _this.account)&&const DeepCollectionEquality().equals(other.settings, _this.settings)&&const DeepCollectionEquality().equals(other.reactSettings, _this.reactSettings)&&(identical(other.user, _this.user) || other.user == _this.user)&&(identical(other.ninjaPortalUrl, _this.ninjaPortalUrl) || other.ninjaPortalUrl == _this.ninjaPortalUrl));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is UserCompanyApi&&(identical(other.isAdmin, _this.isAdmin) || other.isAdmin == _this.isAdmin)&&(identical(other.isOwner, _this.isOwner) || other.isOwner == _this.isOwner)&&(identical(other.permissions, _this.permissions) || other.permissions == _this.permissions)&&(identical(other.permissionsUpdatedAt, _this.permissionsUpdatedAt) || other.permissionsUpdatedAt == _this.permissionsUpdatedAt)&&(identical(other.company, _this.company) || other.company == _this.company)&&(identical(other.token, _this.token) || other.token == _this.token)&&(identical(other.account, _this.account) || other.account == _this.account)&&const DeepCollectionEquality().equals(other.settings, _this.settings)&&const DeepCollectionEquality().equals(other.notifications, _this.notifications)&&const DeepCollectionEquality().equals(other.reactSettings, _this.reactSettings)&&(identical(other.user, _this.user) || other.user == _this.user)&&(identical(other.ninjaPortalUrl, _this.ninjaPortalUrl) || other.ninjaPortalUrl == _this.ninjaPortalUrl));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
   final _this = this as UserCompanyApi;
-  return Object.hash(runtimeType,_this.isAdmin,_this.isOwner,_this.permissions,_this.permissionsUpdatedAt,_this.company,_this.token,_this.account,const DeepCollectionEquality().hash(_this.settings),const DeepCollectionEquality().hash(_this.reactSettings),_this.user,_this.ninjaPortalUrl);
+  return Object.hash(runtimeType,_this.isAdmin,_this.isOwner,_this.permissions,_this.permissionsUpdatedAt,_this.company,_this.token,_this.account,const DeepCollectionEquality().hash(_this.settings),const DeepCollectionEquality().hash(_this.notifications),const DeepCollectionEquality().hash(_this.reactSettings),_this.user,_this.ninjaPortalUrl);
 }
 
 @override
 String toString() {
   final _this = this as UserCompanyApi;
-  return 'UserCompanyApi(isAdmin: ${_this.isAdmin}, isOwner: ${_this.isOwner}, permissions: ${_this.permissions}, permissionsUpdatedAt: ${_this.permissionsUpdatedAt}, company: ${_this.company}, token: ${_this.token}, account: ${_this.account}, settings: ${_this.settings}, reactSettings: ${_this.reactSettings}, user: ${_this.user}, ninjaPortalUrl: ${_this.ninjaPortalUrl})';
+  return 'UserCompanyApi(isAdmin: ${_this.isAdmin}, isOwner: ${_this.isOwner}, permissions: ${_this.permissions}, permissionsUpdatedAt: ${_this.permissionsUpdatedAt}, company: ${_this.company}, token: ${_this.token}, account: ${_this.account}, settings: ${_this.settings}, notifications: ${_this.notifications}, reactSettings: ${_this.reactSettings}, user: ${_this.user}, ninjaPortalUrl: ${_this.ninjaPortalUrl})';
 }
 
 
@@ -339,7 +339,7 @@ abstract mixin class $UserCompanyApiCopyWith<$Res>  {
   factory $UserCompanyApiCopyWith(UserCompanyApi value, $Res Function(UserCompanyApi) _then) = _$UserCompanyApiCopyWithImpl;
 @useResult
 $Res call({
-@JsonKey(name: 'is_admin') bool isAdmin,@JsonKey(name: 'is_owner') bool isOwner, String permissions,@JsonKey(name: 'permissions_updated_at') int permissionsUpdatedAt, CompanyEnvelopeApi company, SessionTokenApi token, AccountEnvelopeApi account, Map<String, dynamic> settings,@JsonKey(name: 'react_settings', fromJson: _reactSettingsFromJson) Map<String, dynamic>? reactSettings,@JsonKey(name: 'user') UserSummaryApi user,@JsonKey(name: 'ninja_portal_url') String ninjaPortalUrl
+@JsonKey(name: 'is_admin') bool isAdmin,@JsonKey(name: 'is_owner') bool isOwner, String permissions,@JsonKey(name: 'permissions_updated_at') int permissionsUpdatedAt, CompanyEnvelopeApi company, SessionTokenApi token, AccountEnvelopeApi account, Map<String, dynamic> settings,@JsonKey(fromJson: _reactSettingsFromJson) Map<String, dynamic>? notifications,@JsonKey(name: 'react_settings', fromJson: _reactSettingsFromJson) Map<String, dynamic>? reactSettings,@JsonKey(name: 'user') UserSummaryApi user,@JsonKey(name: 'ninja_portal_url') String ninjaPortalUrl
 });
 
 
@@ -356,7 +356,7 @@ class _$UserCompanyApiCopyWithImpl<$Res>
 
 /// Create a copy of UserCompanyApi
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? isAdmin = null,Object? isOwner = null,Object? permissions = null,Object? permissionsUpdatedAt = null,Object? company = null,Object? token = null,Object? account = null,Object? settings = null,Object? reactSettings = freezed,Object? user = null,Object? ninjaPortalUrl = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? isAdmin = null,Object? isOwner = null,Object? permissions = null,Object? permissionsUpdatedAt = null,Object? company = null,Object? token = null,Object? account = null,Object? settings = null,Object? notifications = freezed,Object? reactSettings = freezed,Object? user = null,Object? ninjaPortalUrl = null,}) {
   return _then(UserCompanyApi(
 isAdmin: null == isAdmin ? _self.isAdmin : isAdmin // ignore: cast_nullable_to_non_nullable
 as bool,isOwner: null == isOwner ? _self.isOwner : isOwner // ignore: cast_nullable_to_non_nullable
@@ -366,7 +366,8 @@ as int,company: null == company ? _self.company : company // ignore: cast_nullab
 as CompanyEnvelopeApi,token: null == token ? _self.token : token // ignore: cast_nullable_to_non_nullable
 as SessionTokenApi,account: null == account ? _self.account : account // ignore: cast_nullable_to_non_nullable
 as AccountEnvelopeApi,settings: null == settings ? _self.settings : settings // ignore: cast_nullable_to_non_nullable
-as Map<String, dynamic>,reactSettings: freezed == reactSettings ? _self.reactSettings : reactSettings // ignore: cast_nullable_to_non_nullable
+as Map<String, dynamic>,notifications: freezed == notifications ? _self.notifications : notifications // ignore: cast_nullable_to_non_nullable
+as Map<String, dynamic>?,reactSettings: freezed == reactSettings ? _self.reactSettings : reactSettings // ignore: cast_nullable_to_non_nullable
 as Map<String, dynamic>?,user: null == user ? _self.user : user // ignore: cast_nullable_to_non_nullable
 as UserSummaryApi,ninjaPortalUrl: null == ninjaPortalUrl ? _self.ninjaPortalUrl : ninjaPortalUrl // ignore: cast_nullable_to_non_nullable
 as String,
@@ -490,10 +491,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function(@JsonKey(name: 'is_admin')  bool isAdmin, @JsonKey(name: 'is_owner')  bool isOwner,  String permissions, @JsonKey(name: 'permissions_updated_at')  int permissionsUpdatedAt,  CompanyEnvelopeApi company,  SessionTokenApi token,  AccountEnvelopeApi account,  Map<String, dynamic> settings, @JsonKey(name: 'react_settings', fromJson: _reactSettingsFromJson)  Map<String, dynamic>? reactSettings, @JsonKey(name: 'user')  UserSummaryApi user, @JsonKey(name: 'ninja_portal_url')  String ninjaPortalUrl)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function(@JsonKey(name: 'is_admin')  bool isAdmin, @JsonKey(name: 'is_owner')  bool isOwner,  String permissions, @JsonKey(name: 'permissions_updated_at')  int permissionsUpdatedAt,  CompanyEnvelopeApi company,  SessionTokenApi token,  AccountEnvelopeApi account,  Map<String, dynamic> settings, @JsonKey(fromJson: _reactSettingsFromJson)  Map<String, dynamic>? notifications, @JsonKey(name: 'react_settings', fromJson: _reactSettingsFromJson)  Map<String, dynamic>? reactSettings, @JsonKey(name: 'user')  UserSummaryApi user, @JsonKey(name: 'ninja_portal_url')  String ninjaPortalUrl)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _UserCompanyApi() when $default != null:
-return $default(_that.isAdmin,_that.isOwner,_that.permissions,_that.permissionsUpdatedAt,_that.company,_that.token,_that.account,_that.settings,_that.reactSettings,_that.user,_that.ninjaPortalUrl);case _:
+return $default(_that.isAdmin,_that.isOwner,_that.permissions,_that.permissionsUpdatedAt,_that.company,_that.token,_that.account,_that.settings,_that.notifications,_that.reactSettings,_that.user,_that.ninjaPortalUrl);case _:
   return orElse();
 
 }
@@ -511,10 +512,10 @@ return $default(_that.isAdmin,_that.isOwner,_that.permissions,_that.permissionsU
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function(@JsonKey(name: 'is_admin')  bool isAdmin, @JsonKey(name: 'is_owner')  bool isOwner,  String permissions, @JsonKey(name: 'permissions_updated_at')  int permissionsUpdatedAt,  CompanyEnvelopeApi company,  SessionTokenApi token,  AccountEnvelopeApi account,  Map<String, dynamic> settings, @JsonKey(name: 'react_settings', fromJson: _reactSettingsFromJson)  Map<String, dynamic>? reactSettings, @JsonKey(name: 'user')  UserSummaryApi user, @JsonKey(name: 'ninja_portal_url')  String ninjaPortalUrl)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function(@JsonKey(name: 'is_admin')  bool isAdmin, @JsonKey(name: 'is_owner')  bool isOwner,  String permissions, @JsonKey(name: 'permissions_updated_at')  int permissionsUpdatedAt,  CompanyEnvelopeApi company,  SessionTokenApi token,  AccountEnvelopeApi account,  Map<String, dynamic> settings, @JsonKey(fromJson: _reactSettingsFromJson)  Map<String, dynamic>? notifications, @JsonKey(name: 'react_settings', fromJson: _reactSettingsFromJson)  Map<String, dynamic>? reactSettings, @JsonKey(name: 'user')  UserSummaryApi user, @JsonKey(name: 'ninja_portal_url')  String ninjaPortalUrl)  $default,) {final _that = this;
 switch (_that) {
 case _UserCompanyApi():
-return $default(_that.isAdmin,_that.isOwner,_that.permissions,_that.permissionsUpdatedAt,_that.company,_that.token,_that.account,_that.settings,_that.reactSettings,_that.user,_that.ninjaPortalUrl);case _:
+return $default(_that.isAdmin,_that.isOwner,_that.permissions,_that.permissionsUpdatedAt,_that.company,_that.token,_that.account,_that.settings,_that.notifications,_that.reactSettings,_that.user,_that.ninjaPortalUrl);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -531,10 +532,10 @@ return $default(_that.isAdmin,_that.isOwner,_that.permissions,_that.permissionsU
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function(@JsonKey(name: 'is_admin')  bool isAdmin, @JsonKey(name: 'is_owner')  bool isOwner,  String permissions, @JsonKey(name: 'permissions_updated_at')  int permissionsUpdatedAt,  CompanyEnvelopeApi company,  SessionTokenApi token,  AccountEnvelopeApi account,  Map<String, dynamic> settings, @JsonKey(name: 'react_settings', fromJson: _reactSettingsFromJson)  Map<String, dynamic>? reactSettings, @JsonKey(name: 'user')  UserSummaryApi user, @JsonKey(name: 'ninja_portal_url')  String ninjaPortalUrl)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function(@JsonKey(name: 'is_admin')  bool isAdmin, @JsonKey(name: 'is_owner')  bool isOwner,  String permissions, @JsonKey(name: 'permissions_updated_at')  int permissionsUpdatedAt,  CompanyEnvelopeApi company,  SessionTokenApi token,  AccountEnvelopeApi account,  Map<String, dynamic> settings, @JsonKey(fromJson: _reactSettingsFromJson)  Map<String, dynamic>? notifications, @JsonKey(name: 'react_settings', fromJson: _reactSettingsFromJson)  Map<String, dynamic>? reactSettings, @JsonKey(name: 'user')  UserSummaryApi user, @JsonKey(name: 'ninja_portal_url')  String ninjaPortalUrl)?  $default,) {final _that = this;
 switch (_that) {
 case _UserCompanyApi() when $default != null:
-return $default(_that.isAdmin,_that.isOwner,_that.permissions,_that.permissionsUpdatedAt,_that.company,_that.token,_that.account,_that.settings,_that.reactSettings,_that.user,_that.ninjaPortalUrl);case _:
+return $default(_that.isAdmin,_that.isOwner,_that.permissions,_that.permissionsUpdatedAt,_that.company,_that.token,_that.account,_that.settings,_that.notifications,_that.reactSettings,_that.user,_that.ninjaPortalUrl);case _:
   return null;
 
 }
@@ -546,7 +547,7 @@ return $default(_that.isAdmin,_that.isOwner,_that.permissions,_that.permissionsU
 @JsonSerializable()
 
 class _UserCompanyApi implements UserCompanyApi {
-  const _UserCompanyApi({@JsonKey(name: 'is_admin') this.isAdmin = false, @JsonKey(name: 'is_owner') this.isOwner = false, this.permissions = '', @JsonKey(name: 'permissions_updated_at') this.permissionsUpdatedAt = 0, required this.company, this.token = const SessionTokenApi(), required this.account,  Map<String, dynamic> settings = const <String, dynamic>{}, @JsonKey(name: 'react_settings', fromJson: _reactSettingsFromJson)  Map<String, dynamic>? reactSettings, @JsonKey(name: 'user') this.user = const UserSummaryApi(), @JsonKey(name: 'ninja_portal_url') this.ninjaPortalUrl = ''}): _settings = settings,_reactSettings = reactSettings;
+  const _UserCompanyApi({@JsonKey(name: 'is_admin') this.isAdmin = false, @JsonKey(name: 'is_owner') this.isOwner = false, this.permissions = '', @JsonKey(name: 'permissions_updated_at') this.permissionsUpdatedAt = 0, required this.company, this.token = const SessionTokenApi(), required this.account,  Map<String, dynamic> settings = const <String, dynamic>{}, @JsonKey(fromJson: _reactSettingsFromJson)  Map<String, dynamic>? notifications, @JsonKey(name: 'react_settings', fromJson: _reactSettingsFromJson)  Map<String, dynamic>? reactSettings, @JsonKey(name: 'user') this.user = const UserSummaryApi(), @JsonKey(name: 'ninja_portal_url') this.ninjaPortalUrl = ''}): _settings = settings,_notifications = notifications,_reactSettings = reactSettings;
   factory _UserCompanyApi.fromJson(Map<String, dynamic> json) => _$UserCompanyApiFromJson(json);
 
 @override@JsonKey(name: 'is_admin') final  bool isAdmin;
@@ -561,6 +562,15 @@ class _UserCompanyApi implements UserCompanyApi {
   if (_settings is EqualUnmodifiableMapView) return _settings;
   // ignore: implicit_dynamic_type
   return EqualUnmodifiableMapView(_settings);
+}
+
+ final  Map<String, dynamic>? _notifications;
+@override@JsonKey(fromJson: _reactSettingsFromJson) Map<String, dynamic>? get notifications {
+  final value = _notifications;
+  if (value == null) return null;
+  if (_notifications is EqualUnmodifiableMapView) return _notifications;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableMapView(value);
 }
 
  final  Map<String, dynamic>? _reactSettings;
@@ -588,18 +598,18 @@ Map<String, dynamic> toJson() {
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _UserCompanyApi&&(identical(other.isAdmin, isAdmin) || other.isAdmin == isAdmin)&&(identical(other.isOwner, isOwner) || other.isOwner == isOwner)&&(identical(other.permissions, permissions) || other.permissions == permissions)&&(identical(other.permissionsUpdatedAt, permissionsUpdatedAt) || other.permissionsUpdatedAt == permissionsUpdatedAt)&&(identical(other.company, company) || other.company == company)&&(identical(other.token, token) || other.token == token)&&(identical(other.account, account) || other.account == account)&&const DeepCollectionEquality().equals(other.settings, _settings)&&const DeepCollectionEquality().equals(other.reactSettings, _reactSettings)&&(identical(other.user, user) || other.user == user)&&(identical(other.ninjaPortalUrl, ninjaPortalUrl) || other.ninjaPortalUrl == ninjaPortalUrl));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _UserCompanyApi&&(identical(other.isAdmin, isAdmin) || other.isAdmin == isAdmin)&&(identical(other.isOwner, isOwner) || other.isOwner == isOwner)&&(identical(other.permissions, permissions) || other.permissions == permissions)&&(identical(other.permissionsUpdatedAt, permissionsUpdatedAt) || other.permissionsUpdatedAt == permissionsUpdatedAt)&&(identical(other.company, company) || other.company == company)&&(identical(other.token, token) || other.token == token)&&(identical(other.account, account) || other.account == account)&&const DeepCollectionEquality().equals(other.settings, _settings)&&const DeepCollectionEquality().equals(other.notifications, _notifications)&&const DeepCollectionEquality().equals(other.reactSettings, _reactSettings)&&(identical(other.user, user) || other.user == user)&&(identical(other.ninjaPortalUrl, ninjaPortalUrl) || other.ninjaPortalUrl == ninjaPortalUrl));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
 int get hashCode {
-    return Object.hash(runtimeType,isAdmin,isOwner,permissions,permissionsUpdatedAt,company,token,account,const DeepCollectionEquality().hash(_settings),const DeepCollectionEquality().hash(_reactSettings),user,ninjaPortalUrl);
+    return Object.hash(runtimeType,isAdmin,isOwner,permissions,permissionsUpdatedAt,company,token,account,const DeepCollectionEquality().hash(_settings),const DeepCollectionEquality().hash(_notifications),const DeepCollectionEquality().hash(_reactSettings),user,ninjaPortalUrl);
 }
 
 @override
 String toString() {
-    return 'UserCompanyApi(isAdmin: $isAdmin, isOwner: $isOwner, permissions: $permissions, permissionsUpdatedAt: $permissionsUpdatedAt, company: $company, token: $token, account: $account, settings: $settings, reactSettings: $reactSettings, user: $user, ninjaPortalUrl: $ninjaPortalUrl)';
+    return 'UserCompanyApi(isAdmin: $isAdmin, isOwner: $isOwner, permissions: $permissions, permissionsUpdatedAt: $permissionsUpdatedAt, company: $company, token: $token, account: $account, settings: $settings, notifications: $notifications, reactSettings: $reactSettings, user: $user, ninjaPortalUrl: $ninjaPortalUrl)';
 }
 
 
@@ -610,7 +620,7 @@ abstract mixin class _$UserCompanyApiCopyWith<$Res> implements $UserCompanyApiCo
   factory _$UserCompanyApiCopyWith(_UserCompanyApi value, $Res Function(_UserCompanyApi) _then) = __$UserCompanyApiCopyWithImpl;
 @override @useResult
 $Res call({
-@JsonKey(name: 'is_admin') bool isAdmin,@JsonKey(name: 'is_owner') bool isOwner, String permissions,@JsonKey(name: 'permissions_updated_at') int permissionsUpdatedAt, CompanyEnvelopeApi company, SessionTokenApi token, AccountEnvelopeApi account, Map<String, dynamic> settings,@JsonKey(name: 'react_settings', fromJson: _reactSettingsFromJson) Map<String, dynamic>? reactSettings,@JsonKey(name: 'user') UserSummaryApi user,@JsonKey(name: 'ninja_portal_url') String ninjaPortalUrl
+@JsonKey(name: 'is_admin') bool isAdmin,@JsonKey(name: 'is_owner') bool isOwner, String permissions,@JsonKey(name: 'permissions_updated_at') int permissionsUpdatedAt, CompanyEnvelopeApi company, SessionTokenApi token, AccountEnvelopeApi account, Map<String, dynamic> settings,@JsonKey(fromJson: _reactSettingsFromJson) Map<String, dynamic>? notifications,@JsonKey(name: 'react_settings', fromJson: _reactSettingsFromJson) Map<String, dynamic>? reactSettings,@JsonKey(name: 'user') UserSummaryApi user,@JsonKey(name: 'ninja_portal_url') String ninjaPortalUrl
 });
 
 
@@ -627,7 +637,7 @@ class __$UserCompanyApiCopyWithImpl<$Res>
 
 /// Create a copy of UserCompanyApi
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? isAdmin = null,Object? isOwner = null,Object? permissions = null,Object? permissionsUpdatedAt = null,Object? company = null,Object? token = null,Object? account = null,Object? settings = null,Object? reactSettings = freezed,Object? user = null,Object? ninjaPortalUrl = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? isAdmin = null,Object? isOwner = null,Object? permissions = null,Object? permissionsUpdatedAt = null,Object? company = null,Object? token = null,Object? account = null,Object? settings = null,Object? notifications = freezed,Object? reactSettings = freezed,Object? user = null,Object? ninjaPortalUrl = null,}) {
   return _then(_UserCompanyApi(
 isAdmin: null == isAdmin ? _self.isAdmin : isAdmin // ignore: cast_nullable_to_non_nullable
 as bool,isOwner: null == isOwner ? _self.isOwner : isOwner // ignore: cast_nullable_to_non_nullable
@@ -637,7 +647,8 @@ as int,company: null == company ? _self.company : company // ignore: cast_nullab
 as CompanyEnvelopeApi,token: null == token ? _self.token : token // ignore: cast_nullable_to_non_nullable
 as SessionTokenApi,account: null == account ? _self.account : account // ignore: cast_nullable_to_non_nullable
 as AccountEnvelopeApi,settings: null == settings ? _self._settings : settings // ignore: cast_nullable_to_non_nullable
-as Map<String, dynamic>,reactSettings: freezed == reactSettings ? _self._reactSettings : reactSettings // ignore: cast_nullable_to_non_nullable
+as Map<String, dynamic>,notifications: freezed == notifications ? _self._notifications : notifications // ignore: cast_nullable_to_non_nullable
+as Map<String, dynamic>?,reactSettings: freezed == reactSettings ? _self._reactSettings : reactSettings // ignore: cast_nullable_to_non_nullable
 as Map<String, dynamic>?,user: null == user ? _self.user : user // ignore: cast_nullable_to_non_nullable
 as UserSummaryApi,ninjaPortalUrl: null == ninjaPortalUrl ? _self.ninjaPortalUrl : ninjaPortalUrl // ignore: cast_nullable_to_non_nullable
 as String,

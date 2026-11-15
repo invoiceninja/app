@@ -707,7 +707,7 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
   }
 
   /// The non-terminal rows [hasActiveRowsFor] asks about, in queue order —
-  /// for a caller that replays what they carry (`applyServerReactSettings`).
+  /// for a caller that replays what they carry (`applyServerSettings`).
   Future<List<OutboxRow>> activeRowsFor({
     required String companyId,
     required String entityType,

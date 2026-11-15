@@ -38,7 +38,13 @@ class UserSyncDispatcher implements SyncDispatcher {
     required this.api,
     required this.repo,
     required this.auth,
+    this.userSettings,
   });
+
+  /// Keeps a profile save and the settings PUT from overwriting each other:
+  /// both replace `company_user.settings` whole
+  /// (`docs/user-settings-storage.md`). Null in tests that don't exercise it.
+  final UserSettingsRepository? userSettings;
 
   final UsersApi api;
   final UserRepository repo;
@@ -95,10 +101,18 @@ class UserSyncDispatcher implements SyncDispatcher {
           default:
             response = await api.updateAuthUser(
               id: row.entityId,
-              body: body,
+              body: await _withFreshAppKeys(row, body),
               idempotencyKey: row.idempotencyKey,
               requiresPassword: row.requiresPassword,
             );
+            final saved = response.companyUser;
+            if (saved != null) {
+              await userSettings?.applyProfileSaveSettings(
+                companyId: row.companyId,
+                userId: row.entityId,
+                settings: saved.settings,
+              );
+            }
         }
         await repo.applyApiResponse(companyId: row.companyId, api: response);
         auth.applyUserUpdate(response);
@@ -253,12 +267,37 @@ class UserSyncDispatcher implements SyncDispatcher {
   }
 }
 
+extension on UserSyncDispatcher {
+  /// [body] with its `company_user.settings` carrying this app's freshest
+  /// keys — the body was built when the profile was edited.
+  Future<Map<String, dynamic>> _withFreshAppKeys(
+    OutboxRow row,
+    Map<String, dynamic> body,
+  ) async {
+    final repo = userSettings;
+    final companyUser = body['company_user'];
+    final settings = companyUser is Map ? companyUser['settings'] : null;
+    if (repo == null || settings is! Map<String, dynamic>) return body;
+    return <String, dynamic>{
+      ...body,
+      'company_user': <String, dynamic>{
+        ...(companyUser as Map).cast<String, dynamic>(),
+        'settings': await repo.withFreshAppKeys(
+          companyId: row.companyId,
+          userId: row.entityId,
+          settings: settings,
+        ),
+      },
+    };
+  }
+}
+
 /// Composite dispatcher under `EntityType.user`. Routes outbox rows by their
 /// `entity_type` wire name to the right sub-dispatcher:
 ///   * `'user_settings'` → the per-(user, company) settings PUT to
 ///     `/company_users/{id}` (existing flow, [userSettings]).
-///   * `'user_preferences'` → `react_settings` to
-///     `/company_users/{id}/preferences` ([userSettings] too).
+///   * `'user_preferences'` → a `react_settings` patch an earlier build
+///     queued; [userSettings] moves it into the settings, never sends it.
 ///   * `'user'` → the full-user PUT / disconnect / management flows on
 ///     `/users/{id}` (existing + new flow, [user]).
 class CompositeUserDispatcher implements SyncDispatcher {

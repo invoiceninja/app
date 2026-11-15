@@ -30,14 +30,16 @@ enum WelcomeKind {
   }
 }
 
-/// This app's own namespace in `company_user.react_settings` — the dashboard
-/// syncs its cards and panels under it. Its presence means the user has run
-/// this app somewhere.
-const String kOwnReactSettingsKey = 'flutter_dashboard';
+/// This app's dashboard namespace in `company_user.settings` — its cards,
+/// chart choices and panel arrangement sync under it
+/// (`docs/user-settings-storage.md`). Its presence means the user has run this
+/// app somewhere.
+const String kOwnSettingsKey = 'flutter_dashboard';
 
-/// Written by the Welcome when it is closed, so a second device or a browser
-/// with cleared storage does not greet the user again.
-const String kWelcomeReactSettingsKey = 'flutter_welcome';
+/// Written to `company_user.settings` by the Welcome when it is closed, so a
+/// second device or a browser with cleared storage does not greet the user
+/// again.
+const String kWelcomeSettingsKey = 'flutter_welcome';
 
 /// `company_user.settings` keys written **only** by the previous Flutter app
 /// (admin-portal's `UserSettingsEntity`). React's user-create screen also
@@ -77,7 +79,8 @@ class SignInFacts {
   final List<Map<String, dynamic>> companyUserSettings;
 
   /// Every company's `company_user.react_settings`; null where the response
-  /// did not carry it.
+  /// did not carry it. Read only for the two keys above, which builds before
+  /// the move to `company_user.settings` wrote there.
   final List<Map<String, dynamic>?> reactSettings;
 
   final int companyCount;
@@ -86,12 +89,12 @@ class SignInFacts {
       companyUserSettings.any((s) => s.keys.any(kOldAppSettingsKeys.contains));
 
   /// The server remembers this user seeing the Welcome, or running this app.
-  bool get serverSaysWelcomed => reactSettings.any(
-    (s) =>
-        s != null &&
-        (s.containsKey(kWelcomeReactSettingsKey) ||
-            s.containsKey(kOwnReactSettingsKey)),
-  );
+  bool get serverSaysWelcomed =>
+      companyUserSettings.any(_holdsOwnKey) ||
+      reactSettings.any((s) => s != null && _holdsOwnKey(s));
+
+  static bool _holdsOwnKey(Map<String, dynamic> s) =>
+      s.containsKey(kWelcomeSettingsKey) || s.containsKey(kOwnSettingsKey);
 }
 
 /// What a sign-in decides for a user the record does not know yet: null when

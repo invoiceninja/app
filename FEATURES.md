@@ -132,7 +132,7 @@ the honest default.
 | Reorder + show/hide dashboard panels (synced across devices) | — | — | ✅ | ✅ | |
 | Hide a dashboard panel (or the needs-attention band) from its own ⋮ menu — Hide with Undo, Customize opens the Panels tab | — | — | ✅ | | |
 | Hide empty dashboard panels — list panels with nothing to show are left off, with an "N empty panels hidden" link on phones (device-local; on by default on phones, off on tablets / desktop) | — | — | ✅ | | |
-| Dashboard prefs synced server-side (cross-device) | ✅ | ✅ | ✅ | ✅ | v2: the cards (shared with React in `react_settings.dashboard_fields`), the chart grouping (React's `default_view`), the legend and the panel arrangement, through `company_user.react_settings`; the date range stays per device. v1 keeps its cards in `company_user.settings` in another format, which v2 leaves alone (`docs/dashboard-panels.md`) |
+| Dashboard prefs synced server-side (cross-device) | ✅ | ✅ | ✅ | ✅ | v2: the cards, the chart grouping, the legend and the panel arrangement, under its own `flutter_dashboard` key in `company_user.settings` (not shared with React's `react_settings`, which v2 never writes); the date range stays per device. v1 keeps its cards in `company_user.settings` in another format, which v2 leaves alone (`docs/dashboard-panels.md`) |
 | Task calendar panel — month grid, days colour-coded by hours booked | — | — | ✅ | | |
 | Invoices and Quotes panels — a half-width card each, status tabs with live counts, most recent first | ❌ | ❌ | ✅ | | flutter#155 |
 | A list panel spanning a two-column row flows its rows into two columns | — | — | ✅ | | |

@@ -12,8 +12,9 @@ final _log = Logger('UserSettingsSyncDispatcher');
 
 /// Drains `user_settings` outbox rows by PUTting them to
 /// `/api/v1/company_users/{userId}` and writing the canonical response back
-/// into the local cache, and `user_preferences` rows by PUTting
-/// `react_settings` to `/api/v1/company_users/{userId}/preferences`.
+/// into the local cache. A `user_preferences` row — a `react_settings` patch
+/// an earlier build queued — is moved into `company_user.settings`, never
+/// sent: this app writes nothing to React's blob.
 class UserSettingsSyncDispatcher implements SyncDispatcher {
   UserSettingsSyncDispatcher({required this.api, required this.repo});
 
@@ -46,9 +47,25 @@ class UserSettingsSyncDispatcher implements SyncDispatcher {
     // kinds here. Ignore [kind] but assert in debug.
     assert(kind == MutationKind.update);
     if (row.entityType == kUserPreferencesWireName) {
-      return _dispatchPreferences(row);
+      return _moveLegacyPreferences(row);
     }
-    final body = jsonDecode(row.payload) as Map<String, dynamic>;
+    // A row holds only its change; the server replaces the whole object. So
+    // the body is the freshest local copy with the change laid over it. A row
+    // an earlier build queued holds the body itself.
+    final change = UserSettingsChange.tryDecode(row.payload);
+    final Map<String, dynamic>? body;
+    if (change == null) {
+      body = jsonDecode(row.payload) as Map<String, dynamic>;
+    } else {
+      body = await repo.putBodyFor(companyId: row.companyId, change: change);
+      if (body == null) {
+        _log.warning(
+          'Dropping settings change for ${row.companyId}: the settings are '
+          'no longer known locally',
+        );
+        return;
+      }
+    }
     final response = await api.update(
       userId: row.entityId,
       body: body,
@@ -62,28 +79,16 @@ class UserSettingsSyncDispatcher implements SyncDispatcher {
     }
   }
 
-  /// The row holds only a patch; the server replaces the whole blob. So the
-  /// body is the freshest local copy with the patch laid over it — the local
-  /// copy already carries it, but a capture may have raced the patch's write.
-  Future<void> _dispatchPreferences(OutboxRow row) async {
-    final current = await repo.getReactSettings(row.companyId);
-    if (current == null) {
-      // Only reachable when the cache table was dropped after the patch was
-      // queued. Sending the patch over nothing would wipe React's settings;
-      // the change stays on this device until the user makes it again.
-      _log.warning(
-        'Dropping react_settings patch for ${row.companyId}: the blob is no '
-        'longer known locally',
-      );
-      return;
-    }
-    await api.updatePreferences(
-      userId: row.entityId,
-      reactSettings: applyReactSettingsPatch(
-        current,
-        reactSettingsPatchOf(row.payload),
-      ),
-      idempotencyKey: row.idempotencyKey,
-    );
+  /// This app's own keys in the patch move to `company_user.settings` under
+  /// the same names. React's keys in it (`dashboard_fields`, `preferences.…`)
+  /// are dropped: the dashboard writes its own copy of those the next time it
+  /// opens, from the device's `nav_state`.
+  Future<void> _moveLegacyPreferences(OutboxRow row) async {
+    final own = {
+      for (final e in legacyReactSettingsPatchOf(row.payload).entries)
+        if (e.key.startsWith(kAppSettingsKeyPrefix)) e.key: e.value,
+    };
+    if (own.isEmpty) return;
+    await repo.patchSettings(companyId: row.companyId, patch: own);
   }
 }

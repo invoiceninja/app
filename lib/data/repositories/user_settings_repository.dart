@@ -17,17 +17,20 @@ final _log = Logger('UserSettingsRepository');
 /// `UserSettingsSyncDispatcher`.
 const String kUserSettingsWireName = 'user_settings';
 
-/// `entity_type` of an outbox row that writes `company_user.react_settings`
-/// through `PUT /company_users/{userId}/preferences`. Routed by the same
-/// registry slot as [kUserSettingsWireName].
+/// `entity_type` of the outbox rows an earlier build queued to write
+/// `company_user.react_settings`. Nothing queues one any more — this app
+/// keeps nothing in React's blob (`docs/user-settings-storage.md`) — but a row
+/// already waiting on a device still routes here, and is moved, not sent.
 const String kUserPreferencesWireName = 'user_preferences';
 
-/// Read/write per-(user, company) settings (in particular: `table_columns`).
+/// Read/write per-(user, company) settings: `company_user.settings`, the
+/// object the previous Flutter app keeps its preferences in and the only
+/// place this app stores a synced preference.
 ///
-/// Format is intentionally identical to the old admin-portal's storage at
-/// `userCompany.settings.table_columns` — same map key format
-/// (`'$EntityType.<entity>'`) and same snake_case column-id values — so a
-/// list customised in either app shows up in the other.
+/// `table_columns` is byte-compatible with the old admin-portal's — same map
+/// key format (`'$EntityType.<entity>'`) and same snake_case column-id values
+/// — so a list customised in either app shows up in the other. Everything
+/// else this app adds lives under a `flutter_`-prefixed key ([patchSettings]).
 class UserSettingsRepository {
   UserSettingsRepository({
     required this.db,
@@ -105,7 +108,9 @@ class UserSettingsRepository {
       // the outbox.
       if (_sameColumns(tableColumns[key], columns)) return false;
       tableColumns[key] = columns;
-      await _writeAndEnqueue(companyId, existing, tableColumns);
+      await _writeColumnsAndEnqueue(companyId, existing, tableColumns, {
+        key: columns,
+      });
       return true;
     });
     if (queued) onEnqueued?.call(companyId);
@@ -120,20 +125,24 @@ class UserSettingsRepository {
     final queued = await db.transaction(() async {
       final existing = await db.userSettingsDao.get(companyId);
       if (existing == null) return false;
+      final key = _tableColumnsKey(entityType);
       final tableColumns = _decodeTableColumns(existing.tableColumnsJson)
-        ..remove(_tableColumnsKey(entityType));
-      await _writeAndEnqueue(companyId, existing, tableColumns);
+        ..remove(key);
+      await _writeColumnsAndEnqueue(companyId, existing, tableColumns, {
+        key: null,
+      });
       return true;
     });
     if (queued) onEnqueued?.call(companyId);
   }
 
-  /// Write [tableColumns] locally and queue (or collapse into) the PUT that
-  /// carries them. Inside the caller's transaction.
-  Future<void> _writeAndEnqueue(
+  /// Write [tableColumns] locally and queue (or collapse into) the change
+  /// that carries [changed]. Inside the caller's transaction.
+  Future<void> _writeColumnsAndEnqueue(
     String companyId,
     UserSettingsRow existing,
     Map<String, List<String>> tableColumns,
+    Map<String, List<String>?> changed,
   ) async {
     final nowMs = _now().millisecondsSinceEpoch;
     await db.userSettingsDao.writeTableColumns(
@@ -144,92 +153,160 @@ class UserSettingsRepository {
     await _enqueueOrCollapse(
       companyId: companyId,
       userId: existing.userId,
-      body: _buildPutBody(
-        userId: existing.userId,
-        extraSettings: _decodeAny(existing.extraJson),
-        tableColumns: tableColumns,
-      ),
+      change: UserSettingsChange(columns: changed),
       nowMs: nowMs,
     );
   }
 
-  /// Watch `company_user.react_settings` for [companyId]. Emits null until a
-  /// login or `/refresh` has captured it (see [patchReactSettings]).
-  Stream<Map<String, dynamic>?> watchReactSettings(String companyId) => db
+  /// Watch `company_user.settings` for [companyId], without `table_columns`.
+  /// Emits null until a login has stored the row.
+  Stream<Map<String, dynamic>?> watchSettings(String companyId) => db
       .userSettingsDao
       .watch(companyId)
-      .map((row) => decodeReactSettings(row?.reactSettingsJson))
+      .map((row) => row == null ? null : _decodeAny(row.extraJson))
       .distinct(const DeepCollectionEquality().equals);
 
-  Future<Map<String, dynamic>?> getReactSettings(String companyId) async =>
-      decodeReactSettings(
-        (await db.userSettingsDao.get(companyId))?.reactSettingsJson,
-      );
+  Future<Map<String, dynamic>?> getSettings(String companyId) async {
+    final row = await db.userSettingsDao.get(companyId);
+    return row == null ? null : _decodeAny(row.extraJson);
+  }
 
-  /// Set each dotted path in [patch] (`'preferences.dashboard_charts.
-  /// default_view'`) in `react_settings`, locally at once and on the server
-  /// through the outbox. Returns whether anything changed.
+  /// Set each dotted path in [patch] (`'flutter_dashboard.panels'`) in
+  /// `company_user.settings`, locally at once and on the server through the
+  /// outbox. Returns whether anything changed. A null value removes its key.
   ///
-  /// The server's endpoint *replaces* the blob, and React writes the rest of
-  /// it, so the outbox row carries only the patch: the dispatcher lays it over
-  /// the freshest local copy when it sends, and a `/refresh` that lands
-  /// meanwhile lays it over the server's ([applyServerReactSettings]).
+  /// **Every key this app adds is `flutter_`-prefixed** (asserted): the object
+  /// is shared with the previous Flutter app, and the prefix is what keeps
+  /// this app's keys from meeting one of its fields.
   ///
-  /// A no-op until the blob has been captured: a patch laid over nothing would
-  /// send a blob holding only this app's keys, wiping React's preferences.
-  /// Rapid patches collapse into the one pending row.
-  Future<bool> patchReactSettings({
+  /// The server *replaces* the object, so the outbox row carries only the
+  /// change: the dispatcher lays it over the freshest local copy when it
+  /// sends ([putBodyFor]), and a login or `/refresh` that lands meanwhile lays
+  /// it over the server's ([applyServerSettings]). Rapid changes collapse into
+  /// the one pending row. A no-op before a login has stored the row.
+  Future<bool> patchSettings({
     required String companyId,
     required Map<String, Object?> patch,
   }) async {
+    assert(
+      patch.keys.every((k) => k.startsWith(kAppSettingsKeyPrefix)),
+      'company_user.settings keys written by this app start with '
+      '"$kAppSettingsKeyPrefix": ${patch.keys}',
+    );
     final queued = await db.transaction(() async {
       final row = await db.userSettingsDao.get(companyId);
-      final current = decodeReactSettings(row?.reactSettingsJson);
-      if (row == null || current == null) {
-        _log.fine(
-          'patchReactSettings before react_settings was captured for '
-          '$companyId; kept local.',
-        );
+      if (row == null) {
+        _log.fine('patchSettings before settings hydrated for $companyId.');
         return false;
       }
-      final next = applyReactSettingsPatch(current, patch);
+      final current = _decodeAny(row.extraJson);
+      final next = applySettingsPatch(current, patch);
       if (const DeepCollectionEquality().equals(current, next)) return false;
       final nowMs = _now().millisecondsSinceEpoch;
-      await db.userSettingsDao.writeReactSettings(
+      await db.userSettingsDao.writeExtra(
         companyId: companyId,
-        reactSettingsJson: jsonEncode(next),
+        extraJson: jsonEncode(next),
         now: nowMs,
       );
-      final pending = await db.outboxDao.findPending(
+      await _enqueueOrCollapse(
         companyId: companyId,
-        entityType: kUserPreferencesWireName,
-      );
-      if (pending != null &&
-          await db.outboxDao.updatePayload(
-            id: pending.id,
-            payload: encodeReactSettingsPatch({
-              ...reactSettingsPatchOf(pending.payload),
-              ...patch,
-            }),
-          )) {
-        return true;
-      }
-      await db.outboxDao.enqueue(
-        OutboxCompanion.insert(
-          companyId: companyId,
-          entityType: kUserPreferencesWireName,
-          entityId: row.userId,
-          mutationKind: MutationKind.update.wireName,
-          payload: encodeReactSettingsPatch(patch),
-          idempotencyKey: _uuid.v4(),
-          nextAttemptAt: nowMs,
-          createdAt: nowMs,
-        ),
+        userId: row.userId,
+        change: UserSettingsChange(patch: patch),
+        nowMs: nowMs,
       );
       return true;
     });
     if (queued) onEnqueued?.call(companyId);
     return queued;
+  }
+
+  /// The PUT body for [change]: the freshest local settings with the change
+  /// laid over them. Null when the settings row is gone (the cache table was
+  /// dropped after the change was queued) — sending the change over nothing
+  /// would wipe every other setting.
+  ///
+  /// A non-admin's body also carries `notifications`: the server's non-admin
+  /// branch reads that key unguarded (`CompanyUserController::update`), so a
+  /// body without it is a 500. It is sent only when the login captured it.
+  Future<Map<String, dynamic>?> putBodyFor({
+    required String companyId,
+    required UserSettingsChange change,
+  }) async {
+    final row = await db.userSettingsDao.get(companyId);
+    if (row == null) return null;
+    final settings = <String, dynamic>{
+      ...applySettingsPatch(_decodeAny(row.extraJson), change.patch),
+      'table_columns': _applyColumns(
+        _decodeTableColumns(row.tableColumnsJson),
+        change.columns,
+      ),
+    };
+    Map<String, dynamic>? notifications;
+    final company = await db.companiesDao.byId(companyId);
+    if (company != null && !company.isAdmin) {
+      final user = await db.userDao.getByCompanyAndId(
+        companyId: companyId,
+        id: row.userId,
+      );
+      final payload = user == null ? null : _decodeAny(user.payload);
+      final companyUser = payload?['company_user'];
+      final raw = companyUser is Map ? companyUser['notifications'] : null;
+      if (raw is Map<String, dynamic>) notifications = raw;
+    }
+    return <String, dynamic>{
+      'id': row.userId,
+      'company_user': <String, dynamic>{
+        'settings': settings,
+        'notifications': ?notifications,
+      },
+    };
+  }
+
+  /// [settings] — the `company_user.settings` a profile save (`PUT
+  /// /users/{id}`) is about to send for [userId] — with this app's `flutter_`
+  /// keys and `table_columns` taken from the freshest local copy.
+  ///
+  /// That save replaces the whole object too, from a body built when the
+  /// profile was edited: without this it puts back the dashboard and column
+  /// choices as they stood then. Returned untouched for any user but this
+  /// company's signed-in one.
+  Future<Map<String, dynamic>> withFreshAppKeys({
+    required String companyId,
+    required String userId,
+    required Map<String, dynamic> settings,
+  }) async {
+    final row = await db.userSettingsDao.get(companyId);
+    if (row == null || row.userId != userId) return settings;
+    return <String, dynamic>{
+      for (final e in settings.entries)
+        if (!e.key.startsWith(kAppSettingsKeyPrefix)) e.key: e.value,
+      for (final e in _decodeAny(row.extraJson).entries)
+        if (e.key.startsWith(kAppSettingsKeyPrefix)) e.key: e.value,
+      'table_columns': _decodeTableColumns(row.tableColumnsJson),
+    };
+  }
+
+  /// Store the `company_user.settings` a profile save's reply carried for
+  /// [userId], so the next settings PUT does not send the accent colour (or
+  /// any other key that save changed) as it stood before. A no-op for any
+  /// user but this company's signed-in one.
+  Future<void> applyProfileSaveSettings({
+    required String companyId,
+    required String userId,
+    required Map<String, dynamic> settings,
+  }) async {
+    // The save always sends `table_columns`, so an empty object back is a
+    // reply that did not carry the settings — never the settings themselves.
+    if (settings.isEmpty) return;
+    final row = await db.userSettingsDao.get(companyId);
+    if (row == null || row.userId != userId) return;
+    await applyServerSettings(
+      db,
+      companyId: companyId,
+      userId: userId,
+      settings: settings,
+      nowMs: _now().millisecondsSinceEpoch,
+    );
   }
 
   /// Server replied to our PUT with the canonical UserCompany shape — write
@@ -262,37 +339,39 @@ class UserSettingsRepository {
       );
       return;
     }
-    final tableColumnsRaw = settings['table_columns'];
-    final tableColumns = tableColumnsRaw is Map<String, dynamic>
-        ? tableColumnsRaw
-        : <String, dynamic>{};
-    final extra = Map<String, dynamic>.from(settings)..remove('table_columns');
-    final nowMs = _now().millisecondsSinceEpoch;
-    await db.userSettingsDao.upsert(
-      UserSettingsCompanion(
-        companyId: Value(companyId),
-        userId: Value(userId),
-        tableColumnsJson: Value(jsonEncode(tableColumns)),
-        extraJson: Value(jsonEncode(extra)),
-        updatedAt: Value(nowMs),
-      ),
+    await applyServerSettings(
+      db,
+      companyId: companyId,
+      userId: userId,
+      settings: settings,
+      nowMs: _now().millisecondsSinceEpoch,
+      // The reply to a full-body row an earlier build queued is that row's
+      // own answer, so it is stored.
+      deferToFullBodyRows: false,
     );
   }
 
+  /// Queue [change], or fold it into the pending row. A pending row an
+  /// earlier build queued holds a whole body rather than a change, so it is
+  /// left alone and this one queues behind it.
   Future<void> _enqueueOrCollapse({
     required String companyId,
     required String userId,
-    required Map<String, dynamic> body,
+    required UserSettingsChange change,
     required int nowMs,
   }) async {
     final existing = await db.outboxDao.findPending(
       companyId: companyId,
       entityType: kUserSettingsWireName,
     );
+    final waiting = existing == null
+        ? null
+        : UserSettingsChange.tryDecode(existing.payload);
     if (existing != null &&
+        waiting != null &&
         await db.outboxDao.updatePayload(
           id: existing.id,
-          payload: jsonEncode(body),
+          payload: waiting.merge(change).encode(),
         )) {
       return;
     }
@@ -302,31 +381,12 @@ class UserSettingsRepository {
         entityType: kUserSettingsWireName,
         entityId: userId,
         mutationKind: MutationKind.update.wireName,
-        payload: jsonEncode(body),
+        payload: change.encode(),
         idempotencyKey: _uuid.v4(),
         nextAttemptAt: nowMs,
         createdAt: nowMs,
       ),
     );
-  }
-
-  /// Build the PUT body that mirrors what the old admin-portal sends — a
-  /// serialized UserEntity carrying `company_user.settings`. We omit the
-  /// rest of UserEntity (email, first_name, …) because the new app doesn't
-  /// model it; the server treats this as a partial update.
-  Map<String, dynamic> _buildPutBody({
-    required String userId,
-    required Map<String, dynamic> extraSettings,
-    required Map<String, List<String>> tableColumns,
-  }) {
-    final mergedSettings = <String, dynamic>{
-      ...extraSettings,
-      'table_columns': tableColumns,
-    };
-    return <String, dynamic>{
-      'id': userId,
-      'company_user': <String, dynamic>{'settings': mergedSettings},
-    };
   }
 
   /// Old admin-portal uses `'$EntityType.client'` (the literal Dart enum
@@ -375,47 +435,115 @@ class UserSettingsRepository {
   }
 }
 
-/// Store the server's `react_settings` for [companyId] (login / `/refresh`),
-/// with every patch still waiting in the outbox laid over it in queue order —
-/// a change the server hasn't taken yet must not visually revert, and the
-/// rest of the blob must not go stale behind it. A no-op without a settings
-/// row.
-Future<void> applyServerReactSettings(
+/// The prefix of every `company_user.settings` key this app adds. The object
+/// belongs to the previous Flutter app too; `react_settings` belongs to the
+/// React client and is never written (`docs/user-settings-storage.md`).
+const String kAppSettingsKeyPrefix = 'flutter_';
+
+/// What one `user_settings` outbox row changes: dotted paths into the
+/// settings object ([patch], a null value removes the key) and whole
+/// `table_columns` entries ([columns], null removes one — their keys contain
+/// dots, so they cannot be paths).
+class UserSettingsChange {
+  const UserSettingsChange({this.patch = const {}, this.columns = const {}});
+
+  final Map<String, Object?> patch;
+  final Map<String, List<String>?> columns;
+
+  UserSettingsChange merge(UserSettingsChange later) => UserSettingsChange(
+    patch: {...patch, ...later.patch},
+    columns: {...columns, ...later.columns},
+  );
+
+  String encode() => jsonEncode({'patch': patch, 'columns': columns});
+
+  /// The change [payload] carries, or null for a row an earlier build queued,
+  /// whose payload is the whole PUT body (`company_user`).
+  static UserSettingsChange? tryDecode(String payload) {
+    try {
+      final decoded = jsonDecode(payload);
+      if (decoded is! Map || decoded.containsKey('company_user')) return null;
+      final patch = decoded['patch'];
+      final columns = decoded['columns'];
+      if (patch is! Map && columns is! Map) return null;
+      return UserSettingsChange(
+        patch: patch is Map<String, dynamic> ? patch : const {},
+        columns: {
+          if (columns is Map)
+            for (final e in columns.entries)
+              e.key.toString(): e.value is List
+                  ? [for (final c in e.value as List) c.toString()]
+                  : null,
+        },
+      );
+    } on FormatException {
+      return null;
+    }
+  }
+}
+
+Map<String, List<String>> _applyColumns(
+  Map<String, List<String>> base,
+  Map<String, List<String>?> changed,
+) {
+  final out = Map<String, List<String>>.from(base);
+  for (final MapEntry(:key, :value) in changed.entries) {
+    value == null ? out.remove(key) : out[key] = value;
+  }
+  return out;
+}
+
+/// Store the server's `company_user.settings` for [companyId] (a login, a
+/// `/refresh`, or a PUT's reply), with every change still waiting in the
+/// outbox laid over it in queue order — a change the server hasn't taken yet
+/// must not visually revert, and the rest of the object must not go stale
+/// behind it.
+///
+/// [deferToFullBodyRows]: a waiting row an earlier build queued carries a
+/// whole body, which cannot be laid over anything, so while one waits the
+/// local copy is left as it is — the contract that row was queued under.
+Future<void> applyServerSettings(
   AppDatabase db, {
   required String companyId,
-  required Map<String, dynamic> server,
+  required String userId,
+  required Map<String, dynamic> settings,
   required int nowMs,
+  bool deferToFullBodyRows = true,
 }) async {
   final waiting = await db.outboxDao.activeRowsFor(
     companyId: companyId,
-    entityType: kUserPreferencesWireName,
+    entityType: kUserSettingsWireName,
   );
-  var blob = server;
-  for (final row in waiting) {
-    blob = applyReactSettingsPatch(blob, reactSettingsPatchOf(row.payload));
+  final changes = [
+    for (final row in waiting) UserSettingsChange.tryDecode(row.payload),
+  ];
+  if (deferToFullBodyRows && changes.contains(null)) return;
+  final rawColumns = settings['table_columns'];
+  var columns = <String, List<String>>{
+    if (rawColumns is Map)
+      for (final e in rawColumns.entries)
+        if (e.value is List)
+          e.key.toString(): [for (final c in e.value as List) c.toString()],
+  };
+  var extra = Map<String, dynamic>.from(settings)..remove('table_columns');
+  for (final change in changes.nonNulls) {
+    extra = applySettingsPatch(extra, change.patch);
+    columns = _applyColumns(columns, change.columns);
   }
-  await db.userSettingsDao.writeReactSettings(
-    companyId: companyId,
-    reactSettingsJson: jsonEncode(blob),
-    now: nowMs,
+  await db.userSettingsDao.upsert(
+    UserSettingsCompanion(
+      companyId: Value(companyId),
+      userId: Value(userId),
+      tableColumnsJson: Value(jsonEncode(columns)),
+      extraJson: Value(jsonEncode(extra)),
+      updatedAt: Value(nowMs),
+    ),
   );
-}
-
-/// The stored blob, or null when it has not been captured (or is unreadable).
-Map<String, dynamic>? decodeReactSettings(String? raw) {
-  if (raw == null || raw.isEmpty) return null;
-  try {
-    final decoded = jsonDecode(raw);
-    if (decoded is Map<String, dynamic>) return decoded;
-  } on FormatException {
-    // Fall through: unknown, never empty.
-  }
-  return null;
 }
 
 /// A deep copy of [base] with each dotted path in [patch] set; a null value
 /// removes its key. A non-map met on the way is replaced by a map.
-Map<String, dynamic> applyReactSettingsPatch(
+Map<String, dynamic> applySettingsPatch(
   Map<String, dynamic> base,
   Map<String, Object?> patch,
 ) {
@@ -440,11 +568,8 @@ Map<String, dynamic> applyReactSettingsPatch(
   return out;
 }
 
-/// The payload of a [kUserPreferencesWireName] outbox row.
-String encodeReactSettingsPatch(Map<String, Object?> patch) =>
-    jsonEncode({'patch': patch});
-
-Map<String, Object?> reactSettingsPatchOf(String payload) {
+/// The patch a [kUserPreferencesWireName] row an earlier build queued carries.
+Map<String, Object?> legacyReactSettingsPatchOf(String payload) {
   try {
     final decoded = jsonDecode(payload);
     final patch = decoded is Map ? decoded['patch'] : null;

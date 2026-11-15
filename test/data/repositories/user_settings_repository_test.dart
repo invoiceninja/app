@@ -106,34 +106,39 @@ void main() {
   });
 
   group('outbox enqueue', () {
-    test(
-      'enqueues an update_user_settings row with the full PUT body',
-      () async {
-        await repo.setColumns(
-          companyId: companyId,
-          entityType: EntityType.client,
-          columns: const ['name', 'balance'],
-        );
-        final rows = await db.outboxDao.nextReady(
-          companyId: companyId,
-          now: DateTime.now().millisecondsSinceEpoch,
-        );
-        expect(rows, hasLength(1));
-        final row = rows.first;
-        expect(row.entityType, equals(kUserSettingsWireName));
-        expect(row.entityId, equals(userId));
-        expect(row.mutationKind, equals(MutationKind.update.wireName));
-        final body = jsonDecode(row.payload) as Map<String, dynamic>;
-        expect(body['id'], userId);
-        final companyUser = body['company_user'] as Map<String, dynamic>;
-        final settings = companyUser['settings'] as Map<String, dynamic>;
-        // Round-trip the unrelated setting we seeded.
-        expect(settings['accent_color'], '#ff0000');
-        // And the new table_columns under the correct wire key.
-        final tableColumns = settings['table_columns'] as Map<String, dynamic>;
-        expect(tableColumns['EntityType.client'], ['name', 'balance']);
-      },
-    );
+    test('enqueues an update_user_settings row whose change builds the full '
+        'PUT body', () async {
+      await repo.setColumns(
+        companyId: companyId,
+        entityType: EntityType.client,
+        columns: const ['name', 'balance'],
+      );
+      final rows = await db.outboxDao.nextReady(
+        companyId: companyId,
+        now: DateTime.now().millisecondsSinceEpoch,
+      );
+      expect(rows, hasLength(1));
+      final row = rows.first;
+      expect(row.entityType, equals(kUserSettingsWireName));
+      expect(row.entityId, equals(userId));
+      expect(row.mutationKind, equals(MutationKind.update.wireName));
+      final change = UserSettingsChange.tryDecode(row.payload)!;
+      expect(change.columns, {
+        'EntityType.client': ['name', 'balance'],
+      });
+      final body = (await repo.putBodyFor(
+        companyId: companyId,
+        change: change,
+      ))!;
+      expect(body['id'], userId);
+      final companyUser = body['company_user'] as Map<String, dynamic>;
+      final settings = companyUser['settings'] as Map<String, dynamic>;
+      // Round-trip the unrelated setting we seeded.
+      expect(settings['accent_color'], '#ff0000');
+      // And the new table_columns under the correct wire key.
+      final tableColumns = settings['table_columns'] as Map<String, dynamic>;
+      expect(tableColumns['EntityType.client'], ['name', 'balance']);
+    });
 
     test('rapid changes collapse into a single pending outbox row', () async {
       for (final cols in [
@@ -152,12 +157,12 @@ void main() {
         now: DateTime.now().millisecondsSinceEpoch,
       );
       expect(rows, hasLength(1));
-      final body = jsonDecode(rows.first.payload) as Map<String, dynamic>;
-      final tc =
-          (body['company_user']
-                  as Map<String, dynamic>)['settings']['table_columns']
-              as Map<String, dynamic>;
-      expect(tc['EntityType.client'], ['name', 'balance', 'paid_to_date']);
+      final change = UserSettingsChange.tryDecode(rows.first.payload)!;
+      expect(change.columns['EntityType.client'], [
+        'name',
+        'balance',
+        'paid_to_date',
+      ]);
     });
 
     test(
@@ -229,10 +234,8 @@ void main() {
           now: DateTime.now().millisecondsSinceEpoch,
         );
         expect(rows, hasLength(1));
-        final body = jsonDecode(rows.single.payload) as Map<String, dynamic>;
         expect(
-          (body['company_user']
-              as Map<String, dynamic>)['settings']['table_columns'],
+          UserSettingsChange.tryDecode(rows.single.payload)!.columns,
           stored,
         );
       },

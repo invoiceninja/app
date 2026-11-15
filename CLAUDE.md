@@ -89,6 +89,7 @@ Rules that turn into bugs or CI failures if forgotten. Read this block first.
 - **A reset's outcome reaches the user once per launch, never over the lock screen — a toast when everything came across, a dialog when unsynced work may not have — and a copy it keeps leaves the device only through Device Settings → Data.** → `docs/migrations.md`
 - **One process per store: `holdStoreLock` runs before the key is read and before any reset moves the store, and refuses only a lock another process holds — `inUse` gets no Reset.** → `docs/migrations.md`
 - **Auth user data flows in through `/refresh`, not `GET /users/{id}`** (412-gated). `_persistAndActivate` upserts each `data[N].user` into `users` on every login/refresh; `auth.refresh()` is a full session snapshot, not for incidental work — never call `UsersApi.get` from incidental paths.
+- **A synced preference lives only in `company_user.settings`, under a `flutter_` key (`patchSettings`) — never in React's `react_settings`.** → `docs/user-settings-storage.md`
 - **Every write goes through the outbox.** Repositories never call mutation endpoints directly. (Accepted exceptions, each a synchronous UI flow that can't queue: the calendar-connection OAuth handshake/`setCalendars`/`disconnect` in `CalendarConnectionRepository`, `QuickbooksRepository`, the passkey ceremony in `PasskeyRepository` (its challenge expires in five minutes), DocuNinja (`DocuNinjaApi`, another service with server-side state machines, and `DocuNinjaLoginApi`'s Invoice Ninja-side account calls), `TerminalRepository` (a card is taken live; the server records every charge itself), and `SupportApi` (Contact Us) — see their class docs.)
 - **Every list query is scoped by `company_id`.** Use `CompanyScopedDao` — direct table access bypassing the DAO fails a lint check.
 - **Idempotency keys are stable across retries** — generated when the outbox row is created, reused on every retry.
@@ -533,7 +534,7 @@ Five layouts (list / daily / weekly / calendar / kanban). **`?view=` on the URL 
 
 Panels are ordered and hidden per user — `DashboardKind.panelKinds` is the registry, `DashboardPanelPref` the stored `"<kind>|<1|0>"` entry — and a kind missing from a saved arrangement goes at its canonical rank, visible (no migration). **The module gate lives only in `enabledPanelKinds`.** → `docs/dashboard-panels.md`
 
-- **The cards, the chart's legend and grouping, and the panel arrangement sync through `company_user.react_settings` — the cards in React's own `dashboard_fields`, never the old app's `company_user.settings` — as a patch laid over the freshest blob, and never before that blob was captured (the server replaces it whole).** → `docs/dashboard-panels.md`
+- **The cards, the chart's legend and grouping, and the panel arrangement sync under `flutter_dashboard` in `company_user.settings`.** → `docs/dashboard-panels.md`
 - **The needs-attention band leads both layouts, and its slot is always one list child.** → `docs/dashboard-panels.md`
 - **A row's action runs on a re-read record, never on the cached row.** → `docs/dashboard-panels.md`
 - **Unknown is not zero (`ValueSectionState`): placeholder, dash + Retry, or the value.** → `docs/dashboard-panels.md`

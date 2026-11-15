@@ -15,11 +15,11 @@ import 'package:drift/drift.dart';
 /// `/api/v1/company_users/{userId}` we don't accidentally clobber settings
 /// the new app doesn't know about.
 ///
-/// `reactSettingsJson` is `company_user.react_settings` — the blob the React
-/// web client keeps its preferences in, and where this app syncs its
-/// dashboard (`docs/dashboard-panels.md`). Null until a login or `/refresh`
-/// has captured it: the server *replaces* the blob on a write, so a write made
-/// before then would wipe React's preferences.
+/// `reactSettingsJson` is unused: an earlier build kept a copy of
+/// `company_user.react_settings` here and synced its dashboard through it.
+/// This app now stores nothing in React's blob
+/// (`docs/user-settings-storage.md`); the column stays because the schema is
+/// shipped.
 ///
 /// Single row per company; `companyId` is the primary key.
 @DataClassName('UserSettingsRow')

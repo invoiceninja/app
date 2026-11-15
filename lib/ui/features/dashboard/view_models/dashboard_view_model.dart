@@ -21,7 +21,7 @@ import 'package:admin/data/repositories/statics_repository.dart';
 import 'package:admin/data/repositories/user_settings_repository.dart';
 import 'package:admin/data/services/realtime/realtime_service.dart';
 import 'package:admin/domain/entity_type.dart';
-import 'package:admin/domain/welcome.dart' show kOwnReactSettingsKey;
+import 'package:admin/domain/welcome.dart' show kOwnSettingsKey;
 import 'package:admin/ui/features/dashboard/helpers/needs_attention.dart';
 import 'package:admin/ui/features/dashboard/view_models/async_section.dart';
 
@@ -124,7 +124,7 @@ class DashboardViewModel extends ChangeNotifier {
   final NavStateDao navStateDao;
 
   /// Where the cards, the chart's legend and grouping, and the panel
-  /// arrangement sync across devices — `company_user.react_settings`
+  /// arrangement sync across devices — `company_user.settings`
   /// ([_adoptSynced]). Null in tests that don't exercise it: the dashboard is
   /// then device-local, as `nav_state` alone made it.
   final UserSettingsRepository? userSettings;
@@ -900,12 +900,12 @@ class DashboardViewModel extends ChangeNotifier {
     await _hydrate();
     _adoptSynced(await _readSynced(), initial: true);
     _subscribeAll();
-    final synced = userSettings?.watchReactSettings(companyId);
+    final synced = userSettings?.watchSettings(companyId);
     if (synced != null && !_disposed) {
       _subs[_kSyncedSub] = synced.listen(
         _adoptSynced,
         onError: (Object e, StackTrace st) {
-          _log.warning('Dashboard react_settings stream error', e, st);
+          _log.warning('Dashboard settings stream error', e, st);
         },
       );
     }
@@ -1353,19 +1353,18 @@ class DashboardViewModel extends ChangeNotifier {
     return next.isEmpty ? null : next;
   }
 
-  // ─── Cross-device sync (company_user.react_settings) ─────────────────
+  // ─── Cross-device sync (company_user.settings) ───────────────────────
   //
-  // The cards live where React keeps its own (`dashboard_fields`, React's key
-  // format), so the two clients share them; the chart grouping is React's
-  // `dashboard_charts.default_view`. The legend and the panel arrangement are
-  // this app's alone, under one key React never reads. The old Flutter app
-  // keeps its dashboard in `company_user.settings`, which none of this
-  // touches. See `docs/dashboard-panels.md`.
+  // The cards, the chart grouping, the legend and the panel arrangement sync
+  // under this app's own key in `company_user.settings`, the object the
+  // previous Flutter app uses. Nothing is read from or written to React's
+  // `react_settings`, and the old app's own `dashboard_fields` there is
+  // neither read nor written. See `docs/dashboard-panels.md`.
 
-  static const String _kSyncedOwn = kOwnReactSettingsKey;
-  static const String _kSyncedSub = 'react_settings';
+  static const String _kSyncedOwn = kOwnSettingsKey;
+  static const String _kSyncedSub = 'user_settings';
 
-  /// Set while a local change is waiting to be written to `react_settings` —
+  /// Set while a local change is waiting to be written to the settings —
   /// an emission meanwhile (a `/refresh` capture) still holds the old value
   /// and would revert it. The write re-emits once it lands.
   bool _syncPending = false;
@@ -1373,19 +1372,14 @@ class DashboardViewModel extends ChangeNotifier {
   /// The synced preferences this device changed since it last wrote them —
   /// the persist [_persistTimer] is waiting on writes these, and only these,
   /// up. Sending the rest too would lay this device's possibly stale copy of
-  /// them over another device's (or React's) newer edit.
+  /// them over another device's newer edit.
   final Set<_Synced> _syncDirty = {};
-
-  /// Entries of React's `dashboard_fields` this build cannot read (a field
-  /// added later, a malformed key). Written back after this app's own cards,
-  /// so a card change here never deletes a card React shows.
-  List<String> _foreignCards = const [];
 
   Future<Map<String, dynamic>?> _readSynced() async {
     try {
-      return await userSettings?.getReactSettings(companyId);
+      return await userSettings?.getSettings(companyId);
     } catch (e, st) {
-      _log.warning('Failed to read react_settings', e, st);
+      _log.warning('Failed to read synced settings', e, st);
       return null;
     }
   }
@@ -1399,13 +1393,11 @@ class DashboardViewModel extends ChangeNotifier {
     var changed = false;
 
     final missing = <_Synced>{};
-    final rawCards = blob[_Synced.cards.path];
-    final cards = _parseCards(rawCards, DashboardCardConfig.fromReactKey);
-    _foreignCards = [
-      if (rawCards is List)
-        for (final c in rawCards)
-          if (c is String && DashboardCardConfig.fromReactKey(c) == null) c,
-    ];
+    final own = blob[_kSyncedOwn];
+    final cards = _parseCards(
+      own is Map ? own['cards'] : null,
+      DashboardCardConfig.tryParse,
+    );
     if (cards == null) {
       if (dashboardCards.isNotEmpty) missing.add(_Synced.cards);
     } else if (!listEquals(cards, dashboardCards)) {
@@ -1413,9 +1405,7 @@ class DashboardViewModel extends ChangeNotifier {
       changed = true;
     }
 
-    final prefs = blob['preferences'];
-    final charts = prefs is Map ? prefs['dashboard_charts'] : null;
-    final view = charts is Map ? charts['default_view'] : null;
+    final view = own is Map ? own['grouping'] : null;
     final grouping = ChartGrouping.values
         .where((g) => g.name == view)
         .firstOrNull;
@@ -1426,7 +1416,6 @@ class DashboardViewModel extends ChangeNotifier {
       changed = true;
     }
 
-    final own = blob[_kSyncedOwn];
     final panels = _parsePanels(own is Map ? own['panels'] : null);
     if (panels == null) {
       if (!panelsAreDefault) missing.add(_Synced.panels);
@@ -1450,14 +1439,11 @@ class DashboardViewModel extends ChangeNotifier {
     if (changed || missing.isNotEmpty) _schedulePersist(syncAll: missing);
   }
 
-  /// [which] of this device's synced preferences as `react_settings` paths.
+  /// [which] of this device's synced preferences as settings paths.
   Map<String, Object?> _syncedPatch(Set<_Synced> which) => {
     for (final s in which)
       s.path: switch (s) {
-        _Synced.cards => [
-          for (final c in dashboardCards) c.toReactKey(),
-          ..._foreignCards,
-        ],
+        _Synced.cards => [for (final c in dashboardCards) c.toJson()],
         _Synced.grouping => chartGrouping.name,
         _Synced.panels => [for (final p in panelPrefs) p.toJson()],
         _Synced.series => [
@@ -1468,7 +1454,7 @@ class DashboardViewModel extends ChangeNotifier {
   };
 
   /// Write `nav_state` after the debounce — and the synced preferences named
-  /// by [sync] / [syncAll] to `react_settings`.
+  /// by [sync] / [syncAll] to `company_user.settings`.
   void _schedulePersist({_Synced? sync, Set<_Synced> syncAll = const {}}) {
     if (!_hydrated) return;
     final dirty = {?sync, ...syncAll};
@@ -1522,10 +1508,7 @@ class DashboardViewModel extends ChangeNotifier {
     final patch = _syncedPatch(_syncDirty);
     _syncDirty.clear();
     try {
-      await userSettings?.patchReactSettings(
-        companyId: companyId,
-        patch: patch,
-      );
+      await userSettings?.patchSettings(companyId: companyId, patch: patch);
     } catch (e, st) {
       _log.warning('Failed to sync dashboard preferences', e, st);
     } finally {
@@ -1578,13 +1561,10 @@ class _SectionNotifier extends ChangeNotifier {
   void bump() => notifyListeners();
 }
 
-/// A preference the dashboard syncs, by its `react_settings` path.
+/// A preference the dashboard syncs, by its `company_user.settings` path.
 enum _Synced {
-  /// React's own key, shared with it.
-  cards('dashboard_fields'),
-
-  /// React's `default_view`, shared with it.
-  grouping('preferences.dashboard_charts.default_view'),
+  cards('${DashboardViewModel._kSyncedOwn}.cards'),
+  grouping('${DashboardViewModel._kSyncedOwn}.grouping'),
   panels('${DashboardViewModel._kSyncedOwn}.panels'),
   series('${DashboardViewModel._kSyncedOwn}.chart_series');
 

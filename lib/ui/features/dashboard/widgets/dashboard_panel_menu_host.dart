@@ -10,7 +10,7 @@ import 'package:admin/ui/features/dashboard/widgets/manage_dashboard_cards_sheet
 /// Wraps the panel [kind] in its `⋮` menu (`DashboardPanelMenuScope`).
 ///
 /// Hide writes the same flag as the Customize sheet's switch, so it syncs
-/// through `react_settings` like any other panel change, and the toast says
+/// through `company_user.settings` like any other panel change, and the toast says
 /// where to turn it back on — with an Undo for the tap that was a slip.
 Widget withDashboardPanelMenu(
   BuildContext context, {

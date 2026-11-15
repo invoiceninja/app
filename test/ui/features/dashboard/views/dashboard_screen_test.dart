@@ -211,11 +211,10 @@ class _RecordingSharedFiles implements SharedFileIntake {
 
 class _NoSyncedSettings implements UserSettingsRepository {
   @override
-  Future<Map<String, dynamic>?> getReactSettings(String companyId) async =>
-      null;
+  Future<Map<String, dynamic>?> getSettings(String companyId) async => null;
 
   @override
-  Stream<Map<String, dynamic>?> watchReactSettings(String companyId) =>
+  Stream<Map<String, dynamic>?> watchSettings(String companyId) =>
       const Stream.empty();
 
   @override
