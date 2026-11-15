@@ -73,7 +73,7 @@ the honest default.
 | Signup / account creation | ✅ | ✅ | ✅ | ✅ | |
 | Sign up with Google / Apple (`oauth_login?create=true` + terms) | ✅ | ✅ | ✅ | | |
 | OAuth — Google | ✅ | ✅ | ✅ | ✅ | |
-| OAuth — Microsoft / Azure | ✅ | ✅ | 🟡 |  | Web only, as in v1 (MSAL popup): the hosted page, and a self-hosted server that sets `MICROSOFT_CLIENT_ID` — docs/web-deploy.md § Web sign-in |
+| OAuth — Microsoft / Azure | ✅ | ✅ | 🟡 |  | Self-hosted web only (MSAL popup), when the server sets `MICROSOFT_CLIENT_ID`; off on hosted, whose Microsoft users use Invoice Ninja Web — docs/web-deploy.md § Web sign-in |
 | OAuth — Apple (Sign in with Apple) | ✅ | ✅ | ✅ | ✅ | |
 | Two-factor authentication (TOTP / Google Authenticator) | ✅ | ✅ | ✅ | ✅ | |
 | Two-step login (email → Continue → only the credentials the account needs, via `/login/precheck`) | ✅ | ❌ | ✅ | | |
@@ -896,7 +896,7 @@ Field-level breakdown of every option under each settings panel. Source of truth
 | Feature | React | Flutter v1 | Flutter v2 | AI review | Live E2E |
 |---|---|---|---|---|---|
 | Connect Google (OAuth) | ✅ | ✅ | ✅ | ✅ | |
-| Connect Microsoft (OAuth) | ✅ | ✅ | 🟡 | ✅ | Hosted web only (MSAL popup), as in v1 |
+| Connect Microsoft (OAuth) | ✅ | ✅ | 🟡 | ✅ | Self-hosted web, when the server sets `MICROSOFT_CLIENT_ID` (MSAL popup) |
 | Connect Gmail (OAuth) | ✅ | ✅ | ✅ | ✅ | |
 | Connect Email (OAuth) | ✅ | ✅ | ✅ | ✅ | |
 | Disconnect | ✅ | ✅ | ✅ | ✅ | |

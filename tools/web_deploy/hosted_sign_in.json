@@ -1,6 +1,6 @@
 {
-  "_comment": "The hosted page's OAuth client IDs (docs/web-deploy.md § Web sign-in). Public values: React's hosted build carries the same Google and Microsoft IDs. Each provider's console must list https://admin.invoicing.co (Google: an authorized JavaScript origin; Microsoft: an SPA redirect URI) before it works there. Apple stays empty until its Services ID lists admin.invoicing.co and the server's APPLE_CLIENT_IDS accepts it; an empty ID hides the button.",
+  "_comment": "The hosted page's OAuth client IDs (docs/web-deploy.md § Web sign-in). Public values: React's hosted build carries the same Google ID. Google's console must list https://admin.invoicing.co as an authorized JavaScript origin. Microsoft stays empty on hosted (decided 2026-11-15: hosted Microsoft users use Invoice Ninja Web); a self-hosted server's page gets its own MICROSOFT_CLIENT_ID from the backend. Apple stays empty until its Services ID lists admin.invoicing.co and the server's APPLE_CLIENT_IDS accepts it. An empty ID hides the button and loads no script.",
   "google_client_id": "320847535584-4vopvt8v9064hs7kje3htonr0vlpuorn.apps.googleusercontent.com",
-  "microsoft_client_id": "1023b9ce-5b09-4f04-98f8-e1ed85a72332",
+  "microsoft_client_id": "",
   "apple_client_id": ""
 }

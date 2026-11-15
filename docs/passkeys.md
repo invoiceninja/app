@@ -58,7 +58,7 @@ The server side is outside this repo: `lbuchs/webauthn` checks the origin agains
 
 ## Google re-authentication
 
-The password sheet offers "Confirm with Apple" and, on web, "Confirm with Microsoft", but never "Confirm with Google", on any platform. The server's Google branch of `PasswordProtection` reads the header as an id token (`getTokenResponse`), which the access-token sign-in this app uses never has, and its password-and-OAuth case calls `Hash::check(auth()->user()->password, $x_api_password)` with the arguments reversed. So a Google user whose company turns on `oauth_password_required` needs an account password; the sheet says so ("Please set an account password") rather than offering a button that cannot work. A one-line server fix would swap the arguments; until it ships, nothing here changes.
+The password sheet offers "Confirm with Apple" and, on a self-hosted server's web app, "Confirm with Microsoft", but never "Confirm with Google", on any platform. The server's Google branch of `PasswordProtection` reads the header as an id token (`getTokenResponse`), which the access-token sign-in this app uses never has, and its password-and-OAuth case calls `Hash::check(auth()->user()->password, $x_api_password)` with the arguments reversed. So a Google user whose company turns on `oauth_password_required` needs an account password; the sheet says so ("Please set an account password") rather than offering a button that cannot work. A one-line server fix would swap the arguments; until it ships, nothing here changes.
 
 ## The passkey sheet is our own native code on one channel, never a pub plugin, and only Android's half is non-free
 
