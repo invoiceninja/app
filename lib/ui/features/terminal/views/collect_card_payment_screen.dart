@@ -11,6 +11,7 @@ import 'package:admin/app/services.dart';
 import 'package:admin/data/models/domain/client.dart';
 import 'package:admin/data/models/domain/invoice.dart';
 import 'package:admin/data/services/terminal_server_error.dart';
+import 'package:admin/domain/terminal/online_gateways.dart';
 import 'package:admin/domain/terminal/terminal_eligibility.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/l10n/tap_to_pay_names.dart';
@@ -20,6 +21,7 @@ import 'package:admin/ui/core/utils/haptics.dart';
 import 'package:admin/ui/core/widgets/copyable_value.dart';
 import 'package:admin/ui/core/widgets/form_save_scope.dart';
 import 'package:admin/ui/core/widgets/ltr_value.dart';
+import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
 import 'package:admin/ui/core/widgets/qr_code_image.dart';
 import 'package:admin/ui/features/terminal/how_to_tap.dart';
@@ -156,6 +158,7 @@ class _CollectCardPaymentScreenState extends State<CollectCardPaymentScreen> {
           ..askLocation = _askLocation
           ..onReady = _onReady;
     _amount = TextEditingController(text: _moneyInput(_vm.amount));
+    _shownAmount = _vm.amount;
     _email = TextEditingController(text: _vm.clientEmail)
       ..addListener(() {
         if (mounted) setState(() {});
@@ -265,9 +268,21 @@ class _CollectCardPaymentScreenState extends State<CollectCardPaymentScreen> {
   Future<void> _enableCardPresent(String companyGatewayId) =>
       enableCardPresent(_services, widget.companyId, companyGatewayId);
 
+  /// The amount the field was last made to show.
+  Decimal? _shownAmount;
+
   void _onChanged() {
     if (!mounted) return;
     _syncPrecision();
+    // The amount changed outside the field (an invoice that changed while
+    // the customer paid another way): the field shows what will be taken.
+    if (_vm.amount != _shownAmount) {
+      _shownAmount = _vm.amount;
+      final shown = _moneyInput(_vm.amount);
+      if (_vm.stage == CollectStage.configure && _amount.text != shown) {
+        _amount.text = shown;
+      }
+    }
     final stage = _vm.stage;
     if (stage != _lastStage) {
       _lastStage = stage;
@@ -342,6 +357,7 @@ class _CollectCardPaymentScreenState extends State<CollectCardPaymentScreen> {
       ..dispose();
     _amount.dispose();
     _email.dispose();
+    _declineEmail.dispose();
     super.dispose();
   }
 
@@ -401,34 +417,35 @@ class _CollectCardPaymentScreenState extends State<CollectCardPaymentScreen> {
         .timeout(const Duration(seconds: 2));
   }
 
-  /// Active, non-deleted company gateways, read from Drift once as "Pay
-  /// another way" opens (bundled on login and `/refresh`, so no request; a
-  /// one-shot read, not a live watch, so the screen holds no Drift stream).
-  /// Null when it couldn't be read, which counts as having one: the portal
-  /// says so itself if it can't take a payment.
-  int? _onlineGateways;
+  /// Whether the portal could take the payment (`canTakeOnlinePayments`),
+  /// read from Drift once as "Pay another way" opens: bundled on login and
+  /// `/refresh`, so no request; a one-shot read, not a live watch, so the
+  /// screen holds no Drift stream. Null when it couldn't be read, which
+  /// counts as able: the portal says so itself if it can't take a payment.
+  bool? _payableOnline;
 
   /// "Pay another way": the customer pays the invoice online instead
   /// (App Review 4.8). The view model decides whether it may show.
   Future<void> _openPayAnotherWay() async {
-    int? gateways;
+    bool? payable;
     try {
-      gateways = await _services.companyGateways
-          .watchCount(companyId: widget.companyId)
-          .first
-          .timeout(const Duration(seconds: 2));
+      payable = canTakeOnlinePayments(
+        await _services.companyGateways
+            .watchPage(companyId: widget.companyId)
+            .first
+            .timeout(const Duration(seconds: 2)),
+      );
     } catch (_) {}
     if (!mounted) return;
-    _onlineGateways = gateways;
+    _payableOnline = payable;
     _vm.payAnotherWay();
   }
 
   /// The invoice's own payment link (the client portal), or '' when there
-  /// is none to offer: no invitation link, or no gateway the portal could
-  /// take the payment through. Nothing local says which gateways the portal
-  /// offers this client in this currency, so any active one counts.
+  /// is none to offer: no invitation link, or every online payment type is
+  /// switched off (the Stripe gateway taking cards in person only).
   String get _paymentLink {
-    if (_onlineGateways == 0) return '';
+    if (_payableOnline == false) return '';
     return _vm.invoice.invitations
             .map((i) => i.link)
             .where((l) => l.isNotEmpty)
@@ -446,22 +463,52 @@ class _CollectCardPaymentScreenState extends State<CollectCardPaymentScreen> {
   /// invoice's own Enter Payment takes over (its checks included).
   Future<void> _enterPayment() async {
     final enter = widget.enterPayment;
-    if (enter == null) return;
+    // One press, one payment editor: a second while the first waits on the
+    // cancel would open it twice, and pop a route too many.
+    if (enter == null || _enteringPayment) return;
     final navigator = Navigator.of(context);
-    if (!await _vm.settledWithoutCharge() || !mounted) return;
+    setState(() => _enteringPayment = true);
+    final bool settled;
+    try {
+      settled = await _vm.settledWithoutCharge();
+    } finally {
+      if (mounted) setState(() => _enteringPayment = false);
+    }
+    if (!mounted) return;
+    if (!settled) {
+      // A charge turned up (its answer has the screen), or nobody knows yet
+      // whether the cancel went through: no payment by hand over that.
+      if (_vm.stage == CollectStage.cancelled) {
+        Notify.warning(context, context.tr('terminal_cancel_unconfirmed'));
+      }
+      return;
+    }
+    // Still held: the screen is leaving, and no press may run it again.
+    _enteringPayment = true;
     final invoice = _vm.invoice;
     navigator.pop();
     final under = navigator.context;
     if (under.mounted) await enter(under, invoice);
   }
 
+  /// Enter Payment is waiting on the cancel, or has handed over.
+  bool _enteringPayment = false;
+
+  /// The decline receipt's email and whether its field is open: kept here,
+  /// so what was typed on the declined stage is still there on the fallback.
+  late final TextEditingController _declineEmail = TextEditingController(
+    text: _vm.clientEmail,
+  );
+  bool _declineOpen = false;
+
   /// "Send decline receipt", on the declined stage and on the fallback.
   Widget? _declineReceipt(BuildContext context) {
     if (!_vm.declineReceiptAvailable) return null;
     final problem = _vm.declineReceiptProblem;
     return DeclineReceiptForm(
-      // One form across both places: what was typed stays.
-      key: const ValueKey('decline-receipt'),
+      controller: _declineEmail,
+      open: _declineOpen,
+      onOpen: () => setState(() => _declineOpen = true),
       initialEmail: _vm.clientEmail,
       state: _vm.declineReceipt,
       errorText: problem == null
@@ -494,6 +541,7 @@ class _CollectCardPaymentScreenState extends State<CollectCardPaymentScreen> {
       onDone: _close,
       onBack: _vm.backToReader,
       onEnterPayment: widget.enterPayment == null ? null : _enterPayment,
+      enteringPayment: _enteringPayment,
     );
   }
 
@@ -1028,6 +1076,17 @@ class _CollectCardPaymentScreenState extends State<CollectCardPaymentScreen> {
               child: Text(context.tr('retry')),
             ),
           ),
+        if (_vm.invoiceChanged || _vm.invoiceUnchecked) ...[
+          const SizedBox(height: 12),
+          CollectNote(
+            tone: StageTone.warning,
+            text: context.tr(
+              _vm.invoiceChanged
+                  ? 'terminal_invoice_changed'
+                  : 'terminal_invoice_unchecked',
+            ),
+          ),
+        ],
         if (_vm.invoice.isDraft) ...[
           const SizedBox(height: InSpacing.sm),
           Text(
@@ -1198,7 +1257,9 @@ class _CollectCardPaymentScreenState extends State<CollectCardPaymentScreen> {
     final cancel = StageButton(
       kind: StageButtonKind.outlined,
       label: context.tr('cancel'),
-      onPressed: _close,
+      // Stays on Cancelled, which says the card wasn't charged and
+      // still offers the other ways on; its own Close leaves.
+      onPressed: _vm.cancel,
     );
     final primary = connecting
         // Reconnecting a reader: nothing to try until it is back.

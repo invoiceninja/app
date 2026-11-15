@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:admin/app/terminal_controller.dart';
 import 'package:admin/app/terminal_decline_notices.dart';
 import 'package:admin/data/models/api/terminal_models.dart';
@@ -92,6 +94,7 @@ void main() {
       wrapWithShell(fixture.services, SizedBox(key: key)),
     );
     notices.attach(go: went.add, contextOf: () => key.currentContext);
+    addTearDown(notices.detach);
     return (terminal, repo, notices, locked, went, fixture);
   }
 
@@ -275,6 +278,130 @@ void main() {
 
       expect(fixture.services.toasts.toasts, isEmpty);
       expect(pending(fixture, 'pi_1'), isTrue);
+    });
+  });
+
+  group('review of 5e1821f8', () {
+    testWidgets('several declines are one toast, with a count', (tester) async {
+      final (terminal, repo, notices, _, went, fixture) = await boot(tester);
+      for (final n in ['1', '2']) {
+        await terminal.notePending(
+          companyId: 'co1',
+          invoiceId: 'inv_$n',
+          invoiceNumber: '004$n',
+          paymentIntentId: 'pi_$n',
+        );
+        repo.completes.add(answer('requires_payment_method', declined: true));
+        repo.cancels.add(answer('canceled'));
+      }
+
+      await notices.sweep('co1');
+      await tester.pump();
+
+      final toast = fixture.services.toasts.toasts.single;
+      expect(
+        toast.message,
+        "2 card payments were declined. The customers weren't charged.",
+      );
+      // Long enough to be read: never the default few seconds.
+      expect(toast.duration, greaterThanOrEqualTo(const Duration(seconds: 10)));
+      toast.action!.onPressed();
+      expect(went, ['/invoices']);
+    });
+
+    testWidgets('only while the app is in front: held in the background, '
+        'told on resume', (tester) async {
+      final (terminal, repo, notices, _, _, fixture) = await boot(tester);
+      await terminal.notePending(
+        companyId: 'co1',
+        invoiceId: 'inv_1',
+        invoiceNumber: '0042',
+        paymentIntentId: 'pi_1',
+      );
+      repo.completes.add(answer('requires_payment_method', declined: true));
+      repo.cancels.add(answer('canceled'));
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+      addTearDown(
+        () => tester.binding.handleAppLifecycleStateChanged(
+          AppLifecycleState.resumed,
+        ),
+      );
+
+      await notices.sweep('co1');
+      await tester.pump();
+      expect(fixture.services.toasts.toasts, isEmpty);
+      expect(pending(fixture, 'pi_1'), isTrue);
+
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      notices.onResumed();
+      await tester.pump();
+
+      expect(fixture.services.toasts.toasts, hasLength(1));
+    });
+
+    testWidgets('a second activation while the first is still settling '
+        'tells nothing twice', (tester) async {
+      final (terminal, repo, notices, _, _, fixture) = await boot(tester);
+      await terminal.notePending(
+        companyId: 'co1',
+        invoiceId: 'inv_1',
+        invoiceNumber: '0042',
+        paymentIntentId: 'pi_1',
+      );
+      repo.completes
+        ..add(answer('requires_payment_method', declined: true))
+        ..add(answer('requires_payment_method', declined: true));
+      final cancel = Completer<TerminalCompletion>();
+      repo.cancels.add(cancel);
+
+      await notices.sweep('co1');
+      await tester.pump();
+      // A → B → A: the cancel is still on its way.
+      await notices.sweep('co1');
+      await tester.pump();
+
+      final toast = fixture.services.toasts.toasts.single;
+      expect(toast.count, 1);
+      cancel.complete(answer('canceled'));
+      await tester.pump();
+      expect(pending(fixture, 'pi_1'), isFalse);
+    });
+
+    testWidgets('a cancel that fails, or finds the charge still open, keeps '
+        'the entry — and the next sweep tells nothing again', (tester) async {
+      final (terminal, repo, notices, _, _, fixture) = await boot(tester);
+      await terminal.notePending(
+        companyId: 'co1',
+        invoiceId: 'inv_1',
+        invoiceNumber: '0042',
+        paymentIntentId: 'pi_1',
+      );
+      repo.completes.add(answer('requires_payment_method', declined: true));
+      repo.cancels.add(StateError('offline'));
+
+      await notices.sweep('co1');
+      await tester.pump();
+      await tester.pump();
+      expect(fixture.services.toasts.toasts.single.count, 1);
+      expect(pending(fixture, 'pi_1'), isTrue);
+
+      // Next activation: still declined, cancel answers `processing`.
+      repo.completes.add(answer('requires_payment_method', declined: true));
+      repo.cancels.add(answer('processing'));
+      await notices.sweep('co1');
+      await tester.pump();
+      await tester.pump();
+      expect(fixture.services.toasts.toasts.single.count, 1);
+      expect(pending(fixture, 'pi_1'), isTrue);
+
+      // And once it is cancelled for good, forgotten.
+      repo.completes.add(answer('requires_payment_method', declined: true));
+      repo.cancels.add(answer('canceled'));
+      await notices.sweep('co1');
+      await tester.pump();
+      await tester.pump();
+      expect(fixture.services.toasts.toasts.single.count, 1);
+      expect(pending(fixture, 'pi_1'), isFalse);
     });
   });
 }

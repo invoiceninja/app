@@ -16,15 +16,18 @@ import 'package:admin/ui/core/widgets/toast_controller.dart';
 /// (App Review 5.12; docs/in-person-payments.md).
 ///
 /// At company activation every payment this device still waits on is asked
-/// about ([TerminalController.sweepPending]). A declined one is told once, in
-/// a toast with Open (to the invoice); only then is its PaymentIntent
-/// cancelled and the entry forgotten, so a notice that couldn't be shown —
-/// the app locked, or closed again — is found at the next activation.
+/// about ([TerminalController.sweepPending]). What was declined is told
+/// once, in one toast with Open (to the invoice; to the invoices when there
+/// are several), and only while the app is in front. Only then is each
+/// PaymentIntent cancelled, and its entry forgotten once the server has
+/// answered for good — so a notice that couldn't be shown (the app locked,
+/// in the background, or closed again) is found at the next activation, and
+/// one whose cancel is still owed is never told twice.
 ///
 /// `late` on `Services` for the same reason as `DeepLinkRouter`: the router
 /// it opens the invoice with exists only once the app is built, so the app
 /// state calls [attach].
-class TerminalDeclineNotices {
+class TerminalDeclineNotices with WidgetsBindingObserver {
   TerminalDeclineNotices({
     required TerminalController terminal,
     required ToastController toasts,
@@ -40,6 +43,10 @@ class TerminalDeclineNotices {
          requiresBiometricUnlock: requiresBiometricUnlock,
        );
 
+  /// Long enough to be read by someone who was doing something else: the
+  /// notice arrives unasked.
+  static const shownAtLeast = Duration(seconds: 12);
+
   final TerminalController _terminal;
   final ToastController _toasts;
   final ValueListenable<AuthSession?> _session;
@@ -48,9 +55,14 @@ class TerminalDeclineNotices {
 
   void Function(String location)? _go;
   BuildContext? Function()? _contextOf;
+  bool _observing = false;
 
   /// Found declined, not yet told.
   final List<UnseenDecline> _held = [];
+
+  /// Told, their cancel still on its way: a sweep that finds one again (a
+  /// company switched away and back) neither tells nor cancels it twice.
+  final Set<String> _settling = {};
 
   /// One sweep at a time, in order: two at once would tell the same
   /// decline twice.
@@ -62,8 +74,27 @@ class TerminalDeclineNotices {
   }) {
     _go = go;
     _contextOf = contextOf;
+    if (!_observing) {
+      _observing = true;
+      WidgetsBinding.instance.addObserver(this);
+    }
     _showHeld();
   }
+
+  /// Stops listening for the app coming back in front (tests).
+  void detach() {
+    if (!_observing) return;
+    _observing = false;
+    WidgetsBinding.instance.removeObserver(this);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) onResumed();
+  }
+
+  /// The app is back in front: what was held for that is told now.
+  void onResumed() => _showHeld();
 
   /// [companyId] became the active company.
   Future<void> sweep(String companyId) =>
@@ -78,9 +109,14 @@ class TerminalDeclineNotices {
       return;
     }
     for (final decline in found) {
-      if (_held.every((h) => h.paymentIntentId != decline.paymentIntentId)) {
-        _held.add(decline);
+      final id = decline.paymentIntentId;
+      if (_settling.contains(id)) continue;
+      if (decline.told) {
+        // Told before; its cancel never went through. Only that is owed.
+        _settle(decline);
+        continue;
       }
+      if (_held.every((h) => h.paymentIntentId != id)) _held.add(decline);
     }
     _showHeld();
   }
@@ -91,6 +127,22 @@ class TerminalDeclineNotices {
     _gate.cancel();
   }
 
+  /// Cancels [decline], after noting it told when [tell]. Marked as being
+  /// settled at once — before anything is awaited — so a sweep in between
+  /// can't find it again and tell it twice.
+  void _settle(UnseenDecline decline, {bool tell = false}) {
+    final id = decline.paymentIntentId;
+    if (!_settling.add(id)) return;
+    unawaited(() async {
+      try {
+        if (tell) await _terminal.markDeclineTold(decline);
+        await _terminal.settleUnseenDecline(decline);
+      } finally {
+        _settling.remove(id);
+      }
+    }());
+  }
+
   void _showHeld() {
     if (_held.isEmpty) return;
     if (!_gate.isOpen) {
@@ -98,6 +150,10 @@ class TerminalDeclineNotices {
       _gate.notifyWhenOpen(_showHeld);
       return;
     }
+    // Only while the app is in front: a toast that ran out in the
+    // background was told to nobody. [onResumed] comes back here.
+    final lifecycle = WidgetsBinding.instance.lifecycleState;
+    if (lifecycle != null && lifecycle != AppLifecycleState.resumed) return;
     final context = _contextOf?.call();
     final loc = context == null ? null : Localization.of(context);
     if (loc == null) {
@@ -106,25 +162,35 @@ class TerminalDeclineNotices {
       return;
     }
     final current = _session.value?.currentCompany?.id;
-    final held = List.of(_held);
+    // Another company's by now: left pending for its next activation.
+    final mine = [
+      for (final d in _held)
+        if (d.companyId == current) d,
+    ];
     _held.clear();
-    for (final decline in held) {
-      // Another company's by now: left pending for its next activation.
-      if (decline.companyId != current) continue;
-      _toasts.info(
-        decline.invoiceNumber.isEmpty
-            ? loc.lookup('terminal_unseen_decline_plain')
-            : loc.lookup('terminal_unseen_decline', {
-                'number': decline.invoiceNumber,
-              }),
-        action: NotifyAction(loc.lookup('open'), () {
-          // The toast outlives a company switch by seconds at most; the
-          // invoice is only the company's it was declined in.
-          if (_session.value?.currentCompany?.id != decline.companyId) return;
-          _go?.call('/invoices/${decline.invoiceId}');
-        }),
-      );
-      unawaited(_terminal.settleUnseenDecline(decline));
+    if (mine.isEmpty) return;
+    final companyId = mine.first.companyId;
+    final one = mine.length == 1 ? mine.single : null;
+    final message = one == null
+        ? loc.lookup('terminal_unseen_declines', {'count': '${mine.length}'})
+        : one.invoiceNumber.isEmpty
+        ? loc.lookup('terminal_unseen_decline_plain')
+        : loc.lookup('terminal_unseen_decline', {'number': one.invoiceNumber});
+    // One toast for everything found: the host shows only the newest on a
+    // phone, so one each would hide all but the last.
+    _toasts.show(
+      variant: NotifyVariant.info,
+      message: message,
+      atLeast: shownAtLeast,
+      action: NotifyAction(loc.lookup('open'), () {
+        // The toast can outlive a company switch; the invoices are only the
+        // company's they were declined in.
+        if (_session.value?.currentCompany?.id != companyId) return;
+        _go?.call(one == null ? '/invoices' : '/invoices/${one.invoiceId}');
+      }),
+    );
+    for (final decline in mine) {
+      _settle(decline, tell: true);
     }
   }
 }

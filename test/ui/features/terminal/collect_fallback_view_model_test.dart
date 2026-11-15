@@ -267,18 +267,18 @@ void main() {
       vm.dispose();
     });
 
-    test('an invoice that can\'t be fetched is still quoted by the server, '
-        'which has the last word', () async {
+    test('an invoice that can\'t be fetched again is never collected '
+        'without a fresh press', () async {
       final vm = await declined();
       repo.cancels.add(fakeCompletion('canceled'));
       vm.payAnotherWay();
       await pumpEventQueue();
-      repo.creates.add(const TerminalServerError('already_paid', 'Paid'));
 
       await vm.backToReader();
 
       expect(vm.stage, CollectStage.configure);
-      expect(vm.problem?.serverCode, TerminalServerError.alreadyPaid);
+      expect(vm.invoiceUnchecked, isTrue);
+      expect(repo.createdCollectionIds, ['col_1']);
       vm.dispose();
     });
 
@@ -301,6 +301,152 @@ void main() {
         vm.dispose();
       },
     );
+  });
+
+  group('review of 5e1821f8', () {
+    test(
+      'a cancel still unanswered never lands on the new collection',
+      () async {
+        final vm = await declined();
+        final cancel = Completer<TerminalCompletion>();
+        repo.cancels.add(cancel);
+        // Cancel, then the fallback from Cancelled: the cancel is in flight.
+        unawaited(vm.cancel());
+        await pumpEventQueue();
+        expect(vm.stage, CollectStage.cancelled);
+        vm.payAnotherWay();
+        refetched = invoice;
+        repo.creates.add(fakeIntent('pi_2'));
+        final read = Completer<TerminalCollected>();
+        platform.session.reads.add(read);
+
+        final back = vm.backToReader();
+        await pumpEventQueue();
+        // Nothing new starts while the old cancel is unanswered.
+        expect(repo.createdCollectionIds, ['col_1']);
+
+        cancel.complete(fakeCompletion('canceled'));
+        await pumpEventQueue();
+
+        expect(vm.stage, CollectStage.waiting);
+        expect(vm.paymentReference, 'pi_2');
+        expect(repo.createdCollectionIds, ['col_1', 'col_2']);
+        read.completeError(const TerminalError(TerminalErrorCode.canceled));
+        repo.cancels.add(fakeCompletion('canceled'));
+        await back;
+        vm.dispose();
+      },
+    );
+
+    test('a create answered after Cancel is cancelled, never adopted by the '
+        'new collection', () async {
+      final vm = await ready();
+      final create = Completer<TerminalIntent>();
+      repo.creates.add(create);
+      unawaited(vm.collect());
+      await pumpEventQueue();
+      expect(vm.stage, CollectStage.creating);
+      await vm.cancel();
+      expect(vm.stage, CollectStage.cancelled);
+      vm.payAnotherWay();
+      refetched = invoice;
+      repo.creates.add(fakeIntent('pi_2'));
+      final read = Completer<TerminalCollected>();
+      platform.session.reads.add(read);
+      repo.cancels.add(fakeCompletion('canceled'));
+
+      final back = vm.backToReader();
+      await pumpEventQueue();
+      create.complete(fakeIntent('pi_1'));
+      await pumpEventQueue();
+
+      expect(repo.calls, contains('cancel:pi_1'));
+      expect(vm.stage, CollectStage.waiting);
+      expect(vm.paymentReference, 'pi_2');
+      read.completeError(const TerminalError(TerminalErrorCode.canceled));
+      repo.cancels.add(fakeCompletion('canceled'));
+      await back;
+      vm.dispose();
+    });
+
+    test(
+      'a payment is entered by hand only on a confirmed no-charge answer',
+      () async {
+        final vm = await declined();
+        // Every attempt to cancel fails: nobody knows.
+        for (var i = 0; i < 6; i++) {
+          repo.cancels.add(const NetworkException('offline'));
+        }
+        vm.payAnotherWay();
+
+        expect(await vm.settledWithoutCharge(), isFalse);
+
+        // Asked again, and answered: now it is known.
+        repo.cancels.add(fakeCompletion('canceled'));
+        expect(await vm.settledWithoutCharge(), isTrue);
+        vm.dispose();
+      },
+    );
+
+    test(
+      'back to an invoice whose deposit was just paid online never '
+      'collects it again: the amount is the invoice\'s new one, to check',
+      () async {
+        final deposit = invoice.copyWith(partial: Decimal.fromInt(40));
+        final vm = CollectCardPaymentViewModel(
+          companyId: 'co_a',
+          invoice: deposit,
+          terminal: terminal,
+          repository: repo,
+          isAdmin: true,
+          merchantDisplayName: 'Acme',
+          precision: 2,
+          newId: () => 'col_${++ids}',
+          pollDelay: Duration.zero,
+          refetchInvoice: () async => refetched,
+        );
+        await vm.start();
+        expect(vm.amount, Decimal.fromInt(40));
+        repo.creates.add(fakeIntent());
+        platform.session.reads.add(fakeRead(4000));
+        repo.finalizes.add(fakeFinalize(4000));
+        platform.session.confirms.add(
+          const TerminalError(TerminalErrorCode.declined),
+        );
+        await vm.collect();
+        repo.cancels.add(fakeCompletion('canceled'));
+        vm.payAnotherWay();
+        await pumpEventQueue();
+        refetched = deposit.copyWith(
+          partial: Decimal.zero,
+          balance: Decimal.fromInt(60),
+          paidToDate: Decimal.fromInt(40),
+        );
+
+        await vm.backToReader();
+
+        expect(vm.stage, CollectStage.configure);
+        expect(vm.amount, Decimal.fromInt(60));
+        expect(vm.invoiceChanged, isTrue);
+        expect(repo.createdCollectionIds, ['col_1']);
+        vm.dispose();
+      },
+    );
+
+    test('Try another card forgets the declined charge: no receipt for a '
+        'card that then can\'t be read', () async {
+      final vm = await declined();
+      expect(vm.declineReceiptAvailable, isTrue);
+      platform.session.reads.add(
+        const TerminalError(TerminalErrorCode.cardNotRead),
+      );
+
+      await vm.tryAnotherCard();
+
+      expect(vm.stage, CollectStage.declined);
+      expect(vm.declineReceiptAvailable, isFalse);
+      vm.dispose();
+    });
   });
 
   group('Send decline receipt', () {

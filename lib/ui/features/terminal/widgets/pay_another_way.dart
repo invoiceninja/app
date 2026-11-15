@@ -27,7 +27,12 @@ class PayAnotherWayView extends StatelessWidget {
     this.onDone,
     this.onBack,
     this.onEnterPayment,
+    this.enteringPayment = false,
   });
+
+  /// Enter Payment was pressed and waits for the cancel's answer: busy, and
+  /// not to be pressed again.
+  final bool enteringPayment;
 
   /// The client portal's link to this invoice; '' when there is none to
   /// offer. The text names no amount: the portal pays the invoice (balance,
@@ -61,7 +66,16 @@ class PayAnotherWayView extends StatelessWidget {
             ),
             primary: StageButton(
               label: context.tr('enter_payment'),
-              onPressed: onEnterPayment,
+              icon: enteringPayment
+                  ? SizedBox.square(
+                      dimension: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: context.inTheme.ink3,
+                      ),
+                    )
+                  : null,
+              onPressed: enteringPayment ? null : onEnterPayment,
             ),
           ),
         ],
@@ -168,51 +182,44 @@ class PayAnotherWayView extends StatelessWidget {
 /// [StageOptions], and the email field only once it is pressed. Where the
 /// send stands is the view model's ([state]), so the row reads the same on
 /// the declined stage and on "Pay another way".
-class DeclineReceiptForm extends StatefulWidget {
+class DeclineReceiptForm extends StatelessWidget {
   const DeclineReceiptForm({
     super.key,
     required this.state,
     required this.onSend,
+    required this.controller,
+    required this.open,
+    required this.onOpen,
     this.initialEmail = '',
     this.errorText = '',
   });
 
   final DeclineReceiptState state;
   final ValueChanged<String> onSend;
+
+  /// The screen's: the form is drawn in two places (the declined stage, the
+  /// fallback), and what was typed in one is there in the other.
+  final TextEditingController controller;
+
+  /// The row was pressed: the field shows.
+  final bool open;
+  final VoidCallback onOpen;
+
+  /// Shown under the row before it is pressed.
   final String initialEmail;
 
   /// Why it wasn't sent ([DeclineReceiptState.failed]).
   final String errorText;
 
-  @override
-  State<DeclineReceiptForm> createState() => _DeclineReceiptFormState();
-}
-
-class _DeclineReceiptFormState extends State<DeclineReceiptForm> {
-  bool _open = false;
-  late final TextEditingController _email = TextEditingController(
-    text: widget.initialEmail,
-  )..addListener(_onEdited);
-
-  void _onEdited() {
-    if (mounted) setState(() {});
-  }
-
-  @override
-  void dispose() {
-    _email.dispose();
-    super.dispose();
-  }
-
   void _send() {
-    final email = _email.text.trim();
-    if (email.isNotEmpty) widget.onSend(email);
+    final email = controller.text.trim();
+    if (email.isNotEmpty) onSend(email);
   }
 
   @override
   Widget build(BuildContext context) {
     final tokens = context.inTheme;
-    switch (widget.state) {
+    switch (state) {
       case DeclineReceiptState.sent:
         return Padding(
           padding: const EdgeInsets.all(16),
@@ -233,14 +240,14 @@ class _DeclineReceiptFormState extends State<DeclineReceiptForm> {
           DeclineReceiptState.sending ||
           DeclineReceiptState.failed:
     }
-    final sending = widget.state == DeclineReceiptState.sending;
-    final failed = widget.state == DeclineReceiptState.failed;
-    if (!_open && !sending && !failed) {
+    final sending = state == DeclineReceiptState.sending;
+    final failed = state == DeclineReceiptState.failed;
+    if (!open && !sending && !failed) {
       return StageOption(
         icon: Icons.receipt_long_outlined,
         title: context.tr('terminal_send_decline_receipt'),
-        subtitle: widget.initialEmail,
-        onTap: () => setState(() => _open = true),
+        subtitle: initialEmail,
+        onTap: onOpen,
       );
     }
     return Padding(
@@ -249,21 +256,25 @@ class _DeclineReceiptFormState extends State<DeclineReceiptForm> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
-          ReceiptEmailRow(
-            controller: _email,
-            autofocus: _open && !failed,
-            sending: sending,
-            onSend: _email.text.trim().isEmpty ? null : _send,
-            fill: tokens.surface,
+          // Send follows the field as it is typed in.
+          ListenableBuilder(
+            listenable: controller,
+            builder: (context, _) => ReceiptEmailRow(
+              controller: controller,
+              autofocus: open && !failed,
+              sending: sending,
+              onSend: controller.text.trim().isEmpty ? null : _send,
+              fill: tokens.surface,
+            ),
           ),
           if (failed) ...[
             const SizedBox(height: InSpacing.sm),
             Semantics(
               liveRegion: true,
               child: Text(
-                widget.errorText.isEmpty
+                errorText.isEmpty
                     ? context.tr('terminal_error_unknown')
-                    : widget.errorText,
+                    : errorText,
                 style: Theme.of(
                   context,
                 ).textTheme.bodySmall?.copyWith(color: tokens.overdue),

@@ -184,28 +184,50 @@ every read, so a cancel that turns up a charge after all (`recorded`) hands the 
   `QrCodeImage` (always black on white). The sentence names no amount: the portal pays the invoice
   (its balance or deposit, its own fees), so a figure here could disagree with it. **Share link** goes
   through `shareOrCopyLink`; **Done** closes the screen.
-- **No link, or no active gateway, is "can't be paid online".** The gateway count is one Drift read as
-  the fallback opens (`companyGateways.watchCount`: active, non-deleted; no request, and no live watch
-  — a watch on this screen hung its widget tests). Nothing local says which gateways the portal offers
-  this client in this currency, so any active one counts. **A read that fails or times out counts as
-  having one**: the portal says so itself if it can't take the payment. The variant offers **Enter
-  Payment**, which is the invoice's own action (`InvoiceActions.dispatch`, handed in as
-  `enterPayment`): it runs only once the cancel has been answered with no charge
-  (`settledWithoutCharge`), after this screen has closed, with every check that action already makes.
-- **"Back to …" starts a collection of its own.** `backToReader()` waits for the cancel, fetches the
-  invoice again (`refetchInvoice`: the server's copy into Drift, then read), quotes again, and only
-  then collects — a new `collection_id`, a new PaymentIntent. An invoice paid online meanwhile stops on
-  Cancelled with "A previous card payment for this invoice was recorded." and offers no fallback; an
-  invoice that couldn't be fetched is still quoted, and the server refuses a paid one. The row carries
-  its caution: "If the customer started paying online, wait for it to finish first."
+- **No link, or no online payment type switched on, is "can't be paid online".** The signal is
+  `canTakeOnlinePayments` (`lib/domain/terminal/online_gateways.dart`), over one Drift read of the
+  company's gateways as the fallback opens (no request, and no live watch — a watch on this screen
+  hung its widget tests): an active gateway with a type enabled other than Card present (32). The
+  Stripe gateway that takes the card in person also takes cards online, so a bare gateway count would
+  never be zero here; what can be false is every online type switched off. A gateway that lists no
+  types counts as able, and so does **a read that fails or times out**: the portal says so itself if
+  it can't take the payment. Which gateways the portal offers one client in one currency isn't
+  modelled locally. The variant offers **Enter Payment**, which is the invoice's own action
+  (`InvoiceActions.dispatch`, handed in as `enterPayment`), after this screen has closed, with every
+  check that action already makes.
+- **Enter Payment opens only on a confirmed no-charge answer.** `settledWithoutCharge()` is true once
+  the server answered the cancel `canceled` (or nothing was ever created). A cancel every attempt of
+  which failed is asked again, and while nobody knows the screen says "We couldn't confirm the card
+  payment was cancelled…" and stays. One press runs it once: the button is busy while it waits.
+- **"Back to …" starts a collection of its own, after the old one has gone quiet.** `backToReader()`
+  first waits for everything the ended collection still has on its way (`_inFlight`: its run — a
+  create, a reader that stops — and its one `_abandon()`), then fetches the invoice again
+  (`refetchInvoice`: the server's copy into Drift, then read), quotes again, and only then collects —
+  a new `collection_id`, a new PaymentIntent.
+  - **An old answer never lands on the new collection.** Each collection has a generation
+    (`_startOver` bumps it): a cancel's answer, a create's, or a reader error from an older one is
+    dropped — it used to stamp Cancelled onto the new collection and clear the new PaymentIntent's
+    crash record. A create answered late is closed (`_cancelStray`), never adopted; `_settle` clears
+    the pending record of the PaymentIntent the answer is about.
+  - **A changed invoice is never collected automatically.** If `balance`, `paidToDate`, `partial` or
+    `amount` differ from the invoice collected against (a deposit just paid online), the amount
+    becomes `defaultAmount(fresh)`, the checkout shows "The invoice changed. Check the amount." and
+    waits for a fresh press; the amount field is re-seeded whenever the view model's amount changes
+    outside it. An invoice that couldn't be fetched waits for a press too ("The invoice couldn't be
+    checked again…"). One paid in full stops on Cancelled with "A previous card payment for this
+    invoice was recorded." and offers no fallback.
+  - The row carries its caution: "If the customer started paying online, wait for it to finish first."
+- **Cancel on a declined card stays on Cancelled**, which says the card wasn't charged and still
+  offers Pay another way; its own Close leaves.
 
 **A decline receipt needs a declined charge.** `declineReceiptAvailable` is true only after a confirm
 that Stripe declined (or a `complete` answering `requires_payment_method`) — never for a card that
 merely couldn't be read, which has no charge for the server to write a receipt about. It is the same
 `receipt` endpoint as a paid one's: the server answers a collection that is open or cancelled with its
-own decline receipt, a few per collection. The states are the view model's (`DeclineReceiptState`:
-idle, sending, sent, failed with its reason, limit), so the row reads the same on the declined stage
-and on the fallback; the email field shows only after the press. `receipt_limit` is a **429 with a
+own decline receipt, a few per collection. **Try another card** forgets it: the next card is a new
+story. The states are the view model's (`DeclineReceiptState`: idle, sending, sent, failed with its
+reason, limit) and the email's controller is the screen's, so the row — and what was typed in it —
+is the same on the declined stage and on the fallback; the field shows only after the press. `receipt_limit` is a **429 with a
 body**: `RateLimitedException` carries it, and `TerminalServerError.from` reads its `error_code` — a
 plain throttle (no code) is a failure that may be tried again, never the limit.
 
@@ -221,15 +243,30 @@ every pending payment of that company (`TerminalController.sweepPending`):
 | Answer | What happens |
 |---|---|
 | final (`recorded`, `canceled`, …) | the entry is cleared, as `recoverPending` does |
-| `declined: true` (with `brand`, `last4`; `status` stays `requires_payment_method`) | a toast, "Card declined on invoice N. The customer wasn't charged." with **Open** (to the invoice); then `cancel`, and the entry is cleared |
+| `declined: true` (with `brand`, `last4`; `status` stays `requires_payment_method`) | told, then `cancel`; the entry is cleared once the cancel's answer is final |
 | anything else, or a server from before decline answers (no `declined` key) | nothing is told; the entry waits for the invoice's own check |
 
-The order is deliberate: **told first, cancelled and cleared after** (`settleUnseenDecline`). The
-server stops its own email about a decline once the app's `complete` was answered with it, so a
-notice dropped here would be told to nobody. A notice that can't show — the app locked
-(`ArrivalGate`), no localization yet — is held and the entry stays pending, so a closed app finds it
-again. The invoice's number rides in the entry (`notePending(invoiceNumber:)`); an entry from before
-that reads "A card payment was declined…" without one. Open goes nowhere if the company changed.
+- **One toast for everything found**: "Card declined on invoice N. The customer wasn't charged." with
+  **Open** to the invoice, or "N card payments were declined…" with Open to the invoices — a phone
+  shows only the newest toast, so one each would hide all but the last. It stays up at least
+  `shownAtLeast` (12 s).
+- **Told first, cancelled after.** The server stops its own email about a decline once the app's
+  `complete` was answered with it, so a notice dropped here would be told to nobody. A notice that
+  can't show — the app locked (`ArrivalGate`), not `resumed` (the class observes the lifecycle and
+  shows on the way back), no localization yet — is held and the entry stays pending, so a closed app
+  finds it again.
+- **Never twice.** Telling writes `told` onto the entry (`markDeclineTold`) and the id is held in
+  `_settling` from before anything is awaited: a company switched away and back mid-cancel, or a
+  cancel that failed, finds the entry again and only settles it.
+- **Cleared only on a final answer** (`settleUnseenDecline`): `canceled`, or `recorded` if the card
+  turned out charged. On `recording` / `processing`, or an error, the entry stays for the next sweep.
+- The invoice's number rides in the entry (`notePending(invoiceNumber:)`); one from before that reads
+  "A card payment was declined…". Open goes nowhere if the company changed.
+
+**Ready says when nothing can be paid online.** Apple wants every merchant to have another way to be
+paid. When the enable screen reaches Ready it reads the gateways once and, if `canTakeOnlinePayments`
+is false, adds a row — "Invoices can't be paid online yet…" — that opens `/settings/company_gateways`.
+Unknown (a failed read) shows nothing.
 
 ### Themes
 

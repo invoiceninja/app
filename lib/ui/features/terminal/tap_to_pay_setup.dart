@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:store_services/store_services.dart';
 
+import 'package:admin/domain/terminal/online_gateways.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/app/terminal_controller.dart';
 import 'package:admin/data/models/domain/company_gateway.dart';
@@ -62,7 +63,7 @@ Future<LocationAccess> requestTapToPayLocation(
 }
 
 /// Gateway type 32, Card present (`kGatewayTypeLabelKey`).
-const kCardPresentGatewayType = '32';
+const kCardPresentGatewayType = kCardPresentGatewayTypeId;
 
 /// An admin turns Card present on for a Stripe gateway, the way the
 /// gateway's own Settings tab does (`setTypeEnabled('32')`), on the gateway

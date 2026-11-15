@@ -672,6 +672,8 @@ class CollectCardPaymentViewModel extends ChangeNotifier {
     // An edit always wins over a press waiting on the old figures.
     amountEdited();
     amount = rounded;
+    _invoiceChanged = false;
+    _invoiceUnchecked = false;
     _collectionId = null;
     unawaited(requote());
     return true;
@@ -1112,16 +1114,38 @@ class CollectCardPaymentViewModel extends ChangeNotifier {
   /// The PaymentIntent support finds in Stripe, once there is one.
   String? get paymentReference => _paymentIntentId;
 
+  /// Bumped when a collection is forgotten ([_startOver]): whatever an
+  /// older one still has on its way — a cancel's answer, a create's, a
+  /// reader that stops — is that collection's, and never touches the next.
+  int _generation = 0;
+
+  /// The collection's own run (a create, the reads), until it ends: a new
+  /// collection starts only after it ([_inFlight]).
+  Future<void>? _running;
+
   /// "Collect $X": creates the PaymentIntent and reads the card.
-  Future<void> collect() async {
-    if (!canCollect) return;
+  Future<void> collect() {
+    if (!canCollect) return Future<void>.value();
+    return _running = _collect();
+  }
+
+  Future<void> _collect() async {
+    final generation = _generation;
     _problem = null;
     _completion = null;
+    _invoiceChanged = false;
+    _invoiceUnchecked = false;
     _collectionId ??= _newId();
     _stage = CollectStage.creating;
     _notify();
     final intent = await _create();
     if (intent == null) return;
+    if (generation != _generation) {
+      // A newer collection has the screen: this PaymentIntent is closed
+      // without a word, never adopted.
+      await _cancelStray(intent.paymentIntentId);
+      return;
+    }
     _intent = intent;
     if (_stage == CollectStage.cancelled || _disposed) {
       // Cancelled (or the screen closed) while the server was creating it.
@@ -1273,8 +1297,9 @@ class CollectCardPaymentViewModel extends ChangeNotifier {
   Future<void> _read() async {
     final session = _session!;
     final intent = _intent!;
+    final generation = _generation;
     while (true) {
-      if (_abandoned) return;
+      if (_abandoned || generation != _generation) return;
       if (_disposed) {
         // Never a reader prompt over a screen that has closed.
         await _abandon();
@@ -1309,7 +1334,7 @@ class CollectCardPaymentViewModel extends ChangeNotifier {
       try {
         collected = await session.collect();
       } on TerminalError catch (e) {
-        if (_abandoned) return;
+        if (_abandoned || generation != _generation) return;
         if (_disposed || session.isCancelled) {
           // Nobody is watching, or a reset took the reader: not charged.
           await _abandon();
@@ -1318,7 +1343,7 @@ class CollectCardPaymentViewModel extends ChangeNotifier {
         _declined(e);
         return;
       }
-      if (_abandoned) return;
+      if (_abandoned || generation != _generation) return;
       if (_disposed) {
         await _abandon();
         return;
@@ -1443,7 +1468,15 @@ class CollectCardPaymentViewModel extends ChangeNotifier {
 
   /// "Try another card": the same PaymentIntent, read again — on a new
   /// payment session when the old one ended without a charge.
-  Future<void> tryAnotherCard() async {
+  Future<void> tryAnotherCard() {
+    if (_stage != CollectStage.declined || _intent == null) {
+      return Future<void>.value();
+    }
+    if (_payingAnotherWay) return Future<void>.value();
+    return _running = _tryAnotherCard();
+  }
+
+  Future<void> _tryAnotherCard() async {
     final intent = _intent;
     if (_stage != CollectStage.declined || intent == null) return;
     if (_payingAnotherWay) return;
@@ -1456,6 +1489,11 @@ class CollectCardPaymentViewModel extends ChangeNotifier {
     }
     _problem = null;
     _reads = 0;
+    // The next card is a new story: no receipt for the last one's decline
+    // once another is being read.
+    _chargeDeclined = false;
+    _declineReceipt = DeclineReceiptState.idle;
+    _declineReceiptProblem = null;
     // The PaymentIntent still carries the surcharge the last card was told
     // about; whoever presents the next card is told again.
     _noticeAgain = (_finalized?.surcharge ?? Decimal.zero) > Decimal.zero;
@@ -1478,7 +1516,7 @@ class CollectCardPaymentViewModel extends ChangeNotifier {
           paymentIntentId,
           invoiceId: _invoice.id,
         );
-        if (_settle(result)) return;
+        if (_settle(result, paymentIntentId)) return;
         if (result.status == 'requires_payment_method' &&
             (_abandoned || _intent?.paymentIntentId != paymentIntentId)) {
           // Not charged, and nobody is taking another card on it: close it.
@@ -1532,9 +1570,12 @@ class CollectCardPaymentViewModel extends ChangeNotifier {
   }
 
   /// Maps a `complete` / `cancel` answer; false when it says nothing final.
-  bool _settle(TerminalCompletion result) {
+  ///
+  /// [paymentIntentId] is the one the answer is about — the pending record
+  /// cleared is that payment's, never whichever the screen holds by now.
+  bool _settle(TerminalCompletion result, [String? paymentIntentId]) {
     _completion = result;
-    final pi = _paymentIntentId;
+    final pi = paymentIntentId ?? _paymentIntentId;
     if (pi != null && TerminalController.isFinalCompletion(result.status)) {
       unawaited(_terminal.clearPending(pi));
     }
@@ -1595,7 +1636,12 @@ class CollectCardPaymentViewModel extends ChangeNotifier {
 
   /// Gives up before any charge: the reader stops, and the server cancels
   /// the PaymentIntent.
-  Future<void> _abandon() async {
+  Future<void> _abandon() => _abandoning ??= _giveUp();
+
+  /// The one [_abandon] of this collection, until its cancel is answered.
+  Future<void>? _abandoning;
+
+  Future<void> _giveUp() async {
     if (_abandoned) return;
     _abandoned = true;
     _session?.cancel();
@@ -1612,6 +1658,7 @@ class CollectCardPaymentViewModel extends ChangeNotifier {
     String paymentIntentId, {
     required bool afterConfirm,
   }) async {
+    final generation = _generation;
     for (var attempt = 0; attempt < 3; attempt++) {
       try {
         final result = await _repo.cancel(
@@ -1619,15 +1666,28 @@ class CollectCardPaymentViewModel extends ChangeNotifier {
           paymentIntentId,
           invoiceId: _invoice.id,
         );
-        if (_settle(result)) return;
+        if (generation != _generation) {
+          // A newer collection has the screen: only this payment's own
+          // crash record is touched.
+          if (TerminalController.isFinalCompletion(result.status)) {
+            unawaited(_terminal.clearPending(paymentIntentId));
+          }
+          return;
+        }
+        if (result.status == 'canceled' || result.status == 'failed') {
+          _cancelConfirmed = true;
+        }
+        if (_settle(result, paymentIntentId)) return;
         // Stripe wouldn't cancel it (a charge in flight): it's a check now.
         _stage = CollectStage.checking;
         _notify();
         return;
       } catch (e) {
+        if (generation != _generation) return;
         if (attempt < 2) await Future<void>.delayed(pollDelay);
       }
     }
+    if (generation != _generation) return;
     // The server cancels it after 20 minutes if nobody does. Before a
     // confirm, the card wasn't charged; after one, nobody knows yet.
     _log.warning('could not cancel $paymentIntentId');
@@ -1651,9 +1711,6 @@ class CollectCardPaymentViewModel extends ChangeNotifier {
   bool get canPayAnotherWay =>
       _stage == CollectStage.declined || _stage == CollectStage.cancelled;
 
-  /// The fallback's cancel of the PaymentIntent, still on its way.
-  Future<void>? _fallbackCancel;
-
   /// Opens "Pay another way": the customer pays the invoice online, so the
   /// PaymentIntent is cancelled in the background (the invoice is then free
   /// for the portal's own payment). If the card turns out to have been
@@ -1663,7 +1720,7 @@ class CollectCardPaymentViewModel extends ChangeNotifier {
     _payingAnotherWay = true;
     if (_stage == CollectStage.declined) {
       // [_abandon] says "cancelled" at once, and closes the PaymentIntent.
-      _fallbackCancel = _abandon();
+      unawaited(_abandon());
     }
     _notify();
   }
@@ -1671,19 +1728,32 @@ class CollectCardPaymentViewModel extends ChangeNotifier {
   /// "Back to Tap to Pay on iPhone" (or the card reader) is getting a new
   /// collection ready.
   bool get restarting => _restarting;
+
+  /// Back from "Pay another way" found the invoice changed (a deposit paid
+  /// online, say): the amount is its new one, shown to be checked — nothing
+  /// is collected until a fresh press.
+  bool get invoiceChanged => _invoiceChanged;
+  bool _invoiceChanged = false;
+
+  /// Back from "Pay another way" couldn't fetch the invoice again: the
+  /// checkout says to check the amount, and waits for a fresh press.
+  bool get invoiceUnchecked => _invoiceUnchecked;
+  bool _invoiceUnchecked = false;
   bool _restarting = false;
 
-  /// Back from "Pay another way": once the cancel has been answered, the
-  /// invoice is fetched again (the customer may have paid online), the
-  /// figures are quoted again, and a new collection starts — its own
-  /// `collection_id`, its own PaymentIntent. An invoice that was paid
-  /// meanwhile stops here and says so.
+  /// Back from "Pay another way": once everything the old collection had on
+  /// its way has been answered ([_inFlight]), the invoice is fetched again
+  /// (the customer may have paid online), the figures are quoted again, and
+  /// a new collection starts — its own `collection_id`, its own
+  /// PaymentIntent. An invoice that was paid meanwhile stops here and says
+  /// so; one that changed at all (a deposit paid) stops on the checkout at
+  /// its new amount, for a fresh press.
   Future<void> backToReader() async {
     if (!_payingAnotherWay || _restarting) return;
     _restarting = true;
     _notify();
     try {
-      await _fallbackCancel;
+      await _inFlight();
       if (_disposed) return;
       if (_stage != CollectStage.cancelled) {
         // The cancel found a charge (approved, recording, checking): that
@@ -1698,6 +1768,13 @@ class CollectCardPaymentViewModel extends ChangeNotifier {
         _log.warning('invoice refetch failed: ${e.runtimeType}');
       }
       if (_disposed) return;
+      final before = _invoice;
+      final changed =
+          fresh != null &&
+          (fresh.balance != before.balance ||
+              fresh.paidToDate != before.paidToDate ||
+              fresh.partial != before.partial ||
+              fresh.amount != before.amount);
       if (fresh != null) _invoice = fresh;
       if (fresh != null &&
           (fresh.isPaid || fresh.balanceOrAmount <= Decimal.zero)) {
@@ -1707,11 +1784,19 @@ class CollectCardPaymentViewModel extends ChangeNotifier {
         return;
       }
       _startOver();
-      if (amount > _invoice.balanceOrAmount) amount = defaultAmount(_invoice);
+      if (changed) {
+        // What was being collected may be what was just paid: the invoice's
+        // own amount now, and the person at the counter decides.
+        amount = defaultAmount(_invoice);
+        _invoiceChanged = true;
+      }
+      // Couldn't be fetched: nobody knows what was paid online meanwhile,
+      // so nothing is taken without a fresh press either.
+      _invoiceUnchecked = fresh == null;
       _stage = CollectStage.configure;
       _notify();
       await requote();
-      if (_disposed || _quote == null) return;
+      if (_disposed || _quote == null || changed || fresh == null) return;
       // The reader is still connected: on to the card. Otherwise the
       // checkout says what is missing, as it does on opening.
       _restarting = false;
@@ -1726,7 +1811,10 @@ class CollectCardPaymentViewModel extends ChangeNotifier {
 
   /// Forgets the collection that ended, so the next is wholly its own.
   void _startOver() {
-    _fallbackCancel = null;
+    _generation++;
+    _running = null;
+    _abandoning = null;
+    _cancelConfirmed = false;
     _intent = null;
     _session = null;
     _collected = null;
@@ -1746,6 +1834,30 @@ class CollectCardPaymentViewModel extends ChangeNotifier {
     _sheetShown = false;
     _problem = null;
     _pressPending = false;
+  }
+
+  /// Closes a PaymentIntent no collection on this screen owns (a create
+  /// answered after its collection was forgotten), touching nothing else.
+  Future<void> _cancelStray(String paymentIntentId) async {
+    try {
+      await _repo.cancel(companyId, paymentIntentId, invoiceId: _invoice.id);
+    } catch (e) {
+      // The server cancels it itself after 20 minutes.
+      _log.warning('could not cancel stray $paymentIntentId');
+    }
+  }
+
+  /// The server answered this collection's cancel `canceled` (or `failed`:
+  /// no PaymentIntent ever existed): the card was not charged, for certain.
+  bool _cancelConfirmed = false;
+
+  /// Everything the collection that ended still has on its way: its run (a
+  /// create, a reader that stops) and its cancel.
+  Future<void> _inFlight() async {
+    try {
+      await _running;
+    } catch (_) {}
+    await _abandoning;
   }
 
   // ------------------------------------------------------------- receipt
@@ -1805,12 +1917,20 @@ class CollectCardPaymentViewModel extends ChangeNotifier {
     }
   }
 
-  /// Before a payment is entered by hand from "Pay another way": the
-  /// fallback's cancel has been answered, and found no charge — false when
-  /// it turned one up (the server's answer then has the screen).
+  /// Before a payment is entered by hand from "Pay another way": true only
+  /// once the server has answered the cancel `canceled` — false when it
+  /// turned up a charge (that answer then has the screen), and false while
+  /// nobody knows (every attempt failed), when it may be asked again.
   Future<bool> settledWithoutCharge() async {
-    await _fallbackCancel;
-    return !_disposed && _stage == CollectStage.cancelled;
+    await _inFlight();
+    if (_disposed || _stage != CollectStage.cancelled) return false;
+    final pi = _intent?.paymentIntentId;
+    // Nothing was ever created, or the server said `canceled`.
+    if (pi == null || _cancelConfirmed) return true;
+    // The cancel was never answered: asked again, and still only its
+    // answer counts.
+    await (_abandoning = _cancelPaymentIntent(pi, afterConfirm: false));
+    return !_disposed && _stage == CollectStage.cancelled && _cancelConfirmed;
   }
 
   bool get sendingReceipt => _sendingReceipt;

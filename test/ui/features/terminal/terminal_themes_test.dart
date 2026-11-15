@@ -239,8 +239,39 @@ void main() {
       onRetry: () {},
       onDone: () {},
       onOpenInvoices: () {},
+      // Ready with nothing to pay online through: its note too.
+      onOpenPaymentSettings: stage == TapToPayEnableStage.ready ? () {} : null,
       onOpenSettings: settings ? () {} : null,
     );
+
+    testWidgets('Ready says so when no invoice can be paid online, and only '
+        'then', (tester) async {
+      var opened = 0;
+      Widget ready(VoidCallback? open) => MaterialApp(
+        theme: kAllAppThemes.first.$2(),
+        localizationsDelegates: kTestLocalizationsDelegates,
+        home: TapToPayEnableView(
+          stage: TapToPayEnableStage.ready,
+          companyName: 'Acme',
+          steps: all,
+          doneSteps: all,
+          onStart: () {},
+          onRetry: () {},
+          onDone: () {},
+          onOpenInvoices: () {},
+          onOpenPaymentSettings: open,
+        ),
+      );
+      await tester.pumpWidget(ready(null));
+      await tester.pump(const Duration(seconds: 1));
+      expect(find.textContaining("can't be paid online"), findsNothing);
+
+      await tester.pumpWidget(ready(() => opened++));
+      await tester.pump(const Duration(seconds: 1));
+      expect(find.textContaining("can't be paid online"), findsOneWidget);
+      await tester.tap(find.text('Payment settings'));
+      expect(opened, 1);
+    }, variant: iOS);
 
     for (final stage in TapToPayEnableStage.values) {
       testWidgets('the enable screen: ${stage.name}', (tester) async {

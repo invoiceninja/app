@@ -263,8 +263,8 @@ class TerminalController extends ChangeNotifier {
   /// was closed, or crashed). A final answer clears the entry, as
   /// [recoverPending] does. A card that was declined with nobody watching is
   /// returned — still pending, so a notice that never reached the screen is
-  /// found again — for [settleUnseenDecline] once the user has been told
-  /// (App Review 5.12). Nothing is asked while a card is being charged.
+  /// found again — for [markDeclineTold] and [settleUnseenDecline] once the
+  /// user has been told (App Review 5.12). Nothing is asked while a card is being charged.
   ///
   /// A server from before decline answers never says `declined`: its
   /// entries wait, as before, for the invoice's own check.
@@ -292,6 +292,7 @@ class TerminalController extends ChangeNotifier {
               invoiceId: invoiceId,
               invoiceNumber: number is String ? number : '',
               paymentIntentId: e.key,
+              told: entry['told'] == true,
             ),
           );
         }
@@ -303,21 +304,35 @@ class TerminalController extends ChangeNotifier {
     return declined;
   }
 
-  /// The user was told about [decline]: its PaymentIntent is cancelled (the
-  /// invoice is free for another payment) and the entry forgotten. If the
-  /// cancel can't be sent the entry goes all the same — the notice is shown
-  /// once, and the server cancels an abandoned PaymentIntent itself.
+  /// The user has been told about [decline]: remembered on the entry, so
+  /// one whose cancel hasn't gone through yet is never told a second time.
+  Future<void> markDeclineTold(UnseenDecline decline) async {
+    final pending = _pending();
+    final entry = pending[decline.paymentIntentId];
+    if (entry is! Map) return;
+    pending[decline.paymentIntentId] = {...entry, 'told': true};
+    await _savePending(pending);
+  }
+
+  /// After the user was told about [decline]: its PaymentIntent is cancelled
+  /// (the invoice is free for another payment), and the entry is forgotten
+  /// only on a final answer — `canceled`, or `recorded` if the card turned
+  /// out charged after all. While the server says anything else (recording,
+  /// processing), or the cancel can't be sent, the entry stays: the next
+  /// sweep asks again, and tells nothing twice ([UnseenDecline.told]).
   Future<void> settleUnseenDecline(UnseenDecline decline) async {
     try {
-      await _repo.cancel(
+      final result = await _repo.cancel(
         decline.companyId,
         decline.paymentIntentId,
         invoiceId: decline.invoiceId,
       );
+      if (isFinalCompletion(result.status)) {
+        await clearPending(decline.paymentIntentId);
+      }
     } catch (e) {
       _log.fine('unseen decline cancel: ${e.runtimeType}');
     }
-    await clearPending(decline.paymentIntentId);
   }
 
   /// A `complete` answer after which nothing more will happen to the charge.
@@ -1050,6 +1065,7 @@ class UnseenDecline {
     required this.invoiceId,
     required this.invoiceNumber,
     required this.paymentIntentId,
+    this.told = false,
   });
 
   final String companyId;
@@ -1058,6 +1074,9 @@ class UnseenDecline {
   /// '' when the entry was written before the number was kept.
   final String invoiceNumber;
   final String paymentIntentId;
+
+  /// The user was already told; only its cancel is still owed.
+  final bool told;
 }
 
 /// What asking the server about an invoice's pending card payments found.

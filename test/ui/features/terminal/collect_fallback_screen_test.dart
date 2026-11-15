@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:admin/data/models/api/terminal_models.dart';
 import 'package:admin/data/models/domain/invoice.dart';
 import 'package:admin/data/models/domain/invoice_status.dart';
 import 'package:admin/data/services/api_exception.dart';
@@ -260,6 +261,121 @@ void main() {
       await h.settle(tester);
 
       expect(find.byType(QrCodeImage), findsOneWidget);
+      await h.close(tester);
+    });
+  });
+
+  group('review of 5e1821f8', () {
+    testWidgets('Cancel on a declined card stays on Cancelled', (tester) async {
+      final h = await CollectHarness.start(tester);
+      await h.drive(tester, CollectScene.declined);
+      h.repo.cancels.add(fakeCompletion('canceled'));
+
+      await tester.tap(find.text('Cancel'));
+      await h.settle(tester);
+
+      expect(find.byType(CollectCardPaymentScreen), findsOneWidget);
+      expect(h.vm.stage, CollectStage.cancelled);
+      expect(find.textContaining('Payment cancelled'), findsOneWidget);
+      await h.close(tester);
+    });
+
+    testWidgets('Enter Payment runs once however often it is pressed, and '
+        'waits busy for the cancel', (tester) async {
+      final entered = <Invoice>[];
+      final h = await CollectHarness.start(
+        tester,
+        link: false,
+        enterPayment: (context, invoice) async => entered.add(invoice),
+      );
+      await h.drive(tester, CollectScene.declined);
+      final cancel = Completer<TerminalCompletion>();
+      h.repo.cancels.add(cancel);
+      await h.openFallback(tester);
+
+      await tester.tap(find.text('Enter Payment'));
+      await tester.pump();
+      final button = find.ancestor(
+        of: find.text('Enter Payment'),
+        matching: find.byType(FilledButton),
+      );
+      expect(tester.widget<FilledButton>(button).onPressed, isNull);
+      await tester.tap(find.text('Enter Payment'), warnIfMissed: false);
+      cancel.complete(fakeCompletion('canceled'));
+      await tester.pumpAndSettle();
+
+      expect(entered, hasLength(1));
+      expect(find.text('invoice below'), findsOneWidget);
+      await h.close(tester);
+    });
+
+    testWidgets('Enter Payment stays shut while nobody knows whether the '
+        'cancel went through', (tester) async {
+      final entered = <Invoice>[];
+      final h = await CollectHarness.start(
+        tester,
+        link: false,
+        enterPayment: (context, invoice) async => entered.add(invoice),
+      );
+      await h.drive(tester, CollectScene.declined);
+      for (var i = 0; i < 6; i++) {
+        h.repo.cancels.add(const NetworkException('offline'));
+      }
+      await h.openFallback(tester);
+
+      await tester.tap(find.text('Enter Payment'));
+      await h.settle(tester);
+
+      expect(entered, isEmpty);
+      expect(find.byType(CollectCardPaymentScreen), findsOneWidget);
+      expect(find.textContaining("couldn't confirm"), findsWidgets);
+      await h.close(tester);
+    });
+
+    testWidgets('back to a changed invoice: the amount field shows the new '
+        'amount, with a note, and nothing is collected', (tester) async {
+      final h = await CollectHarness.start(tester);
+      await h.drive(tester, CollectScene.declined);
+      h.repo.cancels.add(fakeCompletion('canceled'));
+      await h.openFallback(tester);
+      h.refetched = kHarnessInvoice.copyWith(
+        balance: Decimal.fromInt(70),
+        paidToDate: Decimal.fromInt(50),
+      );
+
+      await tester.tap(find.text('Back to Tap to Pay'));
+      await h.settle(tester);
+
+      expect(h.vm.stage, CollectStage.configure);
+      expect(
+        tester.widget<TextField>(find.byType(TextField)).controller!.text,
+        '70.00',
+      );
+      expect(
+        find.text('The invoice changed. Check the amount.'),
+        findsOneWidget,
+      );
+      expect(h.repo.createdCollectionIds, hasLength(1));
+      await h.close(tester);
+    });
+
+    testWidgets('what was typed for the decline receipt survives opening the '
+        'fallback', (tester) async {
+      final h = await CollectHarness.start(tester);
+      await h.drive(tester, CollectScene.declined);
+      await tester.ensureVisible(find.text(declineReceipt));
+      await tester.tap(find.text(declineReceipt));
+      await tester.pump();
+      await tester.enterText(find.byType(TextField), 'other@example.com');
+      h.repo.cancels.add(fakeCompletion('canceled'));
+      h.vm.payAnotherWay();
+      await h.settle(tester);
+
+      expect(find.byType(QrCodeImage), findsOneWidget);
+      expect(
+        tester.widget<TextField>(find.byType(TextField)).controller!.text,
+        'other@example.com',
+      );
       await h.close(tester);
     });
   });

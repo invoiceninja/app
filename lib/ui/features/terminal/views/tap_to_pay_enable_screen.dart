@@ -8,6 +8,7 @@ import 'package:store_services/store_services.dart';
 import 'package:admin/app/services.dart';
 
 import 'package:admin/app/design_tokens.dart';
+import 'package:admin/domain/terminal/online_gateways.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/l10n/tap_to_pay_names.dart';
 import 'package:admin/ui/core/widgets/ltr_value.dart';
@@ -35,7 +36,14 @@ Future<void> showTapToPayEnableScreen(BuildContext context) =>
 /// Apple's terms, the education — then says it's ready. Close is quiet:
 /// setup carries on in the controller.
 class TapToPayEnableScreen extends StatefulWidget {
-  const TapToPayEnableScreen({super.key, @visibleForTesting this.viewModel});
+  const TapToPayEnableScreen({
+    super.key,
+    @visibleForTesting this.viewModel,
+    @visibleForTesting this.canPayOnline,
+  });
+
+  /// Tests answer whether the company's invoices can be paid online.
+  final Future<bool?> Function()? canPayOnline;
 
   /// Tests drive the screen with their own view model.
   final TapToPayEnableViewModel? viewModel;
@@ -84,7 +92,47 @@ class _TapToPayEnableScreenState extends State<TapToPayEnableScreen> {
   }
 
   void _onChanged() {
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    if (_vm.stage == TapToPayEnableStage.ready && !_onlineChecked) {
+      _onlineChecked = true;
+      unawaited(_checkOnline());
+    }
+    setState(() {});
+  }
+
+  /// Apple wants every merchant to have another way to be paid. Once ready,
+  /// the company's gateways are read once from Drift: when no online payment
+  /// type is on anywhere, the screen says so and points to the settings.
+  bool _onlineChecked = false;
+  bool _noOnline = false;
+
+  Future<void> _checkOnline() async {
+    // A test's own view model has no database behind it.
+    final check =
+        widget.canPayOnline ?? (widget.viewModel == null ? _readOnline : null);
+    if (check == null) return;
+    bool? payable;
+    try {
+      payable = await check();
+    } catch (_) {}
+    if (mounted && payable == false) setState(() => _noOnline = true);
+  }
+
+  Future<bool?> _readOnline() async {
+    final services = context.read<Services>();
+    final companyId = services.auth.session.value?.currentCompanyId ?? '';
+    return canTakeOnlinePayments(
+      await services.companyGateways
+          .watchPage(companyId: companyId)
+          .first
+          .timeout(const Duration(seconds: 2)),
+    );
+  }
+
+  void _openPaymentSettings() {
+    final router = GoRouter.maybeOf(context);
+    Navigator.of(context).pop();
+    router?.go('/settings/company_gateways');
   }
 
   @override
@@ -160,6 +208,7 @@ class _TapToPayEnableScreenState extends State<TapToPayEnableScreen> {
         onRetry: _vm.start,
         onDone: _close,
         onOpenInvoices: _openInvoices,
+        onOpenPaymentSettings: _noOnline ? _openPaymentSettings : null,
         onOpenSettings: _vm.needsSettings
             ? () => unawaited(_vm.terminal.platform.openSettings())
             : null,
@@ -182,6 +231,7 @@ class TapToPayEnableView extends StatelessWidget {
     this.onRetry,
     this.onDone,
     this.onOpenInvoices,
+    this.onOpenPaymentSettings,
     this.onOpenSettings,
     this.loading = false,
   });
@@ -212,6 +262,10 @@ class TapToPayEnableView extends StatelessWidget {
   final VoidCallback? onRetry;
   final VoidCallback? onDone;
   final VoidCallback? onOpenInvoices;
+
+  /// Set when no online payment type is on for the company: Ready adds a
+  /// row saying so, which opens the gateway settings.
+  final VoidCallback? onOpenPaymentSettings;
 
   @override
   Widget build(BuildContext context) {
@@ -350,6 +404,19 @@ class TapToPayEnableView extends StatelessWidget {
               'name': _name(context, 'terminal_enable_ready_body'),
             }),
           ),
+          if (onOpenPaymentSettings != null) ...[
+            const SizedBox(height: InSpacing.xl),
+            StageOptions(
+              children: [
+                StageOption(
+                  icon: Icons.info_outline,
+                  title: context.tr('terminal_payment_settings'),
+                  subtitle: context.tr('terminal_no_online_gateway'),
+                  onTap: onOpenPaymentSettings,
+                ),
+              ],
+            ),
+          ],
         ];
       case TapToPayEnableStage.askAdmin:
         return [
