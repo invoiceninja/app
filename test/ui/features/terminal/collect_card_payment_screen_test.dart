@@ -159,7 +159,7 @@ void main() {
     expect(vm.stage, CollectStage.approved);
     expect(find.text('Payment recorded'), findsOneWidget);
     expect(find.text('Send card receipt'), findsOneWidget);
-    expect(find.text('VISA •• 4242'), findsOneWidget);
+    expect(find.text('Visa •••• 4242'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

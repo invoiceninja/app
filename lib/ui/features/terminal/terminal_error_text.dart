@@ -91,6 +91,7 @@ String? terminalServerErrorKey(String code, {bool tapToPay = false}) =>
       TerminalServerError.notCollected => 'terminal_error_card_not_read',
       TerminalServerError.locationAddressRequired =>
         'terminal_server_location_address',
+      TerminalServerError.receiptLimit => 'terminal_receipt_limit',
       'collection_starting' => 'terminal_collection_starting',
       'no_gateway_for_currency' => 'terminal_no_gateway_for_currency',
       'location_needs_admin' =>
@@ -155,4 +156,35 @@ String terminalProblemText(
   return problem.message.isNotEmpty
       ? problem.message
       : tr('terminal_error_unknown');
+}
+
+/// "Visa •••• 4242": the card as a receipt names it — Stripe's brand code in
+/// the network's own spelling, and the last four digits.
+String cardLabel(String brand, String last4) => [
+  if (cardBrandName(brand).isNotEmpty) cardBrandName(brand),
+  if (last4.isNotEmpty) '•••• $last4',
+].join(' ');
+
+/// Stripe's `brand` code (`visa`, `amex`, `eftpos_au`) as the network spells
+/// itself; an unknown one in sentence case, and `unknown` as nothing.
+String cardBrandName(String brand) {
+  final code = brand.trim().toLowerCase();
+  return switch (code) {
+    '' || 'unknown' => '',
+    'visa' => 'Visa',
+    'mastercard' => 'Mastercard',
+    'amex' || 'american_express' => 'American Express',
+    'discover' => 'Discover',
+    'diners' || 'diners_club' => 'Diners Club',
+    'jcb' => 'JCB',
+    'unionpay' => 'UnionPay',
+    'interac' => 'Interac',
+    'eftpos_au' => 'eftpos',
+    'cartes_bancaires' => 'Cartes Bancaires',
+    _ =>
+      code
+          .split('_')
+          .map((w) => w.isEmpty ? w : '${w[0].toUpperCase()}${w.substring(1)}')
+          .join(' '),
+  };
 }

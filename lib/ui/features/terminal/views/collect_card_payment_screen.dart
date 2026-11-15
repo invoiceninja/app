@@ -10,9 +10,11 @@ import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/data/models/domain/client.dart';
 import 'package:admin/data/models/domain/invoice.dart';
+import 'package:admin/data/services/terminal_server_error.dart';
 import 'package:admin/domain/terminal/terminal_eligibility.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/l10n/tap_to_pay_names.dart';
+import 'package:admin/ui/core/detail/copy_entity_link.dart';
 import 'package:admin/ui/core/dialogs/confirm_action_dialog.dart';
 import 'package:admin/ui/core/utils/haptics.dart';
 import 'package:admin/ui/core/widgets/copyable_value.dart';
@@ -25,7 +27,9 @@ import 'package:admin/ui/features/terminal/tap_to_pay_icon.dart';
 import 'package:admin/ui/features/terminal/tap_to_pay_setup.dart';
 import 'package:admin/ui/features/terminal/terminal_error_text.dart';
 import 'package:admin/ui/features/terminal/view_models/collect_card_payment_view_model.dart';
+import 'package:admin/ui/features/terminal/widgets/collect_stage_layout.dart';
 import 'package:admin/ui/features/terminal/widgets/location_pre_alert.dart';
+import 'package:admin/ui/features/terminal/widgets/pay_another_way.dart';
 import 'package:admin/ui/features/terminal/widgets/reader_picker_sheet.dart';
 import 'package:admin/utils/formatting.dart';
 
@@ -37,6 +41,7 @@ Future<void> showCollectCardPaymentScreen(
   required Invoice invoice,
   Client? client,
   String groupCurrencyId = '',
+  EnterPaymentByHand? enterPayment,
 }) => Navigator.of(context, rootNavigator: true).push<void>(
   MaterialPageRoute(
     fullscreenDialog: true,
@@ -45,11 +50,18 @@ Future<void> showCollectCardPaymentScreen(
       invoice: invoice,
       client: client,
       groupCurrencyId: groupCurrencyId,
+      enterPayment: enterPayment,
       // The invoice's action is Apple's button on an iPhone (5.3).
       pressOnOpen: true,
     ),
   ),
 );
+
+/// The invoice's own Enter Payment, for "Pay another way" on an invoice
+/// that can't be paid online: called once this screen has closed, with the
+/// context under it and the invoice as it stands.
+typedef EnterPaymentByHand =
+    Future<void> Function(BuildContext context, Invoice invoice);
 
 class CollectCardPaymentScreen extends StatefulWidget {
   const CollectCardPaymentScreen({
@@ -59,8 +71,13 @@ class CollectCardPaymentScreen extends StatefulWidget {
     this.client,
     this.groupCurrencyId = '',
     this.pressOnOpen = false,
+    this.enterPayment,
     @visibleForTesting this.viewModel,
   });
+
+  /// Opens the payment editor for this invoice (the invoice's Enter Payment
+  /// action). Without one the fallback's Enter Payment is disabled.
+  final EnterPaymentByHand? enterPayment;
 
   /// Opened by the invoice's action, which on an iPhone is the Tap to Pay on
   /// iPhone button: opening presses it
@@ -132,6 +149,7 @@ class _CollectCardPaymentScreenState extends State<CollectCardPaymentScreen> {
                 clientEmail: _primaryEmail(_client),
                 chargeCurrency: _chargeCurrency,
                 enableCardPresent: _enableCardPresent,
+                refetchInvoice: _refetchInvoice,
                 pressOnOpen: widget.pressOnOpen,
               ))
           ..addListener(_onChanged)
@@ -370,30 +388,182 @@ class _CollectCardPaymentScreenState extends State<CollectCardPaymentScreen> {
     return ok ?? false;
   }
 
-  /// The payment to quote to support, with the one rule that matters.
-  List<Widget> _reference(BuildContext context) {
-    final reference = _vm.paymentReference;
-    return [
-      SizedBox(height: InSpacing.md(context)),
-      Text(
-        context.tr('terminal_dont_record_by_hand'),
-        textAlign: TextAlign.center,
-      ),
-      if (reference != null) ...[
-        const SizedBox(height: InSpacing.sm),
-        CopyableValue(
-          value: reference,
-          fillWidth: false,
-          child: Center(
-            child: LtrText(
-              context.tr('terminal_reference', {'reference': reference}),
-              style: Theme.of(context).textTheme.bodySmall,
+  /// The invoice as the server has it now: fetched into Drift, then read
+  /// from it — for a collection started again after "Pay another way".
+  Future<Invoice?> _refetchInvoice() async {
+    await _services.terminal.repository.refreshInvoice(
+      widget.companyId,
+      _vm.invoice.id,
+    );
+    return _services.invoices
+        .watch(companyId: widget.companyId, id: _vm.invoice.id)
+        .first
+        .timeout(const Duration(seconds: 2));
+  }
+
+  /// Active, non-deleted company gateways, read from Drift once as "Pay
+  /// another way" opens (bundled on login and `/refresh`, so no request; a
+  /// one-shot read, not a live watch, so the screen holds no Drift stream).
+  /// Null when it couldn't be read, which counts as having one: the portal
+  /// says so itself if it can't take a payment.
+  int? _onlineGateways;
+
+  /// "Pay another way": the customer pays the invoice online instead
+  /// (App Review 4.8). The view model decides whether it may show.
+  Future<void> _openPayAnotherWay() async {
+    int? gateways;
+    try {
+      gateways = await _services.companyGateways
+          .watchCount(companyId: widget.companyId)
+          .first
+          .timeout(const Duration(seconds: 2));
+    } catch (_) {}
+    if (!mounted) return;
+    _onlineGateways = gateways;
+    _vm.payAnotherWay();
+  }
+
+  /// The invoice's own payment link (the client portal), or '' when there
+  /// is none to offer: no invitation link, or no gateway the portal could
+  /// take the payment through. Nothing local says which gateways the portal
+  /// offers this client in this currency, so any active one counts.
+  String get _paymentLink {
+    if (_onlineGateways == 0) return '';
+    return _vm.invoice.invitations
+            .map((i) => i.link)
+            .where((l) => l.isNotEmpty)
+            .firstOrNull ??
+        '';
+  }
+
+  Future<void> _shareLink(String link, String label) async {
+    if (link.isEmpty) return;
+    await shareOrCopyLink(context, link, label: label);
+  }
+
+  /// Enter Payment, where the invoice can't be paid online: once the
+  /// fallback's cancel has found no charge, this screen closes and the
+  /// invoice's own Enter Payment takes over (its checks included).
+  Future<void> _enterPayment() async {
+    final enter = widget.enterPayment;
+    if (enter == null) return;
+    final navigator = Navigator.of(context);
+    if (!await _vm.settledWithoutCharge() || !mounted) return;
+    final invoice = _vm.invoice;
+    navigator.pop();
+    final under = navigator.context;
+    if (under.mounted) await enter(under, invoice);
+  }
+
+  /// "Send decline receipt", on the declined stage and on the fallback.
+  Widget? _declineReceipt(BuildContext context) {
+    if (!_vm.declineReceiptAvailable) return null;
+    final problem = _vm.declineReceiptProblem;
+    return DeclineReceiptForm(
+      // One form across both places: what was typed stays.
+      key: const ValueKey('decline-receipt'),
+      initialEmail: _vm.clientEmail,
+      state: _vm.declineReceipt,
+      errorText: problem == null
+          ? ''
+          : terminalProblemText(
+              problem,
+              context.tr,
+              name: (key) => tapToPayNameFor(context, key),
+              tapToPay: _vm.tapToPayOnIPhone,
             ),
-          ),
+      onSend: _vm.sendDeclineReceipt,
+    );
+  }
+
+  Widget _payAnotherWayBody(BuildContext context) {
+    final tapToPay =
+        _vm.tapToPayOnIPhone ||
+        _vm.readerChoice == TerminalReaderChoice.tapToPay;
+    final link = _paymentLink;
+    return PayAnotherWayView(
+      link: link,
+      subtitle: _invoiceContext(context),
+      backLabel: tapToPay
+          ? context.tr('terminal_back_to_tap', {
+              'name': tapToPayNameFor(context, 'terminal_back_to_tap'),
+            })
+          : context.tr('terminal_back_to_card_reader'),
+      receipt: _declineReceipt(context),
+      onShare: () => _shareLink(link, context.tr('payment_link')),
+      onDone: _close,
+      onBack: _vm.backToReader,
+      onEnterPayment: widget.enterPayment == null ? null : _enterPayment,
+    );
+  }
+
+  /// Pay another way, and the decline receipt when a charge was declined:
+  /// the rows under a declined card, or a cancelled payment.
+  List<Widget> _fallbackOptions(BuildContext context) => [
+    const SizedBox(height: InSpacing.xl),
+    StageOptions(
+      children: [
+        StageOption(
+          accent: true,
+          icon: Icons.qr_code_2,
+          title: context.tr('terminal_pay_another_way'),
+          subtitle: context.tr('terminal_pay_another_way_hint'),
+          onTap: _openPayAnotherWay,
         ),
+        ?_declineReceipt(context),
       ],
+    ),
+  ];
+
+  /// The client's name, when known here.
+  String get _clientName => _client?.displayName ?? '';
+
+  /// "Invoice 0042 · Client".
+  String _invoiceContext(BuildContext context) => [
+    if (_vm.invoice.number.isNotEmpty)
+      context.tr('terminal_for_invoice', {'number': _vm.invoice.number}),
+    if (_clientName.isNotEmpty) _clientName,
+  ].join(' · ');
+
+  /// The rows every outcome starts its details with: which invoice, whose.
+  List<Widget> _invoiceRows(BuildContext context) => [
+    if (_vm.invoice.number.isNotEmpty)
+      CollectDetailRow(label: context.tr('invoice'), value: _vm.invoice.number),
+    if (_clientName.isNotEmpty)
+      CollectDetailRow(
+        label: context.tr('client'),
+        value: _clientName,
+        isName: true,
+      ),
+  ];
+
+  /// The payment to quote to support (copyable), when there is one.
+  List<Widget> _referenceRows(BuildContext context) {
+    final reference = _vm.paymentReference;
+    if (reference == null) return const [];
+    return [
+      CollectDetailRow(
+        label: context.tr('reference'),
+        value: reference,
+        wrap: (value) =>
+            CopyableValue(value: reference, fillWidth: false, child: value),
+      ),
     ];
   }
+
+  /// The details card, or nothing when there are no rows.
+  List<Widget> _details(BuildContext context, List<Widget> rows) => [
+    if (rows.isNotEmpty) ...[
+      const SizedBox(height: InSpacing.xl),
+      CollectDetails(rows: rows),
+    ],
+  ];
+
+  /// The one rule that matters once a card may have been charged.
+  Widget _dontRecordByHand(BuildContext context) => CollectNote(
+    text: context.tr('terminal_dont_record_by_hand'),
+    tone: StageTone.warning,
+  );
 
   /// "Cancel it and start again" may stop a payment someone else is taking.
   Future<void> _cancelOpenCollection() async {
@@ -457,24 +627,32 @@ class _CollectCardPaymentScreenState extends State<CollectCardPaymentScreen> {
       child: Scaffold(
         backgroundColor: theme.surface,
         appBar: AppBar(
-          title: Text(context.tr('collect_card_payment')),
+          backgroundColor: theme.surface,
+          titleSpacing: 0,
+          title: Text(
+            context.tr('collect_card_payment'),
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+          ),
           leading: IconButton(
             icon: const Icon(Icons.close),
             tooltip: context.tr('close'),
             onPressed: _vm.locked ? null : _close,
           ),
+          actions: [
+            if (!_vm.livemode)
+              const Padding(
+                padding: EdgeInsetsDirectional.only(start: 8, end: 16),
+                child: Center(child: _TestModeBadge()),
+              ),
+          ],
         ),
         body: SafeArea(
           child: Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 480),
-              child: ListView(
-                padding: EdgeInsets.all(InSpacing.lg(context)),
-                children: [
-                  if (!_vm.livemode) _TestModeBadge(),
-                  ..._body(context),
-                ],
-              ),
+              child: _body(context),
             ),
           ),
         ),
@@ -482,134 +660,147 @@ class _CollectCardPaymentScreenState extends State<CollectCardPaymentScreen> {
     );
   }
 
-  List<Widget> _body(BuildContext context) => switch (_vm.stage) {
+  /// A stage that is only waiting on something: its spinner and words.
+  Widget _busy(String title, {String? amount, String? message}) =>
+      CollectStageLayout(
+        children: [
+          CollectStageHero(
+            tone: StageTone.accent,
+            busy: true,
+            title: title,
+            amount: amount,
+            message: message,
+          ),
+        ],
+      );
+
+  /// The screen's single way out of a finished stage.
+  StageButton _closeButton(
+    BuildContext context, {
+    StageButtonKind kind = StageButtonKind.primary,
+  }) => StageButton(
+    kind: kind,
+    label: context.tr('close'),
+    onPressed: () => Navigator.of(context).pop(),
+  );
+
+  Widget _body(BuildContext context) {
+    // Back from "Pay another way": the invoice, then the figures, again.
+    if (_vm.restarting) return _busy(context.tr('terminal_preparing'));
+    // Only ever over declined or cancelled (the view model's rule).
+    if (_vm.payingAnotherWay) return _payAnotherWayBody(context);
+    return _stageBody(context);
+  }
+
+  Widget _stageBody(BuildContext context) => switch (_vm.stage) {
     CollectStage.configure => _configure(context),
-    CollectStage.creating => [
-      _Status(text: context.tr('terminal_preparing'), busy: true),
-    ],
-    CollectStage.openCollection => [
-      _Status(text: _problemText(context)),
-      const SizedBox(height: InSpacing.xl),
-      _Buttons(
-        primary: context.tr('terminal_cancel_open'),
-        onPrimary: _cancelOpenCollection,
-        secondary: context.tr('close'),
-        onSecondary: () async => Navigator.of(context).pop(),
-      ),
-    ],
-    CollectStage.waiting => _waiting(context),
-    CollectStage.finalizing => [
-      _Total(text: _totalText()),
-      _Status(text: context.tr('terminal_checking_card'), busy: true),
-    ],
-    CollectStage.surchargeNotice => [
-      _Total(text: _totalText()),
-      _Status(
-        icon: Icons.credit_card_outlined,
-        text: context.tr('terminal_surcharge_notice', {
-          'total': _totalText(),
-          'surcharge': _money(_vm.finalized?.surcharge),
-        }),
-      ),
-      const SizedBox(height: InSpacing.xl),
-      _Buttons(
-        primary: context.tr('continue'),
-        onPrimary: () async => _vm.continueWithSurcharge(),
-        secondary: context.tr('cancel'),
-        onSecondary: _vm.cancel,
-      ),
-    ],
-    CollectStage.settling => [
-      _Status(text: context.tr('terminal_settling'), busy: true),
-    ],
-    CollectStage.processing => [
-      _Total(text: _totalText()),
-      _Status(text: context.tr('terminal_processing'), busy: true),
-    ],
-    CollectStage.declined => [
-      _Total(text: _totalText()),
-      _Status(
-        // After a reader reconnected here there is no problem left to name.
-        text: _vm.problem == null && _vm.readerState == ReaderState.ready
-            ? context.tr('terminal_reader_ready', {
-                'reader': _vm.reader?.label ?? '',
-              })
-            : _problemText(context),
-        icon: Icons.credit_card_off_outlined,
-      ),
-      const SizedBox(height: InSpacing.xl),
-      // Reconnecting a reader: nothing to try until it is back.
-      if (_vm.readerState == ReaderState.connecting)
-        _Buttons(
-          primary: context.tr('terminal_reader_connecting'),
-          onPrimary: null,
-          secondary: context.tr('cancel'),
-          onSecondary: _close,
-        )
-      // The reader went away mid-collection: connect one before trying.
-      else if (_vm.readerState == ReaderState.needsReader)
-        _Buttons(
-          primary: context.tr('terminal_connect_reader'),
-          onPrimary: _pickReader,
-          secondary: context.tr('cancel'),
-          onSecondary: _close,
-        )
-      else
-        _Buttons(
-          primary: context.tr(switch (_vm.problem?.code) {
-            TerminalErrorCode.declined ||
-            TerminalErrorCode.cardNotRead ||
-            TerminalErrorCode.pinUnavailable => 'terminal_try_another_card',
-            _ => 'terminal_try_again',
-          }),
-          onPrimary: _vm.tryAnotherCard,
-          secondary: context.tr('cancel'),
-          onSecondary: _close,
+    CollectStage.creating => _busy(context.tr('terminal_preparing')),
+    CollectStage.openCollection => CollectStageLayout(
+      actions: [
+        StageButtonPair(
+          secondary: _closeButton(context, kind: StageButtonKind.outlined),
+          primary: StageButton(
+            label: context.tr('terminal_cancel_open'),
+            onPressed: _cancelOpenCollection,
+          ),
         ),
-    ],
+      ],
+      children: [
+        CollectStageHero(
+          tone: StageTone.warning,
+          icon: Icons.sync_problem_outlined,
+          message: _problemText(context),
+        ),
+        ..._details(context, _invoiceRows(context)),
+      ],
+    ),
+    CollectStage.waiting => _waiting(context),
+    CollectStage.finalizing => _busy(
+      context.tr('terminal_checking_card'),
+      amount: _totalText(),
+    ),
+    CollectStage.surchargeNotice => CollectStageLayout(
+      actions: [
+        StageButtonPair(
+          secondary: StageButton(
+            kind: StageButtonKind.outlined,
+            label: context.tr('cancel'),
+            onPressed: _vm.cancel,
+          ),
+          primary: StageButton(
+            label: context.tr('continue'),
+            onPressed: () async => _vm.continueWithSurcharge(),
+          ),
+        ),
+      ],
+      children: [
+        CollectStageHero(
+          tone: StageTone.accent,
+          icon: Icons.credit_card_outlined,
+          amount: _totalText(),
+          message: context.tr('terminal_surcharge_notice', {
+            'total': _totalText(),
+            'surcharge': _money(_vm.finalized?.surcharge),
+          }),
+        ),
+      ],
+    ),
+    CollectStage.settling => _busy(context.tr('terminal_settling')),
+    CollectStage.processing => _busy(
+      context.tr('terminal_processing'),
+      amount: _totalText(),
+    ),
+    CollectStage.declined => _declined(context),
     CollectStage.approved => _approved(context),
-    CollectStage.recording => [
-      ..._pending(context, context.tr('terminal_recording')),
-      ..._reference(context),
-    ],
-    CollectStage.checking => [
-      ..._pending(context, context.tr('terminal_checking_help')),
-      ..._reference(context),
-      const SizedBox(height: InSpacing.sm),
-      Center(
+    CollectStage.recording => _pending(
+      context,
+      context.tr('terminal_recording'),
+    ),
+    CollectStage.checking => _pending(
+      context,
+      context.tr('terminal_checking_help'),
+      extra: Center(
         child: TextButton(
           onPressed: _vm.cancelUnconfirmed,
           child: Text(context.tr('terminal_cancel_payment')),
         ),
       ),
-    ],
-    CollectStage.unrecorded => [
-      _Status(
-        text: context.tr('terminal_unrecorded'),
-        icon: Icons.report_outlined,
-      ),
-      ..._reference(context),
-      const SizedBox(height: InSpacing.xl),
-      _Buttons(
-        primary: context.tr('close'),
-        onPrimary: () async => Navigator.of(context).pop(),
-      ),
-    ],
-    CollectStage.cancelled => [
-      _Status(
-        text: context.tr('terminal_cancelled'),
-        icon: Icons.block_outlined,
-      ),
-      if (_vm.problem != null) ...[
-        const SizedBox(height: InSpacing.sm),
-        Text(_problemText(context), textAlign: TextAlign.center),
+    ),
+    // Charged: never a fallback or a decline receipt here — the card was
+    // taken, and only support can settle it.
+    CollectStage.unrecorded => CollectStageLayout(
+      actions: [_closeButton(context)],
+      children: [
+        CollectStageHero(
+          tone: StageTone.warning,
+          icon: Icons.report_outlined,
+          title: context.tr('terminal_unrecorded_title'),
+          amount: _vm.finalized == null ? null : _totalText(),
+          message: context.tr('terminal_unrecorded'),
+        ),
+        ..._details(context, [
+          ..._invoiceRows(context),
+          ..._referenceRows(context),
+        ]),
+        const SizedBox(height: 16),
+        _dontRecordByHand(context),
       ],
-      const SizedBox(height: InSpacing.xl),
-      _Buttons(
-        primary: context.tr('close'),
-        onPrimary: () async => Navigator.of(context).pop(),
-      ),
-    ],
+    ),
+    CollectStage.cancelled => CollectStageLayout(
+      actions: [_closeButton(context)],
+      children: [
+        CollectStageHero(
+          icon: Icons.block_outlined,
+          title: context.tr('terminal_cancelled'),
+          message: _vm.problem == null ? null : _problemText(context),
+        ),
+        ..._details(context, _invoiceRows(context)),
+        // Not charged: the customer can still pay another way — unless the
+        // invoice turned out to be paid already.
+        if (_vm.problem?.serverCode != TerminalServerError.alreadyPaid)
+          ..._fallbackOptions(context),
+      ],
+    ),
   };
 
   String _problemText(BuildContext context) {
@@ -638,161 +829,307 @@ class _CollectCardPaymentScreenState extends State<CollectCardPaymentScreen> {
     return _money(_vm.quote?.total ?? _vm.amount);
   }
 
-  List<Widget> _configure(BuildContext context) {
+  /// What is owed on the invoice: its deposit while one is due, else its
+  /// balance (a draft's amount).
+  String _dueLine(BuildContext context) {
+    final invoice = _vm.invoice;
+    final deposit =
+        invoice.partial > Decimal.zero &&
+        invoice.partial < invoice.balanceOrAmount;
+    return '${context.tr(deposit ? 'partial_due' : 'balance_due')} '
+        '${_money(deposit ? invoice.partial : invoice.balanceOrAmount)}';
+  }
+
+  /// The checkout: the amount is the hero — large, centred, edited where it
+  /// stands — with which invoice above it, what the customer pays and where
+  /// the reader stands below, and the one button pinned at the bottom.
+  Widget _configure(BuildContext context) {
     final quote = _vm.quote;
-    final surchargeShown = _vm.applySurcharge && quote != null;
-    return [
-      Text(
-        context.tr('terminal_for_invoice', {'number': widget.invoice.number}),
-        style: Theme.of(context).textTheme.titleMedium,
-      ),
-      if (widget.invoice.isDraft) ...[
-        const SizedBox(height: InSpacing.xs),
-        Text(context.tr('terminal_draft_marked_sent')),
-      ],
-      const SizedBox(height: InSpacing.sm),
-      FormSaveScope(
-        onSubmit: _setAmount,
-        child: Focus(
-          onFocusChange: (focused) {
-            if (!focused) _setAmount();
-          },
-          child: TextField(
-            controller: _amount,
-            decoration: InputDecoration(labelText: context.tr('amount')),
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            textInputAction: TextInputAction.done,
-            // No press held, or under way, charges what was there before
-            // this edit: a fresh press commits it first.
-            onChanged: (_) => _vm.amountEdited(),
-            onSubmitted: (_) => _setAmount(),
-          ),
-        ),
-      ),
-      if (_vm.surchargeUnavailable) ...[
-        const SizedBox(height: InSpacing.sm),
-        Text(
-          context.tr('terminal_surcharge_unavailable_ttp', {
-            'name': tapToPayNameFor(
-              context,
-              'terminal_surcharge_unavailable_ttp',
-            ),
-          }),
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
-      ],
-      if (_vm.surchargeNeedsAcknowledgement) ...[
-        const SizedBox(height: InSpacing.sm),
-        if (_vm.isAdmin)
-          Align(
-            alignment: AlignmentDirectional.centerStart,
-            child: TextButton(
-              onPressed: _acknowledgeSurcharge,
-              child: Text(context.tr('terminal_surcharge_set_up')),
+    final surcharged =
+        _vm.applySurcharge && quote != null && quote.feeGross > Decimal.zero;
+    final text = Theme.of(context).textTheme;
+    final tokens = context.inTheme;
+    final quiet = text.bodySmall?.copyWith(
+      fontSize: 13,
+      color: tokens.ink3,
+      height: 1.4,
+    );
+    final underline = UnderlineInputBorder(
+      borderSide: BorderSide(color: tokens.borderStrong, width: 1.5),
+    );
+    // Tap to Pay on iPhone says nothing until a press asks for something.
+    final Widget? status = _vm.tapToPayOnIPhone
+        ? (_vm.readerState == ReaderState.idle ||
+                  _vm.readerState == ReaderState.needsReader
+              ? null
+              // Its own progress, from the same events (3.9.1).
+              : _TapToPayRow(
+                  vm: _vm,
+                  progress: _vm.terminal.setupProgress,
+                  onRetry: _pressTapToPay,
+                ))
+        : _updateProgress != null
+        ? Semantics(
+            liveRegion: true,
+            child: _StatusCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  StatusLine(
+                    tone: StageTone.accent,
+                    text: context.tr(
+                      isIPhonePlatform()
+                          ? 'terminal_reader_updating_ios'
+                          : 'terminal_reader_updating',
+                      {'percent': '${(_updateProgress! * 100).round()}'},
+                    ),
+                  ),
+                  const SizedBox(height: InSpacing.sm),
+                  StageProgress(value: _updateProgress),
+                ],
+              ),
             ),
           )
+        : _ReaderRow(vm: _vm, onPickReader: _pickReader);
+    return CollectStageLayout(
+      actions: [
+        if (_vm.tapToPayOnIPhone)
+          // Apple's button: its name and symbol, never greyed out, pinned
+          // where it is on screen whatever the form holds — the screen's
+          // first choice (App Review 5.1–5.5). A press does what is missing,
+          // then the next one takes the card.
+          StageButton(
+            onPressed: _pressTapToPay,
+            icon: const TapToPayIcon(size: 24),
+            label: tapToPayName(context),
+          )
         else
-          Text(context.tr('terminal_surcharge_ask_admin')),
-      ],
-      if (_vm.surchargeOffered)
-        SwitchListTile(
-          contentPadding: EdgeInsets.zero,
-          value: _vm.applySurcharge,
-          onChanged: _vm.setSurcharge,
-          title: Text(_surchargeLabel(context)),
-          subtitle: Text(context.tr('terminal_surcharge_credit_only')),
-        ),
-      if (_vm.surchargeRefusal case final reason?)
-        Text(
-          context.tr(switch (reason) {
-            'region' => 'terminal_surcharge_refused_region',
-            'adjust_fee_percent' => 'terminal_surcharge_refused_adjust',
-            'over_cap' => 'terminal_surcharge_refused_cap',
-            _ => 'terminal_surcharge_refused_invoice',
-          }),
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
-      const SizedBox(height: InSpacing.sm),
-      if (quote != null)
-        Semantics(
-          liveRegion: true,
-          child: Text(
-            surchargeShown && quote.feeGross > Decimal.zero
-                ? context.tr('terminal_customer_pays_surcharge', {
-                    'total': _money(quote.total),
-                    'amount': _money(quote.amount),
-                  })
-                : context.tr('terminal_customer_pays', {
-                    'total': _money(quote.total),
-                  }),
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
-        )
-      else if (_vm.quoting || _vm.starting)
-        const LinearProgressIndicator()
-      // Nothing to quote with until the press sets Card present or Stripe
-      // up (iPhone).
-      else if (_vm.cardPresentOff || _vm.needsStripe)
-        const SizedBox.shrink()
-      else
-        Align(
-          alignment: AlignmentDirectional.centerStart,
-          child: TextButton(
-            onPressed: _vm.retry,
-            child: Text(context.tr('retry')),
-          ),
-        ),
-      SizedBox(height: InSpacing.md(context)),
-      // Its own progress, from the same events (3.9.1).
-      if (_vm.tapToPayOnIPhone)
-        _TapToPayRow(
-          vm: _vm,
-          progress: _vm.terminal.setupProgress,
-          onRetry: _pressTapToPay,
-        )
-      else if (_updateProgress != null)
-        Semantics(
-          liveRegion: true,
-          child: Text(
-            context.tr(
-              isIPhonePlatform()
-                  ? 'terminal_reader_updating_ios'
-                  : 'terminal_reader_updating',
-              {'percent': '${(_updateProgress! * 100).round()}'},
-            ),
-          ),
-        )
-      else
-        _ReaderRow(vm: _vm, onPickReader: _pickReader),
-      if (_vm.problem != null && _vm.readerState != ReaderState.failed) ...[
-        const SizedBox(height: InSpacing.sm),
-        Text(
-          _problemText(context),
-          style: TextStyle(color: Theme.of(context).colorScheme.error),
-        ),
-      ],
-      const SizedBox(height: InSpacing.xl),
-      if (_vm.tapToPayOnIPhone)
-        // Apple's button: its name and symbol, never greyed out, top of the
-        // screen's choices (App Review 5.1–5.5). A press does what is
-        // missing, then the next one takes the card.
-        FilledButton.icon(
-          onPressed: _pressTapToPay,
-          icon: const TapToPayIcon(size: 22),
-          label: Text(tapToPayName(context)),
-        )
-      else
-        FilledButton(
-          onPressed: _vm.canCollect ? _collect : null,
-          child: Text(
-            quote == null
+          StageButton(
+            onPressed: _vm.canCollect ? _collect : null,
+            label: quote == null
                 ? context.tr('collect_card_payment')
                 : context.tr('terminal_collect_amount', {
                     'amount': _money(quote.total),
                   }),
           ),
+      ],
+      children: [
+        LtrText(
+          _invoiceContext(context),
+          keepRtlScript: true,
+          textAlign: TextAlign.center,
+          style: text.bodyLarge?.copyWith(
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+            color: tokens.ink,
+          ),
         ),
-    ];
+        const SizedBox(height: 2),
+        LtrText(_dueLine(context), textAlign: TextAlign.center, style: quiet),
+        const SizedBox(height: InSpacing.xl),
+        Text(
+          context.tr('amount').toUpperCase(),
+          textAlign: TextAlign.center,
+          style: text.labelSmall?.copyWith(
+            color: tokens.ink3,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.8,
+          ),
+        ),
+        Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minWidth: 168),
+            child: IntrinsicWidth(
+              child: FormSaveScope(
+                onSubmit: _setAmount,
+                child: Focus(
+                  onFocusChange: (focused) {
+                    if (!focused) _setAmount();
+                  },
+                  child: Semantics(
+                    label: context.tr('amount'),
+                    child: TextField(
+                      controller: _amount,
+                      textAlign: TextAlign.center,
+                      // A figure reads left-to-right in every language.
+                      textDirection: TextDirection.ltr,
+                      cursorColor: tokens.accent,
+                      decoration: InputDecoration(
+                        isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 6,
+                        ),
+                        border: underline,
+                        enabledBorder: underline,
+                        focusedBorder: UnderlineInputBorder(
+                          borderSide: BorderSide(
+                            color: tokens.accent,
+                            width: 2,
+                          ),
+                        ),
+                      ),
+                      style: text.displayMedium?.copyWith(
+                        fontSize: 48,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: -1.5,
+                        height: 1.15,
+                      ),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      textInputAction: TextInputAction.done,
+                      // No press held, or under way, charges what was there
+                      // before this edit: a fresh press commits it first.
+                      onChanged: (_) => _vm.amountEdited(),
+                      onSubmitted: (_) => _setAmount(),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        // What the customer pays: one quiet line while it is the amount
+        // above, a breakdown once a surcharge makes it differ.
+        if (quote != null)
+          Semantics(
+            liveRegion: true,
+            child: Text(
+              surcharged
+                  ? context.tr('terminal_customer_pays_surcharge', {
+                      'total': _money(quote.total),
+                      'amount': _money(quote.amount),
+                    })
+                  : context.tr('terminal_customer_pays', {
+                      'total': _money(quote.total),
+                    }),
+              textAlign: TextAlign.center,
+              style: text.bodyMedium?.copyWith(
+                fontSize: 15,
+                color: tokens.ink2,
+              ),
+            ),
+          )
+        else if (_vm.quoting || _vm.starting)
+          const Center(
+            child: SizedBox(
+              width: 120,
+              child: LinearProgressIndicator(minHeight: 2),
+            ),
+          )
+        // Nothing to quote with until the press sets Card present or Stripe
+        // up (iPhone).
+        else if (!(_vm.cardPresentOff || _vm.needsStripe))
+          Center(
+            child: TextButton(
+              onPressed: _vm.retry,
+              child: Text(context.tr('retry')),
+            ),
+          ),
+        if (_vm.invoice.isDraft) ...[
+          const SizedBox(height: InSpacing.sm),
+          Text(
+            context.tr('terminal_draft_marked_sent'),
+            textAlign: TextAlign.center,
+            style: quiet,
+          ),
+        ],
+        if (_vm.surchargeUnavailable) ...[
+          const SizedBox(height: InSpacing.sm),
+          Text(
+            context.tr('terminal_surcharge_unavailable_ttp', {
+              'name': tapToPayNameFor(
+                context,
+                'terminal_surcharge_unavailable_ttp',
+              ),
+            }),
+            textAlign: TextAlign.center,
+            style: quiet,
+          ),
+        ],
+        if (surcharged) ...[
+          const SizedBox(height: 16),
+          CollectDetails(
+            rows: [
+              CollectDetailRow(
+                label: context.tr('amount'),
+                value: _money(quote.amount),
+              ),
+              CollectDetailRow(
+                label: context.tr('surcharge'),
+                value: _money(quote.feeGross),
+              ),
+              CollectDetailRow(
+                label: context.tr('total'),
+                value: _money(quote.total),
+                strong: true,
+              ),
+            ],
+          ),
+        ],
+        if (_vm.surchargeNeedsAcknowledgement) ...[
+          const SizedBox(height: InSpacing.sm),
+          if (_vm.isAdmin)
+            Center(
+              child: TextButton(
+                onPressed: _acknowledgeSurcharge,
+                child: Text(context.tr('terminal_surcharge_set_up')),
+              ),
+            )
+          else
+            Text(
+              context.tr('terminal_surcharge_ask_admin'),
+              textAlign: TextAlign.center,
+              style: quiet,
+            ),
+        ],
+        if (_vm.surchargeOffered) ...[
+          const SizedBox(height: 16),
+          Material(
+            color: tokens.surfaceAlt,
+            clipBehavior: Clip.antiAlias,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(InRadii.r3),
+              side: BorderSide(color: tokens.border),
+            ),
+            child: SwitchListTile(
+              contentPadding: const EdgeInsetsDirectional.only(
+                start: 16,
+                end: 8,
+              ),
+              value: _vm.applySurcharge,
+              onChanged: _vm.setSurcharge,
+              title: Text(_surchargeLabel(context)),
+              subtitle: Text(context.tr('terminal_surcharge_credit_only')),
+            ),
+          ),
+        ],
+        if (_vm.surchargeRefusal case final reason?) ...[
+          const SizedBox(height: InSpacing.sm),
+          Text(
+            context.tr(switch (reason) {
+              'region' => 'terminal_surcharge_refused_region',
+              'adjust_fee_percent' => 'terminal_surcharge_refused_adjust',
+              'over_cap' => 'terminal_surcharge_refused_cap',
+              _ => 'terminal_surcharge_refused_invoice',
+            }),
+            textAlign: TextAlign.center,
+            style: quiet,
+          ),
+        ],
+        if (status != null) ...[const SizedBox(height: InSpacing.xl), status],
+        if (_vm.problem != null && _vm.readerState != ReaderState.failed) ...[
+          const SizedBox(height: 16),
+          CollectNote(
+            tone: StageTone.danger,
+            icon: Icons.error_outline,
+            text: _problemText(context),
+          ),
+        ],
+      ],
+    );
   }
 
   /// "Add credit card surcharge (3%)", or without the figure when the fee
@@ -809,123 +1146,217 @@ class _CollectCardPaymentScreenState extends State<CollectCardPaymentScreen> {
     return context.tr('terminal_add_surcharge', {'percent': text});
   }
 
-  List<Widget> _waiting(BuildContext context) {
+  Widget _waiting(BuildContext context) {
     final message = _readerMessage;
     final tapToPay = _vm.reader?.kind == TerminalReaderKind.tapToPay;
     final finalized = _vm.finalized;
     final again = _vm.readAgain && finalized != null;
     final iPhone = _vm.tapToPayOnIPhone;
-    return [
-      _Total(text: _totalText()),
-      _Status(
-        // Apple's symbol on iOS, never the Material one (App Review 5.5).
-        icon: isIPhonePlatform() ? null : Icons.contactless_outlined,
-        leading: iPhone ? const TapToPayIcon(size: 48) : null,
-        text: again
-            ? (finalized.surcharge > Decimal.zero
-                  ? context.tr('terminal_tap_again_surcharge', {
-                      'amount': _money(finalized.amount),
-                    })
-                  : context.tr('terminal_tap_again'))
-            : message != null
-            ? context.tr(_readerMessageKey(message))
-            : context.tr(
-                iPhone
-                    ? 'terminal_hold_card_iphone'
-                    : tapToPay
-                    ? 'terminal_hold_card'
-                    : 'terminal_present_card',
-              ),
-      ),
-      const SizedBox(height: InSpacing.xl),
-      _Buttons(
-        primary: context.tr('cancel'),
-        onPrimary: _vm.cancel,
-        tonal: true,
-      ),
-    ];
+    return CollectStageLayout(
+      actions: [
+        StageButton(
+          kind: StageButtonKind.outlined,
+          label: context.tr('cancel'),
+          onPressed: _vm.cancel,
+        ),
+      ],
+      children: [
+        CollectStageHero(
+          tone: StageTone.accent,
+          // Apple's symbol on iOS, as drawn; never the Material contactless
+          // icon there (App Review 5.5).
+          symbol: iPhone ? const TapToPayIcon(size: 40) : null,
+          icon: isIPhonePlatform()
+              ? Icons.credit_card_outlined
+              : Icons.contactless_outlined,
+          title: again
+              ? (finalized.surcharge > Decimal.zero
+                    ? context.tr('terminal_tap_again_surcharge', {
+                        'amount': _money(finalized.amount),
+                      })
+                    : context.tr('terminal_tap_again'))
+              : message != null
+              ? context.tr(_readerMessageKey(message))
+              : context.tr(
+                  iPhone
+                      ? 'terminal_hold_card_iphone'
+                      : tapToPay
+                      ? 'terminal_hold_card'
+                      : 'terminal_present_card',
+                ),
+          amount: _totalText(),
+        ),
+      ],
+    );
   }
 
-  List<Widget> _approved(BuildContext context) {
+  /// After a decline: a calm outcome — the customer wasn't charged — then
+  /// another card (primary, beside the way out), and the other ways on as
+  /// rows no one has to hunt for: pay another way, a decline receipt.
+  Widget _declined(BuildContext context) {
+    final connecting = _vm.readerState == ReaderState.connecting;
+    final cancel = StageButton(
+      kind: StageButtonKind.outlined,
+      label: context.tr('cancel'),
+      onPressed: _close,
+    );
+    final primary = connecting
+        // Reconnecting a reader: nothing to try until it is back.
+        ? StageButton(
+            label: context.tr('terminal_reader_connecting'),
+            onPressed: null,
+          )
+        // The reader went away mid-collection: connect one before trying.
+        : _vm.readerState == ReaderState.needsReader
+        ? StageButton(
+            label: context.tr('terminal_connect_reader'),
+            onPressed: _pickReader,
+          )
+        : StageButton(
+            label: context.tr(switch (_vm.problem?.code) {
+              TerminalErrorCode.declined ||
+              TerminalErrorCode.cardNotRead ||
+              TerminalErrorCode.pinUnavailable => 'terminal_try_another_card',
+              _ => 'terminal_try_again',
+            }),
+            onPressed: _vm.tryAnotherCard,
+          );
+    return CollectStageLayout(
+      actions: [StageButtonPair(secondary: cancel, primary: primary)],
+      children: [
+        CollectStageHero(
+          tone: StageTone.danger,
+          icon: Icons.credit_card_off_outlined,
+          title: context.tr('terminal_declined_title'),
+          amount: _totalText(),
+          caption: _invoiceContext(context),
+          // After a reader reconnected here there is no problem left to name.
+          message: _vm.problem == null && _vm.readerState == ReaderState.ready
+              ? context.tr('terminal_reader_ready', {
+                  'reader': _vm.reader?.label ?? '',
+                })
+              : _problemText(context),
+          footer: StageTag(
+            tone: StageTone.success,
+            text: context.tr('terminal_not_charged'),
+          ),
+        ),
+        // The fallback and the decline receipt, for every reader (App Review
+        // 4.8, 5.10).
+        if (!connecting) ..._fallbackOptions(context),
+      ],
+    );
+  }
+
+  Widget _approved(BuildContext context) {
     final done = _vm.completion;
+    final text = Theme.of(context).textTheme;
+    final tokens = context.inTheme;
     // What the server recorded: after a refunded surcharge, or for another
     // attempt's payment, that is not what this screen quoted.
     final charged = done != null && done.isRecorded
         ? _money(done.applied + done.unapplied)
         : _money(_vm.finalized?.amount ?? _vm.quote?.total);
-    final card = [
-      if ((done?.brand ?? '').isNotEmpty) done!.brand.toUpperCase(),
-      if ((done?.last4 ?? '').isNotEmpty) '•• ${done!.last4}',
-    ].join(' ');
+    final card = cardLabel(done?.brand ?? '', done?.last4 ?? '');
     final receiptUrl = done?.receiptUrl ?? '';
-    return [
-      _Status(
-        icon: Icons.check_circle_outline,
-        text: context.tr('terminal_approved'),
-      ),
-      _Total(text: charged),
-      if (card.isNotEmpty) Center(child: LtrText(card)),
-      if (done?.status == 'unapplied')
-        Padding(
-          padding: const EdgeInsets.only(top: InSpacing.sm),
-          child: Text(
-            context.tr('terminal_unapplied', {
-              'amount': _money(done!.unapplied),
-            }),
-            textAlign: TextAlign.center,
-          ),
-        )
-      else if (done?.invoiceBalance != null)
-        Padding(
-          padding: const EdgeInsets.only(top: InSpacing.sm),
-          child: Text(
-            context.tr('terminal_remaining_balance', {
-              'amount': _money(done!.invoiceBalance),
-            }),
-            textAlign: TextAlign.center,
-          ),
+    final finish = StageButton(
+      label: context.tr('done'),
+      onPressed: () => Navigator.of(context).pop(),
+    );
+    return CollectStageLayout(
+      actions: [
+        // The receipt's link through the share sheet (App Review 5.10's
+        // "Activity views"), beside Done.
+        if (receiptUrl.isNotEmpty)
+          StageButtonPair(
+            even: true,
+            secondary: StageButton(
+              kind: StageButtonKind.outlined,
+              label: context.tr('terminal_share_receipt'),
+              icon: Icon(Icons.adaptive.share, size: 18),
+              onPressed: () => _shareLink(receiptUrl, context.tr('receipt')),
+            ),
+            primary: finish,
+          )
+        else
+          finish,
+      ],
+      children: [
+        CollectStageHero(
+          tone: StageTone.success,
+          icon: Icons.check_rounded,
+          title: context.tr('terminal_approved'),
+          amount: charged,
+          message: done?.status == 'unapplied'
+              ? context.tr('terminal_unapplied', {
+                  'amount': _money(done!.unapplied),
+                })
+              : done?.invoiceBalance != null
+              ? context.tr('terminal_remaining_balance', {
+                  'amount': _money(done!.invoiceBalance),
+                })
+              : null,
         ),
-      const SizedBox(height: InSpacing.xl),
-      if (_vm.receiptSent)
-        Text(context.tr('terminal_receipt_sent'), textAlign: TextAlign.center)
-      else ...[
-        TextField(
-          controller: _email,
-          decoration: InputDecoration(labelText: context.tr('email')),
-          keyboardType: TextInputType.emailAddress,
-          autocorrect: false,
-          enableSuggestions: false,
-          textInputAction: TextInputAction.send,
-          onSubmitted: (_) => _sendReceipt(),
-        ),
-        const SizedBox(height: InSpacing.sm),
-        OutlinedButton(
-          onPressed: _vm.sendingReceipt ? null : _sendReceipt,
-          child: Text(context.tr('terminal_send_receipt')),
-        ),
-        if (_vm.problem != null) ...[
-          const SizedBox(height: InSpacing.sm),
-          Text(
-            _problemText(context),
-            style: TextStyle(color: Theme.of(context).colorScheme.error),
+        ..._details(context, [
+          ..._invoiceRows(context),
+          if (card.isNotEmpty)
+            CollectDetailRow(
+              label: context.tr('terminal_card'),
+              value: card,
+              leading: Icon(
+                Icons.credit_card_outlined,
+                size: 18,
+                color: tokens.ink3,
+              ),
+            ),
+        ]),
+        const SizedBox(height: InSpacing.xl),
+        // The receipt: one row — the email and Send — never a form.
+        if (_vm.receiptSent)
+          Center(
+            child: StatusLine(
+              centered: true,
+              tone: StageTone.success,
+              text: context.tr('terminal_receipt_sent'),
+            ),
+          )
+        else ...[
+          Padding(
+            padding: const EdgeInsetsDirectional.only(start: 4, bottom: 8),
+            child: Text(
+              context.tr('terminal_send_receipt'),
+              style: text.bodyMedium?.copyWith(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: tokens.ink2,
+              ),
+            ),
           ),
-        ],
-        if (_email.text.trim().isEmpty && receiptUrl.isNotEmpty) ...[
-          SizedBox(height: InSpacing.md(context)),
-          Text(
-            context.tr('terminal_scan_receipt'),
-            textAlign: TextAlign.center,
+          ReceiptEmailRow(
+            controller: _email,
+            sending: _vm.sendingReceipt,
+            onSend: _email.text.trim().isEmpty ? null : _sendReceipt,
           ),
-          const SizedBox(height: InSpacing.sm),
-          Center(child: QrCodeImage(data: receiptUrl, size: 180)),
+          if (_vm.problem != null) ...[
+            const SizedBox(height: InSpacing.sm),
+            Text(
+              _problemText(context),
+              style: TextStyle(color: tokens.overdue),
+            ),
+          ],
+          if (_email.text.trim().isEmpty && receiptUrl.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            Text(
+              context.tr('terminal_scan_receipt'),
+              textAlign: TextAlign.center,
+              style: text.bodyMedium?.copyWith(color: tokens.ink2),
+            ),
+            const SizedBox(height: InSpacing.sm),
+            Center(child: QrCodeImage(data: receiptUrl, size: 160)),
+          ],
         ],
       ],
-      const SizedBox(height: InSpacing.xl),
-      FilledButton(
-        onPressed: () => Navigator.of(context).pop(),
-        child: Text(context.tr('done')),
-      ),
-    ];
+    );
   }
 
   Future<void> _sendReceipt() async {
@@ -934,18 +1365,50 @@ class _CollectCardPaymentScreenState extends State<CollectCardPaymentScreen> {
     await _vm.sendReceipt(email);
   }
 
-  List<Widget> _pending(BuildContext context, String text) => [
+  /// Charged, or maybe: the figure, what is happening, the payment to quote
+  /// to support, and Check again.
+  Widget _pending(BuildContext context, String text, {Widget? extra}) {
     // Another attempt's payment: this screen's quote isn't its amount.
-    if (!_vm.settlingAnother) _Total(text: _totalText()),
-    _Status(text: text, icon: Icons.hourglass_top_outlined),
-    const SizedBox(height: InSpacing.xl),
-    _Buttons(
-      primary: context.tr('terminal_check_again'),
-      onPrimary: _vm.checkAgain,
-      secondary: context.tr('close'),
-      onSecondary: () async => Navigator.of(context).pop(),
-    ),
-  ];
+    final amount = _vm.settlingAnother ? null : _totalText();
+    return CollectStageLayout(
+      actions: [
+        StageButtonPair(
+          secondary: _closeButton(context, kind: StageButtonKind.outlined),
+          primary: StageButton(
+            label: context.tr('terminal_check_again'),
+            onPressed: _vm.checkAgain,
+          ),
+        ),
+      ],
+      children: [
+        CollectStageHero(
+          tone: StageTone.warning,
+          icon: Icons.hourglass_top_outlined,
+          amount: amount,
+          message: text,
+        ),
+        ..._details(context, [
+          ..._invoiceRows(context),
+          ..._referenceRows(context),
+        ]),
+        const SizedBox(height: 16),
+        _dontRecordByHand(context),
+        if (extra != null) ...[const SizedBox(height: InSpacing.sm), extra],
+      ],
+    );
+  }
+}
+
+/// A status inside the checkout: a quiet card, so a row with an action or
+/// a progress bar has edges.
+class _StatusCard extends StatelessWidget {
+  const _StatusCard({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) =>
+      CollectCard(padding: const EdgeInsets.all(12), child: child);
 }
 
 class _ReaderRow extends StatelessWidget {
@@ -1019,26 +1482,34 @@ class _ReaderRow extends StatelessWidget {
         vm.readerState == ReaderState.connecting ||
         vm.readerState == ReaderState.turningOn ||
         vm.readerState == ReaderState.permissions;
-    return Row(
-      children: [
-        Icon(
-          vm.readerState == ReaderState.ready
-              // Never the Material contactless icon on iOS (App Review 5.5).
-              ? (isIPhonePlatform()
-                    ? Icons.check_circle_outline
-                    : Icons.contactless_outlined)
-              : Icons.info_outline,
-          size: 20,
-        ),
-        const SizedBox(width: InSpacing.sm),
-        Expanded(child: Text(text)),
-        if (busy)
-          const SizedBox.square(
-            dimension: 18,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          ),
-        ?action,
-      ],
+    final tone = switch (vm.readerState) {
+      ReaderState.ready => StageTone.success,
+      ReaderState.failed => StageTone.danger,
+      ReaderState.blocked => StageTone.warning,
+      ReaderState.needsReader || ReaderState.idle => StageTone.neutral,
+      _ => StageTone.accent,
+    };
+    // Ready is one quiet line under the figures; anything with something to
+    // do or to wait for gets a row with edges.
+    if (vm.readerState == ReaderState.ready) {
+      return Center(
+        child: StatusLine(centered: true, tone: tone, text: text),
+      );
+    }
+    return _StatusCard(
+      child: StatusLine(
+        tone: tone,
+        text: text,
+        trailing: busy
+            ? const Padding(
+                padding: EdgeInsetsDirectional.only(start: 8),
+                child: SizedBox.square(
+                  dimension: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              )
+            : action,
+      ),
     );
   }
 }
@@ -1065,20 +1536,28 @@ class _TapToPayRow extends StatelessWidget {
       case ReaderState.idle || ReaderState.needsReader:
         return const SizedBox.shrink();
       case ReaderState.permissions:
-        return Text(
-          context.tr('terminal_location_prealert_title'),
-          style: Theme.of(context).textTheme.bodyMedium,
+        return Center(
+          child: StatusLine(
+            centered: true,
+            tone: StageTone.accent,
+            text: context.tr('terminal_location_prealert_title'),
+          ),
         );
       case ReaderState.turningOn:
         return Semantics(
           liveRegion: true,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(context.tr('terminal_turning_on')),
-              const SizedBox(height: InSpacing.sm),
-              const LinearProgressIndicator(),
-            ],
+          child: _StatusCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                StatusLine(
+                  tone: StageTone.accent,
+                  text: context.tr('terminal_turning_on'),
+                ),
+                const SizedBox(height: InSpacing.sm),
+                const StageProgress(value: null),
+              ],
+            ),
           ),
         );
       case ReaderState.connecting:
@@ -1086,207 +1565,98 @@ class _TapToPayRow extends StatelessWidget {
           liveRegion: true,
           child: ValueListenableBuilder<double?>(
             valueListenable: progress,
-            builder: (context, value, _) => Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  context.tr('terminal_tap_to_pay_initializing', {
-                    'name': name('terminal_tap_to_pay_initializing'),
-                  }),
-                  style: Theme.of(context).textTheme.titleSmall,
-                ),
-                const SizedBox(height: InSpacing.sm),
-                LinearProgressIndicator(value: value),
-                if (value != null) ...[
-                  const SizedBox(height: InSpacing.xs),
-                  LtrText('${(value * 100).round()}%'),
+            builder: (context, value, _) => _StatusCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  StatusLine(
+                    tone: StageTone.accent,
+                    text: context.tr('terminal_tap_to_pay_initializing', {
+                      'name': name('terminal_tap_to_pay_initializing'),
+                    }),
+                  ),
+                  const SizedBox(height: InSpacing.sm),
+                  StageProgress(value: value),
                 ],
-              ],
+              ),
             ),
           ),
         );
       case ReaderState.ready:
-        return Text(
-          context.tr('terminal_tap_to_pay_ready_ios', {
-            'name': name('terminal_tap_to_pay_ready_ios'),
-          }),
+        return Center(
+          child: StatusLine(
+            centered: true,
+            tone: StageTone.success,
+            text: context.tr('terminal_tap_to_pay_ready_ios', {
+              'name': name('terminal_tap_to_pay_ready_ios'),
+            }),
+          ),
         );
       case ReaderState.blocked:
-        return Row(
-          children: [
-            Expanded(
-              child: Text(
-                context.tr('terminal_location_blocked_ios', {
-                  'name': name('terminal_location_blocked_ios'),
-                }),
-              ),
-            ),
-            TextButton(
+        return _StatusCard(
+          child: StatusLine(
+            tone: StageTone.warning,
+            text: context.tr('terminal_location_blocked_ios', {
+              'name': name('terminal_location_blocked_ios'),
+            }),
+            trailing: TextButton(
               onPressed: vm.openSettings,
               child: Text(context.tr('open_settings')),
             ),
-          ],
+          ),
         );
       case ReaderState.failed:
         final problem = vm.problem;
-        return Row(
-          children: [
-            Expanded(
-              child: Text(
-                problem == null
-                    ? context.tr('terminal_error_unknown')
-                    : terminalProblemText(
-                        problem,
-                        context.tr,
-                        name: name,
-                        tapToPay: true,
-                      ),
-              ),
-            ),
-            if (problem?.code == TerminalErrorCode.locationServicesDisabled)
-              TextButton(
-                onPressed: vm.openSettings,
-                child: Text(context.tr('open_settings')),
-              )
-            else
-              TextButton(onPressed: onRetry, child: Text(context.tr('retry'))),
-          ],
+        return _StatusCard(
+          child: StatusLine(
+            tone: StageTone.danger,
+            text: problem == null
+                ? context.tr('terminal_error_unknown')
+                : terminalProblemText(
+                    problem,
+                    context.tr,
+                    name: name,
+                    tapToPay: true,
+                  ),
+            trailing:
+                problem?.code == TerminalErrorCode.locationServicesDisabled
+                ? TextButton(
+                    onPressed: vm.openSettings,
+                    child: Text(context.tr('open_settings')),
+                  )
+                : TextButton(
+                    onPressed: onRetry,
+                    child: Text(context.tr('retry')),
+                  ),
+          ),
         );
     }
   }
 }
 
+/// Test mode, as a small tag at the end of the app bar: always there, never
+/// louder than the payment.
 class _TestModeBadge extends StatelessWidget {
+  const _TestModeBadge();
+
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: InSpacing.sm),
-    child: Align(
-      alignment: AlignmentDirectional.centerStart,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: context.inTheme.warningSoft,
-          borderRadius: BorderRadius.circular(InRadii.r1),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-          child: Text(
-            context.tr('test_mode').toUpperCase(),
-            style: TextStyle(
-              color: context.inTheme.warning,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
+  Widget build(BuildContext context) => DecoratedBox(
+    decoration: BoxDecoration(
+      color: context.inTheme.warningSoft,
+      borderRadius: BorderRadius.circular(InRadii.r1),
+    ),
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      child: Text(
+        context.tr('test_mode').toUpperCase(),
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+          color: context.inTheme.warning,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.5,
         ),
       ),
     ),
   );
-}
-
-class _Total extends StatelessWidget {
-  const _Total({required this.text});
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: InSpacing.sm),
-    child: Center(
-      child: LtrText(
-        text,
-        style: Theme.of(context).textTheme.displaySmall,
-        textAlign: TextAlign.center,
-      ),
-    ),
-  );
-}
-
-class _Status extends StatelessWidget {
-  const _Status({
-    required this.text,
-    this.icon,
-    this.leading,
-    this.busy = false,
-  });
-
-  final String text;
-  final IconData? icon;
-
-  /// Drawn instead of [icon]: Apple's Tap to Pay on iPhone symbol.
-  final Widget? leading;
-  final bool busy;
-
-  @override
-  Widget build(BuildContext context) => Semantics(
-    liveRegion: true,
-    child: Column(
-      children: [
-        SizedBox(height: InSpacing.md(context)),
-        if (busy)
-          const CircularProgressIndicator()
-        else if (leading != null)
-          leading!
-        else if (icon != null)
-          Icon(icon, size: 48),
-        SizedBox(height: InSpacing.md(context)),
-        Text(
-          text,
-          textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
-      ],
-    ),
-  );
-}
-
-class _Buttons extends StatelessWidget {
-  const _Buttons({
-    required this.primary,
-    required this.onPrimary,
-    this.secondary,
-    this.onSecondary,
-    this.tonal = false,
-  });
-
-  final String primary;
-
-  /// Null disables it (a reader reconnecting).
-  final Future<void> Function()? onPrimary;
-  final String? secondary;
-  final Future<void> Function()? onSecondary;
-  final bool tonal;
-
-  @override
-  Widget build(BuildContext context) {
-    const size = Size(64, 44);
-    final main = tonal
-        ? FilledButton.tonal(
-            style: FilledButton.styleFrom(minimumSize: size),
-            onPressed: onPrimary,
-            child: Text(primary),
-          )
-        : FilledButton(
-            style: FilledButton.styleFrom(minimumSize: size),
-            onPressed: onPrimary,
-            child: Text(primary),
-          );
-    final second = secondary;
-    if (second == null) return main;
-    // Side by side, the way out next to the way on (CLAUDE.md § Design
-    // system (v2)).
-    return Row(
-      children: [
-        Expanded(
-          child: OutlinedButton(
-            style: OutlinedButton.styleFrom(minimumSize: const Size(64, 40)),
-            onPressed: onSecondary,
-            child: Text(second),
-          ),
-        ),
-        SizedBox(width: InSpacing.md(context)),
-        Expanded(child: main),
-      ],
-    );
-  }
 }
 
 /// A Bluetooth reader's prompt, in words.

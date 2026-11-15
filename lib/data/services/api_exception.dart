@@ -172,9 +172,16 @@ class ClientTooOldException extends ApiException {
 }
 
 class RateLimitedException extends ApiException {
-  const RateLimitedException({this.retryAfter, String message = 'Rate limited'})
-    : super(message);
+  const RateLimitedException({
+    this.retryAfter,
+    String message = 'Rate limited',
+    this.body,
+  }) : super(message);
   final Duration? retryAfter;
+
+  /// The response body, when it was JSON: a 429 can be an answer with its
+  /// own `error_code` (a receipt's limit), not only a throttle.
+  final Map<String, dynamic>? body;
 }
 
 class ServerException extends ApiException {

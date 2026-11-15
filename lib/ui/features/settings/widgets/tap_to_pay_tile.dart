@@ -3,8 +3,8 @@ import 'package:material_ui/material_ui.dart';
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/l10n/tap_to_pay_names.dart';
-import 'package:admin/ui/core/widgets/ltr_value.dart';
 import 'package:admin/ui/features/terminal/tap_to_pay_icon.dart';
+import 'package:admin/ui/features/terminal/widgets/collect_stage_layout.dart';
 
 /// Where Tap to Pay on iPhone stands on this phone, for Device Settings →
 /// Card readers (App Review 3.6, 4.3).
@@ -103,92 +103,79 @@ class TapToPayTile extends StatelessWidget {
       ),
       _ => null,
     };
+    final statusTone = switch (state) {
+      TapToPayTileState.ready => StageTone.success,
+      TapToPayTileState.preparing ||
+      TapToPayTileState.checking => StageTone.accent,
+      TapToPayTileState.updateIos => StageTone.warning,
+      _ => StageTone.neutral,
+    };
+    final ready = state == TapToPayTileState.ready;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: InSpacing.xs),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: const EdgeInsets.only(top: 2),
-                child: TapToPayIcon(size: 28, color: tokens.ink2),
-              ),
-              SizedBox(width: InSpacing.md(context)),
-              Expanded(
-                child: Column(
+          // Apple's symbol in the stages' tile, tinted like any icon and
+          // otherwise as Apple draws it.
+          Container(
+            width: 40,
+            height: 40,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: ready ? tokens.paidSoft : tokens.accentSoft,
+              borderRadius: BorderRadius.circular(InRadii.r2),
+            ),
+            child: TapToPayIcon(
+              size: 24,
+              color: ready ? tokens.paid : tokens.accentInk,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  context.tr('tap_to_pay_on_iphone'),
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: tokens.ink,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      context.tr('tap_to_pay_on_iphone'),
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        color: tokens.ink,
-                      ),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: StatusDot(tone: statusTone),
                     ),
-                    const SizedBox(height: 2),
-                    Row(
-                      children: [
-                        if (state == TapToPayTileState.ready) ...[
-                          Icon(
-                            Icons.check_circle,
-                            size: 14,
-                            color: tokens.paid,
-                          ),
-                          const SizedBox(width: InSpacing.xs),
-                        ],
-                        Expanded(
-                          child: Text(
-                            subtitle,
-                            style: TextStyle(
-                              fontSize: 13,
-                              height: 1.4,
-                              color: tone ?? tokens.ink3,
-                            ),
-                          ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        subtitle,
+                        style: TextStyle(
+                          fontSize: 13,
+                          height: 1.4,
+                          color: tone ?? tokens.ink3,
                         ),
-                      ],
+                      ),
                     ),
                   ],
                 ),
-              ),
-              if (trailing != null) ...[
-                const SizedBox(width: InSpacing.sm),
-                trailing,
-              ],
-            ],
-          ),
-          if (state == TapToPayTileState.preparing) ...[
-            const SizedBox(height: InSpacing.sm),
-            Padding(
-              padding: EdgeInsetsDirectional.only(
-                start: 28 + InSpacing.md(context),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(InRadii.r1),
-                      child: LinearProgressIndicator(
-                        value: progress,
-                        minHeight: 4,
-                        backgroundColor: tokens.border,
-                        color: tokens.accent,
-                      ),
-                    ),
-                  ),
-                  if (progress != null) ...[
-                    const SizedBox(width: InSpacing.sm),
-                    LtrText(
-                      '${(progress! * 100).round()}%',
-                      style: TextStyle(fontSize: 12, color: tokens.ink3),
-                    ),
-                  ],
+                if (state == TapToPayTileState.preparing) ...[
+                  const SizedBox(height: InSpacing.sm),
+                  StageProgress(value: progress),
                 ],
-              ),
+              ],
             ),
+          ),
+          if (trailing != null) ...[
+            const SizedBox(width: InSpacing.sm),
+            trailing,
           ],
         ],
       ),

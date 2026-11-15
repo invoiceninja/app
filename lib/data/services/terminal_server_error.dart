@@ -27,6 +27,10 @@ class TerminalServerError implements Exception {
   static const notCollected = 'not_collected';
   static const locationAddressRequired = 'location_address_required';
 
+  /// A receipt (a paid one's, or a decline's) was sent as often as the
+  /// server allows for one collection.
+  static const receiptLimit = 'receipt_limit';
+
   /// A 422 with field errors and no `error_code` (`amount`, `invoice`).
   static const fieldErrors = 'field_errors';
 
@@ -46,6 +50,7 @@ class TerminalServerError implements Exception {
     sendInvoiceFirst,
     notCollected,
     locationAddressRequired,
+    receiptLimit,
     fieldErrors,
   };
 
@@ -59,6 +64,8 @@ class TerminalServerError implements Exception {
         message,
       ),
       ValidationException(:final body, :final message) => (body, message),
+      // `receipt_limit` is a 429 with a body of its own.
+      RateLimitedException(:final body, :final message) => (body, message),
       _ => (null, ''),
     };
     final code = body?['error_code'];

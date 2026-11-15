@@ -17,6 +17,7 @@ import 'package:admin/app/confirm_actions_controller.dart';
 import 'package:admin/app/mobile_app_promo_controller.dart';
 import 'package:admin/app/review_prompt_controller.dart';
 import 'package:admin/app/terminal_controller.dart';
+import 'package:admin/app/terminal_decline_notices.dart';
 import 'package:admin/app/welcome_controller.dart';
 import 'package:admin/app/whats_new_controller.dart';
 import 'package:admin/app/sign_out_notice.dart';
@@ -984,6 +985,19 @@ class Services implements SidebarBadgeContext {
     registry: entityRegistry,
     toasts: toasts,
   );
+
+  /// Tells of a card payment declined while nobody was watching, once the
+  /// active company's pending payments have been asked about
+  /// (docs/in-person-payments.md). `late` for the same reason as
+  /// [deepLinks]: the app state calls `attach(...)` once the router exists.
+  late final TerminalDeclineNotices terminalDeclineNotices =
+      TerminalDeclineNotices(
+        terminal: terminal,
+        toasts: toasts,
+        session: auth.session,
+        credentials: auth.credentials,
+        requiresBiometricUnlock: auth.requiresBiometricUnlock,
+      );
 
   /// The app-owned copies of files shared into the app from other ones, and
   /// the only code that deletes them.
@@ -2088,8 +2102,14 @@ class Services implements SidebarBadgeContext {
       // A card reader is connected under one company's Stripe account. On an
       // iPhone, Tap to Pay on iPhone is then warmed up for the company, once
       // the frame after the switch has drawn (App Review 1.5).
+      // A card declined while nobody was watching (the app closed
+      // mid-charge) is told once, after the same reset: never while a charge
+      // is being answered.
       unawaited(
-        terminal.reset().then((_) => terminal.warmUpAfterFirstFrame(companyId)),
+        terminal.reset().then((_) {
+          unawaited(services.terminalDeclineNotices.sweep(companyId));
+          return terminal.warmUpAfterFirstFrame(companyId);
+        }),
       );
       priorOnActiveCompanyChangedForCalendar?.call(companyId);
     };
@@ -2326,6 +2346,9 @@ class Services implements SidebarBadgeContext {
       // account that was signed in when it arrived. Replaying it into the next
       // session would navigate the new user by the old one's ids.
       services.deepLinks.reset();
+      // A declined card payment found but not yet told belongs to them too;
+      // it is still pending, and found again when they are back.
+      services.terminalDeclineNotices.reset();
       // Abort a share being handled. One HELD at the gate survives: it was
       // shared while signed out, so it belongs to whoever signs in next — and
       // this hook also runs when a different identity signs in and the local

@@ -1,4 +1,5 @@
 import 'package:material_ui/material_ui.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/semantics.dart';
 
 import 'package:admin/app/design_tokens.dart';
@@ -46,6 +47,7 @@ class _ToastHostState extends State<ToastHost> {
     super.initState();
     _rendered.addAll(widget.controller.toasts);
     widget.controller.addListener(_sync);
+    widget.controller.bottomInset.addListener(_onBottomInset);
     // The macOS caption clearance below follows the traffic lights, which
     // come and go with fullscreen.
     NativeWindow.instance.chrome.addListener(_onChrome);
@@ -55,12 +57,30 @@ class _ToastHostState extends State<ToastHost> {
     if (mounted && _rendered.isNotEmpty) setState(() {});
   }
 
+  /// Pinned actions came, went or changed height under a showing toast. A
+  /// `ToastBottomInset` reports after a frame, but gives its height up from
+  /// `dispose`, mid-frame — when nothing may be marked dirty — so that one
+  /// waits for the frame to end.
+  void _onBottomInset() {
+    if (!mounted || _rendered.isEmpty) return;
+    if (SchedulerBinding.instance.schedulerPhase ==
+        SchedulerPhase.persistentCallbacks) {
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() {});
+      });
+      return;
+    }
+    setState(() {});
+  }
+
   @override
   void didUpdateWidget(ToastHost old) {
     super.didUpdateWidget(old);
     if (old.controller != widget.controller) {
       old.controller.removeListener(_sync);
+      old.controller.bottomInset.removeListener(_onBottomInset);
       widget.controller.addListener(_sync);
+      widget.controller.bottomInset.addListener(_onBottomInset);
       _sync();
     }
   }
@@ -68,6 +88,7 @@ class _ToastHostState extends State<ToastHost> {
   @override
   void dispose() {
     widget.controller.removeListener(_sync);
+    widget.controller.bottomInset.removeListener(_onBottomInset);
     NativeWindow.instance.chrome.removeListener(_onChrome);
     // The host is the sole renderer and is mounted once at the app root, so it
     // only unmounts at teardown — cancel pending auto-dismiss timers so they
@@ -210,7 +231,13 @@ class _ToastHostState extends State<ToastHost> {
         Positioned(
           left: 12,
           right: 12,
-          bottom: 12 + padding.bottom + viewInsets.bottom,
+          // Above any actions pinned to the bottom (`ToastBottomInset`): a
+          // toast never covers a checkout's pay button.
+          bottom:
+              12 +
+              padding.bottom +
+              viewInsets.bottom +
+              widget.controller.bottomInset.value,
           child: Dismissible(
             key: ValueKey('toast_${current.id}'),
             direction: DismissDirection.horizontal,
@@ -585,6 +612,73 @@ class _CountBadge extends StatelessWidget {
           fontWeight: FontWeight.w600,
         ),
       ),
+    );
+  }
+}
+
+/// Wraps actions pinned to the bottom of a full-screen surface (a checkout's
+/// pay button) so a bottom toast is lifted above them instead of covering
+/// them: it reports its own height to [ToastController.setBottomInset] after
+/// each frame, only while its route is the one on top, and gives it up when
+/// it goes. Does nothing where no [controller] is given.
+class ToastBottomInset extends StatefulWidget {
+  const ToastBottomInset({
+    required this.controller,
+    required this.child,
+    super.key,
+  });
+
+  final ToastController? controller;
+  final Widget child;
+
+  @override
+  State<ToastBottomInset> createState() => _ToastBottomInsetState();
+}
+
+class _ToastBottomInsetState extends State<ToastBottomInset> {
+  final _owner = Object();
+  bool _scheduled = false;
+
+  void _report() {
+    if (_scheduled) return;
+    _scheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scheduled = false;
+      if (!mounted) return;
+      final box = context.findRenderObject();
+      final current = ModalRoute.of(context)?.isCurrent ?? true;
+      widget.controller?.setBottomInset(
+        _owner,
+        current && box is RenderBox && box.hasSize ? box.size.height : null,
+      );
+    });
+  }
+
+  @override
+  void didUpdateWidget(ToastBottomInset old) {
+    super.didUpdateWidget(old);
+    if (old.controller != widget.controller) {
+      old.controller?.setBottomInset(_owner, null);
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.controller?.setBottomInset(_owner, null);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Depends on the route, so covering or uncovering it reports again.
+    ModalRoute.of(context);
+    _report();
+    return NotificationListener<SizeChangedLayoutNotification>(
+      onNotification: (_) {
+        _report();
+        return false;
+      },
+      child: SizeChangedLayoutNotifier(child: widget.child),
     );
   }
 }

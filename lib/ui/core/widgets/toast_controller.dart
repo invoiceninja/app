@@ -106,6 +106,26 @@ class ToastController extends ChangeNotifier {
   /// Live toasts, oldest first. The host renders newest-nearest-the-corner.
   List<ToastData> get toasts => List.unmodifiable(_toasts);
 
+  /// How far a bottom toast is lifted so it never covers actions pinned to
+  /// the bottom of the screen (a checkout's pay button): the tallest height
+  /// any mounted `ToastBottomInset` reports. A notifier of its own, so a
+  /// change never rebuilds anything that listens for toasts.
+  ValueListenable<double> get bottomInset => _bottomInset;
+  final ValueNotifier<double> _bottomInset = ValueNotifier(0);
+  final Map<Object, double> _bottomInsets = {};
+
+  /// [owner] reserves [height] at the bottom, or gives it up (null, 0).
+  void setBottomInset(Object owner, double? height) {
+    if (_disposed) return;
+    if (height == null || height <= 0) {
+      if (_bottomInsets.remove(owner) == null) return;
+    } else {
+      if (_bottomInsets[owner] == height) return;
+      _bottomInsets[owner] = height;
+    }
+    _bottomInset.value = _bottomInsets.values.fold(0, (a, b) => a > b ? a : b);
+  }
+
   // Convenience variants — used by callers that captured the controller
   // before an `await` (via `Notify.capture`) so they can show a toast after
   // the gap without a stale `BuildContext`.
@@ -274,8 +294,12 @@ class ToastController extends ChangeNotifier {
     _timers.remove(t.id)?.cancel();
   }
 
+  bool _disposed = false;
+
   @override
   void dispose() {
+    _disposed = true;
+    _bottomInset.dispose();
     for (final t in _timers.values) {
       t.cancel();
     }

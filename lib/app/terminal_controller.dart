@@ -196,9 +196,15 @@ class TerminalController extends ChangeNotifier {
     required String companyId,
     required String invoiceId,
     required String paymentIntentId,
+    String invoiceNumber = '',
   }) => _savePending({
     ..._pending(),
-    paymentIntentId: {'company': companyId, 'invoice': invoiceId},
+    paymentIntentId: {
+      'company': companyId,
+      'invoice': invoiceId,
+      // For the notice of a decline nobody saw ([sweepPending]).
+      if (invoiceNumber.isNotEmpty) 'number': invoiceNumber,
+    },
   });
 
   /// The server gave a final answer for it.
@@ -250,6 +256,68 @@ class TerminalController extends ChangeNotifier {
     }
     if (unknown) return PendingRecovery.unknown;
     return recorded ? PendingRecovery.recorded : PendingRecovery.none;
+  }
+
+  /// A company became the active one: asks the server about every payment
+  /// of its that this device still waits on (a charge under way when the app
+  /// was closed, or crashed). A final answer clears the entry, as
+  /// [recoverPending] does. A card that was declined with nobody watching is
+  /// returned — still pending, so a notice that never reached the screen is
+  /// found again — for [settleUnseenDecline] once the user has been told
+  /// (App Review 5.12). Nothing is asked while a card is being charged.
+  ///
+  /// A server from before decline answers never says `declined`: its
+  /// entries wait, as before, for the invoice's own check.
+  Future<List<UnseenDecline>> sweepPending(String companyId) async {
+    if (_charges.isNotEmpty) return const [];
+    final declined = <UnseenDecline>[];
+    for (final e in _pending().entries.toList()) {
+      final entry = e.value;
+      if (entry is! Map || entry['company'] != companyId) continue;
+      final invoiceId = entry['invoice'];
+      if (invoiceId is! String || invoiceId.isEmpty) continue;
+      try {
+        final result = await _repo.complete(
+          companyId,
+          e.key,
+          invoiceId: invoiceId,
+        );
+        if (isFinalCompletion(result.status)) {
+          await clearPending(e.key);
+        } else if (result.declined) {
+          final number = entry['number'];
+          declined.add(
+            UnseenDecline(
+              companyId: companyId,
+              invoiceId: invoiceId,
+              invoiceNumber: number is String ? number : '',
+              paymentIntentId: e.key,
+            ),
+          );
+        }
+      } catch (e) {
+        // Offline, or another company by now: asked again next time.
+        _log.fine('pending sweep: ${e.runtimeType}');
+      }
+    }
+    return declined;
+  }
+
+  /// The user was told about [decline]: its PaymentIntent is cancelled (the
+  /// invoice is free for another payment) and the entry forgotten. If the
+  /// cancel can't be sent the entry goes all the same — the notice is shown
+  /// once, and the server cancels an abandoned PaymentIntent itself.
+  Future<void> settleUnseenDecline(UnseenDecline decline) async {
+    try {
+      await _repo.cancel(
+        decline.companyId,
+        decline.paymentIntentId,
+        invoiceId: decline.invoiceId,
+      );
+    } catch (e) {
+      _log.fine('unseen decline cancel: ${e.runtimeType}');
+    }
+    await clearPending(decline.paymentIntentId);
   }
 
   /// A `complete` answer after which nothing more will happen to the charge.
@@ -971,6 +1039,25 @@ class TerminalController extends ChangeNotifier {
     _progress.dispose();
     super.dispose();
   }
+}
+
+/// A card payment that was declined while nobody was watching
+/// ([TerminalController.sweepPending]).
+@immutable
+class UnseenDecline {
+  const UnseenDecline({
+    required this.companyId,
+    required this.invoiceId,
+    required this.invoiceNumber,
+    required this.paymentIntentId,
+  });
+
+  final String companyId;
+  final String invoiceId;
+
+  /// '' when the entry was written before the number was kept.
+  final String invoiceNumber;
+  final String paymentIntentId;
 }
 
 /// What asking the server about an invoice's pending card payments found.

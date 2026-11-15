@@ -333,6 +333,7 @@ class TerminalCompletion {
     required this.brand,
     required this.last4,
     required this.receiptUrl,
+    this.declined = false,
   });
 
   factory TerminalCompletion.fromJson(Map<String, dynamic> json) =>
@@ -347,6 +348,8 @@ class TerminalCompletion {
         brand: _string(json['brand']),
         last4: _string(json['last4']),
         receiptUrl: _string(json['receipt_url']),
+        // Absent on a server from before decline answers: not declined.
+        declined: json['declined'] == true,
       );
 
   /// `recorded`, `unapplied`, `processing`, `canceled`, `failed`,
@@ -359,6 +362,11 @@ class TerminalCompletion {
   final String brand;
   final String last4;
   final String receiptUrl;
+
+  /// The card presented last was declined: the PaymentIntent still waits for
+  /// another card ([status] stays Stripe's `requires_payment_method`), and
+  /// [brand] / [last4] are that card's. Never why it was declined.
+  final bool declined;
 
   bool get isRecorded => status == 'recorded' || status == 'unapplied';
 }

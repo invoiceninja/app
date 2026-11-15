@@ -86,6 +86,20 @@ class CollectProblem {
   final Map<String, dynamic> data;
 }
 
+/// Where "Send decline receipt" stands.
+enum DeclineReceiptState {
+  idle,
+  sending,
+  sent,
+
+  /// It couldn't be sent; [CollectCardPaymentViewModel.declineReceiptProblem]
+  /// says why, and it may be tried again.
+  failed,
+
+  /// The server sends a few per collection, and that many went.
+  limit,
+}
+
 /// Why the reader isn't ready.
 enum ReaderState {
   idle,
@@ -123,6 +137,7 @@ class CollectCardPaymentViewModel extends ChangeNotifier {
     this.clientEmail = '',
     Future<String?> Function()? chargeCurrency,
     Future<void> Function(String companyGatewayId)? enableCardPresent,
+    Future<Invoice?> Function()? refetchInvoice,
     DateTime Function()? clock,
     String Function()? newId,
     this.pollDelay = const Duration(seconds: 2),
@@ -133,6 +148,7 @@ class CollectCardPaymentViewModel extends ChangeNotifier {
        _repo = repository,
        _chargeCurrency = chargeCurrency,
        _enableCardPresent = enableCardPresent,
+       _refetchInvoice = refetchInvoice,
        _clock = clock ?? DateTime.now,
        _newId = newId ?? (() => const Uuid().v4()),
        _iPhone = iPhone ?? isIPhonePlatform() {
@@ -188,6 +204,10 @@ class CollectCardPaymentViewModel extends ChangeNotifier {
   /// has it (an admin's press on an iPhone, App Review 5.3).
   final Future<void> Function(String companyGatewayId)? _enableCardPresent;
 
+  /// The invoice as the server has it now, for a collection started again
+  /// after "Pay another way" (the customer may have paid online meanwhile).
+  final Future<Invoice?> Function()? _refetchInvoice;
+
   /// An iPhone: Tap to Pay on iPhone follows Apple's rules (no prompt on
   /// opening, the press sets it up). Injected by tests.
   final bool _iPhone;
@@ -208,7 +228,7 @@ class CollectCardPaymentViewModel extends ChangeNotifier {
   /// at most this often in a row.
   static const maxReads = 4;
 
-  final Invoice _invoice;
+  Invoice _invoice;
   Invoice get invoice => _invoice;
 
   CollectStage get stage => _stage;
@@ -1237,6 +1257,7 @@ class CollectCardPaymentViewModel extends ChangeNotifier {
         await _terminal.notePending(
           companyId: companyId,
           invoiceId: _invoice.id,
+          invoiceNumber: _invoice.number,
           paymentIntentId: pi,
         );
       }
@@ -1352,6 +1373,7 @@ class CollectCardPaymentViewModel extends ChangeNotifier {
     await _terminal.notePending(
       companyId: companyId,
       invoiceId: _invoice.id,
+      invoiceNumber: _invoice.number,
       paymentIntentId: intent.paymentIntentId,
     );
     try {
@@ -1370,6 +1392,8 @@ class CollectCardPaymentViewModel extends ChangeNotifier {
         return false;
       }
       if (e.code != TerminalErrorCode.outcomeUnknown) {
+        // The charge was tried and failed: a decline receipt can say so.
+        _chargeDeclined = e.code == TerminalErrorCode.declined;
         _declined(e);
         return false;
       }
@@ -1422,6 +1446,7 @@ class CollectCardPaymentViewModel extends ChangeNotifier {
   Future<void> tryAnotherCard() async {
     final intent = _intent;
     if (_stage != CollectStage.declined || intent == null) return;
+    if (_payingAnotherWay) return;
     final session = _session;
     if (session == null || session.isFinished) {
       if (!_startSession(intent)) {
@@ -1462,6 +1487,7 @@ class CollectCardPaymentViewModel extends ChangeNotifier {
         }
         if (result.status == 'requires_payment_method') {
           // The charge failed: the PaymentIntent takes another card.
+          _chargeDeclined = true;
           _problem = const CollectProblem(code: TerminalErrorCode.declined);
           _stage = CollectStage.declined;
           _notify();
@@ -1550,7 +1576,12 @@ class CollectCardPaymentViewModel extends ChangeNotifier {
         _notify();
         // [collect] cancels the PaymentIntent once the server answers.
         return;
-      case CollectStage.waiting || CollectStage.declined:
+      case CollectStage.waiting:
+        await _abandon();
+        return;
+      case CollectStage.declined:
+        // "Try another card" has nothing to say once it is cancelled.
+        if (_problem?.code == TerminalErrorCode.declined) _problem = null;
         await _abandon();
         return;
       case CollectStage.surchargeNotice:
@@ -1604,7 +1635,183 @@ class CollectCardPaymentViewModel extends ChangeNotifier {
     _notify();
   }
 
+  // ---------------------------------------------------- pay another way
+
+  /// "Pay another way" is showing (App Review 4.8): only over a card that
+  /// was declined or a payment that was cancelled — never once a card may
+  /// have been charged (recording, checking, unrecorded), whatever a cancel
+  /// in the background turns up.
+  bool get payingAnotherWay =>
+      _payingAnotherWay &&
+      !_restarting &&
+      (_stage == CollectStage.declined || _stage == CollectStage.cancelled);
+  bool _payingAnotherWay = false;
+
+  /// The fallback may be offered from here.
+  bool get canPayAnotherWay =>
+      _stage == CollectStage.declined || _stage == CollectStage.cancelled;
+
+  /// The fallback's cancel of the PaymentIntent, still on its way.
+  Future<void>? _fallbackCancel;
+
+  /// Opens "Pay another way": the customer pays the invoice online, so the
+  /// PaymentIntent is cancelled in the background (the invoice is then free
+  /// for the portal's own payment). If the card turns out to have been
+  /// charged after all, the server's answer takes the screen instead.
+  void payAnotherWay() {
+    if (!canPayAnotherWay || _payingAnotherWay) return;
+    _payingAnotherWay = true;
+    if (_stage == CollectStage.declined) {
+      // [_abandon] says "cancelled" at once, and closes the PaymentIntent.
+      _fallbackCancel = _abandon();
+    }
+    _notify();
+  }
+
+  /// "Back to Tap to Pay on iPhone" (or the card reader) is getting a new
+  /// collection ready.
+  bool get restarting => _restarting;
+  bool _restarting = false;
+
+  /// Back from "Pay another way": once the cancel has been answered, the
+  /// invoice is fetched again (the customer may have paid online), the
+  /// figures are quoted again, and a new collection starts — its own
+  /// `collection_id`, its own PaymentIntent. An invoice that was paid
+  /// meanwhile stops here and says so.
+  Future<void> backToReader() async {
+    if (!_payingAnotherWay || _restarting) return;
+    _restarting = true;
+    _notify();
+    try {
+      await _fallbackCancel;
+      if (_disposed) return;
+      if (_stage != CollectStage.cancelled) {
+        // The cancel found a charge (approved, recording, checking): that
+        // answer has the screen, and nothing is collected again.
+        return;
+      }
+      Invoice? fresh;
+      try {
+        fresh = await _refetchInvoice?.call();
+      } catch (e) {
+        // The server still refuses a paid invoice at the quote.
+        _log.warning('invoice refetch failed: ${e.runtimeType}');
+      }
+      if (_disposed) return;
+      if (fresh != null) _invoice = fresh;
+      if (fresh != null &&
+          (fresh.isPaid || fresh.balanceOrAmount <= Decimal.zero)) {
+        _problem = const CollectProblem(
+          serverCode: TerminalServerError.alreadyPaid,
+        );
+        return;
+      }
+      _startOver();
+      if (amount > _invoice.balanceOrAmount) amount = defaultAmount(_invoice);
+      _stage = CollectStage.configure;
+      _notify();
+      await requote();
+      if (_disposed || _quote == null) return;
+      // The reader is still connected: on to the card. Otherwise the
+      // checkout says what is missing, as it does on opening.
+      _restarting = false;
+      _payingAnotherWay = false;
+      if (canCollect) await collect();
+    } finally {
+      _payingAnotherWay = false;
+      _restarting = false;
+      _notify();
+    }
+  }
+
+  /// Forgets the collection that ended, so the next is wholly its own.
+  void _startOver() {
+    _fallbackCancel = null;
+    _intent = null;
+    _session = null;
+    _collected = null;
+    _finalized = null;
+    _completion = null;
+    _collectionId = null;
+    _settlingPaymentIntentId = null;
+    _surchargeDecision = null;
+    _reads = 0;
+    _abandoned = false;
+    _readAgain = false;
+    _noticeAgain = false;
+    _chargeDeclined = false;
+    _declineReceipt = DeclineReceiptState.idle;
+    _declineReceiptProblem = null;
+    _sheetRequested = false;
+    _sheetShown = false;
+    _problem = null;
+    _pressPending = false;
+  }
+
   // ------------------------------------------------------------- receipt
+
+  /// The card presented last was charged and declined (not merely unread):
+  /// the server has a failed charge to write a decline receipt for.
+  bool _chargeDeclined = false;
+
+  /// "Send decline receipt" applies (App Review 5.10): a declined charge,
+  /// while it is still on screen as declined or cancelled.
+  bool get declineReceiptAvailable =>
+      _chargeDeclined &&
+      _intent != null &&
+      (_stage == CollectStage.declined || _stage == CollectStage.cancelled);
+
+  DeclineReceiptState get declineReceipt => _declineReceipt;
+  DeclineReceiptState _declineReceipt = DeclineReceiptState.idle;
+
+  /// Why the decline receipt wasn't sent ([DeclineReceiptState.failed]).
+  CollectProblem? get declineReceiptProblem => _declineReceiptProblem;
+  CollectProblem? _declineReceiptProblem;
+
+  /// The server's own receipt for the declined card, to [email]: the same
+  /// endpoint as a paid one's, which answers a collection that is open or
+  /// cancelled with its decline receipt (a few per collection).
+  Future<bool> sendDeclineReceipt(String email) async {
+    final pi = _intent?.paymentIntentId;
+    final to = email.trim();
+    if (pi == null ||
+        to.isEmpty ||
+        !declineReceiptAvailable ||
+        _declineReceipt == DeclineReceiptState.sending ||
+        _declineReceipt == DeclineReceiptState.limit) {
+      return false;
+    }
+    _declineReceipt = DeclineReceiptState.sending;
+    _declineReceiptProblem = null;
+    _notify();
+    try {
+      await _repo.receipt(companyId, pi, invoiceId: _invoice.id, email: to);
+      _declineReceipt = DeclineReceiptState.sent;
+      return true;
+    } on TerminalServerError catch (e) {
+      if (e.code == TerminalServerError.receiptLimit) {
+        _declineReceipt = DeclineReceiptState.limit;
+      } else {
+        _declineReceipt = DeclineReceiptState.failed;
+        _declineReceiptProblem = _problemOf(e);
+      }
+      return false;
+    } catch (e) {
+      _declineReceipt = DeclineReceiptState.failed;
+      _declineReceiptProblem = _problemOf(e);
+      return false;
+    } finally {
+      _notify();
+    }
+  }
+
+  /// Before a payment is entered by hand from "Pay another way": the
+  /// fallback's cancel has been answered, and found no charge — false when
+  /// it turned one up (the server's answer then has the screen).
+  Future<bool> settledWithoutCharge() async {
+    await _fallbackCancel;
+    return !_disposed && _stage == CollectStage.cancelled;
+  }
 
   bool get sendingReceipt => _sendingReceipt;
   bool _sendingReceipt = false;

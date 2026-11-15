@@ -134,7 +134,7 @@ the root navigator that is never saved as a route; `CollectCardPaymentViewModel`
 | `requires_payment_method` after a confirm | Declined — the charge failed; another card on a new payment session |
 | Stripe's own `processing`, other `requires_*` after a confirm started, a confirm with an unknown outcome, `complete` failing (asked 3 times) | Checking — "We couldn't confirm whether the card was charged. Don't take another card for this invoice yet." + Check again, or Cancel the payment (the server records it instead if it was charged) |
 | `rejected`, `orphaned` | Charged, couldn't be recorded — contact support (the server alerted) |
-| `canceled`, `failed` | Cancelled — the only screen that says the card wasn't charged, with a decline |
+| `canceled`, `failed` | Cancelled — the only screen that says the card wasn't charged, with a decline. Pay another way is offered here too |
 
 A decline leaves the PaymentIntent open: **Try another card** reads again and finalizes again. Every
 SDK and server code has words (`terminal_error_text.dart`, tested exhaustively).
@@ -165,6 +165,88 @@ deliberate sign-out forgets the list (account scope), as it forgets everything e
 record a payment on the invoice by hand while a charge is unanswered; the server then records the
 card payment as unapplied client money (`unapplied`), and support refunds one of the two. The Checking, Recording and "couldn't be
 recorded" screens show the PaymentIntent as a copyable reference.
+
+## A card that wasn't charged has three ways on
+
+App PR 4 (App Review 4.8, 5.10, 5.12). All three are for every reader, on every platform; only the
+names differ (Tap to Pay on iPhone on an iPhone, plain "Tap to Pay" or "the card reader" elsewhere).
+
+**Pay another way is offered only where no card was charged.** `CollectCardPaymentViewModel.canPayAnotherWay`
+is true on `declined` and `cancelled` and nowhere else — never on `recording`, `checking` or
+`unrecorded`, where the card was, or may have been, charged. `payingAnotherWay` re-checks the stage on
+every read, so a cancel that turns up a charge after all (`recorded`) hands the screen to that answer.
+
+- **It shows at once and cancels behind it.** `payAnotherWay()` flips to the fallback and, from
+  `declined`, starts `_abandon()` without waiting: the PaymentIntent is cancelled in the background,
+  which frees the invoice for the portal's own payment. From `cancelled` there is nothing left to
+  cancel.
+- **The code is the invoice's own portal link** — the first non-empty `invitations[].link` — drawn by
+  `QrCodeImage` (always black on white). The sentence names no amount: the portal pays the invoice
+  (its balance or deposit, its own fees), so a figure here could disagree with it. **Share link** goes
+  through `shareOrCopyLink`; **Done** closes the screen.
+- **No link, or no active gateway, is "can't be paid online".** The gateway count is one Drift read as
+  the fallback opens (`companyGateways.watchCount`: active, non-deleted; no request, and no live watch
+  — a watch on this screen hung its widget tests). Nothing local says which gateways the portal offers
+  this client in this currency, so any active one counts. **A read that fails or times out counts as
+  having one**: the portal says so itself if it can't take the payment. The variant offers **Enter
+  Payment**, which is the invoice's own action (`InvoiceActions.dispatch`, handed in as
+  `enterPayment`): it runs only once the cancel has been answered with no charge
+  (`settledWithoutCharge`), after this screen has closed, with every check that action already makes.
+- **"Back to …" starts a collection of its own.** `backToReader()` waits for the cancel, fetches the
+  invoice again (`refetchInvoice`: the server's copy into Drift, then read), quotes again, and only
+  then collects — a new `collection_id`, a new PaymentIntent. An invoice paid online meanwhile stops on
+  Cancelled with "A previous card payment for this invoice was recorded." and offers no fallback; an
+  invoice that couldn't be fetched is still quoted, and the server refuses a paid one. The row carries
+  its caution: "If the customer started paying online, wait for it to finish first."
+
+**A decline receipt needs a declined charge.** `declineReceiptAvailable` is true only after a confirm
+that Stripe declined (or a `complete` answering `requires_payment_method`) — never for a card that
+merely couldn't be read, which has no charge for the server to write a receipt about. It is the same
+`receipt` endpoint as a paid one's: the server answers a collection that is open or cancelled with its
+own decline receipt, a few per collection. The states are the view model's (`DeclineReceiptState`:
+idle, sending, sent, failed with its reason, limit), so the row reads the same on the declined stage
+and on the fallback; the email field shows only after the press. `receipt_limit` is a **429 with a
+body**: `RateLimitedException` carries it, and `TerminalServerError.from` reads its `error_code` — a
+plain throttle (no code) is a failure that may be tried again, never the limit.
+
+On Approved, **Share receipt** hands Stripe's `receipt_url` to `shareOrCopyLink`; it is there only
+when the server sent one. The card reads as a receipt names it — "Visa •••• 4242" (`cardLabel`:
+Stripe's brand code in the network's own spelling).
+
+**A decline nobody saw is told once.** A charge under way when the app closed leaves its PaymentIntent
+in `pendingCardPayments`. At company activation — after the same `terminal.reset()` the warm-up waits
+for, so never while a card is being charged — `TerminalDeclineNotices.sweep` asks `complete` about
+every pending payment of that company (`TerminalController.sweepPending`):
+
+| Answer | What happens |
+|---|---|
+| final (`recorded`, `canceled`, …) | the entry is cleared, as `recoverPending` does |
+| `declined: true` (with `brand`, `last4`; `status` stays `requires_payment_method`) | a toast, "Card declined on invoice N. The customer wasn't charged." with **Open** (to the invoice); then `cancel`, and the entry is cleared |
+| anything else, or a server from before decline answers (no `declined` key) | nothing is told; the entry waits for the invoice's own check |
+
+The order is deliberate: **told first, cancelled and cleared after** (`settleUnseenDecline`). The
+server stops its own email about a decline once the app's `complete` was answered with it, so a
+notice dropped here would be told to nobody. A notice that can't show — the app locked
+(`ArrivalGate`), no localization yet — is held and the entry stays pending, so a closed app finds it
+again. The invoice's number rides in the entry (`notePending(invoiceNumber:)`); an entry from before
+that reads "A card payment was declined…" without one. Open goes nowhere if the company changed.
+
+### Themes
+
+The app's themes are the six `InTheme` presets — light Sand, Mist and Paper; dark Espresso, Midnight
+and Carbon; one per side, chosen in Device Settings — plus the per-user accent colour over either
+side. `terminal_themes_test` (`kAllAppThemes`: the six, and a pale and a near-black accent) pumps
+every collect stage, the fallback, the enable screen, the Card readers tile and the location
+pre-alert under each; fails on a colour literal in those files (tokens only); and checks contrast
+from the tokens. Two things it pins:
+
+- **The primary stage button's label is `InTheme.onAccent`**, not the theme's white: white on a pale
+  accent reads 1.8:1.
+- **The payment code is black on white in every theme** (`QrCodeImage`).
+
+Known and left alone: a near-black accent on a dark theme dims every accent mark (accent on
+`accentSoft` reads about 2.5:1) — that is the accent's derivation, app-wide, and the user's own
+choice of colour.
 
 ## Support runbook
 

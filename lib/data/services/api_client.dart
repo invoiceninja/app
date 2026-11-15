@@ -1269,7 +1269,11 @@ class ApiClient {
           final secs = int.tryParse(retryAfterHeader);
           if (secs != null) retryAfter = Duration(seconds: secs);
         }
-        throw RateLimitedException(retryAfter: retryAfter, message: message);
+        throw RateLimitedException(
+          retryAfter: retryAfter,
+          message: message,
+          body: json,
+        );
       default:
         if (status >= 500) throw ServerException(status, message);
         throw ServerException(status, message);

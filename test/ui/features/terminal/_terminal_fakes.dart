@@ -210,6 +210,25 @@ class FakeTerminalRepo implements TerminalRepository {
     return cancels.next('cancel');
   }
 
+  /// What a receipt send throws instead of going out.
+  Object? receiptError;
+
+  /// Holds a receipt send until completed.
+  Completer<void>? receiptGate;
+
+  @override
+  Future<void> receipt(
+    String companyId,
+    String paymentIntentId, {
+    required String invoiceId,
+    required String email,
+  }) async {
+    calls.add('receipt:$paymentIntentId:$email');
+    await receiptGate?.future;
+    final error = receiptError;
+    if (error != null) throw error;
+  }
+
   @override
   Future<TerminalLocation> createLocation(
     String companyId, {

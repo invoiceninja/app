@@ -824,6 +824,15 @@ class InvoiceActions {
       invoice: current,
       client: client,
       groupCurrencyId: groupCurrencyId,
+      // "Pay another way" on an invoice that can't be paid online: the
+      // same Enter Payment as the invoice's own, checks included.
+      enterPayment: (context, invoice) => dispatch(
+        context,
+        services,
+        companyId,
+        invoice,
+        InvoiceAction.enterPayment,
+      ),
     );
   }
 

@@ -17,6 +17,7 @@ import 'package:admin/ui/features/terminal/tap_to_pay_setup.dart';
 import 'package:admin/ui/features/terminal/terminal_error_text.dart';
 import 'package:admin/ui/features/terminal/view_models/tap_to_pay_enable_view_model.dart';
 import 'package:admin/ui/features/terminal/widgets/location_pre_alert.dart';
+import 'package:admin/ui/features/terminal/widgets/collect_stage_layout.dart';
 
 /// Opens [TapToPayEnableScreen] over everything: a full-screen step on the
 /// root navigator, never part of the saved route (like the collect screen).
@@ -230,32 +231,11 @@ class TapToPayEnableView extends StatelessWidget {
         child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 480),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Expanded(
-                  child: ListView(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: InSpacing.lg(context),
-                      vertical: InSpacing.sm,
-                    ),
-                    children: [
-                      _Hero(stage: stage),
-                      const SizedBox(height: InSpacing.xl),
-                      ..._body(context),
-                    ],
-                  ),
-                ),
-                Padding(
-                  padding: EdgeInsets.fromLTRB(
-                    InSpacing.lg(context),
-                    InSpacing.sm,
-                    InSpacing.lg(context),
-                    InSpacing.lg(context),
-                  ),
-                  child: _actions(context),
-                ),
-              ],
+            // The collect screen's own stage: a hero, what is left to do,
+            // and the actions pinned at the bottom.
+            child: CollectStageLayout(
+              actions: _actions(context),
+              children: _body(context),
             ),
           ),
         ),
@@ -266,31 +246,30 @@ class TapToPayEnableView extends StatelessWidget {
   String _name(BuildContext context, String key) =>
       tapToPayNameFor(context, key);
 
+  /// Apple's symbol in the stage's tile, tinted like any icon and never
+  /// altered or badged (App Review: the symbol is used as Apple draws it).
+  Widget _hero(StageTone tone, {required String title, String? message}) =>
+      CollectStageHero(
+        tone: tone,
+        symbol: const TapToPayIcon(size: 40),
+        headingLevel: 1,
+        title: title,
+        message: message,
+      );
+
   List<Widget> _body(BuildContext context) {
     final tokens = context.inTheme;
-    final title = Theme.of(context).textTheme.headlineSmall?.copyWith(
-      fontWeight: FontWeight.w700,
-      color: tokens.ink,
-    );
-    final body = TextStyle(fontSize: 15, height: 1.45, color: tokens.ink2);
-    final note = TextStyle(fontSize: 13, height: 1.4, color: tokens.ink3);
-    Widget heading(String text) => Semantics(
-      header: true,
-      headingLevel: 1,
-      child: Text(text, textAlign: TextAlign.center, style: title),
-    );
+    final text = Theme.of(context).textTheme;
     switch (stage) {
       case TapToPayEnableStage.intro:
         return [
-          heading(tapToPayName(context)),
-          const SizedBox(height: InSpacing.sm),
-          Text(
-            context.tr('terminal_enable_intro', {
+          _hero(
+            StageTone.accent,
+            title: tapToPayName(context),
+            message: context.tr('terminal_enable_intro', {
               'name': _name(context, 'terminal_enable_intro'),
               'company': companyName,
             }),
-            textAlign: TextAlign.center,
-            style: body,
           ),
           const SizedBox(height: InSpacing.xl),
           if (loading)
@@ -305,207 +284,147 @@ class TapToPayEnableView extends StatelessWidget {
         ];
       case TapToPayEnableStage.preparing:
         return [
-          heading(
-            context.tr('terminal_tap_to_pay_initializing', {
+          _hero(
+            StageTone.accent,
+            title: context.tr('terminal_tap_to_pay_initializing', {
               'name': _name(context, 'terminal_tap_to_pay_initializing'),
             }),
           ),
           const SizedBox(height: InSpacing.xl),
           Semantics(
             liveRegion: true,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(InRadii.r1),
-                  child: LinearProgressIndicator(
-                    value: progress,
-                    minHeight: 6,
-                    backgroundColor: tokens.border,
-                    color: tokens.accent,
-                  ),
-                ),
-                const SizedBox(height: InSpacing.sm),
-                if (progress != null)
-                  Center(
-                    child: LtrText(
-                      '${(progress! * 100).round()}%',
-                      style: TextStyle(fontSize: 13, color: tokens.ink3),
+            child: CollectCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  StageProgress(value: progress),
+                  const SizedBox(height: 12),
+                  Text(
+                    context.tr('terminal_enable_first_time'),
+                    style: text.bodyMedium?.copyWith(
+                      color: tokens.ink2,
+                      height: 1.4,
                     ),
                   ),
-              ],
+                ],
+              ),
             ),
           ),
-          const SizedBox(height: InSpacing.xl),
-          Text(
-            context.tr('terminal_enable_first_time'),
-            textAlign: TextAlign.center,
-            style: body,
-          ),
-          const SizedBox(height: InSpacing.sm),
+          const SizedBox(height: 12),
           Text(
             context.tr('terminal_enable_leave_note'),
             textAlign: TextAlign.center,
-            style: note,
+            style: text.bodySmall?.copyWith(
+              fontSize: 13,
+              color: tokens.ink3,
+              height: 1.4,
+            ),
           ),
+          // What is left, ticked off as it happens.
+          if (steps.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            _Steps(steps: steps, done: doneSteps),
+          ],
         ];
       case TapToPayEnableStage.failed:
         return [
-          heading(tapToPayName(context)),
+          _hero(StageTone.accent, title: tapToPayName(context)),
           const SizedBox(height: InSpacing.xl),
-          _Notice(
+          CollectNote(
             icon: Icons.error_outline,
-            color: Theme.of(context).colorScheme.error,
-            background: tokens.overdueSoft,
+            tone: StageTone.danger,
             text: problem ?? context.tr('terminal_error_unknown'),
           ),
           // A first load that failed knows no steps: no empty card.
           if (steps.isNotEmpty) ...[
-            SizedBox(height: InSpacing.md(context)),
+            const SizedBox(height: 12),
             _Steps(steps: steps, done: doneSteps),
           ],
         ];
       case TapToPayEnableStage.ready:
         return [
-          heading(context.tr('terminal_enable_ready_title')),
-          const SizedBox(height: InSpacing.sm),
-          Text(
-            context.tr('terminal_enable_ready_body', {
+          _hero(
+            StageTone.success,
+            title: context.tr('terminal_enable_ready_title'),
+            message: context.tr('terminal_enable_ready_body', {
               'name': _name(context, 'terminal_enable_ready_body'),
             }),
-            textAlign: TextAlign.center,
-            style: body,
           ),
         ];
       case TapToPayEnableStage.askAdmin:
         return [
-          heading(
-            context.tr('terminal_error_terms_not_accepted', {
+          _hero(
+            StageTone.neutral,
+            title: context.tr('terminal_error_terms_not_accepted', {
               'name': _name(context, 'terminal_error_terms_not_accepted'),
             }),
-          ),
-          const SizedBox(height: InSpacing.sm),
-          Text(
-            context.tr('terminal_enable_ask_admin_body', {
+            message: context.tr('terminal_enable_ask_admin_body', {
               'name': _name(context, 'terminal_enable_ask_admin_body'),
               'company': companyName,
             }),
-            textAlign: TextAlign.center,
-            style: body,
           ),
         ];
     }
   }
 
-  Widget _actions(BuildContext context) {
-    const size = Size(64, 44);
+  List<Widget> _actions(BuildContext context) {
     switch (stage) {
       case TapToPayEnableStage.intro:
         // Apple 3.5: the clear action that leads to its terms.
-        return FilledButton(
-          style: FilledButton.styleFrom(minimumSize: size),
-          onPressed: onStart,
-          child: Text(
-            context.tr('terminal_enable_turn_on', {
+        return [
+          StageButton(
+            onPressed: onStart,
+            label: context.tr('terminal_enable_turn_on', {
               'name': _name(context, 'terminal_enable_turn_on'),
             }),
           ),
-        );
+        ];
       case TapToPayEnableStage.preparing:
         // Closes quietly: setup carries on.
-        return OutlinedButton(
-          style: OutlinedButton.styleFrom(minimumSize: const Size(64, 44)),
-          onPressed: onDone,
-          child: Text(context.tr('close')),
-        );
+        return [
+          StageButton(
+            kind: StageButtonKind.outlined,
+            onPressed: onDone,
+            label: context.tr('close'),
+          ),
+        ];
       case TapToPayEnableStage.failed:
-        return Row(
-          children: [
-            Expanded(
-              child: OutlinedButton(
-                style: OutlinedButton.styleFrom(
-                  minimumSize: const Size(64, 44),
-                ),
-                onPressed: onDone,
-                child: Text(context.tr('close')),
+        return [
+          StageButtonPair(
+            secondary: StageButton(
+              kind: StageButtonKind.outlined,
+              onPressed: onDone,
+              label: context.tr('close'),
+            ),
+            primary: StageButton(
+              onPressed: onOpenSettings ?? onRetry,
+              label: context.tr(
+                onOpenSettings != null ? 'open_settings' : 'retry',
               ),
             ),
-            SizedBox(width: InSpacing.md(context)),
-            Expanded(
-              child: FilledButton(
-                style: FilledButton.styleFrom(minimumSize: size),
-                onPressed: onOpenSettings ?? onRetry,
-                child: Text(
-                  context.tr(
-                    onOpenSettings != null ? 'open_settings' : 'retry',
-                  ),
-                ),
-              ),
-            ),
-          ],
-        );
+          ),
+        ];
       case TapToPayEnableStage.ready:
-        return Row(
-          children: [
-            Expanded(
-              child: OutlinedButton(
-                style: OutlinedButton.styleFrom(
-                  minimumSize: const Size(64, 44),
-                ),
-                onPressed: onDone,
-                child: Text(context.tr('done')),
-              ),
+        return [
+          StageButtonPair(
+            secondary: StageButton(
+              kind: StageButtonKind.outlined,
+              onPressed: onDone,
+              label: context.tr('done'),
             ),
-            SizedBox(width: InSpacing.md(context)),
-            Expanded(
-              child: FilledButton(
-                style: FilledButton.styleFrom(minimumSize: size),
-                onPressed: onOpenInvoices,
-                child: Text(context.tr('terminal_open_invoices')),
-              ),
+            primary: StageButton(
+              onPressed: onOpenInvoices,
+              label: context.tr('terminal_open_invoices'),
             ),
-          ],
-        );
+          ),
+        ];
       case TapToPayEnableStage.askAdmin:
-        return FilledButton(
-          style: FilledButton.styleFrom(minimumSize: size),
-          onPressed: onDone,
-          child: Text(context.tr('done')),
-        );
+        return [StageButton(onPressed: onDone, label: context.tr('done'))];
     }
   }
 }
 
-/// Apple's symbol in a soft tile, never altered or badged (App Review:
-/// the symbol is used as Apple draws it) — green once it's ready.
-class _Hero extends StatelessWidget {
-  const _Hero({required this.stage});
-
-  final TapToPayEnableStage stage;
-
-  @override
-  Widget build(BuildContext context) {
-    final tokens = context.inTheme;
-    final ready = stage == TapToPayEnableStage.ready;
-    return Center(
-      child: Container(
-        width: 112,
-        height: 112,
-        decoration: BoxDecoration(
-          color: ready ? tokens.paidSoft : tokens.accentSoft,
-          borderRadius: BorderRadius.circular(InRadii.r3 * 2),
-        ),
-        alignment: Alignment.center,
-        child: TapToPayIcon(
-          size: 64,
-          color: ready ? tokens.paid : tokens.accent,
-        ),
-      ),
-    );
-  }
-}
-
-/// The steps, numbered, each ticked once done.
+/// The steps still needed, numbered, each ticked once done.
 class _Steps extends StatelessWidget {
   const _Steps({required this.steps, required this.done});
 
@@ -519,27 +438,19 @@ class _Steps extends StatelessWidget {
       for (final s in TapToPayEnableStep.values)
         if (steps.contains(s)) s,
     ];
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: tokens.surface,
-        borderRadius: BorderRadius.circular(InRadii.r3),
-        border: Border.all(color: tokens.border),
-      ),
-      child: Padding(
-        padding: EdgeInsets.symmetric(
-          horizontal: InSpacing.lg(context),
-          vertical: InSpacing.sm,
-        ),
-        child: Column(
-          children: [
-            for (final (i, step) in ordered.indexed)
-              _StepRow(
-                number: i + 1,
-                text: _text(context, step),
-                done: done.contains(step),
-              ),
+    return CollectCard(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: Column(
+        children: [
+          for (final (i, step) in ordered.indexed) ...[
+            if (i > 0) Divider(height: 1, color: tokens.border),
+            _StepRow(
+              number: i + 1,
+              text: _text(context, step),
+              done: done.contains(step),
+            ),
           ],
-        ),
+        ],
       ),
     );
   }
@@ -569,11 +480,12 @@ class _StepRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = context.inTheme;
+    final type = Theme.of(context).textTheme;
     return MergeSemantics(
       child: Semantics(
         checked: done,
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: InSpacing.sm),
+          padding: const EdgeInsets.symmetric(vertical: 12),
           child: Row(
             children: [
               Container(
@@ -581,27 +493,28 @@ class _StepRow extends StatelessWidget {
                 height: 28,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: done ? tokens.paid : tokens.surfaceAlt,
-                  borderRadius: BorderRadius.circular(InRadii.r1),
-                  border: done ? null : Border.all(color: tokens.border),
+                  color: done ? tokens.paidSoft : tokens.accentSoft,
+                  borderRadius: BorderRadius.circular(InRadii.r2),
                 ),
                 child: done
-                    ? Icon(Icons.check, size: 18, color: tokens.surface)
+                    ? Icon(Icons.check_rounded, size: 18, color: tokens.paid)
                     : LtrText(
                         '$number',
-                        style: TextStyle(
+                        style: type.labelLarge?.copyWith(
                           fontSize: 13,
                           fontWeight: FontWeight.w700,
-                          color: tokens.ink2,
+                          color: tokens.accentInk,
+                          fontFeatures: stageFigures,
                         ),
                       ),
               ),
-              SizedBox(width: InSpacing.md(context)),
+              const SizedBox(width: 12),
               Expanded(
                 child: Text(
                   text,
-                  style: TextStyle(
+                  style: type.bodyLarge?.copyWith(
                     fontSize: 15,
+                    height: 1.35,
                     color: done ? tokens.ink3 : tokens.ink,
                   ),
                 ),
@@ -612,49 +525,4 @@ class _StepRow extends StatelessWidget {
       ),
     );
   }
-}
-
-class _Notice extends StatelessWidget {
-  const _Notice({
-    required this.icon,
-    required this.color,
-    required this.background,
-    required this.text,
-  });
-
-  final IconData icon;
-  final Color color;
-  final Color background;
-  final String text;
-
-  @override
-  Widget build(BuildContext context) => Semantics(
-    liveRegion: true,
-    child: DecoratedBox(
-      decoration: BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(InRadii.r2),
-      ),
-      child: Padding(
-        padding: EdgeInsets.all(InSpacing.md(context)),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, color: color, size: 20),
-            const SizedBox(width: InSpacing.sm),
-            Expanded(
-              child: Text(
-                text,
-                style: TextStyle(
-                  fontSize: 14,
-                  height: 1.4,
-                  color: context.inTheme.ink,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    ),
-  );
 }

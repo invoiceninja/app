@@ -766,6 +766,12 @@ class _InvoiceNinjaAppState extends State<InvoiceNinjaApp> {
       go: _router.go,
       contextOf: () => _router.routerDelegate.navigatorKey.currentContext,
     );
+    // And for the notice of a card payment declined while nobody watched:
+    // its Open goes to the invoice.
+    widget.services.terminalDeclineNotices.attach(
+      go: _router.go,
+      contextOf: () => _router.routerDelegate.navigatorKey.currentContext,
+    );
     _appDeepLinks;
     _appShareIntake;
     _sweepSharedFiles();
