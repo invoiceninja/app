@@ -24,6 +24,8 @@ class TerminalConfig {
     required this.enabled,
     required this.planOk,
     required this.gateways,
+    this.setupGateways = const [],
+    this.companyCountry = '',
   });
 
   factory TerminalConfig.fromJson(Map<String, dynamic> json) => TerminalConfig(
@@ -33,14 +35,36 @@ class TerminalConfig {
       for (final g in json['gateways'] is List ? json['gateways'] as List : [])
         if (g is Map<String, dynamic>) TerminalGatewayConfig.fromJson(g),
     ],
+    // Both are newer than the route: an older server leaves them out.
+    setupGateways: [
+      for (final g
+          in json['setup_gateways'] is List
+              ? json['setup_gateways'] as List
+              : [])
+        if (g is Map<String, dynamic>) TerminalSetupGateway.fromJson(g),
+    ],
+    companyCountry: _string(json['company_country']).toUpperCase(),
   );
 
-  /// The platform switch (`NINJA_TERMINAL_ENABLED`).
+  /// The platform switch (`NINJA_TERMINAL_ENABLED`) — also the release flag
+  /// for Tap to Pay on iPhone.
   final bool enabled;
 
   /// False on a hosted plan below Pro.
   final bool planOk;
+
+  /// The Stripe gateways with Card present on: the only ones a card is ever
+  /// taken on.
   final List<TerminalGatewayConfig> gateways;
+
+  /// Stripe gateways in a Tap to Pay country with Card present still off
+  /// (`setup_gateways`): an admin can turn it on, from the iPhone. Never
+  /// collected on.
+  final List<TerminalSetupGateway> setupGateways;
+
+  /// The company's country (ISO 3166 alpha-2, upper case), for a company
+  /// with no Stripe gateway yet; '' from a server that doesn't say.
+  final String companyCountry;
 
   /// The gateway a collection uses: the first one Stripe lets take cards.
   TerminalGatewayConfig? get usableGateway {
@@ -107,6 +131,29 @@ class TerminalGatewayConfig {
   final bool cardPaymentsActive;
   final TerminalSurchargeConfig surcharge;
   final List<TerminalLocation> locations;
+}
+
+/// A Stripe gateway with Card present off (`setup_gateways`): enough to
+/// offer turning it on, nothing to collect with.
+class TerminalSetupGateway {
+  const TerminalSetupGateway({
+    required this.companyGatewayId,
+    required this.label,
+    required this.accountCountry,
+  });
+
+  factory TerminalSetupGateway.fromJson(Map<String, dynamic> json) =>
+      TerminalSetupGateway(
+        companyGatewayId: _string(json['company_gateway_id']),
+        label: _string(json['label']),
+        accountCountry: _string(json['account_country']).toUpperCase(),
+      );
+
+  final String companyGatewayId;
+  final String label;
+
+  /// ISO 3166 alpha-2, upper case.
+  final String accountCountry;
 }
 
 class TerminalSurchargeConfig {

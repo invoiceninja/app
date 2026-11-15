@@ -9,6 +9,7 @@ import 'package:logging/logging.dart';
 import 'package:admin/app/script_fonts.dart';
 import 'package:admin/l10n/company_labels_scope.dart';
 import 'package:admin/l10n/supported_locales.dart';
+import 'package:admin/l10n/tap_to_pay_names.dart';
 
 final _log = Logger('Localization');
 
@@ -109,6 +110,17 @@ class Localization {
       out = out.replaceAll(':$name', params[name]!);
     }
     return out;
+  }
+
+  /// Whether [key] renders in the active locale's own words: its bundle (with
+  /// its app-local overlay) holds a value that is neither blank nor a copy
+  /// of the English. False for a key that falls back to English — and in an
+  /// English locale, whose words are the English. For a name dropped into a
+  /// sentence (`tapToPayNameFor`): it must be in the sentence's language.
+  bool isTranslated(String key) {
+    final own = _nonBlank(_strings[key]);
+    if (own == null) return false;
+    return own != _nonBlank(_fallback[key]) && own != _nonBlank(_pending[key]);
   }
 
   /// The English string for [key] — the Transifex English bundle, then the
@@ -377,17 +389,37 @@ class _LocalizationDelegate extends LocalizationsDelegate<Localization> {
         : await localePendingLoad;
     await scriptFontLoad;
     if (strings == null && localePending == null) {
-      return Localization._(fallback, pending: pending);
+      return Localization._(
+        _withAppleNames(fallback, locale),
+        fallback: fallback,
+        pending: pending,
+      );
     }
     return Localization._(
-      Localization._withLocalePending(
-        strings ?? const {},
-        localePending,
-        fallback,
+      _withAppleNames(
+        Localization._withLocalePending(
+          strings ?? const {},
+          localePending,
+          fallback,
+        ),
+        locale,
       ),
       fallback: fallback,
       pending: pending,
     );
+  }
+
+  /// Apple's own name for Tap to Pay on iPhone is not a translation: App
+  /// Review wants exactly the form its table gives for the language
+  /// (`tapToPayOnIPhoneName`). Laid in once per load, so every lookup of
+  /// [kTapToPayOnIPhoneKey] — a label, a settings search hit, the row that
+  /// hit reveals — reads the same words. English reads `_app_pending.json`'s.
+  static Map<String, String> _withAppleNames(
+    Map<String, String> strings,
+    Locale locale,
+  ) {
+    if (locale.languageCode == 'en') return strings;
+    return {...strings, kTapToPayOnIPhoneKey: tapToPayOnIPhoneName(locale)};
   }
 
   @override
@@ -399,6 +431,10 @@ extension LocalizationContext on BuildContext {
   /// `Localization.of(context)!.lookup('save')`.
   String tr(String key, [Map<String, String>? params]) =>
       Localization.of(this)?.lookup(key, params) ?? key;
+
+  /// [Localization.isTranslated] for the active locale; false with none.
+  bool isTranslated(String key) =>
+      Localization.of(this)?.isTranslated(key) ?? false;
 
   /// [tr] without the company's Custom Labels — see
   /// [Localization.lookupBundled].

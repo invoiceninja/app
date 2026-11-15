@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:logging/logging.dart';
 import 'package:store_services/store_services.dart';
 
@@ -35,15 +36,47 @@ class TerminalController extends ChangeNotifier {
     required AuthRepository auth,
     required DevicePrefsStore prefs,
     bool? platformReady,
+    bool? iPhone,
     DateTime Function()? clock,
+    Future<void> Function()? afterFrame,
   }) : _clock = clock ?? DateTime.now,
        _repo = repository,
        _platform = platform,
        _auth = auth,
        _prefs = prefs,
-       _platformReady = platformReady {
+       _platformReady = platformReady,
+       _iPhone = iPhone ?? isIPhonePlatform(),
+       _afterFrame = afterFrame {
     _readerUsed = prefs.read(DevicePrefKeys.cardReaderUsed) ?? false;
     prefs.addListener(_syncPrefs);
+    // The one slot the SDK has: every screen subscribes here instead.
+    _platform.events = TerminalReaderEvents(
+      onDisplayMessage: (m) => _fanOut((e) => e.onDisplayMessage?.call(m)),
+      onInputOptions: (o) => _fanOut((e) => e.onInputOptions?.call(o)),
+      onUpdateAvailable: () => _fanOut((e) => e.onUpdateAvailable?.call()),
+      onUpdateProgress: (p) {
+        _setProgress(p);
+        _fanOut((e) => e.onUpdateProgress?.call(p));
+      },
+      onUpdateFinished: (error) {
+        _setProgress(null);
+        _fanOut((e) => e.onUpdateFinished?.call(error));
+      },
+      onReconnecting: () => _fanOut((e) => e.onReconnecting?.call()),
+      onReconnected: () => _fanOut((e) => e.onReconnected?.call()),
+      onDisconnected: () {
+        if (_reader != null) {
+          _reader = null;
+          if (!_disposed) notifyListeners();
+        }
+        _fanOut((e) => e.onDisconnected?.call());
+      },
+      onLowBattery: () => _fanOut((e) => e.onLowBattery?.call()),
+      onTermsAccepted: () {
+        _linked = true;
+        _fanOut((e) => e.onTermsAccepted?.call());
+      },
+    );
   }
 
   final TerminalRepository _repo;
@@ -53,6 +86,13 @@ class TerminalController extends ChangeNotifier {
   final bool? _platformReady;
   final DateTime Function() _clock;
 
+  /// An iPhone: Tap to Pay on iPhone's own rules apply (warm-up, the linked
+  /// state). Injected by tests.
+  final bool _iPhone;
+
+  /// Waits for the frame after a company switch; tests inject it.
+  final Future<void> Function()? _afterFrame;
+
   /// How long an answer stands: an admin who turns Card present on sees it
   /// within minutes, and a failed fetch is tried again.
   static const configLifetime = Duration(minutes: 5);
@@ -60,6 +100,33 @@ class TerminalController extends ChangeNotifier {
 
   TerminalPlatform get platform => _platform;
   TerminalRepository get repository => _repo;
+
+  // ------------------------------------------------------------- events
+
+  final List<TerminalReaderEvents> _listeners = [];
+
+  /// Reader prompts, updates and disconnects, for as long as the caller
+  /// listens: call the result to stop. The controller owns the SDK's one
+  /// events slot, so screens never set it.
+  VoidCallback addEventListener(TerminalReaderEvents listener) {
+    _listeners.add(listener);
+    return () => _listeners.remove(listener);
+  }
+
+  void _fanOut(void Function(TerminalReaderEvents listener) call) {
+    for (final listener in List.of(_listeners)) {
+      call(listener);
+    }
+  }
+
+  /// 0–1 while the reader configures or updates (Tap to Pay on iPhone's
+  /// first preparation among them), else null — App Review 3.9.1's progress.
+  ValueListenable<double?> get setupProgress => _progress;
+  final ValueNotifier<double?> _progress = ValueNotifier(null);
+
+  void _setProgress(double? value) {
+    if (!_disposed) _progress.value = value;
+  }
 
   /// The build has the feature, this is the mobile app with Stripe's SDK, and
   /// not the demo.
@@ -215,6 +282,19 @@ class TerminalController extends ChangeNotifier {
     return TerminalConfigState.ready;
   }
 
+  /// What this phone can do, asked again — after a resume, or before a press
+  /// that needs location services. Never prompts.
+  Future<TerminalDeviceSupport> refreshDevice() async {
+    try {
+      final device = await _platform.deviceSupport();
+      _device = lastKnownDevice = device;
+      _deviceLoading = Future.value();
+      return device;
+    } catch (_) {
+      return _device ?? TerminalDeviceSupport.none;
+    }
+  }
+
   /// The connected reader and the Stripe account it was connected under.
   TerminalReader? get reader => _reader;
   TerminalReader? _reader;
@@ -222,6 +302,11 @@ class TerminalController extends ChangeNotifier {
 
   /// What this phone can do; null until asked.
   TerminalDeviceSupport? get device => _device;
+
+  /// The last [device] any controller learned, for a check that has no
+  /// Services to ask — settings search, which offers the Tap to Pay on
+  /// iPhone row only where the row is drawn.
+  static TerminalDeviceSupport? lastKnownDevice;
 
   /// The company's answer, or null while unknown or unsupported.
   TerminalConfig? configFor(String companyId) => _configs[companyId]?.config;
@@ -273,7 +358,7 @@ class TerminalController extends ChangeNotifier {
     final entry = _configs[companyId] = _ConfigEntry(_clock())..config = keep;
     _deviceLoading ??= _platform
         .deviceSupport()
-        .then((d) => _device = d)
+        .then((d) => _device = lastKnownDevice = d)
         .catchError((Object _) => _device = TerminalDeviceSupport.none);
     try {
       final config = await _repo.config(companyId);
@@ -309,7 +394,8 @@ class TerminalController extends ChangeNotifier {
     final device = _device;
     return terminalReaderChoice(
       tapToPayDevice: device?.tapToPay ?? false,
-      iPhone: !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS,
+      osUpdateRequired: device?.osUpdateRequired ?? false,
+      iPhone: _iPhone,
       accountCountry: accountCountry,
       bluetoothDevice: device?.bluetooth ?? false,
       readerUsed: _readerUsed || _reader?.kind == TerminalReaderKind.bluetooth,
@@ -326,7 +412,41 @@ class TerminalController extends ChangeNotifier {
       planOk: config?.planOk ?? false,
       accountCountry: config?.usableGateway?.accountCountry,
       readers: readerChoiceFor,
+      tapToPayIPhone: _tapToPayIPhoneDevice,
+      setupCountries: [
+        for (final g in config?.setupGateways ?? const <TerminalSetupGateway>[])
+          g.accountCountry,
+      ],
+      isAdmin: _isAdmin(),
+      noStripeGateway:
+          config != null &&
+          config.gateways.isEmpty &&
+          config.setupGateways.isEmpty,
+      companyCountry: config?.companyCountry ?? '',
     );
+  }
+
+  /// The action [availabilityFor] offers is Tap to Pay on iPhone — named and
+  /// drawn as Apple requires — rather than a Bluetooth reader.
+  bool offersTapToPayOnIPhone(String companyId) {
+    if (!_tapToPayIPhoneDevice) return false;
+    final gateway = configFor(companyId)?.usableGateway;
+    return gateway == null ||
+        readerChoiceFor(gateway.accountCountry) ==
+            TerminalReaderChoice.tapToPay ||
+        (configFor(companyId)?.setupGateways.any(
+              (g) => kTapToPayIPhoneCountries.contains(g.accountCountry),
+            ) ??
+            false);
+  }
+
+  /// An iPhone that can take Tap to Pay on iPhone — on an iOS Apple may
+  /// still want updated ([TerminalDeviceSupport.osUpdateRequired]).
+  bool get _tapToPayIPhoneDevice => _iPhone && (_device?.tapToPay ?? false);
+
+  bool _isAdmin() {
+    final company = _auth.session.value?.currentCompany;
+    return (company?.isAdmin ?? false) || (company?.isOwner ?? false);
   }
 
   /// Starts the SDK for one Stripe account and Location — a connection token
@@ -403,6 +523,240 @@ class TerminalController extends ChangeNotifier {
     return _connect(found.first, location, merchantDisplayName, isAdmin);
   }
 
+  // ------------------------------------------------- Tap to Pay on iPhone
+
+  /// Whether this company's Stripe account has accepted Apple's Tap to Pay
+  /// on iPhone terms, as the last connect found out; null when unknown. Held
+  /// in memory only and dropped on resume and on a reset — Apple is the
+  /// source (App Review 1.6), so a press always asks again.
+  bool? get tapToPayLinked => _linked;
+  bool? _linked;
+
+  /// Bumped by every [reset]: a connect that started before one gives up.
+  int _session = 0;
+
+  /// The [reset] under way, which a connect waits out.
+  Future<void>? _resetting;
+
+  final List<_Ensure> _ensuring = [];
+
+  /// A connect is under way (a warm-up's, or a screen's).
+  bool get tapToPayConnecting => _ensuring.isNotEmpty;
+
+  /// Connects this phone's Tap to Pay reader for [gateway] and [location],
+  /// or answers the one already connected. [admin] lets Apple's terms sheet
+  /// open (only an admin may accept them, App Review 3.8).
+  ///
+  /// Single-flight per account (company, gateway, Location) and mode: a
+  /// second call for the same shares the first, and an `admin: false` call
+  /// shares an admin one for the same account. Any other call waits for
+  /// every connect that came before it, then runs its own — an admin call
+  /// after a quiet one runs again so the terms can open, and a call for
+  /// another gateway never takes a reader connected for the wrong one.
+  ///
+  /// Bound to the session and company it was called in: it waits out a
+  /// [reset] under way, and gives up (`sessionExpired`) when one starts or
+  /// the company changes meanwhile, so a reader never outlives its company.
+  Future<TerminalReader> ensureTapToPay({
+    required String companyId,
+    required TerminalGatewayConfig gateway,
+    required TerminalLocation location,
+    required String merchantDisplayName,
+    required bool admin,
+  }) {
+    final account = '$companyId/${gateway.companyGatewayId}/${location.id}';
+    for (final e in _ensuring) {
+      if (e.account == account && (e.admin == admin || e.admin)) {
+        return e.future;
+      }
+    }
+    final session = _session;
+    final before = [for (final e in _ensuring) e.future];
+    final entry = _Ensure(account: account, admin: admin);
+    entry.future = _ensure(
+      session: session,
+      before: before,
+      companyId: companyId,
+      gateway: gateway,
+      location: location,
+      merchantDisplayName: merchantDisplayName,
+      admin: admin,
+    ).whenComplete(() => _ensuring.remove(entry));
+    _ensuring.add(entry);
+    return entry.future;
+  }
+
+  Future<TerminalReader> _ensure({
+    required int session,
+    required List<Future<TerminalReader>> before,
+    required String companyId,
+    required TerminalGatewayConfig gateway,
+    required TerminalLocation location,
+    required String merchantDisplayName,
+    required bool admin,
+  }) async {
+    void check() {
+      if (session != _session ||
+          _auth.session.value?.currentCompanyId != companyId) {
+        throw const TerminalError(TerminalErrorCode.sessionExpired, 'reset');
+      }
+    }
+
+    // One connect at a time, in the order they were asked for.
+    for (final earlier in before) {
+      try {
+        await earlier;
+      } catch (_) {}
+    }
+    while (_resetting != null) {
+      await _resetting;
+    }
+    check();
+    await prepare(companyId: companyId, gateway: gateway, location: location);
+    check();
+    final connected = await connectedReader();
+    check();
+    if (connected != null && connected.kind == TerminalReaderKind.tapToPay) {
+      _linked = true;
+      return connected;
+    }
+    try {
+      final reader = await connectTapToPay(
+        gateway: gateway,
+        location: location,
+        merchantDisplayName: merchantDisplayName,
+        isAdmin: admin,
+      );
+      try {
+        check();
+      } catch (_) {
+        // Connected for a company that is gone: it never serves the next.
+        if (identical(_reader, reader)) _reader = null;
+        rethrow;
+      }
+      _linked = true;
+      return reader;
+    } on TerminalError catch (e) {
+      if (session == _session && e.code == TerminalErrorCode.termsNotAccepted) {
+        _linked = false;
+      }
+      rethrow;
+    } finally {
+      if (session == _session) _setProgress(null);
+    }
+  }
+
+  /// Lets go of Tap to Pay for a Bluetooth reader: waits for every connect
+  /// under way (a warm-up's), then disconnects a Tap to Pay reader. Never
+  /// throws.
+  Future<void> releaseTapToPay() async {
+    for (final e in List.of(_ensuring)) {
+      try {
+        await e.future;
+      } catch (_) {}
+    }
+    if (_reader?.kind == TerminalReaderKind.tapToPay) await disconnect();
+  }
+
+  int _screens = 0;
+
+  /// A collect (or enable) screen is open: it prepares the reader itself, so
+  /// no warm-up starts meanwhile. Call the result when it closes.
+  VoidCallback holdWarmUp() {
+    _screens++;
+    var released = false;
+    return () {
+      if (released) return;
+      released = true;
+      _screens--;
+    };
+  }
+
+  bool _warming = false;
+
+  /// Gets Tap to Pay on iPhone ready ahead of the first press (App Review
+  /// 1.5 and 5.6), on an iPhone only. Stops at the first check that fails —
+  /// a capable phone on a current enough iOS, the platform, a usable
+  /// gateway in an iPhone country with a Location, location already
+  /// allowed, nothing connected or connecting, no collect screen open, an
+  /// account not known to be unlinked — then connects without the terms
+  /// (`admin: false`). Never prompts, shows a sheet or toasts, never throws.
+  Future<void> warmUp(String companyId) async {
+    if (!_iPhone || _warming || _disposed) return;
+    _warming = true;
+    try {
+      await _warmUp(companyId);
+    } catch (e) {
+      _log.fine('warm-up stopped: ${e.runtimeType}');
+    } finally {
+      _warming = false;
+    }
+  }
+
+  Future<void> _warmUp(String companyId) async {
+    final session = _session;
+    bool stale() =>
+        _disposed ||
+        session != _session ||
+        _auth.session.value?.currentCompanyId != companyId;
+    final device = await refreshDevice();
+    if (stale() || !device.tapToPay || device.osUpdateRequired) return;
+    if (!platformReady || !_canCreatePayment()) return;
+    // The same rules as anywhere else: an older server's 404 is not asked
+    // again, and a failed fetch waits its minute.
+    ensureConfig(companyId);
+    final running = _loading[companyId];
+    if (running != null) await running;
+    if (stale()) return;
+    final config = configFor(companyId);
+    if (config == null || !config.enabled) return;
+    TerminalGatewayConfig? gateway;
+    for (final g in config.gateways) {
+      if (g.cardPaymentsActive &&
+          g.locations.isNotEmpty &&
+          kTapToPayIPhoneCountries.contains(g.accountCountry)) {
+        gateway = g;
+        break;
+      }
+    }
+    if (gateway == null) return;
+    final permission = await _platform.permissionStatus(
+      TerminalReaderKind.tapToPay,
+    );
+    if (stale() || permission != TerminalPermission.granted) return;
+    if (_reader != null || tapToPayConnecting || _screens > 0) return;
+    if (_linked == false) return;
+    await ensureTapToPay(
+      companyId: companyId,
+      gateway: gateway,
+      location: gateway.locations.first,
+      merchantDisplayName: _auth.session.value?.currentCompany?.name ?? '',
+      admin: false,
+    );
+  }
+
+  /// [warmUp] once the frame after a company switch has drawn, so it never
+  /// competes with the first paint.
+  Future<void> warmUpAfterFirstFrame(String companyId) async {
+    if (!_iPhone) return;
+    try {
+      await (_afterFrame?.call() ?? SchedulerBinding.instance.endOfFrame);
+    } catch (_) {
+      return;
+    }
+    await warmUp(companyId);
+  }
+
+  /// The app came back to the foreground: what Apple says may have changed
+  /// (terms accepted on another phone, location allowed in Settings), so the
+  /// linked state is forgotten, then the reader is warmed up again.
+  Future<void> onResumed(String? companyId) async {
+    if (!_iPhone) return;
+    _linked = null;
+    if (companyId == null || companyId.isEmpty) return;
+    await warmUp(companyId);
+  }
+
   /// Bluetooth readers in range, for the reader sheet.
   Stream<List<TerminalReader>> discoverBluetooth(
     TerminalGatewayConfig gateway,
@@ -470,13 +824,29 @@ class TerminalController extends ChangeNotifier {
   /// Forgets every company's answer and the reader, and resets the SDK — a
   /// session end or a company switch. Waits up to a minute for a charge in
   /// flight to be answered first.
-  Future<void> reset() async {
+  Future<void> reset() {
+    final done = Completer<void>();
+    _resetting = done.future;
     // The session's own state goes now, so nothing new starts on it.
+    _session++;
+    _ensuring.clear();
+    _linked = null;
+    _setProgress(null);
+    unawaited(
+      _reset().whenComplete(() {
+        if (identical(_resetting, done.future)) _resetting = null;
+        done.complete();
+      }),
+    );
+    return done.future;
+  }
+
+  Future<void> _reset() async {
     _configs.clear();
     _reader = null;
     _account = null;
     final prepared = _prepared;
-    notifyListeners();
+    if (!_disposed) notifyListeners();
     // Until no charge is left: one that ends may have started another (a
     // read again after finalize). Real time, whatever the clock says.
     // Longer than the facade's bound on a confirm (2 minutes), so a confirm
@@ -508,6 +878,8 @@ class TerminalController extends ChangeNotifier {
   void dispose() {
     _disposed = true;
     _prefs.removeListener(_syncPrefs);
+    _listeners.clear();
+    _progress.dispose();
     super.dispose();
   }
 }
@@ -551,4 +923,13 @@ class _ConfigEntry {
 
   /// The last fetch failed (any answer kept is older): asked again sooner.
   bool failed = false;
+}
+
+/// One [TerminalController.ensureTapToPay] under way.
+class _Ensure {
+  _Ensure({required this.account, required this.admin});
+
+  final String account;
+  final bool admin;
+  late final Future<TerminalReader> future;
 }

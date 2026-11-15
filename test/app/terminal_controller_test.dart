@@ -105,6 +105,21 @@ class _FakePlatform implements TerminalPlatform {
   );
   Future<String> Function()? tokenSource;
 
+  /// The controller's one events slot: tests fire reader events through it.
+  TerminalReaderEvents events = const TerminalReaderEvents();
+
+  TerminalPermission status = TerminalPermission.granted;
+
+  /// Each connect answers the next of these (a [TerminalError] is thrown, a
+  /// [Completer] waited for); a plain success once they run out.
+  final List<Object> connectAnswers = [];
+
+  @override
+  Future<TerminalPermission> permissionStatus(TerminalReaderKind kind) async {
+    calls.add('status');
+    return status;
+  }
+
   @override
   bool get isAvailable => true;
 
@@ -151,11 +166,22 @@ class _FakePlatform implements TerminalPlatform {
     calls.add(
       'connect:$locationId:$merchantDisplayName:$tosAcceptancePermitted',
     );
-    return reader;
+    if (connectAnswers.isNotEmpty) {
+      final answer = connectAnswers.removeAt(0);
+      if (answer is Completer) await answer.future;
+      if (answer is TerminalError) throw answer;
+    }
+    return _connected = reader;
   }
 
+  /// Like the SDK, answer the reader a connect left connected — only when a
+  /// test asks: the older tests expect none.
+  bool remembersReader = false;
+  TerminalReader? _connected;
+
   @override
-  Future<TerminalReader?> connectedReader() async => null;
+  Future<TerminalReader?> connectedReader() async =>
+      remembersReader ? _connected : null;
 
   @override
   Object? noSuchMethod(Invocation invocation) => throw UnimplementedError();
@@ -409,5 +435,431 @@ void main() {
       'SDK alone', () async {
     await terminal.reset();
     expect(platform.calls, isNot(contains('reset')));
+  });
+
+  group('Tap to Pay on iPhone', () {
+    late TerminalController phone;
+    var frames = 0;
+
+    setUp(() {
+      frames = 0;
+      platform.remembersReader = true;
+      phone = TerminalController(
+        repository: repo,
+        platform: platform,
+        auth: auth,
+        prefs: prefs,
+        platformReady: true,
+        iPhone: true,
+        afterFrame: () async => frames++,
+      );
+    });
+    tearDown(() => phone.dispose());
+
+    final gateway = _gateway();
+    final location = gateway.locations.single;
+
+    Future<TerminalReader> ensure({required bool admin}) =>
+        phone.ensureTapToPay(
+          companyId: 'co_a',
+          gateway: gateway,
+          location: location,
+          merchantDisplayName: 'Acme',
+          admin: admin,
+        );
+
+    List<String> connects() =>
+        platform.calls.where((c) => c.startsWith('connect')).toList();
+
+    test('single-flight per mode: a second call of the same mode shares the '
+        'first connect', () async {
+      final hold = Completer<void>();
+      platform.connectAnswers.add(hold);
+      final a = ensure(admin: false);
+      final b = ensure(admin: false);
+      await settle();
+      hold.complete();
+      expect(identical(await a, await b), isTrue);
+      expect(connects(), ['connect:tml_1:Acme:false']);
+    });
+
+    test('an admin press during a quiet connect waits for it, then runs '
+        'again so the terms can open', () async {
+      final hold = Completer<void>();
+      platform.connectAnswers
+        ..add(hold)
+        ..add(const TerminalError(TerminalErrorCode.termsNotAccepted));
+      final quiet = ensure(admin: false);
+      final press = ensure(admin: true);
+      await settle();
+      expect(connects(), ['connect:tml_1:Acme:false']);
+      hold.complete();
+      // The quiet connect still found the reader here (no terms needed): the
+      // press uses it rather than connecting again.
+      await quiet;
+      await press;
+      expect(connects(), ['connect:tml_1:Acme:false']);
+      expect(phone.tapToPayLinked, isTrue);
+    });
+
+    test('an unlinked account: the quiet connect fails, the admin connect '
+        'that follows may show the terms', () async {
+      platform.connectAnswers.add(
+        const TerminalError(TerminalErrorCode.termsNotAccepted),
+      );
+      final quiet = ensure(admin: false);
+      final press = ensure(admin: true);
+      await expectLater(
+        quiet,
+        throwsA(
+          isA<TerminalError>().having(
+            (e) => e.code,
+            'code',
+            TerminalErrorCode.termsNotAccepted,
+          ),
+        ),
+      );
+      await press;
+      expect(connects(), [
+        'connect:tml_1:Acme:false',
+        'connect:tml_1:Acme:true',
+      ]);
+      expect(phone.tapToPayLinked, isTrue);
+    });
+
+    test('a reset while an admin connect waits behind a quiet one ends both '
+        'before the terms could open', () async {
+      final hold = Completer<void>();
+      platform.connectAnswers.add(hold);
+      final quiet = ensure(admin: false);
+      final press = ensure(admin: true);
+      final quietEnds = expectLater(quiet, throwsA(isA<TerminalError>()));
+      final pressEnds = expectLater(
+        press,
+        throwsA(
+          isA<TerminalError>().having(
+            (e) => e.code,
+            'code',
+            TerminalErrorCode.sessionExpired,
+          ),
+        ),
+      );
+      await settle();
+      final reset = phone.reset();
+      hold.complete();
+      await quietEnds;
+      await pressEnds;
+      await reset;
+      expect(connects(), ['connect:tml_1:Acme:false']);
+      expect(phone.reader, isNull);
+    });
+
+    test('a connect for another gateway never shares one under way: it waits, '
+        'then connects its own', () async {
+      final hold = Completer<void>();
+      platform.connectAnswers.add(hold);
+      final other = TerminalGatewayConfig(
+        companyGatewayId: 'cg_2',
+        label: 'Stripe EU',
+        livemode: false,
+        accountCountry: 'IE',
+        defaultCurrency: 'eur',
+        cardPaymentsActive: true,
+        surcharge: TerminalSurchargeConfig.fromJson(const {}),
+        locations: const [TerminalLocation(id: 'tml_2', displayName: 'EU')],
+      );
+      final warm = ensure(admin: false);
+      final screen = phone.ensureTapToPay(
+        companyId: 'co_a',
+        gateway: other,
+        location: other.locations.single,
+        merchantDisplayName: 'Acme',
+        admin: false,
+      );
+      expect(identical(warm, screen), isFalse);
+      await settle();
+      expect(connects(), ['connect:tml_1:Acme:false']);
+      hold.complete();
+      await warm;
+      await screen;
+      expect(platform.calls.where((c) => c.startsWith('initialize')), [
+        'initialize:co_a/cg_1/tml_1',
+        'initialize:co_a/cg_2/tml_2',
+      ]);
+      expect(connects(), [
+        'connect:tml_1:Acme:false',
+        'connect:tml_2:Acme:false',
+      ]);
+    });
+
+    test('a quiet call during an admin connect shares it', () async {
+      final hold = Completer<void>();
+      platform.connectAnswers.add(hold);
+      final press = ensure(admin: true);
+      final quiet = ensure(admin: false);
+      expect(identical(press, quiet), isTrue);
+      hold.complete();
+      await press;
+      expect(connects(), ['connect:tml_1:Acme:true']);
+    });
+
+    test('a reset during a connect ends it: the reader never outlives its '
+        'company', () async {
+      final hold = Completer<void>();
+      platform.connectAnswers.add(hold);
+      final connecting = ensure(admin: true);
+      await settle();
+      final reset = phone.reset();
+      hold.complete();
+      await expectLater(
+        connecting,
+        throwsA(
+          isA<TerminalError>().having(
+            (e) => e.code,
+            'code',
+            TerminalErrorCode.sessionExpired,
+          ),
+        ),
+      );
+      await reset;
+      expect(phone.tapToPayLinked, isNull);
+      expect(phone.tapToPayConnecting, isFalse);
+    });
+
+    test('a connect waits for a reset under way before it starts', () async {
+      repo.configAnswer = _config();
+      await phone.prepare(
+        companyId: 'co_a',
+        gateway: gateway,
+        location: location,
+      );
+      final charge = Completer<void>();
+      unawaited(phone.guardCharge(() => charge.future));
+      final reset = phone.reset();
+      platform.calls.clear();
+      final connecting = ensure(admin: false);
+      await settle();
+      expect(platform.calls, isEmpty, reason: 'still resetting');
+      charge.complete();
+      await reset;
+      await connecting;
+      expect(platform.calls.first, 'reset');
+      expect(connects(), ['connect:tml_1:Acme:false']);
+    });
+
+    test(
+      'the linked state is in memory only, and a resume forgets it',
+      () async {
+        platform.connectAnswers.add(
+          const TerminalError(TerminalErrorCode.termsNotAccepted),
+        );
+        await expectLater(ensure(admin: false), throwsA(isA<TerminalError>()));
+        expect(phone.tapToPayLinked, isFalse);
+        await phone.onResumed(null);
+        expect(phone.tapToPayLinked, isNull);
+      },
+    );
+
+    test('reader events fan out to every listener; progress, disconnects and '
+        'the terms are kept by the controller', () async {
+      final seen = <String>[];
+      final stopA = phone.addEventListener(
+        TerminalReaderEvents(
+          onDisplayMessage: (m) => seen.add('a:${m.name}'),
+          onTermsAccepted: () => seen.add('a:terms'),
+          onDisconnected: () => seen.add('a:gone'),
+        ),
+      );
+      phone.addEventListener(
+        TerminalReaderEvents(
+          onDisplayMessage: (m) => seen.add('b:${m.name}'),
+          onUpdateProgress: (p) => seen.add('b:$p'),
+        ),
+      );
+      final events = platform.events;
+      events.onDisplayMessage!(TerminalDisplayMessage.removeCard);
+      events.onUpdateProgress!(0.4);
+      expect(phone.setupProgress.value, 0.4);
+      events.onUpdateFinished!(null);
+      expect(phone.setupProgress.value, isNull);
+      await ensure(admin: true);
+      expect(phone.reader, isNotNull);
+      events.onDisconnected!();
+      expect(phone.reader, isNull);
+      platform.connectAnswers.add(
+        const TerminalError(TerminalErrorCode.termsNotAccepted),
+      );
+      await expectLater(ensure(admin: false), throwsA(isA<TerminalError>()));
+      expect(phone.tapToPayLinked, isFalse);
+      events.onTermsAccepted!();
+      expect(phone.tapToPayLinked, isTrue);
+      stopA();
+      events.onDisplayMessage!(TerminalDisplayMessage.insertCard);
+      expect(seen, [
+        'a:removeCard',
+        'b:removeCard',
+        'b:0.4',
+        'a:gone',
+        'a:terms',
+        'b:insertCard',
+      ]);
+    });
+
+    group('warm-up', () {
+      setUp(() => repo.configAnswer = _config());
+
+      test('after the first frame, it connects without the terms', () async {
+        await phone.warmUpAfterFirstFrame('co_a');
+        expect(frames, 1);
+        expect(connects(), ['connect:tml_1:Acme:false']);
+        expect(
+          platform.calls,
+          isNot(contains(startsWith('requestPermissions'))),
+        );
+      });
+
+      test('never on another platform', () async {
+        final android = TerminalController(
+          repository: repo,
+          platform: platform,
+          auth: auth,
+          prefs: prefs,
+          platformReady: true,
+          iPhone: false,
+          afterFrame: () async => frames++,
+        );
+        addTearDown(android.dispose);
+        await android.warmUpAfterFirstFrame('co_a');
+        await android.warmUp('co_a');
+        expect(frames, 0);
+        expect(connects(), isEmpty);
+      });
+
+      test('stops at the first check that fails', () async {
+        Future<void> expectNoConnect(String reason) async {
+          await phone.warmUp('co_a');
+          expect(connects(), isEmpty, reason: reason);
+        }
+
+        platform.support = const TerminalDeviceSupport(
+          tapToPay: true,
+          bluetooth: true,
+          osUpdateRequired: true,
+        );
+        await expectNoConnect('an iOS Apple wants updated');
+        platform.support = const TerminalDeviceSupport(
+          tapToPay: false,
+          bluetooth: true,
+        );
+        await expectNoConnect('no Tap to Pay on this phone');
+        platform.support = const TerminalDeviceSupport(
+          tapToPay: true,
+          bluetooth: true,
+        );
+        platform.status = TerminalPermission.denied;
+        await expectNoConnect('location not allowed yet: never a prompt');
+        platform.status = TerminalPermission.granted;
+        final release = phone.holdWarmUp();
+        await expectNoConnect('a collect screen gets its reader itself');
+        release();
+        repo.configAnswer = TerminalConfig(
+          enabled: true,
+          planOk: true,
+          gateways: [
+            TerminalGatewayConfig(
+              companyGatewayId: 'cg_1',
+              label: 'Stripe',
+              livemode: false,
+              accountCountry: 'US',
+              defaultCurrency: 'usd',
+              cardPaymentsActive: true,
+              surcharge: TerminalSurchargeConfig.fromJson(const {}),
+              locations: const [],
+            ),
+          ],
+        );
+        await phone.refreshConfig('co_a');
+        await expectNoConnect('no Location yet');
+        repo.configAnswer = _config();
+        await phone.refreshConfig('co_a');
+        platform.connectAnswers.add(
+          const TerminalError(TerminalErrorCode.termsNotAccepted),
+        );
+        await phone.warmUp('co_a');
+        expect(connects(), hasLength(1));
+        expect(phone.tapToPayLinked, isFalse);
+        await phone.warmUp('co_a');
+        expect(
+          connects(),
+          hasLength(1),
+          reason: 'an account known to be unlinked is left for the press',
+        );
+        await phone.onResumed('co_a');
+        expect(connects(), hasLength(2), reason: 'a resume asks Apple again');
+      });
+
+      test(
+        'an older server is asked once, however often it warms up',
+        () async {
+          repo.configAnswer = null; // 404
+          await phone.warmUp('co_a');
+          await phone.onResumed('co_a');
+          await phone.warmUpAfterFirstFrame('co_a');
+          expect(repo.calls.where((c) => c.startsWith('config')), hasLength(1));
+          expect(connects(), isEmpty);
+        },
+      );
+
+      test(
+        'a failed fetch waits its minute before a warm-up asks again',
+        () async {
+          repo.configAnswer = const NetworkException('offline');
+          await phone.warmUp('co_a');
+          await phone.onResumed('co_a');
+          expect(repo.calls.where((c) => c.startsWith('config')), hasLength(1));
+        },
+      );
+
+      test('nothing when already connected or connecting', () async {
+        await ensure(admin: false);
+        await phone.warmUp('co_a');
+        expect(connects(), hasLength(1));
+      });
+    });
+
+    test('the action shows on an iPhone for a gateway whose Card present is '
+        'still off, and on an iOS Apple wants updated', () async {
+      platform.support = const TerminalDeviceSupport(
+        tapToPay: true,
+        bluetooth: true,
+        osUpdateRequired: true,
+      );
+      repo.configAnswer = const TerminalConfig(
+        enabled: true,
+        planOk: true,
+        gateways: [],
+        setupGateways: [
+          TerminalSetupGateway(
+            companyGatewayId: 'cg_2',
+            label: 'Stripe',
+            accountCountry: 'US',
+          ),
+        ],
+      );
+      phone.ensureConfig('co_a');
+      await settle();
+      expect(
+        phone.availabilityFor('co_a', invoice),
+        TerminalAvailability.available,
+      );
+      expect(phone.offersTapToPayOnIPhone('co_a'), isTrue);
+      terminal.ensureConfig('co_a');
+      await settle();
+      expect(
+        terminal.availabilityFor('co_a', invoice),
+        TerminalAvailability.hidden,
+        reason: 'Android and every other platform are unchanged',
+      );
+    });
   });
 }

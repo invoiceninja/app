@@ -1,3 +1,4 @@
+import 'package:admin/data/models/api/terminal_models.dart';
 import 'package:admin/data/models/domain/invoice.dart';
 import 'package:admin/data/models/domain/invoice_status.dart';
 import 'package:admin/domain/terminal/terminal_eligibility.dart';
@@ -76,6 +77,127 @@ void main() {
     );
   });
 
+  group('Tap to Pay on iPhone before anything is set up', () {
+    TerminalAvailability iPhone({
+      bool tapToPayIPhone = true,
+      List<String> setupCountries = const [],
+      bool isAdmin = true,
+      bool noStripeGateway = false,
+      String companyCountry = '',
+      bool configEnabled = true,
+      bool planOk = true,
+    }) => terminalAvailability(
+      platformReady: true,
+      canCreatePayment: true,
+      invoice: sent,
+      configEnabled: configEnabled,
+      planOk: planOk,
+      accountCountry: null,
+      readers: (_) => TerminalReaderChoice.none,
+      tapToPayIPhone: tapToPayIPhone,
+      setupCountries: setupCountries,
+      isAdmin: isAdmin,
+      noStripeGateway: noStripeGateway,
+      companyCountry: companyCountry,
+    );
+
+    test('an existing user: a Stripe gateway in an iPhone country with Card '
+        'present still off shows the button before the terms', () {
+      expect(iPhone(setupCountries: ['US']), TerminalAvailability.available);
+      expect(
+        iPhone(setupCountries: ['US'], isAdmin: false),
+        TerminalAvailability.available,
+        reason: 'a non-admin is told to ask an admin when pressing',
+      );
+      expect(
+        iPhone(setupCountries: ['GI']),
+        TerminalAvailability.hidden,
+        reason: 'no Tap to Pay on iPhone in Gibraltar',
+      );
+      expect(
+        iPhone(setupCountries: ['US'], planOk: false),
+        TerminalAvailability.upgrade,
+      );
+    });
+
+    test('a new admin: no Stripe gateway, a company in an iPhone country', () {
+      expect(
+        iPhone(noStripeGateway: true, companyCountry: 'GB'),
+        TerminalAvailability.available,
+      );
+      expect(
+        iPhone(noStripeGateway: true, companyCountry: 'GB', isAdmin: false),
+        TerminalAvailability.hidden,
+      );
+      expect(
+        iPhone(noStripeGateway: true, companyCountry: 'BR'),
+        TerminalAvailability.hidden,
+      );
+      expect(
+        iPhone(companyCountry: 'GB'),
+        TerminalAvailability.hidden,
+        reason: 'a Stripe gateway that can take no card is not a new user',
+      );
+      expect(
+        iPhone(noStripeGateway: true),
+        TerminalAvailability.hidden,
+        reason: 'an older server that sends no company country',
+      );
+    });
+
+    test('never on another platform, nor with the release flag off', () {
+      expect(
+        iPhone(tapToPayIPhone: false, setupCountries: ['US']),
+        TerminalAvailability.hidden,
+      );
+      expect(
+        iPhone(
+          tapToPayIPhone: false,
+          noStripeGateway: true,
+          companyCountry: 'US',
+        ),
+        TerminalAvailability.hidden,
+      );
+      expect(
+        iPhone(setupCountries: ['US'], configEnabled: false),
+        TerminalAvailability.hidden,
+      );
+    });
+  });
+
+  group('terminal/config', () {
+    test('setup gateways and the company country are read when sent', () {
+      final config = TerminalConfig.fromJson(const {
+        'enabled': true,
+        'plan_ok': true,
+        'gateways': <Object>[],
+        'setup_gateways': [
+          {
+            'company_gateway_id': 'cg_9',
+            'label': 'Stripe',
+            'account_country': 'us',
+          },
+          'junk',
+        ],
+        'company_country': 'gb',
+      });
+      expect(config.setupGateways, hasLength(1));
+      expect(config.setupGateways.single.companyGatewayId, 'cg_9');
+      expect(config.setupGateways.single.accountCountry, 'US');
+      expect(config.companyCountry, 'GB');
+    });
+
+    test('an older server that leaves them out still parses', () {
+      final config = TerminalConfig.fromJson(const {
+        'enabled': true,
+        'plan_ok': true,
+        'gateways': <Object>[],
+      });
+      expect(config.setupGateways, isEmpty);
+      expect(config.companyCountry, '');
+    });
+  });
+
   group('reader choice', () {
     TerminalReaderChoice choice({
       bool tapToPayDevice = true,
@@ -111,6 +233,37 @@ void main() {
         choice(iPhone: true, country: 'GI'),
         TerminalReaderChoice.none,
         reason: 'but not on iPhone',
+      );
+    });
+
+    test('an iOS Apple wants updated keeps a Bluetooth reader it has used; '
+        'without one, Tap to Pay on iPhone stays and says to update', () {
+      expect(
+        terminalReaderChoice(
+          tapToPayDevice: true,
+          iPhone: true,
+          accountCountry: 'US',
+          bluetoothDevice: true,
+          readerUsed: true,
+          osUpdateRequired: true,
+        ),
+        TerminalReaderChoice.bluetooth,
+      );
+      expect(
+        terminalReaderChoice(
+          tapToPayDevice: true,
+          iPhone: true,
+          accountCountry: 'US',
+          bluetoothDevice: true,
+          readerUsed: false,
+          osUpdateRequired: true,
+        ),
+        TerminalReaderChoice.tapToPay,
+      );
+      expect(
+        choice(iPhone: true, readerUsed: true),
+        TerminalReaderChoice.tapToPay,
+        reason: 'a current iOS prefers Tap to Pay on iPhone',
       );
     });
 

@@ -24,6 +24,7 @@ import 'package:admin/domain/entity_type.dart';
 import 'package:admin/domain/terminal/terminal_eligibility.dart';
 import 'package:admin/domain/upgrade/upgrade_launcher.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/l10n/tap_to_pay_names.dart';
 import 'package:admin/ui/core/detail/activity_note_actions.dart';
 import 'package:admin/ui/core/detail/copy_entity_link.dart';
 import 'package:admin/ui/core/detail/entity_detail_actions_row.dart';
@@ -38,6 +39,7 @@ import 'package:admin/ui/core/sync/require_synced.dart';
 import 'package:admin/ui/core/dialogs/confirm_action_dialog.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
+import 'package:admin/ui/features/terminal/tap_to_pay_icon.dart';
 import 'package:admin/ui/features/terminal/views/collect_card_payment_screen.dart';
 import 'package:admin/ui/features/billing_shared/billing_cross_clone.dart';
 import 'package:admin/ui/features/billing_shared/convert_to_purchase_order_action.dart';
@@ -294,6 +296,9 @@ class InvoiceActions {
         !invoice.isCancelled &&
         !invoice.isReversed;
     final paymentLeads = canEnterPayment && !invoice.isDraft;
+    // On an iPhone the action is Tap to Pay on iPhone, in Apple's own name
+    // and symbol (App Review 5.4, 5.5) — never the Material contactless icon.
+    final tapToPayIPhone = _offersTapToPayIPhone(context, cardPayment);
 
     return [
       // Taking the card in person (docs/in-person-payments.md). Only the
@@ -302,8 +307,15 @@ class InvoiceActions {
       if (cardPayment != TerminalAvailability.hidden)
         EntityActionItem(
           kind: InvoiceAction.collectCardPayment,
-          icon: Icons.contactless_outlined,
-          label: context.tr('collect_card_payment'),
+          icon: isIPhonePlatform()
+              ? Icons.credit_card_outlined
+              : Icons.contactless_outlined,
+          iconBuilder: tapToPayIPhone
+              ? (size, color) => TapToPayIcon(size: size, color: color)
+              : null,
+          label: tapToPayIPhone
+              ? tapToPayName(context)
+              : context.tr('collect_card_payment'),
           enabled: true,
           onTap: () => onTap(InvoiceAction.collectCardPayment),
         ),
@@ -589,6 +601,21 @@ class InvoiceActions {
   ///
   /// [hasPdfPane]: the PDF is already on screen beside the record, so a tile
   /// that opens it would be spending a slot on what the user is looking at.
+  /// The card action is Tap to Pay on iPhone here: an iPhone, offered, and
+  /// through Tap to Pay rather than a Bluetooth reader.
+  static bool _offersTapToPayIPhone(
+    BuildContext context,
+    TerminalAvailability cardPayment,
+  ) {
+    if (cardPayment == TerminalAvailability.hidden || !isIPhonePlatform()) {
+      return false;
+    }
+    final services = context.read<Services>();
+    return services.terminal.offersTapToPayOnIPhone(
+      services.auth.session.value?.currentCompanyId ?? '',
+    );
+  }
+
   static List<EntityQuickAction<InvoiceAction>> quickItemsFor(
     BuildContext context,
     Invoice invoice,
@@ -603,7 +630,14 @@ class InvoiceActions {
     return [
       // On site, taking the card is what moves the invoice on — a draft
       // included (the server marks it sent).
-      ?q.pick(InvoiceAction.collectCardPayment, context.tr('card')),
+      // On an iPhone, Apple's name in full beside its symbol — never "Card"
+      // or "Tap to Pay" alone (App Review 5.4); the tile scales it to fit.
+      ?q.pick(
+        InvoiceAction.collectCardPayment,
+        _offersTapToPayIPhone(context, cardPayment)
+            ? tapToPayName(context)
+            : context.tr('card'),
+      ),
       // "+ Payment", as on the client screen: the noun is one word in every
       // bundled locale, where the verb phrase will not fit a tile.
       // A draft is payable (from the menu), but getting it out is what leads
@@ -739,7 +773,10 @@ class InvoiceActions {
       final owner = me?.isOwner ?? false;
       final upgrade = await showConfirmActionDialog(
         context,
-        title: context.tr('collect_card_payment'),
+        // The action's own name, Apple's on an iPhone.
+        title: _offersTapToPayIPhone(context, availability)
+            ? tapToPayName(context)
+            : context.tr('collect_card_payment'),
         message: context.tr(
           owner ? 'terminal_server_plan_required' : 'terminal_plan_ask_owner',
         ),

@@ -9,9 +9,11 @@ import 'package:store_services/store_services.dart';
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/data/models/domain/client.dart';
+import 'package:admin/data/models/domain/company_gateway.dart';
 import 'package:admin/data/models/domain/invoice.dart';
 import 'package:admin/domain/terminal/terminal_eligibility.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/l10n/tap_to_pay_names.dart';
 import 'package:admin/ui/core/dialogs/confirm_action_dialog.dart';
 import 'package:admin/ui/core/utils/haptics.dart';
 import 'package:admin/ui/core/widgets/copyable_value.dart';
@@ -20,6 +22,7 @@ import 'package:admin/ui/core/widgets/ltr_value.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
 import 'package:admin/ui/core/widgets/qr_code_image.dart';
 import 'package:admin/ui/features/terminal/how_to_tap.dart';
+import 'package:admin/ui/features/terminal/tap_to_pay_icon.dart';
 import 'package:admin/ui/features/terminal/terminal_error_text.dart';
 import 'package:admin/ui/features/terminal/view_models/collect_card_payment_view_model.dart';
 import 'package:admin/ui/features/terminal/widgets/reader_picker_sheet.dart';
@@ -41,6 +44,8 @@ Future<void> showCollectCardPaymentScreen(
       invoice: invoice,
       client: client,
       groupCurrencyId: groupCurrencyId,
+      // The invoice's action is Apple's button on an iPhone (5.3).
+      pressOnOpen: true,
     ),
   ),
 );
@@ -52,8 +57,14 @@ class CollectCardPaymentScreen extends StatefulWidget {
     required this.invoice,
     this.client,
     this.groupCurrencyId = '',
+    this.pressOnOpen = false,
     @visibleForTesting this.viewModel,
   });
+
+  /// Opened by the invoice's action, which on an iPhone is the Tap to Pay on
+  /// iPhone button: opening presses it
+  /// (`CollectCardPaymentViewModel.pressOnOpen`).
+  final bool pressOnOpen;
 
   final String companyId;
   final Invoice invoice;
@@ -76,6 +87,9 @@ class _CollectCardPaymentScreenState extends State<CollectCardPaymentScreen> {
   late final Services _services;
   late final CollectCardPaymentViewModel _vm;
   late final VoidCallback _unregisterGuard;
+  late final VoidCallback _unlistenReader;
+  late final VoidCallback _releaseWarmUp;
+  late final AppLifecycleListener _lifecycle;
   late final TextEditingController _amount;
   late final TextEditingController _email;
   Formatter? _formatter;
@@ -85,7 +99,13 @@ class _CollectCardPaymentScreenState extends State<CollectCardPaymentScreen> {
   /// 0–1 while the reader installs an update, else null.
   double? _updateProgress;
   CollectStage? _lastStage;
-  ReaderState? _lastReaderState;
+
+  /// Apple's terms were accepted during this screen's connect: education
+  /// follows, whatever was shown before (App Review 4.2).
+  bool _termsAccepted = false;
+
+  /// Education is showing, or was shown, on this screen.
+  bool _educated = false;
 
   @override
   void initState() {
@@ -110,18 +130,42 @@ class _CollectCardPaymentScreenState extends State<CollectCardPaymentScreen> {
                 precision: precision,
                 clientEmail: _primaryEmail(_client),
                 chargeCurrency: _chargeCurrency,
+                enableCardPresent: _enableCardPresent,
+                pressOnOpen: widget.pressOnOpen,
               ))
-          ..addListener(_onChanged);
+          ..addListener(_onChanged)
+          ..askLocation = _askLocation
+          ..onReady = _onReady;
     _amount = TextEditingController(text: _moneyInput(_vm.amount));
     _email = TextEditingController(text: _vm.clientEmail)
       ..addListener(() {
         if (mounted) setState(() {});
       });
-    _services.terminal.platform.events = TerminalReaderEvents(
-      onDisplayMessage: (m) => setState(() => _readerMessage = m),
-      onUpdateProgress: (p) => setState(() => _updateProgress = p),
-      onUpdateFinished: (_) => setState(() => _updateProgress = null),
-      onDisconnected: _vm.readerDisconnected,
+    _unlistenReader = _vm.terminal.addEventListener(
+      TerminalReaderEvents(
+        onDisplayMessage: (m) {
+          if (mounted) setState(() => _readerMessage = m);
+        },
+        onUpdateProgress: (p) {
+          if (mounted) setState(() => _updateProgress = p);
+        },
+        onUpdateFinished: (_) {
+          if (mounted) setState(() => _updateProgress = null);
+        },
+        onDisconnected: _vm.readerDisconnected,
+        onTermsAccepted: _onTermsAccepted,
+      ),
+    );
+    // This screen gets the reader ready itself.
+    _releaseWarmUp = _vm.terminal.holdWarmUp();
+    // Apple's sheet takes the screen: the app goes inactive under it — the
+    // end of the press's latency (App Review 5.6).
+    _lifecycle = AppLifecycleListener(
+      onInactive: () {
+        if (_vm.awaitingSheet) _vm.noteSheetShown();
+      },
+      // Back from Settings, where location may have been allowed.
+      onResume: _vm.appResumed,
     );
     // A company switch (a deep link's) waits while a payment is under way:
     // every call that settles it is bound to this company, so after a
@@ -197,13 +241,38 @@ class _CollectCardPaymentScreenState extends State<CollectCardPaymentScreen> {
     _vm.precision = f.precisionFor(currencyId: _currencyId);
   }
 
+  /// An admin's press with Card present off turns it on, the way the
+  /// gateway's own Settings tab does (`setTypeEnabled('32')`), on the
+  /// gateway as the server has it now — then waits until it has been saved.
+  Future<void> _enableCardPresent(String companyGatewayId) async {
+    final gateways = _services.companyGateways;
+    final companyId = widget.companyId;
+    await gateways.refreshAll(companyId: companyId, full: true);
+    final current = await gateways
+        .watchByRealId(companyId: companyId, id: companyGatewayId)
+        .first
+        .timeout(const Duration(seconds: 5));
+    if (current == null) throw StateError('gateway not found');
+    final fees = Map<String, FeesAndLimits>.from(current.feesAndLimits);
+    fees[_cardPresentType] = (fees[_cardPresentType] ?? const FeesAndLimits())
+        .copyWith(isEnabled: true);
+    await gateways.save(
+      companyId: companyId,
+      gateway: current.copyWith(feesAndLimits: fees),
+    );
+    unawaited(_services.sync.drainOnce(companyId: companyId));
+    await gateways
+        .watchByRealId(companyId: companyId, id: companyGatewayId)
+        .firstWhere((g) => g != null && !g.isDirty)
+        .timeout(const Duration(seconds: 30));
+  }
+
+  /// Gateway type 32, Card present (`kGatewayTypeLabelKey`).
+  static const _cardPresentType = '32';
+
   void _onChanged() {
     if (!mounted) return;
     _syncPrecision();
-    if (_vm.readerState != _lastReaderState) {
-      _lastReaderState = _vm.readerState;
-      if (_lastReaderState == ReaderState.ready) _maybeShowHowToTap();
-    }
     final stage = _vm.stage;
     if (stage != _lastStage) {
       _lastStage = stage;
@@ -219,20 +288,56 @@ class _CollectCardPaymentScreenState extends State<CollectCardPaymentScreen> {
     setState(() {});
   }
 
-  /// Apple's "How to Tap", once per account before its first Tap to Pay on
-  /// iPhone collection: App Review requires it (docs/in-person-payments.md).
-  void _maybeShowHowToTap() {
-    final terminal = _services.terminal;
-    if (kIsWeb || defaultTargetPlatform != TargetPlatform.iOS) return;
-    if (_vm.readerChoice != TerminalReaderChoice.tapToPay) return;
-    if (!terminal.howToTapDue) return;
-    unawaited(terminal.markHowToTapShown());
-    unawaited(showHowToTap(context));
+  /// The reader is ready ([CollectCardPaymentViewModel.onReady]): Apple's
+  /// education if owed, and whether the payment may go straight on — not
+  /// after Apple's terms, nor after the education.
+  Future<bool> _onReady() async {
+    final shown = await _educate(afterTerms: _termsAccepted);
+    return !_termsAccepted && !shown;
+  }
+
+  /// Apple's merchant education ("How to Tap"), which App Review requires
+  /// after the terms are accepted (4.2) and before the first Tap to Pay on
+  /// iPhone collection: after the terms ([afterTerms]) once their sheet has
+  /// closed, else once per account when the reader first connects. Marked
+  /// shown only when it was (docs/in-person-payments.md). True when it was
+  /// shown, or is being shown, here.
+  Future<bool> _educate({required bool afterTerms}) async {
+    final terminal = _vm.terminal;
+    if (!_vm.tapToPayOnIPhone || !mounted) return false;
+    if (_educated) return true;
+    if (!afterTerms && !terminal.howToTapDue) return false;
+    _educated = true;
+    // Never over Apple's terms sheet while it is still going away — however
+    // soon after it the reader turns ready.
+    if (afterTerms) await _untilTermsSheetClosed();
+    if (!mounted) return true;
+    final shown = await showHowToTap(context);
+    if (shown) await terminal.markHowToTapShown();
+    return shown;
+  }
+
+  /// The app is back in front (the sheet is gone), and a moment more.
+  static Future<void> _untilTermsSheetClosed() async {
+    for (var i = 0; i < 150; i++) {
+      final state = WidgetsBinding.instance.lifecycleState;
+      if (state == null || state == AppLifecycleState.resumed) break;
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 600));
+  }
+
+  /// Apple's terms were accepted: the education follows.
+  void _onTermsAccepted() {
+    _termsAccepted = true;
+    unawaited(_educate(afterTerms: true));
   }
 
   @override
   void dispose() {
-    _services.terminal.platform.events = const TerminalReaderEvents();
+    _unlistenReader();
+    _releaseWarmUp();
+    _lifecycle.dispose();
     _unregisterGuard();
     _vm
       ..removeListener(_onChanged)
@@ -263,6 +368,43 @@ class _CollectCardPaymentScreenState extends State<CollectCardPaymentScreen> {
   Future<void> _collect() async {
     if (_setAmount()) return;
     await _vm.collect();
+  }
+
+  /// The Tap to Pay on iPhone button: a typed amount is quoted first and
+  /// then taken by the same press (the press waits for the figures).
+  Future<void> _pressTapToPay() async {
+    _setAmount();
+    await _vm.pressTapToPay(askLocation: _askLocation);
+  }
+
+  /// The app's own word before iOS asks for location (App Review asks that
+  /// a prompt never come out of nowhere): Continue lets iOS ask.
+  Future<bool> _askLocation() async {
+    // An opening press may ask before the screen's first frame.
+    await WidgetsBinding.instance.endOfFrame;
+    if (!mounted) return false;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(context.tr('terminal_location_prealert_title')),
+        content: Text(
+          context.tr('terminal_location_prealert', {
+            'name': tapToPayNameFor(context, 'terminal_location_prealert'),
+          }),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(context.tr('cancel')),
+          ),
+          PrimaryDialogAction(
+            label: context.tr('continue'),
+            onPressed: () => Navigator.of(context).pop(true),
+          ),
+        ],
+      ),
+    );
+    return ok ?? false;
   }
 
   /// The payment to quote to support, with the one rule that matters.
@@ -509,7 +651,14 @@ class _CollectCardPaymentScreenState extends State<CollectCardPaymentScreen> {
 
   String _problemText(BuildContext context) {
     final problem = _vm.problem;
-    return problem == null ? '' : terminalProblemText(problem, context.tr);
+    return problem == null
+        ? ''
+        : terminalProblemText(
+            problem,
+            context.tr,
+            name: (key) => tapToPayNameFor(context, key),
+            tapToPay: _vm.tapToPayOnIPhone,
+          );
   }
 
   /// The server's latest figure once it has decided one (a lowered or raised
@@ -550,10 +699,25 @@ class _CollectCardPaymentScreenState extends State<CollectCardPaymentScreen> {
             decoration: InputDecoration(labelText: context.tr('amount')),
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             textInputAction: TextInputAction.done,
+            // A press held for the figures never charges what was there
+            // before this edit.
+            onChanged: (_) => _vm.cancelPendingPress(),
             onSubmitted: (_) => _setAmount(),
           ),
         ),
       ),
+      if (_vm.surchargeUnavailable) ...[
+        const SizedBox(height: InSpacing.sm),
+        Text(
+          context.tr('terminal_surcharge_unavailable_ttp', {
+            'name': tapToPayNameFor(
+              context,
+              'terminal_surcharge_unavailable_ttp',
+            ),
+          }),
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+      ],
       if (_vm.surchargeNeedsAcknowledgement) ...[
         const SizedBox(height: InSpacing.sm),
         if (_vm.isAdmin)
@@ -603,6 +767,10 @@ class _CollectCardPaymentScreenState extends State<CollectCardPaymentScreen> {
         )
       else if (_vm.quoting || _vm.starting)
         const LinearProgressIndicator()
+      // Nothing to quote with until the press sets Card present or Stripe
+      // up (iPhone).
+      else if (_vm.cardPresentOff || _vm.needsStripe)
+        const SizedBox.shrink()
       else
         Align(
           alignment: AlignmentDirectional.centerStart,
@@ -612,13 +780,23 @@ class _CollectCardPaymentScreenState extends State<CollectCardPaymentScreen> {
           ),
         ),
       SizedBox(height: InSpacing.md(context)),
-      if (_updateProgress != null)
+      // Its own progress, from the same events (3.9.1).
+      if (_vm.tapToPayOnIPhone)
+        _TapToPayRow(
+          vm: _vm,
+          progress: _vm.terminal.setupProgress,
+          onRetry: _pressTapToPay,
+        )
+      else if (_updateProgress != null)
         Semantics(
           liveRegion: true,
           child: Text(
-            context.tr('terminal_reader_updating', {
-              'percent': '${(_updateProgress! * 100).round()}',
-            }),
+            context.tr(
+              isIPhonePlatform()
+                  ? 'terminal_reader_updating_ios'
+                  : 'terminal_reader_updating',
+              {'percent': '${(_updateProgress! * 100).round()}'},
+            ),
           ),
         )
       else
@@ -631,16 +809,26 @@ class _CollectCardPaymentScreenState extends State<CollectCardPaymentScreen> {
         ),
       ],
       const SizedBox(height: InSpacing.xl),
-      FilledButton(
-        onPressed: _vm.canCollect ? _collect : null,
-        child: Text(
-          quote == null
-              ? context.tr('collect_card_payment')
-              : context.tr('terminal_collect_amount', {
-                  'amount': _money(quote.total),
-                }),
+      if (_vm.tapToPayOnIPhone)
+        // Apple's button: its name and symbol, never greyed out, top of the
+        // screen's choices (App Review 5.1–5.5). A press does what is
+        // missing, then the next one takes the card.
+        FilledButton.icon(
+          onPressed: _pressTapToPay,
+          icon: const TapToPayIcon(size: 22),
+          label: Text(tapToPayName(context)),
+        )
+      else
+        FilledButton(
+          onPressed: _vm.canCollect ? _collect : null,
+          child: Text(
+            quote == null
+                ? context.tr('collect_card_payment')
+                : context.tr('terminal_collect_amount', {
+                    'amount': _money(quote.total),
+                  }),
+          ),
         ),
-      ),
     ];
   }
 
@@ -663,10 +851,13 @@ class _CollectCardPaymentScreenState extends State<CollectCardPaymentScreen> {
     final tapToPay = _vm.reader?.kind == TerminalReaderKind.tapToPay;
     final finalized = _vm.finalized;
     final again = _vm.readAgain && finalized != null;
+    final iPhone = _vm.tapToPayOnIPhone;
     return [
       _Total(text: _totalText()),
       _Status(
-        icon: Icons.contactless_outlined,
+        // Apple's symbol on iOS, never the Material one (App Review 5.5).
+        icon: isIPhonePlatform() ? null : Icons.contactless_outlined,
+        leading: iPhone ? const TapToPayIcon(size: 48) : null,
         text: again
             ? (finalized.surcharge > Decimal.zero
                   ? context.tr('terminal_tap_again_surcharge', {
@@ -676,7 +867,11 @@ class _CollectCardPaymentScreenState extends State<CollectCardPaymentScreen> {
             : message != null
             ? context.tr(_readerMessageKey(message))
             : context.tr(
-                tapToPay ? 'terminal_hold_card' : 'terminal_present_card',
+                iPhone
+                    ? 'terminal_hold_card_iphone'
+                    : tapToPay
+                    ? 'terminal_hold_card'
+                    : 'terminal_present_card',
               ),
       ),
       const SizedBox(height: InSpacing.xl),
@@ -800,23 +995,32 @@ class _ReaderRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final tapToPay = vm.readerChoice == TerminalReaderChoice.tapToPay;
     final (String text, Widget? action) = switch (vm.readerState) {
+      // Never "Nearby devices on Android" on an iPhone or iPad.
       ReaderState.idle || ReaderState.permissions => (
-        context.tr('terminal_permissions_help'),
+        context.tr(
+          isIPhonePlatform()
+              ? 'terminal_permissions_help_ios'
+              : 'terminal_permissions_help',
+        ),
         null,
       ),
+      ReaderState.turningOn => (context.tr('terminal_turning_on'), null),
       ReaderState.blocked => (
-        context.tr('terminal_error_permission'),
+        context.tr(terminalErrorKey(TerminalErrorCode.permissionDenied)),
         TextButton(
           onPressed: vm.openSettings,
           child: Text(context.tr('open_settings')),
         ),
       ),
       ReaderState.connecting => (
-        context.tr(
-          tapToPay
-              ? 'terminal_tap_to_pay_preparing'
-              : 'terminal_reader_connecting',
-        ),
+        tapToPay
+            ? context.tr('terminal_tap_to_pay_preparing', {
+                'name': tapToPayNameFor(
+                  context,
+                  'terminal_tap_to_pay_preparing',
+                ),
+              })
+            : context.tr('terminal_reader_connecting'),
         null,
       ),
       ReaderState.needsReader => (
@@ -837,7 +1041,11 @@ class _ReaderRow extends StatelessWidget {
       ReaderState.failed => (
         vm.problem == null
             ? context.tr('terminal_error_unknown')
-            : terminalProblemText(vm.problem!, context.tr),
+            : terminalProblemText(
+                vm.problem!,
+                context.tr,
+                name: (key) => tapToPayNameFor(context, key),
+              ),
         TextButton(
           onPressed: vm.prepareReader,
           child: Text(context.tr('retry')),
@@ -846,12 +1054,16 @@ class _ReaderRow extends StatelessWidget {
     };
     final busy =
         vm.readerState == ReaderState.connecting ||
+        vm.readerState == ReaderState.turningOn ||
         vm.readerState == ReaderState.permissions;
     return Row(
       children: [
         Icon(
           vm.readerState == ReaderState.ready
-              ? Icons.contactless_outlined
+              // Never the Material contactless icon on iOS (App Review 5.5).
+              ? (isIPhonePlatform()
+                    ? Icons.check_circle_outline
+                    : Icons.contactless_outlined)
               : Icons.info_outline,
           size: 20,
         ),
@@ -865,6 +1077,119 @@ class _ReaderRow extends StatelessWidget {
         ?action,
       ],
     );
+  }
+}
+
+/// Where Tap to Pay on iPhone stands, under the figures: nothing until a
+/// press asks for something, then what it is doing — "Getting Tap to Pay on
+/// iPhone ready…" with the reader's own progress while it configures (App
+/// Review 5.7, 3.9.1) — or what stopped it, with Retry.
+class _TapToPayRow extends StatelessWidget {
+  const _TapToPayRow({
+    required this.vm,
+    required this.progress,
+    required this.onRetry,
+  });
+
+  final CollectCardPaymentViewModel vm;
+  final ValueListenable<double?> progress;
+  final Future<void> Function() onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    String name(String key) => tapToPayNameFor(context, key);
+    switch (vm.readerState) {
+      case ReaderState.idle || ReaderState.needsReader:
+        return const SizedBox.shrink();
+      case ReaderState.permissions:
+        return Text(
+          context.tr('terminal_location_prealert_title'),
+          style: Theme.of(context).textTheme.bodyMedium,
+        );
+      case ReaderState.turningOn:
+        return Semantics(
+          liveRegion: true,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(context.tr('terminal_turning_on')),
+              const SizedBox(height: InSpacing.sm),
+              const LinearProgressIndicator(),
+            ],
+          ),
+        );
+      case ReaderState.connecting:
+        return Semantics(
+          liveRegion: true,
+          child: ValueListenableBuilder<double?>(
+            valueListenable: progress,
+            builder: (context, value, _) => Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  context.tr('terminal_tap_to_pay_initializing', {
+                    'name': name('terminal_tap_to_pay_initializing'),
+                  }),
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+                const SizedBox(height: InSpacing.sm),
+                LinearProgressIndicator(value: value),
+                if (value != null) ...[
+                  const SizedBox(height: InSpacing.xs),
+                  LtrText('${(value * 100).round()}%'),
+                ],
+              ],
+            ),
+          ),
+        );
+      case ReaderState.ready:
+        return Text(
+          context.tr('terminal_tap_to_pay_ready_ios', {
+            'name': name('terminal_tap_to_pay_ready_ios'),
+          }),
+        );
+      case ReaderState.blocked:
+        return Row(
+          children: [
+            Expanded(
+              child: Text(
+                context.tr('terminal_location_blocked_ios', {
+                  'name': name('terminal_location_blocked_ios'),
+                }),
+              ),
+            ),
+            TextButton(
+              onPressed: vm.openSettings,
+              child: Text(context.tr('open_settings')),
+            ),
+          ],
+        );
+      case ReaderState.failed:
+        final problem = vm.problem;
+        return Row(
+          children: [
+            Expanded(
+              child: Text(
+                problem == null
+                    ? context.tr('terminal_error_unknown')
+                    : terminalProblemText(
+                        problem,
+                        context.tr,
+                        name: name,
+                        tapToPay: true,
+                      ),
+              ),
+            ),
+            if (problem?.code == TerminalErrorCode.locationServicesDisabled)
+              TextButton(
+                onPressed: vm.openSettings,
+                child: Text(context.tr('open_settings')),
+              )
+            else
+              TextButton(onPressed: onRetry, child: Text(context.tr('retry'))),
+          ],
+        );
+    }
   }
 }
 
@@ -913,10 +1238,18 @@ class _Total extends StatelessWidget {
 }
 
 class _Status extends StatelessWidget {
-  const _Status({required this.text, this.icon, this.busy = false});
+  const _Status({
+    required this.text,
+    this.icon,
+    this.leading,
+    this.busy = false,
+  });
 
   final String text;
   final IconData? icon;
+
+  /// Drawn instead of [icon]: Apple's Tap to Pay on iPhone symbol.
+  final Widget? leading;
   final bool busy;
 
   @override
@@ -927,6 +1260,8 @@ class _Status extends StatelessWidget {
         SizedBox(height: InSpacing.md(context)),
         if (busy)
           const CircularProgressIndicator()
+        else if (leading != null)
+          leading!
         else if (icon != null)
           Icon(icon, size: 48),
         SizedBox(height: InSpacing.md(context)),

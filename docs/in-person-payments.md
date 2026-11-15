@@ -44,10 +44,15 @@ static on `StripeTerminal`; each payment is a `TerminalPayment` from `beginPayme
   let a non-admin accept Apple's Tap to Pay terms.
 - **A reader's kind is the kind `discover` looked for**, not its `deviceType`, which the SDK leaves
   null for a type it doesn't know.
-- **Reader prompts go to `StripeTerminal.events`**, read when each event arrives, so the screen
-  that is collecting sets them.
+- **Reader prompts go to `StripeTerminal.events`**, read when each event arrives. Its one slot
+  belongs to `TerminalController`, which sets it once and fans each event out
+  (`addEventListener`); screens subscribe and never set it. The controller keeps the
+  configuration progress (`setupProgress`), drops the reader on a disconnect, and notes Apple's
+  terms being accepted (`onAcceptTermsOfService` → `onTermsAccepted`).
 - **Error codes are matched on mek's enum**, so a renamed code fails to compile instead of
-  becoming `unknown`. Brands and statuses come back in Stripe's own spelling (`mastercard`,
+  becoming `unknown`. Apple's four terms outcomes stay apart, each with its own words and a
+  Retry: `termsCanceled`, `termsNeedsAppleAccount`, `termsNotAccepted` (a connect that may not
+  show them: a non-admin, or a warm-up) and `termsFailed`. Brands and statuses come back in Stripe's own spelling (`mastercard`,
   `requires_capture`).
 
 ## Who sees "Collect card payment", and what the app asks the server
@@ -221,10 +226,12 @@ recorded" screens show the PaymentIntent as a copyable reference.
 
 Stripe's Android SDK checks permissions but never asks; its iOS SDK may prompt for location at a
 moment the app doesn't choose; and its own `supportsReadersOfType` asks for location and Bluetooth
-just to answer. So `StripeTerminal.deviceSupport()`, `requestPermissions(kind)` and
+just to answer. So `StripeTerminal.deviceSupport()`, `requestPermissions(kind)`, `permissionStatus(kind)` and
 `openSettings()` go over `invoice_ninja/stripe_terminal`. `requestPermissions` answers `granted`,
 `denied` or `blocked` (the system won't ask again — offer Settings), and concurrent calls share one
-request.
+request. `permissionStatus` gives the same answers without ever prompting (iOS
+`authorizationStatus`, with location services off as `blocked`; Android `checkSelfPermission`):
+`denied` there means "not asked yet".
 
 - **Android** — `StripeTerminalPlugin` in `packages/store_services/android`. Tap to Pay needs
   Android 13, an ARM processor (Stripe ships its kernels for ARM only), NFC and a hardware
@@ -237,8 +244,11 @@ request.
   use; for a Bluetooth reader a refused Bluetooth permission is `blocked` (iOS asks for it itself
   when a scan starts). A prompt iOS never shows is answered after 2 minutes. `deviceSupport`
   reports Tap to Pay on iPhone only when the build is signed with
-  `com.apple.developer.proximity-reader.payment.acceptance`, on iOS 16.4+ (PIN entry), on an
+  `com.apple.developer.proximity-reader.payment.acceptance`, on iOS 15.4+ (ProximityReader), on an
   iPhone Apple says can (`PaymentCardReader.isSupported`: XS or later, never the simulator).
+  Below iOS 17.6 it also answers `osUpdateRequired`: the action and the button stay, and a press
+  says to update iOS (App Review 1.4) instead of trying. `symbolImage` draws an SF Symbol as a
+  PNG for the app to tint.
 
 ## Tap to Pay on iPhone is signed into Debug builds only, until Apple grants distribution
 
@@ -259,9 +269,97 @@ checkout) and its App Review Requirements Checklist. A profile without it fails 
 - **Countries differ by platform:** an iPhone checks `kTapToPayIPhoneCountries`, Android
   `kTapToPayAndroidCountries` (Stripe's two lists).
 - **Apple's "How to Tap"** (`showHowToTap`: `ProximityReaderDiscovery` on iOS 18+, our own dialog
-  before that) shows once per account before its first Tap to Pay collection on an iPhone
-  (`DevicePrefKeys.howToTapShown`), and from Device Settings → Card readers → How to use. App Review
-  requires both.
+  before that) shows right after Apple's terms are accepted (once their sheet has closed and the
+  app is back in front), else once per account when the reader first connects on the collect
+  screen (`DevicePrefKeys.howToTapShown`, set only when something was actually shown), and from
+  Device Settings → Card readers → How to use. App Review requires all three (4.2, 4.3).
+
+## Tap to Pay on iPhone follows App Review's rules, on iPhone only
+
+Apple's "App & Marketing Requirements and Review Guide" decides how the feature looks and behaves
+on an iPhone. Everything here is gated on `isIPhonePlatform()` (or the VM's / controller's injected
+`iPhone`); Android, the FOSS build, desktop and web are unchanged.
+
+- **Apple's name, never shortened** (5.4). `lib/l10n/tap_to_pay_names.dart` holds the long forms of
+  the guide's localization table (pp. 20–21), keyed on the language code, with `fr_CA`, `zh_TW` and
+  `zh_HK` overrides; a language Apple doesn't list uses English. A label that is only the name uses
+  `tapToPayName(context)` (the Android name, `tap_to_pay`, elsewhere). A sentence carries a `:name`
+  placeholder filled by `tapToPayNameFor(context, key)`: while that sentence has no translation in
+  the app's language (`Localization.isTranslated`) it renders in English, so it gets Apple's
+  English name — never "Tap to Pay auf dem iPhone" inside an English sentence, nor a right-to-left
+  name inside a left-to-right one. `terminalProblemText` takes the resolver as `name:`.
+  `Localization` also lays the name in as `tap_to_pay_on_iphone` when it loads, so the Device
+  Settings row, its settings search hit and the reveal all read the same words.
+- **Nothing before general availability.** On an App Store build without Apple's entitlement
+  (`entitlementMissing`), Device Settings draws no Tap to Pay row and search doesn't offer one
+  (`tapToPayRowShown`), and the gateway's Card present help doesn't name it
+  (`card_present_help_neutral`, also on macOS).
+- **No Android words on iOS.** iOS has its own permission, insecure-environment, location and
+  "this device" strings (`terminalErrorKey(iOS:)`), and the error a Tap to Pay screen shows names
+  the action as it is (`terminalServerErrorKey(tapToPay:)`).
+- **Apple's symbol, or no icon** (5.5). `TapToPaySymbol.load()` (from `main.dart`) has iOS draw
+  `wave.3.right.circle` once; `TapToPayIcon` tints it (`srcIn`), skips screen readers, and keeps
+  its square empty until it is drawn. `EntityActionItem.iconBuilder` carries it into the record
+  screen's menu, buttons and quick tiles. `Icons.contactless_outlined` never shows on iOS.
+- **Who sees the action** (`terminalAvailability`): besides a usable gateway, a Stripe gateway in
+  an iPhone country with Card present still off (`terminal/config`'s `setup_gateways`), or — for an
+  admin of a company with no Stripe gateway — a company in an iPhone country (`company_country`).
+  Both keys are optional; an older server simply leaves them out. The server's `enabled` is the
+  release flag.
+- **Apple's button from the first frame.** The view model knows it is Tap to Pay on iPhone before
+  anything loads (`offersTapToPayOnIPhone`, the invoice action's own test), so the greyed
+  "Collect card payment" never draws, and a config that fails to load keeps Apple's button — a
+  press loads it again and carries on.
+- **The invoice's action is Apple's button too** (5.3): `showCollectCardPaymentScreen` opens with
+  `pressOnOpen`, so whatever setup is missing runs at once (the location explanation, Card
+  present, Apple's terms). A reader that only had to connect goes straight on to the card —
+  Apple's sheet shows the amount, and nothing is charged until a card is read. After the terms or
+  the education it waits for a press: "Ready. Press Tap to Pay on iPhone to take the payment."
+  Opened any other way the screen only looks (`permissionStatus`, Card present) and connects
+  without the terms when location is already allowed.
+- **Location.** Location Services off for the whole device (`locationServicesEnabled`) has its own
+  words, apart from the app's own permission being blocked; both offer Settings, and a return
+  from the background looks again (`appResumed`).
+- **The button is never greyed out** (5.3). A press, in order: Card present (an admin turns it on —
+  type 32 in the gateway's `fees_and_limits`, saved on the freshly fetched gateway through the
+  outbox, then `refreshConfig`; anyone else's press asks the server again first, then reads "Ask an
+  admin to turn on Tap to Pay on iPhone", 3.8.1); location services and location permission (the app's own "Allow location access" first,
+  then iOS's prompt; Settings when blocked); the Stripe Location (an admin's is created silently);
+  then `ensureTapToPay(admin: isAdmin)` straight away, so Apple's terms open. Meanwhile the screen
+  shows "Getting Tap to Pay on iPhone ready…" with the reader's own progress (5.7, 3.9.1). Once
+  set up, the payment waits for another press.
+- **A press while quoting is held**: one at most, run when the figures arrive, and dropped by any
+  edit (typing included). A press that commits a changed amount quotes it, then collects. Nothing
+  else about the money changes.
+- **`ensureTapToPay` is single-flight per account and mode.** The account is company, gateway and
+  Location: a call for the same shares the one under way (a quiet call also shares an admin one);
+  any other waits for every connect before it, then runs its own — an admin call after a quiet one
+  runs again so the terms can open, and a screen's call for another gateway never takes a
+  warm-up's reader. Its session and company are taken when it is called: it waits out a `reset()`
+  under way, and a reset or a company switch meanwhile ends it (`sessionExpired`) before anything
+  connects. A Bluetooth connect in Device Settings holds the warm-up and lets go of a Tap to Pay
+  reader first (`releaseTapToPay`).
+- **Linked or not is Apple's answer** (1.6): `tapToPayLinked` lives in memory only, is dropped on a
+  resume and a reset, and a press always asks again.
+- **Warm-up** (1.5, 5.6): `warmUpAfterFirstFrame` after every company activation (chained after
+  `reset()` in `Services.build`), and `onResumed` from `TerminalLifecycleObserver` on a return from
+  the background. It stops at the first check that fails — a capable iPhone on iOS 17.6+, the
+  platform, a usable gateway in an iPhone country with a Location, location already allowed,
+  nothing connected or connecting, no collect screen open (`holdWarmUp`), an account not known to
+  be unlinked — and never prompts, shows a sheet or toasts. It asks for the config through
+  `ensureConfig`, so an older server's 404 is never asked again and a failed fetch waits its minute.
+- **An out-of-date iOS keeps its Bluetooth reader.** Below 17.6 a phone that has used a Bluetooth
+  reader here takes cards with it (`terminalReaderChoice(osUpdateRequired:)`); one that hasn't keeps
+  Tap to Pay on iPhone, which says to update.
+- **Education never covers the closing terms sheet**: after the terms it waits for the app to be back
+  in front and a moment more, however soon the reader turns ready.
+- **Latency** (5.6) is logged by `TapToPayLatency`: the press, the sheet requested (the read
+  starts), and the sheet shown (the app goes inactive under it). Pre-creating PaymentIntents is
+  deferred unless the p90 on a phone is over a second.
+- **No surcharge.** Stripe's iOS SDK can't put one on Apple's sheet, so the switch and the
+  surcharge setup are replaced by "Surcharges aren't available with Tap to Pay on iPhone yet." and
+  `apply_fee` is never sent.
+- **`card_present_help`** never mentions Android on iOS or macOS (`card_present_help_apple`).
 
 Stripe takes no payment with device location services off (`locationServicesEnabled`). Whether
 Stripe accepts iOS's reduced ("approximate") accuracy is untested — check on a phone.

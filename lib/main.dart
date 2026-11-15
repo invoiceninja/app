@@ -14,6 +14,7 @@ import 'package:admin/data/repositories/docuninja/docuninja_session.dart';
 import 'package:admin/data/services/docuninja/docuninja_api.dart';
 import 'package:admin/data/services/docuninja/docuninja_login_api.dart';
 import 'package:admin/ui/features/tasks/widgets/task_actions.dart';
+import 'package:admin/ui/features/terminal/tap_to_pay_icon.dart';
 import 'package:admin/app/home_widgets/home_widgets_host.dart';
 import 'package:admin/app/app_deep_links.dart';
 import 'package:admin/app/app_share_intake.dart';
@@ -44,6 +45,7 @@ import 'package:admin/app/services.dart';
 import 'package:admin/app/sign_out_notice.dart';
 import 'package:admin/app/show_seconds_controller.dart';
 import 'package:admin/app/spell_check_controller.dart';
+import 'package:admin/app/terminal_lifecycle_observer.dart';
 import 'package:admin/app/text_scale_controller.dart';
 import 'package:admin/app/theme.dart';
 import 'package:admin/app/user_activity_notification.dart';
@@ -709,6 +711,13 @@ class _InvoiceNinjaAppState extends State<InvoiceNinjaApp> {
     realtime: widget.services.realtime,
   );
 
+  // Tap to Pay on iPhone warms up again on every return to the foreground.
+  late final TerminalLifecycleObserver _terminalObserver =
+      TerminalLifecycleObserver(
+        terminal: widget.services.terminal,
+        auth: widget.services.auth,
+      );
+
   late final IdleTimeoutController _idleTimeout = IdleTimeoutController(
     auth: widget.services.auth,
     company: widget.services.company,
@@ -775,6 +784,10 @@ class _InvoiceNinjaAppState extends State<InvoiceNinjaApp> {
     WidgetsBinding.instance.addObserver(_syncObserver);
     WidgetsBinding.instance.addObserver(_idleTimeout);
     WidgetsBinding.instance.addObserver(_memoryPressureObserver);
+    WidgetsBinding.instance.addObserver(_terminalObserver);
+    // Apple's Tap to Pay on iPhone symbol, drawn once by iOS (no-op
+    // elsewhere): the action and the collect screen show it, or nothing.
+    unawaited(TapToPaySymbol.load());
     // Dismiss the splash once Flutter has actually painted — keeps the logo
     // on screen through the router redirect chain instead of a fixed timer.
     // Two-frame deferral: the first post-frame lets GoRouter's synchronous
@@ -811,6 +824,7 @@ class _InvoiceNinjaAppState extends State<InvoiceNinjaApp> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(_terminalObserver);
     WidgetsBinding.instance.removeObserver(_memoryPressureObserver);
     WidgetsBinding.instance.removeObserver(_idleTimeout);
     WidgetsBinding.instance.removeObserver(_syncObserver);

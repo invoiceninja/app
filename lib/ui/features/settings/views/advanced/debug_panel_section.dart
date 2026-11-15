@@ -9,6 +9,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter/rendering.dart';
 import 'package:provider/provider.dart';
 
+import 'package:admin/domain/terminal/terminal_eligibility.dart';
 import 'package:admin/app/debug_capture_store.dart';
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/env.dart';
@@ -266,7 +267,12 @@ class _Toolbar extends StatelessWidget {
         : ListenableBuilder(
             listenable: terminal,
             builder: (context, _) => IconButton(
-              icon: const Icon(Icons.contactless_outlined),
+              // Never the Material contactless icon on iOS (App Review 5.5).
+              icon: Icon(
+                isIPhonePlatform()
+                    ? Icons.point_of_sale_outlined
+                    : Icons.contactless_outlined,
+              ),
               tooltip: context.tr('simulated_card_reader'),
               isSelected: terminal.simulated,
               onPressed: () => terminal.simulated = !terminal.simulated,

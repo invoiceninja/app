@@ -17,6 +17,11 @@ import 'package:admin/domain/terminal/terminal_eligibility.dart';
 
 final _log = Logger('CollectCardPayment');
 
+/// Press → sheet requested → sheet shown, for App Review 5.6 (Apple's sheet
+/// within a second of the press, nine times in ten): measured on a phone,
+/// not guessed (docs/in-person-payments.md).
+final _latency = Logger('TapToPayLatency');
+
 /// Where a collection stands (docs/in-person-payments.md).
 enum CollectStage {
   /// Amount, surcharge and reader; nothing created yet.
@@ -85,6 +90,9 @@ enum ReaderState {
   idle,
   permissions,
   blocked,
+
+  /// An admin's press is turning Card present on (iPhone).
+  turningOn,
   connecting,
   needsReader,
   ready,
@@ -113,17 +121,44 @@ class CollectCardPaymentViewModel extends ChangeNotifier {
     required this.precision,
     this.clientEmail = '',
     Future<String?> Function()? chargeCurrency,
+    Future<void> Function(String companyGatewayId)? enableCardPresent,
     DateTime Function()? clock,
     String Function()? newId,
     this.pollDelay = const Duration(seconds: 2),
+    bool? iPhone,
+    this.pressOnOpen = false,
   }) : _invoice = invoice,
        _terminal = terminal,
        _repo = repository,
        _chargeCurrency = chargeCurrency,
+       _enableCardPresent = enableCardPresent,
        _clock = clock ?? DateTime.now,
-       _newId = newId ?? (() => const Uuid().v4()) {
+       _newId = newId ?? (() => const Uuid().v4()),
+       _iPhone = iPhone ?? isIPhonePlatform() {
     amount = defaultAmount(invoice);
+    // Known before anything loads, from the same facts as the invoice's
+    // action: Apple's button is there from the first frame (App Review
+    // 5.3), and stays if the config never loads.
+    if (_iPhone && terminal.offersTapToPayOnIPhone(companyId)) {
+      _readerChoice = TerminalReaderChoice.tapToPay;
+    }
   }
+
+  /// Opened from the invoice's Tap to Pay on iPhone action, which is Apple's
+  /// button too (5.3): opening presses it — whatever setup is missing runs
+  /// at once, Apple's terms included, and a reader that only had to connect
+  /// goes straight on to the card.
+  final bool pressOnOpen;
+
+  /// The app's own words before iOS asks for location; true to let iOS ask.
+  /// Set by the screen.
+  Future<bool> Function()? askLocation;
+
+  /// The reader just became ready (on a press, or on opening): the screen
+  /// shows Apple's education if it is owed, and answers whether the payment
+  /// may go straight on — false when the terms or the education were shown,
+  /// so a fresh press takes the card.
+  Future<bool> Function()? onReady;
 
   final String companyId;
   final bool isAdmin;
@@ -139,7 +174,19 @@ class CollectCardPaymentViewModel extends ChangeNotifier {
   /// group's, else the company's), or null when it can't be told — then the
   /// first gateway that takes cards is used and the server has the last word.
   final Future<String?> Function()? _chargeCurrency;
+
+  /// Turns Card present on for a Stripe gateway and waits until the server
+  /// has it (an admin's press on an iPhone, App Review 5.3).
+  final Future<void> Function(String companyGatewayId)? _enableCardPresent;
+
+  /// An iPhone: Tap to Pay on iPhone follows Apple's rules (no prompt on
+  /// opening, the press sets it up). Injected by tests.
+  final bool _iPhone;
   final TerminalController _terminal;
+
+  /// The session's card reader controller: the screen listens to its reader
+  /// events and progress.
+  TerminalController get terminal => _terminal;
   final TerminalRepository _repo;
   final DateTime Function() _clock;
   final String Function() _newId;
@@ -185,16 +232,32 @@ class CollectCardPaymentViewModel extends ChangeNotifier {
   TerminalPermission? _permission;
   TerminalPermission? get permission => _permission;
 
+  /// Tap to Pay on iPhone: everything Apple's App Review asks applies — the
+  /// button sets it up when pressed, opening the screen never prompts, and
+  /// no surcharge (Stripe can't show one on Apple's sheet yet).
+  bool get tapToPayOnIPhone =>
+      _iPhone && _readerChoice == TerminalReaderChoice.tapToPay;
+
   /// The gateway's surcharge, before an invoice is involved.
   bool get surchargeOffered =>
-      kCardPresentSurcharge && (_gateway?.surcharge.allowed ?? false);
+      kCardPresentSurcharge &&
+      !tapToPayOnIPhone &&
+      (_gateway?.surcharge.allowed ?? false);
+
+  /// A surcharge is set up for the gateway, but Tap to Pay on iPhone can't
+  /// take one: the screen says so instead of offering it.
+  bool get surchargeUnavailable =>
+      kCardPresentSurcharge &&
+      tapToPayOnIPhone &&
+      ((_gateway?.surcharge.allowed ?? false) ||
+          (_gateway?.surcharge.needsAcknowledgement ?? false));
 
   /// Why a configured surcharge won't be added, for the line under the
   /// switch: the business's state or country, "adjust fee percent", or this
   /// invoice (locked, over the cap, …). Null when it will be, or when none is
   /// configured.
   String? get surchargeRefusal {
-    if (!kCardPresentSurcharge) return null;
+    if (!kCardPresentSurcharge || tapToPayOnIPhone) return null;
     final configured = _gateway?.surcharge;
     if (configured == null) return null;
     if (!configured.allowed) {
@@ -212,6 +275,7 @@ class CollectCardPaymentViewModel extends ChangeNotifier {
 
   bool get surchargeNeedsAcknowledgement =>
       kCardPresentSurcharge &&
+      !tapToPayOnIPhone &&
       (_gateway?.surcharge.needsAcknowledgement ?? false);
 
   String? _collectionId;
@@ -286,7 +350,12 @@ class CollectCardPaymentViewModel extends ChangeNotifier {
   ///
   /// Also "Retry" while there is no gateway yet: a failed fetch is a
   /// connection problem, not "Card present is off".
-  Future<void> start() async {
+  Future<void> start() => _start(openPress: pressOnOpen && !_openPressed);
+
+  /// Whether the opening press ([pressOnOpen]) has run.
+  bool _openPressed = false;
+
+  Future<void> _start({required bool openPress}) async {
     if (_starting || _stage != CollectStage.configure) return;
     _starting = true;
     _problem = null;
@@ -299,8 +368,32 @@ class CollectCardPaymentViewModel extends ChangeNotifier {
       _notify();
     }
     // Never a permission prompt or a reader over a screen that has closed.
-    if (!found || _disposed) return;
-    await Future.wait([requote(), prepareReader()]);
+    if (_disposed) return;
+    final ask = askLocation;
+    final press = openPress && tapToPayOnIPhone && ask != null;
+    if (press) _openPressed = true;
+    if (!found) {
+      // Card present off, or no Stripe gateway: the opening press says what
+      // is next (an admin's turns Card present on). A config that never
+      // loaded waits for a press, which asks again.
+      if (press && (cardPresentOff || needsStripe)) {
+        await _press(ask, fromOpen: true);
+      } else {
+        _runPendingPress();
+      }
+      return;
+    }
+    if (press) {
+      unawaited(requote());
+      await _press(ask, fromOpen: true);
+      return;
+    }
+    // Tap to Pay on iPhone opened elsewhere only looks — the press asks for
+    // whatever is missing.
+    await Future.wait([
+      requote(),
+      tapToPayOnIPhone ? _checkTapToPay() : prepareReader(),
+    ]);
   }
 
   bool _starting = false;
@@ -310,8 +403,8 @@ class CollectCardPaymentViewModel extends ChangeNotifier {
 
   /// The company's config and the gateway for the client's currency; false
   /// (with the problem set) when there is none to collect with.
-  Future<bool> _loadGateway() async {
-    var config = _terminal.configFor(companyId);
+  Future<bool> _loadGateway({bool refresh = false}) async {
+    var config = refresh ? null : _terminal.configFor(companyId);
     if (config == null) {
       try {
         config = await _terminal.refreshConfig(companyId);
@@ -331,6 +424,32 @@ class CollectCardPaymentViewModel extends ChangeNotifier {
       currency = await _chargeCurrency?.call();
     } catch (_) {}
     final gateway = config.gatewayFor(currency);
+    _setupGateway = null;
+    _needsStripe = false;
+    if (_iPhone &&
+        (_terminal.device?.tapToPay ?? false) &&
+        (gateway == null ||
+            _terminal.readerChoiceFor(gateway.accountCountry) ==
+                TerminalReaderChoice.none)) {
+      // Nothing to collect with yet, but the button shows before anything
+      // is set up (App Review 5.3): Card present still off on a Stripe
+      // gateway in an iPhone country, or — for an admin — no Stripe gateway.
+      final setup = config.setupGateways
+          .where((g) => kTapToPayIPhoneCountries.contains(g.accountCountry))
+          .firstOrNull;
+      final noStripe = config.gateways.isEmpty && config.setupGateways.isEmpty;
+      if (setup != null ||
+          (isAdmin &&
+              noStripe &&
+              kTapToPayIPhoneCountries.contains(config.companyCountry))) {
+        _setupGateway = setup;
+        _needsStripe = setup == null;
+        _gateway = null;
+        _readerChoice = TerminalReaderChoice.tapToPay;
+        applySurcharge = false;
+        return false;
+      }
+    }
     if (gateway == null) {
       _fail(
         config.usableGateway == null
@@ -344,8 +463,20 @@ class CollectCardPaymentViewModel extends ChangeNotifier {
     }
     _gateway = gateway;
     _readerChoice = _terminal.readerChoiceFor(gateway.accountCountry);
+    // Never a surcharge on Tap to Pay on iPhone, so never an `apply_fee`.
+    if (tapToPayOnIPhone) applySurcharge = false;
     return true;
   }
+
+  /// Card present is off on the Stripe gateway (iPhone): the press turns it
+  /// on for an admin, and tells anyone else to ask one.
+  bool get cardPresentOff => _gateway == null && _setupGateway != null;
+  TerminalSetupGateway? _setupGateway;
+
+  /// An admin's company has no Stripe gateway yet (iPhone): the press says
+  /// to connect one.
+  bool get needsStripe => _gateway == null && _needsStripe;
+  bool _needsStripe = false;
 
   /// Permissions, the Location, the SDK and the reader.
   Future<void> prepareReader() async {
@@ -472,6 +603,14 @@ class CollectCardPaymentViewModel extends ChangeNotifier {
   /// Mid-collection the read fails on its own (declined → the screen offers
   /// to connect a reader before trying again).
   void readerDisconnected() {
+    if (tapToPayOnIPhone && _stage == CollectStage.configure && !_pressing) {
+      // Tap to Pay on iPhone let go of the reader: the next press gets it
+      // ready again, rather than a read failing on it.
+      _reader = null;
+      _readerSeq++;
+      _setReader(ReaderState.idle);
+      return;
+    }
     if (_readerChoice != TerminalReaderChoice.bluetooth) return;
     _reader = null;
     _setReader(ReaderState.needsReader);
@@ -498,6 +637,8 @@ class CollectCardPaymentViewModel extends ChangeNotifier {
     if (_stage != CollectStage.configure) return false;
     final rounded = _round(value);
     if (rounded == amount) return false;
+    // An edit always wins over a press waiting on the old figures.
+    _pressPending = false;
     amount = rounded;
     _collectionId = null;
     unawaited(requote());
@@ -506,6 +647,7 @@ class CollectCardPaymentViewModel extends ChangeNotifier {
 
   void setSurcharge(bool value) {
     if (_stage != CollectStage.configure || !surchargeOffered) return;
+    _pressPending = false;
     applySurcharge = value;
     _collectionId = null;
     unawaited(requote());
@@ -540,10 +682,13 @@ class CollectCardPaymentViewModel extends ChangeNotifier {
       if (seq != _quoteSeq) return;
       _quote = null;
       _problem = _problemOf(e);
+      // The figures it was waiting for never came.
+      _pressPending = false;
     } finally {
       if (seq == _quoteSeq) {
         _quoting = false;
         _notify();
+        _runPendingPress();
       }
     }
   }
@@ -569,6 +714,332 @@ class CollectCardPaymentViewModel extends ChangeNotifier {
       _problem = _problemOf(e);
       _notify();
     }
+  }
+
+  // ------------------------------------------------- Tap to Pay on iPhone
+
+  /// A press waiting for figures (a quote, or the gateway) to arrive: one at
+  /// most, run when they do, and dropped by any edit.
+  bool get pressPending => _pressPending;
+  bool _pressPending = false;
+  Future<bool> Function()? _askLocation;
+
+  /// A press is setting Tap to Pay on iPhone up.
+  bool _pressing = false;
+
+  /// Bumped by every press: an open's quiet check that answers after one
+  /// leaves the reader state to it.
+  int _readerSeq = 0;
+
+  Stopwatch? _pressedAt;
+
+  /// The press is waiting for Apple's sheet to come up, for the latency log.
+  bool get awaitingSheet => _sheetRequested && !_sheetShown;
+  bool _sheetRequested = false;
+  bool _sheetShown = false;
+
+  /// Something is typed into the amount field: a press waiting on the old
+  /// figures must not charge them.
+  void cancelPendingPress() => _pressPending = false;
+
+  /// Opening the screen on an iPhone: only looks. Location already allowed,
+  /// a Location already there: the reader connects without Apple's terms
+  /// (it may already be, from the warm-up); an account not yet linked is
+  /// left for the press.
+  Future<void> _checkTapToPay() async {
+    final gateway = _gateway;
+    // Below iOS 17.6 nothing is tried: the press says to update.
+    if (gateway == null || (_terminal.device?.osUpdateRequired ?? false)) {
+      return;
+    }
+    final seq = _readerSeq;
+    _permission = await _terminal.platform.permissionStatus(
+      TerminalReaderKind.tapToPay,
+    );
+    if (_disposed || seq != _readerSeq) return;
+    if (_permission == TerminalPermission.blocked) {
+      await _blocked(seq);
+      return;
+    }
+    final location = _location ?? gateway.locations.firstOrNull;
+    if (_permission != TerminalPermission.granted || location == null) return;
+    _location = location;
+    _setReader(ReaderState.connecting);
+    try {
+      final reader = await _terminal.ensureTapToPay(
+        companyId: companyId,
+        gateway: gateway,
+        location: location,
+        merchantDisplayName: merchantDisplayName,
+        admin: false,
+      );
+      if (_disposed || seq != _readerSeq) return;
+      _reader = reader;
+      _setReader(ReaderState.ready);
+      // Apple's education, if it is still owed on this account.
+      await onReady?.call();
+    } catch (_) {
+      // Not linked yet, or not ready: the press says why, and fixes what it
+      // can. Opening never shows a failure it didn't ask for.
+      if (_disposed || seq != _readerSeq) return;
+      _terminal.takeTokenError();
+      _setReader(ReaderState.idle);
+    }
+  }
+
+  /// Location is blocked: for the whole device (Location Services off, only
+  /// Settings, Privacy & Security turns them on) or for this app.
+  Future<void> _blocked(int seq) async {
+    final device = await _terminal.refreshDevice();
+    if (_disposed || seq != _readerSeq) return;
+    if (!device.locationServicesEnabled) {
+      _setReader(
+        ReaderState.failed,
+        const CollectProblem(code: TerminalErrorCode.locationServicesDisabled),
+      );
+    } else {
+      _setReader(ReaderState.blocked);
+    }
+  }
+
+  /// The app is back in front — perhaps from Settings, where location was
+  /// allowed: what was blocked is looked at again.
+  void appResumed() {
+    if (!tapToPayOnIPhone || _stage != CollectStage.configure || _pressing) {
+      return;
+    }
+    final locationOff =
+        _readerState == ReaderState.failed &&
+        _problem?.code == TerminalErrorCode.locationServicesDisabled;
+    if (_readerState != ReaderState.blocked && !locationOff) return;
+    _problem = null;
+    _readerSeq++;
+    _setReader(ReaderState.idle);
+    unawaited(_checkTapToPay());
+  }
+
+  /// The Tap to Pay on iPhone button. Never greyed out (App Review 5.3): a
+  /// press does whatever is still missing, in order — Card present (an
+  /// admin turns it on), location (after [askLocation], the app's own
+  /// explanation, then iOS's prompt), the Stripe Location, then the reader,
+  /// straight away, so Apple's terms open if they have to. Once set up, the
+  /// payment waits for the next press; a press when everything is ready
+  /// takes the card, after the figures if they are still being asked for.
+  Future<void> pressTapToPay({
+    required Future<bool> Function() askLocation,
+  }) async {
+    if (_stage != CollectStage.configure || _pressing || _disposed) return;
+    _pressedAt = Stopwatch()..start();
+    _sheetRequested = false;
+    _sheetShown = false;
+    _latency.info('press at ${_clock().toIso8601String()}');
+    await _press(askLocation);
+  }
+
+  /// [fromOpen]: the opening press — once ready, it goes on to the card
+  /// unless Apple's terms or education were shown ([onReady]).
+  Future<void> _press(
+    Future<bool> Function() askLocation, {
+    bool fromOpen = false,
+  }) async {
+    if (_stage != CollectStage.configure || _pressing || _disposed) return;
+    _askLocation = askLocation;
+    if (_terminal.device?.osUpdateRequired ?? false) {
+      // App Review 1.4: below iOS 17.6, say to update.
+      _fail(const CollectProblem(code: TerminalErrorCode.unsupportedOs));
+      return;
+    }
+    if (_starting) {
+      // Not yet known what to collect with: the press runs once it is.
+      _pressPending = true;
+      return;
+    }
+    if (needsStripe) {
+      _fail(const CollectProblem(serverCode: 'connect_stripe_first'));
+      return;
+    }
+    if (cardPresentOff) {
+      if (!isAdmin) {
+        // An admin may have turned it on meanwhile: ask the server again.
+        _pressing = true;
+        try {
+          await _loadGateway(refresh: true);
+        } finally {
+          _pressing = false;
+        }
+        if (_disposed) return;
+        if (_gateway == null) {
+          // App Review 3.8.1.
+          _fail(const CollectProblem(serverCode: 'tap_to_pay_ask_admin'));
+          return;
+        }
+        unawaited(requote());
+      } else if (!await _turnOnCardPresent()) {
+        return;
+      }
+    }
+    final gateway = _gateway;
+    if (gateway == null) {
+      // The config never loaded: the press asks again, and carries on once
+      // there is something to set up.
+      await _start(openPress: false);
+      if (_disposed) return;
+      if (_gateway != null || cardPresentOff || needsStripe) {
+        await _press(askLocation, fromOpen: fromOpen);
+      }
+      return;
+    }
+    if (_readerState != ReaderState.ready) {
+      if (!await _setUpTapToPay(gateway, askLocation)) return;
+      // Ready: Apple's education if owed (4.2). A press then waits for
+      // another, unless it opened the screen and nothing (terms, education)
+      // came up meanwhile.
+      final goOn = await onReady?.call() ?? true;
+      if (!fromOpen || !goOn || _disposed) return;
+    } else if (fromOpen) {
+      final goOn = await onReady?.call() ?? true;
+      if (!goOn || _disposed) return;
+    }
+    await _collectWhenQuoted();
+  }
+
+  /// An admin's press with Card present off: on, then the gateway again.
+  Future<bool> _turnOnCardPresent() async {
+    final setup = _setupGateway;
+    final enable = _enableCardPresent;
+    if (setup == null || enable == null) return false;
+    _pressing = true;
+    _readerSeq++;
+    _problem = null;
+    _setReader(ReaderState.turningOn);
+    try {
+      await enable(setup.companyGatewayId);
+      if (_disposed) return false;
+      final found = await _loadGateway(refresh: true);
+      if (_disposed) return false;
+      if (!found) {
+        if (_problem == null) {
+          // Still not listed: Stripe hasn't enabled card payments yet.
+          _fail(
+            const CollectProblem(serverCode: TerminalServerError.notEnabled),
+          );
+        }
+        _setReader(ReaderState.idle);
+        return false;
+      }
+      unawaited(requote());
+      return true;
+    } catch (e) {
+      if (!_disposed) _setReader(ReaderState.failed, _problemOf(e));
+      return false;
+    } finally {
+      _pressing = false;
+    }
+  }
+
+  /// True once the reader is ready.
+  Future<bool> _setUpTapToPay(
+    TerminalGatewayConfig gateway,
+    Future<bool> Function() askLocation,
+  ) async {
+    _pressing = true;
+    final seq = ++_readerSeq;
+    _problem = null;
+    try {
+      final device = await _terminal.refreshDevice();
+      if (_disposed || seq != _readerSeq) return false;
+      if (!device.locationServicesEnabled) {
+        _setReader(
+          ReaderState.failed,
+          const CollectProblem(
+            code: TerminalErrorCode.locationServicesDisabled,
+          ),
+        );
+        return false;
+      }
+      var permission = await _terminal.platform.permissionStatus(
+        TerminalReaderKind.tapToPay,
+      );
+      if (_disposed || seq != _readerSeq) return false;
+      if (permission == TerminalPermission.denied) {
+        // Never asked yet: the app explains first, then iOS asks.
+        _setReader(ReaderState.permissions);
+        if (!await askLocation()) {
+          if (!_disposed) _setReader(ReaderState.idle);
+          return false;
+        }
+        if (_disposed || seq != _readerSeq) return false;
+        permission = await _terminal.platform.requestPermissions(
+          TerminalReaderKind.tapToPay,
+        );
+        if (_disposed || seq != _readerSeq) return false;
+      }
+      _permission = permission;
+      if (permission == TerminalPermission.blocked) {
+        await _blocked(seq);
+        return false;
+      }
+      if (permission != TerminalPermission.granted) {
+        _setReader(ReaderState.idle);
+        return false;
+      }
+      final location = await _ensureLocation(gateway);
+      if (location == null || _disposed || seq != _readerSeq) return false;
+      // "Getting Tap to Pay on iPhone ready…", with progress (5.7, 3.9.1).
+      _setReader(ReaderState.connecting);
+      final reader = await _terminal.ensureTapToPay(
+        companyId: companyId,
+        gateway: gateway,
+        location: location,
+        merchantDisplayName: merchantDisplayName,
+        admin: isAdmin,
+      );
+      if (_disposed || seq != _readerSeq) return false;
+      _reader = reader;
+      _setReader(ReaderState.ready);
+      return true;
+    } catch (e) {
+      if (_disposed || seq != _readerSeq) return false;
+      _setReader(
+        ReaderState.failed,
+        _problemOf(_terminal.takeTokenError() ?? e),
+      );
+      return false;
+    } finally {
+      _pressing = false;
+    }
+  }
+
+  /// A press with the reader ready: the card is taken at the current
+  /// figures — once they are in, if they are still being asked for.
+  Future<void> _collectWhenQuoted() async {
+    if (_quoting || _quote == null) {
+      _pressPending = true;
+      if (!_quoting) unawaited(requote());
+      return;
+    }
+    await collect();
+  }
+
+  /// Runs the one held press, if the figures it waited for are in.
+  void _runPendingPress() {
+    if (!_pressPending || _starting || _quoting || _disposed) return;
+    _pressPending = false;
+    final ask = _askLocation;
+    if (ask == null || _stage != CollectStage.configure) return;
+    if (_readerState == ReaderState.ready && _quote == null) return;
+    unawaited(_press(ask));
+  }
+
+  /// Apple's sheet came up (the app went inactive under it): the end of the
+  /// press's latency.
+  void noteSheetShown() {
+    if (!_sheetRequested || _sheetShown) return;
+    _sheetShown = true;
+    _latency.info(
+      'sheet shown +${_pressedAt?.elapsedMilliseconds ?? -1} ms after the '
+      'press',
+    );
   }
 
   // ------------------------------------------------------------ collect
@@ -773,6 +1244,13 @@ class CollectCardPaymentViewModel extends ChangeNotifier {
       }
       _stage = CollectStage.waiting;
       _notify();
+      if (tapToPayOnIPhone && !_sheetRequested) {
+        _sheetRequested = true;
+        _latency.info(
+          'sheet requested +${_pressedAt?.elapsedMilliseconds ?? -1} ms after '
+          'the press',
+        );
+      }
       final TerminalCollected collected;
       try {
         collected = await session.collect();

@@ -42,10 +42,21 @@ class EntityActionItem<A> {
     this.isDestructive = false,
     this.confirmMessageKey,
     this.confirmSubject,
+    this.iconBuilder,
   });
 
   final A kind;
   final IconData icon;
+
+  /// Draws the icon instead of [icon], at the size (and, where given, the
+  /// colour) the surface asks for — for an icon no [IconData] can carry,
+  /// such as Apple's Tap to Pay on iPhone symbol. Every surface that renders
+  /// an item draws it through [iconWidget].
+  final Widget Function(double size, Color? color)? iconBuilder;
+
+  /// The item's icon at [size]: [iconBuilder]'s, else [icon].
+  Widget iconWidget(double size, {Color? color}) =>
+      iconBuilder?.call(size, color) ?? Icon(icon, size: size, color: color);
   final String label;
   final bool enabled;
   final bool isPrimary;
@@ -192,7 +203,7 @@ class EntityActionItem<A> {
       if (item.hasChildren) {
         children.add(
           SubmenuButton(
-            leadingIcon: Icon(item.icon, size: 18),
+            leadingIcon: item.iconWidget(18),
             menuChildren: menuChildrenFor<A>(context, item.children!),
             child: Text(item.label),
           ),
@@ -200,7 +211,7 @@ class EntityActionItem<A> {
       } else if (item.enabled) {
         children.add(
           MenuItemButton(
-            leadingIcon: Icon(item.icon, size: 18),
+            leadingIcon: item.iconWidget(18),
             onPressed: guardedOnTap<A>(context, item),
             child: Text(item.label),
           ),
@@ -210,7 +221,7 @@ class EntityActionItem<A> {
         // (disabledTooltipKey == null); no tooltip by design.
         children.add(
           MenuItemButton(
-            leadingIcon: Icon(item.icon, size: 18),
+            leadingIcon: item.iconWidget(18),
             onPressed: null,
             child: Text(item.label),
           ),
@@ -457,7 +468,7 @@ class _ActionButton<A> extends StatelessWidget {
         ),
         builder: (context, controller, _) => OutlinedButton.icon(
           style: OutlinedButton.styleFrom(minimumSize: const Size(64, 40)),
-          icon: Icon(item.icon, size: 18),
+          icon: item.iconWidget(18),
           label: Text(item.label),
           onPressed: () =>
               controller.isOpen ? controller.close() : controller.open(),
@@ -470,7 +481,7 @@ class _ActionButton<A> extends StatelessWidget {
               minimumSize: const Size(0, 40),
               padding: const EdgeInsets.symmetric(horizontal: 16),
             ),
-            icon: Icon(item.icon, size: 18),
+            icon: item.iconWidget(18),
             label: Text(
               item.label,
               maxLines: 1,
@@ -484,7 +495,7 @@ class _ActionButton<A> extends StatelessWidget {
             // theme's Size.fromHeight(40) default, otherwise the infinite
             // minWidth crashes the surrounding Row layout.
             style: OutlinedButton.styleFrom(minimumSize: const Size(64, 40)),
-            icon: Icon(item.icon, size: 18),
+            icon: item.iconWidget(18),
             label: Text(item.label),
             onPressed: item.enabled ? guardedOnTap<A>(context, item) : null,
           );

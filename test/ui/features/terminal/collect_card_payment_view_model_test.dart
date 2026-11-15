@@ -1178,4 +1178,386 @@ void main() {
       );
     });
   });
+
+  group('Tap to Pay on iPhone', () {
+    late TerminalController phone;
+    final enabled = <String>[];
+
+    setUp(() {
+      enabled.clear();
+      phone = TerminalController(
+        repository: repo,
+        platform: platform,
+        auth: auth,
+        prefs: prefs,
+        platformReady: true,
+        iPhone: true,
+      );
+    });
+    tearDown(() => phone.dispose());
+
+    CollectCardPaymentViewModel iPhoneVm({bool isAdmin = true}) {
+      final vm = CollectCardPaymentViewModel(
+        companyId: 'co_a',
+        invoice: invoice,
+        terminal: phone,
+        repository: repo,
+        isAdmin: isAdmin,
+        merchantDisplayName: 'Acme',
+        precision: 2,
+        clock: () => now,
+        newId: () => 'col_${++ids}',
+        pollDelay: Duration.zero,
+        iPhone: true,
+        enableCardPresent: (id) async {
+          enabled.add(id);
+          // The server now lists it with Card present on.
+          repo.configAnswer = FakeTerminalRepo.defaultConfig;
+        },
+      );
+      addTearDown(vm.dispose);
+      return vm;
+    }
+
+    var asked = 0;
+    Future<bool> allow() async {
+      asked++;
+      return true;
+    }
+
+    Future<bool> refuse() async {
+      asked++;
+      return false;
+    }
+
+    setUp(() => asked = 0);
+
+    test('opening never prompts: location not asked yet leaves the reader '
+        'alone', () async {
+      platform.status = TerminalPermission.denied;
+      final vm = iPhoneVm();
+      await vm.start();
+      expect(vm.tapToPayOnIPhone, isTrue);
+      expect(platform.permissionRequests, 0);
+      expect(platform.connects, isEmpty);
+      expect(vm.readerState, ReaderState.idle);
+      expect(vm.problem, isNull);
+    });
+
+    test(
+      'opening with location allowed connects quietly, without the terms',
+      () async {
+        final vm = iPhoneVm();
+        await vm.start();
+        expect(platform.permissionRequests, 0);
+        expect(platform.connects, [false]);
+        expect(vm.readerState, ReaderState.ready);
+      },
+    );
+
+    test('opening on an unlinked account stays quiet; the press opens the '
+        'terms and then waits for another press', () async {
+      platform.connectAnswers.add(
+        const TerminalError(TerminalErrorCode.termsNotAccepted),
+      );
+      final vm = iPhoneVm();
+      await vm.start();
+      expect(vm.readerState, ReaderState.idle);
+      expect(vm.problem, isNull);
+
+      await vm.pressTapToPay(askLocation: allow);
+      expect(platform.connects, [false, true]);
+      expect(vm.readerState, ReaderState.ready);
+      expect(
+        repo.calls.where((c) => c.startsWith('create')),
+        isEmpty,
+        reason: 'set up, but no payment starts by itself',
+      );
+
+      repo.creates.add(fakeIntent());
+      final read = Completer<TerminalCollected>();
+      platform.session.reads.add(read);
+      unawaited(vm.pressTapToPay(askLocation: allow));
+      await pumpEventQueue();
+      expect(vm.stage, CollectStage.waiting);
+      expect(repo.calls.where((c) => c.startsWith('create')), hasLength(1));
+      await vm.cancel();
+    });
+
+    test('a press asks for location after the app explains it, then connects '
+        'straight away', () async {
+      platform.status = TerminalPermission.denied;
+      final vm = iPhoneVm();
+      await vm.start();
+      await vm.pressTapToPay(askLocation: refuse);
+      expect(asked, 1);
+      expect(platform.permissionRequests, 0, reason: 'declined before iOS');
+      expect(vm.readerState, ReaderState.idle);
+
+      await vm.pressTapToPay(askLocation: allow);
+      expect(asked, 2);
+      expect(platform.permissionRequests, 1);
+      expect(platform.connects, [true]);
+      expect(vm.readerState, ReaderState.ready);
+    });
+
+    test('a blocked location offers Settings, never a prompt', () async {
+      platform.status = TerminalPermission.blocked;
+      final vm = iPhoneVm();
+      await vm.start();
+      expect(vm.readerState, ReaderState.blocked);
+      await vm.pressTapToPay(askLocation: allow);
+      expect(asked, 0);
+      expect(platform.permissionRequests, 0);
+      expect(vm.readerState, ReaderState.blocked);
+    });
+
+    test('no Location: an admin\'s press creates one silently', () async {
+      repo.configAnswer = TerminalConfig(
+        enabled: true,
+        planOk: true,
+        gateways: [
+          TerminalGatewayConfig(
+            companyGatewayId: 'cg_1',
+            label: 'Stripe',
+            livemode: false,
+            accountCountry: 'US',
+            defaultCurrency: 'usd',
+            cardPaymentsActive: true,
+            surcharge: TerminalSurchargeConfig.fromJson(const {}),
+            locations: const [],
+          ),
+        ],
+      );
+      final vm = iPhoneVm();
+      await vm.start();
+      expect(repo.locationsCreated, 0, reason: 'opening only looks');
+      await vm.pressTapToPay(askLocation: allow);
+      expect(repo.locationsCreated, 1);
+      expect(vm.readerState, ReaderState.ready);
+    });
+
+    test('Card present off: an admin\'s press turns it on and goes on to the '
+        'reader; anyone else is told to ask an admin', () async {
+      const setup = TerminalConfig(
+        enabled: true,
+        planOk: true,
+        gateways: [],
+        setupGateways: [
+          TerminalSetupGateway(
+            companyGatewayId: 'cg_1',
+            label: 'Stripe',
+            accountCountry: 'US',
+          ),
+        ],
+      );
+      repo.configAnswer = setup;
+      final member = iPhoneVm(isAdmin: false);
+      await member.start();
+      expect(member.cardPresentOff, isTrue);
+      expect(member.problem, isNull, reason: 'the button is just there');
+      await member.pressTapToPay(askLocation: allow);
+      expect(member.problem?.serverCode, 'tap_to_pay_ask_admin');
+      expect(enabled, isEmpty);
+
+      final admin = iPhoneVm();
+      await admin.start();
+      await admin.pressTapToPay(askLocation: allow);
+      expect(enabled, ['cg_1']);
+      expect(admin.cardPresentOff, isFalse);
+      expect(admin.gateway?.companyGatewayId, 'cg_1');
+      expect(platform.connects, [true]);
+      expect(admin.readerState, ReaderState.ready);
+      expect(repo.calls.where((c) => c.startsWith('create')), isEmpty);
+    });
+
+    test(
+      'an iOS Apple wants updated: the press says so and asks nothing',
+      () async {
+        platform.support = const TerminalDeviceSupport(
+          tapToPay: true,
+          bluetooth: true,
+          osUpdateRequired: true,
+        );
+        platform.status = TerminalPermission.denied;
+        final vm = iPhoneVm();
+        await vm.start();
+        await vm.pressTapToPay(askLocation: allow);
+        expect(vm.problem?.code, TerminalErrorCode.unsupportedOs);
+        expect(asked, 0);
+        expect(platform.connects, isEmpty);
+      },
+    );
+
+    test('each terms failure keeps its own code', () async {
+      for (final code in [
+        TerminalErrorCode.termsCanceled,
+        TerminalErrorCode.termsNeedsAppleAccount,
+        TerminalErrorCode.termsFailed,
+      ]) {
+        platform.connectAnswers
+          ..add(const TerminalError(TerminalErrorCode.termsNotAccepted))
+          ..add(TerminalError(code));
+        final vm = iPhoneVm();
+        await vm.start();
+        await vm.pressTapToPay(askLocation: allow);
+        expect(vm.readerState, ReaderState.failed);
+        expect(vm.problem?.code, code);
+      }
+    });
+
+    test('a press while quoting is held once, and taken when the figures '
+        'arrive', () async {
+      final vm = iPhoneVm();
+      await vm.start();
+      expect(vm.readerState, ReaderState.ready);
+      repo.quoteGate = Completer<void>();
+      vm.setAmount(Decimal.fromInt(50));
+      expect(vm.quoting, isTrue);
+      await vm.pressTapToPay(askLocation: allow);
+      await vm.pressTapToPay(askLocation: allow);
+      expect(vm.pressPending, isTrue);
+      expect(repo.calls.where((c) => c.startsWith('create')), isEmpty);
+      repo.creates.add(fakeIntent());
+      platform.session.reads.add(Completer<TerminalCollected>());
+      repo.quoteGate!.complete();
+      repo.quoteGate = null;
+      await pumpEventQueue();
+      expect(repo.calls.where((c) => c.startsWith('create')), [
+        'create:col_1:50',
+      ]);
+      await vm.cancel();
+    });
+
+    test('an edit drops the held press', () async {
+      final vm = iPhoneVm();
+      await vm.start();
+      repo.quoteGate = Completer<void>();
+      vm.setAmount(Decimal.fromInt(50));
+      await vm.pressTapToPay(askLocation: allow);
+      expect(vm.pressPending, isTrue);
+      vm.setAmount(Decimal.fromInt(60));
+      expect(vm.pressPending, isFalse);
+      await vm.pressTapToPay(askLocation: allow);
+      vm.cancelPendingPress();
+      repo.quoteGate!.complete();
+      repo.quoteGate = null;
+      await pumpEventQueue();
+      expect(repo.calls.where((c) => c.startsWith('create')), isEmpty);
+    });
+
+    test('no surcharge on Tap to Pay on iPhone, so no apply_fee', () async {
+      final vm = iPhoneVm();
+      await vm.start();
+      expect(vm.surchargeOffered, isFalse);
+      expect(vm.surchargeUnavailable, isTrue);
+      vm.setSurcharge(true);
+      expect(vm.applySurcharge, isFalse);
+      repo.creates.add(fakeIntent());
+      platform.session.reads.add(Completer<TerminalCollected>());
+      unawaited(vm.pressTapToPay(askLocation: allow));
+      await pumpEventQueue();
+      expect(vm.stage, CollectStage.waiting);
+      expect(
+        repo.calls.where((c) => c.startsWith('quote')),
+        everyElement(endsWith(':false')),
+      );
+      expect(repo.createApplyFees, [false]);
+      await vm.cancel();
+    });
+
+    test('Apple\'s button is known before anything loads', () async {
+      await phone.refreshDevice();
+      final vm = iPhoneVm();
+      expect(vm.tapToPayOnIPhone, isTrue, reason: 'before start()');
+    });
+
+    test('a member\'s press asks the server again, and goes on once an admin '
+        'turned Card present on', () async {
+      repo.configAnswer = const TerminalConfig(
+        enabled: true,
+        planOk: true,
+        gateways: [],
+        setupGateways: [
+          TerminalSetupGateway(
+            companyGatewayId: 'cg_1',
+            label: 'Stripe',
+            accountCountry: 'US',
+          ),
+        ],
+      );
+      final vm = iPhoneVm(isAdmin: false);
+      await vm.start();
+      expect(vm.cardPresentOff, isTrue);
+      repo.configAnswer = FakeTerminalRepo.defaultConfig;
+      await vm.pressTapToPay(askLocation: allow);
+      expect(vm.cardPresentOff, isFalse);
+      expect(vm.problem, isNull);
+      expect(platform.connects, [false]);
+      expect(vm.readerState, ReaderState.ready);
+    });
+
+    test('back from Settings, a blocked location is looked at again', () async {
+      platform.status = TerminalPermission.blocked;
+      final vm = iPhoneVm();
+      await vm.start();
+      expect(vm.readerState, ReaderState.blocked);
+      platform.status = TerminalPermission.granted;
+      vm.appResumed();
+      await pumpEventQueue();
+      expect(vm.readerState, ReaderState.ready);
+      expect(platform.connects, [false]);
+    });
+
+    CollectCardPaymentViewModel openedFromAction() {
+      final vm = CollectCardPaymentViewModel(
+        companyId: 'co_a',
+        invoice: invoice,
+        terminal: phone,
+        repository: repo,
+        isAdmin: true,
+        merchantDisplayName: 'Acme',
+        precision: 2,
+        clock: () => now,
+        newId: () => 'col_${++ids}',
+        pollDelay: Duration.zero,
+        iPhone: true,
+        pressOnOpen: true,
+      )..askLocation = allow;
+      addTearDown(vm.dispose);
+      return vm;
+    }
+
+    test('opened from the action: a reader that only had to connect goes '
+        'straight on to the card', () async {
+      final vm = openedFromAction();
+      repo.creates.add(fakeIntent());
+      platform.session.reads.add(Completer<TerminalCollected>());
+      unawaited(vm.start());
+      await pumpEventQueue();
+      expect(platform.connects, [true]);
+      expect(vm.stage, CollectStage.waiting);
+      await vm.cancel();
+    });
+
+    test('opened from the action: after the terms or the education it waits '
+        'for a press', () async {
+      final vm = openedFromAction()..onReady = () async => false;
+      await vm.start();
+      await pumpEventQueue();
+      expect(vm.readerState, ReaderState.ready);
+      expect(repo.calls.where((c) => c.startsWith('create')), isEmpty);
+    });
+
+    test(
+      'Android is unchanged: opening asks for permission and connects',
+      () async {
+        platform.status = TerminalPermission.denied;
+        final vm = await ready();
+        expect(vm.tapToPayOnIPhone, isFalse);
+        expect(platform.permissionRequests, 1);
+        expect(vm.surchargeOffered, isTrue);
+      },
+    );
+  });
 }

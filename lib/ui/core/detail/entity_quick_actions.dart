@@ -200,9 +200,8 @@ class _QuickActionTile<A> extends StatelessWidget {
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       else
-                        Icon(
-                          item.icon,
-                          size: 20,
+                        item.iconWidget(
+                          20,
                           color: handler == null ? tokens.ink4 : tokens.ink2,
                         ),
                       const SizedBox(height: InSpacing.xs),

@@ -196,6 +196,11 @@ final Map<PrefKey<Object>, _Probe> _probes = {
     (s) => s.terminal.noteReaderUsed(),
     (s) => !s.terminal.readerUsed,
   ),
+  // Each merchant signing in sees Apple's "How to Tap" once.
+  DevicePrefKeys.howToTapShown: _Probe(
+    (s) => s.terminal.markHowToTapShown(),
+    (s) => s.terminal.howToTapDue,
+  ),
   // A payment still being checked belongs to the account that took it.
   DevicePrefKeys.pendingCardPayments: _Probe(
     (s) => s.terminal.notePending(

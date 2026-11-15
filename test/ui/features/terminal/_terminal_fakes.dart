@@ -95,6 +95,11 @@ class FakeTerminalRepo implements TerminalRepository {
   /// What a connection-token fetch throws instead of answering.
   Object? tokenError;
 
+  /// Holds every quote until completed — a press while quoting.
+  Completer<void>? quoteGate;
+
+  int locationsCreated = 0;
+
   int configCalls = 0;
 
   @override
@@ -147,6 +152,8 @@ class FakeTerminalRepo implements TerminalRepository {
     required bool applyFee,
   }) async {
     calls.add('quote:$amount:$applyFee');
+    final gate = quoteGate;
+    if (gate != null) await gate.future;
     final fee = applyFee ? quoteFee : Decimal.zero;
     return TerminalQuote(
       amount: amount,
@@ -201,6 +208,16 @@ class FakeTerminalRepo implements TerminalRepository {
   }) {
     calls.add('cancel:$paymentIntentId');
     return cancels.next('cancel');
+  }
+
+  @override
+  Future<TerminalLocation> createLocation(
+    String companyId, {
+    required String companyGatewayId,
+  }) async {
+    locationsCreated++;
+    calls.add('createLocation:$companyGatewayId');
+    return const TerminalLocation(id: 'tml_new', displayName: 'Main');
   }
 
   @override
@@ -285,20 +302,51 @@ class FakeTerminalPlatform implements TerminalPlatform {
   final session = FakeSession();
   TerminalPermission permission = TerminalPermission.granted;
 
+  /// What a check that never prompts finds; [requestPermissions] makes it
+  /// [permission].
+  TerminalPermission status = TerminalPermission.granted;
+  TerminalDeviceSupport support = const TerminalDeviceSupport(
+    tapToPay: true,
+    bluetooth: true,
+  );
+
+  /// Every prompt shown ([requestPermissions]) and every silent check.
+  int permissionRequests = 0;
+  int statusChecks = 0;
+
+  /// The controller's one events slot: tests fire reader events through it.
+  TerminalReaderEvents events = const TerminalReaderEvents();
+
+  /// `tosAcceptancePermitted` of each connect, in order.
+  final connects = <bool>[];
+
+  /// Each connect answers the next of these (a [TerminalError] is thrown, a
+  /// [Completer] waited for); a plain success once they run out.
+  final connectAnswers = <Object>[];
+
   @override
   bool get isAvailable => true;
 
   @override
-  Future<TerminalDeviceSupport> deviceSupport() async =>
-      const TerminalDeviceSupport(tapToPay: true, bluetooth: true);
+  Future<TerminalDeviceSupport> deviceSupport() async => support;
 
   void Function()? onPermissionRequest;
 
   @override
   Future<TerminalPermission> requestPermissions(TerminalReaderKind kind) async {
+    permissionRequests++;
     onPermissionRequest?.call();
-    return permission;
+    return status = permission;
   }
+
+  @override
+  Future<TerminalPermission> permissionStatus(TerminalReaderKind kind) async {
+    statusChecks++;
+    return status;
+  }
+
+  @override
+  Future<bool> openSettings() async => true;
 
   Future<String> Function()? _fetchToken;
 
@@ -339,12 +387,18 @@ class FakeTerminalPlatform implements TerminalPlatform {
     required String merchantDisplayName,
     required bool tosAcceptancePermitted,
   }) async {
+    connects.add(tosAcceptancePermitted);
     // Like the SDK: connecting fetches a token, and a failed fetch comes
     // back as the SDK's own generic error.
     try {
       await _fetchToken?.call();
     } catch (_) {
       throw const TerminalError(TerminalErrorCode.unknown, 'token provider');
+    }
+    if (connectAnswers.isNotEmpty) {
+      final answer = connectAnswers.removeAt(0);
+      if (answer is Completer) await answer.future;
+      if (answer is TerminalError) throw answer;
     }
     return reader;
   }

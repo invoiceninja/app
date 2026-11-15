@@ -10,7 +10,9 @@ import 'package:admin/data/models/domain/company.dart';
 import 'package:admin/data/models/domain/enabled_modules.dart';
 import 'package:admin/data/repositories/auth/auth_session.dart';
 import 'package:admin/domain/companion_apps.dart';
+import 'package:admin/domain/terminal/terminal_eligibility.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/l10n/tap_to_pay_names.dart';
 import 'package:admin/ui/features/bank_accounts/views/bank_account_list_screen.dart';
 import 'package:admin/ui/features/settings/state/settings_level_controller.dart';
 import 'package:admin/ui/features/settings/views/advanced/generated_numbers/bodies/settings_body.dart';
@@ -553,7 +555,10 @@ const _kDeviceSettingsKeyGates = <String, bool Function(SettingsSearchScope?)>{
   'widget_settings_section': _homeWidgetsShown,
   // kCardReaderSearchKeys
   'card_readers': _cardReaderShown,
-  'tap_to_pay': _cardReaderShown,
+  // One of the two: Apple's name on iOS, where the row has it, and only
+  // once the row is drawn (never before general availability).
+  'tap_to_pay': _tapToPayElsewhereShown,
+  kTapToPayOnIPhoneKey: _tapToPayIPhoneShown,
   'bluetooth_card_reader': _cardReaderShown,
   // kDownloadsFolderSearchKeys
   'downloads_folder': _downloadsFolderShown,
@@ -567,6 +572,12 @@ bool _contactsSyncShown(SettingsSearchScope? _) => contactsSyncSectionShown();
 bool _homeWidgetsShown(SettingsSearchScope? _) => homeWidgetsSectionShown();
 
 bool _cardReaderShown(SettingsSearchScope? _) => cardReaderSectionShown();
+
+bool _tapToPayElsewhereShown(SettingsSearchScope? _) =>
+    cardReaderSectionShown() && !isIPhonePlatform();
+
+bool _tapToPayIPhoneShown(SettingsSearchScope? _) =>
+    cardReaderSectionShown() && isIPhonePlatform() && tapToPayRowShown();
 
 bool _downloadsFolderShown(SettingsSearchScope? _) =>
     downloadsFolderSectionShown();

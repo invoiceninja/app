@@ -4,7 +4,9 @@ import 'package:material_ui/material_ui.dart';
 import 'package:store_services/store_services.dart';
 
 import 'package:admin/app/design_tokens.dart';
+import 'package:admin/domain/terminal/terminal_eligibility.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/l10n/tap_to_pay_names.dart';
 import 'package:admin/ui/core/widgets/ltr_value.dart';
 import 'package:admin/ui/features/terminal/terminal_error_text.dart';
 
@@ -82,7 +84,13 @@ class _ReaderPickerSheetState extends State<_ReaderPickerSheet> {
             ),
           ),
           const SizedBox(height: InSpacing.sm),
-          Text(context.tr('terminal_reader_scan_help')),
+          Text(
+            context.tr(
+              isIPhonePlatform()
+                  ? 'terminal_reader_scan_help_ios'
+                  : 'terminal_reader_scan_help',
+            ),
+          ),
           const SizedBox(height: InSpacing.sm),
           if (_scanning && _found.isEmpty) const LinearProgressIndicator(),
           for (final reader in _found)
@@ -95,14 +103,19 @@ class _ReaderPickerSheetState extends State<_ReaderPickerSheet> {
           if (!_scanning && _found.isEmpty)
             Padding(
               padding: const EdgeInsets.only(top: InSpacing.sm),
-              child: Text(
-                context.tr(switch (_error) {
-                  // A scan that ends — finished or timed out — found nothing.
-                  TerminalError(code: TerminalErrorCode.timeout) ||
-                  null => 'terminal_reader_none_found',
-                  final TerminalError e => terminalErrorKey(e.code),
-                  _ => 'terminal_error_reader_disconnected',
-                }),
+              child: Builder(
+                builder: (context) {
+                  final key = switch (_error) {
+                    // A scan that ends — finished or timed out — found nothing.
+                    TerminalError(code: TerminalErrorCode.timeout) ||
+                    null => 'terminal_reader_none_found',
+                    final TerminalError e => terminalErrorKey(e.code),
+                    _ => 'terminal_error_reader_disconnected',
+                  };
+                  return Text(
+                    context.tr(key, {'name': tapToPayNameFor(context, key)}),
+                  );
+                },
               ),
             ),
           if (!_scanning)

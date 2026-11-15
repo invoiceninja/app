@@ -11,17 +11,24 @@ import 'package:admin/app/terminal_controller.dart';
 import 'package:admin/domain/terminal/terminal_eligibility.dart';
 import 'package:admin/data/services/terminal_server_error.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/l10n/tap_to_pay_names.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/features/settings/widgets/form_section.dart';
 import 'package:admin/ui/features/terminal/how_to_tap.dart';
+import 'package:admin/ui/features/terminal/tap_to_pay_icon.dart';
 import 'package:admin/ui/features/terminal/terminal_error_text.dart';
 import 'package:admin/ui/features/terminal/widgets/reader_picker_sheet.dart';
 
 /// Search keys for the settings sidebar search, colocated with the card (see
 /// `search_catalog_consistency_test`).
+///
+/// On iOS the Tap to Pay row is titled with Apple's name
+/// ([kTapToPayOnIPhoneKey]), so search offers that label there and "Tap to
+/// Pay" everywhere else.
 const kCardReaderSearchKeys = <String>[
   'card_readers',
   'tap_to_pay',
+  kTapToPayOnIPhoneKey,
   'bluetooth_card_reader',
 ];
 
@@ -29,6 +36,17 @@ const kCardReaderSearchKeys = <String>[
 /// offers its keys: the store build of the mobile app.
 bool cardReaderSectionShown() =>
     kCardPresentEnabled && Env.isMobile && StripeTerminal.isAvailable;
+
+/// Whether the Tap to Pay row renders. On iOS only once this build is
+/// known to carry Apple's entitlement: before general availability (today's
+/// App Store build) nothing may name Tap to Pay on iPhone, so the row — its
+/// name, symbol and "isn't available" — is not drawn at all.
+bool tapToPayRowShown([TerminalDeviceSupport? device]) {
+  if (!isIPhonePlatform()) return true;
+  final known = device ?? TerminalController.lastKnownDevice;
+  return known != null &&
+      known.tapToPayBlocker != TerminalErrorCode.entitlementMissing;
+}
 
 /// Device Settings → Phone: what this phone can take cards with
 /// (docs/in-person-payments.md) — Tap to Pay, or why not; the Bluetooth card
@@ -75,7 +93,13 @@ class _CardReaderSectionState extends State<CardReaderSection> {
       return;
     }
     setState(() => _busy = true);
+    // No warm-up takes the reader while one is chosen here, and one that
+    // already holds it for Tap to Pay lets go first: the SDK connects one
+    // reader at a time.
+    final releaseWarmUp = _terminal.holdWarmUp();
     try {
+      await _terminal.releaseTapToPay();
+      if (!mounted) return;
       // The gateway's first reader: an admin creates its Stripe Location
       // from the company address, as the collect screen does.
       location ??= await _terminal.repository.createLocation(
@@ -89,7 +113,10 @@ class _CardReaderSectionState extends State<CardReaderSection> {
       );
       if (!mounted) return;
       if (permission != TerminalPermission.granted) {
-        Notify.warning(context, context.tr('terminal_error_permission'));
+        Notify.warning(
+          context,
+          context.tr(terminalErrorKey(TerminalErrorCode.permissionDenied)),
+        );
         if (permission == TerminalPermission.blocked) {
           await _terminal.platform.openSettings();
         }
@@ -114,7 +141,12 @@ class _CardReaderSectionState extends State<CardReaderSection> {
       );
     } on TerminalError catch (e) {
       if (mounted) {
-        Notify.error(context, context.tr(terminalErrorKey(e.code)));
+        Notify.error(
+          context,
+          context.tr(terminalErrorKey(e.code), {
+            'name': tapToPayNameFor(context, terminalErrorKey(e.code)),
+          }),
+        );
       }
     } on TerminalServerError catch (e) {
       if (mounted) {
@@ -130,6 +162,7 @@ class _CardReaderSectionState extends State<CardReaderSection> {
         Notify.error(context, context.tr('terminal_error_unknown'), error: e);
       }
     } finally {
+      releaseWarmUp();
       if (mounted) setState(() => _busy = false);
     }
   }
@@ -163,34 +196,67 @@ class _CardReaderSectionState extends State<CardReaderSection> {
         final bluetoothReader =
             reader != null && reader.kind == TerminalReaderKind.bluetooth;
         final tapToPay = device?.tapToPay ?? false;
+        // On an iPhone: Apple's name and symbol, never the Material
+        // contactless icon (App Review 5.4, 5.5) — and nothing at all before
+        // the build may take it.
+        final iPhone = isIPhonePlatform();
+        final rowShown = tapToPayRowShown(device);
+        String subtitleKey() {
+          if (iPhone && tapToPay && (device?.osUpdateRequired ?? false)) {
+            return 'terminal_update_ios';
+          }
+          if (tapToPay) {
+            return iPhone
+                ? 'terminal_tap_to_pay_available_ios'
+                : 'terminal_tap_to_pay_ready';
+          }
+          return switch (device?.tapToPayBlocker) {
+            TerminalErrorCode.unsupportedOs => terminalErrorKey(
+              TerminalErrorCode.unsupportedOs,
+            ),
+            _ =>
+              iPhone
+                  ? 'terminal_tap_to_pay_unavailable_ios'
+                  : 'terminal_tap_to_pay_unavailable',
+          };
+        }
+
+        final subtitle = subtitleKey();
+        final setupHelp = iPhone && rowShown && tapToPay
+            ? 'terminal_setup_help_ios'
+            : 'terminal_setup_help';
         return FormSection(
           title: context.tr('card_readers'),
           spacing: 0,
           children: [
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.contactless_outlined),
-              title: Text(context.tr('tap_to_pay')),
-              subtitle: Text(
-                tapToPay
-                    ? context.tr('terminal_tap_to_pay_ready')
-                    : context.tr(switch (device?.tapToPayBlocker) {
-                        TerminalErrorCode.unsupportedOs =>
-                          'terminal_error_unsupported_os',
-                        _ => 'terminal_tap_to_pay_unavailable',
-                      }),
+            if (rowShown)
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: iPhone
+                    ? const TapToPayIcon()
+                    : const Icon(Icons.contactless_outlined),
+                // The words a settings search hit for it reveals.
+                title: Text(
+                  iPhone
+                      ? context.tr('tap_to_pay_on_iphone')
+                      : context.tr('tap_to_pay'),
+                ),
+                subtitle: Text(
+                  context.tr(subtitle, {
+                    'name': tapToPayNameFor(context, subtitle),
+                  }),
+                ),
+                // Apple wants its "How to Tap" reachable after the first time.
+                trailing:
+                    tapToPay &&
+                        !kIsWeb &&
+                        defaultTargetPlatform == TargetPlatform.iOS
+                    ? TextButton(
+                        onPressed: () => showHowToTap(context),
+                        child: Text(context.tr('terminal_how_to_tap_short')),
+                      )
+                    : null,
               ),
-              // Apple wants its "How to Tap" reachable after the first time.
-              trailing:
-                  tapToPay &&
-                      !kIsWeb &&
-                      defaultTargetPlatform == TargetPlatform.iOS
-                  ? TextButton(
-                      onPressed: () => showHowToTap(context),
-                      child: Text(context.tr('terminal_how_to_tap_short')),
-                    )
-                  : null,
-            ),
             if (kCardPresentBluetooth)
               ListTile(
                 contentPadding: EdgeInsets.zero,
@@ -224,7 +290,9 @@ class _CardReaderSectionState extends State<CardReaderSection> {
             Padding(
               padding: const EdgeInsets.only(top: 8),
               child: Text(
-                context.tr('terminal_setup_help'),
+                context.tr(setupHelp, {
+                  'name': tapToPayNameFor(context, setupHelp),
+                }),
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ),

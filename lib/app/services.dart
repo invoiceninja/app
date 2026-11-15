@@ -2085,8 +2085,12 @@ class Services implements SidebarBadgeContext {
       // Each Invoice Ninja company pairs with its own DocuNinja company and
       // token, picked by company_key.
       docuNinjaSession.reset();
-      // A card reader is connected under one company's Stripe account.
-      unawaited(terminal.reset());
+      // A card reader is connected under one company's Stripe account. On an
+      // iPhone, Tap to Pay on iPhone is then warmed up for the company, once
+      // the frame after the switch has drawn (App Review 1.5).
+      unawaited(
+        terminal.reset().then((_) => terminal.warmUpAfterFirstFrame(companyId)),
+      );
       priorOnActiveCompanyChangedForCalendar?.call(companyId);
     };
     // Fan-out the bundled per-entity arrays the /refresh envelope carries

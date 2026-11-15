@@ -32,6 +32,9 @@ import io.flutter.plugin.common.PluginRegistry
  *   precise location always, "Nearby devices" (Android 12+) only for a
  *   Bluetooth reader. Android 12+ ignores a precise-location request made
  *   without approximate location, so both are asked for; only precise counts.
+ * - `permissionStatus {kind}` → the same answers without ever showing a
+ *   dialog (`checkSelfPermission`): `denied` means not granted yet, and a
+ *   request would ask; `blocked` means a refusal Android won't ask about again.
  * - `openSettings` opens this app's system settings page.
  */
 class StripeTerminalPlugin :
@@ -88,6 +91,7 @@ class StripeTerminalPlugin :
     when (call.method) {
       "deviceSupport" -> result.success(deviceSupport())
       "requestPermissions" -> requestPermissions(call.argument<String>("kind"), result)
+      "permissionStatus" -> result.success(permissionStatus(call.argument<String>("kind")))
       "openSettings" -> result.success(openSettings())
       else -> result.notImplemented()
     }
@@ -134,13 +138,7 @@ class StripeTerminalPlugin :
     // Android shows one permission dialog at a time; the Dart side shares a
     // request per reader kind, and nothing asks for both kinds at once.
     if (pending != null) return result.success("denied")
-    val needed = buildList {
-      add(Manifest.permission.ACCESS_FINE_LOCATION)
-      if (kind == "bluetooth" && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-        add(Manifest.permission.BLUETOOTH_SCAN)
-        add(Manifest.permission.BLUETOOTH_CONNECT)
-      }
-    }
+    val needed = neededFor(kind)
     if (granted(activity, needed)) return result.success("granted")
     pending = result
     pendingNeeded = needed
@@ -151,8 +149,33 @@ class StripeTerminalPlugin :
     )
   }
 
-  private fun granted(activity: Activity, permissions: List<String>) =
-      permissions.all { activity.checkSelfPermission(it) == PackageManager.PERMISSION_GRANTED }
+  private fun neededFor(kind: String?): List<String> = buildList {
+    add(Manifest.permission.ACCESS_FINE_LOCATION)
+    if (kind == "bluetooth" && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+      add(Manifest.permission.BLUETOOTH_SCAN)
+      add(Manifest.permission.BLUETOOTH_CONNECT)
+    }
+  }
+
+  private fun granted(context: Context, permissions: List<String>) =
+      permissions.all { context.checkSelfPermission(it) == PackageManager.PERMISSION_GRANTED }
+
+  /** What [requestPermissions] would find, without asking. */
+  private fun permissionStatus(kind: String?): String {
+    val activity = binding?.activity
+    val current: Context = activity ?: context ?: return "denied"
+    val needed = neededFor(kind)
+    if (granted(current, needed)) return "granted"
+    // Refused before, and Android no longer explains it: it won't ask again.
+    val blocked =
+        activity != null &&
+            needed.any {
+              current.checkSelfPermission(it) != PackageManager.PERMISSION_GRANTED &&
+                  !activity.shouldShowRequestPermissionRationale(it) &&
+                  refusedBefore(activity, it)
+            }
+    return if (blocked) "blocked" else "denied"
+  }
 
   override fun onRequestPermissionsResult(
       requestCode: Int,

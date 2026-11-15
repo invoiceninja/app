@@ -9,6 +9,10 @@ abstract interface class TerminalPlatform {
 
   Future<TerminalPermission> requestPermissions(TerminalReaderKind kind);
 
+  /// [requestPermissions]'s answer without ever prompting: `denied` is "not
+  /// asked yet".
+  Future<TerminalPermission> permissionStatus(TerminalReaderKind kind);
+
   Future<bool> openSettings();
 
   Future<void> initialize({
@@ -34,7 +38,8 @@ abstract interface class TerminalPlatform {
 
   Future<void> disconnect();
 
-  /// Where reader prompts go; the collecting screen sets and clears it.
+  /// Where reader prompts go. Set once, by `TerminalController`, which fans
+  /// them out to whoever listens.
   set events(TerminalReaderEvents events);
 
   TerminalPaymentSession beginPayment(String clientSecret);
@@ -70,6 +75,10 @@ class StoreTerminalPlatform implements TerminalPlatform {
   @override
   Future<TerminalPermission> requestPermissions(TerminalReaderKind kind) =>
       StripeTerminal.requestPermissions(kind);
+
+  @override
+  Future<TerminalPermission> permissionStatus(TerminalReaderKind kind) =>
+      StripeTerminal.permissionStatus(kind);
 
   @override
   Future<bool> openSettings() => StripeTerminal.openSettings();

@@ -31,7 +31,8 @@ class StripeTerminal {
           defaultTargetPlatform == TargetPlatform.iOS);
 
   /// What the connected reader asks the app to show. Read when each event
-  /// arrives, so the screen that is collecting sets it and clears it.
+  /// arrives; the app's one owner (`TerminalController`) sets it once and
+  /// fans each event out.
   static TerminalReaderEvents events = const TerminalReaderEvents();
 
   /// The device check and permissions: `StripeTerminalPlugin` on Android,
@@ -77,6 +78,7 @@ class StripeTerminal {
         nfcEnabled: raw['nfcEnabled'] != false,
         locationServicesEnabled: raw['locationServicesEnabled'] != false,
         tapToPayBlocker: _codeNamed(raw['tapToPayBlocker']),
+        osUpdateRequired: raw['osUpdateRequired'] == true,
       );
     } on PlatformException {
       return TerminalDeviceSupport.none;
@@ -101,6 +103,47 @@ class StripeTerminal {
 
   static final Map<TerminalReaderKind, Future<TerminalPermission>>
   _permissionRequests = {};
+
+  /// Whether [kind] may already be used, without ever asking: a check that
+  /// shows nothing (iOS `authorizationStatus` and location services, Android
+  /// `checkSelfPermission`). [TerminalPermission.denied] means not asked yet,
+  /// so [requestPermissions] would show the system's prompt;
+  /// [TerminalPermission.blocked] means the system won't ask — offer
+  /// [openSettings].
+  static Future<TerminalPermission> permissionStatus(
+    TerminalReaderKind kind,
+  ) async {
+    if (!isAvailable) return TerminalPermission.denied;
+    try {
+      final answer = await _channel.invokeMethod<String>('permissionStatus', {
+        'kind': kind.name,
+      });
+      return TerminalPermission.values.asNameMap()[answer] ??
+          TerminalPermission.denied;
+    } on PlatformException {
+      return TerminalPermission.denied;
+    } on MissingPluginException {
+      return TerminalPermission.denied;
+    }
+  }
+
+  /// An SF Symbol (iOS) drawn black on transparent as PNG bytes, square, at
+  /// [size] points and the screen's scale — for Apple's Tap to Pay on iPhone
+  /// symbol, which App Review requires in place of any other icon. Null
+  /// anywhere else, or when it couldn't be drawn.
+  static Future<Uint8List?> symbolImage(String name, {double size = 64}) async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.iOS) return null;
+    try {
+      return await _channel.invokeMethod<Uint8List>('symbolImage', {
+        'name': name,
+        'size': size,
+      });
+    } on PlatformException {
+      return null;
+    } on MissingPluginException {
+      return null;
+    }
+  }
 
   static Future<TerminalPermission> _requestPermissions(
     TerminalReaderKind kind,
@@ -616,11 +659,17 @@ TerminalErrorCode _codeFor(mek.TerminalExceptionCode code) => switch (code) {
   mek.TerminalExceptionCode.cardRemoved ||
   mek.TerminalExceptionCode.cardLeftInReader ||
   mek.TerminalExceptionCode.missingEmvData => TerminalErrorCode.cardNotRead,
-  mek.TerminalExceptionCode.tapToPayReaderTOSAcceptanceRequiresiCloudSignIn ||
-  mek.TerminalExceptionCode.tapToPayReaderTOSAcceptanceCanceled ||
-  mek.TerminalExceptionCode.tapToPayReaderTOSNotYetAccepted ||
-  mek.TerminalExceptionCode.tapToPayReaderTOSAcceptanceFailed =>
+  // Each has its own words and a Retry (docs/in-person-payments.md).
+  mek.TerminalExceptionCode.tapToPayReaderTOSAcceptanceRequiresiCloudSignIn =>
+    TerminalErrorCode.termsNeedsAppleAccount,
+  mek.TerminalExceptionCode.tapToPayReaderTOSAcceptanceCanceled =>
+    TerminalErrorCode.termsCanceled,
+  // Only a connect that may not show the terms (a non-admin, or a warm-up)
+  // gets this: the account isn't linked yet.
+  mek.TerminalExceptionCode.tapToPayReaderTOSNotYetAccepted =>
     TerminalErrorCode.termsNotAccepted,
+  mek.TerminalExceptionCode.tapToPayReaderTOSAcceptanceFailed =>
+    TerminalErrorCode.termsFailed,
   mek.TerminalExceptionCode.tapToPayUnsupportedDevice ||
   mek.TerminalExceptionCode.tapToPayReaderDeviceBanned ||
   mek.TerminalExceptionCode.unsupportedMobileDeviceConfiguration ||
@@ -726,6 +775,7 @@ class TerminalDeviceSupport {
     this.nfcEnabled = true,
     this.locationServicesEnabled = true,
     this.tapToPayBlocker,
+    this.osUpdateRequired = false,
   });
 
   static const none = TerminalDeviceSupport(tapToPay: false, bluetooth: false);
@@ -743,6 +793,10 @@ class TerminalDeviceSupport {
 
   /// Why [tapToPay] is false, when there's something to tell the user.
   final TerminalErrorCode? tapToPayBlocker;
+
+  /// iPhone only: the phone can take Tap to Pay on iPhone but its iOS is
+  /// older than Apple now accepts (17.6), so it says to update instead.
+  final bool osUpdateRequired;
 }
 
 /// A reader [StripeTerminal.discover] found.
@@ -779,6 +833,7 @@ class TerminalReaderEvents {
     this.onReconnected,
     this.onDisconnected,
     this.onLowBattery,
+    this.onTermsAccepted,
   });
 
   final void Function(TerminalDisplayMessage message)? onDisplayMessage;
@@ -794,6 +849,10 @@ class TerminalReaderEvents {
   final void Function()? onReconnected;
   final void Function()? onDisconnected;
   final void Function()? onLowBattery;
+
+  /// Apple's Tap to Pay on iPhone terms were just accepted on this phone
+  /// (the sheet may still be closing).
+  final void Function()? onTermsAccepted;
 }
 
 /// A prompt a Bluetooth reader asks the app to show.
@@ -876,7 +935,19 @@ enum TerminalErrorCode {
   invalidState,
   timeout,
   cardNotRead,
+
+  /// Apple's terms aren't accepted, and this connect wasn't allowed to show
+  /// them (not an admin): the account isn't linked.
   termsNotAccepted,
+
+  /// The terms sheet was closed without accepting.
+  termsCanceled,
+
+  /// Accepting the terms needs an Apple Account signed in on this phone.
+  termsNeedsAppleAccount,
+
+  /// Accepting the terms failed.
+  termsFailed,
   unsupportedDevice,
   unsupportedOs,
   debugNotSupported,
@@ -984,6 +1055,9 @@ class _BluetoothDelegate extends mek.MobileReaderDelegate {
 
 class _TapToPayDelegate extends mek.TapToPayReaderDelegate {
   TerminalReaderEvents get _events => StripeTerminal.events;
+
+  @override
+  void onAcceptTermsOfService() => _events.onTermsAccepted?.call();
 
   @override
   void onStartInstallingUpdate(

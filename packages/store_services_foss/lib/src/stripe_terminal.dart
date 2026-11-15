@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 /// FOSS stub: Stripe Terminal's SDK is non-free, so the F-Droid build takes
 /// no in-person card payments (docs/in-person-payments.md).
 ///
@@ -19,6 +21,15 @@ class StripeTerminal {
   static Future<TerminalPermission> requestPermissions(
     TerminalReaderKind kind,
   ) async => TerminalPermission.denied;
+
+  static Future<TerminalPermission> permissionStatus(
+    TerminalReaderKind kind,
+  ) async => TerminalPermission.denied;
+
+  static Future<Uint8List?> symbolImage(
+    String name, {
+    double size = 64,
+  }) async => null;
 
   static Future<bool> openSettings() async => false;
 
@@ -103,6 +114,7 @@ class TerminalDeviceSupport {
     this.nfcEnabled = true,
     this.locationServicesEnabled = true,
     this.tapToPayBlocker,
+    this.osUpdateRequired = false,
   });
 
   static const none = TerminalDeviceSupport(tapToPay: false, bluetooth: false);
@@ -120,6 +132,10 @@ class TerminalDeviceSupport {
 
   /// Why [tapToPay] is false, when there's something to tell the user.
   final TerminalErrorCode? tapToPayBlocker;
+
+  /// iPhone only: the phone can take Tap to Pay on iPhone but its iOS is
+  /// older than Apple now accepts (17.6), so it says to update instead.
+  final bool osUpdateRequired;
 }
 
 /// A reader [StripeTerminal.discover] found.
@@ -156,6 +172,7 @@ class TerminalReaderEvents {
     this.onReconnected,
     this.onDisconnected,
     this.onLowBattery,
+    this.onTermsAccepted,
   });
 
   final void Function(TerminalDisplayMessage message)? onDisplayMessage;
@@ -171,6 +188,10 @@ class TerminalReaderEvents {
   final void Function()? onReconnected;
   final void Function()? onDisconnected;
   final void Function()? onLowBattery;
+
+  /// Apple's Tap to Pay on iPhone terms were just accepted on this phone
+  /// (the sheet may still be closing).
+  final void Function()? onTermsAccepted;
 }
 
 /// A prompt a Bluetooth reader asks the app to show.
@@ -253,7 +274,19 @@ enum TerminalErrorCode {
   invalidState,
   timeout,
   cardNotRead,
+
+  /// Apple's terms aren't accepted, and this connect wasn't allowed to show
+  /// them (not an admin): the account isn't linked.
   termsNotAccepted,
+
+  /// The terms sheet was closed without accepting.
+  termsCanceled,
+
+  /// Accepting the terms needs an Apple Account signed in on this phone.
+  termsNeedsAppleAccount,
+
+  /// Accepting the terms failed.
+  termsFailed,
   unsupportedDevice,
   unsupportedOs,
   debugNotSupported,

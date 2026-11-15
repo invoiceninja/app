@@ -288,12 +288,19 @@ enum ReceiptOcr {
 /// the app asks first, before discovering a reader
 /// (docs/in-person-payments.md).
 ///
-/// - `deviceSupport`: Bluetooth readers work on every iPhone. Tap to Pay on
-///   iPhone stays off until Apple grants the entitlement and this changes.
+/// - `deviceSupport`: Bluetooth readers work on every iPhone; Tap to Pay on
+///   iPhone needs the entitlement, iOS 15.4 and an iPhone Apple says can.
+///   Below iOS 17.6 it answers `osUpdateRequired` (App Review 1.4: say to
+///   update iOS) rather than hiding the feature.
 /// - `requestPermissions {kind}` → `granted`, `denied` or `blocked`: location
 ///   while in use, and for a Bluetooth reader no refusal of Bluetooth (iOS
 ///   asks for that itself when a scan starts). iOS never asks twice, so a
 ///   refusal is `blocked`.
+/// - `permissionStatus {kind}` → the same answers without ever prompting:
+///   `denied` is "not asked yet"; location services switched off is
+///   `blocked`.
+/// - `symbolImage {name, size}` → an SF Symbol as PNG bytes, black on
+///   transparent, for the app to tint (Apple's `wave.3.right.circle`).
 /// - `openSettings` opens this app's page in Settings.
 final class StripeTerminalBridge: NSObject, CLLocationManagerDelegate {
   private static let shared = StripeTerminalBridge()
@@ -312,6 +319,15 @@ final class StripeTerminalBridge: NSObject, CLLocationManagerDelegate {
       case "requestPermissions":
         let kind = (call.arguments as? [String: Any])?["kind"] as? String
         shared.requestPermissions(kind: kind, result)
+      case "permissionStatus":
+        let kind = (call.arguments as? [String: Any])?["kind"] as? String
+        shared.permissionStatus(kind: kind, result)
+      case "symbolImage":
+        let args = call.arguments as? [String: Any]
+        result(
+          StripeTerminalBridge.symbolImage(
+            name: args?["name"] as? String ?? "wave.3.right.circle",
+            pointSize: CGFloat((args?["size"] as? Double) ?? 64)))
       case "openSettings":
         guard let url = URL(string: UIApplication.openSettingsURLString) else {
           return result(false)
@@ -325,6 +341,8 @@ final class StripeTerminalBridge: NSObject, CLLocationManagerDelegate {
 
   private func deviceSupport(_ result: @escaping FlutterResult) {
     let blocker = tapToPayBlocker()
+    var osUpdateRequired = false
+    if #unavailable(iOS 17.6) { osUpdateRequired = blocker == nil }
     // locationServicesEnabled blocks, so it stays off the main thread.
     DispatchQueue.global(qos: .userInitiated).async {
       let enabled = CLLocationManager.locationServicesEnabled()
@@ -335,6 +353,7 @@ final class StripeTerminalBridge: NSObject, CLLocationManagerDelegate {
           "nfcEnabled": true,
           "locationServicesEnabled": enabled,
           "tapToPayBlocker": blocker.map { $0 as Any } ?? NSNull(),
+          "osUpdateRequired": osUpdateRequired,
         ])
       }
     }
@@ -343,13 +362,49 @@ final class StripeTerminalBridge: NSObject, CLLocationManagerDelegate {
   /// Why this phone can't take Tap to Pay, or nil when it can. The build must be
   /// signed with the entitlement (Info.plist INTapToPayEntitled, from the
   /// IN_TAP_TO_PAY_ENTITLED build setting: Debug only until Apple grants the
-  /// distribution entitlement); PIN entry needs iOS 16.4; and Apple says which
-  /// iPhones can (XS or later, not the simulator).
+  /// distribution entitlement); ProximityReader needs iOS 15.4; and Apple says
+  /// which iPhones can (XS or later, not the simulator). Below iOS 17.6 the
+  /// phone still counts, and `osUpdateRequired` says to update.
   private func tapToPayBlocker() -> String? {
     let entitled = Bundle.main.object(forInfoDictionaryKey: "INTapToPayEntitled") as? String
     guard entitled == "YES" else { return "entitlementMissing" }
-    guard #available(iOS 16.4, *) else { return "unsupportedOs" }
+    guard #available(iOS 15.4, *) else { return "unsupportedOs" }
     return PaymentCardReader.isSupported ? nil : "unsupportedDevice"
+  }
+
+  /// [requestPermissions]'s answer without asking: location services off is
+  /// `blocked` (only Settings can turn them back on).
+  private func permissionStatus(kind: String?, _ result: @escaping FlutterResult) {
+    // locationServicesEnabled blocks, so it stays off the main thread.
+    DispatchQueue.global(qos: .userInitiated).async {
+      let enabled = CLLocationManager.locationServicesEnabled()
+      DispatchQueue.main.async { [self] in
+        result(enabled ? answer(kind: kind) : "blocked")
+      }
+    }
+  }
+
+  /// [name] drawn black on a transparent square, as PNG; nil when iOS has no
+  /// such symbol.
+  private static func symbolImage(name: String, pointSize: CGFloat) -> Any {
+    let configuration = UIImage.SymbolConfiguration(pointSize: pointSize, weight: .regular)
+    guard
+      let symbol = UIImage(systemName: name, withConfiguration: configuration)?
+        .withTintColor(.black, renderingMode: .alwaysOriginal)
+    else { return NSNull() }
+    let side = max(symbol.size.width, symbol.size.height)
+    let format = UIGraphicsImageRendererFormat()
+    format.opaque = false
+    let image = UIGraphicsImageRenderer(
+      size: CGSize(width: side, height: side), format: format
+    ).image { _ in
+      symbol.draw(
+        in: CGRect(
+          x: (side - symbol.size.width) / 2, y: (side - symbol.size.height) / 2,
+          width: symbol.size.width, height: symbol.size.height))
+    }
+    guard let png = image.pngData() else { return NSNull() }
+    return FlutterStandardTypedData(bytes: png)
   }
 
   /// Apple's "How to Tap" merchant education, which App Review requires before
