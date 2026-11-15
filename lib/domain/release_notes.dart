@@ -259,12 +259,63 @@ List<ReleaseNotes> releasesToShow({
 const List<ReleaseNotes> kReleaseNotes = [
   ReleaseNotes(
     version: '5.1.26',
+    highlights: [
+      ReleaseHighlight(
+        icon: Icons.dashboard_outlined,
+        title: 'Invoices and Quotes, side by side',
+        body: 'Two dashboard panels, each with its own status tabs.',
+        target: ReleaseHighlightRoute(
+          '/dashboard',
+          permission: 'view_dashboard',
+        ),
+      ),
+      ReleaseHighlight(
+        icon: Icons.density_medium_outlined,
+        title: 'A denser dashboard',
+        body: 'Compact density now covers the dashboard too.',
+        target: ReleaseHighlightRoute(
+          '/dashboard',
+          permission: 'view_dashboard',
+        ),
+      ),
+      ReleaseHighlight(
+        icon: Icons.inventory_2_outlined,
+        title: 'Purchase orders use cost',
+        body: "A product added to a purchase order fills in its cost.",
+        target: ReleaseHighlightRoute(
+          '/purchase_orders',
+          module: EntityType.purchaseOrder,
+        ),
+      ),
+    ],
     items: [
+      ReleaseNoteItem(
+        'Updated: The dashboard shows Invoices and Quotes as two panels side '
+        'by side, each with its own status tabs, and Overdue is back on '
+        'Invoices. Every panel has a menu to hide it or open Customize.',
+      ),
       ReleaseNoteItem(
         'Updated: Compact density now covers the dashboard too: fewer gaps, '
         'figures on one line and more rows on the first screen. The setting '
         'is now called Density (Device Settings > Appearance), and it is also '
         "in the dashboard's Customize panel.",
+      ),
+      ReleaseNoteItem(
+        'Updated: Your dashboard layout syncs between your devices on its '
+        "own, and no longer changes the web app's dashboard.",
+      ),
+      ReleaseNoteItem(
+        'Fixed: A product added to a purchase order fills in its cost, not '
+        'its sale price.',
+      ),
+      ReleaseNoteItem(
+        'Fixed: An item name too long for its space can be read in full: on '
+        'hover in the line item table, and over two lines in the product '
+        'picker and on a phone.',
+      ),
+      ReleaseNoteItem(
+        'Fixed: Creating a product while typing a line item asks for its '
+        'name, price and description, where it used to save a name only.',
       ),
     ],
   ),

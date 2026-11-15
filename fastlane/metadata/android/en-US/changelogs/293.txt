@@ -1,0 +1,6 @@
+- Dashboard: Invoices and Quotes are two panels, each with status tabs
+- Hide any dashboard panel from its own menu
+- Compact density now covers the dashboard
+- Purchase orders fill in a product's cost
+- Long item names can be read in full
+- Creating a product from a line item asks for its price
