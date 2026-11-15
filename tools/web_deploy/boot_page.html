@@ -189,7 +189,9 @@
         boot();
         return;
       }
-      var scope = new URL('../', document.baseURI).href;
+      // The site root is where this page is served (/, or /sub/ on a server
+      // in a subdirectory), however deep the base href's build folder sits.
+      var scope = new URL('./', window.location.href).href;
       sw.getRegistrations().then(function (regs) {
         return Promise.all(regs.filter(function (r) {
           var w = r.active || r.waiting || r.installing;
