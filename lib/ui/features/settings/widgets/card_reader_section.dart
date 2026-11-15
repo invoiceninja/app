@@ -15,8 +15,10 @@ import 'package:admin/l10n/tap_to_pay_names.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/features/settings/widgets/form_section.dart';
 import 'package:admin/ui/features/terminal/how_to_tap.dart';
+import 'package:admin/ui/features/settings/widgets/tap_to_pay_tile.dart';
 import 'package:admin/ui/features/terminal/tap_to_pay_icon.dart';
 import 'package:admin/ui/features/terminal/terminal_error_text.dart';
+import 'package:admin/ui/features/terminal/views/tap_to_pay_enable_screen.dart';
 import 'package:admin/ui/features/terminal/widgets/reader_picker_sheet.dart';
 
 /// Search keys for the settings sidebar search, colocated with the card (see
@@ -167,6 +169,48 @@ class _CardReaderSectionState extends State<CardReaderSection> {
     }
   }
 
+  /// Where Tap to Pay on iPhone stands here, from the controller's live
+  /// facts: asking, an iOS to update, getting ready, ready (connected, or
+  /// set up on this account before), only an admin can go on, or Turn on.
+  TapToPayTileState _tileState(TerminalDeviceSupport device) {
+    final companyId = _companyId;
+    if (companyId == null) return TapToPayTileState.checking;
+    if (device.osUpdateRequired) return TapToPayTileState.updateIos;
+    if (_terminal.tapToPayConnecting) return TapToPayTileState.preparing;
+    if (_terminal.reader?.kind == TerminalReaderKind.tapToPay ||
+        _terminal.tapToPayLinked == true ||
+        _terminal.tapToPayAnnounced) {
+      return TapToPayTileState.ready;
+    }
+    if (_terminal.configState(companyId) == TerminalConfigState.loading) {
+      return TapToPayTileState.checking;
+    }
+    final company = _services.auth.session.value?.currentCompany;
+    final isAdmin = (company?.isAdmin ?? false) || (company?.isOwner ?? false);
+    final config = _terminal.configFor(companyId);
+    final cardPresentOn =
+        config?.gateways.any(
+          (g) =>
+              g.cardPaymentsActive &&
+              kTapToPayIPhoneCountries.contains(g.accountCountry),
+        ) ??
+        false;
+    if (!isAdmin && (_terminal.tapToPayLinked == false || !cardPresentOn)) {
+      return TapToPayTileState.askAdmin;
+    }
+    return TapToPayTileState.notSetUp;
+  }
+
+  /// The Stripe account's country, for the education's PIN paragraph.
+  String _accountCountry() {
+    final companyId = _companyId;
+    if (companyId == null) return '';
+    final config = _terminal.configFor(companyId);
+    return config?.usableGateway?.accountCountry ??
+        config?.setupGateways.firstOrNull?.accountCountry ??
+        '';
+  }
+
   /// What the server said for this company, when it isn't "ready".
   String? _stateKey() {
     final companyId = _companyId;
@@ -229,7 +273,21 @@ class _CardReaderSectionState extends State<CardReaderSection> {
           title: context.tr('card_readers'),
           spacing: 0,
           children: [
-            if (rowShown)
+            // On an iPhone that can: where Tap to Pay on iPhone stands, and
+            // the way to turn it on outside checkout (App Review 3.6, 4.3).
+            if (rowShown && iPhone && tapToPay)
+              ValueListenableBuilder<double?>(
+                valueListenable: _terminal.setupProgress,
+                builder: (context, progress, _) => TapToPayTile(
+                  state: _tileState(device!),
+                  progress: progress,
+                  onTurnOn: () => unawaited(showTapToPayEnableScreen(context)),
+                  onHowToUse: () => unawaited(
+                    showHowToTap(context, accountCountry: _accountCountry()),
+                  ),
+                ),
+              )
+            else if (rowShown)
               ListTile(
                 contentPadding: EdgeInsets.zero,
                 leading: iPhone

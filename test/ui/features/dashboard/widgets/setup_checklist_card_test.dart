@@ -7,6 +7,8 @@ import 'package:provider/provider.dart';
 import 'package:admin/app/welcome_controller.dart';
 import 'package:admin/data/prefs/device_prefs_store.dart';
 import 'package:admin/data/services/upload_source.dart';
+import 'package:admin/domain/setup_checklist.dart';
+import 'package:admin/ui/features/dashboard/view_models/setup_checklist_view_model.dart';
 import 'package:admin/ui/features/dashboard/widgets/setup_checklist_card.dart';
 
 import '../../shell/_shell_test_helpers.dart';
@@ -238,5 +240,39 @@ void main() {
     await welcome.noteSetupCompleted(userKey: null, companyId: 'c1');
     await pumpSlot(tester, f);
     expect(find.byKey(const ValueKey('setup_checklist')), findsNothing);
+  });
+
+  testWidgets('the optional Tap to Pay on iPhone row: only where it is '
+      'offered, last, and never counted', (tester) async {
+    final f = await fixture();
+    addTearDown(f.dispose);
+    final changes = ChangeNotifier();
+    addTearDown(changes.dispose);
+    bool? offered;
+    final vm = SetupChecklistViewModel(
+      db: f.services.db,
+      companyId: 'c1',
+      session: f.services.auth.session,
+      welcome: welcome,
+      tapToPay: () => offered,
+      tapToPayChanges: changes,
+    );
+    addTearDown(vm.dispose);
+    var told = 0;
+    vm.addListener(() => told++);
+    expect(
+      vm.rows.map((r) => r.item),
+      isNot(contains(SetupChecklistItem.tapToPay)),
+      reason: 'not offered: someone who cannot finish it never sees it',
+    );
+    offered = false;
+    changes.notifyListeners();
+    expect(told, greaterThan(0));
+    expect(vm.rows.last.item, SetupChecklistItem.tapToPay);
+    expect(countedTotal(vm.rows), 5);
+    expect(nextChecklistItem(vm.rows), isNot(SetupChecklistItem.tapToPay));
+    offered = true;
+    expect(vm.rows.last.isComplete, isTrue);
+    expect(completedCount(vm.rows), lessThan(5));
   });
 }

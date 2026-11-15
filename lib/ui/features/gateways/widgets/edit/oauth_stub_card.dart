@@ -4,10 +4,14 @@ import 'package:provider/provider.dart';
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/data/models/value/gateway.dart';
+import 'package:admin/domain/gateway_constants.dart';
+import 'package:admin/domain/terminal/terminal_eligibility.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/core/utils/external_url.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/features/gateways/oauth_setup_launcher.dart';
 import 'package:admin/ui/features/gateways/widgets/gateway_logo.dart';
+import 'package:admin/ui/features/terminal/tap_to_pay_offer.dart';
 
 /// Setup card shown on the Credentials tab for OAuth-driven gateways. Hits
 /// `/api/v1/one_time_token` to mint a hash, then launches the per-provider
@@ -28,6 +32,30 @@ class OAuthStubCard extends StatefulWidget {
 
 class _OAuthStubCardState extends State<OAuthStubCard> {
   bool _busy = false;
+  StripeConnectWatcher? _watcher;
+
+  @override
+  void dispose() {
+    _watcher?.cancel();
+    super.dispose();
+  }
+
+  /// Stripe Connect on an iPhone that can take Tap to Pay on iPhone: opened
+  /// in the in-app browser and watched, so the app can close it and offer
+  /// Tap to Pay on iPhone once the gateway exists (App Review 3.4).
+  bool _watchesStripe(Services services) =>
+      isIPhonePlatform() &&
+      widget.gateway.id == kGatewayStripeConnect &&
+      services.terminal.platformReady;
+
+  /// The company's Stripe Connect gateways, as the server has them now.
+  Future<int> _countStripe(Services services, String companyId) async {
+    await services.companyGateways.refreshAll(companyId: companyId);
+    final rows = await services.companyGateways
+        .watchPage(companyId: companyId)
+        .first;
+    return rows.where((g) => g.gatewayKey == kGatewayStripeConnect).length;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -117,6 +145,27 @@ class _OAuthStubCardState extends State<OAuthStubCard> {
       if (url == null) {
         if (context.mounted) {
           Notify.error(context, 'No setup URL for ${widget.gateway.name}');
+        }
+        return;
+      }
+      if (_watchesStripe(services)) {
+        final companyId = session.currentCompanyId;
+        final before = await _countStripe(services, companyId);
+        final ok = await openInAppBrowser(url);
+        if (!ok) {
+          if (context.mounted) {
+            Notify.error(context, context.tr('failed_to_open_url'));
+          }
+          return;
+        }
+        if (mounted) setState(() => _busy = false);
+        _watcher?.cancel();
+        final watcher = _watcher = StripeConnectWatcher(
+          countStripeGateways: () => _countStripe(services, companyId),
+          closeBrowser: closeInAppBrowser,
+        );
+        if (await watcher.watch(before: before) && context.mounted) {
+          await offerTapToPayOnIPhone(context);
         }
         return;
       }

@@ -140,6 +140,7 @@ class TerminalSetupGateway {
     required this.companyGatewayId,
     required this.label,
     required this.accountCountry,
+    this.cardPaymentsActive = true,
   });
 
   factory TerminalSetupGateway.fromJson(Map<String, dynamic> json) =>
@@ -147,6 +148,10 @@ class TerminalSetupGateway {
         companyGatewayId: _string(json['company_gateway_id']),
         label: _string(json['label']),
         accountCountry: _string(json['account_country']).toUpperCase(),
+        // Optional: a server that doesn't say is taken as active.
+        cardPaymentsActive:
+            json['card_payments_active'] == null ||
+            _bool(json['card_payments_active']),
       );
 
   final String companyGatewayId;
@@ -154,6 +159,10 @@ class TerminalSetupGateway {
 
   /// ISO 3166 alpha-2, upper case.
   final String accountCountry;
+
+  /// Stripe lets the account take cards; false while Stripe is still
+  /// reviewing a just-connected account (approval pending).
+  final bool cardPaymentsActive;
 }
 
 class TerminalSurchargeConfig {

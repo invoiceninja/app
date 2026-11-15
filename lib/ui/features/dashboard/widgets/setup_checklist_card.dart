@@ -9,6 +9,7 @@ import 'package:admin/app/services.dart';
 import 'package:admin/app/welcome_controller.dart';
 import 'package:admin/domain/setup_checklist.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/l10n/tap_to_pay_names.dart';
 import 'package:admin/ui/core/utils/haptics.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/features/dashboard/view_models/setup_checklist_view_model.dart';
@@ -20,6 +21,10 @@ const String kChecklistInvoiceRoute = '/invoices/new';
 const String kChecklistGatewayRoute = '/settings/company_gateways/new';
 const String kChecklistClientRoute = '/clients/new';
 const String kChecklistImportRoute = '/settings/import_export';
+
+/// The Tap to Pay on iPhone row's action: the enable screen, a full-screen
+/// step on the root navigator (`showTapToPayEnableScreen`), not a path.
+const String kChecklistTapToPayRoute = 'tap_to_pay_on_iphone';
 
 /// The dashboard's first child on both layouts: the "Start getting paid"
 /// checklist a new company gets after `/setup` (docs/first-run-welcome.md).
@@ -121,7 +126,19 @@ class _DashboardSetupChecklistSlotState
           session: services.auth.session,
           welcome: _welcome!,
           drain: (id) => services.sync.drainOnce(companyId: id),
+          // Offered only to someone who can finish it here (the invoice
+          // action's facts, iPhone only); never counted.
+          tapToPay: () {
+            final terminal = services.terminal;
+            if (!terminal.canSetUpTapToPayOnIPhone(widget.companyId)) {
+              return null;
+            }
+            return terminal.tapToPayAnnounced ||
+                terminal.tapToPayLinked == true;
+          },
+          tapToPayChanges: services.terminal,
         )..addListener(_onVm);
+        services.terminal.ensureConfig(widget.companyId);
       }
     } else if (!_collapsing) {
       _dropVm();
@@ -132,7 +149,7 @@ class _DashboardSetupChecklistSlotState
   void _onVm() {
     if (!mounted) return;
     final vm = _vm!;
-    if (vm.loaded && completedCount(vm.rows) == vm.rows.length) {
+    if (vm.loaded && completedCount(vm.rows) == countedTotal(vm.rows)) {
       if (!_celebrated) {
         // Once: the record is marked complete now, so the next visit shows
         // nothing and nothing buzzes again.
@@ -350,7 +367,7 @@ class _SetupChecklistCardState extends State<SetupChecklistCard> {
     final motion = InMotion.of(context);
     final rows = widget.vm.rows;
     final done = completedCount(rows);
-    final total = rows.length;
+    final total = countedTotal(rows);
     final allDone = done == total;
     final next = nextChecklistItem(rows);
     final compact = MediaQuery.sizeOf(context).width < 600;
@@ -464,7 +481,8 @@ class _SetupChecklistCardState extends State<SetupChecklistCard> {
                 showBody:
                     !compact ||
                     row.item == next ||
-                    row.state != ChecklistRowState.todo,
+                    row.state != ChecklistRowState.todo ||
+                    !row.counts,
                 animateTick: _animate.contains(row.id),
                 allDone: allDone,
                 onNavigate: widget.onNavigate,
@@ -511,6 +529,8 @@ class _ChecklistRow extends StatelessWidget {
       'checklist_payments_title',
       'checklist_payments_body',
     ),
+    // Never counted: its line says so.
+    SetupChecklistItem.tapToPay => ('checklist_tap_to_pay_title', 'optional'),
     SetupChecklistItem.clients => (
       'checklist_clients_title',
       'checklist_clients_body',
@@ -523,6 +543,10 @@ class _ChecklistRow extends StatelessWidget {
     SetupChecklistItem.logo => ('setup_add_logo', kChecklistLogoRoute),
     SetupChecklistItem.invoice => ('create_invoice', kChecklistInvoiceRoute),
     SetupChecklistItem.payments => ('connect', kChecklistGatewayRoute),
+    SetupChecklistItem.tapToPay => (
+      'terminal_tile_turn_on',
+      kChecklistTapToPayRoute,
+    ),
     SetupChecklistItem.clients => ('new_client', kChecklistClientRoute),
   };
 
@@ -536,7 +560,7 @@ class _ChecklistRow extends StatelessWidget {
     final body = switch (row.state) {
       ChecklistRowState.uploading => context.tr('checklist_logo_uploading'),
       ChecklistRowState.failed => context.tr('checklist_logo_failed'),
-      _ => context.tr(bodyKey),
+      _ => context.tr(bodyKey, {'name': tapToPayNameFor(context, bodyKey)}),
     };
     final touch = Env.isTouchPrimary;
 
@@ -587,7 +611,9 @@ class _ChecklistRow extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    context.tr(titleKey),
+                    context.tr(titleKey, {
+                      'name': tapToPayNameFor(context, titleKey),
+                    }),
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,

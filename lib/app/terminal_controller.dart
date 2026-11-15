@@ -389,6 +389,42 @@ class TerminalController extends ChangeNotifier {
   Future<void> markHowToTapShown() =>
       _prefs.write(DevicePrefKeys.howToTapShown, true);
 
+  /// Tap to Pay on iPhone was turned on here, through to Ready, on this
+  /// account (`DevicePrefKeys.tapToPayAnnounced`).
+  bool get tapToPayAnnounced =>
+      _prefs.read(DevicePrefKeys.tapToPayAnnounced) ?? false;
+
+  Future<void> markTapToPayAnnounced() =>
+      _prefs.write(DevicePrefKeys.tapToPayAnnounced, true);
+
+  /// Someone here can finish turning Tap to Pay on iPhone on for [companyId]
+  /// — the facts the invoice's action is offered on, without an invoice: an
+  /// iPhone that can, the platform, `create_payment`, the release flag, and
+  /// a Stripe gateway in an iPhone country (Card present on or off), or for
+  /// an admin with none a company in an iPhone country. For the enable
+  /// screen's entry points (Device Settings, the checklist, onboarding).
+  bool canSetUpTapToPayOnIPhone(String companyId) {
+    if (!_tapToPayIPhoneDevice || !platformReady || !_canCreatePayment()) {
+      return false;
+    }
+    final config = configFor(companyId);
+    if (config == null || !config.enabled) return false;
+    final iPhoneGateway = config.gateways.any(
+      (g) =>
+          g.cardPaymentsActive &&
+          kTapToPayIPhoneCountries.contains(g.accountCountry),
+    );
+    final setup = config.setupGateways.any(
+      (g) => kTapToPayIPhoneCountries.contains(g.accountCountry),
+    );
+    final newAdmin =
+        _isAdmin() &&
+        config.gateways.isEmpty &&
+        config.setupGateways.isEmpty &&
+        kTapToPayIPhoneCountries.contains(config.companyCountry);
+    return iPhoneGateway || setup || newAdmin;
+  }
+
   /// How a card can be read for [gateway] on this phone.
   TerminalReaderChoice readerChoiceFor(String accountCountry) {
     final device = _device;
@@ -573,16 +609,21 @@ class TerminalController extends ChangeNotifier {
     final session = _session;
     final before = [for (final e in _ensuring) e.future];
     final entry = _Ensure(account: account, admin: admin);
-    entry.future = _ensure(
-      session: session,
-      before: before,
-      companyId: companyId,
-      gateway: gateway,
-      location: location,
-      merchantDisplayName: merchantDisplayName,
-      admin: admin,
-    ).whenComplete(() => _ensuring.remove(entry));
+    entry.future =
+        _ensure(
+          session: session,
+          before: before,
+          companyId: companyId,
+          gateway: gateway,
+          location: location,
+          merchantDisplayName: merchantDisplayName,
+          admin: admin,
+        ).whenComplete(() {
+          _ensuring.remove(entry);
+          _notifySoon();
+        });
     _ensuring.add(entry);
+    _notifySoon();
     return entry.future;
   }
 
@@ -645,6 +686,12 @@ class TerminalController extends ChangeNotifier {
       if (session == _session) _setProgress(null);
     }
   }
+
+  /// [tapToPayConnecting] changed: told after the current task, so a connect
+  /// started from a build never notifies during it.
+  void _notifySoon() => scheduleMicrotask(() {
+    if (!_disposed) notifyListeners();
+  });
 
   /// Lets go of Tap to Pay for a Bluetooth reader: waits for every connect
   /// under way (a warm-up's), then disconnects a Tap to Pay reader. Never

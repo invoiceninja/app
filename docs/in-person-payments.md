@@ -361,6 +361,41 @@ on an iPhone. Everything here is gated on `isIPhonePlatform()` (or the VM's / co
   `apply_fee` is never sent.
 - **`card_present_help`** never mentions Android on iOS or macOS (`card_present_help_apple`).
 
+## Tap to Pay on iPhone can be turned on outside checkout
+
+App Review 3.4, 3.6 and 3.9 want a way to turn it on away from an invoice, an invitation to try
+it once it works, and the offer at the end of onboarding. iPhone only, like everything above.
+
+- **`TapToPayEnableScreen`** (`showTapToPayEnableScreen`, a full-screen step on the root
+  navigator, never a saved route) runs the collect button's steps through the same helpers
+  (`tap_to_pay_setup.dart`: `requestTapToPayLocation`, `enableCardPresent`; then
+  `TerminalController.ensureTapToPay`): Card present (an admin's), location (the shared
+  `LocationPreAlertDialog`, then iOS; Open settings when blocked or Location Services are off, and
+  it runs again on the way back), the Stripe Location, Apple's terms, the education — then Ready,
+  "You're ready to take cards", with [Done] [Open invoices], and `DevicePrefKeys.tapToPayAnnounced`
+  (account scope). The intro lists only the steps still needed; errors stay inline with Retry; a
+  member with Card present off, or an unlinked account, is told to ask an admin. Close is quiet: the
+  connect lives in the controller, so setup carries on.
+- **Device Settings → Card readers** draws `TapToPayTile` on an iPhone that can: Checking, Not set
+  up [Turn on], the reader's progress while it gets ready, Ready [How to use], ask an admin, or
+  update iOS — from `TerminalController` (`tapToPayConnecting` notifies). Before general
+  availability (no entitlement) there is still no row.
+- **The setup checklist's optional row**, "Set up Tap to Pay on iPhone", is last and never counted:
+  offered only where `canSetUpTapToPayOnIPhone` holds (the invoice action's facts without an
+  invoice), done once announced or linked, and it retires with the card.
+- **The end of onboarding.** On an iPhone, Stripe Connect opens in the in-app browser; the app polls
+  `company_gateways` (`StripeConnectWatcher`, every few seconds) because the browser says nothing
+  when it's done, closes it when a Stripe gateway appears, and offers the enable screen
+  (`offerTapToPayOnIPhone`) to someone who can finish it. The same offer follows a Stripe gateway
+  saved with API keys, once the outbox has sent it. While Stripe is still reviewing the account
+  (`card_payments_active` false, also read from `setup_gateways` when the server sends it), the app
+  says approval is pending instead.
+- **Education below iOS 18** (no `ProximityReaderDiscovery`) is the app's own dialog: contactless
+  cards and digital wallets, PIN entry and the PIN screen's accessibility options except in Japan
+  and Taiwan (the Stripe account's country), and Apple's fixed fallback sentence ("Some cards are
+  not able to complete contactless transactions using a PIN…") in every region. The Marketing
+  Toolkit's own wording replaces the first two paragraphs when it arrives.
+
 Stripe takes no payment with device location services off (`locationServicesEnabled`). Whether
 Stripe accepts iOS's reduced ("approximate") accuracy is untested — check on a phone.
 

@@ -24,9 +24,14 @@ class SetupChecklistViewModel extends ChangeNotifier {
     required ValueListenable<AuthSession?> session,
     required this.welcome,
     this.drain,
+    bool? Function()? tapToPay,
+    Listenable? tapToPayChanges,
   }) : _db = db,
-       _session = session {
+       _session = session,
+       _tapToPay = tapToPay,
+       _tapToPayChanges = tapToPayChanges {
     _session.addListener(_onSession);
+    _tapToPayChanges?.addListener(_onTapToPay);
     _subs = [
       db.invoiceDao
           .watchBadgeCount(companyId: companyId)
@@ -59,6 +64,15 @@ class SetupChecklistViewModel extends ChangeNotifier {
   final WelcomeController welcome;
   late final List<StreamSubscription<Object?>> _subs;
 
+  /// The optional Tap to Pay on iPhone step: null where it isn't offered
+  /// (only someone who can finish it sees it), else whether it's set up.
+  final bool? Function()? _tapToPay;
+  final Listenable? _tapToPayChanges;
+
+  void _onTapToPay() {
+    if (!_disposed) notifyListeners();
+  }
+
   int? _invoices;
   int? _drafts;
   int? _clients;
@@ -86,6 +100,7 @@ class SetupChecklistViewModel extends ChangeNotifier {
     sentInvoice: (_invoices ?? 0) - (_drafts ?? 0) > 0,
     hasGateway: (_gateways ?? 0) > 0,
     hasClient: (_clients ?? 0) > 0,
+    tapToPay: _tapToPay?.call(),
   );
 
   List<SetupChecklistRow> get rows => setupChecklistRows(facts);
@@ -169,6 +184,7 @@ class SetupChecklistViewModel extends ChangeNotifier {
   void dispose() {
     _disposed = true;
     _session.removeListener(_onSession);
+    _tapToPayChanges?.removeListener(_onTapToPay);
     for (final s in _subs) {
       unawaited(s.cancel());
     }

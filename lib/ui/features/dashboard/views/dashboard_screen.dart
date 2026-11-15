@@ -64,6 +64,7 @@ import 'package:admin/ui/features/dashboard/widgets/upcoming_recurring_invoices_
 import 'package:admin/ui/features/invoices/widgets/invoice_actions.dart';
 import 'package:admin/ui/features/quotes/widgets/quote_actions.dart';
 import 'package:admin/ui/features/shell/widgets/app_drawer.dart';
+import 'package:admin/ui/features/terminal/views/tap_to_pay_enable_screen.dart';
 import 'package:admin/utils/formatting.dart';
 
 // Re-exported: the KPI intents moved to the list layer, where the deep-link
@@ -116,6 +117,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     onNavigate: (route) => switch (route) {
       kChecklistInvoiceRoute => _create(EntityType.invoice),
       kChecklistClientRoute => _create(EntityType.client),
+      kChecklistTapToPayRoute => showTapToPayEnableScreen(context),
       _ => _safeNavigate(route),
     },
     onEmptyChanged: _onChecklistEmpty,

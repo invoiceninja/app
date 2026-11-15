@@ -93,3 +93,20 @@ Future<bool> openExternalUrl(BuildContext context, String url) async {
   toasts?.error(errorMessage);
   return false;
 }
+
+/// Opens [uri] in the in-app browser (SFSafariViewController on iOS), for a
+/// flow the app watches and closes itself ([closeInAppBrowser]) — Stripe
+/// Connect, then Tap to Pay on iPhone. Falls back to [launchExternalUri].
+Future<bool> openInAppBrowser(Uri uri) async {
+  try {
+    if (await launchUrl(uri, mode: LaunchMode.inAppBrowserView)) return true;
+  } catch (_) {}
+  return launchExternalUri(uri);
+}
+
+/// Closes what [openInAppBrowser] opened; nothing when nothing is open.
+Future<void> closeInAppBrowser() async {
+  try {
+    await closeInAppWebView();
+  } catch (_) {}
+}

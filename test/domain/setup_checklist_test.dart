@@ -11,7 +11,10 @@ void main() {
 
   test('a fresh company starts one in, with the logo next', () {
     final rows = setupChecklistRows(const SetupChecklistFacts());
-    expect(rows.map((r) => r.item), SetupChecklistItem.values);
+    expect(rows.map((r) => r.item), [
+      for (final i in SetupChecklistItem.values)
+        if (i != SetupChecklistItem.tapToPay) i,
+    ], reason: 'Tap to Pay on iPhone only where it is offered');
     expect(completedCount(rows), 1);
     expect(nextChecklistItem(rows), SetupChecklistItem.logo);
   });
@@ -56,6 +59,35 @@ void main() {
     final rows = setupChecklistRows(f);
     expect(nextChecklistItem(rows), isNull);
     expect(completedCount(rows), rows.length);
-    expect(doneIds(rows), {for (final i in SetupChecklistItem.values) i.name});
+    expect(doneIds(rows), {
+      for (final i in SetupChecklistItem.values)
+        if (i != SetupChecklistItem.tapToPay) i.name,
+    });
+  });
+
+  test('Tap to Pay on iPhone comes last where it is offered, and '
+      'never counts or leads', () {
+    const f = SetupChecklistFacts(
+      hasLogo: true,
+      sentInvoice: true,
+      hasGateway: true,
+      tapToPay: false,
+    );
+    final rows = setupChecklistRows(f);
+    expect(rows.last.item, SetupChecklistItem.tapToPay);
+    expect(countedTotal(rows), 5);
+    expect(completedCount(rows), 4);
+    expect(nextChecklistItem(rows), SetupChecklistItem.clients);
+    final all = setupChecklistRows(
+      const SetupChecklistFacts(
+        hasLogo: true,
+        sentInvoice: true,
+        hasGateway: true,
+        hasClient: true,
+        tapToPay: false,
+      ),
+    );
+    expect(nextChecklistItem(all), isNull);
+    expect(completedCount(all), countedTotal(all));
   });
 }

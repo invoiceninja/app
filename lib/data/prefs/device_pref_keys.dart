@@ -333,6 +333,15 @@ abstract final class DevicePrefKeys {
     PrefScope.account,
   );
 
+  /// Tap to Pay on iPhone has been turned on, or announced, for this account:
+  /// the enable screen reached Ready (and, later, the awareness modal was
+  /// seen). Account scope, like [howToTapShown].
+  static const tapToPayAnnounced = PrefKey<bool>(
+    'tap_to_pay_announced',
+    PrefCodec.boolean,
+    PrefScope.account,
+  );
+
   /// In the order they were added; append new keys at the end.
   static const List<PrefKey<Object>> all = [
     locale,
@@ -368,6 +377,7 @@ abstract final class DevicePrefKeys {
     cardReaderUsed,
     pendingCardPayments,
     howToTapShown,
+    tapToPayAnnounced,
   ];
 
   /// The rows a data wipe leaves in place: the [PrefScope.device] keys and the

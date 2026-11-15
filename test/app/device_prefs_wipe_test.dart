@@ -201,6 +201,11 @@ final Map<PrefKey<Object>, _Probe> _probes = {
     (s) => s.terminal.markHowToTapShown(),
     (s) => s.terminal.howToTapDue,
   ),
+  // Each merchant turns Tap to Pay on iPhone on for themselves.
+  DevicePrefKeys.tapToPayAnnounced: _Probe(
+    (s) => s.terminal.markTapToPayAnnounced(),
+    (s) => !s.terminal.tapToPayAnnounced,
+  ),
   // A payment still being checked belongs to the account that took it.
   DevicePrefKeys.pendingCardPayments: _Probe(
     (s) => s.terminal.notePending(

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 
@@ -6,6 +8,7 @@ import 'package:admin/app/services.dart';
 import 'package:admin/data/models/domain/company_gateway.dart';
 import 'package:admin/data/models/value/gateway.dart';
 import 'package:admin/domain/gateway_constants.dart';
+import 'package:admin/domain/terminal/terminal_eligibility.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/detail/entity_detail_actions_row.dart';
 import 'package:admin/ui/core/edit/edit_action_filter.dart';
@@ -20,6 +23,7 @@ import 'package:admin/ui/features/gateways/widgets/edit/gateway_required_fields_
 import 'package:admin/ui/features/gateways/widgets/edit/gateway_settings_tab.dart';
 import 'package:admin/ui/features/gateways/widgets/edit/gateway_type_picker.dart';
 import 'package:admin/ui/features/gateways/widgets/edit/oauth_stub_card.dart';
+import 'package:admin/ui/features/terminal/tap_to_pay_offer.dart';
 
 /// Labels surfaced on the edit screen for the in-app settings search index.
 const kCompanyGatewayEditSearchKeys = <String>[
@@ -199,12 +203,23 @@ class _CompanyGatewayEditScreenState extends State<CompanyGatewayEditScreen> {
           a as CompanyGatewayAction,
         );
       },
-      onSaved: (ctx, vm, saved) => goAfterEntitySave(
-        ctx,
-        isCreate: vm.isCreate,
-        basePath: '/settings/company_gateways',
-        savedId: saved.id,
-      ),
+      onSaved: (ctx, vm, saved) {
+        // A Stripe gateway saved with API keys on an iPhone: once the server
+        // has it, Tap to Pay on iPhone is offered (App Review 3.4).
+        if (isIPhonePlatform() && saved.gatewayKey == kGatewayStripe) {
+          unawaited(
+            _offerTapToPayOnceSaved(
+              Navigator.of(ctx, rootNavigator: true).context,
+            ),
+          );
+        }
+        return goAfterEntitySave(
+          ctx,
+          isCreate: vm.isCreate,
+          basePath: '/settings/company_gateways',
+          savedId: saved.id,
+        );
+      },
     );
   }
 }
@@ -365,3 +380,21 @@ class _Tab extends StatelessWidget {
 
 bool _isHosted(BuildContext context) =>
     context.read<Services>().auth.session.value?.isHosted ?? false;
+
+/// Sends the saved gateway to the server, then offers Tap to Pay on iPhone
+/// ([offerTapToPayOnIPhone]) from [context] — the root navigator's, which
+/// outlives the edit screen. A gateway the server doesn't have yet
+/// (offline) offers nothing: the config it reads doesn't list it.
+Future<void> _offerTapToPayOnceSaved(BuildContext context) async {
+  final services = context.read<Services>();
+  final companyId = services.auth.session.value?.currentCompanyId ?? '';
+  if (companyId.isEmpty || !services.terminal.platformReady) return;
+  try {
+    await services.sync
+        .drainOnce(companyId: companyId)
+        .timeout(const Duration(seconds: 30));
+  } catch (_) {
+    return;
+  }
+  if (context.mounted) await offerTapToPayOnIPhone(context);
+}

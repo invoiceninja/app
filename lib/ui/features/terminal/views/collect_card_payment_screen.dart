@@ -9,7 +9,6 @@ import 'package:store_services/store_services.dart';
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/data/models/domain/client.dart';
-import 'package:admin/data/models/domain/company_gateway.dart';
 import 'package:admin/data/models/domain/invoice.dart';
 import 'package:admin/domain/terminal/terminal_eligibility.dart';
 import 'package:admin/l10n/localization.dart';
@@ -23,8 +22,10 @@ import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
 import 'package:admin/ui/core/widgets/qr_code_image.dart';
 import 'package:admin/ui/features/terminal/how_to_tap.dart';
 import 'package:admin/ui/features/terminal/tap_to_pay_icon.dart';
+import 'package:admin/ui/features/terminal/tap_to_pay_setup.dart';
 import 'package:admin/ui/features/terminal/terminal_error_text.dart';
 import 'package:admin/ui/features/terminal/view_models/collect_card_payment_view_model.dart';
+import 'package:admin/ui/features/terminal/widgets/location_pre_alert.dart';
 import 'package:admin/ui/features/terminal/widgets/reader_picker_sheet.dart';
 import 'package:admin/utils/formatting.dart';
 
@@ -241,34 +242,10 @@ class _CollectCardPaymentScreenState extends State<CollectCardPaymentScreen> {
     _vm.precision = f.precisionFor(currencyId: _currencyId);
   }
 
-  /// An admin's press with Card present off turns it on, the way the
-  /// gateway's own Settings tab does (`setTypeEnabled('32')`), on the
-  /// gateway as the server has it now — then waits until it has been saved.
-  Future<void> _enableCardPresent(String companyGatewayId) async {
-    final gateways = _services.companyGateways;
-    final companyId = widget.companyId;
-    await gateways.refreshAll(companyId: companyId, full: true);
-    final current = await gateways
-        .watchByRealId(companyId: companyId, id: companyGatewayId)
-        .first
-        .timeout(const Duration(seconds: 5));
-    if (current == null) throw StateError('gateway not found');
-    final fees = Map<String, FeesAndLimits>.from(current.feesAndLimits);
-    fees[_cardPresentType] = (fees[_cardPresentType] ?? const FeesAndLimits())
-        .copyWith(isEnabled: true);
-    await gateways.save(
-      companyId: companyId,
-      gateway: current.copyWith(feesAndLimits: fees),
-    );
-    unawaited(_services.sync.drainOnce(companyId: companyId));
-    await gateways
-        .watchByRealId(companyId: companyId, id: companyGatewayId)
-        .firstWhere((g) => g != null && !g.isDirty)
-        .timeout(const Duration(seconds: 30));
-  }
-
-  /// Gateway type 32, Card present (`kGatewayTypeLabelKey`).
-  static const _cardPresentType = '32';
+  /// An admin's press with Card present off turns it on
+  /// (`enableCardPresent`).
+  Future<void> _enableCardPresent(String companyGatewayId) =>
+      enableCardPresent(_services, widget.companyId, companyGatewayId);
 
   void _onChanged() {
     if (!mounted) return;
@@ -312,7 +289,10 @@ class _CollectCardPaymentScreenState extends State<CollectCardPaymentScreen> {
     // soon after it the reader turns ready.
     if (afterTerms) await _untilTermsSheetClosed();
     if (!mounted) return true;
-    final shown = await showHowToTap(context);
+    final shown = await showHowToTap(
+      context,
+      accountCountry: _vm.gateway?.accountCountry ?? '',
+    );
     if (shown) await terminal.markHowToTapShown();
     return shown;
   }
@@ -385,24 +365,7 @@ class _CollectCardPaymentScreenState extends State<CollectCardPaymentScreen> {
     if (!mounted) return false;
     final ok = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(context.tr('terminal_location_prealert_title')),
-        content: Text(
-          context.tr('terminal_location_prealert', {
-            'name': tapToPayNameFor(context, 'terminal_location_prealert'),
-          }),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: Text(context.tr('cancel')),
-          ),
-          PrimaryDialogAction(
-            label: context.tr('continue'),
-            onPressed: () => Navigator.of(context).pop(true),
-          ),
-        ],
-      ),
+      builder: (_) => const LocationPreAlertDialog(),
     );
     return ok ?? false;
   }

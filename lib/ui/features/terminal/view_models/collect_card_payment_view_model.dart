@@ -14,6 +14,7 @@ import 'package:admin/data/services/api_exception.dart';
 import 'package:admin/data/services/terminal_platform.dart';
 import 'package:admin/data/services/terminal_server_error.dart';
 import 'package:admin/domain/terminal/terminal_eligibility.dart';
+import 'package:admin/ui/features/terminal/tap_to_pay_setup.dart';
 
 final _log = Logger('CollectCardPayment');
 
@@ -989,42 +990,31 @@ class CollectCardPaymentViewModel extends ChangeNotifier {
     final seq = ++_readerSeq;
     _problem = null;
     try {
-      final device = await _terminal.refreshDevice();
-      if (_disposed || seq != _readerSeq) return false;
-      if (!device.locationServicesEnabled) {
-        _setReader(
-          ReaderState.failed,
-          const CollectProblem(
-            code: TerminalErrorCode.locationServicesDisabled,
-          ),
-        );
-        return false;
-      }
-      var permission = await _terminal.platform.permissionStatus(
-        TerminalReaderKind.tapToPay,
+      final access = await requestTapToPayLocation(
+        _terminal,
+        askLocation: askLocation,
+        onAsking: () => _setReader(ReaderState.permissions),
+        stillWanted: () => !_disposed && seq == _readerSeq,
       );
       if (_disposed || seq != _readerSeq) return false;
-      if (permission == TerminalPermission.denied) {
-        // Never asked yet: the app explains first, then iOS asks.
-        _setReader(ReaderState.permissions);
-        if (!await askLocation()) {
-          if (!_disposed) _setReader(ReaderState.idle);
+      switch (access) {
+        case LocationAccess.servicesOff:
+          _setReader(
+            ReaderState.failed,
+            const CollectProblem(
+              code: TerminalErrorCode.locationServicesDisabled,
+            ),
+          );
           return false;
-        }
-        if (_disposed || seq != _readerSeq) return false;
-        permission = await _terminal.platform.requestPermissions(
-          TerminalReaderKind.tapToPay,
-        );
-        if (_disposed || seq != _readerSeq) return false;
-      }
-      _permission = permission;
-      if (permission == TerminalPermission.blocked) {
-        await _blocked(seq);
-        return false;
-      }
-      if (permission != TerminalPermission.granted) {
-        _setReader(ReaderState.idle);
-        return false;
+        case LocationAccess.blocked:
+          _permission = TerminalPermission.blocked;
+          _setReader(ReaderState.blocked);
+          return false;
+        case LocationAccess.declined:
+          _setReader(ReaderState.idle);
+          return false;
+        case LocationAccess.granted:
+          _permission = TerminalPermission.granted;
       }
       final location = await _ensureLocation(gateway);
       if (location == null || _disposed || seq != _readerSeq) return false;
@@ -1650,21 +1640,7 @@ class CollectCardPaymentViewModel extends ChangeNotifier {
   Decimal _round(Decimal value) =>
       value.round(scale: precision < 0 ? 2 : precision);
 
-  CollectProblem _problemOf(Object e) => switch (e) {
-    TerminalServerError(:final code, :final message, :final data) =>
-      CollectProblem(serverCode: code, message: message, data: data),
-    TerminalError(:final code, :final message) => CollectProblem(
-      code: code,
-      message: message,
-    ),
-    NetworkException() ||
-    TimeoutException() => const CollectProblem(code: TerminalErrorCode.network),
-    PlanRequiredException() => const CollectProblem(
-      serverCode: TerminalServerError.planRequired,
-    ),
-    ApiException(:final message) => CollectProblem(message: message),
-    _ => const CollectProblem(),
-  };
+  CollectProblem _problemOf(Object e) => collectProblemOf(e);
 
   void _notify() {
     if (!_disposed) notifyListeners();
@@ -1686,3 +1662,21 @@ class CollectCardPaymentViewModel extends ChangeNotifier {
     super.dispose();
   }
 }
+
+/// What a failure says to the person at the counter: an SDK code, a server
+/// code, or a plain message.
+CollectProblem collectProblemOf(Object e) => switch (e) {
+  TerminalServerError(:final code, :final message, :final data) =>
+    CollectProblem(serverCode: code, message: message, data: data),
+  TerminalError(:final code, :final message) => CollectProblem(
+    code: code,
+    message: message,
+  ),
+  NetworkException() ||
+  TimeoutException() => const CollectProblem(code: TerminalErrorCode.network),
+  PlanRequiredException() => const CollectProblem(
+    serverCode: TerminalServerError.planRequired,
+  ),
+  ApiException(:final message) => CollectProblem(message: message),
+  _ => const CollectProblem(),
+};

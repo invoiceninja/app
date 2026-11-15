@@ -44,6 +44,7 @@ void main() {
     'card_reader_used': PrefScope.account,
     'pending_card_payments_json': PrefScope.account,
     'how_to_tap_shown': PrefScope.account,
+    'tap_to_pay_announced': PrefScope.account,
   };
 
   final names = [for (final k in DevicePrefKeys.all) k.name];
