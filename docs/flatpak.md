@@ -149,7 +149,7 @@ The rest needs nothing:
 
 flatpak-flutter reads the Flutter version only from a flutter git source `tag:` in its input
 manifest. The update workflow sets that tag from `flutter-version:` in `appimage.yml` at the
-release tag, the same pin the F-Droid recipe reads. 3.47.7 is not among flatpak-flutter's
+release tag, the same pin the F-Droid recipe reads. 3.50.0 is not among flatpak-flutter's
 precomputed SDK modules (it has up to 3.44.1), so it generates one. Proving that this works is
 part of the first build.
 

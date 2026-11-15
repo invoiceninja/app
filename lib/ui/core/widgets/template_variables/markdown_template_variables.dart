@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:super_editor/super_editor.dart';
 
 import 'package:admin/domain/email_template_variables.dart';

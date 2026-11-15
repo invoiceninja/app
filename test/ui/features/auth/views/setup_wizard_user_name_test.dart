@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:admin/data/db/app_database.dart';
 import 'package:admin/ui/features/auth/views/setup_wizard_screen.dart';
 import 'package:drift/drift.dart' show Value;
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../shell/_shell_test_helpers.dart';

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// Leading / trailing gradient fades over a horizontally scrolling [child],
 /// so a strip that runs past its viewport says so.

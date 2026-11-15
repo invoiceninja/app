@@ -2,7 +2,7 @@
 // a real `Services` graph and a real local database, with the network played
 // by a `MockClient`. The harness is `test/_support/record_screen_harness.dart`.
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;

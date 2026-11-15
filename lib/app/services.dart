@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart' show Icons;
+import 'package:material_ui/material_ui.dart' show Icons;
 import 'package:drift/drift.dart' show TableUpdateQuery;
 import 'package:http/http.dart' as http;
 import 'package:logging/logging.dart';

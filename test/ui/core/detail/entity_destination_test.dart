@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart' show Icons;
+import 'package:material_ui/material_ui.dart' show Icons;
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:admin/domain/entity_registry.dart';

@@ -20,7 +20,7 @@ import 'package:admin/ui/features/products/view_models/product_list_view_model.d
 import 'package:admin/ui/features/products/widgets/product_group_by_button.dart';
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../../_localization_helper.dart';

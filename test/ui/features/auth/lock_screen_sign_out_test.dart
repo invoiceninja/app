@@ -1,6 +1,6 @@
 import 'package:admin/data/services/biometric_service.dart';
 import 'package:admin/ui/features/auth/views/lock_screen.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../shell/_shell_test_helpers.dart';

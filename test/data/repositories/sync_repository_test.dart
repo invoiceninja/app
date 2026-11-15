@@ -14,7 +14,7 @@ import 'package:admin/domain/sync/sync_dispatcher.dart';
 import 'package:admin/domain/sync/sync_event.dart';
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
-import 'package:flutter/material.dart' show Icons;
+import 'package:material_ui/material_ui.dart' show Icons;
 import 'package:flutter_test/flutter_test.dart';
 
 /// These tests target the sync engine's STATE MACHINE — the transitions that

@@ -2,7 +2,7 @@
 // record has loaded. (`client_detail_profile_test.dart` covers the card's
 // gating with no formatter, where the money and date rows are not built.)
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 

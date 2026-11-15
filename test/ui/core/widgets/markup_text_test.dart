@@ -1,5 +1,5 @@
 import 'package:admin/ui/core/widgets/markup_text.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// `MarkupText` exists because Transifex ships `<b>` inside translated copy

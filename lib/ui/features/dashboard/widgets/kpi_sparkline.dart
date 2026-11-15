@@ -1,5 +1,5 @@
 import 'package:fl_chart/fl_chart.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// 80×22 bar sparkline. Bars use opacity-by-magnitude (0.25 base, 1.0 max),
 /// matching the v2 mockup's `<Spark>` component. Pure visual indicator —

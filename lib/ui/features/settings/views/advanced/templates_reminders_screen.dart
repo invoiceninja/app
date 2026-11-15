@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import 'package:admin/ui/features/settings/views/advanced/templates_reminders/templates_reminders_body.dart';
 import 'package:admin/ui/features/settings/views/advanced/templates_reminders/templates_reminders_view_model.dart';

@@ -14,7 +14,7 @@
 // the rows come from a fake view model. Same harness as
 // `entity_list_pull_to_refresh_test.dart` (#163, on the very same list).
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:admin/app/design_tokens.dart';

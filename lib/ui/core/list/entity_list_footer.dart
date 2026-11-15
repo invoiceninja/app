@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// Loading spinner footer appended below the last row of a paginated list
 /// while the next page is in flight. 20×20 spinner with vertical padding so

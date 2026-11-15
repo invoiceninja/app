@@ -2,7 +2,7 @@
 // is exercised in `invoices/invoice_detail_screen_test.dart`; this is what is
 // a credit's own.
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:admin/data/models/api/credit_api_model.dart';

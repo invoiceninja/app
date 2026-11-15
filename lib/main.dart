@@ -2,8 +2,7 @@ import 'dart:async';
 import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:go_router/go_router.dart';
 import 'package:logging/logging.dart';
 import 'package:provider/provider.dart';
@@ -63,6 +62,7 @@ import 'package:admin/data/services/web_oauth.dart';
 import 'package:admin/data/services/web_sign_in.dart';
 import 'package:admin/domain/expenses/receipt_scanner.dart';
 import 'package:admin/l10n/company_labels_scope.dart';
+import 'package:admin/app/legacy_material_theme.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/l10n/supported_locales.dart';
 import 'package:admin/ui/features/shell/widgets/window_frame.dart';
@@ -981,9 +981,8 @@ class _InvoiceNinjaAppState extends State<InvoiceNinjaApp> {
                 ),
             localizationsDelegates: const [
               Localization.delegate,
-              GlobalMaterialLocalizations.delegate,
-              GlobalWidgetsLocalizations.delegate,
-              GlobalCupertinoLocalizations.delegate,
+              ...GlobalMaterialLocalizations.delegates,
+              ...kLegacyMaterialLocalizationsDelegates,
             ],
             routerConfig: _router,
             // Push the resolved variant's bg/ink to the native macOS
@@ -1163,9 +1162,11 @@ class _InvoiceNinjaAppState extends State<InvoiceNinjaApp> {
               // arrow key would otherwise throw measuring one. One group over
               // the whole app, so the order is otherwise unchanged; every
               // Navigator copies it. See `LaidOutReadingOrderTraversalPolicy`.
+              // Dependencies still on framework Material read its `Theme`,
+              // not material_ui's; see `LegacyMaterialTheme`.
               final traversable = FocusTraversalGroup(
                 policy: _traversalPolicy,
-                child: app,
+                child: LegacyMaterialTheme(child: app),
               );
               // Debug Panel → Force right-to-left: overrides the direction
               // `Localizations` derived from the locale, for every route.

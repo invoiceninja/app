@@ -13,7 +13,7 @@
 // content doesn't itself trip an unbounded-height error — the point is to
 // catch *horizontal* overflow and unbounded-width mistakes at each width.
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:admin/app/design_tokens.dart';

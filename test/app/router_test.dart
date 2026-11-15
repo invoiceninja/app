@@ -4,7 +4,7 @@ import 'package:admin/data/repositories/auth_repository.dart';
 import 'package:admin/domain/docuninja/docuninja_settings_tabs.dart';
 import 'package:admin/domain/entity_registry.dart';
 import 'package:admin/domain/entity_type.dart';
-import 'package:flutter/material.dart' show Icons;
+import 'package:material_ui/material_ui.dart' show Icons;
 import 'package:flutter_test/flutter_test.dart';
 
 /// `defaultPostLoginRoute` is the post-login landing decision. Admin-portal

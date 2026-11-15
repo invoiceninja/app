@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart' show IconData;
+import 'package:material_ui/material_ui.dart' show IconData;
 import 'package:go_router/go_router.dart' show GoRouterWidgetBuilder, RouteBase;
 
 import 'package:admin/domain/entity_type.dart';

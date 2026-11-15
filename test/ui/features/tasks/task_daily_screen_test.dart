@@ -8,7 +8,7 @@
 // `entity_list_fab_clearance_test.dart` does for the list view; the empty day
 // is the point, since it is where the third Log time lives.
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:admin/ui/features/tasks/views/task_daily_screen.dart';

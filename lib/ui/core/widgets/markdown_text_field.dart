@@ -2,10 +2,11 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:super_editor/super_editor.dart';
 
 import 'package:admin/app/design_tokens.dart';
+import 'package:admin/app/legacy_material_theme.dart';
 import 'package:admin/app/user_activity_notification.dart';
 import 'package:admin/domain/email_template_variables.dart';
 import 'package:admin/l10n/localization.dart';
@@ -1441,13 +1442,18 @@ class _MarkdownTextFieldState extends State<MarkdownTextField>
     //    so it may sit inside the sliver host without breaking the protocol
     //    described above.
     //
+    //
+    // super_editor still draws with the framework's Material, not
+    // material_ui's, so the override is a framework `Theme` built from ours
+    // (`LegacyMaterialTheme`); a material_ui `Theme` is invisible to it.
+    //
     // `t.accent` matches every other caret and selection handle in the app —
     // M3 defaults a `TextField` cursor to `colorScheme.primary`, which is the
     // same token.
     final Widget? sliver = _htmlMode
         ? null
-        : Theme(
-            data: Theme.of(context).copyWith(primaryColor: t.accent),
+        : LegacyMaterialTheme(
+            primaryColor: t.accent,
             child: showEditor
                 ? SuperEditor(
                     editor: _editor,

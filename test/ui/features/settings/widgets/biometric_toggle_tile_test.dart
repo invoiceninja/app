@@ -4,7 +4,7 @@
 // BiometricService.isAvailable(), so the tile must not re-check — it just
 // reflects session.biometricEnabled.
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:admin/ui/features/settings/widgets/biometric_toggle_tile.dart';

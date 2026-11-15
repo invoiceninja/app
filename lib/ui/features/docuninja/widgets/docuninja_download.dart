@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import 'package:admin/data/services/docuninja/docuninja_client.dart';
 import 'package:admin/l10n/localization.dart';

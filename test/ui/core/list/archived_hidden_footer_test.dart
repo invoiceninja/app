@@ -4,7 +4,7 @@
 // archived invoices it was looking for had been hidden, because the no-match
 // empty state (the only place Show archived lived) needs zero rows.
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:admin/app/design_tokens.dart';

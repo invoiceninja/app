@@ -1,5 +1,5 @@
 import 'package:decimal/decimal.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
@@ -22,7 +22,7 @@ import 'package:admin/domain/payment_types.dart';
 /// field through.
 ///
 /// NOTE: although this lives under `lib/domain/`, it is a **UI-layer
-/// helper** — it imports `package:flutter/material.dart`, returns
+/// helper** — it imports `package:material_ui/material_ui.dart`, returns
 /// `Widget`s, and is only ever invoked from the list render path. The
 /// `lib/domain/columns/` location is pre-existing misfiling; importing
 /// `lib/ui/...` from here is therefore not a new layering regression.

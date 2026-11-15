@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// Stored status discriminator on every invoice (and most other billing
 /// docs). Wire ids are `'1'..'6'`. Negative pseudo-statuses (`viewed`,

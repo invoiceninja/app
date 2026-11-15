@@ -6,7 +6,7 @@ import 'package:admin/ui/features/invoices/view_models/invoice_edit_view_model.d
 import 'package:admin/ui/features/terminal/view_models/collect_card_payment_view_model.dart';
 import 'package:admin/ui/features/terminal/views/collect_card_payment_screen.dart';
 import 'package:decimal/decimal.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:store_services/store_services.dart';
 

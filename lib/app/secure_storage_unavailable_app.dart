@@ -1,6 +1,6 @@
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/linux_package.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// Minimal full-screen error shown when the OS secret store (keychain /
 /// keyring) is unreachable and the encrypted DB can't be opened. `Services`

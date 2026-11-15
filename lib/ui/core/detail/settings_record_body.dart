@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import 'package:admin/ui/core/detail/detail_scroll_scope.dart';
 import 'package:admin/ui/features/settings/widgets/settings_form_shell.dart';

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import 'package:admin/ui/core/widgets/avatar_tint.dart';
 import 'package:admin/utils/url_safety.dart';

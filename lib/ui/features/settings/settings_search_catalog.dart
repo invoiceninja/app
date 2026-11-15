@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 // The gated-slug sets now live in the central gate module; re-exported here
 // so existing `import '.../settings_search_catalog.dart'` call sites that

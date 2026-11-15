@@ -3,7 +3,7 @@
 // terms under the due date — without writing them into the draft. A user saw
 // empty fields and concluded the app ignored the company's defaults.
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:admin/ui/features/billing_shared/view_models/billing_doc_edit_view_model.dart';

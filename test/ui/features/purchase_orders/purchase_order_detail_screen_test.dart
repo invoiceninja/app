@@ -3,7 +3,7 @@
 // this is what is a purchase order's own — above all, that its party is the
 // vendor.
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:admin/data/models/api/purchase_order_api_model.dart';

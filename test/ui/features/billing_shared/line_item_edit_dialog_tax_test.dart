@@ -4,7 +4,7 @@
 // "NYS Sales Tax 8.75%" was nowhere to be picked).
 
 import 'package:decimal/decimal.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:admin/app/design_tokens.dart';

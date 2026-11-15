@@ -8,7 +8,7 @@
 // come from a fake view model. Same harness as
 // `entity_list_fab_clearance_test.dart`.
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 

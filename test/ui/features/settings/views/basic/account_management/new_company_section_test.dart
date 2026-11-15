@@ -10,7 +10,7 @@
 // `company_picker_test.dart`. What is pinned here is the gating, which is the
 // half that differs per surface.
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:admin/ui/features/settings/views/basic/account_management/overview_screen.dart';

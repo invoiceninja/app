@@ -12,7 +12,7 @@ import 'dart:io';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/l10n/supported_locales.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 class SyncLocalizationDelegate extends LocalizationsDelegate<Localization> {
   const SyncLocalizationDelegate();

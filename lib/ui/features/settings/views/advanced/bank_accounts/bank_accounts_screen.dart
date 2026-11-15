@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import 'package:admin/ui/features/bank_accounts/views/bank_account_list_screen.dart';
 

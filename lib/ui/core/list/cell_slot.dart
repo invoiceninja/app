@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import 'package:admin/domain/columns/column_definition.dart';
 import 'package:admin/ui/core/widgets/cell_copy_hover.dart';

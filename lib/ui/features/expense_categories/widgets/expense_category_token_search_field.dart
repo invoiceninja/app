@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import 'package:admin/ui/core/list/search/token_search_field.dart';
 import 'package:admin/ui/features/expense_categories/view_models/expense_category_list_view_model.dart';

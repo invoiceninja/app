@@ -4,7 +4,7 @@ import 'package:admin/ui/core/list/search/filter_suggestion_menu.dart';
 import 'package:admin/ui/core/list/search/filter_token.dart';
 // Re-exports IsFilterKey + CustomFieldFilterKey alongside the client keys.
 import 'package:admin/ui/features/clients/client_filter_keys.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Pins the alphabetical sort order the key dropdown uses. The full menu

@@ -4,7 +4,7 @@
 // knows about a particular field: it describes the tree, and the
 // characterization test compares descriptions.
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:admin/app/services.dart';

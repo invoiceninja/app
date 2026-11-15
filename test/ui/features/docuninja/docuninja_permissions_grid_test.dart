@@ -2,7 +2,7 @@ import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/theme.dart';
 import 'package:admin/data/models/docuninja/dn_models.dart';
 import 'package:admin/ui/features/docuninja/views/docuninja_users_screen.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../../_localization_helper.dart';

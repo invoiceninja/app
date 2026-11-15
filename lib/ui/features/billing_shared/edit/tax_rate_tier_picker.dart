@@ -1,5 +1,5 @@
 import 'package:decimal/decimal.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import 'package:admin/data/models/domain/tax_rate.dart';
 import 'package:admin/data/models/value/parsing.dart';

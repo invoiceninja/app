@@ -7,7 +7,7 @@ import 'package:admin/ui/features/settings/views/advanced/client_portal/registra
 import 'package:admin/ui/features/settings/view_models/settings_draft_view_model.dart';
 import 'package:admin/ui/features/settings/widgets/cascade_tabbed_settings_shell.dart';
 import 'package:admin/ui/features/settings/widgets/tabbed_settings_shell.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// Client Portal settings page — five tabs hosted by the cascade-aware
 /// [CascadeTabbedSettingsShell]. The Settings, Authorization, Messages tabs

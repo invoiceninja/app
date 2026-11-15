@@ -1,7 +1,7 @@
 // The notes' permanent ways back (docs/whats-new-dialog.md): About's
 // "See what's new" button and the command palette's Release Notes row.
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 

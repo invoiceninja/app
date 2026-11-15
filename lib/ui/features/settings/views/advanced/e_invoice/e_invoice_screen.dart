@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import 'package:admin/ui/features/settings/views/advanced/e_invoice/e_invoice_body.dart';
 import 'package:admin/ui/features/settings/views/advanced/e_invoice/e_invoice_view_model.dart';

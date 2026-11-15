@@ -2,6 +2,17 @@
 
 Companion to CLAUDE.md § Strict rules (the pinned toolchain) and `docs/setup.md` § Dependency updates. What was done on 3.47.7 so the move to Flutter 3.50 is a pin change, what 3.50 still needs on the day, and what was measured against 3.50.0 before any pin moved.
 
+## The pin moved to 3.50.0 on 2026-11-15, with the material_ui migration
+
+Done in one change, built and tested in a detached worktree with a 3.50.0 SDK before it reached main:
+
+- **Steps 1–3:** every workflow pins 3.50.0 (the trial input still overrides it); `pubspec.lock` and `tools/foss/pubspec.lock` re-resolved on 3.50.
+- **Step 4, the analyzer decision: migrated** (option 2 below), not ignored. `dart fix` rewrote 1,510 files onto `material_ui` / `cupertino_ui`; `go_router` 18 and `google_fonts` 9, held until then for this reason, came with it, and go_router 18's pages fixed the edit page's slide-in. The three expected failures were handled as follows. The caret colour and every other dependency still drawing with framework Material are handled by `LegacyMaterialTheme` (`lib/app/legacy_material_theme.dart`, `docs/upstream-workarounds.md` § 22), mounted over every route and inside `MarkdownTextField`. `find.byTooltip` is fine except for an `excludeFromSemantics` tooltip, which one test now finds by type.
+- **Step 5, partly:** Gradle 9.5.0 and KGP 2.4.20, but **AGP stays at 9.1.1**. AGP 9.3.1's release lint (`lintVitalAnalyzeRelease`) crashed on image_picker_android and in_app_purchase_android with `NoSuchMethodError: java.util.List.removeLast()`, a Java 21 API, under the JDK 17 that this Mac, `playstore.yml` and CI's runners use. 3.50 only warns that 9.1.1 "will soon be dropped". Taking 9.3.1 means moving every Android build to JDK 21 first, F-Droid's recipe included.
+- **Step 7:** #189192 is in 3.50.0; `docs/upstream-workarounds.md` § 4 is ready to revert on the next requested local macOS run.
+
+**Not done, left for Hillel or a follow-up:** step 6 (Impeller needs an Intel Mac with an AMD GPU), step 8 (an Android release build on a device), step 9 (Flatpak is Hillel's by hand), the hand checks in step 10, and step 11 (`--web-content-hash`). Step 11 was held back because the web deploy had just moved every self-hosted build into its own hashed folder (`ab97cb17`), which already gives each build new URLs; adopt it separately, against that design.
+
 ## The app was prepared on 3.47.7 and checked against 3.50.0 before any pin moved
 
 Prepared 2026-11-12, against the `3.50.0` tag (Dart 3.14.0). Every change below builds and passes on 3.47.7, the pinned SDK, and was then run on 3.50.0 in a detached worktree of this repo with a separate 3.50.0 SDK, so the shared checkout and CI never saw 3.50.
@@ -29,6 +40,10 @@ Prepared 2026-11-12, against the `3.50.0` tag (Dart 3.14.0). Every change below 
 ## CI can try 3.50 before any pin moves
 
 `ci.yaml` takes a `flutter_version` input: `gh workflow run ci.yaml --ref main -f flutter_version=3.50.0`. Blank, every job runs on the pin. Given a version, every job runs on it as upgrade day would: `_test.yaml` and the FOSS Android job resolve the FOSS lock anew (step 3 below), and both analyze steps pass `--no-fatal-infos`, so the Material deprecations show without failing the run. The release workflows call `_test.yaml` without the input, so they always build on the pin. This is how the platforms this Mac can't build (Windows, the Linux desktop, the CI Xcode's iOS) were checked before the pin moved.
+
+## UI code imports material_ui, and only LegacyMaterialTheme touches the framework's Material
+
+Since 3.50 the analyzer flags every `package:flutter/material.dart` and `cupertino.dart` import as deprecated, and CI's `flutter analyze` fails on it, so new code (and any snippet copied from Flutter's own docs) imports `package:material_ui/material_ui.dart` / `package:cupertino_ui/cupertino_ui.dart`. The two types never mix: a material_ui `Theme` is invisible to a widget from framework Material, and the reverse. `lib/app/legacy_material_theme.dart` is the one exception: it re-provides our theme and the framework's Material localizations to the dependencies still on framework Material (`docs/upstream-workarounds.md` § 22). A widget that hands a framework value to such a dependency goes through it (`MarkdownTextField`'s caret), and a test that asserts on what the dependency reads imports the framework library as a prefixed `legacy` with an `ignore`.
 
 ## What the 3.50 release notes change for this app
 

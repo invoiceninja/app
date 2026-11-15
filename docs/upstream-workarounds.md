@@ -70,13 +70,13 @@ When an upstream fix ships: follow the revert, verify, then **delete the entry**
 
 ## 4. Flutter desktop integration tests: one file per `flutter test` invocation
 
-- Issue / waiting on: [flutter/flutter#135673](https://github.com/flutter/flutter/issues/135673), closed 2026-08-27 by [#189192](https://github.com/flutter/flutter/pull/189192). That fix is on master but not in 3.47.7 (its `desktop_device.dart` has no `SingleLaunchLogReader`), so it waits for the next stable. • Found: pre-existing • Flutter: 3.47.7
+- Issue / waiting on: [flutter/flutter#135673](https://github.com/flutter/flutter/issues/135673), closed 2026-08-27 by [#189192](https://github.com/flutter/flutter/pull/189192). That fix was not in 3.47.7 (its `desktop_device.dart` has no `SingleLaunchLogReader`) and **is in 3.50.0** (checked 2026-11-15, the pin since then), so the workaround is ready to try reverting; it stays until a local bare-glob run proves it, since integration tests run locally only on request. • Found: pre-existing • Flutter: 3.50.0
 - Symptom: `flutter test integration_test/ -d macos` (bare glob) runs only the FIRST file; later files die with "Error waiting for a debug connection" — the tool reuses a debug-connection stream that breaks on the second app launch.
 - Root cause: the desktop integration runner can't relaunch the app across multiple files in one invocation.
 - Change:
   - `tools/run_integration_local.sh` — **MUST-REVERT**: runs one file per invocation (the upstream-recommended workaround) with a per-file timeout.
 - Revert: replace the per-file loop with the bare-glob `flutter test integration_test/ -d <device>`.
-- Recheck trigger: when #135673 closes — try the bare glob locally.
+- Recheck trigger: now (Flutter 3.50.0 carries the fix) — the next time the macOS suite is run on request, try the bare glob.
 
 ## 5. Dart analyzer lags the 3.11 parser on null-aware elements
 
@@ -290,6 +290,21 @@ When an upstream fix ships: follow the revert, verify, then **delete the entry**
   - `lib/ui/core/widgets/searchable_dropdown_field.dart` — **KEEP**: each case of `onSelected` does its own work, so nothing is assigned across the switch. Same behaviour, and clearer code, so there is nothing to revert.
 - Revert: nothing to revert. Until a Dart release fixes it, don't reintroduce the shape: a `final` local left unassigned, then assigned inside a pattern `switch` that returns from another case.
 - Recheck trigger: any Flutter / Dart bump. Run the CI trial or `flutter build apk --release` on it; the crash names no file, so find the function with `gen_snapshot --trace_compiler` on the build's `app.dill` (the last "Precompiling optimized function" line before the error).
+
+## 22. Dependencies still on the framework's Material read a theme material_ui never provides
+
+- Issue / waiting on: each dependency's own move to `package:material_ui` (super_editor, printing, fl_chart, re_editor, flutter_widget_from_html_core, and 25 other packages that still import `package:flutter/material.dart`; none had moved on 2026-11-15). • Found: 2026-11-15 • Flutter: 3.50.0, material_ui 1.11.0
+- Symptom: with the app on material_ui, a legacy widget's `Theme.of` falls back to the framework's default `ThemeData` (purple, light) and its `MaterialLocalizations.of` throws. Measured: super_editor's mobile caret and handles turned near-black in dark mode (`markdown_text_field_test`), the #108 bug back again.
+- Root cause: material_ui is a separate copy of Material, so its `Theme` and `MaterialLocalizations` are different inherited types from the framework's (`docs/upgrading-to-flutter-3-50.md` § Material moves to material_ui).
+- Commit ref: not yet committed
+- Change(s):
+  - `lib/app/legacy_material_theme.dart` — **MUST-REVERT**: `LegacyMaterialTheme` maps the nearest material_ui theme into a framework `Theme` (colour scheme, text theme, selection colours, `primaryColor`, density, platform), and `kLegacyMaterialLocalizationsDelegates` lists the framework's Material / Cupertino localizations. It is the only `lib/` file that imports the framework's Material, under `// ignore: deprecated_member_use`.
+  - `lib/main.dart` — **MUST-REVERT**: `LegacyMaterialTheme` over every route in `MaterialApp.builder`, and the legacy delegates beside material_ui's.
+  - `lib/ui/core/widgets/markdown_text_field.dart` — **MUST-REVERT**: the caret override is `LegacyMaterialTheme(primaryColor: t.accent)` instead of a `Theme` copy. When super_editor moves, it goes back to `Theme(data: Theme.of(context).copyWith(primaryColor: t.accent))`, since super_editor will then read material_ui's `Theme`.
+  - `test/ui/core/widgets/markdown_text_field_test.dart` — **MUST-REVERT**: asserts on the framework's `Theme` (`legacy.Theme.of`).
+  - `test/ui/features/shell/sidebar_footer_actions_widget_test.dart` — **KEEP**: `_tooltip` finds a material_ui `Tooltip` by message, because flutter_test's `find.byTooltip` reads an `excludeFromSemantics` tooltip's message off the framework's `Tooltip` type only. Keep it until flutter_test matches material_ui's type.
+- Revert: when every dependency the app draws with has moved, delete `legacy_material_theme.dart`, its two uses in `main.dart`, and the caret override's swap, then run `flutter analyze` (nothing else should import the framework's Material) and `markdown_text_field_test`.
+- Recheck trigger: any bump of super_editor, printing, fl_chart, re_editor or flutter_widget_from_html_core. List the stragglers by grepping each resolved package's `lib/` for `package:flutter/material.dart`.
 
 ## Considered but NOT tracked (permanent adaptations — do not revert)
 

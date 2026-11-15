@@ -6,7 +6,7 @@
 // card list is the duplicate #142 asked to remove, and no FAB over the table
 // leaves the picker unreachable on an iPad, which has no ⌘N either.
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:admin/data/models/domain/billing/line_item.dart';

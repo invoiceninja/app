@@ -2,7 +2,7 @@
 // fast the taps, and no losing a typed message to a stray Cancel
 // (docs/feedback-screenshots.md).
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:admin/ui/features/feedback/contact_us_dialog.dart';

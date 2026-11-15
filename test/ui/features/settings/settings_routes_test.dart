@@ -2,7 +2,7 @@ import 'package:admin/app/entity_modules.dart';
 import 'package:admin/domain/entity_type.dart';
 import 'package:admin/ui/features/settings/settings_routes.dart';
 import 'package:admin/ui/features/settings/state/settings_level_controller.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';

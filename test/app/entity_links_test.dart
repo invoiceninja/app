@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart' show Icons, SizedBox, ValueNotifier;
+import 'package:material_ui/material_ui.dart'
+    show Icons, SizedBox, ValueNotifier;
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:admin/ui/core/list/invoice_kpi_intents.dart';

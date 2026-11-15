@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import 'package:admin/data/models/domain/expense.dart';
 import 'package:admin/domain/entity_type.dart';

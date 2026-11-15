@@ -7,7 +7,7 @@
 // text — and the description is the whole point of the seed.
 
 import 'package:decimal/decimal.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:admin/data/models/domain/billing/line_item.dart';

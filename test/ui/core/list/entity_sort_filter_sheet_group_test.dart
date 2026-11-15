@@ -5,7 +5,7 @@
 // group (which is all of them but Products), and it applies on Done together
 // with the sort — never on tap.
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:admin/app/design_tokens.dart';

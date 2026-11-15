@@ -6,7 +6,7 @@
 // Same harness as `embedded_list_parent_scope_test.dart`: the real scaffold
 // against a real `Services` graph, rows from a fake view model.
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:admin/domain/columns/column_definition.dart';

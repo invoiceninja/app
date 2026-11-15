@@ -1,4 +1,8 @@
-import 'package:flutter/material.dart';
+// super_editor reads the framework's Material `Theme`, not material_ui's, so
+// that is the one the caret test asserts on (`LegacyMaterialTheme`).
+// ignore: deprecated_member_use
+import 'package:flutter/material.dart' as legacy show Theme;
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:super_editor/super_editor.dart';
 
@@ -675,7 +679,7 @@ void main() {
     // The reader needs it too: `SuperReader` reads `primaryColor` for its own
     // Android handles and consults no controls scope, so it has no other seam.
     expect(
-      Theme.of(tester.element(find.byType(SuperReader))).primaryColor,
+      legacy.Theme.of(tester.element(find.byType(SuperReader))).primaryColor,
       tokens.accent,
     );
 
@@ -692,7 +696,7 @@ void main() {
     // isn't exported from `package:super_editor/super_editor.dart`. It covers
     // iOS too: its caret and handles read the same inherited `primaryColor`.
     expect(
-      Theme.of(tester.element(find.byType(SuperEditor))).primaryColor,
+      legacy.Theme.of(tester.element(find.byType(SuperEditor))).primaryColor,
       tokens.accent,
     );
 

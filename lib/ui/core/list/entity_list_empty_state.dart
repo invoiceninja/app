@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import 'package:admin/domain/entity_state.dart';
 import 'package:admin/ui/core/list/generic_list_view_model.dart';

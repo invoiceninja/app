@@ -7,8 +7,10 @@
 import 'package:admin/data/models/value/company_format_settings.dart';
 import 'package:admin/ui/core/utils/calendar_week_start.dart';
 import 'package:admin/utils/formatting.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:cupertino_ui/cupertino_ui.dart';
+import 'package:material_ui/material_ui.dart';
+import 'package:flutter_localizations/flutter_localizations.dart'
+    hide GlobalCupertinoLocalizations, GlobalMaterialLocalizations;
 import 'package:flutter_test/flutter_test.dart';
 
 Formatter _formatter({int? firstDayOfWeek}) => Formatter(

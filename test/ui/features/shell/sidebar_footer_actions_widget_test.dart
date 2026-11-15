@@ -2,7 +2,7 @@ import 'package:admin/app/design_tokens.dart';
 import 'package:admin/data/repositories/auth/auth_session.dart';
 import 'package:admin/ui/features/shell/widgets/company_avatar.dart';
 import 'package:admin/ui/features/shell/widgets/sidebar_footer_actions.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '_shell_test_helpers.dart';
@@ -250,8 +250,8 @@ void main() {
 
     expect(find.byIcon(Icons.business_outlined), findsOneWidget);
     expect(find.byType(CompanyAvatar), findsNothing);
-    expect(find.byTooltip('—'), findsNothing);
-    expect(find.byTooltip('Switch Company'), findsOneWidget);
+    expect(_tooltip('—'), findsNothing);
+    expect(_tooltip('Switch Company'), findsOneWidget);
 
     // ...and says it once. With a company the hint ("Switch Company") adds to
     // the label (the name); with none the two would be the same string and a
@@ -312,3 +312,9 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 }
+
+/// A material_ui [Tooltip] by its message. `find.byTooltip` reads an
+/// `excludeFromSemantics` tooltip's message only off the framework's own
+/// `Tooltip` type, so it never finds this one (docs/upgrading-to-flutter-3-50.md).
+Finder _tooltip(String message) =>
+    find.byWidgetPredicate((w) => w is Tooltip && w.message == message);

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import 'package:admin/ui/features/transaction_rules/views/transaction_rule_list_screen.dart';
 

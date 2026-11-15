@@ -22,7 +22,7 @@
 /// the neutral `ink3`. A user-picked hex always wins.
 library;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import 'package:admin/app/color_hex.dart';
 import 'package:admin/app/design_tokens.dart';

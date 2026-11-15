@@ -13,7 +13,7 @@
 // canonical edit/list assertion). New responsive bugs in pure layout widgets
 // belong here; add the widget + a width sweep.
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:admin/data/models/api/client_api_model.dart';

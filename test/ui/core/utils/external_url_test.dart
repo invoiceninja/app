@@ -1,6 +1,6 @@
 import 'package:admin/ui/core/utils/external_url.dart';
 import 'package:admin/ui/core/widgets/toast_controller.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 // ignore: depend_on_referenced_packages

@@ -12,8 +12,8 @@ list(APPEND FLUTTER_PLUGIN_LIST
   passkeys_native
   printing
   sentry_flutter
-  share_plus
   url_launcher_windows
+  share_plus
   webview_flutter_windows
 )
 

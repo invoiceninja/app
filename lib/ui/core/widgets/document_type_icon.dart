@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// The extensions drawn with the image glyph. Wider than what the in-app
 /// viewer can render (`previewKindForType`): this only picks an icon.

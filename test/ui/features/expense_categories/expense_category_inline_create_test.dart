@@ -3,7 +3,7 @@
 // ignores soft-deletes, so a name an archived or deleted category holds would
 // 422 the create and kill the expense queued behind its tmp_ id.
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 

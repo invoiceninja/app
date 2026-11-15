@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import 'package:admin/data/models/domain/document.dart';
 import 'package:admin/data/repositories/document_bearing_repository.dart';

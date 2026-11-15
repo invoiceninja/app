@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import 'package:admin/ui/features/settings/view_models/tax_settings_view_model.dart';
 import 'package:admin/ui/features/settings/views/basic/tax_settings_body.dart';

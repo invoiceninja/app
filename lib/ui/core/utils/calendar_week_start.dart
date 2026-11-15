@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import 'package:admin/utils/date_ranges.dart';
 import 'package:admin/utils/formatting.dart';
