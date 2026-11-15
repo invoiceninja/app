@@ -6,7 +6,7 @@ set -euo pipefail
 # a build the server would refuse fails this workflow instead of shipping a
 # server release without the new app. Keep the patterns identical to the
 # backend's. It extracts only public/flutter and the boot page, which must be
-# present.
+# present and agree on the build's folder.
 #
 # Usage: tools/web_deploy/check_server_tarball.sh <invoiceninja-web-x.y.z.tar.gz>
 
@@ -17,16 +17,20 @@ list=$(tar -tzf "$archive") || fail "can't be read"
 
 tar -tvzf "$archive" | awk '$1 !~ /^[-d]/ { bad = 1 } END { exit bad }' \
   || fail "a link or a special file"
-if grep -E '(^|/)\.\.?(/|$)' <<< "$list"; then
-  fail "a relative path"
+if grep -E '^/|(^|/)\.\.?(/|$)' <<< "$list"; then
+  fail "an absolute or relative path"
 fi
 if grep -E '/\.' <<< "$list" | grep -Ev '/\.gitkeep$'; then
   fail "a dotfile"
 fi
-if grep -Ei '\.(php[0-9]?|pht|phtml|phar|phps|cgi|pl|shtml)(\.|/|$)|^public/.*\.html?$' <<< "$list"; then
+if grep -Ei '\.(php[0-9]?|pht|phtml|phar|phps|cgi|pl|shtml)([^[:alnum:]]|$)|^public/.*\.html?([^[:alnum:]]|$)' <<< "$list"; then
   fail "a file the web server could run"
 fi
-for part in public/flutter/flutter_bootstrap.js resources/views/flutter/index.html; do
-  grep -qxF "$part" <<< "$list" || fail "no $part"
-done
+# The boot page names the build's folder (<base href="__IN_BASE_HREF__<id>/">), and the backend
+# serves the app only when that folder holds the bootstrap (Ninja::flutterWebBuildId).
+grep -qxF resources/views/flutter/index.html <<< "$list" || fail "no resources/views/flutter/index.html"
+id=$(tar -xzOf "$archive" resources/views/flutter/index.html \
+  | sed -nE 's#.*<base href="__IN_BASE_HREF__([0-9a-f]{8,64})/">.*#\1#p' | head -1)
+[ -n "$id" ] || fail "a boot page that names no build folder"
+grep -qxF "public/flutter/$id/flutter_bootstrap.js" <<< "$list" || fail "no public/flutter/$id/flutter_bootstrap.js"
 echo "The server will accept $archive."

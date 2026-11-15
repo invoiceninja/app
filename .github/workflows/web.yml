@@ -125,6 +125,9 @@ jobs:
             > build/web/build.json
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "bootstrap_hash=$(sha256sum build/web/flutter_bootstrap.js | cut -c1-12)" >> "$GITHUB_OUTPUT"
+          # The self-hosted build's folder, public/flutter/<id>/: a hash of every file, so any change
+          # moves every URL the app loads and the server needs no cache rules.
+          echo "build_id=$(cd build/web && find . -type f -print0 | LC_ALL=C sort -z | xargs -0 sha256sum | sha256sum | cut -c1-12)" >> "$GITHUB_OUTPUT"
 
       # The tarball names the release, so production only ships the commit the
       # release tagged (appimage.yml creates v<version> from pubspec).
@@ -145,17 +148,19 @@ jobs:
         run: |
           set -euo pipefail
           v="${{ steps.prep.outputs.bootstrap_hash }}"
+          id="${{ steps.prep.outputs.build_id }}"
           excludes=(--exclude /index.html --exclude /flutter_service_worker.js
                     --exclude /drift_worker.dart --exclude /.last_build_id --exclude '*.symbols')
 
-          # Self-hosted: the build under public/flutter/ with the server's boot
-          # page, plain HTML whose __IN_*__ tokens the backend fills: nothing in
-          # the tarball is compiled or run on a server. The installed PWA's
-          # start_url and scope are the site root, one level up from the folder.
-          mkdir -p server/public/flutter server/resources/views/flutter
-          rsync -a "${excludes[@]}" build/web/ server/public/flutter/
-          jq '.start_url = "../" | .scope = "../"' build/web/manifest.json > server/public/flutter/manifest.json
-          python3 tools/web_deploy/render_boot_page.py --server --version "$v" \
+          # Self-hosted: the build under public/flutter/<id>/ with the server's
+          # boot page, plain HTML whose __IN_*__ tokens the backend fills: nothing
+          # in the tarball is compiled or run on a server. The page's base href
+          # names the folder, so each build's URLs are new. The installed PWA's
+          # start_url and scope are the site root, two levels up.
+          mkdir -p "server/public/flutter/$id" server/resources/views/flutter
+          rsync -a "${excludes[@]}" build/web/ "server/public/flutter/$id/"
+          jq '.start_url = "../../" | .scope = "../../"' build/web/manifest.json > "server/public/flutter/$id/manifest.json"
+          python3 tools/web_deploy/render_boot_page.py --server --version "$v" --build-id "$id" \
             -o server/resources/views/flutter/index.html
           # The invoicing.co landing page, rendered only to check apps.json: the
           # backend commits its copy (tools/web_deploy/export_landing.sh).
@@ -187,15 +192,15 @@ jobs:
           # the bootstrap forced to dart2js (canvaskit), which rules out skwasm.
           mkdir -p site smoke-js
           cp -a server/public/flutter site/flutter
-          python3 tools/web_deploy/render_boot_page.py --static --version "$v" -o site/index.html
-          python3 tools/web_deploy/render_boot_page.py --static --standalone --version "$v" -o site/standalone.html
+          python3 tools/web_deploy/render_boot_page.py --static --base-href "/flutter/$id/" --version "$v" -o site/index.html
+          python3 tools/web_deploy/render_boot_page.py --static --standalone --base-href "/flutter/$id/" --version "$v" -o site/standalone.html
           cp tools/web_deploy/serve.py site/serve.py
           cp -al site/flutter smoke-js/flutter
           cp site/index.html smoke-js/index.html
-          rm smoke-js/flutter/flutter_bootstrap.js
+          rm "smoke-js/flutter/$id/flutter_bootstrap.js"
           sed 's/_flutter\.loader\.load();/_flutter.loader.load({config:{renderer:"canvaskit"}});/' \
-            site/flutter/flutter_bootstrap.js > smoke-js/flutter/flutter_bootstrap.js
-          grep -q 'renderer:"canvaskit"' smoke-js/flutter/flutter_bootstrap.js
+            "site/flutter/$id/flutter_bootstrap.js" > "smoke-js/flutter/$id/flutter_bootstrap.js"
+          grep -q 'renderer:"canvaskit"' "smoke-js/flutter/$id/flutter_bootstrap.js"
 
       - name: Served-files gate (self-hosted)
         run: |
@@ -204,7 +209,8 @@ jobs:
           server=$!
           trap 'kill $server' EXIT
           sleep 1
-          python3 tools/web_deploy/check_served_files.py site http://127.0.0.1:8000 | tee files-gate.txt
+          python3 tools/web_deploy/check_served_files.py site http://127.0.0.1:8000 \
+            --build "flutter/${{ steps.prep.outputs.build_id }}" | tee files-gate.txt
 
       # A hard gate. If headless WebGL proves flaky on the runner, add
       # `continue-on-error: true` here and the summary says so.

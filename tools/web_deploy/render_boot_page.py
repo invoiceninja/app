@@ -8,7 +8,10 @@ Two modes (docs/web-deploy.md):
             hosted page), and every __IN_*__ token is left for the backend,
             which fills each with an escaped value. Plain HTML: the backend
             compiles nothing from the release, so the release can't run code
-            on a server.
+            on a server. --build-id names the build's folder under
+            public/flutter/: the base href becomes __IN_BASE_HREF__<id>/, the
+            backend filling BASE_HREF with <its path>/flutter/, so every URL
+            the app loads changes with the build and caches safely.
   --static  plain HTML with every token filled, for the hosted page, the
             workflow's smoke test and the downloadable artifact. --standalone
             also drops data-served / data-hosted, so the app keeps its normal
@@ -69,8 +72,14 @@ def strip_hosted(text, hosted):
     return HOSTED_BLOCK.sub(lambda m: m.group(1) if hosted else "", text)
 
 
-def render_server(text):
+BASE = '<base href="__IN_BASE_HREF__">'
+
+
+def render_server(text, build_id):
     text = HEADER.sub(r"\1", text)
+    if text.count(BASE) != 1:
+        sys.exit(f"render_boot_page: expected one {BASE} in {TEMPLATE}")
+    text = text.replace(BASE, f'<base href="__IN_BASE_HREF__{build_id}/">')
     text = strip_hosted(text, hosted=False)
     unknown = sorted(set(TOKEN.findall(text)) - set(TOKENS))
     if unknown:
@@ -113,6 +122,7 @@ def main():
     parser.add_argument("--hosted", action="store_true", help="static: render the hosted page")
     parser.add_argument("--standalone", action="store_true", help="static: no data-served")
     parser.add_argument("--api-url", default="", help="static: the API server, for a page not served from it")
+    parser.add_argument("--build-id", default="", help="server: the build's folder under public/flutter/")
     parser.add_argument("-o", "--output", required=True)
     args = parser.parse_args()
 
@@ -123,7 +133,9 @@ def main():
         sys.exit(f"render_boot_page: expected one {VERSION_TOKEN} in {TEMPLATE}")
     text = text.replace(VERSION_TOKEN, args.version)
     if args.server:
-        text = render_server(text)
+        if not re.fullmatch(r"[0-9a-f]{8,64}", args.build_id):
+            sys.exit(f"render_boot_page: --server needs --build-id, a hex hash, got {args.build_id!r}")
+        text = render_server(text, args.build_id)
     else:
         if args.api_url and not re.fullmatch(r"https?://[^/\s\"<>]+(/[^\s\"<>]*)?", args.api_url):
             sys.exit(f"render_boot_page: --api-url must be an absolute http(s) URL, got {args.api_url!r}")

@@ -9,11 +9,13 @@ The output is plain HTML wherever it goes: the backend serves its copy
 (resources/views/landing/index.html) as a file and compiles nothing.
 
 Assets go to --assets-dir and are referenced under --assets-base (default
-/landing/, the backend's public/landing/). Fails on a missing or non-https URL,
+/landing/, the backend's public/landing/), each URL versioned by its content
+(?v=<hash>). Fails on a missing or non-https URL,
 a platform without its fields, or a placeholder left unfilled. Stdlib only.
 """
 
 import argparse
+import hashlib
 import json
 import pathlib
 import re
@@ -80,9 +82,20 @@ def lookup(data, dotted):
     return value
 
 
+def asset_url(assets_base, published):
+    """An asset's URL, versioned by its content: the names carry no version, so
+    a changed file gets a new URL and a server needs no cache rules for them."""
+    source = ASSETS.get(published)
+    if source is None:
+        fail(f"landing.html names an asset render_landing.py doesn't copy: {published}")
+    digest = hashlib.sha256(source.read_bytes()).hexdigest()[:10]
+    return f"{assets_base}{published}?v={digest}"
+
+
 def render(data, assets_base):
     text = (LANDING / "landing.html").read_text(encoding="utf-8")
     platforms = json.dumps(data["platforms"], ensure_ascii=False).replace("</", "<\\/")
+    text = re.sub(r"\{\{ assets \}\}([A-Za-z0-9_./-]+)", lambda m: asset_url(assets_base, m.group(1)), text)
 
     def fill(match):
         key = match.group(1)
