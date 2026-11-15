@@ -427,6 +427,9 @@ jobs:
               --jq "[.[] | select(.draft and .tag_name == \"$tag\")][0].id")"
             test -n "$id" && test "$id" != null
             gh api -X PATCH "repos/$GH_REPO/releases/$id" -F draft=false -f make_latest=true >/dev/null
-            gh release view "$tag" --json url,isDraft,isPrerelease,isLatest,assets \
-              --jq '{url, isDraft, isPrerelease, isLatest, assets: [.assets[].name]}'
+            # gh has no isLatest field; asking for it failed 5.1.26's job after
+            # the Release was published, which skipped every store.
+            gh release view "$tag" --json url,isDraft,isPrerelease,assets \
+              --jq '{url, isDraft, isPrerelease, assets: [.assets[].name]}'
+            test "$(gh api "repos/$GH_REPO/releases/latest" --jq .tag_name)" = "$tag"
           fi
