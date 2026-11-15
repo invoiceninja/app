@@ -41,7 +41,7 @@ tar -xzf "$archive" -C "$work/out" --no-same-owner --no-same-permissions \
 chmod -R u+rwX,go+rX "$work/out" || fail "files that can't be made readable"
 page="$work/out/resources/views/flutter/index.html"
 [ -f "$page" ] || fail "a boot page that isn't a file"
-awk '{ n += gsub(/<[Bb][Aa][Ss][Ee][^A-Za-z0-9_-]/, "") } END { exit n != 1 }' "$page" \
+tr '\r\n' '  ' < "$page" | awk '{ n += gsub(/<[Bb][Aa][Ss][Ee][^A-Za-z0-9_-]/, "") } END { exit n != 1 }' \
   || fail "a boot page without exactly one <base>"
 id=$(sed -nE 's#.*<base href="__IN_BASE_HREF__([0-9a-f]{8,64})/">.*#\1#p' "$page") || id=""
 [ -n "$id" ] && [ -f "$work/out/public/flutter/$id/flutter_bootstrap.js" ] \
