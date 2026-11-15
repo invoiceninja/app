@@ -968,6 +968,8 @@
   "qb_group_sales_documents": "Sales documents",
   "queue_not_enabled": "Queue not enabled",
   "queue_not_enabled_help": "Enable the queue for improved performance",
+  "quick_actions_help": "A record shows the first four that apply to it, six on a wide screen. An action that does not apply is skipped.",
+  "quick_actions_none_shown": "No quick actions are shown.",
   "quickbooks_import_started": "Import started — it runs in the background. You'll be notified when it completes.",
   "quickbooks_run_import_to_load_accounts": "Run an import to load QuickBooks accounts.",
   "quickbooks_sync_direction_help": "Push sends Invoice Ninja records to QuickBooks. Pull imports from QuickBooks. Bidirectional keeps both in sync. None disables syncing for that record type.",
