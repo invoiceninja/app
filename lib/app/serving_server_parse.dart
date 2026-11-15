@@ -64,8 +64,8 @@ class ServingServer {
 /// page unserved rather than guessing, since [canonicalBaseUrl] would turn
 /// garbage into a "server" and a later sign-in would wipe the local data over
 /// it. Otherwise the API root is the page's origin plus its path, never
-/// `document.baseURI` (which ends in the build's `/flutter/` folder), with a
-/// trailing `index.php` dropped, then canonicalised:
+/// `document.baseURI` (which ends in the build's `/flutter/<id>/` folder),
+/// with a trailing `index.php` dropped, then canonicalised:
 /// `https://Host:443/index.php?rc=a#/login` and `https://host/` are the same
 /// server.
 ServingServer? parseServingServer({

@@ -118,7 +118,7 @@ def main():
     mode.add_argument("--server", action="store_true")
     mode.add_argument("--static", action="store_true")
     parser.add_argument("--version", required=True, help="flutter_bootstrap.js content hash")
-    parser.add_argument("--base-href", default="/flutter/")
+    parser.add_argument("--base-href", default="/flutter/", help="static: the build's folder, /flutter/<id>/ for the self-hosted layout")
     parser.add_argument("--hosted", action="store_true", help="static: render the hosted page")
     parser.add_argument("--standalone", action="store_true", help="static: no data-served")
     parser.add_argument("--api-url", default="", help="static: the API server, for a page not served from it")

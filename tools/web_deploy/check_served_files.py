@@ -3,9 +3,9 @@
 python3 check_served_files.py <root> <origin> [--build <dir>]
 
 <root> is what is served at <origin>: the rendered boot page as index.html plus
-the build in <dir> under it, `flutter` (the self-hosted layout, served locally
-by tools/web_deploy/serve.py) or `.` (the Cloudflare Pages tree, whose build
-sits at the root; <origin> can then be the deployed Pages URL). Fetches every
+the build in <dir> under it, `flutter/<id>` (the self-hosted layout, served
+locally by tools/web_deploy/serve.py) or `.` (the Cloudflare Pages tree, whose
+build sits at the root; <origin> can then be the deployed Pages URL). Fetches every
 built file and every URL the page, the bootstrap, the manifest and the font
 manifest name, and fails unless each answers 200 with a type the browser
 accepts (.wasm application/wasm, .mjs/.js a JavaScript type). Pages' own
