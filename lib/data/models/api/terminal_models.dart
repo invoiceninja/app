@@ -26,6 +26,7 @@ class TerminalConfig {
     required this.gateways,
     this.setupGateways = const [],
     this.companyCountry = '',
+    this.declineReceipts = true,
   });
 
   factory TerminalConfig.fromJson(Map<String, dynamic> json) => TerminalConfig(
@@ -44,6 +45,7 @@ class TerminalConfig {
         if (g is Map<String, dynamic>) TerminalSetupGateway.fromJson(g),
     ],
     companyCountry: _string(json['company_country']).toUpperCase(),
+    declineReceipts: json.containsKey('setup_gateways'),
   );
 
   /// The platform switch (`NINJA_TERMINAL_ENABLED`) — also the release flag
@@ -65,6 +67,12 @@ class TerminalConfig {
   /// The company's country (ISO 3166 alpha-2, upper case), for a company
   /// with no Stripe gateway yet; '' from a server that doesn't say.
   final String companyCountry;
+
+  /// Whether the server can email a decline receipt. It learned that in the
+  /// release that added `setup_gateways`, so the key's presence is the
+  /// signal: an older server's `receipt` refuses a declined collection, and
+  /// "Send decline receipt" stays hidden there.
+  final bool declineReceipts;
 
   /// The gateway a collection uses: the first one Stripe lets take cards.
   TerminalGatewayConfig? get usableGateway {

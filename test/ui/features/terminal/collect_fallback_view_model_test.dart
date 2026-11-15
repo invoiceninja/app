@@ -466,6 +466,23 @@ void main() {
       vm.dispose();
     });
 
+    test('hidden on a server that can\'t send a decline receipt', () async {
+      final d = FakeTerminalRepo.defaultConfig;
+      repo.configAnswer = TerminalConfig(
+        enabled: d.enabled,
+        planOk: d.planOk,
+        gateways: d.gateways,
+        declineReceipts: false,
+      );
+      final vm = await declined();
+
+      expect(vm.stage, CollectStage.declined);
+      expect(vm.declineReceiptAvailable, isFalse);
+      expect(await vm.sendDeclineReceipt('sam@example.com'), isFalse);
+      expect(repo.calls.where((c) => c.startsWith('receipt')), isEmpty);
+      vm.dispose();
+    });
+
     test(
       'a decline the server reports (requires_payment_method) counts',
       () async {

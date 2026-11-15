@@ -1870,6 +1870,8 @@ class CollectCardPaymentViewModel extends ChangeNotifier {
   /// while it is still on screen as declined or cancelled.
   bool get declineReceiptAvailable =>
       _chargeDeclined &&
+      // An older server can't send one: hidden until it can.
+      (_terminal.configFor(companyId)?.declineReceipts ?? false) &&
       _intent != null &&
       (_stage == CollectStage.declined || _stage == CollectStage.cancelled);
 

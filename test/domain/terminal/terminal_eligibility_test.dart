@@ -185,6 +185,7 @@ void main() {
       expect(config.setupGateways.single.companyGatewayId, 'cg_9');
       expect(config.setupGateways.single.accountCountry, 'US');
       expect(config.companyCountry, 'GB');
+      expect(config.declineReceipts, isTrue);
     });
 
     test('an older server that leaves them out still parses', () {
@@ -195,6 +196,8 @@ void main() {
       });
       expect(config.setupGateways, isEmpty);
       expect(config.companyCountry, '');
+      // It can't send a decline receipt either: the button stays hidden.
+      expect(config.declineReceipts, isFalse);
     });
   });
 
