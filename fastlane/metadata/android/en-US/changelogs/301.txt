@@ -1,0 +1,2 @@
+- Copy document numbers, client and vendor names and item names with a click or tap
+- The copy icon beside a name in a list copies the name

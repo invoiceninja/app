@@ -258,6 +258,33 @@ List<ReleaseNotes> releasesToShow({
 
 const List<ReleaseNotes> kReleaseNotes = [
   ReleaseNotes(
+    version: '5.1.27',
+    highlights: [
+      ReleaseHighlight(
+        icon: Icons.copy_outlined,
+        title: 'Copy numbers and names',
+        body:
+            'Document numbers, client and vendor names and item names '
+            'copy with one click or tap.',
+      ),
+    ],
+    items: [
+      ReleaseNoteItem(
+        'Added: More values copy with a click: the number on an invoice, '
+        'quote, credit, purchase order and recurring invoice, the name or '
+        'number at the top of a client, vendor, product, payment, expense, '
+        "project and task, a client or vendor's name on another record, and "
+        'item names in a line item list. Hover for the copy icon with a '
+        'mouse, tap or long-press on a phone.',
+      ),
+      ReleaseNoteItem(
+        'Fixed: The copy icon beside a client, vendor, project or other '
+        "related record's name in a list copies the name. It used to copy "
+        'an internal id.',
+      ),
+    ],
+  ),
+  ReleaseNotes(
     version: '5.1.26',
     highlights: [
       ReleaseHighlight(
