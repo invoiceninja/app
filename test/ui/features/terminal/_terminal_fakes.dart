@@ -365,20 +365,25 @@ class FakeTerminalPlatform implements TerminalPlatform {
     session.cancel();
   }
 
+  /// The kind of every reader search, in order.
+  final discovered = <TerminalReaderKind>[];
+
   @override
   Stream<List<TerminalReader>> discover(
     TerminalReaderKind kind, {
     bool simulated = false,
-  }) => Stream.value([
-    TerminalReader(
-      serialNumber: 'ttp',
-      label: 'This phone',
-      kind: kind,
-      simulated: simulated,
-      batteryLevel: -1,
-      hasAvailableUpdate: false,
-    ),
-  ]);
+  }) => (discovered..add(kind)).isEmpty
+      ? const Stream.empty()
+      : Stream.value([
+          TerminalReader(
+            serialNumber: 'ttp',
+            label: 'This phone',
+            kind: kind,
+            simulated: simulated,
+            batteryLevel: -1,
+            hasAvailableUpdate: false,
+          ),
+        ]);
 
   @override
   Future<TerminalReader> connect(
@@ -400,11 +405,17 @@ class FakeTerminalPlatform implements TerminalPlatform {
       if (answer is Completer) await answer.future;
       if (answer is TerminalError) throw answer;
     }
-    return reader;
+    return _connected = reader;
   }
 
+  /// Like the SDK, answer the reader a connect left connected — only when a
+  /// test asks: the older tests expect none.
+  bool remembersReader = false;
+  TerminalReader? _connected;
+
   @override
-  Future<TerminalReader?> connectedReader() async => null;
+  Future<TerminalReader?> connectedReader() async =>
+      remembersReader ? _connected : null;
 
   int begun = 0;
 

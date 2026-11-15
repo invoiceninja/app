@@ -820,6 +820,24 @@ void main() {
         },
       );
 
+      test('a warm-up asked for while another runs gets its own once the '
+          'session changed', () async {
+        final hold = Completer<void>();
+        platform.connectAnswers.add(hold);
+        final first = phone.warmUp('co_a');
+        await settle();
+        expect(connects(), hasLength(1));
+        // A company switch: the reset, then the next company's warm-up.
+        final reset = phone.reset();
+        await phone.warmUpAfterFirstFrame('co_a');
+        hold.complete();
+        await reset;
+        await first;
+        await settle();
+        expect(connects(), hasLength(2));
+        expect(phone.reader, isNotNull);
+      });
+
       test('nothing when already connected or connecting', () async {
         await ensure(admin: false);
         await phone.warmUp('co_a');

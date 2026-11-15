@@ -699,9 +699,9 @@ class _CollectCardPaymentScreenState extends State<CollectCardPaymentScreen> {
             decoration: InputDecoration(labelText: context.tr('amount')),
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             textInputAction: TextInputAction.done,
-            // A press held for the figures never charges what was there
-            // before this edit.
-            onChanged: (_) => _vm.cancelPendingPress(),
+            // No press held, or under way, charges what was there before
+            // this edit: a fresh press commits it first.
+            onChanged: (_) => _vm.amountEdited(),
             onSubmitted: (_) => _setAmount(),
           ),
         ),

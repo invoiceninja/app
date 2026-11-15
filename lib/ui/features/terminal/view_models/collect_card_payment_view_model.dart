@@ -139,10 +139,18 @@ class CollectCardPaymentViewModel extends ChangeNotifier {
     // Known before anything loads, from the same facts as the invoice's
     // action: Apple's button is there from the first frame (App Review
     // 5.3), and stays if the config never loads.
-    if (_iPhone && terminal.offersTapToPayOnIPhone(companyId)) {
+    // A Bluetooth reader already connected keeps taking the cards, as it
+    // did before Tap to Pay on iPhone: the SDK holds one reader at a time.
+    if (_iPhone &&
+        !_bluetoothConnected &&
+        terminal.offersTapToPayOnIPhone(companyId)) {
       _readerChoice = TerminalReaderChoice.tapToPay;
     }
   }
+
+  /// The session's reader is a Bluetooth one, still connected.
+  bool get _bluetoothConnected =>
+      _terminal.reader?.kind == TerminalReaderKind.bluetooth;
 
   /// Opened from the invoice's Tap to Pay on iPhone action, which is Apple's
   /// button too (5.3): opening presses it — whatever setup is missing runs
@@ -427,6 +435,7 @@ class CollectCardPaymentViewModel extends ChangeNotifier {
     _setupGateway = null;
     _needsStripe = false;
     if (_iPhone &&
+        !_bluetoothConnected &&
         (_terminal.device?.tapToPay ?? false) &&
         (gateway == null ||
             _terminal.readerChoiceFor(gateway.accountCountry) ==
@@ -462,7 +471,9 @@ class CollectCardPaymentViewModel extends ChangeNotifier {
       return false;
     }
     _gateway = gateway;
-    _readerChoice = _terminal.readerChoiceFor(gateway.accountCountry);
+    _readerChoice = _bluetoothConnected
+        ? TerminalReaderChoice.bluetooth
+        : _terminal.readerChoiceFor(gateway.accountCountry);
     // Never a surcharge on Tap to Pay on iPhone, so never an `apply_fee`.
     if (tapToPayOnIPhone) applySurcharge = false;
     return true;
@@ -638,7 +649,7 @@ class CollectCardPaymentViewModel extends ChangeNotifier {
     final rounded = _round(value);
     if (rounded == amount) return false;
     // An edit always wins over a press waiting on the old figures.
-    _pressPending = false;
+    amountEdited();
     amount = rounded;
     _collectionId = null;
     unawaited(requote());
@@ -647,7 +658,7 @@ class CollectCardPaymentViewModel extends ChangeNotifier {
 
   void setSurcharge(bool value) {
     if (_stage != CollectStage.configure || !surchargeOffered) return;
-    _pressPending = false;
+    amountEdited();
     applySurcharge = value;
     _collectionId = null;
     unawaited(requote());
@@ -738,9 +749,17 @@ class CollectCardPaymentViewModel extends ChangeNotifier {
   bool _sheetRequested = false;
   bool _sheetShown = false;
 
-  /// Something is typed into the amount field: a press waiting on the old
-  /// figures must not charge them.
-  void cancelPendingPress() => _pressPending = false;
+  /// Something is typed into the amount field (not yet committed), or the
+  /// figures changed: no press that began before it may take the card — a
+  /// held one is dropped, and one under way (opening, or a reload) stops at
+  /// ready and waits for a fresh press, which commits the field first.
+  void amountEdited() {
+    _edits++;
+    _pressPending = false;
+  }
+
+  /// Bumped by every [amountEdited].
+  int _edits = 0;
 
   /// Opening the screen on an iPhone: only looks. Location already allowed,
   /// a Location already there: the reader connects without Apple's terms
@@ -838,11 +857,21 @@ class CollectCardPaymentViewModel extends ChangeNotifier {
 
   /// [fromOpen]: the opening press — once ready, it goes on to the card
   /// unless Apple's terms or education were shown ([onReady]).
+  ///
+  /// A press takes the card only when the reader was already ready when it
+  /// began ([readyAtStart]), or when it opened the screen and had only to
+  /// connect; one that set anything up waits for the next press. And never
+  /// after an edit since it began ([editsAtStart]): the figures it would
+  /// charge are not the ones on screen.
   Future<void> _press(
     Future<bool> Function() askLocation, {
     bool fromOpen = false,
+    bool? readyAtStart,
+    int? editsAtStart,
   }) async {
     if (_stage != CollectStage.configure || _pressing || _disposed) return;
+    final wasReady = readyAtStart ?? _readerState == ReaderState.ready;
+    final edits = editsAtStart ?? _edits;
     _askLocation = askLocation;
     if (_terminal.device?.osUpdateRequired ?? false) {
       // App Review 1.4: below iOS 17.6, say to update.
@@ -885,7 +914,12 @@ class CollectCardPaymentViewModel extends ChangeNotifier {
       await _start(openPress: false);
       if (_disposed) return;
       if (_gateway != null || cardPresentOff || needsStripe) {
-        await _press(askLocation, fromOpen: fromOpen);
+        await _press(
+          askLocation,
+          fromOpen: fromOpen,
+          readyAtStart: wasReady,
+          editsAtStart: edits,
+        );
       }
       return;
     }
@@ -896,10 +930,19 @@ class CollectCardPaymentViewModel extends ChangeNotifier {
       // came up meanwhile.
       final goOn = await onReady?.call() ?? true;
       if (!fromOpen || !goOn || _disposed) return;
+    } else if (!wasReady) {
+      // Became ready while this press reloaded (a quiet connect, perhaps
+      // the education): only the opening press may go on, and only when
+      // nothing came up.
+      if (!fromOpen) return;
+      final goOn = await onReady?.call() ?? true;
+      if (!goOn || _disposed) return;
     } else if (fromOpen) {
       final goOn = await onReady?.call() ?? true;
       if (!goOn || _disposed) return;
     }
+    // Typed into since the press began: wait for a fresh one.
+    if (_edits != edits || _stage != CollectStage.configure) return;
     await _collectWhenQuoted();
   }
 

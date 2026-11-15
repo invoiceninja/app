@@ -8,6 +8,7 @@ import 'package:admin/data/repositories/auth_repository.dart';
 import 'package:admin/data/services/api_exception.dart';
 import 'package:admin/data/services/password_cache.dart';
 import 'package:admin/data/services/terminal_server_error.dart';
+import 'package:admin/domain/terminal/terminal_eligibility.dart';
 import 'package:admin/data/services/token_storage.dart';
 import 'package:admin/ui/features/invoices/view_models/invoice_edit_view_model.dart';
 import 'package:admin/ui/features/terminal/view_models/collect_card_payment_view_model.dart';
@@ -1439,7 +1440,7 @@ void main() {
       vm.setAmount(Decimal.fromInt(60));
       expect(vm.pressPending, isFalse);
       await vm.pressTapToPay(askLocation: allow);
-      vm.cancelPendingPress();
+      vm.amountEdited();
       repo.quoteGate!.complete();
       repo.quoteGate = null;
       await pumpEventQueue();
@@ -1547,6 +1548,93 @@ void main() {
       await pumpEventQueue();
       expect(vm.readerState, ReaderState.ready);
       expect(repo.calls.where((c) => c.startsWith('create')), isEmpty);
+    });
+
+    test('typing during an opening press: it stops at ready, and the card '
+        'is never taken at the old amount', () async {
+      final hold = Completer<void>();
+      platform.connectAnswers.add(hold);
+      final vm = openedFromAction();
+      repo.creates.add(fakeIntent());
+      platform.session.reads.add(Completer<TerminalCollected>());
+      unawaited(vm.start());
+      await pumpEventQueue();
+      expect(vm.readerState, ReaderState.connecting);
+      // The field has 50 in it, not yet committed.
+      vm.amountEdited();
+      hold.complete();
+      await pumpEventQueue();
+      expect(vm.readerState, ReaderState.ready);
+      expect(vm.stage, CollectStage.configure);
+      expect(repo.calls.where((c) => c.startsWith('create')), isEmpty);
+
+      // A fresh press commits the field first, quotes it, then collects.
+      vm.setAmount(Decimal.fromInt(50));
+      await vm.pressTapToPay(askLocation: allow);
+      await pumpEventQueue();
+      expect(repo.calls.where((c) => c.startsWith('create')), [
+        'create:col_1:50',
+      ]);
+      await vm.cancel();
+    });
+
+    test('a connected Bluetooth reader keeps taking the cards on an iPhone '
+        'that can Tap to Pay', () async {
+      await phone.refreshDevice();
+      platform.remembersReader = true;
+      final gateway = FakeTerminalRepo.defaultConfig.gateways.single;
+      final location = gateway.locations.single;
+      await phone.prepare(
+        companyId: 'co_a',
+        gateway: gateway,
+        location: location,
+      );
+      await phone.connectBluetooth(
+        const TerminalReader(
+          serialNumber: 'm2',
+          label: 'M2',
+          kind: TerminalReaderKind.bluetooth,
+          simulated: true,
+          batteryLevel: 1,
+          hasAvailableUpdate: false,
+        ),
+        location: location,
+        merchantDisplayName: 'Acme',
+      );
+      platform.connects.clear();
+      final vm = openedFromAction();
+      expect(vm.tapToPayOnIPhone, isFalse);
+      await vm.start();
+      expect(vm.readerChoice, TerminalReaderChoice.bluetooth);
+      expect(vm.readerState, ReaderState.ready);
+      repo.creates.add(fakeIntent());
+      platform.session.reads.add(Completer<TerminalCollected>());
+      unawaited(vm.collect());
+      await pumpEventQueue();
+      expect(vm.stage, CollectStage.waiting);
+      expect(platform.discovered, isNot(contains(TerminalReaderKind.tapToPay)));
+      expect(platform.connects, isEmpty, reason: 'never Tap to Pay');
+      await vm.cancel();
+    });
+
+    test('a press that reloads the config and connects waits, after the '
+        'education, for a second press', () async {
+      repo.configAnswer = const NetworkException('offline');
+      final vm = iPhoneVm()..onReady = () async => false;
+      await vm.start();
+      expect(vm.gateway, isNull);
+      repo.configAnswer = null; // the default config
+      await vm.pressTapToPay(askLocation: allow);
+      await pumpEventQueue();
+      expect(vm.readerState, ReaderState.ready);
+      expect(repo.calls.where((c) => c.startsWith('create')), isEmpty);
+
+      repo.creates.add(fakeIntent());
+      platform.session.reads.add(Completer<TerminalCollected>());
+      unawaited(vm.pressTapToPay(askLocation: allow));
+      await pumpEventQueue();
+      expect(repo.calls.where((c) => c.startsWith('create')), hasLength(1));
+      await vm.cancel();
     });
 
     test(

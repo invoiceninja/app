@@ -681,9 +681,18 @@ class TerminalController extends ChangeNotifier {
   /// allowed, nothing connected or connecting, no collect screen open, an
   /// account not known to be unlinked — then connects without the terms
   /// (`admin: false`). Never prompts, shows a sheet or toasts, never throws.
+  ///
+  /// One at a time: a call while one runs is remembered, and runs once that
+  /// one ends if the session or the company changed meanwhile — a company
+  /// switch during a slow warm-up still gets its own.
   Future<void> warmUp(String companyId) async {
-    if (!_iPhone || _warming || _disposed) return;
+    if (!_iPhone || _disposed) return;
+    if (_warming) {
+      _warmAgain = companyId;
+      return;
+    }
     _warming = true;
+    final session = _session;
     try {
       await _warmUp(companyId);
     } catch (e) {
@@ -691,7 +700,17 @@ class TerminalController extends ChangeNotifier {
     } finally {
       _warming = false;
     }
+    final again = _warmAgain;
+    _warmAgain = null;
+    if (again != null &&
+        !_disposed &&
+        (again != companyId || session != _session)) {
+      await warmUp(again);
+    }
   }
+
+  /// The company a warm-up asked for while another ran.
+  String? _warmAgain;
 
   Future<void> _warmUp(String companyId) async {
     final session = _session;
