@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/data/models/domain/company_gateway.dart';
+import 'package:admin/ui/core/widgets/cell_copy_hover.dart';
 
 /// Resolves a company gateway's display label from the local Drift cache and
 /// renders it as a `Text`. Falls back to the raw [gatewayId] while unresolved
@@ -55,6 +56,12 @@ class CompanyGatewayNameLabel extends StatelessWidget {
       ),
       builder: (context, snapshot) {
         final gateway = snapshot.data;
+        // What a table cell's copy icon copies (`CellCopyNameScope`): the name
+        // drawn here, never the id or a dash.
+        CellCopyNameScope.report(
+          context,
+          gateway == null || gateway.label.isEmpty ? null : gateway.label,
+        );
         final name = gateway == null || gateway.label.isEmpty
             ? gatewayId
             : gateway.label;

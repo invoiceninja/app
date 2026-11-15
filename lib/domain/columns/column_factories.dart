@@ -232,6 +232,7 @@ ColumnDefinition<T> colUserName<T>(
     return userId.isEmpty ? cellEmpty() : UserNameLabel(userId: userId);
   },
   valueBuilder: (e) => cellNonZeroString(get(e)),
+  copiesCellName: true,
 );
 
 /// Attached tags, rendered as chips.

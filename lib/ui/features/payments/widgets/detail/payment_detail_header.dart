@@ -52,6 +52,8 @@ class PaymentDetailHeader extends StatelessWidget {
           displayName: p.number.isEmpty
               ? context.tr('no_name_fallback')
               : '#${p.number}',
+          // The bare number, as every other `#number` copies.
+          copyName: p.number,
           createdAt: p.createdAt,
           updatedAt: p.updatedAt,
           isDeleted: p.isDeleted,
@@ -100,6 +102,7 @@ class PaymentDetailHeader extends StatelessWidget {
         ClientNameLabel(
           clientId: p.clientId,
           link: true,
+          copyable: true,
           // The link tone at rest too: on a pointer platform the label only
           // underlines on hover, and in a line of muted text that is a link
           // nobody finds.

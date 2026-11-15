@@ -50,6 +50,7 @@ final List<ProjectColumn> kAllProjectColumns = <ProjectColumn>[
         ? cellEmpty()
         : ClientNameLabel(clientId: p.clientId, link: true),
     valueBuilder: (p) => cellNonZeroString(p.clientId),
+    copiesCellName: true,
   ),
   ProjectColumn(
     id: ProjectFieldIds.assignedUserId,
@@ -61,6 +62,7 @@ final List<ProjectColumn> kAllProjectColumns = <ProjectColumn>[
         ? cellEmpty()
         : UserNameLabel(userId: p.assignedUserId),
     valueBuilder: (p) => cellNonZeroString(p.assignedUserId),
+    copiesCellName: true,
   ),
   ProjectColumn(
     id: ProjectFieldIds.dueDate,

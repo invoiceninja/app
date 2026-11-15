@@ -25,6 +25,7 @@ class EntityDetailHeader extends StatelessWidget {
     super.key,
     required this.seedForAvatar,
     required this.displayName,
+    this.copyName,
     this.number,
     this.numberWidget,
     required this.createdAt,
@@ -63,6 +64,13 @@ class EntityDetailHeader extends StatelessWidget {
 
   final String seedForAvatar;
   final String displayName;
+
+  /// What the headline copies: the record's own name or bare number — a
+  /// client's name, a product key, `0042` for a payment headed `#0042`. With
+  /// it the headline is a [CopyableValue] (hover icon with a mouse, tap to
+  /// copy on touch). Null or empty leaves the headline plain, which is right
+  /// whenever [displayName] is a placeholder such as `(no name)`.
+  final String? copyName;
   final String? number;
 
   /// Entity-type icon shown in the avatar when [displayName] yields no
@@ -108,14 +116,24 @@ class EntityDetailHeader extends StatelessWidget {
                 textBaseline: TextBaseline.alphabetic,
                 children: [
                   Flexible(
-                    child: Text(
-                      displayName,
-                      style: theme.textTheme.headlineSmall?.copyWith(
-                        color: tokens.ink,
-                        fontWeight: FontWeight.w600,
+                    // Nothing follows the name on its line once the number
+                    // rides in the subtitle, so the icon keeps a reserved
+                    // slot there; beside an inline number it floats, or the
+                    // slot would open a gap between the two.
+                    child: CopyableValue(
+                      value: copyName ?? '',
+                      fillWidth: false,
+                      floatIcon: subtitle == null,
+                      iconAlignment: CrossAxisAlignment.center,
+                      child: Text(
+                        displayName,
+                        style: theme.textTheme.headlineSmall?.copyWith(
+                          color: tokens.ink,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        maxLines: nameMaxLines,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      maxLines: nameMaxLines,
-                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                   if (subtitle != null)

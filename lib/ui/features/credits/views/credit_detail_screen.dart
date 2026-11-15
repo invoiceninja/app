@@ -369,6 +369,7 @@ class _CreditDetailScreenState extends State<CreditDetailScreen>
         party: ClientNameLabel(
           clientId: credit.clientId,
           link: true,
+          copyable: true,
           style: BillingDocRecordHeader.partyStyle(context),
         ),
       ),

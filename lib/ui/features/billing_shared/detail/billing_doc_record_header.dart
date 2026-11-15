@@ -9,7 +9,10 @@ import 'package:admin/data/models/value/date.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/detail/entity_detail_header.dart';
 import 'package:admin/ui/core/detail/recent_visit_recorder.dart';
+import 'package:admin/app/env.dart';
 import 'package:admin/ui/core/widgets/avatar_tint.dart';
+import 'package:admin/ui/core/widgets/cell_copy_hover.dart';
+import 'package:admin/ui/core/widgets/copyable_value.dart';
 import 'package:admin/ui/core/widgets/entity_tags_view.dart';
 import 'package:admin/ui/core/widgets/party_call_button.dart';
 import 'package:admin/ui/core/widgets/unsynced_pill.dart';
@@ -172,11 +175,19 @@ class BillingDocRecordHeader extends StatelessWidget {
                       runSpacing: 4,
                       crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
-                        Text(
-                          hasNumber ? subject : typeLabel,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: nameStyle,
+                        // Copies the bare number (no `#`). The icon floats:
+                        // a reserved slot would sit between the number and
+                        // its status pill. Empty (no number yet) is plain.
+                        CopyableValue(
+                          value: doc.number,
+                          fillWidth: false,
+                          floatIcon: true,
+                          child: Text(
+                            hasNumber ? subject : typeLabel,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: nameStyle,
+                          ),
                         ),
                         statusPill,
                         ?signedPill,
@@ -186,23 +197,21 @@ class BillingDocRecordHeader extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Flexible(child: party),
-                        PartyCallButton(
-                          clientId: vendorParty ? null : doc.clientId,
-                          vendorId: vendorParty ? doc.vendorId : null,
-                          // Filed against the *document*, not the party: the
-                          // server stamps the party id on the note anyway, so
-                          // it still reaches that feed — and this way the
-                          // note also says which document the call was about.
-                          logTarget: (
-                            type: type.entityType,
-                            id: doc.id,
-                            subject: subject,
-                          ),
+                    BillingDocPartyLine(
+                      party: party,
+                      callButton: PartyCallButton(
+                        clientId: vendorParty ? null : doc.clientId,
+                        vendorId: vendorParty ? doc.vendorId : null,
+                        // Filed against the *document*, not the party: the
+                        // server stamps the party id on the note anyway, so
+                        // it still reaches that feed — and this way the
+                        // note also says which document the call was about.
+                        logTarget: (
+                          type: type.entityType,
+                          id: doc.id,
+                          subject: subject,
                         ),
-                      ],
+                      ),
                     ),
                     const SizedBox(height: 4),
                     if (segments.isEmpty)
@@ -291,4 +300,116 @@ class _TypeTile extends StatelessWidget {
       size: 28,
     ),
   );
+}
+
+/// The party's name, its call button, and — with a mouse — the name's copy
+/// icon in a slot **after** the button.
+///
+/// The name label is `copyable`, which on its own floats the icon just past
+/// the name ([CopyableValue.floatIcon]). Here that is exactly where the call
+/// button sits: hovering the name and moving to the phone put the chip under
+/// the pointer, and the click copied instead of dialling. So this line
+/// collects the name the label draws ([CellCopyNameScope], which also tells
+/// the label to stand down) and shows the icon at the end of the line, where
+/// nothing is underneath it. The slot is always laid out, so nothing shifts.
+///
+/// On touch there is no icon and nothing to collide: the label's own
+/// long-press copies, and this is a plain row.
+class BillingDocPartyLine extends StatefulWidget {
+  const BillingDocPartyLine({
+    super.key,
+    required this.party,
+    required this.callButton,
+  });
+
+  /// A `ClientNameLabel` / `VendorNameLabel` with `copyable: true`.
+  final Widget party;
+
+  /// Collapses to nothing when there is no number or tap-to-call is off.
+  final Widget callButton;
+
+  @override
+  State<BillingDocPartyLine> createState() => _BillingDocPartyLineState();
+}
+
+class _BillingDocPartyLineState extends State<BillingDocPartyLine> {
+  late final CellCopyName _name = CellCopyName(onChanged: _nameChanged);
+  bool _hovering = false;
+  bool _iconFocused = false;
+  bool _rebuildScheduled = false;
+
+  /// Called from the label's build: refresh after the frame, never in it.
+  void _nameChanged() {
+    if (_rebuildScheduled) return;
+    _rebuildScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _rebuildScheduled = false;
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (Env.isTouchPrimary) {
+      return Row(
+        children: [
+          Flexible(child: widget.party),
+          widget.callButton,
+        ],
+      );
+    }
+    final name = _name.value ?? '';
+    final show = name.isNotEmpty && (_hovering || _iconFocused);
+    return MouseRegion(
+      onEnter: (_) {
+        if (!_hovering) setState(() => _hovering = true);
+      },
+      onExit: (_) {
+        if (_hovering) setState(() => _hovering = false);
+      },
+      child: Row(
+        // Hug the content: the hover region is the name, the button and the
+        // slot, not the empty rest of the line.
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Flexible(
+            child: CellCopyNameScope(name: _name, child: widget.party),
+          ),
+          widget.callButton,
+          const SizedBox(width: InSpacing.sm),
+          // A tab stop like any detail row's icon; focus shows it.
+          Focus(
+            canRequestFocus: false,
+            skipTraversal: true,
+            onFocusChange: (focused) {
+              if (focused != _iconFocused) {
+                setState(() => _iconFocused = focused);
+              }
+            },
+            child: IgnorePointer(
+              ignoring: !show,
+              child: AnimatedOpacity(
+                duration: const Duration(milliseconds: 100),
+                opacity: show ? 1.0 : 0.0,
+                // The icon is 22 px and the name's line box is 20: let it
+                // overhang rather than make the line taller than the call
+                // button is sized against.
+                child: SizedBox(
+                  width: 22,
+                  height: 18,
+                  child: OverflowBox(
+                    maxHeight: 22,
+                    child: ExcludeFocus(
+                      excluding: name.isEmpty,
+                      child: CopyIconButton(value: name),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

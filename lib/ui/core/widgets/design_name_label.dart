@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/data/models/domain/design.dart';
+import 'package:admin/ui/core/widgets/cell_copy_hover.dart';
 
 /// Resolves a design's name from the local Drift cache and renders it as a
 /// `Text`. Falls back to the raw [designId] while the watch is unresolved and to
@@ -50,6 +51,12 @@ class DesignNameLabel extends StatelessWidget {
       stream: services.designs.watch(companyId: companyId, id: designId),
       builder: (context, snapshot) {
         final design = snapshot.data;
+        // What a table cell's copy icon copies (`CellCopyNameScope`): the name
+        // drawn here, never the id or a dash.
+        CellCopyNameScope.report(
+          context,
+          design == null || design.name.isEmpty ? null : design.name,
+        );
         final name = design == null || design.name.isEmpty
             ? designId
             : design.name;

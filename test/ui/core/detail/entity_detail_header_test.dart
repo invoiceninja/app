@@ -1,10 +1,13 @@
 import 'package:flutter/foundation.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:flutter/gestures.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/theme.dart';
 import 'package:admin/ui/core/detail/entity_detail_header.dart';
+import 'package:admin/ui/core/widgets/copyable_value.dart';
 
 import '../../../_localization_helper.dart';
 
@@ -23,9 +26,13 @@ EntityDetailHeader _header({
   required String displayName,
   IconData? fallbackIcon,
   String? number,
+  String? copyName,
+  Widget? subtitle,
 }) => EntityDetailHeader(
   seedForAvatar: 'seed',
   displayName: displayName,
+  copyName: copyName,
+  subtitle: subtitle,
   number: number,
   // Epoch-0 timestamps + null formatter render the subtitle as empty, so
   // the header needs no Formatter wiring for these avatar-focused checks.
@@ -85,6 +92,98 @@ void main() {
     } finally {
       debugDefaultTargetPlatformOverride = null;
     }
+  });
+
+  group('the headline copies the record name', () {
+    String? copied;
+    setUp(() {
+      copied = null;
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(SystemChannels.platform, (call) async {
+            if (call.method == 'Clipboard.setData') {
+              copied = (call.arguments as Map)['text'] as String?;
+            }
+            return null;
+          });
+    });
+    tearDown(() {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(SystemChannels.platform, null);
+    });
+
+    testWidgets('touch: a tap copies copyName, not the decorated headline', (
+      tester,
+    ) async {
+      // A payment is headed `#0009`; what is pasted is `0009`.
+      await tester.pumpWidget(
+        _host(_header(displayName: '#0009', copyName: '0009')),
+      );
+      await tester.tap(find.text('#0009'));
+      await tester.pumpAndSettle();
+      expect(copied, '0009');
+    });
+
+    testWidgets('a placeholder headline (no copyName) is not copyable', (
+      tester,
+    ) async {
+      await tester.pumpWidget(_host(_header(displayName: '(no name)')));
+      await tester.tap(find.text('(no name)'));
+      await tester.pumpAndSettle();
+      expect(copied, isNull);
+    });
+
+    testWidgets('desktop: hover shows the icon, in a reserved slot under a '
+        'subtitle and floating beside an inline number', (tester) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+      try {
+        Future<void> hoverName() async {
+          final gesture = await tester.createGesture(
+            kind: PointerDeviceKind.mouse,
+          );
+          await gesture.addPointer(location: Offset.zero);
+          addTearDown(gesture.removePointer);
+          await gesture.moveTo(tester.getCenter(find.text('Acme Corp')));
+          await tester.pumpAndSettle();
+        }
+
+        // With a subtitle nothing follows the name: the slot is in the row.
+        await tester.pumpWidget(
+          _host(
+            _header(
+              displayName: 'Acme Corp',
+              copyName: 'Acme Corp',
+              subtitle: const Text('Berlin'),
+            ),
+          ),
+        );
+        expect(find.byType(CopyIconButton), findsOneWidget);
+        await hoverName();
+        await tester.tap(find.byType(CopyIconButton));
+        await tester.pumpAndSettle();
+        expect(copied, 'Acme Corp');
+        expect(tester.takeException(), isNull);
+
+        // Beside an inline `#number` it floats: no gap between the two.
+        await tester.pumpWidget(const SizedBox.shrink());
+        await tester.pumpWidget(
+          _host(
+            _header(
+              displayName: 'Acme Corp',
+              copyName: 'Acme Corp',
+              number: '0042',
+            ),
+          ),
+        );
+        expect(
+          tester.getTopLeft(find.text('#0042')).dx -
+              tester.getTopRight(find.text('Acme Corp')).dx,
+          InSpacing.sm,
+        );
+        expect(tester.takeException(), isNull);
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
+    });
   });
 
   group('subtitle, tags and state pills', () {

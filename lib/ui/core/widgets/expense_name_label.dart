@@ -6,6 +6,7 @@ import 'package:admin/app/router.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/data/models/domain/expense.dart';
 import 'package:admin/ui/core/widgets/link_text.dart';
+import 'package:admin/ui/core/widgets/cell_copy_hover.dart';
 
 /// Resolves an expense's number from the local Drift cache and renders it as a
 /// `Text` (or a link when [link]). Mirror of `InvoiceNameLabel`: falls back to
@@ -79,6 +80,12 @@ class _ExpenseNameLabelState extends State<ExpenseNameLabel> {
       ),
       builder: (context, snapshot) {
         final expense = snapshot.data;
+        // What a table cell's copy icon copies (`CellCopyNameScope`): the name
+        // drawn here, never the id or a dash.
+        CellCopyNameScope.report(
+          context,
+          expense == null || expense.number.isEmpty ? null : expense.number,
+        );
         final label = expense == null || expense.number.isEmpty
             ? widget.expenseId
             : expense.number;

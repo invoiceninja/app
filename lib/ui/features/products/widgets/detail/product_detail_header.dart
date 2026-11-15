@@ -67,6 +67,7 @@ class ProductDetailHeader extends StatelessWidget {
           displayName: p.productKey.isEmpty
               ? context.tr('no_name_fallback')
               : p.productKey,
+          copyName: p.productKey,
           createdAt: p.createdAt,
           updatedAt: p.updatedAt,
           isDeleted: p.isDeleted,

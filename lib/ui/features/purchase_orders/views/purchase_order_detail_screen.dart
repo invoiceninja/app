@@ -392,6 +392,7 @@ class _PurchaseOrderDetailScreenState extends State<PurchaseOrderDetailScreen>
         party: VendorNameLabel(
           vendorId: po.vendorId,
           link: true,
+          copyable: true,
           style: BillingDocRecordHeader.partyStyle(context),
         ),
       ),

@@ -57,6 +57,7 @@ final List<QuoteColumn> kAllQuoteColumns = <QuoteColumn>[
         ? cellEmpty()
         : ClientNameLabel(clientId: q.clientId, link: true),
     valueBuilder: (q) => cellNonZeroString(q.clientId),
+    copiesCellName: true,
   ),
   QuoteColumn(
     id: QuoteFieldIds.date,
@@ -110,6 +111,7 @@ final List<QuoteColumn> kAllQuoteColumns = <QuoteColumn>[
         ? cellEmpty()
         : DesignNameLabel(designId: q.designId),
     valueBuilder: (q) => cellNonZeroString(q.designId),
+    copiesCellName: true,
   ),
   QuoteColumn(
     id: QuoteFieldIds.projectId,
@@ -119,6 +121,7 @@ final List<QuoteColumn> kAllQuoteColumns = <QuoteColumn>[
         ? cellEmpty()
         : ProjectNameLabel(projectId: q.projectId, link: true),
     valueBuilder: (q) => cellNonZeroString(q.projectId),
+    copiesCellName: true,
   ),
   QuoteColumn(
     id: QuoteFieldIds.assignedUserId,
@@ -128,6 +131,7 @@ final List<QuoteColumn> kAllQuoteColumns = <QuoteColumn>[
         ? cellEmpty()
         : UserNameLabel(userId: q.assignedUserId),
     valueBuilder: (q) => cellNonZeroString(q.assignedUserId),
+    copiesCellName: true,
   ),
   QuoteColumn(
     id: QuoteFieldIds.invoiceId,
@@ -137,6 +141,7 @@ final List<QuoteColumn> kAllQuoteColumns = <QuoteColumn>[
         ? cellEmpty()
         : InvoiceNameLabel(invoiceId: q.invoiceId, link: true),
     valueBuilder: (q) => cellNonZeroString(q.invoiceId),
+    copiesCellName: true,
   ),
   QuoteColumn(
     id: QuoteFieldIds.publicNotes,
@@ -159,6 +164,7 @@ final List<QuoteColumn> kAllQuoteColumns = <QuoteColumn>[
         ? cellEmpty()
         : VendorNameLabel(vendorId: q.vendorId, link: true),
     valueBuilder: (q) => cellNonZeroString(q.vendorId),
+    copiesCellName: true,
   ),
   // Payload-only on this table, so display-only — lift the field into
   // the Drift table first if it ever needs to sort.

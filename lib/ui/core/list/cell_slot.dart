@@ -12,8 +12,9 @@ import 'package:admin/ui/core/widgets/cell_copy_hover.dart';
 /// entity tile carried a private copy of this class; fifteen of the seventeen
 /// were byte-identical and the other two differed only in brace style.
 ///
-/// [entity] is used solely to resolve `column.valueBuilder` for the copy value,
-/// so nothing here is entity-specific.
+/// [entity] is used solely to resolve `column.valueBuilder` for the copy value
+/// (a `copiesCellName` column takes it from the cell's own label instead), so
+/// nothing here is entity-specific.
 class CellSlot<T> extends StatelessWidget {
   const CellSlot({
     required this.column,
@@ -36,6 +37,7 @@ class CellSlot<T> extends StatelessWidget {
     );
     final cell = CellCopyHover(
       value: column.valueBuilder?.call(entity),
+      valueFromChild: column.copiesCellName,
       align: column.align,
       child: aligned,
     );

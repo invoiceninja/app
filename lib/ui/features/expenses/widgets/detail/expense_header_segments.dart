@@ -6,6 +6,7 @@ import 'package:admin/app/router.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/domain/entity_type.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/core/widgets/copyable_value.dart';
 import 'package:admin/ui/core/widgets/link_text.dart';
 import 'package:admin/ui/features/expenses/widgets/detail/expense_linked_names.dart';
 
@@ -27,6 +28,7 @@ class ExpenseHeaderSegment extends StatelessWidget {
     required this.label,
     required this.tooltip,
     this.onTap,
+    this.copyable = false,
   });
 
   final IconData icon;
@@ -36,8 +38,32 @@ class ExpenseHeaderSegment extends StatelessWidget {
   final String tooltip;
   final VoidCallback? onTap;
 
+  /// Gives [label] a copy affordance ([CopyableValue], floating so the
+  /// segments stay evenly spaced): a hover icon with a mouse; on touch a
+  /// long-press when the segment is a link, a tap when it is not. For a name
+  /// (the vendor, the client) — not a formatted date or a translated word.
+  final bool copyable;
+
   @override
   Widget build(BuildContext context) {
+    Widget text = linkOrText(
+      context: context,
+      link: onTap != null,
+      label: label,
+      onTap: onTap,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+    );
+    if (copyable) {
+      text = CopyableValue(
+        value: label,
+        fillWidth: false,
+        floatIcon: true,
+        enableTapToCopy: onTap == null,
+        enableLongPressToCopy: onTap != null,
+        child: text,
+      );
+    }
     return Tooltip(
       message: tooltip,
       child: Row(
@@ -48,16 +74,7 @@ class ExpenseHeaderSegment extends StatelessWidget {
             child: Icon(icon, size: 14, color: context.inTheme.ink3),
           ),
           const SizedBox(width: InSpacing.xs),
-          Flexible(
-            child: linkOrText(
-              context: context,
-              link: onTap != null,
-              label: label,
-              onTap: onTap,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
+          Flexible(child: text),
         ],
       ),
     );
@@ -131,6 +148,7 @@ List<Widget> expensePartySegments(
         icon: iconOf(EntityType.vendor, Icons.storefront_outlined),
         label: names.vendor,
         tooltip: context.tr('vendor'),
+        copyable: true,
         onTap: canOpenVendor
             ? () => goEntityFullDetail(context, '/vendors', vendorId)
             : null,
@@ -140,6 +158,7 @@ List<Widget> expensePartySegments(
         icon: iconOf(EntityType.client, Icons.person_outline),
         label: names.client,
         tooltip: context.tr('client'),
+        copyable: true,
         onTap: canOpenClient
             ? () => goEntityFullDetail(context, '/clients', clientId)
             : null,

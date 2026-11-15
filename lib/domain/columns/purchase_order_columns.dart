@@ -52,6 +52,7 @@ final kAllPurchaseOrderColumns = <PurchaseOrderColumn>[
         ? cellEmpty()
         : VendorNameLabel(vendorId: p.vendorId, link: true),
     valueBuilder: (p) => cellNonZeroString(p.vendorId),
+    copiesCellName: true,
   ),
   PurchaseOrderColumn(
     id: PurchaseOrderFieldIds.date,
@@ -104,6 +105,7 @@ final kAllPurchaseOrderColumns = <PurchaseOrderColumn>[
         ? cellEmpty()
         : DesignNameLabel(designId: p.designId),
     valueBuilder: (p) => cellNonZeroString(p.designId),
+    copiesCellName: true,
   ),
   colUpdatedAt<PurchaseOrder>(
     PurchaseOrderFieldIds.updatedAt,
@@ -118,6 +120,7 @@ final kAllPurchaseOrderColumns = <PurchaseOrderColumn>[
         ? cellEmpty()
         : ProjectNameLabel(projectId: p.projectId, link: true),
     valueBuilder: (p) => cellNonZeroString(p.projectId),
+    copiesCellName: true,
   ),
   // Payload-only on this table, so display-only — lift the field into
   // the Drift table first if it ever needs to sort.

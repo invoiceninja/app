@@ -7,6 +7,7 @@ import 'package:admin/data/models/domain/billing/line_item_custom_fields.dart';
 import 'package:admin/domain/date_placeholders.dart';
 import 'package:admin/domain/tasks/line_item_notes_display.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/core/widgets/cell_copy_hover.dart';
 import 'package:admin/utils/formatting.dart';
 import 'package:admin/ui/core/widgets/ltr_value.dart';
 
@@ -208,6 +209,7 @@ class LineItemsReadonlyTable extends StatelessWidget {
             it.productKey.isEmpty ? '—' : it.productKey,
             tokens,
             strong: true,
+            copyValue: it.productKey,
           ),
           // Task-generated notes carry the PDF's presentational markup
           // (`<div class="project-header">`, `<br/>`); strip it for display
@@ -267,12 +269,17 @@ class LineItemsReadonlyTable extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                child: Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w600,
-                    color: tokens.ink,
+                // Only an item name copies: a title borrowed from the first
+                // line of the description is not the item's name.
+                child: _copyable(
+                  it.productKey,
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w600,
+                      color: tokens.ink,
+                    ),
                   ),
                 ),
               ),
@@ -408,28 +415,45 @@ class LineItemsReadonlyTable extends StatelessWidget {
     ),
   );
 
+  /// [child] with the item name's copy affordance: the table-cell hover icon
+  /// with a mouse (its click copies instead of opening the line), a
+  /// long-press on touch — the row's tap is taken by [onTapItem], and a
+  /// document's lines have no multi-select to spend a long-press on. An empty
+  /// [value] is [child] unchanged.
+  Widget _copyable(String value, Widget child) => CellCopyHover(
+    value: value,
+    touchLongPressCopies: true,
+    // The cell's full width, so the icon keeps one column down the table
+    // rather than chasing the end of each name.
+    child: SizedBox(width: double.infinity, child: child),
+  );
+
   Widget _flexCell(
     int flex,
     String text,
     InTheme tokens, {
     bool strong = false,
     Color? color,
-  }) => Expanded(
-    flex: flex,
-    child: Padding(
-      padding: const EdgeInsetsDirectional.only(end: _kGap),
-      child: Text(
-        text,
-        maxLines: 3,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(
-          fontSize: 13,
-          fontWeight: strong ? FontWeight.w500 : FontWeight.w400,
-          color: color ?? tokens.ink,
-        ),
+    String? copyValue,
+  }) {
+    final cell = Text(
+      text,
+      maxLines: 3,
+      overflow: TextOverflow.ellipsis,
+      style: TextStyle(
+        fontSize: 13,
+        fontWeight: strong ? FontWeight.w500 : FontWeight.w400,
+        color: color ?? tokens.ink,
       ),
-    ),
-  );
+    );
+    return Expanded(
+      flex: flex,
+      child: Padding(
+        padding: const EdgeInsetsDirectional.only(end: _kGap),
+        child: copyValue == null ? cell : _copyable(copyValue, cell),
+      ),
+    );
+  }
 
   Widget _numCell(
     double w,

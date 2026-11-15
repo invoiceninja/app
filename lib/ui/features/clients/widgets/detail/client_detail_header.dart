@@ -52,6 +52,7 @@ class ClientDetailHeader extends StatelessWidget {
           displayName: c.displayName.isNotEmpty
               ? c.displayName
               : (c.name.isNotEmpty ? c.name : context.tr('no_name_fallback')),
+          copyName: c.displayName.isNotEmpty ? c.displayName : c.name,
           createdAt: c.createdAt,
           updatedAt: c.updatedAt,
           isDeleted: c.isDeleted,

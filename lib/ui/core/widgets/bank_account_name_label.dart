@@ -6,6 +6,7 @@ import 'package:admin/app/router.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/data/models/domain/bank_account.dart';
 import 'package:admin/ui/core/widgets/link_text.dart';
+import 'package:admin/ui/core/widgets/cell_copy_hover.dart';
 
 /// Resolves the bank-account name from the local Drift cache and renders
 /// it as a `Text` (or a link when [link]). Falls back to the raw
@@ -90,6 +91,12 @@ class _BankAccountNameLabelState extends State<BankAccountNameLabel> {
       ),
       builder: (context, snapshot) {
         final account = snapshot.data;
+        // What a table cell's copy icon copies (`CellCopyNameScope`): the name
+        // drawn here, never the id or a dash.
+        CellCopyNameScope.report(
+          context,
+          account == null || account.name.isEmpty ? null : account.name,
+        );
         final name = account == null || account.name.isEmpty
             ? widget.bankAccountId
             : account.name;

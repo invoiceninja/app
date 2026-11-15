@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/data/models/domain/user.dart';
+import 'package:admin/ui/core/widgets/cell_copy_hover.dart';
 
 /// Resolves a user's display name from the local Drift cache and renders it as
 /// a `Text`. Renders nothing while the watch is resolving (a blank first frame
@@ -49,6 +50,13 @@ class UserNameLabel extends StatelessWidget {
       initialData: services.user.peek(companyId: companyId, id: userId),
       stream: services.user.watch(companyId: companyId, id: userId),
       builder: (context, snapshot) {
+        final user = snapshot.data;
+        // What a table cell's copy icon copies (`CellCopyNameScope`): the name
+        // drawn here, never the id or a dash.
+        CellCopyNameScope.report(
+          context,
+          user == null || user.displayName.isEmpty ? null : user.displayName,
+        );
         // Only blank out when there is genuinely nothing yet — a resubscribe
         // (any parent rebuild) puts the snapshot back into `waiting` with the
         // previous value still attached, and discarding it flickered the name
@@ -57,7 +65,6 @@ class UserNameLabel extends StatelessWidget {
             !snapshot.hasData) {
           return _text(context, '');
         }
-        final user = snapshot.data;
         if (user == null || user.displayName.isEmpty) {
           return _muted(context);
         }

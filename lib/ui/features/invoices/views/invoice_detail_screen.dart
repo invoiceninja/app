@@ -506,6 +506,7 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen>
         party: ClientNameLabel(
           clientId: invoice.clientId,
           link: true,
+          copyable: true,
           style: BillingDocRecordHeader.partyStyle(context),
         ),
       ),

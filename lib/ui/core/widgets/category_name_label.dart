@@ -6,6 +6,7 @@ import 'package:admin/app/router.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/data/models/domain/expense_category.dart';
 import 'package:admin/ui/core/widgets/link_text.dart';
+import 'package:admin/ui/core/widgets/cell_copy_hover.dart';
 
 /// Resolves the expense-category name from the local Drift cache and
 /// renders it as a `Text` (or a link when [link]). Falls back to the
@@ -90,6 +91,12 @@ class _CategoryNameLabelState extends State<CategoryNameLabel> {
       ),
       builder: (context, snapshot) {
         final category = snapshot.data;
+        // What a table cell's copy icon copies (`CellCopyNameScope`): the name
+        // drawn here, never the id or a dash.
+        CellCopyNameScope.report(
+          context,
+          category == null || category.name.isEmpty ? null : category.name,
+        );
         final name = category == null || category.name.isEmpty
             ? widget.categoryId
             : category.name;

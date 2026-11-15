@@ -73,6 +73,7 @@ final List<CreditColumn> kAllCreditColumns = <CreditColumn>[
         ? cellEmpty()
         : ClientNameLabel(clientId: c.clientId, link: true),
     valueBuilder: (c) => cellNonZeroString(c.clientId),
+    copiesCellName: true,
   ),
   CreditColumn(
     id: CreditFieldIds.date,
@@ -134,6 +135,7 @@ final List<CreditColumn> kAllCreditColumns = <CreditColumn>[
         ? cellEmpty()
         : DesignNameLabel(designId: c.designId),
     valueBuilder: (c) => cellNonZeroString(c.designId),
+    copiesCellName: true,
   ),
   colUpdatedAt<Credit>(CreditFieldIds.updatedAt, (c) => c.updatedAt),
   // Project this document belongs to.
@@ -145,6 +147,7 @@ final List<CreditColumn> kAllCreditColumns = <CreditColumn>[
         ? cellEmpty()
         : ProjectNameLabel(projectId: c.projectId, link: true),
     valueBuilder: (c) => cellNonZeroString(c.projectId),
+    copiesCellName: true,
   ),
   // Billing docs can carry a vendor as well as a client. The id, the Drift
   // column and the DAO sort case all already existed — only the column was
@@ -157,6 +160,7 @@ final List<CreditColumn> kAllCreditColumns = <CreditColumn>[
         ? cellEmpty()
         : VendorNameLabel(vendorId: c.vendorId, link: true),
     valueBuilder: (c) => cellNonZeroString(c.vendorId),
+    copiesCellName: true,
   ),
   // Payload-only on this table, so display-only — lift the field into
   // the Drift table first if it ever needs to sort.

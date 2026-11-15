@@ -61,6 +61,7 @@ final List<TaskColumn> kAllTaskColumns = <TaskColumn>[
         ? cellEmpty()
         : ClientNameLabel(clientId: t.clientId, link: true),
     valueBuilder: (t) => cellNonZeroString(t.clientId),
+    copiesCellName: true,
   ),
   // Default-off — Tasks already shows Client by default, and surfacing
   // Project too clutters the wide table for the majority of users who
@@ -73,6 +74,7 @@ final List<TaskColumn> kAllTaskColumns = <TaskColumn>[
         ? cellEmpty()
         : ProjectNameLabel(projectId: t.projectId, link: true),
     valueBuilder: (t) => cellNonZeroString(t.projectId),
+    copiesCellName: true,
   ),
   TaskColumn(
     id: TaskFieldIds.rate,
@@ -194,6 +196,7 @@ final List<TaskColumn> kAllTaskColumns = <TaskColumn>[
         ? cellEmpty()
         : UserNameLabel(userId: t.assignedUserId),
     valueBuilder: (t) => cellNonZeroString(t.assignedUserId),
+    copiesCellName: true,
   ),
   colUpdatedAt<Task>(TaskFieldIds.updatedAt, (t) => t.updatedAt),
   // Linked invoice — real `invoice_id` column, so both this and the derived
@@ -206,6 +209,7 @@ final List<TaskColumn> kAllTaskColumns = <TaskColumn>[
         ? cellEmpty()
         : InvoiceNameLabel(invoiceId: t.invoiceId, link: true),
     valueBuilder: (t) => cellNonZeroString(t.invoiceId),
+    copiesCellName: true,
   ),
   colFlag<Task>(
     TaskFieldIds.isInvoiced,

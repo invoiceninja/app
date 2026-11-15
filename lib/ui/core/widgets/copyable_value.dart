@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 
@@ -103,7 +105,8 @@ class CopyIconButton extends StatelessWidget {
 ///   [fillWidth] (the default) the icon is pinned to the trailing edge so it
 ///   forms a consistent column down a stack of rows and never overlaps a
 ///   wrapped value, while the value text stays left next to its label. Keyboard
-///   users can Tab to the button. There is deliberately **no** tap-to-copy on
+///   users can Tab to the button; with [floatIcon] they Tab to the value and
+///   press Enter. There is deliberately **no** tap-to-copy on
 ///   the value here — a click must still place a cursor / start a selection.
 /// - **Native mobile (touch):** no icon; tapping the value copies it (or
 ///   long-press, for values whose tap is already taken — e.g. a launchable
@@ -124,6 +127,8 @@ class CopyableValue extends StatefulWidget {
     this.enableTapToCopy = true,
     this.enableLongPressToCopy = false,
     this.fillWidth = true,
+    this.floatIcon = false,
+    this.iconAlignment = CrossAxisAlignment.start,
   });
 
   /// The exact string written to the clipboard.
@@ -146,12 +151,136 @@ class CopyableValue extends StatefulWidget {
   /// hugs the value instead of stretching across an unbounded row.
   final bool fillWidth;
 
+  /// Pointer only: draw the hover icon in an overlay just past the value's
+  /// trailing edge instead of reserving a slot for it in the layout.
+  ///
+  /// For an inline value with something after it on its line — a document
+  /// number followed by its status pills, a client name mid-way through a
+  /// dotted subtitle. A reserved slot there is 30 px of nothing between the
+  /// value and its neighbour at rest (the "stray gap" `DetailSubtitle` warns
+  /// about); floating, the layout is exactly [child]'s and the icon covers
+  /// the neighbour's leading edge only while the value is hovered. Leave it
+  /// off where nothing follows the value: a reserved slot can never be
+  /// clipped by the edge of the pane, and this one can. Wins over
+  /// [fillWidth]. Touch is unaffected.
+  ///
+  /// The icon is in the tree only while it shows, so the value is itself a
+  /// tab stop: focused from the keyboard it shows the icon, and Enter or
+  /// Space copies. It also carries a semantic Copy action.
+  ///
+  /// Never float beside a control the pointer travels to next — the chip
+  /// lands on top of it (the party name before a call button; see
+  /// `BillingDocPartyLine`, which keeps a slot after the button instead).
+  final bool floatIcon;
+
+  /// Pointer only, reserved-slot layout: where the icon sits against the
+  /// value. `start` (the default) lines it up with a label row's first line;
+  /// pass `center` beside a value taller than the icon, such as a headline.
+  final CrossAxisAlignment iconAlignment;
+
   @override
   State<CopyableValue> createState() => _CopyableValueState();
 }
 
 class _CopyableValueState extends State<CopyableValue> {
   bool _hovering = false;
+
+  // Floating icon ([CopyableValue.floatIcon]) only.
+  final LayerLink _link = LayerLink();
+  final OverlayPortalController _portal = OverlayPortalController();
+  Timer? _hideTimer;
+
+  /// Long enough to cross the gap between the value and the icon, short
+  /// enough that the icon is gone before the pointer reaches the next thing.
+  static const Duration _hideDelay = Duration(milliseconds: 150);
+
+  /// How many of the value and the icon the pointer is over (it crosses a
+  /// gap between them), and whether the value holds keyboard focus.
+  int _floatHovers = 0;
+  bool _floatFocused = false;
+
+  void _syncFloating() {
+    _hideTimer?.cancel();
+    if (_floatHovers > 0 || _floatFocused) {
+      if (!_portal.isShowing) _portal.show();
+      return;
+    }
+    _hideTimer = Timer(_hideDelay, () {
+      if (mounted && _portal.isShowing) _portal.hide();
+    });
+  }
+
+  void _floatHover(bool entered) {
+    _floatHovers = (_floatHovers + (entered ? 1 : -1)).clamp(0, 2);
+    _syncFloating();
+  }
+
+  @override
+  void dispose() {
+    _hideTimer?.cancel();
+    super.dispose();
+  }
+
+  Widget _buildFloating(BuildContext context, String value) {
+    return CompositedTransformTarget(
+      link: _link,
+      // lint: allow-no-overlay-back-dismiss pointer-only hover chip — this
+      // branch is never built on touch, so there is no system back to answer.
+      child: OverlayPortal(
+        controller: _portal,
+        overlayChildBuilder: (overlayContext) {
+          final direction = Directionality.of(context);
+          return Align(
+            alignment: AlignmentDirectional.topStart,
+            child: CompositedTransformFollower(
+              link: _link,
+              showWhenUnlinked: false,
+              targetAnchor: AlignmentDirectional.centerEnd.resolve(direction),
+              followerAnchor: AlignmentDirectional.centerStart.resolve(
+                direction,
+              ),
+              offset: Offset(direction == TextDirection.rtl ? -4 : 4, 0),
+              child: MouseRegion(
+                onEnter: (_) => _floatHover(true),
+                onExit: (_) => _floatHover(false),
+                // Not a tab stop of its own: it exists only while the value
+                // is hovered or focused, and focus moving onto it would take
+                // it away. The keyboard copies from the value (below).
+                child: CopyIconButton(value: value, canRequestFocus: false),
+              ),
+            ),
+          );
+        },
+        // The icon is not in the tree until it shows, so the value itself is
+        // the keyboard's and the screen reader's way in: a tab stop that
+        // shows the icon while focused and copies on Enter / Space, and a
+        // semantic Copy action.
+        child: FocusableActionDetector(
+          mouseCursor: MouseCursor.defer,
+          actions: <Type, Action<Intent>>{
+            ActivateIntent: CallbackAction<ActivateIntent>(
+              onInvoke: (_) {
+                copyToClipboard(context, value);
+                return null;
+              },
+            ),
+          },
+          onShowFocusHighlight: (focused) {
+            _floatFocused = focused;
+            _syncFloating();
+          },
+          child: Semantics(
+            onCopy: () => copyToClipboard(context, value),
+            child: MouseRegion(
+              onEnter: (_) => _floatHover(true),
+              onExit: (_) => _floatHover(false),
+              child: widget.child,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -190,6 +319,8 @@ class _CopyableValueState extends State<CopyableValue> {
       );
     }
 
+    if (widget.floatIcon) return _buildFloating(context, value);
+
     // Desktop + web: hover reveals a trailing copy icon. The slot is always in
     // the layout (opacity animates) so the row doesn't shift when it appears.
     return MouseRegion(
@@ -204,7 +335,7 @@ class _CopyableValueState extends State<CopyableValue> {
         // Top-align the value (and icon) with the label — the host rows
         // (DetailInfoRow, header) are CrossAxisAlignment.start; without this
         // the 22px icon would vertically center the value below its label.
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: widget.iconAlignment,
         children: [
           if (widget.fillWidth)
             Expanded(child: widget.child)

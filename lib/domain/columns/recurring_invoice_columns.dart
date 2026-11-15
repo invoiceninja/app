@@ -55,6 +55,7 @@ final kAllRecurringInvoiceColumns = <RecurringInvoiceColumn>[
         ? cellEmpty()
         : ClientNameLabel(clientId: r.clientId, link: true),
     valueBuilder: (r) => cellNonZeroString(r.clientId),
+    copiesCellName: true,
   ),
   RecurringInvoiceColumn(
     id: RecurringInvoiceFieldIds.amount,
@@ -118,6 +119,7 @@ final kAllRecurringInvoiceColumns = <RecurringInvoiceColumn>[
         ? cellEmpty()
         : DesignNameLabel(designId: r.designId),
     valueBuilder: (r) => cellNonZeroString(r.designId),
+    copiesCellName: true,
   ),
   colUpdatedAt<RecurringInvoice>(
     RecurringInvoiceFieldIds.updatedAt,
@@ -132,6 +134,7 @@ final kAllRecurringInvoiceColumns = <RecurringInvoiceColumn>[
         ? cellEmpty()
         : ProjectNameLabel(projectId: r.projectId, link: true),
     valueBuilder: (r) => cellNonZeroString(r.projectId),
+    copiesCellName: true,
   ),
   // Billing docs can carry a vendor as well as a client. The id, the Drift
   // column and the DAO sort case all already existed — only the column was
@@ -144,6 +147,7 @@ final kAllRecurringInvoiceColumns = <RecurringInvoiceColumn>[
         ? cellEmpty()
         : VendorNameLabel(vendorId: r.vendorId, link: true),
     valueBuilder: (r) => cellNonZeroString(r.vendorId),
+    copiesCellName: true,
   ),
   // Payload-only on this table, so display-only — lift the field into
   // the Drift table first if it ever needs to sort.

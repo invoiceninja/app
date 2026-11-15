@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 
@@ -10,6 +11,8 @@ import 'package:admin/data/models/domain/vendor.dart';
 import 'package:admin/data/repositories/auth_repository.dart';
 import 'package:admin/data/repositories/ensure_loaded_outcome.dart';
 import 'package:admin/data/repositories/vendor_repository.dart';
+import 'package:admin/ui/core/widgets/cell_copy_hover.dart';
+import 'package:admin/ui/core/widgets/copyable_value.dart';
 import 'package:admin/ui/core/widgets/vendor_name_label.dart';
 
 import '../../../_localization_helper.dart';
@@ -112,7 +115,13 @@ Vendor _vendor(String id, {String name = 'Northwind Supply'}) => Vendor(
   contacts: const [],
 );
 
-Future<void> _pump(WidgetTester tester, _FakeVendorRepo repo, String id) async {
+Future<void> _pump(
+  WidgetTester tester,
+  _FakeVendorRepo repo,
+  String id, {
+  bool link = false,
+  bool copyable = false,
+}) async {
   await tester.pumpWidget(
     Provider<Services>.value(
       value: _FakeServices(repo),
@@ -120,7 +129,9 @@ Future<void> _pump(WidgetTester tester, _FakeVendorRepo repo, String id) async {
         theme: buildInTheme(InTheme.light),
         localizationsDelegates: kTestLocalizationsDelegates,
         supportedLocales: kTestSupportedLocales,
-        home: Scaffold(body: VendorNameLabel(vendorId: id)),
+        home: Scaffold(
+          body: VendorNameLabel(vendorId: id, link: link, copyable: copyable),
+        ),
       ),
     ),
   );
@@ -161,5 +172,113 @@ void main() {
 
     expect(find.text('—'), findsOneWidget);
     expect(repo.ensureLoadedCalls, isEmpty);
+  });
+
+  group('copyable', () {
+    String? copied;
+    setUp(() {
+      copied = null;
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(SystemChannels.platform, (call) async {
+            if (call.method == 'Clipboard.setData') {
+              copied = (call.arguments as Map)['text'] as String?;
+            }
+            return null;
+          });
+    });
+    tearDown(() {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(SystemChannels.platform, null);
+    });
+
+    testWidgets('a linked name copies on long-press, so its tap stays the '
+        'link (touch)', (tester) async {
+      // `flutter test` runs as android: the touch branch.
+      await _pump(
+        tester,
+        _FakeVendorRepo(vendor: _vendor('v1')),
+        'v1',
+        link: true,
+        copyable: true,
+      );
+      final value = tester.widget<CopyableValue>(find.byType(CopyableValue));
+      expect(value.value, 'Northwind Supply');
+      expect(value.enableTapToCopy, isFalse);
+      expect(value.floatIcon, isTrue, reason: 'no slot mid-line');
+
+      await tester.longPress(find.text('Northwind Supply'));
+      await tester.pumpAndSettle();
+      expect(copied, 'Northwind Supply');
+    });
+
+    testWidgets('a plain name copies on tap', (tester) async {
+      await _pump(
+        tester,
+        _FakeVendorRepo(vendor: _vendor('v1')),
+        'v1',
+        copyable: true,
+      );
+      await tester.tap(find.text('Northwind Supply'));
+      await tester.pumpAndSettle();
+      expect(copied, 'Northwind Supply');
+    });
+
+    testWidgets('neither the placeholder nor the dash is copyable', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        _FakeVendorRepo(vendor: _vendor('v1', name: '')),
+        'v1',
+        copyable: true,
+      );
+      expect(find.byType(CopyableValue), findsNothing);
+
+      await _pump(tester, _FakeVendorRepo(), 'v2', copyable: true);
+      expect(find.byType(CopyableValue), findsNothing);
+    });
+
+    testWidgets('off by default', (tester) async {
+      await _pump(tester, _FakeVendorRepo(vendor: _vendor('v1')), 'v1');
+      expect(find.byType(CopyableValue), findsNothing);
+    });
+  });
+
+  testWidgets('reports the name it drew to a name-copying table cell', (
+    tester,
+  ) async {
+    // The Vendor column's copy icon copies this, not the row's `vendorId`.
+    Future<String?> reported(_FakeVendorRepo repo, String id) async {
+      final name = CellCopyName();
+      await tester.pumpWidget(
+        Provider<Services>.value(
+          value: _FakeServices(repo),
+          child: MaterialApp(
+            theme: buildInTheme(InTheme.light),
+            localizationsDelegates: kTestLocalizationsDelegates,
+            supportedLocales: kTestSupportedLocales,
+            home: Scaffold(
+              body: CellCopyNameScope(
+                name: name,
+                child: VendorNameLabel(vendorId: id),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      return name.value;
+    }
+
+    expect(
+      await reported(_FakeVendorRepo(vendor: _vendor('v1')), 'v1'),
+      'Northwind Supply',
+    );
+    // Never the placeholder, and never the id.
+    expect(
+      await reported(_FakeVendorRepo(vendor: _vendor('v1', name: '')), 'v1'),
+      isNull,
+    );
+    expect(await reported(_FakeVendorRepo(), 'Wpmbk5ezJn'), isNull);
   });
 }

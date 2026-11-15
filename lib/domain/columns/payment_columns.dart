@@ -58,6 +58,7 @@ final List<PaymentColumn> kAllPaymentColumns = <PaymentColumn>[
         ? cellEmpty()
         : ClientNameLabel(clientId: p.clientId, link: true),
     valueBuilder: (p) => cellNonZeroString(p.clientId),
+    copiesCellName: true,
   ),
   PaymentColumn(
     id: PaymentFieldIds.date,
@@ -131,6 +132,7 @@ final List<PaymentColumn> kAllPaymentColumns = <PaymentColumn>[
         ? cellEmpty()
         : CompanyGatewayNameLabel(gatewayId: p.companyGatewayId),
     valueBuilder: (p) => cellNonZeroString(p.companyGatewayId),
+    copiesCellName: true,
   ),
   PaymentColumn(
     id: PaymentFieldIds.currencyId,
@@ -147,6 +149,7 @@ final List<PaymentColumn> kAllPaymentColumns = <PaymentColumn>[
         ? cellEmpty()
         : ProjectNameLabel(projectId: p.projectId, link: true),
     valueBuilder: (p) => cellNonZeroString(p.projectId),
+    copiesCellName: true,
   ),
   PaymentColumn(
     id: PaymentFieldIds.vendorId,
@@ -156,6 +159,7 @@ final List<PaymentColumn> kAllPaymentColumns = <PaymentColumn>[
         ? cellEmpty()
         : VendorNameLabel(vendorId: p.vendorId, link: true),
     valueBuilder: (p) => cellNonZeroString(p.vendorId),
+    copiesCellName: true,
   ),
   colUpdatedAt<Payment>(PaymentFieldIds.updatedAt, (p) => p.updatedAt),
   // Payload-only on this table, so display-only — lift the field into

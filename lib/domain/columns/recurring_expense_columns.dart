@@ -65,6 +65,7 @@ final kAllRecurringExpenseColumns = <RecurringExpenseColumn>[
         ? cellEmpty()
         : VendorNameLabel(vendorId: e.vendorId, link: true),
     valueBuilder: (e) => cellNonZeroString(e.vendorId),
+    copiesCellName: true,
   ),
   RecurringExpenseColumn(
     id: RecurringExpenseFieldIds.clientId,
@@ -74,6 +75,7 @@ final kAllRecurringExpenseColumns = <RecurringExpenseColumn>[
         ? cellEmpty()
         : ClientNameLabel(clientId: e.clientId, link: true),
     valueBuilder: (e) => cellNonZeroString(e.clientId),
+    copiesCellName: true,
   ),
   RecurringExpenseColumn(
     id: RecurringExpenseFieldIds.projectId,
@@ -83,6 +85,7 @@ final kAllRecurringExpenseColumns = <RecurringExpenseColumn>[
         ? cellEmpty()
         : ProjectNameLabel(projectId: e.projectId, link: true),
     valueBuilder: (e) => cellNonZeroString(e.projectId),
+    copiesCellName: true,
   ),
   RecurringExpenseColumn(
     id: RecurringExpenseFieldIds.categoryId,
@@ -92,6 +95,7 @@ final kAllRecurringExpenseColumns = <RecurringExpenseColumn>[
         ? cellEmpty()
         : CategoryNameLabel(categoryId: e.categoryId, link: true),
     valueBuilder: (e) => cellNonZeroString(e.categoryId),
+    copiesCellName: true,
   ),
   RecurringExpenseColumn(
     id: RecurringExpenseFieldIds.date,
@@ -170,6 +174,7 @@ final kAllRecurringExpenseColumns = <RecurringExpenseColumn>[
         ? cellEmpty()
         : InvoiceNameLabel(invoiceId: e.invoiceId, link: true),
     valueBuilder: (e) => cellNonZeroString(e.invoiceId),
+    copiesCellName: true,
   ),
   RecurringExpenseColumn(
     id: RecurringExpenseFieldIds.currencyId,

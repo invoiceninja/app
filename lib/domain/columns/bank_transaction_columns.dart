@@ -129,6 +129,7 @@ final kAllBankTransactionColumns = <BankTransactionColumn>[
         ? cellEmpty()
         : BankAccountNameLabel(bankAccountId: t.bankAccountId, link: true),
     valueBuilder: (t) => cellNonZeroString(t.bankAccountId),
+    copiesCellName: true,
   ),
   BankTransactionColumn(
     id: BankTransactionColumnIds.invoices,

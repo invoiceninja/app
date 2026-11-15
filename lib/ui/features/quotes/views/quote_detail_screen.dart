@@ -384,6 +384,7 @@ class _QuoteDetailScreenState extends State<QuoteDetailScreen>
         party: ClientNameLabel(
           clientId: quote.clientId,
           link: true,
+          copyable: true,
           style: BillingDocRecordHeader.partyStyle(context),
         ),
       ),

@@ -64,6 +64,10 @@ class TaskDetailHeader extends StatelessWidget {
         return EntityHeaderFields(
           seedForAvatar: t.id,
           displayName: displayNameOf(context, t),
+          // The description, or the bare number when that is the headline.
+          copyName: t.description.trim().isNotEmpty
+              ? t.description.trim()
+              : t.number,
           createdAt: t.createdAt,
           updatedAt: t.updatedAt,
           isDeleted: t.isDeleted,
@@ -101,6 +105,7 @@ class TaskDetailHeader extends StatelessWidget {
       if (t.clientId.isNotEmpty)
         ClientNameLabel(
           clientId: t.clientId,
+          copyable: true,
           // A link only to a screen this user can open.
           link: me?.can('view_client') ?? false,
         ),

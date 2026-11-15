@@ -6,6 +6,7 @@ import 'package:admin/app/router.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/data/models/domain/invoice.dart';
 import 'package:admin/ui/core/widgets/link_text.dart';
+import 'package:admin/ui/core/widgets/cell_copy_hover.dart';
 
 /// Resolves an invoice's number from the local Drift cache and renders
 /// it as a `Text` (or a link when [link]). Falls back to the raw
@@ -90,6 +91,12 @@ class _InvoiceNameLabelState extends State<InvoiceNameLabel> {
       ),
       builder: (context, snapshot) {
         final invoice = snapshot.data;
+        // What a table cell's copy icon copies (`CellCopyNameScope`): the name
+        // drawn here, never the id or a dash.
+        CellCopyNameScope.report(
+          context,
+          invoice == null || invoice.number.isEmpty ? null : invoice.number,
+        );
         final label = invoice == null || invoice.number.isEmpty
             ? widget.invoiceId
             : invoice.number;

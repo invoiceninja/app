@@ -60,6 +60,7 @@ final List<ExpenseColumn> kAllExpenseColumns = <ExpenseColumn>[
         ? cellEmpty()
         : VendorNameLabel(vendorId: e.vendorId, link: true),
     valueBuilder: (e) => cellNonZeroString(e.vendorId),
+    copiesCellName: true,
   ),
   ExpenseColumn(
     id: ExpenseFieldIds.clientId,
@@ -69,6 +70,7 @@ final List<ExpenseColumn> kAllExpenseColumns = <ExpenseColumn>[
         ? cellEmpty()
         : ClientNameLabel(clientId: e.clientId, link: true),
     valueBuilder: (e) => cellNonZeroString(e.clientId),
+    copiesCellName: true,
   ),
   ExpenseColumn(
     id: ExpenseFieldIds.projectId,
@@ -78,6 +80,7 @@ final List<ExpenseColumn> kAllExpenseColumns = <ExpenseColumn>[
         ? cellEmpty()
         : ProjectNameLabel(projectId: e.projectId, link: true),
     valueBuilder: (e) => cellNonZeroString(e.projectId),
+    copiesCellName: true,
   ),
   ExpenseColumn(
     id: ExpenseFieldIds.categoryId,
@@ -87,6 +90,7 @@ final List<ExpenseColumn> kAllExpenseColumns = <ExpenseColumn>[
         ? cellEmpty()
         : CategoryNameLabel(categoryId: e.categoryId, link: true),
     valueBuilder: (e) => cellNonZeroString(e.categoryId),
+    copiesCellName: true,
   ),
   ExpenseColumn(
     id: ExpenseFieldIds.date,
@@ -122,6 +126,7 @@ final List<ExpenseColumn> kAllExpenseColumns = <ExpenseColumn>[
         ? cellEmpty()
         : InvoiceNameLabel(invoiceId: e.invoiceId, link: true),
     valueBuilder: (e) => cellNonZeroString(e.invoiceId),
+    copiesCellName: true,
   ),
   // Link to the source bank transaction. Display-only (not a Drift column /
   // sort option) — renders a "View" link, matching the React admin client.

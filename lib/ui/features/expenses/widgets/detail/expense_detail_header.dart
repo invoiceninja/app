@@ -76,6 +76,8 @@ class ExpenseDetailHeader extends StatelessWidget {
           displayName: e.number.isEmpty
               ? context.tr('expense')
               : '#${e.number}',
+          // The bare number, as every other `#number` copies.
+          copyName: e.number,
           createdAt: e.createdAt,
           updatedAt: e.updatedAt,
           isDeleted: e.isDeleted,

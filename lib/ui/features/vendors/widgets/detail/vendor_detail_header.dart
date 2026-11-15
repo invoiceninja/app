@@ -76,6 +76,9 @@ class VendorDetailHeader extends StatelessWidget {
         return EntityHeaderFields(
           seedForAvatar: v.id,
           displayName: vendorDisplayName(context, v),
+          // The vendor's own name only: a contact's name or email standing in
+          // for it is copyable on the Contacts card, as what it is.
+          copyName: v.name,
           createdAt: v.createdAt,
           updatedAt: v.updatedAt,
           isDeleted: v.isDeleted,

@@ -16,6 +16,7 @@ class EntityHeaderFields {
   const EntityHeaderFields({
     required this.seedForAvatar,
     required this.displayName,
+    this.copyName,
     this.number,
     this.numberWidget,
     required this.createdAt,
@@ -37,6 +38,10 @@ class EntityHeaderFields {
 
   final String seedForAvatar;
   final String displayName;
+
+  /// See [EntityDetailHeader.copyName]: what the headline copies, or null
+  /// when [displayName] is a placeholder.
+  final String? copyName;
   final String? number;
 
   /// Optional widget for the secondary header slot (resolved reference,
@@ -96,6 +101,7 @@ class EntityDetailHeaderHost<T> extends StatelessWidget {
       child: EntityDetailHeader(
         seedForAvatar: f.seedForAvatar,
         displayName: f.displayName,
+        copyName: f.copyName,
         number: f.number,
         numberWidget: f.numberWidget,
         createdAt: f.createdAt,

@@ -20,6 +20,7 @@ import 'package:admin/data/repositories/company_repository.dart';
 import 'package:admin/domain/billing/totals_calculator.dart';
 import 'package:admin/l10n/company_labels_scope.dart';
 import 'package:admin/ui/features/billing_shared/billing_doc_overview.dart';
+import 'package:admin/ui/core/widgets/cell_copy_hover.dart';
 import 'package:admin/ui/features/billing_shared/line_items_readonly_table.dart';
 import 'package:admin/ui/features/billing_shared/totals_widget.dart';
 import 'package:admin/utils/formatting.dart';
@@ -128,6 +129,36 @@ void main() {
   }
 
   group('LineItemsReadonlyTable', () {
+    testWidgets('the item name carries the copy affordance; a line with no '
+        'item name offers none', (tester) async {
+      // The Item cell was plain text: the only way to copy a product key was
+      // to open the line's editor and select it there.
+      await pump(
+        tester,
+        SizedBox(
+          width: 900,
+          child: LineItemsReadonlyTable(
+            items: [
+              _item(),
+              _item(productKey: '', notes: 'Just a note'),
+            ],
+            formatter: _usdFormatter(),
+            currencyId: '1',
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final copies = tester
+          .widgetList<CellCopyHover>(find.byType(CellCopyHover))
+          .toList();
+      // One per Item cell — the description and the figures have none — and
+      // only the named line has something to copy.
+      expect(copies.map((c) => c.value), ['Widget', '']);
+      // Touch: the row's tap opens the line, so the name copies on long-press.
+      expect(copies.every((c) => c.touchLongPressCopies), isTrue);
+    });
+
     testWidgets('renders item, unit cost and gross line total', (tester) async {
       await pump(
         tester,

@@ -53,6 +53,7 @@ class ColumnDefinition<T> {
     required this.labelKey,
     required this.cellBuilder,
     this.valueBuilder,
+    this.copiesCellName = false,
     this.width,
     this.align = ColumnAlign.start,
     this.sortable = true,
@@ -85,6 +86,14 @@ class ColumnDefinition<T> {
   /// is suppressed.
   final String? Function(T entity)? valueBuilder;
 
+  /// The hover-copy icon copies the name the cell is showing, not
+  /// [valueBuilder]'s canonical string — for a related record's column, whose
+  /// canonical value is a hashed id and whose cell is a `*NameLabel` resolving
+  /// it from Drift. The label reports the name it rendered to the cell
+  /// (`CellCopyNameScope`), so the icon copies exactly what is on screen and
+  /// offers nothing while the label shows a dash; the id is never copied.
+  final bool copiesCellName;
+
   /// Whether this column can back a sort. Every header is a sort control, and
   /// the DAOs' `_sortExpression` throws `ArgumentError` on a field it has no
   /// case for — so a column whose value lives only in the row payload (tags,
@@ -114,6 +123,7 @@ class ColumnDefinition<T> {
     labelKey: labelKey,
     cellBuilder: cellBuilder ?? this.cellBuilder,
     valueBuilder: valueBuilder,
+    copiesCellName: copiesCellName,
     width: width,
     align: align,
     sortable: sortable,

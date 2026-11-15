@@ -82,6 +82,7 @@ final List<InvoiceColumn> kAllInvoiceColumns = <InvoiceColumn>[
         ? cellEmpty()
         : ClientNameLabel(clientId: i.clientId, link: true),
     valueBuilder: (i) => cellNonZeroString(i.clientId),
+    copiesCellName: true,
   ),
   InvoiceColumn(
     id: InvoiceFieldIds.date,
@@ -171,6 +172,7 @@ final List<InvoiceColumn> kAllInvoiceColumns = <InvoiceColumn>[
         ? cellEmpty()
         : DesignNameLabel(designId: i.designId),
     valueBuilder: (i) => cellNonZeroString(i.designId),
+    copiesCellName: true,
   ),
   InvoiceColumn(
     id: InvoiceFieldIds.projectId,
@@ -180,6 +182,7 @@ final List<InvoiceColumn> kAllInvoiceColumns = <InvoiceColumn>[
         ? cellEmpty()
         : ProjectNameLabel(projectId: i.projectId, link: true),
     valueBuilder: (i) => cellNonZeroString(i.projectId),
+    copiesCellName: true,
   ),
   // Link to the recurring invoice that generated this invoice. Display-only
   // (not a Drift column / sort option) — renders a "View" link, matching the
@@ -207,6 +210,7 @@ final List<InvoiceColumn> kAllInvoiceColumns = <InvoiceColumn>[
         ? cellEmpty()
         : UserNameLabel(userId: i.assignedUserId),
     valueBuilder: (i) => cellNonZeroString(i.assignedUserId),
+    copiesCellName: true,
   ),
   // Display-only — `public_notes` lives only in the payload JSON; adding it
   // to the screen's `sortOptions` would make `InvoiceDao._sortExpression`
@@ -241,6 +245,7 @@ final List<InvoiceColumn> kAllInvoiceColumns = <InvoiceColumn>[
         ? cellEmpty()
         : VendorNameLabel(vendorId: i.vendorId, link: true),
     valueBuilder: (i) => cellNonZeroString(i.vendorId),
+    copiesCellName: true,
   ),
   // The company's own labels ('Region'), type-aware values and the
   // hiding of unconfigured slots are applied by

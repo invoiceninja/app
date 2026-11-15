@@ -51,6 +51,7 @@ class ProjectDetailHeader extends StatelessWidget {
         return EntityHeaderFields(
           seedForAvatar: p.id,
           displayName: p.name.isEmpty ? context.tr('no_name_fallback') : p.name,
+          copyName: p.name,
           createdAt: p.createdAt,
           updatedAt: p.updatedAt,
           isDeleted: p.isDeleted,
@@ -88,6 +89,7 @@ class ProjectDetailHeader extends StatelessWidget {
       if (p.clientId.isNotEmpty)
         ClientNameLabel(
           clientId: p.clientId,
+          copyable: true,
           // A link only to a screen this user can open.
           link: me?.can('view_client') ?? false,
         ),

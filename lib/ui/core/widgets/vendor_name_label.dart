@@ -2,10 +2,13 @@ import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 
 import 'package:admin/app/design_tokens.dart';
+import 'package:admin/app/env.dart';
 import 'package:admin/app/router.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/data/models/domain/vendor.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/core/widgets/cell_copy_hover.dart';
+import 'package:admin/ui/core/widgets/copyable_value.dart';
 import 'package:admin/ui/core/widgets/link_text.dart';
 
 /// Resolves the vendor display name from the local Drift cache and
@@ -41,6 +44,7 @@ class VendorNameLabel extends StatefulWidget {
     this.maxLines = 1,
     this.overflow = TextOverflow.ellipsis,
     this.link = false,
+    this.copyable = false,
   });
 
   final String vendorId;
@@ -60,6 +64,17 @@ class VendorNameLabel extends StatefulWidget {
   /// name — invoiceninja/flutter#128, pinned by
   /// `test/lint/no_list_tile_name_link_test.dart`.
   final bool link;
+
+  /// Adds the copy affordance of a detail value to the resolved name
+  /// ([CopyableValue]): with a mouse a copy icon floats in beside the name on
+  /// hover, reserving no space; on touch a long-press copies when the name is
+  /// a [link] (its tap is taken) and a tap copies when it is not. The
+  /// `(no name)` placeholder and the unresolved dash are never copyable.
+  ///
+  /// For a detail header or subtitle. Leave it off in a list: a wide table
+  /// cell already has `CellCopyHover` (which this label reports its name to), and a
+  /// narrow row's gestures are the row's own.
+  final bool copyable;
 
   @override
   State<VendorNameLabel> createState() => _VendorNameLabelState();
@@ -112,11 +127,31 @@ class _VendorNameLabelState extends State<VendorNameLabel> {
       stream: services.vendors.watch(companyId: companyId, id: widget.vendorId),
       builder: (context, snapshot) {
         final vendor = snapshot.data;
+        // What a table cell's copy icon copies (`CellCopyNameScope`): the name
+        // drawn here, and nothing for a dash or the `(no name)` placeholder.
+        CellCopyNameScope.report(
+          context,
+          vendor == null || vendor.name.isEmpty ? null : vendor.name,
+        );
         if (vendor == null) return _unresolved(context, tokens);
         if (vendor.name.isEmpty) {
           return _text(context, context.tr('no_name_fallback'));
         }
-        return _text(context, vendor.name);
+        final label = _text(context, vendor.name);
+        if (!widget.copyable) return label;
+        // A host that collects the name draws the icon itself, where it
+        // cannot land on a neighbouring control (`BillingDocPartyLine`).
+        if (!Env.isTouchPrimary && CellCopyNameScope.has(context)) {
+          return label;
+        }
+        return CopyableValue(
+          value: vendor.name,
+          fillWidth: false,
+          floatIcon: true,
+          enableTapToCopy: !widget.link,
+          enableLongPressToCopy: widget.link,
+          child: label,
+        );
       },
     );
   }

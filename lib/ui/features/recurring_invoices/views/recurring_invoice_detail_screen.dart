@@ -364,6 +364,7 @@ class _RecurringInvoiceDetailScreenState
         party: ClientNameLabel(
           clientId: ri.clientId,
           link: true,
+          copyable: true,
           style: BillingDocRecordHeader.partyStyle(context),
         ),
         // The one date it has that is behind it. What is ahead is on the
