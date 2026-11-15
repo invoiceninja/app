@@ -89,6 +89,14 @@
     <control>touch</control>
   </supports>
   <releases>
+    <release version="5.1.27" date="2026-11-15">
+      <description>
+        <ul>
+          <li>Copy document numbers, client and vendor names and item names with a click or tap</li>
+          <li>The copy icon beside a name in a list copies the name</li>
+        </ul>
+      </description>
+    </release>
     <release version="5.1.26" date="2026-11-15">
       <description>
         <ul>
