@@ -22,6 +22,7 @@ import 'package:admin/domain/date_placeholders.dart';
 import 'package:admin/domain/entity_state.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
+import 'package:admin/ui/core/widgets/overflow_tooltip_text.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
 import 'package:admin/ui/features/billing_shared/add_unbilled/unbilled_line_items.dart';
 import 'package:admin/ui/features/billing_shared/line_item_editor/product_stock_label.dart';
@@ -55,6 +56,7 @@ class LineItemPickerBody extends StatefulWidget {
     this.headedProjectIds = const {},
     this.showStockQuantity = false,
     this.partyTaxExempt = false,
+    this.vendorDoc = false,
     this.maxHeight,
     this.filterAtBottom = false,
   });
@@ -82,6 +84,10 @@ class LineItemPickerBody extends StatefulWidget {
   /// The document's client or vendor is tax exempt: a picked product's blank
   /// tax slots stay blank ([lineItemFromProduct]).
   final bool partyTaxExempt;
+
+  /// The document buys from a vendor (a purchase order): each product is
+  /// listed and filled at its cost, not its sale price ([productUnitPrice]).
+  final bool vendorDoc;
 
   /// Caps the body's overall height — non-null inside a bottom sheet so the
   /// modal honors the standard 0.85·screen cap; null inside a Dialog whose
@@ -590,6 +596,7 @@ class _LineItemPickerBodyState extends State<LineItemPickerBody>
           conversionRate: productRate,
           company: company,
           partyTaxExempt: widget.partyTaxExempt,
+          vendorDoc: widget.vendorDoc,
         ),
       );
     }
@@ -885,6 +892,7 @@ class _LineItemPickerBodyState extends State<LineItemPickerBody>
       initialKey: _filter.trim(),
       useCommaAsDecimalPlace:
           widget.formatter?.settings.useCommaAsDecimalPlace ?? false,
+      vendorDoc: widget.vendorDoc,
     );
     if (draft == null || !mounted) return;
     final services = context.read<Services>();
@@ -947,6 +955,7 @@ class _LineItemPickerBodyState extends State<LineItemPickerBody>
           showProductDetails: _company?.showProductDetails ?? false,
           showStock:
               widget.showStockQuantity && (_company?.trackInventory ?? false),
+          vendorDoc: widget.vendorDoc,
           maxListHeight: maxListHeight,
           onToggle: (id) => setState(() {
             if (_selProducts.add(id)) {
@@ -1238,6 +1247,7 @@ class _ProductsTab extends StatelessWidget {
     required this.formatter,
     required this.showProductDetails,
     required this.showStock,
+    required this.vendorDoc,
     required this.maxListHeight,
     required this.onToggle,
     required this.onSelectAll,
@@ -1258,6 +1268,9 @@ class _ProductsTab extends StatelessWidget {
   /// When true, render the bracketed in-stock count (`[N]`) on each row —
   /// already resolved to `company.trackInventory && docTypeIsInvoice`.
   final bool showStock;
+
+  /// A purchase order's picker: each row's amount is the product's cost.
+  final bool vendorDoc;
   final double maxListHeight;
   final void Function(String id) onToggle;
   final VoidCallback onSelectAll;
@@ -1346,9 +1359,13 @@ class _ProductsTab extends StatelessWidget {
                     title: p.productKey.trim().isNotEmpty
                         ? p.productKey
                         : context.tr('product'),
-                    amount: f == null ? '' : f.money(p.price),
+                    amount: f == null
+                        ? ''
+                        : f.money(productUnitPrice(p, vendorDoc: vendorDoc)),
                     stockQuantity: p.inStockQuantity,
                     showStock: showStock,
+                    isName: true,
+                    selected: selected.contains(p.id),
                   ),
                   subtitle: (!showProductDetails || notesLine.isEmpty)
                       ? null
@@ -1720,9 +1737,19 @@ class _RowTitle extends StatelessWidget {
     required this.amount,
     this.stockQuantity,
     this.showStock = false,
+    this.isName = false,
+    this.selected = false,
   });
   final String title;
   final String amount;
+
+  /// The title is a product's name, which has to be readable without opening
+  /// the record: it gets two lines, a tooltip (hover, or a long press) when
+  /// even those cut it off, and the whole name once the row is [selected].
+  /// A task's or an expense's title is its description — free text of any
+  /// length — and stays the one line it always was.
+  final bool isName;
+  final bool selected;
 
   /// In-stock count rendered as `[N]` between the title and the trailing
   /// price — products only; null / `showStock: false` on task & expense rows.
@@ -1738,11 +1765,9 @@ class _RowTitle extends StatelessWidget {
           child: Row(
             children: [
               Flexible(
-                child: Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
+                child: isName
+                    ? OverflowTooltipText(title, maxLines: selected ? null : 2)
+                    : Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
               ),
               if (showStock && stockQuantity != null)
                 ProductStockLabel(quantity: stockQuantity!, show: true),

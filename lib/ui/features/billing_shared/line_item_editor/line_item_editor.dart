@@ -81,6 +81,9 @@ class LineItemEditor extends StatefulWidget {
   /// vendor-billed docs: line-item money renders in this vendor's currency.
   /// Client-billed docs leave it null and use [clientId] instead. Resolved via
   /// [PartyCurrencyBuilder], which ranks vendor over client.
+  ///
+  /// Non-null (even `''`, before a vendor is picked) also marks the document
+  /// as one that buys: a picked product fills its cost, not its sale price.
   final String? vendorId;
 
   final List<LineItem> items;
@@ -296,6 +299,9 @@ class _LineItemEditorState extends State<LineItemEditor> {
             currencyId: currencyId,
             productConversionRate: productConversionRate,
             partyTaxExempt: partyTaxExempt,
+            // Only a vendor-side host passes a vendor id at all (see
+            // [LineItemEditor.vendorId]) — '' until one is picked.
+            vendorDoc: widget.vendorId != null,
             controller: widget.controller,
             rowErrors: widget.rowErrors,
             showStockQuantity: widget.showStockQuantity,

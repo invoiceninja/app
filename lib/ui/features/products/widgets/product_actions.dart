@@ -362,7 +362,9 @@ class ProductActions {
           '/purchase_orders',
           extra: emptyPurchaseOrder().copyWith(
             usesInclusiveTaxes: inclusive,
-            lineItems: [lineItemForProduct(product, company: company)],
+            lineItems: [
+              lineItemForProduct(product, company: company, vendorDoc: true),
+            ],
           ),
         );
       case ProductAction.setTaxCategory:

@@ -14,15 +14,21 @@ import 'package:admin/utils/formatting.dart';
 /// A key-only create (what the desktop line-item cell does) would land a $0
 /// line on the document and a priceless entry in the catalog, which is why
 /// this asks for the price up front.
+///
+/// On a [vendorDoc] (a purchase order) the amount is what the product costs
+/// to buy, so the field reads Cost and is saved as the product's cost — the
+/// figure a purchase order fills — leaving the sale price for the user to set.
 Future<Product?> showQuickProductDialog(
   BuildContext context, {
   required String initialKey,
   bool useCommaAsDecimalPlace = false,
+  bool vendorDoc = false,
 }) => showDialog<Product>(
   context: context,
   builder: (_) => _QuickProductDialog(
     initialKey: initialKey,
     useCommaAsDecimalPlace: useCommaAsDecimalPlace,
+    vendorDoc: vendorDoc,
   ),
 );
 
@@ -30,10 +36,12 @@ class _QuickProductDialog extends StatefulWidget {
   const _QuickProductDialog({
     required this.initialKey,
     required this.useCommaAsDecimalPlace,
+    required this.vendorDoc,
   });
 
   final String initialKey;
   final bool useCommaAsDecimalPlace;
+  final bool vendorDoc;
 
   @override
   State<_QuickProductDialog> createState() => _QuickProductDialogState();
@@ -58,16 +66,16 @@ class _QuickProductDialogState extends State<_QuickProductDialog> {
 
   void _submit() {
     if (!_canSave) return;
-    final price =
-        parseDecimal(
-          _price.text,
-          useCommaAsDecimalPlace: widget.useCommaAsDecimalPlace,
-        ) ??
-        emptyProductWithKey('').price;
+    final blank = emptyProductWithKey(_key.text.trim());
+    final amount = parseDecimal(
+      _price.text,
+      useCommaAsDecimalPlace: widget.useCommaAsDecimalPlace,
+    );
+    final notes = _notes.text.trim();
     Navigator.of(context).pop(
-      emptyProductWithKey(
-        _key.text.trim(),
-      ).copyWith(price: price, notes: _notes.text.trim()),
+      widget.vendorDoc
+          ? blank.copyWith(cost: amount ?? blank.cost, notes: notes)
+          : blank.copyWith(price: amount ?? blank.price, notes: notes),
     );
   }
 
@@ -100,7 +108,9 @@ class _QuickProductDialogState extends State<_QuickProductDialog> {
                   decimal: true,
                 ),
                 textInputAction: TextInputAction.done,
-                decoration: InputDecoration(labelText: context.tr('price')),
+                decoration: InputDecoration(
+                  labelText: context.tr(widget.vendorDoc ? 'cost' : 'price'),
+                ),
                 onSubmitted: (_) => _submit(),
               ),
               const SizedBox(height: 12),

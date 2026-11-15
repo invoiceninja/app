@@ -103,6 +103,31 @@ void main() {
       expect(li.productCost, Decimal.parse('7.50'));
     });
 
+    // Beta feedback: a purchase order buys the product, so it fills what
+    // the product costs — React's `relationType === 'vendor_id'` branch.
+    test('a vendor document fills the product cost, not the sale price', () {
+      final p = makeProduct(
+        price: Decimal.parse('19.99'),
+        cost: Decimal.parse('7.50'),
+      );
+      final li = lineItemFromProduct(p, vendorDoc: true);
+      expect(li.cost, Decimal.parse('7.50'));
+      expect(li.productCost, Decimal.parse('7.50'));
+      expect(
+        lineItemForProduct(p, vendorDoc: true).cost,
+        Decimal.parse('7.50'),
+      );
+    });
+
+    test('a vendor document keeps the sale price for a product with no '
+        'cost', () {
+      final p = makeProduct(price: Decimal.parse('19.99'), cost: Decimal.zero);
+      expect(
+        lineItemFromProduct(p, vendorDoc: true).cost,
+        Decimal.parse('19.99'),
+      );
+    });
+
     test('#6 conversionRate scales the unit price', () {
       final p = makeProduct(price: Decimal.parse('100'));
       final li = lineItemFromProduct(p, conversionRate: Decimal.parse('1.5'));

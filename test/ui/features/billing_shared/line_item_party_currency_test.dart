@@ -236,4 +236,52 @@ void main() {
 
     await teardownSubtree(tester);
   });
+
+  // Beta feedback: a purchase order filled a picked product's sale price. The
+  // editor learns it is a vendor document from being handed a vendor id at
+  // all — '' before one is picked — and tells the table to fill the cost.
+  testWidgets('only a vendor-side editor fills a picked product at its cost', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final fixture = await buildFixture(
+      companies: [const FakeCompany(id: 'co1', name: 'Co')],
+    );
+    addTearDown(fixture.dispose);
+
+    Future<bool> vendorDocFor({String? vendorId, String? clientId}) async {
+      await tester.pumpWidget(
+        wrapWithShell(
+          fixture.services,
+          LineItemEditor(
+            key: ValueKey('$vendorId|$clientId'),
+            companyId: 'co1',
+            vendorId: vendorId,
+            clientId: clientId,
+            items: [_widgetLine()],
+            onChanged: (_) {},
+            newItemFactory: emptyLineItem,
+          ),
+        ),
+      );
+      for (var i = 0; i < 10; i++) {
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 20)),
+        );
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+      return tester
+          .widget<LineItemTableDesktop>(find.byType(LineItemTableDesktop))
+          .vendorDoc;
+    }
+
+    expect(await vendorDocFor(vendorId: ''), isTrue);
+    expect(await vendorDocFor(clientId: 'c1'), isFalse);
+
+    await teardownSubtree(tester);
+  });
 }

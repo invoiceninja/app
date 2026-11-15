@@ -24,11 +24,13 @@ import 'package:admin/ui/core/edit/custom_field_input.dart';
 import 'package:admin/ui/core/widgets/back_dismissible_menu_anchor.dart';
 import 'package:admin/ui/core/widgets/in_date_field.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
+import 'package:admin/ui/core/widgets/overflow_tooltip_text.dart';
 import 'package:admin/ui/core/widgets/picker_dismissal.dart';
 import 'package:admin/ui/core/widgets/scroll_edge_fades.dart';
 import 'package:admin/ui/core/widgets/spell_check.dart';
 import 'package:admin/ui/features/billing_shared/line_item_editor/line_item_column_config.dart';
 import 'package:admin/ui/features/billing_shared/line_item_editor/product_stock_label.dart';
+import 'package:admin/ui/features/billing_shared/line_item_picker/quick_product_dialog.dart';
 import 'package:admin/utils/formatting.dart';
 import 'package:admin/utils/search_fold.dart';
 import 'package:admin/ui/core/widgets/ltr_value.dart';
@@ -157,6 +159,7 @@ class LineItemTableDesktop extends StatefulWidget {
     this.showStockQuantity = false,
     this.onCreateTaskFromLineItem,
     this.allowNewRows = true,
+    this.vendorDoc = false,
     this.allowOptionalLines = false,
   });
 
@@ -180,6 +183,10 @@ class LineItemTableDesktop extends StatefulWidget {
   /// The document's client or vendor is tax exempt: a picked product's blank
   /// tax slots stay blank ([lineItemFromProduct]).
   final bool partyTaxExempt;
+
+  /// The document buys from a vendor (a purchase order): a picked product
+  /// fills its cost, not its sale price ([productUnitPrice]).
+  final bool vendorDoc;
   final LineItemTableDesktopController? controller;
 
   /// Per-row server validation errors keyed by line-item index. Each
@@ -848,6 +855,7 @@ class _LineItemTableDesktopState extends State<LineItemTableDesktop> {
                                     conversionRate:
                                         widget.productConversionRate,
                                     partyTaxExempt: widget.partyTaxExempt,
+                                    vendorDoc: widget.vendorDoc,
                                   )
                                 : base.copyWith(productKey: product.productKey);
                             _applyRow(index, merged);
@@ -863,10 +871,28 @@ class _LineItemTableDesktopState extends State<LineItemTableDesktop> {
                             });
                           },
                           onCreateProduct: (query) async {
+                            // The same few fields the Add-items picker asks
+                            // for (beta feedback): a key-only create left a
+                            // $0 line here and a priceless product in the
+                            // catalog, to be fixed up on the product screen.
+                            final draft = await showQuickProductDialog(
+                              context,
+                              initialKey: query,
+                              useCommaAsDecimalPlace: _useComma,
+                              vendorDoc: widget.vendorDoc,
+                            );
+                            if (!context.mounted) return;
+                            if (draft == null) {
+                              // Cancelled: back in the cell, text as typed.
+                              if (index < _rows.length) {
+                                _rows[index].productFocus.requestFocus();
+                              }
+                              return;
+                            }
                             try {
                               final created = (await services.products.create(
                                 companyId: widget.companyId,
-                                draft: emptyProductWithKey(query),
+                                draft: draft,
                               )).entity;
                               if (!context.mounted) return;
                               final base = isGhost
@@ -882,6 +908,7 @@ class _LineItemTableDesktopState extends State<LineItemTableDesktop> {
                                         conversionRate:
                                             widget.productConversionRate,
                                         partyTaxExempt: widget.partyTaxExempt,
+                                        vendorDoc: widget.vendorDoc,
                                       )
                                     : base.copyWith(
                                         productKey: created.productKey,
@@ -966,7 +993,8 @@ class _LineItemTableDesktopState extends State<LineItemTableDesktop> {
 
 /// Merge a picked product into a row's line item. Delegates to the shared
 /// [lineItemFromProduct] so the inline desktop path matches the picker and
-/// React: unit price = the product's sale `price` (converted to the client's
+/// React: unit price = the product's sale `price`, or its cost on a
+/// [vendorDoc] (converted to the client's
 /// currency when [conversionRate] is set), quantity per the company's
 /// `enable_product_quantity` / `default_quantity` toggles.
 LineItem _mergeProductInto(
@@ -975,6 +1003,7 @@ LineItem _mergeProductInto(
   required Company? company,
   required Decimal? conversionRate,
   required bool partyTaxExempt,
+  required bool vendorDoc,
 }) => lineItemFromProduct(
   product,
   base: base,
@@ -983,6 +1012,7 @@ LineItem _mergeProductInto(
   conversionRate: conversionRate,
   company: company,
   partyTaxExempt: partyTaxExempt,
+  vendorDoc: vendorDoc,
 );
 
 /// Lays [child] out at [minWidth] and scrolls it sideways when the pane is
@@ -2524,7 +2554,10 @@ class _ProductCellState extends State<_ProductCell> {
       // Without this the suffix icon imposes the 48 px
       // `kMinInteractiveDimension` and this cell rides taller than the
       // no-suffix cells, breaking the row's centerline.
-      suffixIconConstraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+      suffixIconConstraints: const BoxConstraints(
+        minWidth: _kProductCellSuffixW,
+        minHeight: 28,
+      ),
     );
   }
 
@@ -2670,23 +2703,27 @@ class _ProductCellState extends State<_ProductCell> {
             onFieldSubmitted();
             return KeyEventResult.handled;
           },
-          child: LineItemSpellCheck(
-            builder: (context, config) => TextField(
-              controller: controller,
-              focusNode: focusNode,
-              // On native touch nothing else can close the popover — see
-              // `picker_dismissal.dart`. On desktop this is the SDK default.
-              onTapOutside: dismissPickerOnTapOutside(focusNode),
-              onChanged: (_) => widget.onCommitText(),
-              onSubmitted: (_) {
-                if (_acceptedCreateRow()) return;
-                onFieldSubmitted();
-              },
-              spellCheckConfiguration: config,
-              contextMenuBuilder: spellCheckContextMenuBuilder,
-              textAlignVertical: TextAlignVertical.center,
-              style: const TextStyle(fontSize: 13),
-              decoration: _decoration(context),
+          child: _CutOffNameTooltip(
+            controller: controller,
+            focusNode: focusNode,
+            child: LineItemSpellCheck(
+              builder: (context, config) => TextField(
+                controller: controller,
+                focusNode: focusNode,
+                // On native touch nothing else can close the popover — see
+                // `picker_dismissal.dart`. On desktop this is the SDK default.
+                onTapOutside: dismissPickerOnTapOutside(focusNode),
+                onChanged: (_) => widget.onCommitText(),
+                onSubmitted: (_) {
+                  if (_acceptedCreateRow()) return;
+                  onFieldSubmitted();
+                },
+                spellCheckConfiguration: config,
+                contextMenuBuilder: spellCheckContextMenuBuilder,
+                textAlignVertical: TextAlignVertical.center,
+                style: _kProductCellTextStyle,
+                decoration: _decoration(context),
+              ),
             ),
           ),
         );
@@ -2827,10 +2864,8 @@ class _ProductCellState extends State<_ProductCell> {
                                     Row(
                                       children: [
                                         Flexible(
-                                          child: Text(
+                                          child: OverflowTooltipText(
                                             product.productKey,
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
                                             style: TextStyle(
                                               color: tokens.ink,
                                               fontSize: 13,
@@ -2880,6 +2915,76 @@ class _ProductCellState extends State<_ProductCell> {
           ),
         );
       },
+    );
+  }
+}
+
+const _kProductCellTextStyle = TextStyle(fontSize: 13);
+
+/// Width the Item cell's ▾ takes from its text — shared with the cut-off
+/// measurement below, which otherwise missed every name the arrow covered.
+const double _kProductCellSuffixW = 28;
+
+/// The Item cell is one line wide, so a long product name is cut off at the
+/// cell's edge. Hovering a cut-off name shows all of it (beta feedback) —
+/// only while the cell is not being typed in, where the caret already scrolls
+/// the text and a tooltip would sit over the options popover.
+///
+/// Hover only: `TooltipTriggerMode.manual` keeps the tooltip's long-press
+/// recognizer away from the field's own long press (select a word) on touch.
+class _CutOffNameTooltip extends StatefulWidget {
+  const _CutOffNameTooltip({
+    required this.controller,
+    required this.focusNode,
+    required this.child,
+  });
+
+  final TextEditingController controller;
+  final FocusNode focusNode;
+  final Widget child;
+
+  @override
+  State<_CutOffNameTooltip> createState() => _CutOffNameTooltipState();
+}
+
+class _CutOffNameTooltipState extends State<_CutOffNameTooltip> {
+  /// Holds the field's State across the tooltip coming and going. `Tooltip`
+  /// with nothing to say builds its child bare, so a name crossing the cell's
+  /// width — or the cell taking focus — moves the field in the tree; without
+  /// the key that is a new field, and the caret and focus are gone.
+  final _fieldKey = GlobalKey();
+
+  @override
+  Widget build(BuildContext context) {
+    final field = KeyedSubtree(key: _fieldKey, child: widget.child);
+    return LayoutBuilder(
+      builder: (context, constraints) => ListenableBuilder(
+        listenable: Listenable.merge([widget.controller, widget.focusNode]),
+        builder: (context, _) {
+          final text = widget.controller.text;
+          final cutOff =
+              !widget.focusNode.hasFocus &&
+              textOverflows(
+                context,
+                text: text,
+                // What the field draws with: Material 3's input style under
+                // the cell's own size, not the ambient text style.
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyLarge?.merge(_kProductCellTextStyle),
+                maxWidth:
+                    constraints.maxWidth -
+                    2 * _kCellPadH -
+                    _kProductCellSuffixW,
+              );
+          if (!cutOff) return field;
+          return Tooltip(
+            message: text,
+            triggerMode: TooltipTriggerMode.manual,
+            child: field,
+          );
+        },
+      ),
     );
   }
 }

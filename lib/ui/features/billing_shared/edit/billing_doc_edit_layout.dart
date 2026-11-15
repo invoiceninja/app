@@ -380,6 +380,7 @@ class _BillingDocEditLayoutState<T extends BillingDocFields>
           : (_, _) {},
       showStockQuantity: _type.showsProductStock,
       vendorId: client ? '' : vm.draft.vendorId,
+      vendorDoc: !client,
     );
   }
 

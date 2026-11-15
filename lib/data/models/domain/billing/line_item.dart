@@ -170,7 +170,9 @@ LineItem textLineItem() => emptyLineItem().copyWith(quantity: Decimal.zero);
 
 /// Build or merge a billing line item from a product, mirroring React's
 /// `useHandleProductChange` so every product-fill path agrees:
-///   * unit price (`cost`) = the product's sale `price`, multiplied by
+///   * unit price (`cost`) = the product's sale `price` — or, on a
+///     [vendorDoc] (a purchase order), what the product costs to buy
+///     ([productUnitPrice]) — multiplied by
 ///     [conversionRate] (defaults to 1 — callers pass the company→client
 ///     cross-currency rate when the company's `convert_products` is on and the
 ///     client's currency differs, matching React's in-browser conversion).
@@ -213,6 +215,7 @@ LineItem lineItemFromProduct(
   Decimal? conversionRate,
   Company? company,
   bool partyTaxExempt = false,
+  bool vendorDoc = false,
 }) {
   final rate = conversionRate ?? Decimal.one;
   final defaults = partyTaxExempt
@@ -227,7 +230,8 @@ LineItem lineItemFromProduct(
   final tax1 = tax(1, product.taxName1, product.taxRate1);
   final tax2 = tax(2, product.taxName2, product.taxRate2);
   final tax3 = tax(3, product.taxName3, product.taxRate3);
-  final unitPrice = rate == Decimal.one ? product.price : product.price * rate;
+  final listed = productUnitPrice(product, vendorDoc: vendorDoc);
+  final unitPrice = rate == Decimal.one ? listed : listed * rate;
   final Decimal quantity;
   if (!enableProductQuantity || defaultQuantity) {
     quantity = Decimal.one;
@@ -264,6 +268,14 @@ LineItem lineItemFromProduct(
   );
 }
 
+/// What one unit of [product] goes onto a document for: its sale `price` on
+/// a client's document, and on a [vendorDoc] — a purchase order, which buys
+/// the product rather than sells it — its `cost`. A product with no cost
+/// recorded keeps the sale price there, as React's `useHandleProductChange`
+/// does (`product.cost > 0 && relationType === 'vendor_id'`).
+Decimal productUnitPrice(Product product, {required bool vendorDoc}) =>
+    vendorDoc && product.cost > Decimal.zero ? product.cost : product.price;
+
 /// The default tax a picked product's blank tax slot takes, by slot: the
 /// company's Tax Settings → Default Tax Rate (`settings.tax_name<N>` /
 /// `tax_rate<N>`) for slots `1..enabled_item_tax_rates` — but only when the
@@ -289,12 +301,16 @@ Map<int, ({String name, Decimal rate})> defaultItemTaxes(Company? company) {
 
 /// Cross-entity "New Invoice / Quote / Purchase Order from a product" flow
 /// (`?product=<id>` on the create route — see `entity_modules.dart` and the
-/// three edit screens). A brand-new doc with no client yet, so the sale price
-/// is used verbatim at quantity 1; [company] supplies only the default item
-/// tax. [lineItemFromProduct] does the work (and also copies the product's
+/// three edit screens). A brand-new doc with no client yet, so the price — the
+/// sale price, or the cost on a [vendorDoc] ([productUnitPrice]) — is used
+/// verbatim at quantity 1; [company] supplies only the default item tax.
+/// [lineItemFromProduct] does the work (and also copies the product's
 /// cost / tax category / customs).
-LineItem lineItemForProduct(Product product, {Company? company}) =>
-    lineItemFromProduct(product, company: company);
+LineItem lineItemForProduct(
+  Product product, {
+  Company? company,
+  bool vendorDoc = false,
+}) => lineItemFromProduct(product, company: company, vendorDoc: vendorDoc);
 
 /// Tolerant `Decimal` parser for the `quantity` wire field. Same shape as
 /// `parseMoney` but returns null for unparseable/empty input so the domain

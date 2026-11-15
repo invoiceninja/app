@@ -16,6 +16,7 @@ void main() {
     WidgetTester tester, {
     String permissions = '',
     bool isAdmin = true,
+    bool vendorDoc = false,
     Future<void> Function(ShellFixture fixture)? seed,
   }) async {
     final fixture = await buildFixture(
@@ -37,15 +38,16 @@ void main() {
     await tester.pumpWidget(
       wrapWithShell(
         fixture.services,
-        const Scaffold(
+        Scaffold(
           body: LineItemPickerBody(
             companyId: 'co1',
             clientId: '',
             showTasksAndExpenses: false,
             invoiceInclusive: false,
-            excludedTaskIds: {},
-            excludedExpenseIds: {},
+            excludedTaskIds: const {},
+            excludedExpenseIds: const {},
             formatter: null,
+            vendorDoc: vendorDoc,
           ),
         ),
       ),
@@ -138,6 +140,46 @@ void main() {
     );
     expect(row.value, isTrue);
     expect(find.text('Create "Widget"'), findsNothing);
+    await _disposeTree(tester);
+  });
+
+  // Beta feedback: a purchase order buys the product, so the amount typed
+  // here is its cost — and the cost is what the order's line is filled with.
+  testWidgets('on a purchase order, creating asks for the cost', (
+    tester,
+  ) async {
+    final fixture = await pumpPicker(tester, vendorDoc: true);
+    await search(tester, 'Widget');
+
+    await tester.tap(find.text('Create "Widget"'));
+    await _settle(tester);
+    expect(find.widgetWithText(TextField, 'Price'), findsNothing);
+
+    await tester.enterText(find.widgetWithText(TextField, 'Cost'), '7.50');
+    await tester.tap(find.text('Save'));
+    await _settle(tester);
+
+    final products = await tester.runAsync(
+      () => fixture.services.products.watchPage(companyId: 'co1').first,
+    );
+    final created = products!.singleWhere((p) => p.productKey == 'Widget');
+    expect(created.cost.toString(), '7.5');
+    expect(created.price.toString(), '0');
+    await _disposeTree(tester);
+  });
+
+  // Beta feedback: a long item name could not be read in the picker. A row
+  // gets two lines, and ticking it shows the whole name — the phone's answer
+  // to a hover tooltip.
+  testWidgets('ticking a row shows its whole name', (tester) async {
+    await pumpPicker(tester, seed: _seedProducts);
+    const name = 'Samsung Galaxy S22 5G OLED 120Hz Screen (TCGJ)';
+    Text title() => tester.widget<Text>(find.text(name));
+
+    expect(title().maxLines, 2);
+    await tester.tap(find.text(name));
+    await _settle(tester);
+    expect(title().maxLines, isNull);
     await _disposeTree(tester);
   });
 }

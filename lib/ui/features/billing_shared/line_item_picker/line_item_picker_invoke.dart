@@ -29,7 +29,8 @@ import 'package:admin/ui/features/billing_shared/seed_billing_create_defaults.da
 ///      cross-client save validator can use the cached lookup instead of
 ///      re-fetching every line item's source from Drift.
 ///   6. PO edits pass `showTasksAndExpenses: false` and stub all
-///      client-related callbacks — the picker collapses to Products only.
+///      client-related callbacks — the picker collapses to Products only —
+///      and `vendorDoc: true`, so a product is listed and filled at its cost.
 ///
 /// VM type is intentionally not constrained: each per-entity edit VM has
 /// its own `companyId` / `setProjectId` shape, so the call site supplies
@@ -54,6 +55,7 @@ Future<void> openLineItemPicker(
   registerSourceClientIds,
   bool showStockQuantity = false,
   String vendorId = '',
+  bool vendorDoc = false,
 }) async {
   final services = context.read<Services>();
   // What to exclude is decided now; what to append to is read again once the
@@ -101,6 +103,7 @@ Future<void> openLineItemPicker(
     formatter: services.formatterIfReady(companyId),
     showStockQuantity: showStockQuantity,
     partyTaxExempt: partyTaxExempt,
+    vendorDoc: vendorDoc,
   );
   if (result == null || result.lineItems.isEmpty) return;
 

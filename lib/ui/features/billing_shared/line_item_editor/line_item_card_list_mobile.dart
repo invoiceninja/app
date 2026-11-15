@@ -449,7 +449,10 @@ class _ItemCard extends StatelessWidget {
                   children: [
                     Text(
                       identity,
-                      maxLines: textOnly ? 3 : 1,
+                      // Two lines for a name: one cut a long item off after
+                      // a word or two, with no hover on a phone to read the
+                      // rest (beta feedback).
+                      maxLines: textOnly ? 3 : 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         color: tokens.ink,
