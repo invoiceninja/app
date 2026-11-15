@@ -286,6 +286,8 @@ void main() {
         'welcome_json',
         'card_reader_used',
         'pending_card_payments_json',
+        'how_to_tap_shown',
+        'tap_to_pay_announced',
       };
       for (final key in DevicePrefKeys.all) {
         if (addedAfterV12.contains(key.name)) {

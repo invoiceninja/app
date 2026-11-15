@@ -260,8 +260,7 @@ class TerminalController extends ChangeNotifier {
 
   /// A company became the active one: asks the server about every payment
   /// of its that this device still waits on (a charge under way when the app
-  /// was closed, or crashed). A final answer clears the entry, as
-  /// [recoverPending] does. A card that was declined with nobody watching is
+  /// was closed, or crashed). A card that was declined with nobody watching is
   /// returned — still pending, so a notice that never reached the screen is
   /// found again — for [markDeclineTold] and [settleUnseenDecline] once the
   /// user has been told (App Review 5.12). Nothing is asked while a card is being charged.
@@ -282,9 +281,11 @@ class TerminalController extends ChangeNotifier {
           e.key,
           invoiceId: invoiceId,
         );
-        if (isFinalCompletion(result.status)) {
-          await clearPending(e.key);
-        } else if (result.declined) {
+        // Only a decline is this sweep's: any other answer — a charge that
+        // was recorded after all, above everything — stays pending, for the
+        // invoice's own check ([recoverPending]), which stops a payment
+        // entered by hand over it and says the card payment went through.
+        if (!isFinalCompletion(result.status) && result.declined) {
           final number = entry['number'];
           declined.add(
             UnseenDecline(

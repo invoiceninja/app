@@ -160,8 +160,9 @@ void main() {
       expect(repo.calls.where((c) => c.startsWith('cancel')), isEmpty);
     });
 
-    testWidgets('a final answer clears the entry; another company\'s is '
-        'never asked about; a failure waits for next time', (tester) async {
+    testWidgets('a recorded charge stays pending, for the invoice\'s own '
+        'check to say so; another company\'s is never asked about; a failure '
+        'waits for next time', (tester) async {
       final (terminal, repo, _, _, _, fixture) = await boot(tester);
       await terminal.notePending(
         companyId: 'co1',
@@ -185,7 +186,7 @@ void main() {
       expect(await terminal.sweepPending('co1'), isEmpty);
 
       expect(repo.calls.where((c) => c == 'complete'), hasLength(2));
-      expect(pending(fixture, 'pi_1'), isFalse);
+      expect(pending(fixture, 'pi_1'), isTrue);
       expect(pending(fixture, 'pi_9'), isTrue);
       expect(pending(fixture, 'pi_3'), isTrue);
     });

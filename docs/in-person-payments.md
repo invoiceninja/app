@@ -242,7 +242,7 @@ every pending payment of that company (`TerminalController.sweepPending`):
 
 | Answer | What happens |
 |---|---|
-| final (`recorded`, `canceled`, …) | the entry is cleared, as `recoverPending` does |
+| final (`recorded`, `canceled`, …) | nothing: the entry stays for the invoice's own check (`recoverPending`), which stops a payment entered by hand over a recorded charge and says "The card payment went through" — clearing it here silently took that warning away (`card_payment_settled_test`) |
 | `declined: true` (with `brand`, `last4`; `status` stays `requires_payment_method`) | told, then `cancel`; the entry is cleared once the cancel's answer is final |
 | anything else, or a server from before decline answers (no `declined` key) | nothing is told; the entry waits for the invoice's own check |
 
