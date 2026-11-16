@@ -415,40 +415,9 @@ jobs:
   # Inter Tight font-overflow RenderFlex. It ran with `continue-on-error: true`
   # while the headless-Chrome path was unproven; that's earned its keep, so the
   # flag is gone. Don't re-add it to silence a red run. See CLAUDE.md
-  # § Integration tests.
+  # § Integration tests. Defined in the reusable `_smoke.yaml`, which a release
+  # waits for too (appimage.yml). Renders as `integration-web / smoke`.
   integration-web:
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
-    steps:
-      - uses: actions/checkout@v5
-
-      # Pinned — keep in lockstep with the analyze job.
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          flutter-version: ${{ inputs.flutter_version || '3.50.0' }}
-          cache: true
-
-      - name: Enable web
-        run: flutter config --enable-web
-
-      - name: Install dependencies
-        run: flutter pub get
-
-      - name: Generate code
-        run: dart run build_runner build --delete-conflicting-outputs
-
-      - uses: nanasess/setup-chromedriver@v2
-
-      - name: Start chromedriver
-        run: chromedriver --port=4444 &
-
-      - name: Integration smoke (Chrome, headless)
-        timeout-minutes: 20
-        run: |
-          flutter drive \
-            --driver=test_driver/integration_test.dart \
-            --target=integration_test/app_smoke_test.dart \
-            -d web-server \
-            --browser-name=chrome \
-            --headless
+    uses: ./.github/workflows/_smoke.yaml
+    with:
+      flutter_version: ${{ inputs.flutter_version }}

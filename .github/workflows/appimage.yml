@@ -136,6 +136,14 @@ jobs:
   test:
     uses: ./.github/workflows/_test.yaml
 
+  # The app booted and driven in headless Chrome, beside the unit tests. A
+  # widget test builds a screen, not the app's routes: 5.1.26 to 5.1.29 shipped
+  # a freeze on leaving a record screen with `test` green. `publish` waits for
+  # this, so a failure (or a hang, which the job's timeout reports) means no
+  # tag, no Release and, under Deploy to all, no store.
+  smoke:
+    uses: ./.github/workflows/_smoke.yaml
+
   build-appimage:
     needs: test
     name: Build AppImage
@@ -375,10 +383,11 @@ jobs:
   # the tag never exists without its APKs. Gated on the boolean input (never
   # bare github.event.inputs.publish — the string "false" is truthy).
   publish:
-    needs: [preflight, build-appimage, fdroid-build, fdroid-sign, fdroid-compare]
+    needs: [preflight, smoke, build-appimage, fdroid-build, fdroid-sign, fdroid-compare]
     if: >-
       always() && inputs.publish
       && needs.preflight.result == 'success'
+      && needs.smoke.result == 'success'
       && needs.build-appimage.result == 'success'
       && (needs.preflight.outputs.fdroid_needed == 'false'
           || needs.fdroid-compare.result == 'success')

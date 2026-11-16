@@ -1,0 +1,71 @@
+name: Smoke test (reusable)
+
+# The app itself, booted and driven in headless Chrome: integration_test/
+# app_smoke_test.dart with an in-memory database, in-memory token storage and a
+# mocked server (docs/integration-tests.md). Defined once because two callers
+# run it:
+#
+#   ci.yaml       its `integration-web` job.
+#   appimage.yml  beside the unit tests, and `publish` waits for it: no tag and
+#                 no GitHub Release without it, so no store either (Deploy to
+#                 all's stores need the Release).
+#
+# Why a release waits for it: 5.1.26 to 5.1.29 shipped a freeze on leaving a
+# record screen. `flutter test` was green, because a widget test builds a
+# screen, not the app's routes, and this suite ran only when someone dispatched
+# CI by hand (docs/upstream-workarounds.md entry 25). A hang shows here as a
+# step that never finishes; the timeouts are what report it.
+#
+# BLOCKING: a failure is a real regression, not runner noise. It has caught the
+# shortcut-hint notify-during-build crash and the Inter Tight font-overflow
+# RenderFlex. Never `continue-on-error`.
+on:
+  workflow_call:
+    inputs:
+      # ci.yaml's trial of another Flutter; blank (the release caller) is the pin.
+      flutter_version:
+        type: string
+        default: ''
+
+# A called workflow otherwise takes the caller's permissions, and appimage.yml
+# runs with `contents: write`.
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+
+      # Pinned — keep in lockstep with ci.yaml's analyze job and _test.yaml.
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ inputs.flutter_version || '3.50.0' }}
+          cache: true
+
+      - name: Enable web
+        run: flutter config --enable-web
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Generate code
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - uses: nanasess/setup-chromedriver@v2
+
+      - name: Start chromedriver
+        run: chromedriver --port=4444 &
+
+      - name: Integration smoke (Chrome, headless)
+        timeout-minutes: 20
+        run: |
+          flutter drive \
+            --driver=test_driver/integration_test.dart \
+            --target=integration_test/app_smoke_test.dart \
+            -d web-server \
+            --browser-name=chrome \
+            --headless
