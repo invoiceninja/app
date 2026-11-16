@@ -1,0 +1,1 @@
+- The Linux app shows its window even when it has drawn nothing, so a failed launch is visible

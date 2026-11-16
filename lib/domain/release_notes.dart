@@ -258,6 +258,19 @@ List<ReleaseNotes> releasesToShow({
 
 const List<ReleaseNotes> kReleaseNotes = [
   ReleaseNotes(
+    version: '5.1.29',
+    items: [
+      ReleaseNoteItem(
+        'Updated: On Linux, the window now appears after five seconds even '
+        'when the app has drawn nothing, so a launch that fails to draw is no '
+        'longer invisible, and starting the app with '
+        'INVOICENINJA_NO_IMPELLER=1 uses the older renderer '
+        '[#194](https://github.com/invoiceninja/flutter/issues/194)',
+        hiddenOn: {ReleaseNoteSurface.appleStore},
+      ),
+    ],
+  ),
+  ReleaseNotes(
     version: '5.1.28',
     items: [
       ReleaseNoteItem(
