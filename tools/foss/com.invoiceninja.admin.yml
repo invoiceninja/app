@@ -19,9 +19,9 @@ RepoType: git
 Repo: https://github.com/invoiceninja/flutter.git
 
 Builds:
-  - versionName: 5.1.29
-    versionCode: 321
-    commit: v5.1.29
+  - versionName: 5.1.30
+    versionCode: 331
+    commit: v5.1.30
     sudo:
       - mkdir -p /build
       - chown -R vagrant /build
@@ -68,9 +68,9 @@ Builds:
       - mv $repo com.invoiceninja.admin
     ndk: 28.2.13676358
 
-  - versionName: 5.1.29
-    versionCode: 322
-    commit: v5.1.29
+  - versionName: 5.1.30
+    versionCode: 332
+    commit: v5.1.30
     sudo:
       - mkdir -p /build
       - chown -R vagrant /build
@@ -117,9 +117,9 @@ Builds:
       - mv $repo com.invoiceninja.admin
     ndk: 28.2.13676358
 
-  - versionName: 5.1.29
-    versionCode: 323
-    commit: v5.1.29
+  - versionName: 5.1.30
+    versionCode: 333
+    commit: v5.1.30
     sudo:
       - mkdir -p /build
       - chown -R vagrant /build
@@ -196,5 +196,5 @@ VercodeOperation:
   - 10 * %c + 2
   - 10 * %c + 3
 UpdateCheckData: pubspec.yaml|version:\s.+\+(\d+)|.|version:\s(.+)\+
-CurrentVersion: 5.1.29
-CurrentVersionCode: 323
+CurrentVersion: 5.1.30
+CurrentVersionCode: 333

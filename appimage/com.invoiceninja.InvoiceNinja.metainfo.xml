@@ -89,6 +89,14 @@
     <control>touch</control>
   </supports>
   <releases>
+    <release version="5.1.30" date="2026-11-16">
+      <description>
+        <ul>
+          <li>Fixed a freeze when leaving a record, such as going from a client back to the Clients list</li>
+          <li>The Linux app opens on a computer with a font that has no family name</li>
+        </ul>
+      </description>
+    </release>
     <release version="5.1.29" date="2026-11-16">
       <description>
         <ul>
