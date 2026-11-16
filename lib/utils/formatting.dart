@@ -1267,6 +1267,17 @@ class Formatter {
   /// See [kDateFormatSampleIso] for why a *fixed* date and why that one.
   String get dateExample => date(kDateFormatSampleIso);
 
+  /// [value] (ISO) as a day and a month word with no year, in the company's
+  /// locale: `Nov 16`, `16 Nov`. For a chart's axis ticks, where the full
+  /// format does not fit and a bare `11/16` reads as the 11th of the 16th
+  /// month to half the world.
+  String dateShort(String? value) {
+    final parsed = value == null ? null : DateTime.tryParse(value);
+    if (parsed == null) return '';
+    final locale = settings.locale.isEmpty ? null : settings.locale;
+    return DateFormat.MMMd(locale).format(parsed);
+  }
+
   /// [value] (ISO) with the month as a word, in the company's locale —
   /// `12 Mar 2026`, `Mar 12, 2026`. For where a day/month mix-up has to be
   /// visible: the company's numeric format would hide a swapped `03/04`.

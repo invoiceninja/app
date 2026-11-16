@@ -59,7 +59,7 @@ class EntityRecordPage extends StatefulWidget {
   });
 
   /// With [rail], the wide layout of a record that is a hub for other records
-  /// (a client, a vendor): from [kRecordRailMinWidth] the tabs and
+  /// (a client, a vendor, a project): from [kRecordRailMinWidth] the tabs and
   /// their lists come up under [lead] (identity and actions) and the
   /// reference cards move into [rail], a fixed column at the end edge. The
   /// lists are what such a record is opened for, and stacked under the

@@ -397,6 +397,15 @@ void main() {
       expect(f.date(''), '');
     });
 
+    test('dateShort is a day and a month word, with no year', () {
+      final f = _make();
+      // A chart's axis tick: `11/16` would read as the 11th of the 16th month
+      // to a reader who writes the day first.
+      expect(f.dateShort('2026-11-16'), 'Nov 16');
+      expect(f.dateShort(null), '');
+      expect(f.dateShort('not a date'), '');
+    });
+
     test('time-only suppresses date', () {
       final f = _make();
       final result = f.date(

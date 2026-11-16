@@ -35,7 +35,15 @@ class ProjectDetailProfile extends StatelessWidget {
     required this.company,
     required this.tasks,
     this.formatter,
+    this.inRail = false,
   });
+
+  /// Drawn in the wide page's rail (`EntityRecordPage.rail`): one stack with
+  /// the chart first, at the rail's width. The chart is left out of a narrow
+  /// *stacked* column because there it pushes the lists down the page; in the
+  /// rail it costs them nothing, and at 370 px one line against one pace line
+  /// still reads.
+  final bool inRail;
 
   final Project project;
 
@@ -70,7 +78,23 @@ class ProjectDetailProfile extends StatelessWidget {
       tasks: tasks!,
       chartHeight: height,
       formatter: formatter,
+      compact: inRail,
     );
+
+    if (inRail) {
+      final rows = <Widget>[
+        if (hasChart) chart(kProjectChartRailHeight),
+        if (hasDetails) details(),
+        if (hasNotes) ProjectDetailNotesCard(project: project),
+      ];
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (var i = 0; i < rows.length; i++) ...[if (i > 0) gap, rows[i]],
+        ],
+      );
+    }
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -120,3 +144,7 @@ const double kProjectChartMinWidth = 600;
 /// The chart's height beside the Details card: about what five or six detail
 /// rows come to, so neither card is left with a blank half.
 const double kProjectChartRowHeight = 190;
+
+/// The chart's height in the rail: enough to tell ahead from behind pace,
+/// short enough to leave Details on the first screen.
+const double kProjectChartRailHeight = 180;

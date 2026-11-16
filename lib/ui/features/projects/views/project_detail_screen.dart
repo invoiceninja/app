@@ -249,6 +249,10 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
           strip: strip,
           body: body,
           top: _top(context, p, related, notes),
+          // A project is opened for its tasks and invoices, so on a wide page
+          // they lead (`EntityRecordPage.rail`).
+          lead: _top(context, p, related, notes, part: RecordColumnPart.lead),
+          rail: _top(context, p, related, notes, part: RecordColumnPart.rail),
         ),
       ),
     );
@@ -265,8 +269,9 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
     BuildContext context,
     Project p,
     Set<String> related,
-    EntityNoteActions notes,
-  ) {
+    EntityNoteActions notes, {
+    RecordColumnPart part = RecordColumnPart.all,
+  }) {
     final me = _services.auth.session.value?.currentCompany;
     // Nothing here is derived from tasks for a user who may not view them:
     // the local table would hold none (or only their own), and a total added
@@ -300,6 +305,7 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
           // invoice" may be answered from part of the list.
           final held = mayViewTasks ? _tasks.held : null;
           return EntityRecordColumn(
+            part: part,
             header: ProjectDetailHeader(
               project: p,
               formatter: formatter,
@@ -346,6 +352,7 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
               company: company.data,
               tasks: tasks,
               formatter: formatter,
+              inRail: part == RecordColumnPart.rail,
             ),
             timestamps: RecordTimestampsLine(
               createdAt: p.createdAt,

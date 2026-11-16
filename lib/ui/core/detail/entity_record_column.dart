@@ -20,7 +20,7 @@ import 'package:admin/ui/core/widgets/centered_form_column.dart';
 ///
 /// **One order at every width.** At [Breakpoints.entityFormMultiColumn] and
 /// up, identity and quick actions sit beside the standing card. A hub record
-/// (a client, a vendor) on a page of `kRecordRailMinWidth` or more draws
+/// (a client, a vendor, a project) on a page of `kRecordRailMinWidth` or more draws
 /// this column in two parts instead ([part]): identity and actions above the
 /// tabs, the rest in a rail beside them. A rail was once dropped on paper for
 /// leaving the embedded tables 640-800 px wide and for resetting the tabs as

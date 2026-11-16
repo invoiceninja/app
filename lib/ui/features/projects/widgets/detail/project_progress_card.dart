@@ -42,7 +42,12 @@ class ProjectProgressCard extends StatefulWidget {
     required this.tasks,
     required this.chartHeight,
     this.formatter,
+    this.compact = false,
   });
+
+  /// The card at a rail's width (about 370 px): fewer date ticks, so the
+  /// labels do not run into each other.
+  final bool compact;
 
   final Project project;
 
@@ -134,6 +139,7 @@ class _ProjectProgressCardState extends State<ProjectProgressCard> {
         height: widget.chartHeight,
         tokens: context.inTheme,
         formatter: widget.formatter,
+        maxDateLabels: widget.compact ? 4 : 6,
       ),
     );
   }
@@ -154,9 +160,11 @@ class _ChartPart extends StatelessWidget {
     required this.now,
     required this.height,
     required this.tokens,
+    required this.maxDateLabels,
     this.formatter,
   });
 
+  final int maxDateLabels;
   final List<({DateTime t, double hours})> series;
   final double logged;
   final double budgeted;
@@ -212,6 +220,18 @@ class _ChartPart extends StatelessWidget {
       }
     }
 
+    // Where on the logged line's own height the budget falls, when the line
+    // has passed it.
+    final overAt = budgeted > 0 && maxLogged > budgeted
+        ? (budgeted / maxLogged).clamp(0.0, 1.0)
+        : null;
+    // The due date gets its own marker when it is on the canvas and not on
+    // top of today's.
+    final showDue =
+        dueIndex != null &&
+        dueIndex > 0 &&
+        (dueIndex - nowIndex).abs() > maxX * 0.08;
+
     final bars = <LineChartBarData>[
       if (dueIndex != null && budgeted > 0)
         LineChartBarData(
@@ -238,7 +258,24 @@ class _ChartPart extends StatelessWidget {
         lineChartStepData: const LineChartStepData(
           stepDirection: LineChartStepData.stepDirectionForward,
         ),
-        color: tokens.accent,
+        // Past the budget the line changes colour, so "over" is seen on the
+        // line itself and not worked out from where it crosses a dashed one.
+        // The gradient runs over the line's own height, bottom to top, with a
+        // hard stop at the budget.
+        color: overAt == null ? tokens.accent : null,
+        gradient: overAt == null
+            ? null
+            : LinearGradient(
+                begin: Alignment.bottomCenter,
+                end: Alignment.topCenter,
+                colors: [
+                  tokens.accent,
+                  tokens.accent,
+                  tokens.overdue,
+                  tokens.overdue,
+                ],
+                stops: [0, overAt, overAt, 1],
+              ),
         barWidth: 2,
         dotData: FlDotData(
           show: true,
@@ -246,7 +283,9 @@ class _ChartPart extends StatelessWidget {
           checkToShowDot: (spot, _) => spot.x > 0,
           getDotPainter: (spot, percent, bar, index) => FlDotCirclePainter(
             radius: 2.5,
-            color: tokens.accent,
+            color: budgeted > 0 && spot.y > budgeted
+                ? tokens.overdue
+                : tokens.accent,
             strokeWidth: 0,
           ),
         ),
@@ -266,14 +305,13 @@ class _ChartPart extends StatelessWidget {
 
     final hasLogged = series.isNotEmpty;
     final hasBudgetPace = dueIndex != null && budgeted > 0;
-    final hasTail = tailBar != null;
     final body = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _ChartLegend(
           hasLogged: hasLogged,
           hasBudgetPace: hasBudgetPace,
-          hasTail: hasTail,
+          isOver: overAt != null,
           tokens: tokens,
         ),
         SizedBox(height: InSpacing.md(context)),
@@ -306,6 +344,22 @@ class _ChartPart extends StatelessWidget {
                       labelResolver: (_) => context.tr('today'),
                     ),
                   ),
+                  if (showDue)
+                    VerticalLine(
+                      x: dueIndex,
+                      color: tokens.ink3.withValues(alpha: 0.5),
+                      strokeWidth: 1,
+                      dashArray: const [3, 3],
+                      label: VerticalLineLabel(
+                        show: true,
+                        // rtl: physical chart axis (fl_chart never mirrors)
+                        alignment: Alignment.topLeft,
+                        // rtl: physical chart axis (fl_chart never mirrors)
+                        padding: const EdgeInsets.only(right: 4, bottom: 2),
+                        style: TextStyle(fontSize: 10, color: tokens.ink3),
+                        labelResolver: (_) => context.tr('due'),
+                      ),
+                    ),
                 ],
               ),
               gridData: FlGridData(
@@ -347,13 +401,23 @@ class _ChartPart extends StatelessWidget {
                   sideTitles: SideTitles(
                     showTitles: true,
                     reservedSize: 18,
-                    interval: _bottomTickInterval(maxX),
+                    interval: _bottomTickInterval(maxX, maxDateLabels),
                     getTitlesWidget: (value, meta) {
+                      // fl_chart labels the axis's far end on top of the
+                      // interval ticks; that one landed on the tick before it
+                      // (two dates printed over each other).
+                      if (value == meta.max && value != meta.min) {
+                        return const SizedBox.shrink();
+                      }
                       final t = createdAt.add(
                         Duration(minutes: (value * 24 * 60).round()),
                       );
+                      final iso = Date(t.year, t.month, t.day).toIso();
+                      final short = formatter?.dateShort(iso) ?? '';
                       return Text(
-                        '${t.month}/${t.day}',
+                        // No formatter only in a test or before the company
+                        // has loaded.
+                        short.isEmpty ? '${t.month}/${t.day}' : short,
                         style: TextStyle(fontSize: 10, color: tokens.ink3),
                       );
                     },
@@ -415,13 +479,15 @@ class _ChartLegend extends StatelessWidget {
   const _ChartLegend({
     required this.hasLogged,
     required this.hasBudgetPace,
-    required this.hasTail,
+    required this.isOver,
     required this.tokens,
   });
 
   final bool hasLogged;
   final bool hasBudgetPace;
-  final bool hasTail;
+
+  /// The logged line has passed the budget and changed colour.
+  final bool isOver;
   final InTheme tokens;
 
   @override
@@ -444,14 +510,10 @@ class _ChartLegend extends StatelessWidget {
           context.tr('budget_pace'),
           style,
         ),
-      if (hasTail)
+      if (isOver)
         _chip(
-          _LineSwatch(
-            color: tokens.accent.withValues(alpha: 0.35),
-            strokeWidth: 1.5,
-            dashArray: const [3, 3],
-          ),
-          context.tr('no_activity_since'),
+          _LineSwatch(color: tokens.overdue, strokeWidth: 2),
+          context.tr('over_budget'),
           style,
         ),
     ];
@@ -539,18 +601,18 @@ class _LineSwatchPainter extends CustomPainter {
       !listEquals(old.dashArray, dashArray);
 }
 
-double _bottomTickInterval(double maxX) {
+double _bottomTickInterval(double maxX, int maxLabels) {
   if (maxX <= 0) return 1;
-  // Roughly 5-7 labels across the X axis regardless of project length.
-  if (maxX <= 7) return 1;
-  if (maxX <= 30) return 5;
-  if (maxX <= 90) return 14;
-  if (maxX <= 180) return 30;
+  // Roughly 5-7 labels across the X axis regardless of project length, on
+  // round steps where one fits [maxLabels].
+  for (final step in const [1.0, 2.0, 5.0, 7.0, 14.0, 30.0]) {
+    if (maxX / step <= maxLabels) return step;
+  }
   // A fixed step stops being "5-7 labels" once the axis runs to years: a due
   // date a decade out asked the chart to lay out a label a month, and one
   // typed as 2999 asked for twelve thousand — seconds of layout for an axis
   // nobody can read. Scale the step with the span instead.
-  return (maxX / 6).ceilToDouble();
+  return (maxX / maxLabels).ceilToDouble();
 }
 
 /// Day offset of [t] from [origin] in fractional days (positive = after).

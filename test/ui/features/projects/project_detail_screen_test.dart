@@ -16,6 +16,7 @@ import 'package:admin/data/models/api/client_api_model.dart';
 import 'package:admin/data/models/api/project_api_model.dart';
 import 'package:admin/data/models/api/task_api_model.dart';
 import 'package:admin/ui/core/detail/entity_quick_actions.dart';
+import 'package:admin/ui/core/detail/entity_record_page.dart';
 import 'package:admin/ui/core/detail/standing_card.dart';
 import 'package:admin/ui/core/widgets/link_text.dart';
 import 'package:admin/ui/features/dashboard/widgets/card_shell.dart';
@@ -541,7 +542,8 @@ void main() {
         // Equal cards.
         expect(chart.width, moreOrLessEquals(details.width, epsilon: 0.5));
       },
-      size: const Size(1400, 2000),
+      // Wide, and under the rail's threshold: the band layout.
+      size: const Size(1150, 2000),
     );
 
     _screenTest(
@@ -573,9 +575,36 @@ void main() {
           hasLength(1),
         );
       },
-      size: const Size(1400, 2000),
+      // Wide, and under the rail's threshold: the band layout.
+      size: const Size(1150, 2000),
     );
   });
+
+  _screenTest(
+    'from the rail\'s threshold the tasks lead and the chart heads the rail',
+    _project(),
+    tasks: [_taskA(), _taskB()],
+    (tester, screen) async {
+      await screen.untilFound(find.byType(ProjectProgressCard), 'the chart');
+      expect(tester.takeException(), isNull);
+      final chart = tester.getRect(find.byType(ProjectProgressCard));
+      final standing = tester.getRect(find.byType(ProjectDetailStanding));
+      final details = tester.getRect(
+        find.ancestor(
+          of: find.text('Details'),
+          matching: find.byType(DashboardCardShell),
+        ),
+      );
+      // One column at the end edge: figures, then the chart, then Details.
+      expect(chart.left, moreOrLessEquals(standing.left, epsilon: 0.5));
+      expect(chart.top, greaterThan(standing.bottom));
+      expect(details.top, greaterThan(chart.bottom));
+      expect(chart.width, lessThanOrEqualTo(kRecordRailWidth));
+      // And the action buttons are in the other column, to its start.
+      expect(quickActionsFoot(tester).right, lessThan(chart.left));
+    },
+    size: const Size(1400, 2000),
+  );
 
   _screenTest(
     'on a pane the chart is not drawn — the budget bar is the chart',
