@@ -10,15 +10,40 @@ import 'package:admin/ui/features/dashboard/widgets/card_shell.dart';
 /// "Address" card on the client edit screen. Fields pair on wide widths and
 /// stack on narrow.
 class ClientEditAddressSection extends StatelessWidget {
-  const ClientEditAddressSection({super.key, required this.vm});
+  const ClientEditAddressSection({
+    super.key,
+    required this.vm,
+    this.besideShipping = false,
+  });
 
   final ClientEditViewModel vm;
+
+  /// True where this card sits in a row with the Shipping Address card. That
+  /// card's header carries a "Copy Billing" button and is taller for it, so
+  /// this one reserves the same button's height, unseen, and the two cards'
+  /// fields line up row for row.
+  final bool besideShipping;
 
   @override
   Widget build(BuildContext context) {
     final draft = vm.draft;
     return DashboardCardShell(
       title: context.tr('address'),
+      trailing: besideShipping
+          ? ExcludeSemantics(
+              child: Visibility(
+                visible: false,
+                maintainSize: true,
+                maintainAnimation: true,
+                maintainState: true,
+                child: TextButton.icon(
+                  onPressed: null,
+                  icon: const Icon(Icons.copy_all_outlined, size: 18),
+                  label: const Text(''),
+                ),
+              ),
+            )
+          : null,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
@@ -36,6 +61,7 @@ class ClientEditAddressSection extends StatelessWidget {
             textCapitalization: TextCapitalization.words,
           ),
           ClientEditFieldPair(
+            minPairWidth: kAddressPairWidth,
             left: EntityEditField(
               label: context.tr('city'),
               initial: draft.city,
@@ -49,6 +75,7 @@ class ClientEditAddressSection extends StatelessWidget {
             ),
           ),
           ClientEditFieldPair(
+            minPairWidth: kAddressPairWidth,
             left: EntityEditField(
               label: context.tr('postal_code'),
               initial: draft.postalCode,

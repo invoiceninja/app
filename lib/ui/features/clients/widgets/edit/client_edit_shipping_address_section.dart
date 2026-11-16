@@ -43,6 +43,7 @@ class ClientEditShippingAddressSection extends StatelessWidget {
             textCapitalization: TextCapitalization.words,
           ),
           ClientEditFieldPair(
+            minPairWidth: kAddressPairWidth,
             left: EntityEditField(
               label: context.tr('city'),
               initial: draft.shippingCity,
@@ -56,6 +57,7 @@ class ClientEditShippingAddressSection extends StatelessWidget {
             ),
           ),
           ClientEditFieldPair(
+            minPairWidth: kAddressPairWidth,
             left: EntityEditField(
               label: context.tr('postal_code'),
               initial: draft.shippingPostalCode,

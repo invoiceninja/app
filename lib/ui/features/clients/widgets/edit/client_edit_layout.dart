@@ -16,7 +16,8 @@ import 'package:admin/ui/core/edit/create_form_documents.dart';
 /// using the v2 mockup pattern: `1fr` main column + fixed-width side column
 /// on wide widths.
 ///
-/// - ≥1000 px: two columns. Left (`Expanded`) holds Details + Address; right
+/// - ≥1000 px: two columns. Left (`Expanded`) holds Details + the two
+///   addresses (side by side from `_addressPairWidth`) + Settings; right
 ///   (`_sidebarWidth` 360 px) holds Contacts + Notes.
 /// - <1000 px: single centered column (≤820 px) with all cards stacked.
 class ClientEditLayout extends StatelessWidget {
@@ -25,6 +26,9 @@ class ClientEditLayout extends StatelessWidget {
   final ClientEditViewModel vm;
 
   static const double _sidebarWidth = 360;
+
+  /// The main column's width from which the two address cards share a row.
+  static const double _addressPairWidth = 720;
 
   @override
   Widget build(BuildContext context) {
@@ -52,9 +56,7 @@ class ClientEditLayout extends StatelessWidget {
             children: [
               ClientEditDetailsSection(vm: vm),
               SizedBox(height: InSpacing.md(context)),
-              ClientEditAddressSection(vm: vm),
-              SizedBox(height: InSpacing.md(context)),
-              ClientEditShippingAddressSection(vm: vm),
+              _addresses(context),
               SizedBox(height: InSpacing.md(context)),
               ClientEditSettingsSection(vm: vm),
             ],
@@ -77,6 +79,38 @@ class ClientEditLayout extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+
+  /// Billing and shipping are the same six fields, so where the main column
+  /// can hold two cards they sit side by side: one screen of scrolling less,
+  /// and the two addresses can be compared. Below that they stack as before.
+  Widget _addresses(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final gap = InSpacing.md(context);
+        if (constraints.maxWidth < _addressPairWidth) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ClientEditAddressSection(vm: vm),
+              SizedBox(height: gap),
+              ClientEditShippingAddressSection(vm: vm),
+            ],
+          );
+        }
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: ClientEditAddressSection(vm: vm, besideShipping: true),
+            ),
+            SizedBox(width: gap),
+            Expanded(child: ClientEditShippingAddressSection(vm: vm)),
+          ],
+        );
+      },
     );
   }
 

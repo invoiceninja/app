@@ -116,7 +116,12 @@ ThemeData buildInTheme(InTheme baseTokens, {Color? accentOverride}) {
     ),
 
     inputDecorationTheme: InputDecorationTheme(
-      filled: false,
+      // A field is a well: filled with the page colour, so on a card (the
+      // surface colour, where nearly every form field sits) it reads as a
+      // place to type rather than an outline on the same ground. On the page
+      // itself the fill matches and the border alone marks the field.
+      filled: true,
+      fillColor: tokens.bg,
       isDense: true,
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       labelStyle: textTheme.bodyMedium?.copyWith(color: tokens.ink3),
