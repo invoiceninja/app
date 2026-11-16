@@ -532,6 +532,7 @@ class EntityEditScaffold<T> extends StatelessWidget {
                         // full header width, not the bar's reduced slot.
                         final actions = ActionBarLayoutScope(
                           wide: wide,
+                          maxInline: kEditBarMaxInline,
                           child: actionsWidget ?? saveButton,
                         );
                         final title = Text(
@@ -593,6 +594,7 @@ class EntityEditScaffold<T> extends StatelessWidget {
                     final wide = Breakpoints.isWide(constraints);
                     final actions = ActionBarLayoutScope(
                       wide: wide,
+                      maxInline: kEditBarMaxInline,
                       child: actionsWidget ?? saveButton,
                     );
                     final title = Text(

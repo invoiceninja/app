@@ -1,12 +1,12 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 
-import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/data/models/value/currency.dart';
 import 'package:admin/data/models/value/language.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/edit/entity_edit_field.dart';
+import 'package:admin/ui/core/widgets/form_group_heading.dart';
 import 'package:admin/ui/core/widgets/labeled_switch_group.dart';
 import 'package:admin/ui/core/widgets/searchable_dropdown_field.dart';
 import 'package:admin/ui/features/dashboard/widgets/card_shell.dart';
@@ -59,9 +59,13 @@ class VendorEditSettingsSection extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
+          // Grouped as Edit Client's Settings card is: Defaults, Profile, Tax.
+          FormGroupHeading(context.tr('defaults'), first: true),
           VendorEditFieldPair(
             left: SearchableDropdownField<Currency>(
               label: context.tr('currency'),
+              // Blank inherits the company's, and the empty field says so.
+              hintText: context.tr('default'),
               items: currencies,
               initialValue: statics.currency(draft.currencyId),
               displayString: (c) => c.name,
@@ -70,6 +74,8 @@ class VendorEditSettingsSection extends StatelessWidget {
             ),
             right: SearchableDropdownField<Language>(
               label: context.tr('language'),
+              // Blank inherits the company's, and the empty field says so.
+              hintText: context.tr('default'),
               items: languages,
               initialValue: statics.language(draft.languageId),
               displayString: (l) => l.name,
@@ -77,6 +83,7 @@ class VendorEditSettingsSection extends StatelessWidget {
               onChanged: (l) => vm.setLanguageId(l?.id ?? ''),
             ),
           ),
+          FormGroupHeading(context.tr('profile')),
           VendorEditFieldPair(
             left: SearchableDropdownField<String>(
               label: context.tr('classification'),
@@ -95,7 +102,7 @@ class VendorEditSettingsSection extends StatelessWidget {
               autocorrect: false,
             ),
           ),
-          SizedBox(height: InSpacing.sm),
+          FormGroupHeading(context.tr('tax')),
           LabeledSwitchGroup(
             items: [
               LabeledSwitchItem(

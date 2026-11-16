@@ -1,7 +1,6 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 
-import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/data/models/domain/group_setting.dart';
 import 'package:admin/data/models/value/currency.dart';
@@ -11,6 +10,7 @@ import 'package:admin/data/models/value/size.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/edit/entity_edit_field.dart';
 import 'package:admin/ui/core/widgets/assigned_user_picker_field.dart';
+import 'package:admin/ui/core/widgets/form_group_heading.dart';
 import 'package:admin/ui/core/widgets/labeled_switch_group.dart';
 import 'package:admin/ui/core/widgets/searchable_dropdown_field.dart';
 import 'package:admin/ui/features/clients/view_models/client_edit_view_model.dart';
@@ -74,15 +74,19 @@ class ClientEditSettingsSection extends StatelessWidget {
               ? taskRateRaw.toInt().toString()
               : taskRateRaw.toString());
 
+    final inherited = context.tr('default');
+    final days = context.tr('days');
     return DashboardCardShell(
       title: context.tr('settings'),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Group + assigned user — org/ownership fields (repo-backed, so
-          // each is a StreamBuilder-fed searchable picker). Clearing either
-          // sets the id back to '' (none / unassigned).
+          // Four kinds of thing, each under its own heading: twelve fields in
+          // one grid made the user read all twelve to find one.
+          FormGroupHeading(context.tr('ownership'), first: true),
+          // Group + assigned user (repo-backed, so each is a StreamBuilder-fed
+          // searchable picker). Clearing either sets the id back to ''.
           ClientEditFieldPair(
             left: _GroupPicker(vm: vm),
             right: AssignedUserPickerField(
@@ -91,9 +95,14 @@ class ClientEditSettingsSection extends StatelessWidget {
               onChanged: vm.setAssignedUserId,
             ),
           ),
+          // What this client's invoices and quotes start from. Each is a
+          // cascade setting: blank inherits the group's, then the company's,
+          // and the empty field says so ("Default") instead of looking unset.
+          FormGroupHeading(context.tr('defaults')),
           ClientEditFieldPair(
             left: SearchableDropdownField<Currency>(
               label: context.tr('currency'),
+              hintText: inherited,
               items: currencies,
               initialValue: statics.currency(draft.currencyId),
               displayString: (c) => c.name,
@@ -102,6 +111,7 @@ class ClientEditSettingsSection extends StatelessWidget {
             ),
             right: SearchableDropdownField<Language>(
               label: context.tr('language'),
+              hintText: inherited,
               items: languages,
               initialValue: statics.language(draft.languageId),
               displayString: (l) => l.name,
@@ -112,30 +122,37 @@ class ClientEditSettingsSection extends StatelessWidget {
           ClientEditFieldPair(
             left: EntityEditField(
               label: context.tr('payment_terms'),
+              hintText: inherited,
+              suffixText: days,
               initial: draft.paymentTerms,
               keyboardType: TextInputType.number,
               onChanged: vm.setPaymentTerms,
             ),
+            // "Quote valid until", not "Valid until": on a client it is a
+            // number of days for its quotes, not a date of its own.
             right: EntityEditField(
+              label: context.tr('quote_valid_until'),
+              hintText: inherited,
+              suffixText: days,
+              initial: vm.validUntil,
+              keyboardType: TextInputType.number,
+              onChanged: vm.setValidUntil,
+            ),
+          ),
+          ClientEditFieldPair(
+            left: EntityEditField(
               label: context.tr('task_rate'),
+              hintText: inherited,
               initial: taskRate,
               keyboardType: const TextInputType.numberWithOptions(
                 decimal: true,
               ),
               onChanged: vm.setDefaultTaskRate,
             ),
-          ),
-          // Quote "valid until" (days) + send-reminders override — both cascade
-          // settings stored in `settings`; blank / "Default" inherits.
-          ClientEditFieldPair(
-            left: EntityEditField(
-              label: context.tr('valid_until'),
-              initial: vm.validUntil,
-              keyboardType: TextInputType.number,
-              onChanged: vm.setValidUntil,
-            ),
             right: _SendRemindersPicker(vm: vm),
           ),
+          // Who the client is, for reporting and e-invoicing.
+          FormGroupHeading(context.tr('profile')),
           ClientEditFieldPair(
             left: SearchableDropdownField<Industry>(
               label: context.tr('industry'),
@@ -172,7 +189,7 @@ class ClientEditSettingsSection extends StatelessWidget {
               autocorrect: false,
             ),
           ),
-          SizedBox(height: InSpacing.sm),
+          FormGroupHeading(context.tr('tax')),
           LabeledSwitchGroup(
             items: [
               LabeledSwitchItem(

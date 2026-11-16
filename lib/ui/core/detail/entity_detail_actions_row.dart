@@ -232,6 +232,10 @@ class EntityActionItem<A> {
   }
 }
 
+/// How many actions an edit screen shows beside Save; see
+/// [ActionBarLayoutScope.maxInline].
+const int kEditBarMaxInline = 3;
+
 /// Lets the edit-screen header tell its [EntityOverflowActionBar] whether to
 /// render the wide spread bar or the compact `⋮`, based on the **full header
 /// width**. The bar's own slot can't be trusted for this: in the wide layout it
@@ -243,17 +247,30 @@ class ActionBarLayoutScope extends InheritedWidget {
   const ActionBarLayoutScope({
     super.key,
     required this.wide,
+    this.maxInline,
     required super.child,
   });
 
   final bool wide;
+
+  /// The most actions the spread bar shows beside its pinned button; the rest
+  /// go under "More" even where they would fit. Null is as many as fit.
+  ///
+  /// The edit screens pass [kEditBarMaxInline]. As many as fit put nine
+  /// buttons beside Save on a wide window — Merge and Purge among them on a
+  /// form that is for typing — and the title was cut to make room.
+  final int? maxInline;
+
+  static int? maybeMaxInlineOf(BuildContext context) => context
+      .dependOnInheritedWidgetOfExactType<ActionBarLayoutScope>()
+      ?.maxInline;
 
   static bool? maybeWideOf(BuildContext context) =>
       context.dependOnInheritedWidgetOfExactType<ActionBarLayoutScope>()?.wide;
 
   @override
   bool updateShouldNotify(ActionBarLayoutScope oldWidget) =>
-      oldWidget.wide != wide;
+      oldWidget.wide != wide || oldWidget.maxInline != maxInline;
 }
 
 /// The overflow-aware button cluster shared by the edit-screen action bar (the
@@ -303,20 +320,36 @@ class EntityOverflowActionBar<A> extends StatelessWidget {
     // Wide: visible buttons left-to-right, the tail collapsing into a labeled
     // "More" menu. `OverflowView` never RenderFlex-overflows in a tight slot
     // (it collapses gracefully) — the property the edit-screen header relies on.
+    // Past the scope's cap the actions go under "More" whatever the width:
+    // [inline] are the candidates for a button, [capped] never get one.
+    final maxInline = ActionBarLayoutScope.maybeMaxInlineOf(context);
+    final inline = maxInline == null || shown.length <= maxInline
+        ? shown
+        : shown.sublist(0, maxInline);
+    final capped = shown.sublist(inline.length);
+
     Widget spreadBar() => OverflowView.flexible(
       spacing: 8,
       children: [
         if (leading != null) leading!,
-        for (final item in shown) _ActionButton<A>(item: item),
+        for (final item in inline) _ActionButton<A>(item: item),
+        // The capped actions' own "More", last so it is the first child
+        // `OverflowView` hides; once it does, the builder's "More" below
+        // carries them along with whatever else did not fit.
+        if (capped.isNotEmpty) _MoreMenu<A>(items: capped),
       ],
       builder: (context, remaining) {
         // `remaining` counts hidden children from the end of the full
-        // children list (which includes [leading] at index 0). When the
-        // bar is so tight even `leading` would collapse, `remaining` can
-        // reach `shown.length + 1`; clamp so the slice never goes negative.
-        final hiddenCount = remaining > shown.length ? shown.length : remaining;
-        final hidden = shown.sublist(shown.length - hiddenCount);
-        return _MoreMenu<A>(items: hidden);
+        // children list (which includes [leading] at index 0, and the
+        // capped "More" last). When the bar is so tight even `leading`
+        // would collapse, `remaining` can reach past the inline buttons;
+        // clamp so the slice never goes negative.
+        final hiddenButtons = capped.isEmpty ? remaining : remaining - 1;
+        final hiddenCount = hiddenButtons > inline.length
+            ? inline.length
+            : (hiddenButtons < 0 ? 0 : hiddenButtons);
+        final hidden = inline.sublist(inline.length - hiddenCount);
+        return _MoreMenu<A>(items: [...hidden, ...capped]);
       },
     );
 

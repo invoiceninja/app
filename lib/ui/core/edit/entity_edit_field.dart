@@ -33,6 +33,7 @@ class EntityEditField extends StatefulWidget {
     this.hintText,
     this.readOnly = false,
     this.prefixText,
+    this.suffixText,
     this.textCapitalization = TextCapitalization.none,
     this.autofillHints,
     this.autocorrect = true,
@@ -122,6 +123,10 @@ class EntityEditField extends StatefulWidget {
   /// currency symbol on a money field. Not part of the value: `onChanged`
   /// still receives only what the user typed.
   final String? prefixText;
+
+  /// Static text pinned inside the field, after the value — a unit ("days").
+  /// Not part of the value, like [prefixText].
+  final String? suffixText;
 
   @override
   State<EntityEditField> createState() => _EntityEditFieldState();
@@ -218,6 +223,7 @@ class _EntityEditFieldState extends State<EntityEditField> {
             hintText: widget.hintText,
             helper: widget.helper,
             prefixText: widget.prefixText,
+            suffixText: widget.suffixText,
             // Reveal toggle — a bare IconButton, matching `AuthPasswordField`.
             // Deliberately NOT wrapped in `Focus(canRequestFocus: false)`:
             // that shape appears elsewhere in the app but is inert, because

@@ -61,6 +61,7 @@ class SearchableDropdownField<T extends Object> extends StatefulWidget {
     this.emptyHintKey,
     this.errorText,
     this.helper,
+    this.hintText,
     this.maxResults = 50,
     this.idleResults = 20,
     this.footerBuilder,
@@ -101,6 +102,11 @@ class SearchableDropdownField<T extends Object> extends StatefulWidget {
   /// Shown under the field where its helper text goes — a "From receipt"
   /// marker (`ReceiptFieldMarker`), say. Hidden while [errorText] shows.
   final Widget? helper;
+
+  /// Shown in the field while nothing is picked: what an empty value means
+  /// ("Default" on a setting that inherits). Not the disabled-and-empty
+  /// placeholder, which is [emptyHintKey].
+  final String? hintText;
 
   /// Maximum items shown while filtering.
   final int maxResults;
@@ -928,6 +934,7 @@ class _SearchableDropdownFieldState<T extends Object>
                           enableInteractiveSelection: !_suppressKeyboard,
                           decoration: InputDecoration(
                             labelText: widget.label,
+                            hintText: widget.hintText,
                             errorText: widget.errorText,
                             helper: widget.helper,
                             isDense: true,

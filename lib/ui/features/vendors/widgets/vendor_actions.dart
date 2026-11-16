@@ -72,6 +72,8 @@ class VendorActions {
       case VendorAction.archive:
       case VendorAction.restore:
       case VendorAction.delete:
+      // Nothing to merge into a record that does not exist yet.
+      case VendorAction.merge:
         return true;
       default:
         return false;

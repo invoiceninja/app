@@ -25,3 +25,9 @@ Companion to CLAUDE.md § Design system (v2). Why a button stretches edge to edg
 ## Bordered-card form sections pad with `InSpacing.lg(context)`
 
 **Bordered-card form sections use `InSpacing.lg(context)` interior padding by default.** That's what `FormSection`, `DashboardCardShell`, and the task-edit identity card use; new one-off bordered cards (`Container` with `tokens.border` + `BorderRadius.circular(InRadii.r3)`) match with `padding: EdgeInsets.all(InSpacing.lg(context))`. Column-aligned interior surfaces (table headers + rows + add-row tiles) use the horizontal value (`horizontal: InSpacing.lg(context)`) so cells line up with the section title. Card-to-card inset consistency is the point.
+
+## An edit screen shows three actions beside Save
+
+**The edit header's action bar shows at most `kEditBarMaxInline` (3) actions beside Save; the rest go under "More" whatever the width** (`ActionBarLayoutScope.maxInline`, set by `EntityEditScaffold` on both header layouts). The bar used to spread as many as fit, which on a wide window was nine buttons beside Save, Merge and Purge among them, on a screen that is for typing, and the title was cut short to make room. The cap is the scope's, so detail screens and the multi-select bar (no scope, or no cap) keep spreading as before. Inside `EntityOverflowActionBar` the capped actions are a last `_MoreMenu` child of the `OverflowView`; when space runs out that child is the first one hidden, and the builder's "More" then carries the capped actions along with the buttons that did not fit, so nothing is ever lost between the two menus.
+
+A new record's edit screen also drops what has no meaning before the record exists: each entity's `isLifecycle` (the create-mode filter fed to `filterForEditScreen`) now covers Merge and Purge, and for a client Assign Group (Group is a field on the form) and View Statement (a new client has none).

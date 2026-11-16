@@ -96,6 +96,12 @@ class ClientActions {
       case ClientAction.archive:
       case ClientAction.restore:
       case ClientAction.delete:
+      // Nothing to merge, purge or show a statement of until the record
+      // exists, and a new client's Group is a field on the form itself.
+      case ClientAction.purge:
+      case ClientAction.merge:
+      case ClientAction.assignGroup:
+      case ClientAction.viewStatement:
         return true;
       default:
         return false;
