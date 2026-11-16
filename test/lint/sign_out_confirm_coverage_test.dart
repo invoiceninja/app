@@ -21,6 +21,10 @@ void main() {
   const allowed = <String, String?>{
     // Fires on a timer, not a tap; preserves local data when work is queued.
     'lib/app/idle_timeout_controller.dart': null,
+    // The demo build's boot drops a restored demo session and its stale
+    // sample data before signing in with the demo token again; no user is
+    // signed out of anything.
+    'lib/main.dart': null,
     // The 401 handler — the server ended the session, there is nobody to ask.
     'lib/app/services.dart': null,
     // The inside of `endAllSessions()`; its caller owns the prompt.

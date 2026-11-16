@@ -10,6 +10,7 @@ import 'package:admin/ui/core/adaptive.dart';
 import 'package:admin/ui/core/list/master_detail_nav_scope.dart';
 import 'package:admin/ui/core/utils/text_input_focus.dart';
 import 'package:admin/ui/core/widgets/hidden_shell_navigator.dart';
+import 'package:admin/ui/core/utils/router_state.dart';
 
 // Re-exported so existing `master_detail_layout.dart` imports of these two
 // keep working; they live in their own leaf so the detail scaffold and tab
@@ -357,8 +358,8 @@ class _MasterDetailLayoutState extends State<MasterDetailLayout>
   /// pane docked and just swaps content (no slide-out) — an instant edit→view
   /// swap like the J/K row nav; sliding out then back in would visibly jank.
   Future<void> _closePaneAnimated({bool toParent = false}) async {
-    final fromUri = GoRouterState.of(context).uri;
-    final fromLoc = GoRouterState.of(context).matchedLocation;
+    final fromUri = routerStateOf(context).uri;
+    final fromLoc = routerStateOf(context).matchedLocation;
 
     // Only edit/create routes carry the `onExit` discard guard
     // (`buildEntityRouteBlock` in router.dart — the app's only
@@ -392,7 +393,7 @@ class _MasterDetailLayoutState extends State<MasterDetailLayout>
         await _slide.reverse();
       }
       if (!mounted) return;
-      final nowLoc = GoRouterState.of(context).matchedLocation;
+      final nowLoc = routerStateOf(context).matchedLocation;
       // User navigated somewhere else mid-animation (e.g. clicked a
       // different row) — their navigation wins; don't clobber it.
       if (nowLoc != fromLoc) return;
@@ -446,7 +447,7 @@ class _MasterDetailLayoutState extends State<MasterDetailLayout>
     // detail already settled. Cross-entity nav lives in a different
     // State, so no cross-entity leak.
     if (isWide && _hasPane && widget.viewMode == null) {
-      final loc = GoRouterState.of(context).matchedLocation;
+      final loc = routerStateOf(context).matchedLocation;
       if (_lastRedirectKey != loc) {
         _lastRedirectKey = loc;
         if (_resolveDesiredMode(loc) == 'full') {
@@ -644,7 +645,7 @@ class _PaneRoot extends StatelessWidget {
       // the close target (edit → detail parent; detail/create → list). The
       // edit route's `onExit` guard still fires on this `go`, so a dirty edit
       // still prompts before navigating.
-      final uri = GoRouterState.of(context).uri;
+      final uri = routerStateOf(context).uri;
       GoRouter.of(context).go(
         entityCloseTargetPath(
           basePath: basePath,
@@ -657,7 +658,7 @@ class _PaneRoot extends StatelessWidget {
 
   void _navigateRelative(BuildContext context, String? targetId) {
     if (targetId == null) return;
-    final uri = GoRouterState.of(context).uri;
+    final uri = routerStateOf(context).uri;
     // Preserve the current screen mode while keyboard-stepping rows: if
     // we're on an edit form, the next/prev row should open its edit
     // form too (not silently flip to the read-only detail screen).
@@ -672,7 +673,7 @@ class _PaneRoot extends StatelessWidget {
   Widget build(BuildContext context) {
     // Edit / create forms vs the read-only detail screen. Used only for
     // the screen-reader announcement (no visible verb in the chrome).
-    final path = GoRouterState.of(context).uri.path;
+    final path = routerStateOf(context).uri.path;
     final isEditing = path.endsWith('/edit') || path.endsWith('/new');
     // Viewport-aware chrome. On a narrow viewport the pane is full-page, so
     // the desktop full-screen toggle is meaningless and the X is replaced by
@@ -840,7 +841,7 @@ void _toggleFullScreenInUrl(
   BuildContext context, {
   required bool isFullScreen,
 }) {
-  final state = GoRouterState.of(context);
+  final state = routerStateOf(context);
   final uri = state.uri;
   final params = Map<String, String>.from(uri.queryParameters);
   if (isFullScreen) {
@@ -871,7 +872,7 @@ void goToCreateRoute(BuildContext context, String route) {
       ? route.substring(0, route.length - '/new'.length)
       : route;
   context.read<Services>().stageCreateDraft(basePath, null);
-  if (GoRouterState.of(context).matchedLocation == route) return;
+  if (routerStateOf(context).matchedLocation == route) return;
   GoRouter.of(context).go(route);
 }
 

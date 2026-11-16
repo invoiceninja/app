@@ -1,5 +1,4 @@
 import 'package:material_ui/material_ui.dart';
-import 'package:go_router/go_router.dart';
 
 import 'package:admin/ui/core/widgets/hidden_shell_navigator.dart';
 import 'package:admin/l10n/localization.dart';
@@ -7,6 +6,7 @@ import 'package:admin/ui/core/adaptive.dart';
 import 'package:admin/ui/features/settings/views/settings_screen.dart';
 import 'package:admin/ui/features/settings/widgets/settings_scope_banner.dart';
 import 'package:admin/ui/features/settings/widgets/settings_two_pane_scope.dart';
+import 'package:admin/ui/core/utils/router_state.dart';
 
 /// Phase 12: transient flag flipped by design-edit entry helpers
 /// (`showWysiwygDesignScreen` / `showDesignEditScreen` in
@@ -51,7 +51,7 @@ class SettingsShell extends StatelessWidget {
           return SettingsTwoPaneScope(isTwoPane: false, child: child);
         }
 
-        final atIndex = GoRouterState.of(context).uri.path == '/settings';
+        final atIndex = routerStateOf(context).uri.path == '/settings';
         // The scope banner is rendered by `SettingsScreenScaffold`
         // (below the section's AppBar) so it appears in both wide
         // and narrow layouts. The select-a-hint pane gets its own

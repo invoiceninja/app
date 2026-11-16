@@ -13,6 +13,7 @@ import 'package:admin/ui/features/settings/views/basic/account_management/plan_s
 import 'package:admin/ui/features/settings/views/basic/account_management/referral_program_screen.dart';
 import 'package:admin/ui/features/settings/views/basic/account_management/security_settings_screen.dart';
 import 'package:admin/ui/features/settings/widgets/settings_screen_scaffold.dart';
+import 'package:admin/ui/core/utils/router_state.dart';
 
 const String _kBasePath = '/settings/account_management';
 
@@ -212,7 +213,7 @@ class _AccountManagementShellState extends State<AccountManagementShell>
     if (!mounted) return;
     if (_controller.indexIsChanging) return;
     final tab = _tabs[_controller.index];
-    final current = GoRouterState.of(context).uri.path;
+    final current = routerStateOf(context).uri.path;
     // A sub-route of this tab (e.g. `…/integrations/analytics`) already counts
     // as "on this tab" — rewriting the URL there would pop the child away.
     if (accountManagementTabSlug(current) == tab.slug) return;
@@ -236,7 +237,7 @@ class _AccountManagementShellState extends State<AccountManagementShell>
     // `animateTo`. A null slug means the location left this shell entirely
     // (the page is being torn down) — leave the tab alone.
     final currentTab = accountManagementTabSlug(
-      GoRouterState.of(context).uri.path,
+      routerStateOf(context).uri.path,
     );
     final urlIndex = _indexForSlug(currentTab);
     final knownTab =

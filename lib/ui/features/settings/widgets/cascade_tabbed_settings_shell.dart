@@ -14,6 +14,7 @@ import 'package:admin/ui/features/settings/widgets/cascade_settings_scaffold.dar
 import 'package:admin/ui/features/settings/widgets/settings_company_scoped_host.dart';
 import 'package:admin/ui/features/settings/widgets/settings_page_scaffold.dart';
 import 'package:admin/ui/features/settings/widgets/tabbed_settings_shell.dart';
+import 'package:admin/ui/core/utils/router_state.dart';
 
 /// Cascade-aware counterpart to [TabbedSettingsShell]. Use this for any
 /// settings page that:
@@ -157,7 +158,7 @@ class _CascadeTabbedSettingsShellState extends State<CascadeTabbedSettingsShell>
     final desiredPath = tab.slug.isEmpty
         ? widget.basePath
         : '${widget.basePath}/${tab.slug}';
-    final currentPath = GoRouterState.of(context).uri.path;
+    final currentPath = routerStateOf(context).uri.path;
     if (currentPath == desiredPath) return;
     context.go(desiredPath);
   }
@@ -203,7 +204,7 @@ class _CascadeTabbedSettingsShellState extends State<CascadeTabbedSettingsShell>
 
   @override
   Widget build(BuildContext context) {
-    final currentTab = GoRouterState.of(context).pathParameters['tab'];
+    final currentTab = routerStateOf(context).pathParameters['tab'];
     final urlIndex = _indexForSlug(currentTab);
     if (urlIndex != _tabController.index && !_tabController.indexIsChanging) {
       WidgetsBinding.instance.addPostFrameCallback((_) {

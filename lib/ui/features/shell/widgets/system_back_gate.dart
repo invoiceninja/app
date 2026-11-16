@@ -1,10 +1,10 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
-import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import 'package:admin/app/nav_history_controller.dart';
 import 'package:admin/app/services.dart';
+import 'package:admin/ui/core/utils/router_state.dart';
 
 /// Binds the platform back event (Android's back gesture / back key) to
 /// [NavHistoryController] — the app's own browser-style history.
@@ -79,7 +79,7 @@ class SystemBackGate extends StatelessWidget {
     // `NavHistoryController`'s cursor, which moves before it navigates.
     // `uri` (the full location), not `matchedLocation` — at the shell level
     // the latter is only the shell route's own slice of the path.
-    final location = GoRouterState.of(context).uri.path;
+    final location = routerStateOf(context).uri.path;
     if (location.endsWith('/edit') || location.endsWith('/new')) {
       final guard = context.read<Services>().unsavedChangesGuard;
       if (!await guard.confirmIfDirty(context)) return; // user kept editing

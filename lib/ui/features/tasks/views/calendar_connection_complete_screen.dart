@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
+import 'package:admin/ui/core/utils/router_state.dart';
 
 /// OAuth-return landing for calendar connect. Reached two ways with identical
 /// behaviour: a full-page web redirect back to this route, or a native deep
@@ -40,7 +41,7 @@ class _CalendarConnectionCompleteScreenState
 
     final router = GoRouter.of(context);
     final services = context.read<Services>();
-    final params = GoRouterState.of(context).uri.queryParameters;
+    final params = routerStateOf(context).uri.queryParameters;
     final provider = params['provider'] ?? '';
     final handoff = params['handoff'] ?? '';
     final status = params['calendar_connection'];

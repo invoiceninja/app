@@ -6,6 +6,7 @@ import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/features/settings/views/basic/backup_restore/widgets/backup_tab.dart';
 import 'package:admin/ui/features/settings/views/basic/backup_restore/widgets/restore_tab.dart';
 import 'package:admin/ui/features/settings/widgets/settings_screen_scaffold.dart';
+import 'package:admin/ui/core/utils/router_state.dart';
 
 /// Settings → Backup | Restore. Two URL-driven tabs:
 ///
@@ -65,7 +66,7 @@ class _BackupRestoreShellState extends State<BackupRestoreShell>
     if (_controller.indexIsChanging) return;
     final tab = _tabs[_controller.index];
     final desired = tab.slug.isEmpty ? _basePath : '$_basePath/${tab.slug}';
-    final current = GoRouterState.of(context).uri.path;
+    final current = routerStateOf(context).uri.path;
     if (current == desired) return;
     context.go(desired);
   }
@@ -83,7 +84,7 @@ class _BackupRestoreShellState extends State<BackupRestoreShell>
     // Keep the controller in sync if the URL changed externally (back
     // button, deep link, settings search). The `!=` guard prevents the
     // controller listener (which pushes URL updates) from looping back.
-    final currentTab = GoRouterState.of(context).pathParameters['tab'];
+    final currentTab = routerStateOf(context).pathParameters['tab'];
     final urlIndex = _indexForSlug(currentTab);
     if (urlIndex != _controller.index && !_controller.indexIsChanging) {
       WidgetsBinding.instance.addPostFrameCallback((_) {

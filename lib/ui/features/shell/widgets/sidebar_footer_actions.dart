@@ -1,5 +1,4 @@
 import 'package:material_ui/material_ui.dart';
-import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import 'package:admin/app/design_tokens.dart';
@@ -12,6 +11,7 @@ import 'package:admin/ui/features/shell/widgets/about_dialog.dart';
 import 'package:admin/ui/features/shell/widgets/company_avatar.dart';
 import 'package:admin/ui/features/feedback/contact_us_dialog.dart';
 import 'package:admin/ui/features/shell/widgets/show_theme_menu.dart';
+import 'package:admin/ui/core/utils/router_state.dart';
 
 /// The support forum — also offered by the command palette's Help hits.
 const String kSupportForumUrl = 'https://forum.invoiceninja.com';
@@ -123,7 +123,7 @@ class SidebarFooterActions extends StatelessWidget {
         touch: touch,
         onTap: () => _openExternal(
           context,
-          userGuideUrl(GoRouterState.of(context).matchedLocation),
+          userGuideUrl(routerStateOf(context).matchedLocation),
         ),
       ),
       _FooterAction(
@@ -242,7 +242,7 @@ class _CollapsedHelpMenuState extends State<_CollapsedHelpMenu> {
           'user_guide',
           () => _openExternal(
             context,
-            userGuideUrl(GoRouterState.of(context).matchedLocation),
+            userGuideUrl(routerStateOf(context).matchedLocation),
           ),
         ),
         item(Icons.info_outline, 'about', () => showAppAboutDialog(context)),

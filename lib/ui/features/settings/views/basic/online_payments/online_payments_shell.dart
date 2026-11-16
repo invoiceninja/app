@@ -17,6 +17,7 @@ import 'package:admin/ui/features/settings/views/basic/online_payments/online_pa
 import 'package:admin/ui/features/settings/widgets/settings_company_scoped_host.dart';
 import 'package:admin/ui/features/settings/widgets/settings_form_shell.dart';
 import 'package:admin/ui/features/settings/widgets/settings_page_scaffold.dart';
+import 'package:admin/ui/core/utils/router_state.dart';
 
 /// URL slug → tab-index mapping for the three Online Payments tabs. Order
 /// matches the user-facing tab order (General, Defaults, Emails) and the
@@ -84,7 +85,7 @@ class _OnlinePaymentsShellState extends State<OnlinePaymentsShell>
     final desired = slug.isEmpty
         ? '/settings/online_payments'
         : '/settings/online_payments/$slug';
-    if (GoRouterState.of(context).uri.path == desired) return;
+    if (routerStateOf(context).uri.path == desired) return;
     context.go(desired);
   }
 
@@ -102,7 +103,7 @@ class _OnlinePaymentsShellState extends State<OnlinePaymentsShell>
     // button, deep link, settings search). The `!= controller.index` guard
     // prevents the controller listener (which pushes URL updates) from
     // looping back into another animateTo.
-    final currentTab = GoRouterState.of(context).pathParameters['tab'];
+    final currentTab = routerStateOf(context).pathParameters['tab'];
     final urlIndex = _indexForSlug(currentTab);
     if (urlIndex != _tabController.index && !_tabController.indexIsChanging) {
       WidgetsBinding.instance.addPostFrameCallback((_) {

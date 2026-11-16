@@ -19,6 +19,7 @@ import 'package:admin/ui/core/utils/platform_modifier.dart';
 import 'package:admin/ui/core/widgets/form_save_scope.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/core/widgets/shortcut_hint_scope.dart';
+import 'package:admin/ui/core/utils/router_state.dart';
 
 /// Shared chrome for an entity edit / create screen.
 ///
@@ -387,7 +388,7 @@ class EntityEditScaffold<T> extends StatelessWidget {
           // `pop()` throws `GoError('There is nothing to pop')` — Discard
           // silently did nothing on Android. Navigate to the same close target
           // the pane's leading arrow uses instead.
-          final uri = GoRouterState.of(context).uri;
+          final uri = routerStateOf(context).uri;
           router.go(
             entityCloseTargetPath(
               basePath: entityBasePathFromEditorPath(uri.path),

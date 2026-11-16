@@ -320,6 +320,34 @@ When an upstream fix ships: follow the revert, verify, then **delete the entry**
 - Revert: delete the link option and the lint's first test once a Flutter release's `libflutter_linux_gtk.so` no longer exports `_Unwind_*` (`nm -D --defined-only libflutter_linux_gtk.so | grep _Unwind_` prints nothing).
 - Recheck trigger: any Flutter bump. Run the `nm` line on the new release engine (`linux-x64-release/linux-x64-flutter-gtk.zip`). After a build, `readelf -d build/linux/x64/release/bundle/admin | grep NEEDED` must list `libgcc_s.so.1` first.
 
+## 24. Skia's fontconfig font manager never returns for a font with no family name, so the Linux app shows no window
+
+- Issue / waiting on: none filed yet (2026-11-16). The loop is in Skia `src/ports/SkFontMgr_fontconfig.cpp`, `GetFamilyNames`, unchanged on Skia `main` that day; Flutter 3.50.0 pins Skia `0e5d8d1be81b`. • Found: 2026-11-16 (invoiceninja/flutter#194, the Flatpak on Debian sid, GNOME Wayland; from 5.1.25, so Flutter 3.47 too)
+- Symptom: the app starts, logs `Using the Impeller rendering backend`, and never shows a window. The process stays alive with its main thread at about 100% of one core. The reporter's `gdb` backtrace: `gtk_widget_realize` → `libflutter_linux_gtk.so` (three frames) → `FcPatternGetString` → `FcObjectTypeLookup` → `strcmp`. The same version's AppImage opens on that machine, and the Flatpak opens once WOFF / WOFF2 fonts are rejected by an app-level fontconfig rule.
+- Root cause: the engine builds `SkFontMgr_fontconfig` on the platform thread while the view is realized. Its constructor reads every listed font's family names with `for (int id = 0;; ++id)` around `FcPatternGetString(font, FC_FAMILY, id, …)`, leaving the loop only on `FcResultNoId` and continuing on anything else that is not a match. A pattern with no `family` element answers `FcResultNoMatch` for every id, so the loop never ends. The window is shown on the first frame, so there is none.
+- Reproduced: the condition, not the reporter's font. In `debian:sid-slim` (fontconfig 2.17.1), a font whose family a `<match target="scan">` rule deletes is listed by `fc-list : family file` with an empty family, and a loop written as Skia's never leaves it. Fonts with an empty or missing `name` table did not reproduce it there: fontconfig 2.17.1 names them after their file. Which font does it on the reporter's machine, and why only inside the Flatpak, is not known.
+- Commit ref: not yet committed
+- Change(s):
+  - `linux/runner/font_guard.cc`, `font_guard.h`, the call in `linux/runner/main.cc` — **MUST-REVERT**: before anything else runs, lists the fonts as the engine will (`FcInitLoadConfigAndFonts`) and, only when one would loop, writes `<cache dir>/<app id>/fonts.conf` (an `<include>` of the configuration fontconfig would have read, plus a `<rejectfont><glob>` per offending file) and sets `FONTCONFIG_FILE` to it. A machine with no such font is untouched; the scan took 4 ms in the container. `INVOICENINJA_NO_FONT_GUARD=1` skips it.
+  - `linux/runner/CMakeLists.txt` — **MUST-REVERT** with it: `pkg_check_modules(FONTCONFIG …)` and `NINJA_HAVE_FONTCONFIG`. Not `REQUIRED`: without fontconfig's development files the guard compiles to nothing.
+- Revert: delete the guard once a Flutter release's Skia bounds that loop or leaves it on `FcResultNoMatch`.
+- Recheck trigger: any Flutter bump. Read `GetFamilyNames` in the Skia revision the new `DEPS` pins.
+
+## 25. go_router 18: `GoRouterState.of` never returns under a route that is on its way out of a nested navigator
+
+- Issue / waiting on: none filed yet (2026-11-16). `GoRouterState.of`, `lib/src/state.dart`, go_router 18.1.4 (the loop is the same in 18.1.1). • Found: 2026-11-16, on the web demo: opening a client and going back to Clients froze the page. Shipped in 5.1.26 to 5.1.29, every platform (go_router went 17.5.0 → 18.1.4 with the move to Flutter 3.50, commit 343a2436).
+- Symptom: the app freezes for good, UI thread at 100%, when leaving a record screen. No exception, no log line.
+- Root cause: `GoRouterState.of` loops `while (true)`: take the context's `ModalRoute`; if its page is in the nearest registry, return that state; otherwise `context = Navigator.maybeOf(context).context` and go round again. Two things stop the walk from ever rising. `Navigator.maybeOf` answers a navigator's own context with that same navigator, so the context stops changing; and a nested navigator's registry scope is an ancestor of that navigator, so from its context the lookup finds the inner registry, which does not hold the enclosing shell page. So once the innermost page is not in its registry, the loop never ends. A page leaves the registry when the URL moves on, unless a `GoRouterState.of` call had already tied it to its route, while the route stays mounted for its exit transition. Any widget in it that asks for the first time during that transition spins. Here: the embedded Invoices list in a client's tabs, first built as the client screen left (`EntityListScreenScaffold._maybeApplyListIntent`). The same applies to a dialog or menu pushed onto a nested navigator.
+- Reproduced: `test/ui/core/utils/router_state_test.dart`'s first test, with `GoRouterState.of` in place of `routerStateOf`, never finishes (checked by hand; a hang can't be asserted). On the web demo, pausing the frozen page showed `GoRouterState.of` under `_maybeApplyListIntent` under `InvoiceListScreen` under `ClientDetailTabs`.
+- Commit ref: not yet committed
+- Change(s):
+  - `lib/ui/core/utils/router_state.dart` — **MUST-REVERT**: `routerStateOf(context)` calls `GoRouterState.of` only under an active route whose settings are a `Page`, where the first pass of the loop returns; anywhere else it answers with `GoRouter.of(context).state`, the router's current state.
+  - 19 files under `lib/` — **MUST-REVERT** with it: every `GoRouterState.of(` is `routerStateOf(`.
+  - `test/lint/no_raw_go_router_state_of_test.dart` — **MUST-REVERT** with it: bans the raw call in `lib/`, since a new one can only fail by hanging.
+  - `test/ui/core/utils/router_state_test.dart` — **KEEP** as a test of whatever replaces the wrapper.
+- Revert: once a go_router release ends that loop (throws, or climbs past the navigator), replace `routerStateOf` with `GoRouterState.of` and delete the lint.
+- Recheck trigger: any go_router bump. Read `GoRouterState.of`; then run the first test of `router_state_test.dart` with the raw call, under a timeout.
+
 ## Considered but NOT tracked (permanent adaptations — do not revert)
 
 These look workaround-shaped but are correct-forever (or inherent), not "waiting on an upstream fix". Listed so they aren't re-litigated:

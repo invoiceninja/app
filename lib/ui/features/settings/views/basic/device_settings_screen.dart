@@ -42,6 +42,7 @@ import 'package:admin/ui/features/settings/widgets/sidebar_menu_section.dart';
 import 'package:admin/ui/features/settings/widgets/theme_tile.dart';
 import 'package:admin/ui/features/settings/widgets/trusted_certificates_section.dart';
 import 'package:admin/utils/formatting.dart';
+import 'package:admin/ui/core/utils/router_state.dart';
 
 // Search keys for the settings search, one list per tab. Colocated with the
 // screen so adding / renaming a field updates both ends in one place (see
@@ -182,7 +183,7 @@ class _DeviceSettingsScreenState extends State<DeviceSettingsScreen>
     if (_controller.indexIsChanging) return;
     final tab = _kTabs[_controller.index];
     final desired = tab.slug.isEmpty ? _kBasePath : '$_kBasePath/${tab.slug}';
-    final current = GoRouterState.of(context).uri.path;
+    final current = routerStateOf(context).uri.path;
     if (current == desired) return;
     context.go(desired);
   }
@@ -200,7 +201,7 @@ class _DeviceSettingsScreenState extends State<DeviceSettingsScreen>
     // Keep the controller in sync if the URL changed externally (back
     // button, deep link, settings search). The `!=` guard prevents the
     // controller listener (which pushes URL updates) from looping back.
-    final currentTab = GoRouterState.of(context).pathParameters['tab'];
+    final currentTab = routerStateOf(context).pathParameters['tab'];
     final urlIndex = _indexForSlug(currentTab);
     if (urlIndex != _controller.index && !_controller.indexIsChanging) {
       WidgetsBinding.instance.addPostFrameCallback((_) {

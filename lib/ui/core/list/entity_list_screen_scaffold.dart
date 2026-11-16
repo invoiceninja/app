@@ -60,6 +60,7 @@ import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/features/settings/widgets/settings_two_pane_scope.dart';
 import 'package:admin/ui/features/shell/widgets/app_drawer.dart';
 import 'package:admin/utils/formatting.dart';
+import 'package:admin/ui/core/utils/router_state.dart';
 
 // ─── Callbacks ───────────────────────────────────────────────────────────
 
@@ -957,7 +958,7 @@ class _EntityListScreenScaffoldState<T, VM extends GenericListViewModel<T>>
   void _maybeApplyListIntent(BuildContext context) {
     Object? extra;
     try {
-      extra = GoRouterState.of(context).extra;
+      extra = routerStateOf(context).extra;
     } catch (_) {
       // No GoRouterState above us (e.g. a widget test pumping the scaffold
       // without a router). Nothing to consume.
@@ -1212,7 +1213,7 @@ class _EntityListScreenScaffoldState<T, VM extends GenericListViewModel<T>>
     // MasterDetailLayout._navigateRelative): an `/edit` route steps to
     // the next row's edit form, not its read-only detail. `uri.replace`
     // carries query params (e.g. `?view=full`).
-    final uri = GoRouterState.of(context).uri;
+    final uri = routerStateOf(context).uri;
     final newPath = uri.path.endsWith('/edit')
         ? '$routePath/$target/edit'
         : entityRecordPath(

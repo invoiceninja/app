@@ -43,6 +43,7 @@ import 'package:admin/ui/features/shell/widgets/in_sidebar.dart'
     show kInSidebarWidth, kInSidebarCollapsedWidth;
 import 'package:admin/ui/features/sync/views/outbox_screen.dart';
 import 'package:admin/ui/features/tasks/views/calendar_connection_complete_screen.dart';
+import 'package:admin/ui/core/utils/router_state.dart';
 
 // `entityRecordPath` lives in the `entity_links` leaf so link building can
 // reach it without importing this file (and, transitively, every screen).
@@ -616,8 +617,7 @@ void goEntityEdit(
   String id, {
   Object? extra,
 }) {
-  final isFull =
-      GoRouterState.of(context).uri.queryParameters['view'] == 'full';
+  final isFull = routerStateOf(context).uri.queryParameters['view'] == 'full';
   GoRouter.of(context).go(
     isFull ? '$basePath/$id/edit?view=full' : '$basePath/$id/edit',
     extra: extra,

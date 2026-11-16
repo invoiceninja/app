@@ -28,6 +28,7 @@ import 'package:admin/ui/features/settings/widgets/plan_gate_banner.dart';
 import 'package:admin/ui/features/settings/widgets/settings_company_scoped_host.dart';
 import 'package:admin/ui/features/settings/widgets/settings_page_scaffold.dart';
 import 'package:admin/ui/features/settings/widgets/settings_screen_scaffold.dart';
+import 'package:admin/ui/core/utils/router_state.dart';
 
 /// Per-tab definition: URL slug, label key, module gate, and the body widget.
 /// `enabledBy == null` means the tab is always visible (Company, Clients,
@@ -292,7 +293,7 @@ class _LoadedShellState extends State<_LoadedShell>
     final desiredPath = tab.slug.isEmpty
         ? '/settings/custom_fields'
         : '/settings/custom_fields/${tab.slug}';
-    final currentPath = GoRouterState.of(context).uri.path;
+    final currentPath = routerStateOf(context).uri.path;
     if (currentPath == desiredPath) return;
     context.go(desiredPath);
   }
@@ -365,7 +366,7 @@ class _LoadedShellState extends State<_LoadedShell>
     // settings search). The `!= _controller.index` guard prevents the
     // controller listener (which pushes URL updates) from looping back into
     // another `animateTo`.
-    final currentTab = GoRouterState.of(context).pathParameters['tab'];
+    final currentTab = routerStateOf(context).pathParameters['tab'];
     final urlIndex = _indexForSlug(currentTab);
     if (urlIndex != _controller.index && !_controller.indexIsChanging) {
       WidgetsBinding.instance.addPostFrameCallback((_) {

@@ -8,6 +8,7 @@ import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/features/settings/view_models/settings_draft_view_model.dart';
 import 'package:admin/ui/features/settings/widgets/settings_company_scoped_host.dart';
 import 'package:admin/ui/features/settings/widgets/settings_page_scaffold.dart';
+import 'package:admin/ui/core/utils/router_state.dart';
 
 /// One entry in a [TabbedSettingsShell]'s tab list.
 class TabbedSettingsTab {
@@ -174,7 +175,7 @@ class _TabbedSettingsShellState<V extends SettingsDraftHost>
     final desiredPath = tab.slug.isEmpty
         ? widget.basePath
         : '${widget.basePath}/${tab.slug}';
-    final currentPath = GoRouterState.of(context).uri.path;
+    final currentPath = routerStateOf(context).uri.path;
     if (currentPath == desiredPath) return;
     context.go(desiredPath);
   }
@@ -226,7 +227,7 @@ class _TabbedSettingsShellState<V extends SettingsDraftHost>
     // button, deep link, settings search). The `!= _tabController.index`
     // guard prevents the controller listener (which pushes URL updates)
     // from looping back into another `animateTo`.
-    final currentTab = GoRouterState.of(context).pathParameters['tab'];
+    final currentTab = routerStateOf(context).pathParameters['tab'];
     final urlIndex = _indexForSlug(currentTab);
     if (urlIndex != _tabController.index && !_tabController.indexIsChanging) {
       WidgetsBinding.instance.addPostFrameCallback((_) {

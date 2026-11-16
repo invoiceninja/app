@@ -29,6 +29,7 @@ import 'package:admin/ui/features/transactions/widgets/transaction_actions.dart'
 import 'package:admin/ui/features/transactions/widgets/transaction_match_panel.dart';
 import 'package:admin/utils/formatting.dart';
 import 'package:admin/ui/core/widgets/ltr_value.dart';
+import 'package:admin/ui/core/utils/router_state.dart';
 
 /// The bank-transaction record screen, on the record layout
 /// (`docs/detail-screen-layout.md`): identity, quick actions (Convert /
@@ -112,7 +113,7 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen>
     final ids = List<String>.of(nav?.itemIds ?? const <String>[]);
     final items = List<Object?>.of(nav?.items ?? const <Object?>[]);
     final router = GoRouter.of(context);
-    final here = GoRouterState.of(context).uri.toString();
+    final here = routerStateOf(context).uri.toString();
 
     await convert();
     if (!context.mounted) return;

@@ -15,6 +15,7 @@ import 'package:admin/ui/core/utils/text_input_focus.dart';
 import 'package:admin/ui/core/widgets/app_selection_area.dart';
 import 'package:admin/ui/core/widgets/empty_state.dart';
 import 'package:admin/ui/core/widgets/focus_owner_keeper.dart';
+import 'package:admin/ui/core/utils/router_state.dart';
 
 /// Shared chrome for an entity detail screen.
 ///
@@ -335,7 +336,7 @@ class _EntityDetailScaffoldState<T> extends State<EntityDetailScaffold<T>> {
               // through `_entityRoutes` in `lib/app/router.dart`. The
               // scaffold isn't mounted on `/new` or `/edit` paths, so
               // this can't produce `/edit/edit`.
-              final state = GoRouterState.of(context);
+              final state = routerStateOf(context);
               context.go('${state.uri.path}/edit');
               return null;
             },

@@ -39,6 +39,7 @@ import 'package:admin/ui/features/shell/widgets/show_company_picker.dart';
 import 'package:admin/ui/features/shell/widgets/system_back_gate.dart';
 import 'package:admin/ui/features/shell/widgets/sync_event_listener.dart';
 import 'package:admin/ui/features/tasks/widgets/running_timer_pill.dart';
+import 'package:admin/ui/core/utils/router_state.dart';
 
 /// Persistent shell for the authenticated app.
 ///
@@ -248,7 +249,7 @@ class _ScaffoldWithNavState extends State<ScaffoldWithNav> {
   String? _moduleOffNoticeShownFor;
 
   void _maybeNotifyModuleDisabled(BuildContext context) {
-    final label = GoRouterState.of(context).uri.queryParameters['module_off'];
+    final label = routerStateOf(context).uri.queryParameters['module_off'];
     if (label == null || label.isEmpty) {
       _moduleOffNoticeShownFor = null;
       return;
@@ -511,7 +512,7 @@ class _ScaffoldWithNavState extends State<ScaffoldWithNav> {
     BuildContext context,
     TasksViewMode? remembered,
   ) {
-    final uri = GoRouterState.of(context).uri;
+    final uri = routerStateOf(context).uri;
     if (uri.path != '/tasks') return false;
     return tasksViewAlwaysShowsFab(
       resolveTasksViewMode(

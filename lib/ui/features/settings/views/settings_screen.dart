@@ -22,6 +22,7 @@ import 'package:admin/ui/features/settings/views/settings_shell.dart'
 import 'package:admin/ui/features/settings/widgets/settings_search_result.dart';
 import 'package:admin/ui/features/settings/widgets/settings_two_pane_scope.dart';
 import 'package:admin/ui/features/shell/widgets/app_drawer.dart';
+import 'package:admin/ui/core/utils/router_state.dart';
 
 // `PlanTier` (the tier surfaced on a locked sidebar row / search hit) now
 // comes from `package:admin/domain/plan_gate.dart` — imported above.
@@ -165,7 +166,7 @@ class _SettingsListSidebarState extends State<SettingsListSidebar> {
   }
 
   Widget _buildSectionList(BuildContext context) {
-    final activeSlug = _activeSlug(GoRouterState.of(context).uri.path);
+    final activeSlug = _activeSlug(routerStateOf(context).uri.path);
     // Group and client are both non-company cascade levels — they show the
     // same overridable (cascade-aware) sections, hiding company-only ones.
     final settingsLevel = context.watch<SettingsLevelController>();
