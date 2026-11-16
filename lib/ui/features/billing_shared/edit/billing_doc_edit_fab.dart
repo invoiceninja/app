@@ -37,6 +37,26 @@ class BillingDocEditFab extends StatelessWidget {
   }
 }
 
+/// The wide edit layout's way into the products / tasks / expenses picker: a
+/// labelled button under the line-item table, where the floating
+/// [BillingDocEditFab] used to sit over the page and cover the totals. The
+/// tablet Items tab keeps the FAB.
+class BillingDocAddItemsButton extends StatelessWidget {
+  const BillingDocAddItemsButton({super.key, required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton.icon(
+      style: OutlinedButton.styleFrom(minimumSize: const Size(64, 40)),
+      onPressed: onPressed,
+      icon: const Icon(Icons.add, size: 18),
+      label: Text(context.tr('add_items')),
+    );
+  }
+}
+
 /// Cmd-N (macOS) / Ctrl-N (Linux/Windows/web) → invoke [onPickItems].
 /// Matches v2's "n = new" list-screen convention, lifted into the
 /// edit-screen context where it means "add line items via the picker."

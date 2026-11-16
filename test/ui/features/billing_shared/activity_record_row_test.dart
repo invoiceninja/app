@@ -1291,15 +1291,20 @@ void main() {
       tester,
     ) async {
       await pumpRow(tester, scoped: false);
-      expect(height(tester), kEntityListRowHeight);
+      // Two lines of text set the Normal row's height now: its floor (52)
+      // is below them.
+      final normal = height(tester);
+      expect(normal, greaterThanOrEqualTo(kEntityListRowHeight));
       await pumpRow(tester);
-      expect(height(tester), lessThan(kEntityListRowHeight));
+      expect(height(tester), lessThan(normal));
       expect(height(tester), greaterThanOrEqualTo(40));
     }, variant: TargetPlatformVariant.only(TargetPlatform.macOS));
 
     testWidgets('keeps a 44 px target plus padding on touch', (tester) async {
+      await pumpRow(tester, scoped: false);
+      final normal = height(tester);
       await pumpRow(tester);
-      expect(height(tester), lessThan(kEntityListRowHeight));
+      expect(height(tester), lessThan(normal));
       expect(height(tester), greaterThanOrEqualTo(InSizes.touchTarget + 8));
     });
   });

@@ -39,6 +39,8 @@ class VendorPickerField extends StatelessWidget {
     final services = context.read<Services>();
     return EntityPickerField<Vendor>(
       label: context.tr('vendor'),
+      // An empty value says what it means, not a blank box.
+      hintText: context.tr('none'),
       cacheKey: companyId,
       selectedId: selectedId,
       itemsStream: () =>

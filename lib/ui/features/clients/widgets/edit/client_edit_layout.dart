@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/ui/core/adaptive.dart';
 import 'package:admin/ui/core/widgets/centered_form_column.dart';
+import 'package:admin/ui/core/widgets/form_field_pair.dart';
 import 'package:admin/ui/features/clients/view_models/client_edit_view_model.dart';
 import 'package:admin/ui/features/clients/widgets/edit/client_edit_address_section.dart';
 import 'package:admin/ui/features/clients/widgets/edit/client_edit_contacts_section.dart';
@@ -37,7 +38,7 @@ class ClientEditLayout extends StatelessWidget {
         final twoCol =
             constraints.maxWidth >= Breakpoints.entityFormMultiColumn;
         return SingleChildScrollView(
-          padding: EdgeInsets.all(InSpacing.lg(context)),
+          padding: EdgeInsets.all(formPagePadding(context)),
           child: twoCol
               ? _wide(context)
               : CenteredFormColumn(child: _narrow(context)),
@@ -55,24 +56,24 @@ class ClientEditLayout extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               ClientEditDetailsSection(vm: vm),
-              SizedBox(height: InSpacing.md(context)),
+              const SizedBox(height: kFormCardGap),
               _addresses(context),
-              SizedBox(height: InSpacing.md(context)),
+              const SizedBox(height: kFormCardGap),
               ClientEditSettingsSection(vm: vm),
             ],
           ),
         ),
-        SizedBox(width: InSpacing.md(context)),
+        const SizedBox(width: kFormCardGap),
         SizedBox(
           width: _sidebarWidth,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               ClientEditContactsSection(vm: vm),
-              SizedBox(height: InSpacing.md(context)),
+              const SizedBox(height: kFormCardGap),
               ClientEditNotesSection(vm: vm),
               if (vm.offersDocuments) ...[
-                SizedBox(height: InSpacing.md(context)),
+                const SizedBox(height: kFormCardGap),
                 CreateFormDocumentsCard(vm: vm),
               ],
             ],
@@ -119,18 +120,18 @@ class ClientEditLayout extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         ClientEditDetailsSection(vm: vm),
-        SizedBox(height: InSpacing.md(context)),
+        const SizedBox(height: kFormCardGap),
         ClientEditAddressSection(vm: vm),
-        SizedBox(height: InSpacing.md(context)),
+        const SizedBox(height: kFormCardGap),
         ClientEditShippingAddressSection(vm: vm),
-        SizedBox(height: InSpacing.md(context)),
+        const SizedBox(height: kFormCardGap),
         ClientEditContactsSection(vm: vm),
-        SizedBox(height: InSpacing.md(context)),
+        const SizedBox(height: kFormCardGap),
         ClientEditSettingsSection(vm: vm),
-        SizedBox(height: InSpacing.md(context)),
+        const SizedBox(height: kFormCardGap),
         ClientEditNotesSection(vm: vm),
         if (vm.offersDocuments) ...[
-          SizedBox(height: InSpacing.md(context)),
+          const SizedBox(height: kFormCardGap),
           CreateFormDocumentsCard(vm: vm),
         ],
       ],

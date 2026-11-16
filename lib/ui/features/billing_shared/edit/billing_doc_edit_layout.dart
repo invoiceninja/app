@@ -473,12 +473,28 @@ class _BillingDocEditLayoutState<T extends BillingDocFields>
         2 => _NumberCardDesktop<T>(type: _type, vm: _vm, slots: widget.slots),
         _ => const SizedBox.shrink(),
       },
-      itemsSection: _ItemsEditor<T>(
-        type: _type,
-        vm: _vm,
-        onPickItems: () => _openPicker(context),
-        onCreateTask: _createTaskHandler(context),
-        allowOptionalLines: _offersOptionalLines,
+      // The picker's way in sits under the table it fills, as a button,
+      // not as a floating "+" over the page: anchored to the window, that
+      // covered the totals and, on a short document, an empty card.
+      itemsSection: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _ItemsEditor<T>(
+            type: _type,
+            vm: _vm,
+            onPickItems: () => _openPicker(context),
+            onCreateTask: _createTaskHandler(context),
+            allowOptionalLines: _offersOptionalLines,
+          ),
+          const SizedBox(height: InSpacing.sm),
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: BillingDocAddItemsButton(
+              onPressed: () => _openPicker(context),
+            ),
+          ),
+        ],
       ),
       notesTabsCard: _NotesTabsCardDesktop<T>(
         type: _type,
@@ -497,24 +513,11 @@ class _BillingDocEditLayoutState<T extends BillingDocFields>
       pdfPane: _PdfPaneDesktop<T>(type: _type, vm: _vm, slots: widget.slots),
       stickyTotals: _Totals<T>(type: _type, vm: _vm, dense: true, slim: true),
     );
-    // FAB anchored above the sticky totals bar so it stays in view as the
-    // user scrolls the page. Shortcut wrapping covers the whole shell so
-    // Cmd/Ctrl-N fires no matter which section is focused on desktop.
+    // Shortcut wrapping covers the whole shell so Cmd/Ctrl-N fires no
+    // matter which section is focused on desktop.
     return BillingDocEditPickerShortcuts(
       onPickItems: () => _openPicker(context),
-      child: Stack(
-        children: [
-          shell,
-          PositionedDirectional(
-            bottom: 72,
-            end: 24,
-            child: BillingDocEditFab(
-              heroTag: _type.pickerFabHeroTag,
-              onPressed: () => _openPicker(context),
-            ),
-          ),
-        ],
-      ),
+      child: shell,
     );
   }
 }
@@ -1286,6 +1289,9 @@ class _NotesTabsCardDesktopState<T extends BillingDocFields>
         TabBar(
           controller: _ctl,
           isScrollable: true,
+          // Start-aligned with the card's content; a scrollable bar is
+          // otherwise inset by Material's leading padding (52 px).
+          tabAlignment: TabAlignment.start,
           labelColor: tokens.ink,
           unselectedLabelColor: tokens.ink3,
           tabs: [

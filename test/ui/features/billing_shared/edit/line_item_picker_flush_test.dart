@@ -57,7 +57,7 @@ void main() {
       (m.vm.draft as dynamic).lineItems as List<LineItem>;
 
   Future<void> openPicker(WidgetTester tester) async {
-    await tester.tap(find.byType(BillingDocEditFab));
+    await tester.tap(find.byType(BillingDocAddItemsButton));
     await settle(tester);
   }
 
@@ -74,7 +74,7 @@ void main() {
     await tester.enterText(description.first, 'Consulting');
     expect(lines(m), isEmpty, reason: 'still inside the debounce');
 
-    await tester.tap(find.byType(BillingDocEditFab));
+    await tester.tap(find.byType(BillingDocAddItemsButton));
     expect(lines(m).map((l) => l.notes), ['Consulting']);
     await settle(tester);
 

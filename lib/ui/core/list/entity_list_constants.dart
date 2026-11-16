@@ -68,10 +68,11 @@ const double kColLeadingWidth = 32;
 /// Applied as a `minHeight` floor by [EntityListRowFloor] so a row never
 /// changes height when its leading slot swaps between avatar and selection
 /// checkbox — toggling a row's checkbox must not reflow the list. Slightly
-/// taller than the previous content-driven ~64 px so short rows breathe and
-/// tall rows (2-line identity + money column) are never clipped. Also used
-/// for the master-detail auto-scroll estimate.
-const double kEntityListRowHeight = 72;
+/// 52: the 32 px avatar and 10 px above and below, the list designs' row.
+/// It was 72, which showed eight rows where the designs show eleven; a tall
+/// row (2-line identity + money column, a large text scale) still grows
+/// past the floor. Also used for the master-detail auto-scroll estimate.
+const double kEntityListRowHeight = 52;
 
 /// Vertical padding of every list row under the **Compact** list density —
 /// see [listRowPadding] / [listRowVerticalPadding].
@@ -107,7 +108,7 @@ double listRowVerticalPadding(BuildContext context, {required double normal}) =>
 /// Padding inside every entity-list row tile: 16 px horizontally (the
 /// gutter [computeTableMinWidth] adds back), and vertically 10 standalone /
 /// 14 inside an [EmbeddedListScope] — or [normalVertical] for a tile with its
-/// own (Client and Vendor are 14 everywhere) — at the Normal density; 4 at
+/// own — at the Normal density; 4 at
 /// Compact.
 EdgeInsetsDirectional listRowPadding(
   BuildContext context, {
@@ -146,7 +147,7 @@ class EntityListRowFloor extends StatelessWidget {
 }
 
 /// Horizontal gap between cells in the table grid.
-const double kColCellGap = 12;
+const double kColCellGap = 16;
 
 /// Gap between the leading row-actions slot ([colWMoreMenu]) and the
 /// avatar / select-checkbox slot. Intentionally tighter than the 12 px

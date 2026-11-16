@@ -128,6 +128,8 @@ class AssignedUserPickerField extends StatelessWidget {
     final meId = session?.userId ?? '';
     return EntityPickerField<User>(
       label: context.tr(labelKey),
+      // An empty value says what it means, not a blank box.
+      hintText: context.tr('unassigned'),
       // The flag and the signed-in id are both inputs to the projection below,
       // and `WatchBuilder` re-creates `itemsStream` only when `cacheKey`
       // changes — records compare by value, so the tuple is what makes a flip

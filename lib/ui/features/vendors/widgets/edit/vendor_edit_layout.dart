@@ -1,8 +1,8 @@
 import 'package:material_ui/material_ui.dart';
 
-import 'package:admin/app/design_tokens.dart';
 import 'package:admin/ui/core/adaptive.dart';
 import 'package:admin/ui/core/widgets/centered_form_column.dart';
+import 'package:admin/ui/core/widgets/form_field_pair.dart';
 import 'package:admin/ui/features/vendors/view_models/vendor_edit_view_model.dart';
 import 'package:admin/ui/features/vendors/widgets/edit/vendor_edit_address_section.dart';
 import 'package:admin/ui/features/vendors/widgets/edit/vendor_edit_contacts_section.dart';
@@ -31,7 +31,7 @@ class VendorEditLayout extends StatelessWidget {
         final twoCol =
             constraints.maxWidth >= Breakpoints.entityFormMultiColumn;
         return SingleChildScrollView(
-          padding: EdgeInsets.all(InSpacing.lg(context)),
+          padding: EdgeInsets.all(formPagePadding(context)),
           child: twoCol
               ? _wide(context)
               : CenteredFormColumn(child: _narrow(context)),
@@ -49,24 +49,24 @@ class VendorEditLayout extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               VendorEditDetailsSection(vm: vm),
-              SizedBox(height: InSpacing.md(context)),
+              const SizedBox(height: kFormCardGap),
               VendorEditAddressSection(vm: vm),
-              SizedBox(height: InSpacing.md(context)),
+              const SizedBox(height: kFormCardGap),
               VendorEditSettingsSection(vm: vm),
             ],
           ),
         ),
-        SizedBox(width: InSpacing.md(context)),
+        const SizedBox(width: kFormCardGap),
         SizedBox(
           width: _sidebarWidth,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               VendorEditContactsSection(vm: vm),
-              SizedBox(height: InSpacing.md(context)),
+              const SizedBox(height: kFormCardGap),
               VendorEditNotesSection(vm: vm),
               if (vm.offersDocuments) ...[
-                SizedBox(height: InSpacing.md(context)),
+                const SizedBox(height: kFormCardGap),
                 CreateFormDocumentsCard(vm: vm),
               ],
             ],
@@ -81,16 +81,16 @@ class VendorEditLayout extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         VendorEditDetailsSection(vm: vm),
-        SizedBox(height: InSpacing.md(context)),
+        const SizedBox(height: kFormCardGap),
         VendorEditAddressSection(vm: vm),
-        SizedBox(height: InSpacing.md(context)),
+        const SizedBox(height: kFormCardGap),
         VendorEditSettingsSection(vm: vm),
-        SizedBox(height: InSpacing.md(context)),
+        const SizedBox(height: kFormCardGap),
         VendorEditContactsSection(vm: vm),
-        SizedBox(height: InSpacing.md(context)),
+        const SizedBox(height: kFormCardGap),
         VendorEditNotesSection(vm: vm),
         if (vm.offersDocuments) ...[
-          SizedBox(height: InSpacing.md(context)),
+          const SizedBox(height: kFormCardGap),
           CreateFormDocumentsCard(vm: vm),
         ],
       ],

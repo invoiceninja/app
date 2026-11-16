@@ -112,6 +112,18 @@ double _minTableWidth(BuildContext context, LineItemColumnConfig config) {
 /// Item against Description, in the header, the rows and the drag proxy
 /// alike. Equal shares gave a product key the width of a sentence; the
 /// description is the longer text and gets more of the row.
+/// A line-item cell's outline: a hairline box at rest, the accent once
+/// focused. Resting cells had no border at all, so a row of them read as
+/// text, not as places to type, and an empty row barely showed.
+OutlineInputBorder _cellBorder(InTheme tokens, {bool focused = false}) =>
+    OutlineInputBorder(
+      borderRadius: BorderRadius.circular(InRadii.r1),
+      borderSide: BorderSide(
+        color: focused ? tokens.accent : tokens.border,
+        width: focused ? 1.5 : 1,
+      ),
+    );
+
 const int _kItemFlex = 2;
 const int _kDescriptionFlex = 3;
 
@@ -2145,13 +2157,9 @@ class _TextCell extends StatelessWidget {
             horizontal: _kCellPadH,
             vertical: _kCellPadH,
           ),
-          // Resting cells have no border so the row dividers carry the
-          // visual rhythm; a 2 px accent underline appears only on focus.
-          border: InputBorder.none,
-          enabledBorder: InputBorder.none,
-          focusedBorder: UnderlineInputBorder(
-            borderSide: BorderSide(color: tokens.accent, width: 2),
-          ),
+          border: _cellBorder(tokens),
+          enabledBorder: _cellBorder(tokens),
+          focusedBorder: _cellBorder(tokens, focused: true),
         ),
       ),
     );
@@ -2197,11 +2205,9 @@ class _NumericCell extends StatelessWidget {
           horizontal: _kCellPadH,
           vertical: _kCellPadH,
         ),
-        border: InputBorder.none,
-        enabledBorder: InputBorder.none,
-        focusedBorder: UnderlineInputBorder(
-          borderSide: BorderSide(color: tokens.accent, width: 2),
-        ),
+        border: _cellBorder(tokens),
+        enabledBorder: _cellBorder(tokens),
+        focusedBorder: _cellBorder(tokens, focused: true),
       ),
     );
     if (onTabForward == null) return field;
@@ -2553,11 +2559,9 @@ class _ProductCellState extends State<_ProductCell> {
         horizontal: _kCellPadH,
         vertical: _kCellPadH,
       ),
-      border: InputBorder.none,
-      enabledBorder: InputBorder.none,
-      focusedBorder: UnderlineInputBorder(
-        borderSide: BorderSide(color: tokens.accent, width: 2),
-      ),
+      border: _cellBorder(tokens),
+      enabledBorder: _cellBorder(tokens),
+      focusedBorder: _cellBorder(tokens, focused: true),
       suffixIcon: ExcludeSemantics(
         child: Icon(Icons.arrow_drop_down, size: 18, color: tokens.ink3),
       ),
@@ -3323,11 +3327,9 @@ class _ChoiceSearchCellState extends State<_ChoiceSearchCell> {
               horizontal: _kCellPadH,
               vertical: _kCellPadH,
             ),
-            border: InputBorder.none,
-            enabledBorder: InputBorder.none,
-            focusedBorder: UnderlineInputBorder(
-              borderSide: BorderSide(color: tokens.accent, width: 2),
-            ),
+            border: _cellBorder(tokens),
+            enabledBorder: _cellBorder(tokens),
+            focusedBorder: _cellBorder(tokens, focused: true),
             suffixIcon: ExcludeSemantics(
               child: Icon(Icons.arrow_drop_down, size: 18, color: tokens.ink3),
             ),
@@ -3509,11 +3511,9 @@ class _TaxCellState extends State<_TaxCell> {
         horizontal: _kCellPadH,
         vertical: _kCellPadH,
       ),
-      border: InputBorder.none,
-      enabledBorder: InputBorder.none,
-      focusedBorder: UnderlineInputBorder(
-        borderSide: BorderSide(color: tokens.accent, width: 2),
-      ),
+      border: _cellBorder(tokens),
+      enabledBorder: _cellBorder(tokens),
+      focusedBorder: _cellBorder(tokens, focused: true),
       suffixIcon: ExcludeSemantics(
         child: Icon(Icons.arrow_drop_down, size: 18, color: tokens.ink3),
       ),

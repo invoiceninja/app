@@ -206,11 +206,39 @@ ThemeData buildInTheme(InTheme baseTokens, {Color? accentOverride}) {
     // above so all the button shapes line up. Per-widget `style` still wins
     // via Flutter's effectiveValue chain, so individual call sites can still
     // override (e.g. ThemeTile's per-segment minimumSize for uniform width).
+    // The selected segment is a raised neutral (`borderStrong`) with ink
+    // text, not Material's near-white fill: a segmented control is a choice
+    // among equals, and the bright segment read as the screen's primary
+    // action. Matches the designs' period and filter toggles.
+    // One switch, visible off as well as on: the Material default drew an
+    // off switch as a `surfaceAlt` track and a `border` thumb on the card,
+    // which in the dark themes nearly vanished ("24 Hour Time", "CC Only").
+    // Off is a `borderStrong` track with a light knob; on is the accent.
+    switchTheme: SwitchThemeData(
+      thumbColor: WidgetStateProperty.resolveWith(
+        (states) => states.contains(WidgetState.disabled)
+            ? tokens.ink4
+            : states.contains(WidgetState.selected)
+            ? Colors.white
+            : tokens.ink2,
+      ),
+      trackColor: WidgetStateProperty.resolveWith(
+        (states) => states.contains(WidgetState.selected)
+            ? tokens.accent
+            : tokens.borderStrong,
+      ),
+      trackOutlineColor: const WidgetStatePropertyAll(Colors.transparent),
+    ),
+
     segmentedButtonTheme: SegmentedButtonThemeData(
       style: SegmentedButton.styleFrom(
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(InRadii.r2),
         ),
+        selectedBackgroundColor: tokens.borderStrong,
+        selectedForegroundColor: tokens.ink,
+        foregroundColor: tokens.ink2,
+        side: BorderSide(color: tokens.border),
       ),
     ),
 

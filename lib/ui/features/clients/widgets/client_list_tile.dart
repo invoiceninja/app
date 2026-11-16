@@ -160,7 +160,7 @@ class _ClientListTileState extends State<ClientListTile> {
 
     final content = Padding(
       // Client / Vendor rows are 14 at Normal everywhere, not just embedded.
-      padding: listRowPadding(context, normalVertical: 14),
+      padding: listRowPadding(context, normalVertical: 10),
       child: w.wide
           ? _wide(context, tokens, displayName: displayName, state: state)
           : _narrow(

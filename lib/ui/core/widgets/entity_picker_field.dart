@@ -46,6 +46,7 @@ class EntityPickerField<T extends Object> extends StatefulWidget {
     this.errorText,
     this.helper,
     this.emptyHintKey,
+    this.hintText,
     this.idleResults,
     this.optionLeadingBuilder,
     this.footerBuilder,
@@ -85,6 +86,9 @@ class EntityPickerField<T extends Object> extends StatefulWidget {
   /// marker (`ReceiptFieldMarker`), say. Hidden while [errorText] shows.
   final Widget? helper;
   final String? emptyHintKey;
+
+  /// Shown while nothing is picked; see `SearchableDropdownField.hintText`.
+  final String? hintText;
 
   /// Rows offered for an empty query. Forwarded to
   /// [SearchableDropdownField.idleResults], whose default (20) is tuned for an
@@ -274,6 +278,7 @@ class _EntityPickerFieldState<T extends Object>
           // is merely still loading; falling through to the default `'loading'`
           // for that window says the true thing.
           emptyHintKey: waiting ? null : widget.emptyHintKey,
+          hintText: widget.hintText,
           idleResults: widget.idleResults ?? 20,
           optionLeadingBuilder: widget.optionLeadingBuilder,
           footerBuilder: widget.footerBuilder,

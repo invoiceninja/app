@@ -78,3 +78,13 @@ List<Widget> pairFields(
       ),
   ];
 }
+
+/// Between the cards of an edit form, down a column and across the gutter:
+/// 16 px. It was 12, which ran the cards together; the form designs leave
+/// about 20.
+const double kFormCardGap = 16;
+
+/// Around an edit form's cards: 24 px where the window is wide, 12 on a
+/// phone, where the margin is width the fields need.
+double formPagePadding(BuildContext context) =>
+    MediaQuery.sizeOf(context).width >= Breakpoints.wide ? InSpacing.xl : 12;

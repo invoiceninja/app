@@ -1,13 +1,13 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 
-import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/data/models/domain/company.dart';
 import 'package:admin/data/models/domain/company_custom_fields.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/adaptive.dart';
 import 'package:admin/ui/core/widgets/centered_form_column.dart';
+import 'package:admin/ui/core/widgets/form_field_pair.dart';
 import 'package:admin/ui/features/dashboard/widgets/card_shell.dart';
 import 'package:admin/ui/features/expenses/view_models/expense_edit_view_model.dart';
 import 'package:admin/ui/features/expenses/widgets/edit/expense_edit_amount_tax_section.dart';
@@ -48,7 +48,7 @@ class ExpenseEditLayout extends StatelessWidget {
                 constraints.maxWidth >= Breakpoints.entityFormMultiColumn;
             final documents = vm.offersDocuments;
             return SingleChildScrollView(
-              padding: EdgeInsets.all(InSpacing.lg(context)),
+              padding: EdgeInsets.all(formPagePadding(context)),
               child: twoCol
                   ? _wide(context, documents: documents)
                   : CenteredFormColumn(
@@ -72,16 +72,16 @@ class ExpenseEditLayout extends StatelessWidget {
               // The amount leads: it is the one figure every expense has, and
               // the one a receipt read fills first.
               ExpenseEditAmountTaxSection(vm: vm),
-              SizedBox(height: InSpacing.md(context)),
+              const SizedBox(height: kFormCardGap),
               ExpenseEditIdentitySection(vm: vm),
-              SizedBox(height: InSpacing.md(context)),
+              const SizedBox(height: kFormCardGap),
               ExpenseEditInvoicingSection(vm: vm),
-              SizedBox(height: InSpacing.md(context)),
+              const SizedBox(height: kFormCardGap),
               ExpenseEditPaymentSection(vm: vm),
             ],
           ),
         ),
-        SizedBox(width: InSpacing.md(context)),
+        const SizedBox(width: kFormCardGap),
         SizedBox(
           width: _sidebarWidth,
           child: Column(
@@ -91,14 +91,14 @@ class ExpenseEditLayout extends StatelessWidget {
               // view the moment New Expense opens.
               if (documents) ...[
                 ExpenseEditDocumentsSection(vm: vm),
-                SizedBox(height: InSpacing.md(context)),
+                const SizedBox(height: kFormCardGap),
               ],
               ExpenseEditNotesSection(vm: vm),
-              SizedBox(height: InSpacing.md(context)),
+              const SizedBox(height: kFormCardGap),
               ExpenseEditOrganizeSection(vm: vm),
-              SizedBox(height: InSpacing.md(context)),
+              const SizedBox(height: kFormCardGap),
               _banking(context),
-              SizedBox(height: InSpacing.md(context)),
+              const SizedBox(height: kFormCardGap),
               _CustomFieldsCollapsible(vm: vm),
             ],
           ),
@@ -112,23 +112,23 @@ class ExpenseEditLayout extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         ExpenseEditAmountTaxSection(vm: vm),
-        SizedBox(height: InSpacing.md(context)),
+        const SizedBox(height: kFormCardGap),
         if (documents) ...[
           ExpenseEditDocumentsSection(vm: vm),
-          SizedBox(height: InSpacing.md(context)),
+          const SizedBox(height: kFormCardGap),
         ],
         ExpenseEditIdentitySection(vm: vm),
-        SizedBox(height: InSpacing.md(context)),
+        const SizedBox(height: kFormCardGap),
         ExpenseEditInvoicingSection(vm: vm),
-        SizedBox(height: InSpacing.md(context)),
+        const SizedBox(height: kFormCardGap),
         ExpenseEditPaymentSection(vm: vm),
-        SizedBox(height: InSpacing.md(context)),
+        const SizedBox(height: kFormCardGap),
         ExpenseEditNotesSection(vm: vm),
-        SizedBox(height: InSpacing.md(context)),
+        const SizedBox(height: kFormCardGap),
         ExpenseEditOrganizeSection(vm: vm),
-        SizedBox(height: InSpacing.md(context)),
+        const SizedBox(height: kFormCardGap),
         _banking(context),
-        SizedBox(height: InSpacing.md(context)),
+        const SizedBox(height: kFormCardGap),
         _CustomFieldsCollapsible(vm: vm),
       ],
     );

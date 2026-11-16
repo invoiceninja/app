@@ -72,8 +72,14 @@ class LabeledField extends StatelessWidget {
     final theme = Theme.of(context);
     // Not `context.inTheme`: a field can sit under a bare `MaterialApp` (a
     // widget test, a preview), and a label is no reason to throw there.
-    final color =
-        theme.extension<InTheme>()?.ink2 ?? theme.colorScheme.onSurfaceVariant;
+    // Between `ink2` and `ink3`: a label names the value, it should not
+    // compete with it. `ink2` alone put labels nearly as bright as the
+    // values under them (the form designs' labels sit at about #A8A6A1 on
+    // a #F6F4EF value).
+    final tokens = theme.extension<InTheme>();
+    final color = tokens == null
+        ? theme.colorScheme.onSurfaceVariant
+        : Color.lerp(tokens.ink2, tokens.ink3, 0.4)!;
     return TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.w500);
   }
 
@@ -140,6 +146,12 @@ class LabeledField extends StatelessWidget {
     );
     final Widget field = InputDecorationTheme(
       data: theme.inputDecorationTheme.copyWith(
+        // A dropdown's button sets a 24 px floor under its text where a text
+        // field's line is 20, so with the same padding it came out 48 px
+        // beside 44 px fields. Two pixels less padding, one height.
+        contentPadding: child is DropdownButtonFormField
+            ? const EdgeInsets.symmetric(horizontal: 14, vertical: 10)
+            : null,
         floatingLabelBehavior: FloatingLabelBehavior.always,
         labelStyle: _hidden,
         floatingLabelStyle: _hidden,
@@ -157,10 +169,7 @@ class LabeledField extends StatelessWidget {
         mainAxisSize: fills ? MainAxisSize.max : MainAxisSize.min,
         children: [
           Padding(
-            padding: const EdgeInsetsDirectional.only(
-              start: 2,
-              bottom: kLabelGap,
-            ),
+            padding: const EdgeInsetsDirectional.only(bottom: kLabelGap),
             // The field itself still carries the name for a screen reader.
             // `RichText`, not `Text`: the decoration's own label is still a
             // `Text` in the tree, and a second one would double every match.

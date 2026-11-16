@@ -823,7 +823,10 @@ class InRadii {
 
   static const double r1 = 6;
   static const double r2 = 10;
-  static const double r3 = 14;
+
+  /// Cards. 12, the radius the screen designs draw cards at; 14 rounded a
+  /// card a step past its 10 px fields and buttons.
+  static const double r3 = 12;
   static const double r4 = 20;
 }
 

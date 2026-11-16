@@ -359,14 +359,12 @@ void main() {
         await unmount(tester, fixture);
       }, timeout: timeout);
 
-      testWidgets('desktop picker FAB hero tag', (tester) async {
+      testWidgets('desktop: an Add Items button under the table, no FAB', (
+        tester,
+      ) async {
         final fixture = await mount(tester, doc, 1440);
-        expect(
-          tester
-              .widgetList<BillingDocEditFab>(find.byType(BillingDocEditFab))
-              .map((f) => f.heroTag),
-          ['${_wire(doc)}_picker_fab'],
-        );
+        expect(find.byType(BillingDocEditFab), findsNothing);
+        expect(find.byType(BillingDocAddItemsButton), findsOneWidget);
         await unmount(tester, fixture);
       }, timeout: timeout);
 

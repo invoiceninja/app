@@ -29,14 +29,16 @@ class EntityListColumnHeaders<T> extends StatelessWidget {
       color: tokens.ink3,
     );
     return Container(
+      // A rule under the labels and no fill: the header is a caption for
+      // the columns, not a band of its own (the list designs' 36 px header).
       decoration: BoxDecoration(
-        color: tokens.surfaceAlt,
         border: Border(bottom: BorderSide(color: tokens.border)),
       ),
-      // 12 at the Normal list density; 6 at Compact (docs/list-density.md).
+      // 4 at the Normal list density; 2 at Compact (docs/list-density.md).
+      // The 32 px select-all slot sets the rest of the height.
       padding: ListDensityScope.isCompactOf(context)
-          ? const EdgeInsetsDirectional.fromSTEB(16, 6, 16, 6)
-          : const EdgeInsetsDirectional.fromSTEB(16, 12, 16, 12),
+          ? const EdgeInsetsDirectional.fromSTEB(16, 2, 16, 2)
+          : const EdgeInsetsDirectional.fromSTEB(16, 4, 16, 4),
       child: Row(
         children: [
           // Leading actions slot — empty label, mirrors row's `…` menu.

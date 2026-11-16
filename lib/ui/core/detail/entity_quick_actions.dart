@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'package:admin/app/design_tokens.dart';
+import 'package:admin/app/env.dart';
 import 'package:admin/ui/core/detail/entity_detail_actions_row.dart';
 import 'package:admin/ui/core/detail/quick_action_kinds_scope.dart';
 import 'package:admin/ui/core/dialogs/confirm_action_dialog.dart';
@@ -73,7 +74,11 @@ EntityActionItem<A>? findActionItem<A>(
 
 /// How many tiles fit: four in the pane or on a phone, six once the strip has
 /// room for them at a width a label can still be read in.
-const double kQuickActionsWideWidth = 560;
+///
+/// 480, so the record pane (about 520 px of strip) gets inline buttons that
+/// wrap, as the record designs draw them, rather than icon-over-label tiles;
+/// a phone (358) keeps the tiles.
+const double kQuickActionsWideWidth = 480;
 const int kQuickActionsNarrowMax = 4;
 const int kQuickActionsWideMax = 6;
 
@@ -220,7 +225,7 @@ class _QuickActionTile<A> extends StatelessWidget {
     final Widget content;
     if (inline) {
       content = ConstrainedBox(
-        constraints: BoxConstraints(minHeight: kQuickButtonHeight),
+        constraints: BoxConstraints(minHeight: quickButtonHeight()),
         child: Padding(
           padding: EdgeInsetsDirectional.only(
             start: InSpacing.md(context),
@@ -323,6 +328,7 @@ const double kQuickTileHeight = 56;
 /// — still above the 44 px touch target (invoiceninja/flutter#187).
 const double kQuickTileCompactHeight = 48;
 
-/// The inline button's floor: the touch target, so there is no separate touch
-/// branch here either, and nothing for Compact to trim.
-const double kQuickButtonHeight = 44;
+/// The inline button's floor: the touch target on touch, 36 with a pointer
+/// (the record designs' quick actions; 44 made them the tallest buttons on
+/// the screen, taller than Save).
+double quickButtonHeight() => Env.isTouchPrimary ? InSizes.touchTarget : 36;

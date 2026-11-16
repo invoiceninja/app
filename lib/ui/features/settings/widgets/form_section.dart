@@ -101,7 +101,11 @@ class FormSection extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: _interleave(
                       children,
-                      spacing ?? InSpacing.lg(context),
+                      // `sm`: a labelled field brings 8 px above and below
+                      // itself (`kFieldVerticalGap`), so `lg` here made the
+                      // settings pages' fields half again further apart than
+                      // the edit forms'.
+                      spacing ?? InSpacing.sm,
                     ),
                   ),
                 ),

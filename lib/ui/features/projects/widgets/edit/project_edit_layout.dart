@@ -1,12 +1,12 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 
-import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/adaptive.dart';
 import 'package:admin/ui/core/edit/entity_custom_fields_section.dart';
 import 'package:admin/ui/core/widgets/centered_form_column.dart';
+import 'package:admin/ui/core/widgets/form_field_pair.dart';
 import 'package:admin/ui/features/projects/view_models/project_edit_view_model.dart';
 import 'package:admin/ui/features/projects/widgets/edit/project_edit_budget_section.dart';
 import 'package:admin/ui/features/projects/widgets/edit/project_edit_details_section.dart';
@@ -37,7 +37,7 @@ class ProjectEditLayout extends StatelessWidget {
             final twoCol =
                 constraints.maxWidth >= Breakpoints.entityFormMultiColumn;
             return SingleChildScrollView(
-              padding: EdgeInsets.all(InSpacing.lg(context)),
+              padding: EdgeInsets.all(formPagePadding(context)),
               child: twoCol
                   ? _wide(context)
                   : CenteredFormColumn(child: _narrow(context)),
@@ -57,12 +57,12 @@ class ProjectEditLayout extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               ProjectEditDetailsSection(vm: vm),
-              SizedBox(height: InSpacing.md(context)),
+              const SizedBox(height: kFormCardGap),
               ProjectEditBudgetSection(vm: vm),
             ],
           ),
         ),
-        SizedBox(width: InSpacing.md(context)),
+        const SizedBox(width: kFormCardGap),
         SizedBox(
           width: _sidebarWidth,
           child: Column(
@@ -70,10 +70,10 @@ class ProjectEditLayout extends StatelessWidget {
             children: [
               ProjectEditNotesSection(vm: vm),
               if (vm.offersDocuments) ...[
-                SizedBox(height: InSpacing.md(context)),
+                const SizedBox(height: kFormCardGap),
                 CreateFormDocumentsCard(vm: vm),
               ],
-              SizedBox(height: InSpacing.md(context)),
+              const SizedBox(height: kFormCardGap),
               _customFieldsSection(context),
             ],
           ),
@@ -109,15 +109,15 @@ class ProjectEditLayout extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         ProjectEditDetailsSection(vm: vm),
-        SizedBox(height: InSpacing.md(context)),
+        const SizedBox(height: kFormCardGap),
         ProjectEditBudgetSection(vm: vm),
-        SizedBox(height: InSpacing.md(context)),
+        const SizedBox(height: kFormCardGap),
         ProjectEditNotesSection(vm: vm),
         if (vm.offersDocuments) ...[
-          SizedBox(height: InSpacing.md(context)),
+          const SizedBox(height: kFormCardGap),
           CreateFormDocumentsCard(vm: vm),
         ],
-        SizedBox(height: InSpacing.md(context)),
+        const SizedBox(height: kFormCardGap),
         _customFieldsSection(context),
       ],
     );

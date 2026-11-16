@@ -75,11 +75,11 @@ On a phone, the two-line tile goes from 72 px to about 57 px per row.
 
 | Surface | Normal | Compact |
 |---|---|---|
-| Entity-list row floor (`EntityListRowFloor`) | 72 | 40 pointer / 52 touch |
+| Entity-list row floor (`EntityListRowFloor`) | 52 (was 72 until Nov 2026, the list designs' row) | 40 pointer / 52 touch |
 | Entity-list tile padding (`listRowPadding`), vertical | 10; 14 embedded; Client and Vendor 14 | 4 |
 | Detail record rows (`listRowVerticalPadding`): activity, document history, pending comment, sends, email history — vertical padding | 14 | 4 |
-| The same detail rows' floor (`entityListRowHeight`) | 72 | 40 pointer / 52 touch |
-| Column-header strip, vertical | 12 | 6 |
+| The same detail rows' floor (`entityListRowHeight`) | 52 | 40 pointer / 52 touch |
+| Column-header strip, vertical (no fill, a rule under it) | 4 | 2 |
 | Status-tab strip (`dense:`), vertical | `InSpacing.md` | `InSpacing.sm` |
 | Group section header, top / bottom | `lg` / `sm` | `sm` / `xs` |
 | Standalone table card inset (`entityListCardInset`) | 24 all round | 24 horizontal, 12 vertical |

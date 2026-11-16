@@ -427,6 +427,35 @@ class EntityDetailActionsRow<A> extends StatelessWidget {
 
   final List<EntityActionItem<A>> items;
 
+  /// The compact cluster: the primary as a button, and a `⋮` with the rest.
+  /// A primary the quick-action strip already shows as a tile (a sent
+  /// invoice's Enter Payment, beside its "+ Payment" tile) goes into the `⋮`
+  /// instead, so the pane does not offer the same act twice, a few pixels
+  /// apart.
+  Widget _compact(
+    BuildContext context,
+    EntityActionItem<A>? primary,
+    List<EntityActionItem<A>> rest,
+  ) {
+    final tiled =
+        primary != null &&
+        QuickActionKindsScope.watch(context).contains(primary.kind);
+    final button = tiled ? null : primary;
+    final menu = tiled ? [primary, ...rest] : rest;
+    // The primary is the one part that can give: on a bar narrower than the
+    // cluster (a long label, large text) it shortens to an ellipsis rather
+    // than pushing `⋮` off the edge.
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (button != null) Flexible(child: _ActionButton<A>(item: button)),
+        if (button != null && menu.isNotEmpty)
+          SizedBox(width: InSpacing.md(context)),
+        if (menu.isNotEmpty) _OverflowMenuButton<A>(items: menu),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final visible = [
@@ -479,16 +508,7 @@ class EntityDetailActionsRow<A> extends StatelessWidget {
             // The primary is the one part that can give: on a bar narrower
             // than the cluster (a long label, large text) it shortens to an
             // ellipsis rather than pushing `⋮` off the edge.
-            : Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (primary != null)
-                    Flexible(child: _ActionButton<A>(item: primary)),
-                  if (primary != null && rest.isNotEmpty)
-                    SizedBox(width: InSpacing.md(context)),
-                  if (rest.isNotEmpty) _OverflowMenuButton<A>(items: rest),
-                ],
-              );
+            : _compact(context, primary, rest);
         // Told to be compact by a host that places it: hug the content, so
         // the host can give the rest of the bar to something else.
         if (!bounded || scopeWide == false) return cluster;

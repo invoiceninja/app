@@ -86,13 +86,14 @@ void main() {
       }
     });
 
-    test('keeps exactly one FAB, on the desktop page', () {
+    test('the desktop page adds items from a button, never a FAB', () {
+      // The >= 1024 page's picker button sits under the table (a floating
+      // "+" covered the totals); a FAB here is the narrow tab mounting its
+      // own again.
+      expect(codeOf(shared), isNot(contains('BillingDocEditFab(')));
       expect(
-        'BillingDocEditFab('.allMatches(codeOf(shared)),
+        'BillingDocAddItemsButton('.allMatches(codeOf(shared)),
         hasLength(1),
-        reason:
-            'the >= 1024 page keeps its FAB; a second one here is the narrow '
-            'tab mounting its own again',
       );
     });
 
