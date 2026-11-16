@@ -14,6 +14,7 @@ import 'package:admin/data/models/value/date.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/entity_tags_field.dart';
 import 'package:admin/ui/core/widgets/field_label.dart';
+import 'package:admin/ui/core/widgets/form_field_pair.dart';
 import 'package:admin/ui/core/widgets/locked_entity_field_row.dart';
 import 'package:admin/ui/features/dashboard/widgets/card_shell.dart';
 import 'package:admin/ui/core/adaptive.dart';
@@ -254,32 +255,38 @@ class _IdentitySection extends StatelessWidget {
           PaymentInvoicePicker(vm: vm, formatter: formatter),
         ],
         const SizedBox(height: 12),
-        LabeledField(
-          label: context.tr('number'),
-          child: TextFormField(
-            initialValue: vm.draft.number,
-            decoration: InputDecoration(labelText: context.tr('number')),
-            onChanged: vm.setNumber,
-            autocorrect: false,
+        // Two to a row: the payment's number and date, then the amount and
+        // the currency it is in.
+        FormFieldPair(
+          left: LabeledField(
+            label: context.tr('number'),
+            child: TextFormField(
+              initialValue: vm.draft.number,
+              decoration: InputDecoration(labelText: context.tr('number')),
+              onChanged: vm.setNumber,
+              autocorrect: false,
+            ),
+          ),
+          right: InDateField(
+            labelText: context.tr('date'),
+            value: vm.draft.date?.toDateTime(),
+            formatter: formatter,
+            onChanged: (dt) =>
+                vm.setDate(dt == null ? null : Date(dt.year, dt.month, dt.day)),
           ),
         ),
-        const SizedBox(height: 12),
-        InDateField(
-          labelText: context.tr('date'),
-          value: vm.draft.date?.toDateTime(),
-          formatter: formatter,
-          onChanged: (dt) =>
-              vm.setDate(dt == null ? null : Date(dt.year, dt.month, dt.day)),
-        ),
-        const SizedBox(height: 12),
         // Controller-based so the auto-sync from allocations
         // (`PaymentEditViewModel.replacePaymentables`) actually updates
         // the visible text. `TextFormField(initialValue: …)` only consumes
         // its seed on first build, which would freeze this field at zero
         // while `draft.amount` drifts upward as the user picks invoices.
-        _AmountField(vm: vm, useCommaAsDecimalPlace: useCommaAsDecimalPlace),
-        const SizedBox(height: 12),
-        _CurrencyPicker(vm: vm),
+        FormFieldPair(
+          left: _AmountField(
+            vm: vm,
+            useCommaAsDecimalPlace: useCommaAsDecimalPlace,
+          ),
+          right: _CurrencyPicker(vm: vm),
+        ),
       ],
     );
   }

@@ -48,14 +48,15 @@ const double kColActionsClusterGap = InSpacing.sm;
 /// all read this, and they must stay in lockstep or the table misaligns.
 ///
 /// * touch:   44 + 8 + 44 = **96**, exactly the cluster.
-/// * pointer: 32 + 8 + 32 = 72, held at **80** — 8 px of deliberate slack, so
-///   fixing the mobile overflow doesn't shift every desktop table's columns.
+/// * pointer: the `⋮` alone, 32 + 8 px of slack = **40**. Edit is the menu's
+///   first item there (`EntityActionsPopupButton`); the pencil beside it cost
+///   every list 40 px of its first column.
 ///
 /// A function, not a `const` or a top-level `final`: a `final` would freeze
 /// the first-read platform for the whole test process and make any
 /// `debugDefaultTargetPlatformOverride` test order-dependent.
 double colWMoreMenu() =>
-    Env.isTouchPrimary ? actionButtonSize() * 2 + kColActionsClusterGap : 80;
+    Env.isTouchPrimary ? actionButtonSize() * 2 + kColActionsClusterGap : 40;
 
 /// Width of the avatar / select-all checkbox slot.
 const double kColLeadingWidth = 32;

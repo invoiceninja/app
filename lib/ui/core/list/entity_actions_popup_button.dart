@@ -1,5 +1,6 @@
 import 'package:material_ui/material_ui.dart';
 
+import 'package:admin/app/env.dart';
 import 'package:admin/app/mdi_icons.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/detail/entity_detail_actions_row.dart';
@@ -90,7 +91,22 @@ class EntityActionsPopupButton<A> extends StatelessWidget {
     // entities have no Edit item — fall through to the plain popup.
     EntityActionItem<A>? primary;
     var menuItems = items;
-    if (splitEditAction) {
+    // With a mouse the row is one click from its record, whose pane has Edit
+    // as its primary, so the row keeps only the `⋮`: Edit is its first item.
+    // That halved the leading slot (80 → 40 px, [colWMoreMenu]) on every
+    // list, room the first column was being cut short for. Touch keeps the
+    // pencil, where a long-press is the only other way in.
+    if (splitEditAction && !Env.isTouchPrimary) {
+      final idx = items.indexWhere((i) => i.isEdit);
+      if (idx != -1) {
+        final edit = items[idx];
+        menuItems = [
+          if (editEnabled) edit,
+          for (var i = 0; i < items.length; i++)
+            if (i != idx) items[i],
+        ];
+      }
+    } else if (splitEditAction) {
       final idx = items.indexWhere((i) => i.isEdit);
       if (idx != -1) {
         primary = items[idx];
@@ -121,7 +137,11 @@ class EntityActionsPopupButton<A> extends StatelessWidget {
       ),
     );
 
-    if (primary == null) return popup;
+    // In a Row like the split pair, so a slot wider than the button (the
+    // 40 px pointer slot) does not stretch it.
+    if (primary == null) {
+      return Row(mainAxisSize: MainAxisSize.min, children: [popup]);
+    }
 
     return Row(
       mainAxisSize: MainAxisSize.min,

@@ -121,21 +121,18 @@ class _PaymentDateField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: InDateField(
-        value: vm.draft.paymentDate?.toDateTime(),
-        onChanged: (picked) {
-          vm.setPaymentDate(
-            picked == null ? null : Date(picked.year, picked.month, picked.day),
-          );
-        },
-        formatter: formatter,
-        labelText: context.tr('payment_date'),
-        firstDate: DateTime(now.year - 5),
-        lastDate: DateTime(now.year + 10),
-        clearable: true,
-      ),
+    return InDateField(
+      value: vm.draft.paymentDate?.toDateTime(),
+      onChanged: (picked) {
+        vm.setPaymentDate(
+          picked == null ? null : Date(picked.year, picked.month, picked.day),
+        );
+      },
+      formatter: formatter,
+      labelText: context.tr('payment_date'),
+      firstDate: DateTime(now.year - 5),
+      lastDate: DateTime(now.year + 10),
+      clearable: true,
     );
   }
 }

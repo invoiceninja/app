@@ -168,23 +168,20 @@ class _DueDateFieldState extends State<_DueDateField> with FormatterHostMixin {
   Widget build(BuildContext context) {
     final value = widget.vm.draft.dueDate;
     final now = DateTime.now();
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: InDateField(
-        value: value?.toDateTime(),
-        onChanged: (picked) {
-          if (picked == null) {
-            widget.vm.setDueDate(null);
-          } else {
-            widget.vm.setDueDate(Date(picked.year, picked.month, picked.day));
-          }
-        },
-        formatter: formatter,
-        labelText: context.tr('due_date'),
-        firstDate: DateTime(now.year - 5),
-        lastDate: DateTime(now.year + 10),
-        clearable: true,
-      ),
+    return InDateField(
+      value: value?.toDateTime(),
+      onChanged: (picked) {
+        if (picked == null) {
+          widget.vm.setDueDate(null);
+        } else {
+          widget.vm.setDueDate(Date(picked.year, picked.month, picked.day));
+        }
+      },
+      formatter: formatter,
+      labelText: context.tr('due_date'),
+      firstDate: DateTime(now.year - 5),
+      lastDate: DateTime(now.year + 10),
+      clearable: true,
     );
   }
 }

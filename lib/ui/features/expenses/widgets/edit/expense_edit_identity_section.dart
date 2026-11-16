@@ -113,21 +113,18 @@ class _DateFieldState extends State<_DateField> with FormatterHostMixin {
   @override
   Widget build(BuildContext context) {
     final vm = widget.vm;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: InSpacing.xs),
-      child: ReceiptFieldFocus(
-        vm: vm,
-        fields: const [ReceiptFillField.date],
-        child: InDateField(
-          labelText: context.tr('date'),
-          value: vm.draft.date?.toDateTime(),
-          formatter: formatter,
-          helper: ReceiptFieldMarker.of(vm, ReceiptFillField.date),
-          onChanged: (picked) {
-            if (picked == null) return;
-            vm.setDate(Date(picked.year, picked.month, picked.day));
-          },
-        ),
+    return ReceiptFieldFocus(
+      vm: vm,
+      fields: const [ReceiptFillField.date],
+      child: InDateField(
+        labelText: context.tr('date'),
+        value: vm.draft.date?.toDateTime(),
+        formatter: formatter,
+        helper: ReceiptFieldMarker.of(vm, ReceiptFillField.date),
+        onChanged: (picked) {
+          if (picked == null) return;
+          vm.setDate(Date(picked.year, picked.month, picked.day));
+        },
       ),
     );
   }

@@ -56,15 +56,12 @@ class CustomFieldInput extends StatelessWidget {
           onChanged: onChanged,
         );
       case kFieldTypeDate:
-        return Padding(
-          padding: const EdgeInsets.symmetric(vertical: InSpacing.xs),
-          child: InDateField(
-            labelText: field.label,
-            formatter: formatter,
-            clearable: true,
-            value: customFieldDate(value),
-            onChanged: (d) => onChanged(d == null ? '' : customFieldIsoDate(d)),
-          ),
+        return InDateField(
+          labelText: field.label,
+          formatter: formatter,
+          clearable: true,
+          value: customFieldDate(value),
+          onChanged: (d) => onChanged(d == null ? '' : customFieldIsoDate(d)),
         );
       case kFieldTypeDropdown:
         final items = customFieldDropdownItems(field, value);
