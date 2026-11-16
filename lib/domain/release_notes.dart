@@ -272,8 +272,9 @@ const List<ReleaseNotes> kReleaseNotes = [
         'when opening a client and then going back to the Clients list',
       ),
       ReleaseNoteItem(
-        'Fixed: On Linux, the app started without ever showing a window on '
-        'a computer with a font that has no family name '
+        'Updated: On Linux, the window now appears after five seconds even '
+        'when the app has drawn nothing, and starting the app with '
+        'INVOICENINJA_NO_IMPELLER=1 uses the older renderer '
         '[#194](https://github.com/invoiceninja/flutter/issues/194)',
         hiddenOn: {ReleaseNoteSurface.appleStore},
       ),
