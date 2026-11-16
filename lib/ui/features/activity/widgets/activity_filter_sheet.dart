@@ -195,6 +195,8 @@ class _ActivityFilterPanelState extends State<ActivityFilterPanel> {
                           }
                           return SearchableDropdownField<User>(
                             label: context.tr('user'),
+                            // No user picked is everyone's activity.
+                            hintText: context.tr('all'),
                             items: users,
                             initialValue: selected,
                             displayString: (u) => u.displayName,
@@ -247,7 +249,10 @@ class _ActivityFilterPanelState extends State<ActivityFilterPanel> {
                           ),
                         ),
                       ),
-                      SizedBox(height: InSpacing.sm),
+                      // A full field gap, not `sm`: at 8 px the Type picker's
+                      // label read as the caption of the lens control above
+                      // it, which has none.
+                      SizedBox(height: InSpacing.lg(context)),
                       AnimatedOpacity(
                         duration: const Duration(milliseconds: 150),
                         opacity: f.lens != ActivityLens.all ? 0.4 : 1,

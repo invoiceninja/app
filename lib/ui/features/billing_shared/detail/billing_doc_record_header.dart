@@ -254,7 +254,13 @@ class BillingDocRecordHeader extends StatelessWidget {
     return [
       // The recurring invoice has no date of its own; its dates are its
       // schedule's.
-      if (dueKey != null && date != null) Text(f.date(date.toIso())),
+      // Labelled like the due date beside it: a bare date first in the line
+      // read as either.
+      if (dueKey != null && date != null)
+        Text(
+          '${context.tr(type.dateLabelKey ?? 'date')}: '
+          '${f.date(date.toIso())}',
+        ),
       if (dueKey != null && due != null)
         Text('${context.tr(dueKey)}: ${f.date(due.toIso())}'),
       ...facts,

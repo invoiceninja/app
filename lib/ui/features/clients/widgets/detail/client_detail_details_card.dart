@@ -21,6 +21,7 @@ import 'package:admin/ui/core/widgets/watch_builder.dart';
 import 'package:admin/ui/features/dashboard/widgets/card_shell.dart';
 import 'package:admin/utils/formatting.dart';
 import 'package:admin/ui/core/utils/count_labels.dart';
+import 'package:admin/utils/url_display.dart';
 
 /// "Details" card on the client detail screen — website, phone, vat / id
 /// numbers, per-client settings, custom fields. Blank rows are omitted
@@ -105,7 +106,9 @@ class ClientDetailDetailsCard extends StatelessWidget {
       if (client.website.isNotEmpty)
         DetailInfoRow(
           label: context.tr('website'),
-          value: client.website,
+          // The address without its scheme; the copy is the full URL.
+          value: displayUrl(client.website),
+          copyText: client.website,
           onTap: websiteUri == null
               ? null
               : () => _openWebsite(context, websiteUri),

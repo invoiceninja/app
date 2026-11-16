@@ -16,6 +16,7 @@ import 'package:admin/ui/core/widgets/user_name_label.dart';
 import 'package:admin/ui/features/dashboard/widgets/card_shell.dart';
 import 'package:admin/ui/features/vendors/widgets/detail/vendor_detail_address_card.dart';
 import 'package:admin/utils/formatting.dart';
+import 'package:admin/utils/url_display.dart';
 
 /// "Details" card on the vendor record screen — website, phone, vat / id
 /// numbers, classification, currency and language, custom fields, and when
@@ -79,7 +80,9 @@ class VendorDetailDetailsCard extends StatelessWidget {
       if (vendor.website.isNotEmpty)
         DetailInfoRow(
           label: context.tr('website'),
-          value: vendor.website,
+          // The address without its scheme; the copy is the full URL.
+          value: displayUrl(vendor.website),
+          copyText: vendor.website,
           onTap: websiteUri == null
               ? null
               : () => openExternalUrl(context, websiteUri.toString()),

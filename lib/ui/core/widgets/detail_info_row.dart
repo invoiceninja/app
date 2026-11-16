@@ -94,9 +94,14 @@ class DetailInfoRow extends StatelessWidget {
             // at rest where there is no hover to reveal one — a finger cannot
             // discover a link by pointing at it. Both per
             // `docs/row-actions-and-values.md`, which this row predated.
+            // One line, ellipsized: a link value is an address (a website,
+            // an email), and a URL wrapped over three lines of a 400 px
+            // rail. The whole value is still what is copied and opened.
             : LinkText(
                 label: value,
                 style: valueStyle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 color: tokens.accentInk,
                 underlineAtRest: linkNeedsAtRestCue,
                 onTap: onTap,
@@ -166,15 +171,14 @@ class DetailInfoRow extends StatelessWidget {
   }
 }
 
-/// Hairline divider between rows in a detail card. Uses `tokens.border`;
-/// matches the row inset of `DashboardCardShell` content.
+/// The space between rows in a detail card. It was a hairline rule under
+/// every row, which made a card of six facts read as a table of six; the
+/// rows' own padding now carries the rhythm, as in the record designs.
 class DetailRowDivider extends StatelessWidget {
   const DetailRowDivider({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return Divider(height: 1, thickness: 1, color: context.inTheme.border);
-  }
+  Widget build(BuildContext context) => const SizedBox(height: 2);
 }
 
 /// Stacks a list of [DetailInfoRow]s with [DetailRowDivider]s between them,

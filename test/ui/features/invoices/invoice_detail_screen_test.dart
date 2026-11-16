@@ -103,7 +103,7 @@ void main() {
       );
       // Date · due date, on one line under the name. (No date format is
       // seeded here, so the formatter prints ISO.)
-      expect(find.text('2000-01-01'), findsOneWidget);
+      expect(find.text('Invoice Date: 2000-01-01'), findsOneWidget);
       expect(find.text('Due Date: 2999-01-01'), findsOneWidget);
       // Nobody has opened it, so the line does not say when they did.
       expect(find.textContaining('Viewed:'), findsNothing);

@@ -359,9 +359,10 @@ class ChartCard extends StatelessWidget {
       bars.add(
         LineChartBarData(
           spots: spots,
-          isCurved: true,
-          curveSmoothness: 0.3,
-          preventCurveOverShooting: true,
+          // Straight segments. The points are totals per day or week, and a
+          // spline between sparse ones drew a hump of money on days that had
+          // none.
+          isCurved: false,
           color: color,
           barWidth: 2,
           dotData: const FlDotData(show: false),
