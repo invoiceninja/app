@@ -89,6 +89,13 @@
     <control>touch</control>
   </supports>
   <releases>
+    <release version="5.1.29" date="2026-11-16">
+      <description>
+        <ul>
+          <li>The Linux app shows its window even when it has drawn nothing, so a failed launch is visible</li>
+        </ul>
+      </description>
+    </release>
     <release version="5.1.28" date="2026-11-16">
       <description>
         <ul>
