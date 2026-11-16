@@ -339,6 +339,23 @@ Future<void> _bootstrap() async {
   // Demo build: if no session was restored, bootstrap one from a baked-in API
   // token so the app lands on the dashboard instead of /login. Inert in normal
   // builds — `Env.demoApiToken` is empty unless set via --dart-define.
+  //
+  // A restored demo session is dropped first, with its local data: the demo
+  // server's sample data is replaced on a schedule, and the records a browser
+  // kept from before then no longer exist there, so their PDFs and activity
+  // answered 400 and 422 while the lists still showed them. A visitor has no
+  // work to lose, so every page load starts from what the server has now.
+  // `logout` talks to no server, so the shared token is untouched.
+  if (Env.demoApiToken.isNotEmpty && services.auth.isAuthenticated) {
+    try {
+      await services.auth
+          .logout(data: LocalDataPolicy.destroy)
+          .timeout(const Duration(seconds: 10));
+    } catch (e, st) {
+      Logger('main').warning('Demo local data reset failed', e, st);
+    }
+    mark('demo local data reset');
+  }
   if (!services.auth.isAuthenticated && Env.demoApiToken.isNotEmpty) {
     try {
       // Time-bounded so a stalled network call can't trap boot on the loader;
