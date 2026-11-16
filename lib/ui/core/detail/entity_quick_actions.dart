@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/ui/core/detail/entity_detail_actions_row.dart';
+import 'package:admin/ui/core/detail/quick_action_kinds_scope.dart';
 import 'package:admin/ui/core/dialogs/confirm_action_dialog.dart';
 import 'package:admin/ui/core/list/list_density_scope.dart';
 
@@ -109,6 +110,11 @@ class EntityQuickActions<A> extends StatelessWidget {
           priority,
           max: wide ? kQuickActionsWideMax : kQuickActionsNarrowMax,
         );
+        // Tell the header which actions are tiles, so its bar leaves them
+        // under More (`QuickActionKindsScope`).
+        QuickActionKindsScope.maybeOf(
+          context,
+        )?.publish({for (final a in picked) a.item.kind});
         if (picked.isEmpty) return const SizedBox.shrink();
         return Padding(
           padding: EdgeInsets.only(bottom: InSpacing.lg(context)),

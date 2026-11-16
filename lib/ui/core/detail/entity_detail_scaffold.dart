@@ -10,6 +10,7 @@ import 'package:admin/ui/core/detail/detail_scroll_scope.dart';
 import 'package:admin/ui/core/detail/detail_tab_navigator.dart';
 import 'package:admin/ui/core/detail/entity_detail_actions_row.dart';
 import 'package:admin/ui/core/detail/generic_detail_view_model.dart';
+import 'package:admin/ui/core/detail/quick_action_kinds_scope.dart';
 import 'package:admin/ui/core/list/master_detail_layout.dart';
 import 'package:admin/ui/core/utils/text_input_focus.dart';
 import 'package:admin/ui/core/widgets/app_selection_area.dart';
@@ -142,6 +143,9 @@ class EntityDetailScaffold<T> extends StatefulWidget {
 }
 
 class _EntityDetailScaffoldState<T> extends State<EntityDetailScaffold<T>> {
+  /// What the quick-action strip shows, for the header bar to leave out.
+  final QuickActionKinds _quickActionKinds = QuickActionKinds();
+
   // Owns the detail page's scroll. Published via [DetailScrollScope] so an
   // embedded related-entity list can drive its pagination off this scroll
   // (the embedded list shrink-wraps and no longer scrolls itself).
@@ -283,6 +287,13 @@ class _EntityDetailScaffoldState<T> extends State<EntityDetailScaffold<T>> {
     // concrete screens never need to pass `embedded: true`. Matches
     // the same convention `EntityEditScaffold` uses.
     final inPane = MasterDetailPaneScope.isInPane(context);
+    return QuickActionKindsScope(
+      notifier: _quickActionKinds,
+      child: _build(context, inPane),
+    );
+  }
+
+  Widget _build(BuildContext context, bool inPane) {
     return Shortcuts(
       shortcuts: const <ShortcutActivator, Intent>{
         SingleActivator(LogicalKeyboardKey.keyE): _EditCurrentIntent(),

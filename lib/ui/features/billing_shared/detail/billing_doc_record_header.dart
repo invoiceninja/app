@@ -105,13 +105,15 @@ class BillingDocRecordHeader extends StatelessWidget {
   /// else is signed through DocuNinja.
   final Widget? signedPill;
 
-  /// The style for [party]: `bodyMedium`, whose line box the inline call
-  /// button is pinned to (`docs/tap-to-call.md` § The billing-doc header
-  /// button is sized on the axis that has room), in `ink2` — `ink3` at this
-  /// size is under the contrast floor.
-  static TextStyle? partyStyle(BuildContext context) => Theme.of(
-    context,
-  ).textTheme.bodyMedium?.copyWith(color: context.inTheme.ink2);
+  /// The style for [party], which is the header's title: whose document this
+  /// is. In a docked pane the number is already in the selected list row, so
+  /// the big line answers the question the row does not. The inline call
+  /// button is pinned to this line box (`docs/tap-to-call.md` § The billing-doc
+  /// header button is sized on the axis that has room).
+  static TextStyle? partyStyle(BuildContext context) => Theme.of(context)
+      .textTheme
+      .headlineSmall
+      ?.copyWith(color: context.inTheme.ink, fontWeight: FontWeight.w600);
 
   @override
   Widget build(BuildContext context) {
@@ -123,8 +125,10 @@ class BillingDocRecordHeader extends StatelessWidget {
     final subject = billingDocSubject(doc);
     final hasNumber = subject.isNotEmpty;
     final segments = _segments(context);
-    final nameStyle = theme.textTheme.headlineSmall?.copyWith(
-      color: tokens.ink,
+    // What it is and its number, on one small line over the party's name:
+    // "Invoice #0029", then the status.
+    final nameStyle = theme.textTheme.titleSmall?.copyWith(
+      color: tokens.ink2,
       fontWeight: FontWeight.w600,
     );
     return RecentVisitRecorder(
@@ -153,21 +157,6 @@ class BillingDocRecordHeader extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // What it is, above its number — unless there is no
-                    // number, when the word *is* the name and saying it twice
-                    // would be noise.
-                    if (hasNumber)
-                      Text(
-                        typeLabel.toUpperCase(),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: tokens.ink2,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 11,
-                          letterSpacing: 0.4,
-                        ),
-                      ),
                     // A `Wrap`, so a long number pushes the pills to a second
                     // line instead of being cut down to make room for them.
                     Wrap(
@@ -183,7 +172,7 @@ class BillingDocRecordHeader extends StatelessWidget {
                           fillWidth: false,
                           floatIcon: true,
                           child: Text(
-                            hasNumber ? subject : typeLabel,
+                            hasNumber ? '$typeLabel $subject' : typeLabel,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: nameStyle,

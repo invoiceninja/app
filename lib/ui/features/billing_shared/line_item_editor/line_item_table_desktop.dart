@@ -109,6 +109,12 @@ double _minTableWidth(BuildContext context, LineItemColumnConfig config) {
   return width;
 }
 
+/// Item against Description, in the header, the rows and the drag proxy
+/// alike. Equal shares gave a product key the width of a sentence; the
+/// description is the longer text and gets more of the row.
+const int _kItemFlex = 2;
+const int _kDescriptionFlex = 3;
+
 /// Controller for [LineItemTableDesktop]. Hosted by the per-entity edit
 /// layout so it can register [flushPending] as a `beforeSave` hook on
 /// the VM — guarantees in-flight debounced cell edits land on the
@@ -623,10 +629,14 @@ class _LineItemTableDesktopState extends State<LineItemTableDesktop> {
           children: [
             Icon(Icons.drag_indicator, color: tokens.ink3, size: 20),
             const SizedBox(width: _kDragColWidth - 20),
-            cell(item?.productKey ?? '', flex: 3),
+            cell(item?.productKey ?? '', flex: _kItemFlex),
             // The proxy is forced to the dragged row's size, so a tall
             // description shows its lines rather than one centred line.
-            cell(item?.notes ?? '', flex: 3, maxLines: _kDescriptionMaxLines),
+            cell(
+              item?.notes ?? '',
+              flex: _kDescriptionFlex,
+              maxLines: _kDescriptionMaxLines,
+            ),
             for (final custom in widget.config.customFields)
               SizedBox(
                 width: _customColumnWidth(custom.field),
@@ -1130,8 +1140,8 @@ class _ColumnHeader extends StatelessWidget {
         children: [
           const SizedBox(width: _kDragColWidth),
           // `context.tr` puts the company's Custom Labels first.
-          cell(label('item'), flex: 3),
-          cell(label('description'), flex: 3),
+          cell(label('item'), flex: _kItemFlex),
+          cell(label('description'), flex: _kDescriptionFlex),
           // The company's own words, verbatim — not a translation key and not
           // a Custom Label. One line: a user label in a fixed column would
           // otherwise wrap over two or three, so the full text is a tooltip.
@@ -1779,7 +1789,7 @@ class _RowStateW extends State<_Row> {
                       ),
                     ),
               Expanded(
-                flex: 3,
+                flex: _kItemFlex,
                 child: Padding(
                   padding: const EdgeInsetsDirectional.only(end: _kCellPadH),
                   child: _ProductCell(
@@ -1802,7 +1812,7 @@ class _RowStateW extends State<_Row> {
                 ),
               ),
               Expanded(
-                flex: 3,
+                flex: _kDescriptionFlex,
                 child: Padding(
                   padding: const EdgeInsetsDirectional.only(end: _kCellPadH),
                   child: _TextCell(

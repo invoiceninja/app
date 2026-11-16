@@ -8,6 +8,7 @@ import 'package:admin/ui/core/adaptive.dart';
 // `confirm*` fields, and this file needs `guardedOnTap`. Legal Dart, and
 // breaking it would mean extracting the model to its own file plus rewriting
 // the import line in ~20 call sites — more churn than the smell is worth.
+import 'package:admin/ui/core/detail/quick_action_kinds_scope.dart';
 import 'package:admin/ui/core/dialogs/confirm_action_dialog.dart';
 import 'package:admin/ui/core/widgets/back_dismissible_menu_anchor.dart';
 
@@ -293,7 +294,17 @@ class ActionBarLayoutScope extends InheritedWidget {
 /// when wide — Edit forwarded as [leading] — and renders its own compact `⋮`
 /// cluster when narrow; see there.)
 class EntityOverflowActionBar<A> extends StatelessWidget {
-  const EntityOverflowActionBar({super.key, required this.items, this.leading});
+  const EntityOverflowActionBar({
+    super.key,
+    required this.items,
+    this.leading,
+    this.menuOnly = const {},
+  });
+
+  /// Kinds that get no button of their own, only a place in More: on a record
+  /// screen, the actions its quick-action strip already shows as tiles
+  /// (`QuickActionKindsScope`).
+  final Set<Object?> menuOnly;
 
   final List<EntityActionItem<A>> items;
 
@@ -323,10 +334,18 @@ class EntityOverflowActionBar<A> extends StatelessWidget {
     // Past the scope's cap the actions go under "More" whatever the width:
     // [inline] are the candidates for a button, [capped] never get one.
     final maxInline = ActionBarLayoutScope.maybeMaxInlineOf(context);
-    final inline = maxInline == null || shown.length <= maxInline
-        ? shown
-        : shown.sublist(0, maxInline);
-    final capped = shown.sublist(inline.length);
+    final candidates = [
+      for (final item in shown)
+        if (!menuOnly.contains(item.kind)) item,
+    ];
+    final inline = maxInline == null || candidates.length <= maxInline
+        ? candidates
+        : candidates.sublist(0, maxInline);
+    // The rest in their own order, the menu-only ones among them.
+    final capped = [
+      for (final item in shown)
+        if (!inline.contains(item)) item,
+    ];
 
     Widget spreadBar() => OverflowView.flexible(
       spacing: 8,
@@ -451,6 +470,9 @@ class EntityDetailActionsRow<A> extends StatelessWidget {
                       ? null
                       : _ActionButton<A>(item: primary),
                   items: rest,
+                  // What the quick-action strip shows stays out of the
+                  // spread; it is still in More.
+                  menuOnly: QuickActionKindsScope.watch(context),
                 ),
               )
             // Compact: Edit + a single `⋮` holding every other action.

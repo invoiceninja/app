@@ -70,11 +70,11 @@ void main() {
       expect(
         find.descendant(
           of: find.byType(BillingDocRecordHeader),
-          matching: find.text('CREDIT'),
+          matching: find.text('Credit #CR-0003'),
         ),
         findsOneWidget,
       );
-      expect(_inStanding('AMOUNT'), findsOneWidget);
+      expect(_inStanding('Amount'), findsOneWidget);
       expect(_inStanding('CREDIT REMAINING'), findsOneWidget);
       expect(_inStanding(r'$720.00'), findsOneWidget);
       // Applied is this document's "paid" — shown because it is not zero.

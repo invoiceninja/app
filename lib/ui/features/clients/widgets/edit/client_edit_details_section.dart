@@ -35,21 +35,30 @@ class ClientEditDetailsSection extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
+          // Name and Website get a row each: a company name or a URL cut to
+          // half the card was the one field you could not read.
+          EntityEditField(
+            label: context.tr('name'),
+            initial: draft.name,
+            onChanged: vm.setName,
+            autofocus: vm.isCreate,
+            errorText: vm.fieldErrorFor('name'),
+            textCapitalization: TextCapitalization.words,
+          ),
           ClientEditFieldPair(
             left: EntityEditField(
-              label: context.tr('name'),
-              initial: draft.name,
-              onChanged: vm.setName,
-              autofocus: vm.isCreate,
-              errorText: vm.fieldErrorFor('name'),
-              textCapitalization: TextCapitalization.words,
-            ),
-            right: EntityEditField(
               label: context.tr('number'),
               initial: draft.number,
               onChanged: vm.setNumber,
               errorText: vm.fieldErrorFor('number'),
               autocorrect: false,
+            ),
+            right: EntityEditField(
+              label: context.tr('phone'),
+              initial: draft.phone,
+              onChanged: vm.setPhone,
+              keyboardType: TextInputType.phone,
+              errorText: vm.fieldErrorFor('phone'),
             ),
           ),
           ClientEditFieldPair(
@@ -68,21 +77,12 @@ class ClientEditDetailsSection extends StatelessWidget {
               autocorrect: false,
             ),
           ),
-          ClientEditFieldPair(
-            left: EntityEditField(
-              label: context.tr('website'),
-              initial: draft.website,
-              onChanged: vm.setWebsite,
-              keyboardType: TextInputType.url,
-              errorText: vm.fieldErrorFor('website'),
-            ),
-            right: EntityEditField(
-              label: context.tr('phone'),
-              initial: draft.phone,
-              onChanged: vm.setPhone,
-              keyboardType: TextInputType.phone,
-              errorText: vm.fieldErrorFor('phone'),
-            ),
+          EntityEditField(
+            label: context.tr('website'),
+            initial: draft.website,
+            onChanged: vm.setWebsite,
+            keyboardType: TextInputType.url,
+            errorText: vm.fieldErrorFor('website'),
           ),
           EntityCustomFieldsSection(
             keyPrefix: 'client',

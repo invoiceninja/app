@@ -87,10 +87,6 @@ void main() {
     _recurring(),
     (tester, screen) async {
       final header = find.byType(BillingDocRecordHeader);
-      expect(
-        find.descendant(of: header, matching: find.text('RECURRING INVOICE')),
-        findsOneWidget,
-      );
       // It has no document date or due date of its own; the one date behind
       // it is when it last went out.
       expect(find.text('Last Sent Date: 2000-03-01'), findsOneWidget);

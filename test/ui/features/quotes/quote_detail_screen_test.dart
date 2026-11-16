@@ -75,11 +75,7 @@ void main() {
     (tester, screen) async {
       final header = find.byType(BillingDocRecordHeader);
       expect(
-        find.descendant(of: header, matching: find.text('QUOTE')),
-        findsOneWidget,
-      );
-      expect(
-        find.descendant(of: header, matching: find.text('#Q-0018')),
+        find.descendant(of: header, matching: find.text('Quote #Q-0018')),
         findsOneWidget,
       );
       // A quote's second date is how long it stands, not when it is due.

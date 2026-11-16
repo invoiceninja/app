@@ -94,11 +94,7 @@ void main() {
       // What it is, its number, and whose — the client as a link.
       final header = find.byType(BillingDocRecordHeader);
       expect(
-        find.descendant(of: header, matching: find.text('INVOICE')),
-        findsOneWidget,
-      );
-      expect(
-        find.descendant(of: header, matching: find.text('#0042')),
+        find.descendant(of: header, matching: find.text('Invoice #0042')),
         findsOneWidget,
       );
       expect(
@@ -118,7 +114,7 @@ void main() {
 
       // The two figures that answer "where does this stand", and how long is
       // left. Nothing has been paid, so there is no Paid figure.
-      expect(_inStanding('AMOUNT'), findsOneWidget);
+      expect(_inStanding('Amount'), findsOneWidget);
       expect(_inStanding('BALANCE DUE'), findsOneWidget);
       expect(_inStanding(r'$3,720.00'), findsNWidgets(2));
       expect(_inStanding('Paid to Date'), findsNothing);

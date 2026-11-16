@@ -95,11 +95,10 @@ void main() {
     (tester, screen) async {
       final header = find.byType(BillingDocRecordHeader);
       expect(
-        find.descendant(of: header, matching: find.text('PURCHASE ORDER')),
-        findsOneWidget,
-      );
-      expect(
-        find.descendant(of: header, matching: find.text('#PO-0011')),
+        find.descendant(
+          of: header,
+          matching: find.text('Purchase Order #PO-0011'),
+        ),
         findsOneWidget,
       );
       // Whose it is: the vendor, as the link under the number…

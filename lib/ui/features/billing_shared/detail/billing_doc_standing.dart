@@ -116,9 +116,15 @@ class BillingDocStanding extends StatelessWidget {
           progressLabel: share == null || settled == null || settledKey == null
               ? null
               : '${context.tr(settledKey)}: ${money(settled)}',
+          // One figure leads: what is still open where the document has a
+          // balance (an invoice's balance due, a credit's remaining), else
+          // its amount. Two equal figures made the reader pick; the total
+          // moves to the line of secondary figures beside what was paid.
           primary: [
-            figure('amount', doc.amount),
-            if (balanceKey != null) figure(balanceKey, doc.balance),
+            if (balanceKey != null)
+              figure(balanceKey, doc.balance)
+            else
+              figure('amount', doc.amount),
             // A date, in the figure's own typeface: on this card it is the
             // answer to "when does it next go out", and a draft or a finished
             // series simply has no second figure.
@@ -129,6 +135,7 @@ class BillingDocStanding extends StatelessWidget {
               ),
           ],
           secondary: [
+            if (balanceKey != null) figure('amount', doc.amount),
             if (settledKey != null &&
                 settled != null &&
                 settled != Decimal.zero)
