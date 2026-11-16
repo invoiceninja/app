@@ -258,6 +258,18 @@ List<ReleaseNotes> releasesToShow({
 
 const List<ReleaseNotes> kReleaseNotes = [
   ReleaseNotes(
+    version: '5.1.28',
+    items: [
+      ReleaseNoteItem(
+        'Fixed: On Linux, the app closed at launch without showing a window '
+        'when it could not reach the system keyring. It now opens on the '
+        'screen that explains how to fix the keyring '
+        '[#194](https://github.com/invoiceninja/flutter/issues/194)',
+        hiddenOn: {ReleaseNoteSurface.appleStore},
+      ),
+    ],
+  ),
+  ReleaseNotes(
     version: '5.1.27',
     highlights: [
       ReleaseHighlight(
