@@ -9,8 +9,17 @@
 # it cuts this page off from the Google, Microsoft and Apple sign-in windows,
 # which then never report back. `same-origin-allow-popups` is the most it can
 # be (test/lint/web_sign_in_popups_test.dart).
+# Never a Content-Security-Policy whose script-src refuses `blob:`: on Pages
+# main.dart.js is a loader that runs the real file from a Blob
+# (tools/web_deploy/split_main_js.py, docs/web-deploy.md).
 /*
   Cache-Control: no-cache
   X-Content-Type-Options: nosniff
   X-Frame-Options: DENY
   Referrer-Policy: strict-origin-when-cross-origin
+
+# The parts of main.dart.js are named for the whole file's hash, so a build
+# never changes one: cached for good, with no request to revalidate.
+/main.dart.js.parts/*
+  ! Cache-Control
+  Cache-Control: public, max-age=31536000, immutable

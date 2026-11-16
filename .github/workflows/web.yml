@@ -154,7 +154,8 @@ jobs:
               ':(exclude).github' ':(exclude)docs' ':(exclude)test' \
               ':(exclude)tools/web_deploy/check_served_files.py' \
               ':(exclude)tools/web_deploy/check_server_tarball.sh' \
-              ':(exclude)tools/web_deploy/smoke_webdriver.sh')"
+              ':(exclude)tools/web_deploy/smoke_webdriver.sh' \
+              ':(exclude)tools/web_deploy/split_main_js.py')"
             if [ -n "$changed" ]; then
               echo "::error::$tag is $tagged and this commit ($GITHUB_SHA) builds something else. Changed since the tag:"
               echo "$changed"
@@ -324,7 +325,16 @@ jobs:
           name: web-pages
           path: pages
 
-      # Pages refuses any file over 25 MiB; main.dart.js was 23.6 MiB on 5.1.24.
+      # Pages refuses any file over 25 MiB, and main.dart.js (the dart2js build
+      # Firefox and Safari load) passed it on Flutter 3.50: 26.0 MiB on 5.1.27.
+      # So here, and only here, it ships in parts behind a short loader; the
+      # self-hosted tarball keeps the file whole (docs/web-deploy.md).
+      - name: Split main.dart.js for Pages
+        id: split
+        run: |
+          set -euo pipefail
+          python3 tools/web_deploy/split_main_js.py pages | tee split.txt
+
       - name: Size gate (25 MiB a file)
         id: size
         run: |
@@ -336,15 +346,26 @@ jobs:
             echo "::error::Over Cloudflare Pages' 25 MiB per-file limit:"; echo "$over"; exit 1
           fi
 
+      # smoke-js/ is the same tree with the bootstrap forced to dart2js, as in
+      # the self-hosted smoke: Chrome would otherwise never load main.dart.js,
+      # and the loader the split leaves there is what this has to prove.
       - name: Served-files gate and boot smoke (local)
         run: |
           set -euo pipefail
+          cp -al pages smoke-js
+          rm smoke-js/flutter_bootstrap.js
+          sed 's/_flutter\.loader\.load();/_flutter.loader.load({config:{renderer:"canvaskit"}});/' \
+            pages/flutter_bootstrap.js > smoke-js/flutter_bootstrap.js
+          grep -q 'renderer:"canvaskit"' smoke-js/flutter_bootstrap.js
           python3 tools/web_deploy/serve.py pages 8003 &
           server=$!
-          trap 'kill $server' EXIT
+          python3 tools/web_deploy/serve.py smoke-js 8004 &
+          js_server=$!
+          trap 'kill $server $js_server' EXIT
           sleep 1
           python3 tools/web_deploy/check_served_files.py pages http://127.0.0.1:8003 --build . | tee files-gate.txt
           tools/web_deploy/smoke_webdriver.sh http://127.0.0.1:8003/ 120 | tee smoke.txt
+          CHROMEDRIVER_PORT=9516 tools/web_deploy/smoke_webdriver.sh http://127.0.0.1:8004/ 120 | tee smoke-js.txt
 
       - name: Deploy to the preview branch
         id: preview
@@ -384,9 +405,10 @@ jobs:
             echo
             echo "| | |"
             echo "|---|---|"
+            echo "| main.dart.js | $(tail -1 split.txt 2>/dev/null || echo 'did not run') |"
             echo "| Largest file (25 MiB limit) | ${{ steps.size.outputs.largest }} |"
             echo "| Served-files gate | local: $(tail -1 files-gate.txt 2>/dev/null || echo 'did not run'); preview deployment: $(tail -1 files-gate-deployed.txt 2>/dev/null || echo 'not deployed') |"
-            echo "| Boot smoke | $(head -1 smoke.txt 2>/dev/null || echo 'did not run') |"
+            echo "| Boot smoke | WASM: $(head -1 smoke.txt 2>/dev/null || echo 'did not run'); dart2js: $(head -1 smoke-js.txt 2>/dev/null || echo 'did not run') |"
             echo "| Preview | ${{ steps.preview.outputs.deployment-url || 'not deployed' }} |"
             echo "| Production | ${{ steps.production.outputs.deployment-url || 'not deployed' }} |"
           } >> "$GITHUB_STEP_SUMMARY"
@@ -426,3 +448,27 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: gh release upload "v${{ needs.deploy-web.outputs.version }}" "${{ needs.deploy-web.outputs.tarball }}" --clobber
+
+      # The server's release (react_release.yml) takes the web app from the
+      # latest release here, so Latest is only ever a release that carries one:
+      # appimage.yml publishes without it, and this marks it. Never moved back
+      # to an older version (a retry of an earlier release's web leg).
+      - name: Mark the release Latest
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          VERSION: ${{ needs.deploy-web.outputs.version }}
+        run: |
+          set -euo pipefail
+          tag="v$VERSION"
+          latest="$(gh api "repos/$GH_REPO/releases/latest" --jq .tag_name 2>/dev/null || true)"
+          if [ "$latest" = "$tag" ]; then
+            echo "$tag is already Latest."
+          elif [ "$(printf '%s\n%s\n' "${latest#v}" "$VERSION" | sort -V | tail -1)" != "$VERSION" ]; then
+            echo "::notice::$latest is Latest and newer than $tag: left as it is."
+          else
+            id="$(gh api "repos/$GH_REPO/releases/tags/$tag" --jq .id)"
+            gh api -X PATCH "repos/$GH_REPO/releases/$id" -f make_latest=true >/dev/null
+            test "$(gh api "repos/$GH_REPO/releases/latest" --jq .tag_name)" = "$tag"
+            echo "$tag is now Latest (was ${latest:-none})."
+          fi
