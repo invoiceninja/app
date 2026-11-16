@@ -36,6 +36,59 @@ TimeEntry _entry(DateTime start, DateTime? stop, {bool billable = true}) =>
     TimeEntry(start: start, stop: stop, billable: billable);
 
 void main() {
+  group('ProjectProgressCard.hasContent', () {
+    final today = DateTime.now();
+    DateTime at(int daysAgo, int hour) => DateTime(
+      today.year,
+      today.month,
+      today.day,
+      hour,
+    ).subtract(Duration(days: daysAgo));
+
+    test('nothing logged: no chart', () {
+      expect(
+        ProjectProgressCard.hasContent(const [], createdAt: at(30, 9)),
+        isFalse,
+      );
+      expect(
+        ProjectProgressCard.hasContent(null, createdAt: at(30, 9)),
+        isFalse,
+      );
+    });
+
+    test('one activity day on a project created that day: no chart yet', () {
+      // A timer started a minute ago used to draw a card whose axis began and
+      // ended on the same date.
+      final tasks = [
+        _task([_entry(at(0, 9), null)]),
+      ];
+      expect(
+        ProjectProgressCard.hasContent(tasks, createdAt: at(0, 8)),
+        isFalse,
+      );
+    });
+
+    test('one activity day after the project began: a chart', () {
+      final tasks = [
+        _task([_entry(at(3, 9), at(3, 11))]),
+      ];
+      expect(
+        ProjectProgressCard.hasContent(tasks, createdAt: at(10, 9)),
+        isTrue,
+      );
+    });
+
+    test('two activity days: a chart, whenever the project began', () {
+      final tasks = [
+        _task([_entry(at(1, 9), at(1, 11)), _entry(at(0, 9), at(0, 10))]),
+      ];
+      expect(
+        ProjectProgressCard.hasContent(tasks, createdAt: at(1, 8)),
+        isTrue,
+      );
+    });
+  });
+
   group('buildCumulativeSeries', () {
     test('empty input → empty series', () {
       expect(buildCumulativeSeries(const [], DateTime(2026, 5, 14)), isEmpty);

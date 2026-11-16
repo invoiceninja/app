@@ -65,7 +65,10 @@ class ProjectDetailProfile extends StatelessWidget {
     );
     final hasNotes = ProjectDetailNotesCard.hasContent(project);
     final tasks = this.tasks;
-    final hasChart = ProjectProgressCard.hasContent(tasks);
+    final hasChart = ProjectProgressCard.hasContent(
+      tasks,
+      createdAt: project.createdAt,
+    );
     final gap = SizedBox(height: InSpacing.md(context));
 
     Widget details() => ProjectDetailDetailsCard(

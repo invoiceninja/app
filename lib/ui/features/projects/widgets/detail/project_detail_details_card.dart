@@ -8,6 +8,7 @@ import 'package:admin/data/models/domain/project.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/detail/custom_field_detail_rows.dart';
 import 'package:admin/ui/core/detail/record_timestamps.dart';
+import 'package:admin/ui/core/utils/task_status_colors.dart';
 import 'package:admin/ui/core/widgets/detail_info_row.dart';
 import 'package:admin/ui/core/widgets/detail_row_columns.dart';
 import 'package:admin/ui/core/widgets/party_money_cell.dart';
@@ -95,7 +96,8 @@ class ProjectDetailDetailsCard extends StatelessWidget {
           clientId: p.clientId,
           formatter: formatter,
         ),
-      if (p.color.isNotEmpty)
+      // `#fff` is the server's default, not a choice: see [isUnsetColor].
+      if (!isUnsetColor(p.color))
         DetailInfoRow(
           label: context.tr('color'),
           value: p.color,

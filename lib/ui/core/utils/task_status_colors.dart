@@ -104,6 +104,12 @@ String? builtInTaskStatusKey(
 /// client can't sneak white past it.
 const _kUnsetColors = <String>{'', 'fff', 'ffffff', 'ffffffff'};
 
+/// Whether [color] is "no colour chosen" (see [_kUnsetColors]). A record that
+/// stores a colour (a task status, a project) starts with the server's `#fff`,
+/// and printing that as a value says "white" about something nobody picked.
+bool isUnsetColor(String color) =>
+    _kUnsetColors.contains(color.trim().replaceAll('#', '').toLowerCase());
+
 /// The user-chosen colour, or null when [color] is unset (see [_kUnsetColors])
 /// or unparseable. Parsing goes through the canonical [parseHexColor]
 /// (`#RRGGBB` / `#AARRGGBB`) — 3-char shorthand stays unsupported on purpose:

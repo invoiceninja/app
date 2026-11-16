@@ -41,6 +41,15 @@ Future<({Color fg, Color? bg})> _resolve(
 }
 
 void main() {
+  test('isUnsetColor: blank and every spelling of the default white', () {
+    for (final unset in ['', '#fff', '#FFF', 'fff', '#ffffff', ' #ffffffff ']) {
+      expect(isUnsetColor(unset), isTrue, reason: unset);
+    }
+    for (final chosen in ['#ff0000', '#000', '#fefefe']) {
+      expect(isUnsetColor(chosen), isFalse, reason: chosen);
+    }
+  });
+
   group('builtInTaskStatusKey', () {
     test('matches the English names the server stores', () {
       expect(builtInTaskStatusKey('Backlog', tr: _tr()), 'backlog');

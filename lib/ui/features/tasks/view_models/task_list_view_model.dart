@@ -85,6 +85,14 @@ class TaskListViewModel extends GenericListViewModel<Task> {
     if (projectId != null) 'project',
   };
 
+  /// A project has one client, so on its Tasks tab the Client column says the
+  /// same name down every row; the project's own header already names it.
+  @override
+  Set<String> get scopedColumnLabelKeys => {
+    ...lockedFilterKeyIds,
+    if (projectId != null) 'client',
+  };
+
   @override
   EntityType get entityType => EntityType.task;
 

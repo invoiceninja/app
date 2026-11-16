@@ -60,8 +60,22 @@ class ProjectProgressCard extends StatefulWidget {
   /// Whether there is a line to draw: at least one billable entry that has
   /// actually been worked. A chart of nothing but its own axes is not a card
   /// worth a column.
-  static bool hasContent(List<Task>? tasks) =>
-      tasks != null && buildCumulativeSeries(tasks, DateTime.now()).isNotEmpty;
+  ///
+  /// And a line that goes somewhere: one activity day on a project created
+  /// that same day is a single step against an axis that starts and ends on
+  /// one date (a timer started a minute ago drew exactly that). The standing
+  /// card already says the hours; the chart waits for a second day.
+  static bool hasContent(List<Task>? tasks, {required DateTime createdAt}) {
+    if (tasks == null) return false;
+    final now = DateTime.now();
+    final series = buildCumulativeSeries(tasks, now);
+    if (series.isEmpty) return false;
+    if (series.length > 1) return true;
+    final created = createdAt.toLocal();
+    final createdDay = DateTime(created.year, created.month, created.day);
+    return series.single.t.isAfter(createdDay) ||
+        now.difference(createdDay) >= const Duration(days: 2);
+  }
 
   /// The chart's height when the card runs the full width of a stacked
   /// column, clamped so a wide column does not make it 500 px tall.

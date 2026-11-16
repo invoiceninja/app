@@ -581,6 +581,13 @@ abstract class GenericListViewModel<T> extends ChangeNotifier {
   /// keep filter state purely in memory, starting from their locked scope.
   bool get isEmbedded => lockedFilterKeyIds.isNotEmpty;
 
+  /// The columns an embedded list leaves out because its parent already says
+  /// them, by label key. The locked filter keys by default (Client on a
+  /// client's Payments tab); a list whose parent implies more than its own
+  /// key adds to it (a project's tasks all belong to the project's client).
+  /// Render-only: the saved layout keeps the column.
+  Set<String> get scopedColumnLabelKeys => lockedFilterKeyIds;
+
   /// Whether this entity has a lifecycle the State filter can narrow — i.e.
   /// whether [states] reaches the fetch and the watch at all. False only for a
   /// list whose records are never archived (Documents), so the "Show
@@ -1990,7 +1997,7 @@ abstract class GenericListViewModel<T> extends ChangeNotifier {
     // every row. A locked filter key and its column share a translation key
     // (`client`, `vendor`, `project`), which is the match. Render-only, like
     // the drop above — and never down to no columns at all.
-    final locked = lockedFilterKeyIds;
+    final locked = scopedColumnLabelKeys;
     if (locked.isNotEmpty) {
       final scoped = [
         for (final c in out)
