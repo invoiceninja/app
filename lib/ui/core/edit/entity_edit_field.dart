@@ -194,10 +194,7 @@ class _EntityEditFieldState extends State<EntityEditField> {
   Widget build(BuildContext context) {
     final tokens = context.inTheme;
     final theme = Theme.of(context);
-    final border = OutlineInputBorder(
-      borderRadius: BorderRadius.circular(InRadii.r1),
-      borderSide: BorderSide(color: tokens.border),
-    );
+    final border = inFieldBorder(tokens, radius: InRadii.r1);
     // Enter submits via FormSaveScope for single-line fields; multi-line
     // (notes, etc.) keep Enter for newlines.
     final isSingleLine = widget.maxLines == 1;
@@ -253,23 +250,7 @@ class _EntityEditFieldState extends State<EntityEditField> {
               vertical: InSizes.fieldPadV,
             ),
             border: border,
-            enabledBorder: border,
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(InRadii.r1),
-              borderSide: BorderSide(color: tokens.accent, width: 1.5),
-            ),
             errorText: widget.errorText,
-            errorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(InRadii.r1),
-              borderSide: BorderSide(color: theme.colorScheme.error),
-            ),
-            focusedErrorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(InRadii.r1),
-              borderSide: BorderSide(
-                color: theme.colorScheme.error,
-                width: 1.5,
-              ),
-            ),
             errorStyle: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.error,
               fontSize: 11.5,

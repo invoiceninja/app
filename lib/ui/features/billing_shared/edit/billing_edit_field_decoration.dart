@@ -14,10 +14,7 @@ InputDecoration billingFieldDecoration(
   String? errorText,
 }) {
   final tokens = context.inTheme;
-  final border = OutlineInputBorder(
-    borderRadius: BorderRadius.circular(InRadii.r1),
-    borderSide: BorderSide(color: tokens.border),
-  );
+  final border = inFieldBorder(tokens, radius: InRadii.r1);
   return InputDecoration(
     // lint: allow-inside-label every caller wraps its field in LabeledField
     labelText: label,
@@ -29,10 +26,5 @@ InputDecoration billingFieldDecoration(
       vertical: InSizes.fieldPadV,
     ),
     border: border,
-    enabledBorder: border,
-    focusedBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(InRadii.r1),
-      borderSide: BorderSide(color: tokens.accent, width: 1.5),
-    ),
   );
 }

@@ -137,26 +137,9 @@ ThemeData buildInTheme(InTheme baseTokens, {Color? accentOverride}) {
       // drag handle) where low contrast is the intent. `ink3` lands at
       // ~4.0-4.7:1.
       hintStyle: textTheme.bodyMedium?.copyWith(color: tokens.ink3),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(InRadii.r2),
-        borderSide: BorderSide(color: tokens.border),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(InRadii.r2),
-        borderSide: BorderSide(color: tokens.border),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(InRadii.r2),
-        borderSide: BorderSide(color: tokens.accent, width: 1.5),
-      ),
-      errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(InRadii.r2),
-        borderSide: BorderSide(color: tokens.overdue),
-      ),
-      focusedErrorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(InRadii.r2),
-        borderSide: BorderSide(color: tokens.overdue, width: 1.5),
-      ),
+      // Hover moves the border, never the fill: see `inFieldBorder`.
+      hoverColor: Colors.transparent,
+      border: inFieldBorder(tokens),
     ),
 
     filledButtonTheme: FilledButtonThemeData(

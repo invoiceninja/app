@@ -626,6 +626,42 @@ class InTheme extends ThemeExtension<InTheme> {
   }
 }
 
+/// The one border of a form field, for every state it can be in.
+///
+/// Resting is [InTheme.border]; under the mouse it is [InTheme.borderStrong];
+/// focus is the accent at 1.5 px; an error is [InTheme.overdue], and stays so
+/// under the mouse. Hover speaks through the border alone — the fill does not
+/// move (`theme.dart` sets `hoverColor` transparent): the fill is what makes a
+/// field read as a well on its card, a tint flashed a whole rectangle per
+/// field as the mouse crossed a form, and focus already speaks through the
+/// border, so rest, hover and focus are one ramp. The width changes for focus
+/// only, or text would shimmer as the mouse passed. A disabled field does not
+/// react: the stronger border says "you can type here".
+///
+/// Pass it as `InputDecoration.border` and set NO `enabledBorder` /
+/// `focusedBorder` / `errorBorder`: `InputDecorator` resolves states only on
+/// `border`, and any of the others, once set, wins over it.
+InputBorder inFieldBorder(InTheme tokens, {double radius = InRadii.r2}) {
+  return WidgetStateInputBorder.resolveWith((states) {
+    final focused = states.contains(WidgetState.focused);
+    final Color color;
+    if (states.contains(WidgetState.error)) {
+      color = tokens.overdue;
+    } else if (focused) {
+      color = tokens.accent;
+    } else if (states.contains(WidgetState.hovered) &&
+        !states.contains(WidgetState.disabled)) {
+      color = tokens.borderStrong;
+    } else {
+      color = tokens.border;
+    }
+    return OutlineInputBorder(
+      borderRadius: BorderRadius.circular(radius),
+      borderSide: BorderSide(color: color, width: focused ? 1.5 : 1),
+    );
+  });
+}
+
 /// Reads the brightness-appropriate tokens from the current [Theme].
 extension InThemeContext on BuildContext {
   InTheme get inTheme => Theme.of(this).extension<InTheme>()!;

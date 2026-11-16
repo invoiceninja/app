@@ -302,10 +302,7 @@ class _TagPickerFieldState extends State<TagPickerField> {
     final tokens = context.inTheme;
     final theme = Theme.of(context);
 
-    final border = OutlineInputBorder(
-      borderRadius: BorderRadius.circular(InRadii.r1),
-      borderSide: BorderSide(color: tokens.border),
-    );
+    final border = inFieldBorder(tokens, radius: InRadii.r1);
 
     // An unresolvable id keeps its chip even though it renders no name: the ✕
     // is the only handle that can take a stranded id back out of the draft, and
@@ -423,14 +420,6 @@ class _TagPickerFieldState extends State<TagPickerField> {
                               vertical: 12,
                             ),
                             border: border,
-                            enabledBorder: border,
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(InRadii.r1),
-                              borderSide: BorderSide(
-                                color: tokens.accent,
-                                width: 1.5,
-                              ),
-                            ),
                             prefixIcon: Icon(
                               Icons.local_offer_outlined,
                               size: 16,

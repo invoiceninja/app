@@ -141,6 +141,16 @@ Two things defeat the hiding, and neither fails a test: an explicit `labelStyle`
 
 Pinned by `test/ui/core/widgets/labeled_field_test.dart`.
 
+## A field answers the mouse with its border, never its fill
+
+**Hover changes a field's border to `borderStrong` and leaves the fill alone; the one border for every state is `inFieldBorder` (`lib/app/design_tokens.dart`).** Material tints a filled field under the mouse by default. Here the fill is what makes a field read as a well on its card, so tinting it weakened that; across a form of twenty or thirty fields it flashed a whole rectangle per field as the mouse travelled; and the tint is a translucent ink that read differently on each of the six theme variants. Focus already speaks through the border (accent, 1.5 px), so rest, hover and focus are now one ramp on one channel. `theme.dart` sets `hoverColor: Colors.transparent`.
+
+- **`borderStrong`, 1 px.** It has no hue, so it cannot be mistaken for focus or for an error. The width changes for focus only: a width change on hover makes the text shimmer as the mouse passes.
+- **An error keeps its `overdue` border under the mouse, and a disabled field does not react** — the stronger border says "you can type here".
+- **Set it as `InputDecoration.border` and set no `enabledBorder` / `focusedBorder` / `errorBorder`.** `InputDecorator` resolves widget states only on `border`, and any of the others, once set, wins over it. The theme and the four shared decorations (`EntityEditField`, `SearchableDropdownField`, `TagPickerField`, `billingFieldDecoration`) all pass `inFieldBorder`; a field that still sets its own fixed `enabledBorder` simply has no hover state.
+
+Pinned by `test/app/field_border_test.dart`, which asserts the painted border and fill under a mouse pointer.
+
 ## Enter-to-save in raw fields and dialogs
 
 Reusable field widgets read the scope automatically (see `OverridableTextField`, `ClientEditField`). Raw `TextField`s with `maxLines == 1` should read `FormSaveScope.maybeOf(context)`, set `textInputAction: TextInputAction.done`, and pipe `onSubmitted` to `scope.trySubmit()`. Dialogs with a single text input + primary action: wrap the dialog body in `FormSaveScope` so Enter fires the primary action (login's fields wire `onSubmitted` explicitly in `lib/ui/features/auth/views/login_screen.dart` — on step 2, Enter moves to an empty *required* field before it submits).

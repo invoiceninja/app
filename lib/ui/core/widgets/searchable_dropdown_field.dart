@@ -717,10 +717,7 @@ class _SearchableDropdownFieldState<T extends Object>
   Widget build(BuildContext context) {
     final tokens = context.inTheme;
     final theme = Theme.of(context);
-    final border = OutlineInputBorder(
-      borderRadius: BorderRadius.circular(InRadii.r1),
-      borderSide: BorderSide(color: tokens.border),
-    );
+    final border = inFieldBorder(tokens, radius: InRadii.r1);
 
     // No options — render a disabled placeholder rather than a live field that
     // opens onto nothing.
@@ -939,14 +936,6 @@ class _SearchableDropdownFieldState<T extends Object>
                               vertical: InSizes.fieldPadV,
                             ),
                             border: border,
-                            enabledBorder: border,
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(InRadii.r1),
-                              borderSide: BorderSide(
-                                color: tokens.accent,
-                                width: 1.5,
-                              ),
-                            ),
                             prefixIcon: prefix == null
                                 ? null
                                 : Padding(
