@@ -122,6 +122,17 @@ void main() {
   // the per-card handles have nothing to attach to.
   final dragHandle = find.byIcon(Icons.drag_indicator);
 
+  testWidgets('the header controls sit in the corner, whatever the name', (
+    tester,
+  ) async {
+    // A short name beside a `Spacer` once left half the unused width after
+    // the controls, so they floated some 50 px short of the column's edge.
+    await pumpColumn(tester, canEdit: true, canCreate: true);
+    final column = tester.getRect(find.byType(KanbanColumn));
+    final handle = tester.getRect(dragHandle);
+    expect(column.right - handle.right, lessThan(24));
+  });
+
   testWidgets('canCreate renders the + New Task footer', (tester) async {
     await pumpColumn(tester, canEdit: true, canCreate: true);
     expect(footer, findsOneWidget);

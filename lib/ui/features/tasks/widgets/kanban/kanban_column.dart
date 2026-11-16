@@ -636,31 +636,40 @@ class KanbanColumnHeader extends StatelessWidget {
             decoration: BoxDecoration(color: dot, shape: BoxShape.circle),
           ),
           const SizedBox(width: 8),
-          Flexible(
-            child: Text(
-              // Never the raw id: a hashid means nothing to anyone.
-              status.name.isEmpty
-                  ? context.tr('no_name_fallback')
-                  : status.name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: tokens.ink,
-              ),
+          // Name and count take the room the controls leave. Not a `Flexible`
+          // name beside a `Spacer`: the two split the free width in half, and
+          // what the name did not use of its half was left after the controls,
+          // which then sat short of the corner.
+          Expanded(
+            child: Row(
+              children: [
+                Flexible(
+                  child: Text(
+                    // Never the raw id: a hashid means nothing to anyone.
+                    status.name.isEmpty
+                        ? context.tr('no_name_fallback')
+                        : status.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: tokens.ink,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  tasks.length.toString(),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: tokens.ink3,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(width: 8),
-          Text(
-            tasks.length.toString(),
-            style: TextStyle(
-              fontSize: 12,
-              color: tokens.ink3,
-              fontFeatures: const [FontFeature.tabularFigures()],
-            ),
-          ),
-          const Spacer(),
           KanbanTimeTotal(tasks: tasks),
           if (onCreate != null)
             _HeaderButton(
