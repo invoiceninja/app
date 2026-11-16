@@ -71,20 +71,16 @@ class _ExpenseEditPaymentSectionState extends State<ExpenseEditPaymentSection>
   Widget build(BuildContext context) {
     final vm = widget.vm;
     final paid = _isPaid;
+    // "Mark paid" is the card's header, its switch the header's control, and
+    // the fields it reveals sit in one row where the card has room: a title,
+    // a switch row and three stacked fields said the same thing taller.
     return DashboardCardShell(
-      title: context.tr('payment'),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          SwitchListTile.adaptive(
-            contentPadding: EdgeInsets.zero,
-            title: Text(context.tr('mark_paid')),
-            value: paid,
-            onChanged: _onMarkPaidToggled,
-          ),
-          if (paid) ...[
-            SizedBox(height: InSpacing.sm),
+      title: context.tr('mark_paid'),
+      trailing: Switch.adaptive(value: paid, onChanged: _onMarkPaidToggled),
+      showBody: paid,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final fields = <Widget>[
             _PaymentDateField(vm: vm, formatter: formatter),
             _PaymentTypePicker(vm: vm),
             EntityEditField(
@@ -94,8 +90,24 @@ class _ExpenseEditPaymentSectionState extends State<ExpenseEditPaymentSection>
               errorText: vm.fieldErrorFor('transaction_reference'),
               autocorrect: false,
             ),
-          ],
-        ],
+          ];
+          if (constraints.maxWidth < 600) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: fields,
+            );
+          }
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (var i = 0; i < fields.length; i++) ...[
+                if (i > 0) SizedBox(width: InSpacing.md(context)),
+                Expanded(child: fields[i]),
+              ],
+            ],
+          );
+        },
       ),
     );
   }

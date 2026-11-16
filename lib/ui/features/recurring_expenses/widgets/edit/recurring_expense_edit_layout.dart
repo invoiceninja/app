@@ -11,7 +11,6 @@ import 'package:admin/ui/core/widgets/centered_form_column.dart';
 import 'package:admin/ui/features/dashboard/widgets/card_shell.dart';
 import 'package:admin/ui/features/recurring_expenses/view_models/recurring_expense_edit_view_model.dart';
 import 'package:admin/ui/features/recurring_expenses/widgets/edit/recurring_expense_edit_amount_tax_section.dart';
-import 'package:admin/ui/features/recurring_expenses/widgets/edit/recurring_expense_edit_currency_conversion_section.dart';
 import 'package:admin/ui/features/recurring_expenses/widgets/edit/recurring_expense_edit_custom_fields_section.dart';
 import 'package:admin/ui/features/recurring_expenses/widgets/edit/recurring_expense_edit_identity_section.dart';
 import 'package:admin/ui/features/recurring_expenses/widgets/edit/recurring_expense_edit_invoicing_section.dart';
@@ -62,9 +61,11 @@ class RecurringExpenseEditLayout extends StatelessWidget {
             children: [
               RecurringExpenseEditScheduleSection(vm: vm),
               SizedBox(height: InSpacing.md(context)),
+              RecurringExpenseEditAmountTaxSection(vm: vm),
+              SizedBox(height: InSpacing.md(context)),
               RecurringExpenseEditIdentitySection(vm: vm),
               SizedBox(height: InSpacing.md(context)),
-              RecurringExpenseEditAmountTaxSection(vm: vm),
+              RecurringExpenseEditInvoicingSection(vm: vm),
             ],
           ),
         ),
@@ -75,20 +76,10 @@ class RecurringExpenseEditLayout extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               RecurringExpenseEditNotesSection(vm: vm),
-              SizedBox(height: InSpacing.md(context)),
-              RecurringExpenseEditInvoicingSection(vm: vm),
               if (vm.offersDocuments) ...[
                 SizedBox(height: InSpacing.md(context)),
                 CreateFormDocumentsCard(vm: vm),
               ],
-              SizedBox(height: InSpacing.md(context)),
-              _CollapsibleFormSection(
-                title: context.tr('currency_conversion'),
-                initiallyExpanded:
-                    vm.draft.invoiceCurrencyId.isNotEmpty &&
-                    vm.draft.invoiceCurrencyId != vm.draft.currencyId,
-                child: RecurringExpenseEditCurrencyConversionSection(vm: vm),
-              ),
               SizedBox(height: InSpacing.md(context)),
               _CustomFieldsCollapsible(vm: vm),
             ],
@@ -104,9 +95,9 @@ class RecurringExpenseEditLayout extends StatelessWidget {
       children: [
         RecurringExpenseEditScheduleSection(vm: vm),
         SizedBox(height: InSpacing.md(context)),
-        RecurringExpenseEditIdentitySection(vm: vm),
-        SizedBox(height: InSpacing.md(context)),
         RecurringExpenseEditAmountTaxSection(vm: vm),
+        SizedBox(height: InSpacing.md(context)),
+        RecurringExpenseEditIdentitySection(vm: vm),
         SizedBox(height: InSpacing.md(context)),
         RecurringExpenseEditInvoicingSection(vm: vm),
         SizedBox(height: InSpacing.md(context)),
@@ -115,14 +106,6 @@ class RecurringExpenseEditLayout extends StatelessWidget {
           SizedBox(height: InSpacing.md(context)),
           CreateFormDocumentsCard(vm: vm),
         ],
-        SizedBox(height: InSpacing.md(context)),
-        _CollapsibleFormSection(
-          title: context.tr('currency_conversion'),
-          initiallyExpanded:
-              vm.draft.invoiceCurrencyId.isNotEmpty &&
-              vm.draft.invoiceCurrencyId != vm.draft.currencyId,
-          child: RecurringExpenseEditCurrencyConversionSection(vm: vm),
-        ),
         SizedBox(height: InSpacing.md(context)),
         _CustomFieldsCollapsible(vm: vm),
       ],

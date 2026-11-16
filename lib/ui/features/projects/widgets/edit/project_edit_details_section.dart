@@ -7,6 +7,7 @@ import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/edit/entity_edit_field.dart';
 import 'package:admin/ui/core/widgets/assigned_user_picker_field.dart';
 import 'package:admin/ui/core/widgets/entity_tags_field.dart';
+import 'package:admin/ui/core/widgets/form_field_pair.dart';
 import 'package:admin/ui/core/widgets/formatter_host_mixin.dart';
 import 'package:admin/ui/core/widgets/in_date_field.dart';
 import 'package:admin/ui/core/widgets/locked_entity_field_row.dart';
@@ -28,31 +29,39 @@ class ProjectEditDetailsSection extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
-          EntityEditField(
-            label: context.tr('name'),
-            initial: vm.draft.name,
-            onChanged: vm.setName,
-            autofocus: vm.isCreate,
-            errorText: vm.fieldErrorFor('name'),
-          ),
+          // Related fields two to a row: the project and its number, who it
+          // is for and who runs it, when it is due and its colour.
           // Number is server-assigned on first save and immutable afterwards
           // (the server owns the sequence; allowing edits can collide).
           // Surfaced read-only on existing projects so users can copy it.
-          if (!vm.isCreate)
+          ...pairFields([
             EntityEditField(
-              label: context.tr('number'),
-              initial: vm.draft.number,
-              onChanged: (_) {},
-              readOnly: true,
+              label: context.tr('name'),
+              initial: vm.draft.name,
+              onChanged: vm.setName,
+              autofocus: vm.isCreate,
+              errorText: vm.fieldErrorFor('name'),
             ),
-          _ClientPicker(vm: vm),
-          AssignedUserPickerField(
-            companyId: vm.companyId,
-            selectedId: vm.draft.assignedUserId,
-            onChanged: vm.setAssignedUserId,
+            if (!vm.isCreate)
+              EntityEditField(
+                label: context.tr('number'),
+                initial: vm.draft.number,
+                onChanged: (_) {},
+                readOnly: true,
+              ),
+          ]),
+          FormFieldPair(
+            left: _ClientPicker(vm: vm),
+            right: AssignedUserPickerField(
+              companyId: vm.companyId,
+              selectedId: vm.draft.assignedUserId,
+              onChanged: vm.setAssignedUserId,
+            ),
           ),
-          _DueDateField(vm: vm),
-          ColorField(initial: vm.draft.color, onChanged: vm.setColor),
+          FormFieldPair(
+            left: _DueDateField(vm: vm),
+            right: ColorField(initial: vm.draft.color, onChanged: vm.setColor),
+          ),
           EntityTagsField(
             entityType: 'project',
             selectedIds: vm.draft.tagIds,

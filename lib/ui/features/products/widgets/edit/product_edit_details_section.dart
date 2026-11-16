@@ -7,6 +7,7 @@ import 'package:admin/data/models/domain/company.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/edit/entity_edit_field.dart';
 import 'package:admin/ui/core/widgets/entity_tags_field.dart';
+import 'package:admin/ui/core/widgets/form_field_pair.dart';
 import 'package:admin/ui/features/dashboard/widgets/card_shell.dart';
 import 'package:admin/ui/features/products/view_models/product_edit_view_model.dart';
 import 'package:admin/utils/formatting.dart';
@@ -55,43 +56,47 @@ class ProductEditDetailsSection extends StatelessWidget {
                 errorText: vm.fieldErrorFor('product_key'),
                 autocorrect: false,
               ),
-              EntityEditField(
-                numeric: true,
-                useCommaAsDecimalPlace: vm.useCommaAsDecimalPlace,
-                label: context.tr('price'),
-                prefixText: moneyPrefix,
-                initial: decimalInputText(vm.draft.price),
-                onChanged: vm.setPrice,
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
-                errorText: vm.fieldErrorFor('price'),
-              ),
-              if (showCost)
+              // The figures two to a row: Price beside Cost, Quantity beside
+              // them where the company shows it.
+              ...pairFields([
                 EntityEditField(
                   numeric: true,
                   useCommaAsDecimalPlace: vm.useCommaAsDecimalPlace,
-                  label: context.tr('cost'),
+                  label: context.tr('price'),
                   prefixText: moneyPrefix,
-                  initial: decimalInputText(vm.draft.cost),
-                  onChanged: vm.setCost,
+                  initial: decimalInputText(vm.draft.price),
+                  onChanged: vm.setPrice,
                   keyboardType: const TextInputType.numberWithOptions(
                     decimal: true,
                   ),
-                  errorText: vm.fieldErrorFor('cost'),
+                  errorText: vm.fieldErrorFor('price'),
                 ),
-              if (showQuantity)
-                EntityEditField(
-                  numeric: true,
-                  useCommaAsDecimalPlace: vm.useCommaAsDecimalPlace,
-                  label: context.tr('quantity'),
-                  initial: decimalInputText(vm.draft.quantity),
-                  onChanged: vm.setQuantity,
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
+                if (showCost)
+                  EntityEditField(
+                    numeric: true,
+                    useCommaAsDecimalPlace: vm.useCommaAsDecimalPlace,
+                    label: context.tr('cost'),
+                    prefixText: moneyPrefix,
+                    initial: decimalInputText(vm.draft.cost),
+                    onChanged: vm.setCost,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    errorText: vm.fieldErrorFor('cost'),
                   ),
-                  errorText: vm.fieldErrorFor('quantity'),
-                ),
+                if (showQuantity)
+                  EntityEditField(
+                    numeric: true,
+                    useCommaAsDecimalPlace: vm.useCommaAsDecimalPlace,
+                    label: context.tr('quantity'),
+                    initial: decimalInputText(vm.draft.quantity),
+                    onChanged: vm.setQuantity,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    errorText: vm.fieldErrorFor('quantity'),
+                  ),
+              ]),
               EntityEditField(
                 label: context.tr('notes'),
                 initial: vm.draft.notes,

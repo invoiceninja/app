@@ -17,6 +17,7 @@ import 'package:admin/ui/core/widgets/form_save_scope.dart';
 import 'package:admin/ui/core/widgets/locked_entity_field_row.dart';
 import 'package:admin/ui/core/widgets/searchable_dropdown_field.dart';
 import 'package:admin/ui/features/clients/widgets/client_picker_field_with_create.dart';
+import 'package:admin/ui/features/dashboard/widgets/card_shell.dart';
 import 'package:admin/ui/features/tasks/view_models/task_edit_view_model.dart';
 import 'package:admin/ui/features/tasks/widgets/detail/task_rate_context.dart';
 import 'package:admin/ui/features/tasks/widgets/edit/task_edit_times_section.dart';
@@ -222,22 +223,19 @@ class _IdentitySection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tokens = context.inTheme;
     // EntityEditScaffold wraps the body in a FormSaveScope already; we
     // pull it off the inherited widget and have each single-line field
     // submit through it on Enter. Multi-line fields (description) leave
     // Enter alone so it inserts a newline.
     final scope = FormSaveScope.maybeOf(context);
     void submit(String _) => scope?.trySubmit();
-    return Container(
-      decoration: BoxDecoration(
-        color: tokens.surface,
-        border: Border.all(color: tokens.border),
-        borderRadius: BorderRadius.circular(InRadii.r3),
-      ),
-      padding: EdgeInsets.all(InSpacing.lg(context)),
+    // A titled card like every other edit form's, so the sidebar reads as the
+    // task's details rather than a loose stack of fields.
+    return DashboardCardShell(
+      title: context.tr('details'),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
         children: [
           LabeledField(
             label: context.tr('description'),
@@ -252,6 +250,9 @@ class _IdentitySection extends StatelessWidget {
             ),
           ),
           SizedBox(height: InSpacing.md(context)),
+          // Status right under the number: the task's state beside its id.
+          // It was fifth, under the client and project. Not paired on one
+          // row: in a 360 px sidebar the status name was cut to a word.
           LabeledField(
             label: context.tr('number'),
             child: TextFormField(
@@ -267,10 +268,6 @@ class _IdentitySection extends StatelessWidget {
             ),
           ),
           SizedBox(height: InSpacing.md(context)),
-          _ClientPicker(vm: vm, locked: locked),
-          SizedBox(height: InSpacing.md(context)),
-          _ProjectPicker(vm: vm, locked: locked),
-          SizedBox(height: InSpacing.md(context)),
           _Lockable(
             locked: locked,
             child: TaskStatusPickerField(
@@ -279,6 +276,10 @@ class _IdentitySection extends StatelessWidget {
               onChanged: vm.setStatusId,
             ),
           ),
+          SizedBox(height: InSpacing.md(context)),
+          _ClientPicker(vm: vm, locked: locked),
+          SizedBox(height: InSpacing.md(context)),
+          _ProjectPicker(vm: vm, locked: locked),
           SizedBox(height: InSpacing.md(context)),
           _Lockable(
             locked: locked,

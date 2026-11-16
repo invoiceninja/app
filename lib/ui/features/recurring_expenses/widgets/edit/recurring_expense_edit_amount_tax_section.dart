@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 
 import 'package:admin/ui/features/expenses/widgets/edit/expense_tax_section.dart';
 import 'package:admin/ui/features/recurring_expenses/view_models/recurring_expense_edit_view_model.dart';
+import 'package:admin/ui/features/recurring_expenses/widgets/edit/recurring_expense_edit_identity_section.dart';
 
 /// Amount + tax entry for the Recurring Expense edit screen. Thin wrapper that
 /// feeds the shared [ExpenseTaxSection] from the ViewModel (the Expense edit
@@ -17,6 +18,7 @@ class RecurringExpenseEditAmountTaxSection extends StatelessWidget {
       companyId: vm.companyId,
       useCommaAsDecimalPlace: vm.useCommaAsDecimalPlace,
       amount: d.amount,
+      amountBeside: RecurringExpenseCurrencyPicker(vm: vm),
       amountError: vm.fieldErrorFor('amount'),
       taxNames: [d.taxName1, d.taxName2, d.taxName3],
       taxRates: [d.taxRate1, d.taxRate2, d.taxRate3],

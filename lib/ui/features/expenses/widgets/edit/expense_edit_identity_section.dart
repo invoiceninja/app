@@ -70,10 +70,6 @@ class ExpenseEditIdentitySection extends StatelessWidget {
             left: _VendorPicker(vm: vm),
             right: _CategoryPicker(vm: vm),
           ),
-          ClientEditFieldPair(
-            left: _ClientPicker(vm: vm),
-            right: _ProjectPicker(vm: vm),
-          ),
           // Half width, like the fields above it.
           ClientEditFieldPair(
             left: AssignedUserPickerField(
@@ -232,6 +228,21 @@ class _UnmatchedReceiptVendor extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Who the expense is billed to: Client and Project, side by side. Drawn at
+/// the head of the Invoicing card (`ExpenseEditInvoicingSection`), with the
+/// switches that say whether it is billed at all; it was in Details, two cards
+/// and a column away from them.
+class ExpenseBillToFields extends StatelessWidget {
+  const ExpenseBillToFields({super.key, required this.vm});
+  final ExpenseEditViewModel vm;
+
+  @override
+  Widget build(BuildContext context) => ClientEditFieldPair(
+    left: _ClientPicker(vm: vm),
+    right: _ProjectPicker(vm: vm),
+  );
 }
 
 class _ClientPicker extends StatelessWidget {

@@ -121,14 +121,16 @@ void main() {
   testWidgets('larger text moves the cut instead of clipping a label', (
     tester,
   ) async {
-    await pumpStrip(tester, width: 600);
+    // 380 px: room for the three capped buttons and More at normal size, so
+    // only the text size can move the cut.
+    await pumpStrip(tester, width: 380);
     final normal = inlineLabels(tester).length;
     // The app's largest in-app setting: never more buttons, never an overflow.
-    await pumpStrip(tester, width: 600, textScale: 1.4);
+    await pumpStrip(tester, width: 380, textScale: 1.4);
     expect(inlineLabels(tester).length, lessThanOrEqualTo(normal));
     expect(tester.takeException(), isNull);
     // An OS scale on top of it: the cut has to move.
-    await pumpStrip(tester, width: 600, textScale: 2);
+    await pumpStrip(tester, width: 380, textScale: 2);
     expect(inlineLabels(tester).length, lessThan(normal));
     expect(tester.takeException(), isNull);
   });
@@ -142,6 +144,12 @@ void main() {
     // So the tail stays under More even on an ultrawide window.
     expect(find.text('More'), findsOneWidget);
     expect(inlineLabels(tester).length, lessThan(allOptions.length));
+  });
+
+  testWidgets('three buttons at most, the rest under More', (tester) async {
+    await pumpStrip(tester, width: 1400);
+    expect(inlineLabels(tester).length, kDashboardCreateStripMaxButtons);
+    expect(find.text('More'), findsOneWidget);
   });
 
   testWidgets('every button is one height', (tester) async {

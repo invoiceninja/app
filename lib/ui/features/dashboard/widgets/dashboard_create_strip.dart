@@ -7,10 +7,14 @@ import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/back_dismissible_menu_anchor.dart';
 import 'package:admin/ui/features/dashboard/widgets/dashboard_create_fab.dart';
 
-/// The widest the strip may grow. It is what caps the number of buttons: about
-/// six fit, and the rest stay under More however wide the window is. Fourteen
-/// buttons across an ultrawide bar would be a toolbar nobody can scan.
+/// The widest the strip may grow.
 const double kDashboardCreateStripMaxWidth = 720;
+
+/// The most create buttons the strip shows; the rest are under More however
+/// wide the window is. It showed as many as fit in 720 px, about six: a row of
+/// equal "+" buttons where the one the user comes for (the first, filled) had
+/// to be found among them.
+const int kDashboardCreateStripMaxButtons = 3;
 
 /// The wide dashboard's create buttons: "+ Invoice", "+ Quote", "+ Payment" …
 /// for everything the user may start, in the order the phone's `+` sheet uses.
@@ -46,6 +50,10 @@ class DashboardCreateStrip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (options.isEmpty) return const SizedBox.shrink();
+    final inline = options.length <= kDashboardCreateStripMaxButtons
+        ? options
+        : options.sublist(0, kDashboardCreateStripMaxButtons);
+    final capped = options.sublist(inline.length);
     return ConstrainedBox(
       constraints: const BoxConstraints(
         maxWidth: kDashboardCreateStripMaxWidth,
@@ -53,21 +61,28 @@ class DashboardCreateStrip extends StatelessWidget {
       child: OverflowView.flexible(
         spacing: InSpacing.sm,
         children: [
-          for (var i = 0; i < options.length; i++)
+          for (var i = 0; i < inline.length; i++)
             _CreateButton(
-              option: options[i],
+              option: inline[i],
               primary: i == 0,
-              onTap: () => onCreate(options[i]),
+              onTap: () => onCreate(inline[i]),
             ),
+          // The capped creates' own More, last so it is the first child
+          // `OverflowView` hides; the builder's More then carries them with
+          // whatever else did not fit.
+          if (capped.isNotEmpty)
+            _MoreCreates(options: capped, onCreate: onCreate),
         ],
         builder: (context, remaining) {
-          // `remaining` counts hidden children from the end. Clamped: in a slot
-          // too tight for even the first button it can reach the whole list.
-          final hidden = remaining > options.length
-              ? options.length
-              : remaining;
+          // `remaining` counts hidden children from the end, the capped More
+          // among them. Clamped: in a slot too tight for even the first button
+          // it can reach the whole list.
+          final hiddenButtons = capped.isEmpty ? remaining : remaining - 1;
+          final hidden = hiddenButtons > inline.length
+              ? inline.length
+              : (hiddenButtons < 0 ? 0 : hiddenButtons);
           return _MoreCreates(
-            options: options.sublist(options.length - hidden),
+            options: [...inline.sublist(inline.length - hidden), ...capped],
             onCreate: onCreate,
           );
         },

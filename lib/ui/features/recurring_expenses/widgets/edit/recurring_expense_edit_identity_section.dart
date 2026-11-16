@@ -13,6 +13,7 @@ import 'package:admin/ui/core/widgets/entity_tags_field.dart';
 import 'package:admin/ui/core/widgets/entity_picker_field.dart';
 import 'package:admin/ui/core/widgets/searchable_dropdown_field.dart';
 import 'package:admin/ui/features/clients/widgets/client_picker_field_with_create.dart';
+import 'package:admin/ui/features/clients/widgets/edit/client_edit_field_pair.dart';
 import 'package:admin/ui/features/dashboard/widgets/card_shell.dart';
 import 'package:admin/ui/features/expense_categories/widgets/expense_category_picker_field.dart';
 import 'package:admin/ui/features/recurring_expenses/view_models/recurring_expense_edit_view_model.dart';
@@ -39,24 +40,28 @@ class RecurringExpenseEditIdentitySection extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
-          EntityEditField(
-            label: context.tr('number'),
-            initial: vm.draft.number,
-            onChanged: vm.setNumber,
-            errorText: vm.fieldErrorFor('number'),
-            hintText: vm.isCreate ? context.tr('auto_generated') : null,
-            autocorrect: false,
+          // Laid out as the expense form's Details card is: two to a row;
+          // Client and Project live in the Invoicing card, the currency
+          // beside the amount.
+          ClientEditFieldPair(
+            left: _VendorPicker(vm: vm),
+            right: _CategoryPicker(vm: vm),
           ),
-          _VendorPicker(vm: vm),
-          _ClientPicker(vm: vm),
-          _ProjectPicker(vm: vm),
-          _CategoryPicker(vm: vm),
-          AssignedUserPickerField(
-            companyId: vm.companyId,
-            selectedId: vm.draft.assignedUserId,
-            onChanged: vm.setAssignedUserId,
+          ClientEditFieldPair(
+            left: EntityEditField(
+              label: context.tr('number'),
+              initial: vm.draft.number,
+              onChanged: vm.setNumber,
+              errorText: vm.fieldErrorFor('number'),
+              hintText: vm.isCreate ? context.tr('auto_generated') : null,
+              autocorrect: false,
+            ),
+            right: AssignedUserPickerField(
+              companyId: vm.companyId,
+              selectedId: vm.draft.assignedUserId,
+              onChanged: vm.setAssignedUserId,
+            ),
           ),
-          _CurrencyPicker(vm: vm),
           SizedBox(height: InSpacing.md(context)),
           EntityTagsField(
             entityType: 'recurring_expense',
@@ -67,6 +72,28 @@ class RecurringExpenseEditIdentitySection extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Client and Project, side by side, for the head of the Invoicing card
+/// (`RecurringExpenseEditInvoicingSection`), as on the expense form.
+class RecurringExpenseBillToFields extends StatelessWidget {
+  const RecurringExpenseBillToFields({super.key, required this.vm});
+  final RecurringExpenseEditViewModel vm;
+
+  @override
+  Widget build(BuildContext context) => ClientEditFieldPair(
+    left: _ClientPicker(vm: vm),
+    right: _ProjectPicker(vm: vm),
+  );
+}
+
+/// The recurring expense's currency, beside the amount in the Amount card.
+class RecurringExpenseCurrencyPicker extends StatelessWidget {
+  const RecurringExpenseCurrencyPicker({super.key, required this.vm});
+  final RecurringExpenseEditViewModel vm;
+
+  @override
+  Widget build(BuildContext context) => _CurrencyPicker(vm: vm);
 }
 
 class _VendorPicker extends StatelessWidget {

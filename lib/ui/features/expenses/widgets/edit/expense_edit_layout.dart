@@ -12,7 +12,6 @@ import 'package:admin/ui/features/dashboard/widgets/card_shell.dart';
 import 'package:admin/ui/features/expenses/view_models/expense_edit_view_model.dart';
 import 'package:admin/ui/features/expenses/widgets/edit/expense_edit_amount_tax_section.dart';
 import 'package:admin/ui/features/expenses/widgets/edit/expense_edit_banking_section.dart';
-import 'package:admin/ui/features/expenses/widgets/edit/expense_edit_currency_conversion_section.dart';
 import 'package:admin/ui/features/expenses/widgets/edit/expense_edit_custom_fields_section.dart';
 import 'package:admin/ui/features/expenses/widgets/edit/expense_edit_documents_section.dart';
 import 'package:admin/ui/features/expenses/widgets/edit/expense_edit_identity_section.dart';
@@ -24,13 +23,13 @@ import 'package:admin/ui/features/expenses/widgets/edit/expense_edit_payment_sec
 /// expanded main column + fixed-width sidebar on wide widths, single column
 /// on narrow. Direct mirror of `ClientEditLayout`.
 ///
-/// - ≥1000 px: two columns. Left (`Expanded`) holds Identity, Amount/Tax, and
-///   Payment — the core transaction fields. Right (`_sidebarWidth` 360 px)
-///   holds Documents (create only — `vm.offersDocuments`), Notes, Invoicing, and the three
-///   collapsible secondary sections (Currency conversion, Banking, Custom
-///   fields).
-/// - <1000 px: single centered column (≤820 px), pre-refactor order, with
-///   Documents (create only) straight after Identity.
+/// - ≥1000 px: two columns. Left (`Expanded`) holds Amount/Tax, Details,
+///   Invoicing (client, project, the billing switches and currency
+///   conversion) and Payment. Right (`_sidebarWidth` 360 px) holds Documents
+///   (create only — `vm.offersDocuments`), Notes, and the collapsible Banking
+///   and Custom fields.
+/// - <1000 px: single centered column (≤820 px) in the same order, with
+///   Documents (create only) straight after the amount.
 class ExpenseEditLayout extends StatelessWidget {
   const ExpenseEditLayout({super.key, required this.vm});
 
@@ -70,9 +69,13 @@ class ExpenseEditLayout extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              // The amount leads: it is the one figure every expense has, and
+              // the one a receipt read fills first.
+              ExpenseEditAmountTaxSection(vm: vm),
+              SizedBox(height: InSpacing.md(context)),
               ExpenseEditIdentitySection(vm: vm),
               SizedBox(height: InSpacing.md(context)),
-              ExpenseEditAmountTaxSection(vm: vm),
+              ExpenseEditInvoicingSection(vm: vm),
               SizedBox(height: InSpacing.md(context)),
               ExpenseEditPaymentSection(vm: vm),
             ],
@@ -92,23 +95,7 @@ class ExpenseEditLayout extends StatelessWidget {
               ],
               ExpenseEditNotesSection(vm: vm),
               SizedBox(height: InSpacing.md(context)),
-              ExpenseEditInvoicingSection(vm: vm),
-              SizedBox(height: InSpacing.md(context)),
-              _CollapsibleFormSection(
-                title: context.tr('currency_conversion'),
-                initiallyExpanded:
-                    vm.draft.invoiceCurrencyId.isNotEmpty &&
-                    vm.draft.invoiceCurrencyId != vm.draft.currencyId,
-                child: ExpenseEditCurrencyConversionSection(vm: vm),
-              ),
-              SizedBox(height: InSpacing.md(context)),
-              _CollapsibleFormSection(
-                title: context.tr('banking'),
-                initiallyExpanded:
-                    vm.draft.bankId.isNotEmpty ||
-                    vm.draft.transactionId.isNotEmpty,
-                child: ExpenseEditBankingSection(vm: vm),
-              ),
+              _banking(context),
               SizedBox(height: InSpacing.md(context)),
               _CustomFieldsCollapsible(vm: vm),
             ],
@@ -122,39 +109,33 @@ class ExpenseEditLayout extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        ExpenseEditIdentitySection(vm: vm),
+        ExpenseEditAmountTaxSection(vm: vm),
         SizedBox(height: InSpacing.md(context)),
         if (documents) ...[
           ExpenseEditDocumentsSection(vm: vm),
           SizedBox(height: InSpacing.md(context)),
         ],
-        ExpenseEditAmountTaxSection(vm: vm),
-        SizedBox(height: InSpacing.md(context)),
-        ExpenseEditPaymentSection(vm: vm),
+        ExpenseEditIdentitySection(vm: vm),
         SizedBox(height: InSpacing.md(context)),
         ExpenseEditInvoicingSection(vm: vm),
         SizedBox(height: InSpacing.md(context)),
+        ExpenseEditPaymentSection(vm: vm),
+        SizedBox(height: InSpacing.md(context)),
         ExpenseEditNotesSection(vm: vm),
         SizedBox(height: InSpacing.md(context)),
-        _CollapsibleFormSection(
-          title: context.tr('currency_conversion'),
-          initiallyExpanded:
-              vm.draft.invoiceCurrencyId.isNotEmpty &&
-              vm.draft.invoiceCurrencyId != vm.draft.currencyId,
-          child: ExpenseEditCurrencyConversionSection(vm: vm),
-        ),
-        SizedBox(height: InSpacing.md(context)),
-        _CollapsibleFormSection(
-          title: context.tr('banking'),
-          initiallyExpanded:
-              vm.draft.bankId.isNotEmpty || vm.draft.transactionId.isNotEmpty,
-          child: ExpenseEditBankingSection(vm: vm),
-        ),
+        _banking(context),
         SizedBox(height: InSpacing.md(context)),
         _CustomFieldsCollapsible(vm: vm),
       ],
     );
   }
+
+  Widget _banking(BuildContext context) => _CollapsibleFormSection(
+    title: context.tr('banking'),
+    initiallyExpanded:
+        vm.draft.bankId.isNotEmpty || vm.draft.transactionId.isNotEmpty,
+    child: ExpenseEditBankingSection(vm: vm),
+  );
 }
 
 /// The "Custom Fields" collapsible — shown only when the company has at least

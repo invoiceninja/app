@@ -2,6 +2,7 @@ import 'package:material_ui/material_ui.dart';
 
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/edit/entity_edit_field.dart';
+import 'package:admin/ui/core/widgets/form_field_pair.dart';
 import 'package:admin/ui/features/dashboard/widgets/card_shell.dart';
 import 'package:admin/ui/features/projects/view_models/project_edit_view_model.dart';
 import 'package:admin/utils/formatting.dart';
@@ -25,7 +26,8 @@ class ProjectEditBudgetSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
-        children: [
+        // Hours beside the amount, the rate under them.
+        children: pairFields([
           EntityEditField(
             numeric: true,
             useCommaAsDecimalPlace: vm.useCommaAsDecimalPlace,
@@ -53,7 +55,7 @@ class ProjectEditBudgetSection extends StatelessWidget {
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             errorText: vm.fieldErrorFor('task_rate'),
           ),
-        ],
+        ]),
       ),
     );
   }
