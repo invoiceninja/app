@@ -14,6 +14,7 @@
   "activity_50_actor_only": ":user archived a user",
   "activity_51_actor_only": ":user deleted a user",
   "activity_52_actor_only": ":user restored a user",
+  "activity_also_updated": "also updated",
   "activity_category_edited": "Created & edited",
   "activity_category_paid": "Paid & approved",
   "activity_event_count": ":count events",

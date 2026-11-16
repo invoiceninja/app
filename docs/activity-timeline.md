@@ -39,6 +39,8 @@ A category chip whose count is 0 and that isn't already on is disabled, because 
 - **A row with no target.** "Same type, same user" with no record to agree on is two different events that share a verb.
 - **A comment.** Each one is different text.
 
+**The edits that are part of creating a record are not rows.** "Created invoice 0029" then "updated invoice 0029" seconds later by the same person is one act: the app saves a new record and then saves it again, and on a busy afternoon those pairs were half the feed. `absorbCreateEdits` (run before `collapseRuns`) drops an update when the same actor created the same record at most `kCreateEditWindow` (10 minutes) earlier, and the create row's meta line says "also updated" (`activity_also_updated`). It is not a run: a pair folded under a `+1 more` toggle is still two lines. A payment is excluded (`kCreateActivityOfUpdate` has no 10 → 11), since an edit to money already entered is news. The absorbed edits stay on the record's own Activity tab, which is one tap from the row. From an outside redesign of this screen, 2026-11-16.
+
 The day header still counts every row in a run. Whether a run is open is view state: it isn't persisted, and it lasts across a refresh only while the run's newest row does.
 
 ## The activity cache row is merged, not replaced, and Load more grows it to 1000

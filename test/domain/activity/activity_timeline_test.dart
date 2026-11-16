@@ -139,6 +139,62 @@ void main() {
     });
   });
 
+  group('absorbCreateEdits', () {
+    final t0 = DateTime(2026, 6, 10, 12);
+    DateTime plus(int minutes) => t0.add(Duration(minutes: minutes));
+
+    test('an edit minutes after the same person created the record folds '
+        'into the create row', () {
+      final rows = [
+        _at(plus(2), id: 'u2', type: 5),
+        _at(plus(1), id: 'u1', type: 5),
+        _at(plus(0), id: 'c', type: 4),
+      ];
+      final out = absorbCreateEdits(rows, targetOf: _target);
+      expect([for (final a in out.rows) a.id], ['c']);
+      expect(out.absorbed, {'c': 2});
+    });
+
+    test('a later edit, another person\'s, or another record\'s stays', () {
+      final rows = [
+        _at(plus(11), id: 'late', type: 5),
+        _at(plus(3), id: 'other_user', type: 5, userId: 'u2'),
+        _at(plus(2), id: 'other_record', type: 5, invoiceId: 'inv2'),
+        _at(plus(0), id: 'c', type: 4),
+      ];
+      final out = absorbCreateEdits(rows, targetOf: _target);
+      expect(
+        [for (final a in out.rows) a.id],
+        ['late', 'other_user', 'other_record', 'c'],
+      );
+      expect(out.absorbed, isEmpty);
+    });
+
+    test('an edit with no creation in the window is its own row', () {
+      final rows = [_at(plus(1), id: 'u', type: 5)];
+      final out = absorbCreateEdits(rows, targetOf: _target);
+      expect([for (final a in out.rows) a.id], ['u']);
+    });
+
+    test('a payment\'s edit is never folded: 10 and 11 are not a pair', () {
+      final rows = [
+        _at(plus(1), id: 'edit', type: 11),
+        _at(plus(0), id: 'entered', type: 10),
+      ];
+      final out = absorbCreateEdits(rows, targetOf: _target);
+      expect([for (final a in out.rows) a.id], ['edit', 'entered']);
+    });
+
+    test('an edit that precedes the creation in time is kept', () {
+      final rows = [
+        _at(plus(5), id: 'c', type: 4),
+        _at(plus(0), id: 'before', type: 5),
+      ];
+      final out = absorbCreateEdits(rows, targetOf: _target);
+      expect([for (final a in out.rows) a.id], ['c', 'before']);
+    });
+  });
+
   group('collapseRuns', () {
     final day = DateTime(2026, 6, 10, 12);
 

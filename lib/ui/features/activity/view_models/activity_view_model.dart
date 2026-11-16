@@ -193,8 +193,12 @@ class ActivityDayHeader extends ActivityFeedEntry {
 }
 
 class ActivityFeedItem extends ActivityFeedEntry {
-  const ActivityFeedItem(this.activity);
+  const ActivityFeedItem(this.activity, {this.followUpEdits = 0});
   final DashboardActivity activity;
+
+  /// Edits the same person made to this record right after creating it, which
+  /// the feed leaves out as rows (`absorbCreateEdits`). The row says so.
+  final int followUpEdits;
 }
 
 /// The "+N more" / "Collapse" line under a folded run (see `collapseRuns`).
@@ -616,20 +620,31 @@ class ActivityViewModel extends ChangeNotifier {
     DateTime? currentDay;
     // Runs never span a day (the day is part of their key), so a header can
     // only ever fall between two runs.
-    for (final run in collapseRuns(kept, targetOf: activityDeepLinkTarget)) {
+    // The day counts above are of every row; what is absorbed here is still
+    // an event that happened that day.
+    final folded = absorbCreateEdits(kept, targetOf: activityDeepLinkTarget);
+    for (final run in collapseRuns(
+      folded.rows,
+      targetOf: activityDeepLinkTarget,
+    )) {
       final day = localDayOf(run.first);
       if (currentDay == null || day != currentDay) {
         currentDay = day;
         out.add(ActivityDayHeader(day, count: perDay[day] ?? 0));
       }
       if (run.length == 1) {
-        out.add(ActivityFeedItem(run.first));
+        out.add(
+          ActivityFeedItem(
+            run.first,
+            followUpEdits: folded.absorbed[run.first.id] ?? 0,
+          ),
+        );
         continue;
       }
       final runId = run.first.id;
       final expanded = _expandedRuns.contains(runId);
       for (final a in expanded ? run : run.take(1)) {
-        out.add(ActivityFeedItem(a));
+        out.add(ActivityFeedItem(a, followUpEdits: folded.absorbed[a.id] ?? 0));
       }
       out.add(
         ActivityRunToggle(

@@ -205,6 +205,77 @@ ActivityTimeline bucketize(
   );
 }
 
+/// The server's update activity for each record type, by the create activity
+/// it follows (`App\\Models\\Activity`). A payment is left out on purpose: an
+/// "entered payment" is money arriving, and an edit to it afterwards is news.
+const Map<int, int> kCreateActivityOfUpdate = {
+  61: 1, // client
+  5: 4, // invoice
+  15: 14, // credit
+  19: 18, // quote
+  62: 30, // vendor
+  47: 34, // expense
+  43: 42, // task
+  49: 48, // user
+  81: 80, // subscription
+  101: 100, // recurring invoice
+  111: 110, // recurring quote
+  121: 120, // recurring expense
+  131: 130, // purchase order
+};
+
+/// How long after a record's creation the same person's edits to it count as
+/// part of making it.
+const Duration kCreateEditWindow = Duration(minutes: 10);
+
+/// Takes out the edits that are part of creating a record.
+///
+/// "Created invoice 0029" then "updated invoice 0029" seconds later, by the
+/// same person, is one act to a reader: the app (and a person filling in a
+/// form in two goes) saves a new record and then saves it again. On a busy
+/// afternoon those pairs were half the feed.
+///
+/// An update is absorbed when the same actor created the same record
+/// ([targetOf]) at most [window] earlier, in rows of this list. The create
+/// row stays and is told how many edits followed (`absorbed`, by its id), so
+/// the row can say so. Anything later than the window, by anyone else, or on
+/// a record whose creation is not in the list, is kept as its own row.
+({List<DashboardActivity> rows, Map<String, int> absorbed}) absorbCreateEdits(
+  List<DashboardActivity> sortedDesc, {
+  required String? Function(DashboardActivity) targetOf,
+  Duration window = kCreateEditWindow,
+}) {
+  final createdAt = <String, DashboardActivity>{};
+  final creates = kCreateActivityOfUpdate.values.toSet();
+  for (final a in sortedDesc) {
+    if (!creates.contains(a.activityTypeId)) continue;
+    final target = targetOf(a);
+    if (target == null) continue;
+    createdAt['${a.userId}|${a.activityTypeId}|$target'] = a;
+  }
+  if (createdAt.isEmpty) {
+    return (rows: sortedDesc, absorbed: const <String, int>{});
+  }
+  final rows = <DashboardActivity>[];
+  final absorbed = <String, int>{};
+  for (final a in sortedDesc) {
+    final createType = kCreateActivityOfUpdate[a.activityTypeId];
+    final target = createType == null ? null : targetOf(a);
+    final create = target == null
+        ? null
+        : createdAt['${a.userId}|$createType|$target'];
+    if (create != null) {
+      final after = activityTime(a).difference(activityTime(create));
+      if (!after.isNegative && after <= window) {
+        absorbed[create.id] = (absorbed[create.id] ?? 0) + 1;
+        continue;
+      }
+    }
+    rows.add(a);
+  }
+  return (rows: rows, absorbed: absorbed);
+}
+
 /// Folds consecutive rows that say the same thing into one run.
 ///
 /// "Test User updated task 0035" four times inside two minutes is one event

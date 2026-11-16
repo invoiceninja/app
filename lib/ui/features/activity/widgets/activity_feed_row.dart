@@ -15,6 +15,9 @@ import 'package:admin/utils/formatting.dart';
 /// `Formatter` has loaded, and note the IP is only in the raw payload
 /// (`DashboardActivity` doesn't destructure it).
 ///
+/// [note] sits between the time and the IP: what the row stands for beyond
+/// its own sentence ("also updated", for edits folded into a create).
+///
 /// [showDate] false drops the date and keeps the time — for a row already
 /// sitting under a day header that names the date, where repeating it on every
 /// line is the noise the `/activity` timeline removes.
@@ -23,6 +26,7 @@ String activityAuditMeta(
   required ActivityRender render,
   required Formatter? formatter,
   bool showDate = true,
+  String? note,
 }) {
   final when =
       formatter?.date(
@@ -36,7 +40,11 @@ String activityAuditMeta(
       ) ??
       render.meta;
   final ip = (a.raw['ip'] ?? '').toString();
-  return ip.isEmpty ? when : '$when · $ip';
+  return [
+    when,
+    if (note != null && note.isNotEmpty) note,
+    if (ip.isNotEmpty) ip,
+  ].join(' · ');
 }
 
 /// Where an [ActivityFeedRow] sits on the `/activity` timeline's spine — the

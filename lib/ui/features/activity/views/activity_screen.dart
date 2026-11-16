@@ -474,7 +474,12 @@ class _ActivityScreenState extends State<ActivityScreen> {
             formatter: _formatter,
             spine: spine,
           ),
-          ActivityFeedItem() => _row(context, entry.activity, spine),
+          ActivityFeedItem() => _row(
+            context,
+            entry.activity,
+            spine,
+            followUpEdits: entry.followUpEdits,
+          ),
           ActivityRunToggle() => _RunToggle(
             entry: entry,
             spine: spine,
@@ -488,8 +493,9 @@ class _ActivityScreenState extends State<ActivityScreen> {
   Widget _row(
     BuildContext context,
     DashboardActivity a,
-    ActivityFeedSpine spine,
-  ) {
+    ActivityFeedSpine spine, {
+    int followUpEdits = 0,
+  }) {
     final render = ActivityFormatter(context).format(a);
     return ActivityFeedRow(
       render: render,
@@ -499,6 +505,8 @@ class _ActivityScreenState extends State<ActivityScreen> {
         render: render,
         formatter: _formatter,
         showDate: false,
+        // The edits that followed within minutes are not rows of their own.
+        note: followUpEdits > 0 ? context.tr('activity_also_updated') : null,
       ),
       spine: spine,
       onTap: activityDeepLinkTarget(a) == null ? null : () => _onRowTap(a),
