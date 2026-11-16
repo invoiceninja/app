@@ -8,6 +8,7 @@ import 'package:admin/data/models/domain/billing/invitation.dart';
 import 'package:admin/data/models/domain/invoice.dart';
 import 'package:admin/data/models/value/date.dart';
 import 'package:admin/ui/core/widgets/party_contact_row.dart';
+import 'package:admin/ui/core/widgets/status_pill.dart';
 import 'package:admin/ui/core/widgets/party_contacts_builder.dart';
 import 'package:admin/ui/features/billing_shared/billing_doc_type.dart';
 import 'package:admin/ui/features/billing_shared/detail/billing_doc_notes.dart';
@@ -163,6 +164,68 @@ void main() {
       await tester.tap(find.text('Less'));
       await tester.pump();
       expect(find.byType(PartyContactRow), findsNWidgets(3));
+    });
+
+    BillingDocRecipient person(String name, Invitation invitation) =>
+        BillingDocRecipient(invitation: invitation, name: name, email: '');
+
+    testWidgets('several copies all in one state say it once, with how many', (
+      tester,
+    ) async {
+      const sent = Invitation(link: kPortalLink, sentDate: '2000-01-02');
+      await _pump(
+        tester,
+        480,
+        BillingDocContactsCard(
+          type: BillingDocType.invoice,
+          recipients: [
+            person('Jane', sent),
+            person('Sam', sent),
+            person('Ada', sent),
+          ],
+        ),
+      );
+      // Beside the title, not on each of three rows.
+      expect(find.text('Sent'), findsOneWidget);
+      expect(find.text('3'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byType(PartyContactRow),
+          matching: find.text('Sent'),
+        ),
+        findsNothing,
+      );
+    });
+
+    testWidgets('copies in different states keep a pill a row', (tester) async {
+      await _pump(
+        tester,
+        480,
+        BillingDocContactsCard(
+          type: BillingDocType.invoice,
+          recipients: [
+            person(
+              'Jane',
+              const Invitation(link: kPortalLink, sentDate: '2000-01-02'),
+            ),
+            person(
+              'Sam',
+              const Invitation(
+                link: kPortalLink,
+                sentDate: '2000-01-02',
+                viewedDate: '2000-01-03',
+              ),
+            ),
+          ],
+        ),
+      );
+      final inRows = find.descendant(
+        of: find.byType(PartyContactRow),
+        matching: find.byType(StatusPill),
+      );
+      expect(inRows, findsNWidgets(2));
+      expect(find.text('Sent'), findsOneWidget);
+      expect(find.text('Viewed'), findsOneWidget);
     });
 
     testWidgets('no link yet, no link buttons', (tester) async {

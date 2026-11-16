@@ -76,21 +76,25 @@ const double kQuickActionsWideWidth = 560;
 const int kQuickActionsNarrowMax = 4;
 const int kQuickActionsWideMax = 6;
 
-/// A row of equal-width tiles for the few things a user most often does from
-/// a record — bill it, take a payment, get hold of someone.
+/// The few things a user most often does from a record — bill it, take a
+/// payment, get hold of someone.
 ///
 /// Builds nothing, and takes no space, when no action applies. Otherwise it
 /// **owns its trailing gap**, because whether it is empty can change after the
 /// host has laid it out (see `EntityRecordColumn.quickActions`).
 ///
-/// Tiles sit on `surface` with the card border and shadow, not on
-/// `surfaceAlt`: the alternate surface is 1.04-1.22:1 against the page in
-/// every palette, which does not read as something to press. They are also
-/// deliberately neutral rather than accent-tinted — the accent is the user's
-/// own choice, and a red or green one would read as overdue or paid.
+/// **Two forms, one set of actions.** Where the strip has
+/// [kQuickActionsWideWidth] to itself the actions are buttons at their own
+/// width — icon beside label, wrapping to a second row rather than squeezing
+/// — and below it (the pane, a phone) they are equal-width tiles, icon over
+/// label, which is the only form in which four of them fit 358 px.
 ///
-/// Every tile holds exactly one line of label, at a size that scales down to
-/// fit rather than wrapping.
+/// **The first action is the primary one** and is filled with the accent; the
+/// rest sit on `surface` with the card border, not on `surfaceAlt` (1.04-1.22:1
+/// against the page in every palette, which does not read as something to
+/// press). One filled button per strip: the host's priority order already
+/// says which action that is, and a strip of equals made the user read every
+/// label to find it.
 class EntityQuickActions<A> extends StatelessWidget {
   const EntityQuickActions({super.key, required this.priority});
 
@@ -100,30 +104,48 @@ class EntityQuickActions<A> extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
+        final wide = constraints.maxWidth >= kQuickActionsWideWidth;
         final picked = pickQuickActions<A>(
           priority,
-          max: constraints.maxWidth >= kQuickActionsWideWidth
-              ? kQuickActionsWideMax
-              : kQuickActionsNarrowMax,
+          max: wide ? kQuickActionsWideMax : kQuickActionsNarrowMax,
         );
         if (picked.isEmpty) return const SizedBox.shrink();
         return Padding(
           padding: EdgeInsets.only(bottom: InSpacing.lg(context)),
-          // `IntrinsicHeight` + stretch: a label that scales down to fit is
-          // also a pixel or two shorter, which left that tile's bottom edge
-          // above its neighbours'. Legal here — the tiles hold no
-          // `LayoutBuilder`; being *under* one, as this is, is not the problem.
-          child: IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                for (var i = 0; i < picked.length; i++) ...[
-                  if (i > 0) const SizedBox(width: InSpacing.sm),
-                  Expanded(child: _QuickActionTile<A>(action: picked[i])),
-                ],
-              ],
-            ),
-          ),
+          child: wide
+              ? Wrap(
+                  spacing: InSpacing.sm,
+                  runSpacing: InSpacing.sm,
+                  children: [
+                    for (var i = 0; i < picked.length; i++)
+                      _QuickActionTile<A>(
+                        action: picked[i],
+                        primary: i == 0,
+                        inline: true,
+                      ),
+                  ],
+                )
+              // `IntrinsicHeight` + stretch: a label that scales down to fit
+              // is also a pixel or two shorter, which left that tile's bottom
+              // edge above its neighbours'. Legal here — the tiles hold no
+              // `LayoutBuilder`; being *under* one, as this is, is not the
+              // problem.
+              : IntrinsicHeight(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      for (var i = 0; i < picked.length; i++) ...[
+                        if (i > 0) const SizedBox(width: InSpacing.sm),
+                        Expanded(
+                          child: _QuickActionTile<A>(
+                            action: picked[i],
+                            primary: i == 0,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
         );
       },
     );
@@ -131,9 +153,20 @@ class EntityQuickActions<A> extends StatelessWidget {
 }
 
 class _QuickActionTile<A> extends StatelessWidget {
-  const _QuickActionTile({required this.action});
+  const _QuickActionTile({
+    required this.action,
+    this.primary = false,
+    this.inline = false,
+  });
 
   final EntityQuickAction<A> action;
+
+  /// The strip's first action: filled with the accent.
+  final bool primary;
+
+  /// Icon beside label at the button's own width, rather than icon over
+  /// label in an equal share of the row.
+  final bool inline;
 
   @override
   Widget build(BuildContext context) {
@@ -152,15 +185,107 @@ class _QuickActionTile<A> extends StatelessWidget {
         ? null
         : guardedOnTap<A>(context, item);
     final compact = ListDensityScope.isCompactOf(context);
+    final enabled = handler != null;
+    final fill = primary && enabled ? tokens.accent : tokens.surface;
+    final ink = !enabled
+        ? tokens.ink3
+        : primary
+        ? tokens.onAccent
+        : tokens.ink;
+    final iconInk = !enabled
+        ? tokens.ink4
+        : primary
+        ? tokens.onAccent
+        : tokens.ink2;
     final shape = RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(InRadii.r2),
-      side: BorderSide(color: tokens.border),
+      // The filled one is its own edge; a border in the card colour around
+      // the accent reads as a halo.
+      side: primary && enabled
+          ? BorderSide.none
+          : BorderSide(color: tokens.border),
     );
+    final icon = busy
+        ? SizedBox.square(
+            dimension: 20,
+            child: CircularProgressIndicator(strokeWidth: 2, color: iconInk),
+          )
+        : item.iconWidget(20, color: iconInk);
+    final Widget content;
+    if (inline) {
+      content = ConstrainedBox(
+        constraints: BoxConstraints(minHeight: kQuickButtonHeight),
+        child: Padding(
+          padding: EdgeInsetsDirectional.only(
+            start: InSpacing.md(context),
+            end: InSpacing.lg(context),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              icon,
+              const SizedBox(width: InSpacing.sm),
+              Flexible(
+                child: Text(
+                  action.shortLabel,
+                  maxLines: 1,
+                  softWrap: false,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: ink,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    } else {
+      content = ConstrainedBox(
+        constraints: BoxConstraints(
+          minHeight: compact ? kQuickTileCompactHeight : kQuickTileHeight,
+        ),
+        child: Padding(
+          // The content, not the floor, sets a tile's height at normal text,
+          // so Compact has to trim the padding too.
+          padding: EdgeInsets.symmetric(
+            horizontal: 6,
+            vertical: compact ? InSpacing.xs : InSpacing.sm,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              icon,
+              const SizedBox(height: InSpacing.xs),
+              // Scales down rather than wrapping or ellipsizing: a second
+              // line would make this tile taller than its neighbours, and a
+              // clipped label is a guess.
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  action.shortLabel,
+                  maxLines: 1,
+                  softWrap: false,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: ink,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
     return Tooltip(
       message: item.label,
       child: Semantics(
         button: true,
-        enabled: handler != null,
+        enabled: enabled,
         label: item.label,
         onTap: handler,
         excludeSemantics: true,
@@ -172,60 +297,10 @@ class _QuickActionTile<A> extends StatelessWidget {
           // The colour is painted by this `Material`, not by a box above it,
           // so the ink it hosts is visible.
           child: Material(
-            color: tokens.surface,
+            color: fill,
             shape: shape,
             clipBehavior: Clip.antiAlias,
-            child: InkWell(
-              onTap: handler,
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  minHeight: compact
-                      ? kQuickTileCompactHeight
-                      : kQuickTileHeight,
-                ),
-                child: Padding(
-                  // The content, not the floor, sets a tile's height at
-                  // normal text, so Compact has to trim the padding too.
-                  padding: EdgeInsets.symmetric(
-                    horizontal: 6,
-                    vertical: compact ? InSpacing.xs : InSpacing.sm,
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      if (busy)
-                        const SizedBox.square(
-                          dimension: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      else
-                        item.iconWidget(
-                          20,
-                          color: handler == null ? tokens.ink4 : tokens.ink2,
-                        ),
-                      const SizedBox(height: InSpacing.xs),
-                      // Scales down rather than wrapping or ellipsizing: a
-                      // second line would make this tile taller than its
-                      // neighbours, and a clipped label is a guess.
-                      FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: Text(
-                          action.shortLabel,
-                          maxLines: 1,
-                          softWrap: false,
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: handler == null ? tokens.ink3 : tokens.ink,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
+            child: InkWell(onTap: handler, child: content),
           ),
         ),
       ),
@@ -241,3 +316,7 @@ const double kQuickTileHeight = 56;
 /// The floor under the Compact density preference (`DevicePrefKeys.listDensity`)
 /// — still above the 44 px touch target (invoiceninja/flutter#187).
 const double kQuickTileCompactHeight = 48;
+
+/// The inline button's floor: the touch target, so there is no separate touch
+/// branch here either, and nothing for Compact to trim.
+const double kQuickButtonHeight = 44;

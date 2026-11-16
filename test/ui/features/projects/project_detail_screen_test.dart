@@ -523,12 +523,7 @@ void main() {
 
         // The band: the standing card ends level with the last tile.
         final standing = tester.getRect(find.byType(ProjectDetailStanding));
-        final tile = tester.getRect(
-          find.ancestor(
-            of: find.text('+ Task'),
-            matching: find.byType(InkWell),
-          ),
-        );
+        final tile = quickActionsFoot(tester);
         expect(standing.bottom, moreOrLessEquals(tile.bottom, epsilon: 0.5));
         expect(standing.left, greaterThan(tile.right), reason: 'beside it');
 
@@ -562,12 +557,7 @@ void main() {
           ),
         );
         final standing = tester.getRect(find.byType(ProjectDetailStanding));
-        final tile = tester.getRect(
-          find.ancestor(
-            of: find.text('+ Task'),
-            matching: find.byType(InkWell),
-          ),
-        );
+        final tile = quickActionsFoot(tester);
         // Edge to edge with the band above it, its rows in two columns —
         // not held to the header's column with a blank under the standing
         // card.

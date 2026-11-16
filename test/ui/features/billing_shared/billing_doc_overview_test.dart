@@ -152,9 +152,11 @@ void main() {
       final copies = tester
           .widgetList<CellCopyHover>(find.byType(CellCopyHover))
           .toList();
-      // One per Item cell — the description and the figures have none — and
-      // only the named line has something to copy.
-      expect(copies.map((c) => c.value), ['Widget', '']);
+      // One per item name — the description and the figures have none, and
+      // a line with no name leads with its description instead.
+      expect(copies.map((c) => c.value), ['Widget']);
+      expect(find.text('Just a note'), findsOneWidget);
+      expect(find.text('—'), findsNothing);
       // Touch: the row's tap opens the line, so the name copies on long-press.
       expect(copies.every((c) => c.touchLongPressCopies), isTrue);
     });
@@ -188,8 +190,9 @@ void main() {
       );
       await tester.pump();
 
-      expect(find.text('Unit Cost'), findsOneWidget);
-      expect(find.text('Item'), findsOneWidget);
+      // Column heads are set in capitals.
+      expect(find.text('UNIT COST'), findsOneWidget);
+      expect(find.text('ITEM'), findsOneWidget);
     });
 
     testWidgets('header honors the company Custom Labels override', (
@@ -214,10 +217,10 @@ void main() {
       );
       await tester.pump();
 
-      expect(find.text('Unit Price'), findsOneWidget);
-      expect(find.text('Unit Cost'), findsNothing);
+      expect(find.text('UNIT PRICE'), findsOneWidget);
+      expect(find.text('UNIT COST'), findsNothing);
       // Untouched keys keep the bundled string.
-      expect(find.text('Item'), findsOneWidget);
+      expect(find.text('ITEM'), findsOneWidget);
     });
 
     testWidgets('a blank override falls back to the shipped label', (
@@ -244,8 +247,8 @@ void main() {
       );
       await tester.pump();
 
-      expect(find.text('Unit Cost'), findsOneWidget);
-      expect(find.text('Item'), findsOneWidget);
+      expect(find.text('UNIT COST'), findsOneWidget);
+      expect(find.text('ITEM'), findsOneWidget);
     });
 
     testWidgets('shows an empty placeholder when there are no items', (
@@ -409,8 +412,8 @@ void main() {
       expect(find.text('TRAILING_MARKER'), findsOneWidget);
     });
 
-    testWidgets('the totals card sits at the end of its row where there is '
-        'room to see that it does, and fills the row where there is not', (
+    testWidgets('the totals are the foot of the table: at the end of its row '
+        'where there is room, and the whole row where there is not', (
       tester,
     ) async {
       Future<({double left, double width})> totalsAt(double width) async {
@@ -441,15 +444,15 @@ void main() {
         return (left: totals.left - table.left, width: totals.width);
       }
 
-      // A 390 px phone leaves 366: capped at 360 the card stopped six pixels
-      // short of the table above it, which read as a card that had slipped.
+      // Inside the table's own 1 px border on both sides. A 390 px phone
+      // leaves 366, less than the cap: the totals take the whole row.
       final phone = await totalsAt(366);
-      expect(phone.left, 0);
-      expect(phone.width, 366);
-      // The pane has room for the offset to be seen as one.
+      expect(phone.left, 1);
+      expect(phone.width, 364);
+      // The pane has room: capped, and under the Total column at the end.
       final pane = await totalsAt(448);
       expect(pane.width, 360);
-      expect(pane.left, 88);
+      expect(pane.left, 448 - 360 - 1);
     });
 
     testWidgets('names line custom values from the watched company', (

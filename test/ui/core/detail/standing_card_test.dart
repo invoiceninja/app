@@ -27,6 +27,22 @@ void main() {
     expect(find.text('—'), findsNothing);
   });
 
+  testWidgets('a share bar is drawn only when asked for, filled to the share '
+      'and never past the card', (tester) async {
+    final primary = [_figure('Amount', r'$100.00'), _figure('Balance', r'$75')];
+    await pumpAt(tester, 440, StandingCard(primary: primary));
+    expect(find.byType(FractionallySizedBox), findsNothing);
+
+    await pumpAt(tester, 440, StandingCard(primary: primary, progress: 0.25));
+    final bar = find.byType(FractionallySizedBox);
+    expect(tester.widget<FractionallySizedBox>(bar).widthFactor, 0.25);
+
+    // An overpaid invoice is a full bar, not one that runs out of the card.
+    await pumpAt(tester, 440, StandingCard(primary: primary, progress: 1.4));
+    expect(tester.widget<FractionallySizedBox>(bar).widthFactor, 1.0);
+    expectNoOverflow(tester);
+  });
+
   testWidgets('a figure with no value yet is blank, not a dash', (
     tester,
   ) async {

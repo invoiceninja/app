@@ -23,6 +23,7 @@ import 'package:admin/ui/features/billing_shared/billing_doc_type.dart';
 import 'package:admin/ui/features/billing_shared/detail/billing_doc_notes.dart';
 import 'package:admin/ui/features/dashboard/widgets/card_shell.dart';
 import 'package:admin/utils/formatting.dart';
+import 'package:admin/ui/core/widgets/ltr_value.dart';
 
 /// A billing document's reference fields — who it went to, its details, the
 /// note its owner left themselves. Always shown, between the comments card and
@@ -279,8 +280,29 @@ class _BillingDocContactsCardState extends State<BillingDocContactsCard> {
     final showAll = _expanded || all.length <= _inlineLimit;
     final visible = showAll ? all : all.take(_inlineLimit).toList();
     final hidden = all.length - visible.length;
+    // Where every copy has got exactly as far as the others, that is said
+    // once, beside the title, with how many there are — six rows each
+    // carrying the same "Sent" pill was the tallest thing on the screen and
+    // said one thing. A lone recipient keeps their own pill.
+    final shared = _sharedState(all);
     return DashboardCardShell(
       title: context.tr('contacts'),
+      trailing: shared == null
+          ? null
+          : Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                LtrText(
+                  '${all.length}',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: context.inTheme.ink2,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(width: InSpacing.sm),
+                ?_RecipientRow.statePill(context, shared),
+              ],
+            ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
@@ -288,7 +310,11 @@ class _BillingDocContactsCardState extends State<BillingDocContactsCard> {
           DetailRowStack(
             children: [
               for (final r in visible)
-                _RecipientRow(type: widget.type, recipient: r),
+                _RecipientRow(
+                  type: widget.type,
+                  recipient: r,
+                  showState: shared == null,
+                ),
             ],
           ),
           if (hidden > 0)
@@ -317,6 +343,18 @@ class _BillingDocContactsCardState extends State<BillingDocContactsCard> {
   }
 }
 
+/// The one invitation that stands for all of [recipients], when there are
+/// several and every copy is in the same state; null otherwise.
+Invitation? _sharedState(List<BillingDocRecipient> recipients) {
+  if (recipients.length < 2) return null;
+  final first = _RecipientRow.stateKey(recipients.first.invitation);
+  if (first == null) return null;
+  for (final r in recipients.skip(1)) {
+    if (_RecipientRow.stateKey(r.invitation) != first) return null;
+  }
+  return recipients.first.invitation;
+}
+
 /// The portal's own view of a link, without the visit counting as the
 /// contact's: the server stamps `viewed_date` on the first request that does
 /// not carry `silent` (`ClientPortal/InvitationController`), which would flip
@@ -325,17 +363,24 @@ String _silentPortalLink(String link) =>
     '$link${link.contains('?') ? '&' : '?'}silent=true';
 
 class _RecipientRow extends StatelessWidget {
-  const _RecipientRow({required this.type, required this.recipient});
+  const _RecipientRow({
+    required this.type,
+    required this.recipient,
+    this.showState = true,
+  });
 
   final BillingDocType type;
   final BillingDocRecipient recipient;
+
+  /// False when the card's title already says it for every row.
+  final bool showState;
 
   @override
   Widget build(BuildContext context) {
     final link = recipient.invitation.link;
     final hasLink = link.isNotEmpty;
     final vendor = type.party == BillingDocParty.vendor;
-    final pill = _statePill(context, recipient.invitation);
+    final pill = showState ? statePill(context, recipient.invitation) : null;
     return PartyContactRow(
       name: recipient.name,
       email: recipient.email,
@@ -373,39 +418,37 @@ class _RecipientRow extends StatelessWidget {
   /// they not paid", and `sendState` already encodes which of the server's
   /// fields can be trusted to say so. After that, the latest good news wins.
   /// Dates and the error text stay on the Email History tab.
-  static Widget? _statePill(BuildContext context, Invitation invitation) {
+  static Widget? statePill(BuildContext context, Invitation invitation) {
+    final key = stateKey(invitation);
+    if (key == null) return null;
     final tokens = context.inTheme;
-    final (String key, Color fg, Color bg)? pill = switch (invitation
-        .sendState) {
-      InvitationSendState.bounced => (
-        'bounced',
-        tokens.overdue,
-        tokens.overdueSoft,
-      ),
-      InvitationSendState.spam => ('spam', tokens.overdue, tokens.overdueSoft),
-      InvitationSendState.errored => (
-        'error',
-        tokens.overdue,
-        tokens.overdueSoft,
-      ),
-      InvitationSendState.delivered || InvitationSendState.none =>
-        invitation.hasBeenViewed
-            ? ('viewed', tokens.sent, tokens.sentSoft)
-            : invitation.hasBeenOpened
-            ? ('opened', tokens.sent, tokens.sentSoft)
-            : invitation.sendState == InvitationSendState.delivered
-            ? ('delivered', tokens.paid, tokens.paidSoft)
-            : invitation.hasBeenSent
-            ? ('sent', tokens.draft, tokens.draftSoft)
-            : null,
+    final (Color fg, Color bg) = switch (key) {
+      'bounced' || 'spam' || 'error' => (tokens.overdue, tokens.overdueSoft),
+      'viewed' || 'opened' => (tokens.sent, tokens.sentSoft),
+      'delivered' => (tokens.paid, tokens.paidSoft),
+      _ => (tokens.draft, tokens.draftSoft),
     };
-    if (pill == null) return null;
-    return StatusPill(
-      label: context.tr(pill.$1),
-      fgColor: pill.$2,
-      bgColor: pill.$3,
-    );
+    return StatusPill(label: context.tr(key), fgColor: fg, bgColor: bg);
   }
+
+  /// The translation key of the state [statePill] shows, or null for a copy
+  /// that has not been sent.
+  static String? stateKey(Invitation invitation) =>
+      switch (invitation.sendState) {
+        InvitationSendState.bounced => 'bounced',
+        InvitationSendState.spam => 'spam',
+        InvitationSendState.errored => 'error',
+        InvitationSendState.delivered || InvitationSendState.none =>
+          invitation.hasBeenViewed
+              ? 'viewed'
+              : invitation.hasBeenOpened
+              ? 'opened'
+              : invitation.sendState == InvitationSendState.delivered
+              ? 'delivered'
+              : invitation.hasBeenSent
+              ? 'sent'
+              : null,
+      };
 }
 
 /// The facts about the document that are not money, a date in the header, or

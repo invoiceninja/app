@@ -69,10 +69,21 @@ class StandingCard extends StatelessWidget {
     required this.primary,
     this.secondary = const [],
     this.footnote,
+    this.progress,
+    this.progressLabel,
   });
 
   final List<StandingFigure> primary;
   final List<StandingFigure> secondary;
+
+  /// How much of the first figure the second accounts for, 0–1: what has been
+  /// paid of an invoice, applied of a credit. Drawn as a thin bar under the
+  /// figures, so "half paid" is seen before either number is read. Null draws
+  /// nothing — pass it only where the two figures are a whole and its part.
+  final double? progress;
+
+  /// What the bar says, for a screen reader ("Paid to Date: $20.00").
+  final String? progressLabel;
 
   /// A full-width line under the primary row — the past-due summary.
   ///
@@ -116,6 +127,8 @@ class StandingCard extends StatelessWidget {
           KpiStripLayout(
             cells: [for (final f in primary) _PrimaryFigure(figure: f)],
           ),
+          if (progress case final value?)
+            _ProgressBar(value: value, label: progressLabel),
           if (phone)
             ?_phoneFacts(context)
           else ...[
@@ -171,6 +184,41 @@ class StandingCard extends StatelessWidget {
 
 /// The space a [StandingCard.footnote] leaves above itself when it draws.
 const double kStandingFootnoteGap = InSpacing.sm;
+
+/// The share bar under the primary figures.
+class _ProgressBar extends StatelessWidget {
+  const _ProgressBar({required this.value, this.label});
+
+  final double value;
+  final String? label;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.inTheme;
+    final clamped = value.isNaN ? 0.0 : value.clamp(0.0, 1.0);
+    return Padding(
+      padding: const EdgeInsets.only(top: InSpacing.sm),
+      child: Semantics(
+        label: label,
+        value: '${(clamped * 100).round()}%',
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(2),
+          child: SizedBox(
+            height: 6,
+            child: ColoredBox(
+              color: tokens.surfaceAlt,
+              child: FractionallySizedBox(
+                alignment: AlignmentDirectional.centerStart,
+                widthFactor: clamped,
+                child: ColoredBox(color: tokens.paid),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 /// Caption over a large amount. The whole figure is the tap target; the
 /// chevron on the caption line says so without taking width from the amount.

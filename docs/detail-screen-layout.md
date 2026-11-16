@@ -47,7 +47,7 @@ invoiceninja/flutter#187 measured it. At 390 × 844 the task screen spent 56 px 
 |---|---|---|
 | Created / updated become `RecordTimestampsLine`, in the `EntityRecordColumn.timestamps` slot. `recordTimestampRows` returns nothing on a phone, so a Details card holding nothing else is not drawn (each card's `hasContent` is derived from its rows). | the 13 profiles that had the rows; never the billing documents, which never showed them | ~100 px on a sparse task, ~55 on a client |
 | `StandingCard` drops the divider and draws the secondaries and the footnote in one `Wrap`. Only a secondary with an `onTap` keeps the 44 px floor. | every standing card with secondaries (task Rate / Booked, client credit, …) | ~50 px |
-| No icon on a tab in `EntityDetailTabs` (the all-tabs menu keeps them). | every record's tab strip | 24 px a tab: a fourth tab fits at 390 px instead of going behind the ▾ |
+| No icon on a tab in `EntityDetailTabs` (the all-tabs menu keeps them). | every record's tab strip — and since the invoice-panel pass, at every width, not only on a phone | 24 px a tab: a fourth tab fits at 390 px instead of going behind the ▾ |
 | A vendor's Last login joins the dates line (`RecordTimestampsLine.lastLogin`) and leaves its Details row. | vendor | ~38 px, or the whole card when it was the only row |
 
 **The device, not the pane.** `isPhoneRecordLayout` is `Breakpoints.isPhone`, so a 440 px desktop pane keeps the pointer layout, where none of the three costs a thumb anything. One predicate means the header, the card and the timestamps can never disagree.
@@ -80,9 +80,34 @@ What was asked for and deliberately not done:
 
 For clients: New Invoice, Enter Payment, Email, Call, View Statement, Client Portal, New Quote, New Task, New Project. Create tiles — and the Create New submenu — gate on `createPermissionFor(type)` as well as the module; before this the menu offered New Invoice to a user who may not create one. A deleted or unsynced client gets no tiles at all: the state banner already says why, and four tiles that would each answer "sync first" are four dead ends.
 
-Tiles sit on `surface` with the card border and `shadow1`, not `surfaceAlt` (1.04–1.22:1 against the page in every palette — it does not read as something to press), and are neutral rather than accent-tinted, because the accent is the user's own choice and a red or green one would read as overdue or paid. The label scales down (`FittedBox`) rather than wrapping; `IntrinsicHeight` + stretch keeps the row's bottom edge straight when one label scaled.
+**Two forms, and the first action is the primary one.** Where the strip itself is ≥ 560 px (`kQuickActionsWideWidth`) the actions are buttons at their own width — icon beside label, 44 px tall, in a `Wrap` that takes a second row rather than squeezing. Below that (the 440–560 px pane, a phone) they are the equal-width tiles, icon over label, the only form in which four fit 358 px; the label there scales down (`FittedBox`) rather than wrapping, and `IntrinsicHeight` + stretch keeps the row's bottom edge straight when one label scaled. The inline form is 12 px shorter than the tiles and stops stretching five buttons across a 750 px pane.
+
+**The first action is filled with the accent** (`onAccent` ink, no border); the rest sit on `surface` with the card border and `shadow1`, not `surfaceAlt` (1.04–1.22:1 against the page in every palette — it does not read as something to press). Both forms print the `shortLabel` — the same words at every width — and the tooltip carries the full one. This reverses an earlier call that kept every tile neutral because a red or green accent might read as overdue or paid: a strip of five equals made the user read every label to find the one the priority order had already picked, and the app's other primary buttons are accent-filled whatever the accent is. A disabled or busy primary falls back to the neutral surface.
 
 **Deliberately not done:** the tiled actions were *not* removed from the fixed action bar's inline spread. On a wide window that leaves View Statement and Client Portal visible twice. The bar is what remains on screen once the tiles scroll away, and forcing an always-present "More" into `EntityOverflowActionBar` means putting a `MenuAnchor` among `OverflowView`'s measured children, which that widget's own comments warn against. Revisit if the duplication reads as clutter in use.
+
+## The invoice-panel pass
+
+A redesign of the invoice record screen (Nov 2026) was applied through the shared widgets, so every record screen took what generalizes:
+
+| Change | Where | Reaches |
+|---|---|---|
+| Inline action buttons with one accent-filled primary (above) | `EntityQuickActions` | every record screen |
+| No icons in the tab strip at any width | `EntityDetailTabs` | every record screen |
+| A contact's name, address, phone and pills flow onto one line where the card has room (`Wrap`, with a 168 px floor under the name so the addresses line up) and stack where it has not | `PartyContactRow` | client, vendor and billing-document contacts |
+| Several recipients all in one state say it once, beside the card's title with their count, and the rows drop their pills; mixed states and a lone recipient keep a pill a row | `BillingDocContactsCard` | the five billing documents |
+| A thin share bar under the figures once something is settled — paid of an invoice, applied of a credit | `StandingCard.progress` | invoice, credit |
+| One Item column (name over description), capital column heads in `ink2`, and the totals as the table's foot under the Total column | `LineItemsReadonlyTable.footer`, `BillingDocOverview` | the five billing documents |
+
+`PartyContactRow` uses a `Wrap`, never a `LayoutBuilder`, to decide between one line and three: the Contacts card is a lead card in a row levelled with `IntrinsicHeight`.
+
+What the design showed and was **not** taken, each because it runs into a decision already made here:
+
+- **The client's name as the title and the number in the overline.** The number is what the list row, the Recent list and the compact title call the document, and the party line's size is what `PartyCallButton` is pinned to (`docs/tap-to-call.md`).
+- **No type tile.** Kept for the reason the avatar was kept on a phone (below): it costs width, not height, and carries the party's colour.
+- **The balance in the header with no card.** At ≥ 1000 px the standing card already sits beside the header; below it, two figures on one edge of a 440 px header crush the name.
+- **A collapsible Contacts card.** Nothing on a record screen sits behind a disclosure (§ The record layout).
+- **Pill-shaped status badges, an address that opens a mail client, Overview as the first tab.** Rounded rectangles only; email is text that copies (§ Every value is an action); the leading tabs' order is pinned by `comments_surface_wiring_test`.
 
 ## Every value is an action
 

@@ -360,11 +360,7 @@ void main() {
         final header = tester.getRect(find.byType(ProductDetailHeader));
         expect(standing.top, header.top);
         expect(standing.left, greaterThan(header.right));
-        final tile = tester.getRect(
-          find
-              .ancestor(of: _tile('+ Invoice'), matching: find.byType(InkWell))
-              .first,
-        );
+        final tile = quickActionsFoot(tester);
         expect(standing.bottom, moreOrLessEquals(tile.bottom, epsilon: 0.5));
       },
       inventory: true,

@@ -18,6 +18,7 @@ import 'package:provider/provider.dart';
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/app/theme.dart';
+import 'package:admin/ui/core/detail/entity_quick_actions.dart';
 
 import '../_localization_helper.dart';
 import '../ui/features/shell/_shell_test_helpers.dart';
@@ -86,6 +87,29 @@ class RecordScreen {
       ),
     );
   }
+}
+
+/// The quick-action button whose foot is the strip's: the first of the
+/// lowest row.
+///
+/// With room, the actions are inline buttons that take a second row rather
+/// than squeeze — and under the test font (every glyph a 14 px square) a
+/// second row is the usual case — so "the tiles end level with the card
+/// beside them" is a claim about the last row, never about one named tile.
+Rect quickActionsFoot(WidgetTester tester) {
+  final strip = find.byWidgetPredicate((w) => w is EntityQuickActions);
+  final rects = [
+    for (final e
+        in find
+            .descendant(of: strip, matching: find.byType(InkWell))
+            .evaluate())
+      tester.getRect(find.byWidget(e.widget)),
+  ];
+  final foot = rects.map((r) => r.bottom).reduce((a, b) => a > b ? a : b);
+  // The first button of that row, so its left edge is the strip's.
+  return rects
+      .where((r) => r.bottom == foot)
+      .reduce((a, b) => a.left <= b.left ? a : b);
 }
 
 /// A JSON 200.

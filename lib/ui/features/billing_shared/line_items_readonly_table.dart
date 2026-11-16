@@ -18,7 +18,6 @@ const double _kCostW = 96;
 const double _kDiscW = 84;
 const double _kTaxW = 104;
 const double _kTotalW = 112;
-const double _kPadH = 12;
 const double _kGap = 10;
 
 /// Read-only line-items table for the billing-doc detail Overview (Invoice /
@@ -52,6 +51,7 @@ class LineItemsReadonlyTable extends StatelessWidget {
     this.discountIsAmount = false,
     this.customFields,
     this.onTapItem,
+    this.footer,
   });
 
   final List<LineItem> items;
@@ -71,6 +71,11 @@ class LineItemsReadonlyTable extends StatelessWidget {
   /// leaves the rows inert.
   final ValueChanged<int>? onTapItem;
 
+  /// Drawn inside the card under the last line, on the header's surface —
+  /// the document's totals. The lines and what they add up to are one table
+  /// on the page, and as two cards the sum sat a gap away from its column.
+  final Widget? footer;
+
   @override
   Widget build(BuildContext context) {
     final tokens = context.inTheme;
@@ -81,7 +86,18 @@ class LineItemsReadonlyTable extends StatelessWidget {
         if (!items[i].isBlank) i,
     ];
     final rows = [for (final i in indexes) items[i]];
-    if (rows.isEmpty) return _empty(context, tokens);
+    final footer = this.footer;
+    final foot = footer == null
+        ? null
+        : Container(
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: tokens.surfaceAlt,
+              border: Border(top: BorderSide(color: tokens.border)),
+            ),
+            child: footer,
+          );
+    if (rows.isEmpty) return _empty(context, tokens, foot);
 
     final showTax = rows.any(_hasTax);
     final showDiscount = rows.any((it) => it.discount != Decimal.zero);
@@ -101,9 +117,9 @@ class LineItemsReadonlyTable extends StatelessWidget {
               _kTotalW +
               (showDiscount ? _kDiscW : 0) +
               (showTax ? _kTaxW : 0);
-          // Keep ~240px for the Item + Description flex columns; below that the
-          // table is unreadable, so stack instead.
-          final stacked = constraints.maxWidth - fixed < 240;
+          // Keep ~200px for the Item column (the name over its description);
+          // below that the table is unreadable, so stack instead.
+          final stacked = constraints.maxWidth - fixed < 200;
           if (stacked) {
             return Column(
               children: [
@@ -118,6 +134,7 @@ class LineItemsReadonlyTable extends StatelessWidget {
                       showDiscount: showDiscount,
                     ),
                   ),
+                ?foot,
               ],
             );
           }
@@ -135,6 +152,7 @@ class LineItemsReadonlyTable extends StatelessWidget {
                     showDiscount: showDiscount,
                   ),
                 ),
+              ?foot,
             ],
           );
         },
@@ -167,15 +185,17 @@ class LineItemsReadonlyTable extends StatelessWidget {
   }) {
     final tokens = context.inTheme;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: _kPadH, vertical: 10),
+      padding: EdgeInsets.symmetric(
+        horizontal: InSpacing.lg(context),
+        vertical: 10,
+      ),
       decoration: BoxDecoration(
         color: tokens.surfaceAlt,
         border: Border(bottom: BorderSide(color: tokens.border)),
       ),
       child: Row(
         children: [
-          _flexHead(3, context.tr('item'), tokens),
-          _flexHead(4, context.tr('description'), tokens),
+          _flexHead(context.tr('item'), tokens),
           _numHead(_kQtyW, context.tr('quantity'), tokens),
           _numHead(_kCostW, context.tr('unit_cost'), tokens),
           if (showDiscount) _numHead(_kDiscW, context.tr('discount'), tokens),
@@ -195,7 +215,10 @@ class LineItemsReadonlyTable extends StatelessWidget {
   }) {
     final tokens = context.inTheme;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: _kPadH, vertical: 10),
+      padding: EdgeInsets.symmetric(
+        horizontal: InSpacing.lg(context),
+        vertical: 10,
+      ),
       decoration: isLast
           ? null
           : BoxDecoration(
@@ -204,18 +227,7 @@ class LineItemsReadonlyTable extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _flexCell(
-            3,
-            it.productKey.isEmpty ? '—' : it.productKey,
-            tokens,
-            strong: true,
-            copyValue: it.productKey,
-          ),
-          // Task-generated notes carry the PDF's presentational markup
-          // (`<div class="project-header">`, `<br/>`); strip it for display
-          // so the column reads as text, not tags. See
-          // `lineItemNotesPlainText`.
-          _descriptionCell(context, it, tokens),
+          _itemCell(context, it, tokens),
           _numCell(_kQtyW, _qty(it.quantity), tokens),
           _numCell(_kCostW, _money(it.cost), tokens),
           if (showDiscount)
@@ -256,7 +268,10 @@ class LineItemsReadonlyTable extends StatelessWidget {
         // subtitle below when there's a product key to head the row.
         : (notes.isEmpty ? '—' : notes.split('\n').first);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: _kPadH, vertical: 12),
+      padding: EdgeInsets.symmetric(
+        horizontal: InSpacing.lg(context),
+        vertical: 12,
+      ),
       decoration: isLast
           ? null
           : BoxDecoration(
@@ -316,49 +331,82 @@ class LineItemsReadonlyTable extends StatelessWidget {
     );
   }
 
-  Widget _empty(BuildContext context, InTheme tokens) => Container(
-    width: double.infinity,
-    padding: const EdgeInsets.symmetric(vertical: 24),
-    decoration: BoxDecoration(
-      border: Border.all(color: tokens.border),
-      borderRadius: BorderRadius.circular(InRadii.r3),
-      color: tokens.surface,
-    ),
-    child: Text(
-      context.tr('no_records_found'),
-      textAlign: TextAlign.center,
-      style: TextStyle(color: tokens.ink3, fontSize: 13),
-    ),
-  );
+  Widget _empty(BuildContext context, InTheme tokens, Widget? foot) =>
+      Container(
+        width: double.infinity,
+        decoration: BoxDecoration(
+          border: Border.all(color: tokens.border),
+          borderRadius: BorderRadius.circular(InRadii.r3),
+          color: tokens.surface,
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 24),
+              child: Text(
+                context.tr('no_records_found'),
+                textAlign: TextAlign.center,
+                style: TextStyle(color: tokens.ink3, fontSize: 13),
+              ),
+            ),
+            ?foot,
+          ],
+        ),
+      );
 
   // ── Cell helpers ─────────────────────────────────────────────────────────
 
-  /// The wide layout's Description column: the notes, then the line's custom
-  /// values. Neither is capped to fewer lines than the notes always had —
-  /// this is the one place a value too long for the edit table can be read.
-  Widget _descriptionCell(BuildContext context, LineItem it, InTheme tokens) {
-    final custom = _customSummary(context, it);
-    if (custom.isEmpty) {
-      return _flexCell(4, _notesText(it), tokens, color: tokens.ink2);
-    }
+  /// The wide layout's Item column: the name, then under it the description
+  /// and the line's custom values. One column rather than two — side by side
+  /// the description took four sevenths of the row to say "Molestias.", and
+  /// the name it describes was a column away. Neither is capped to fewer
+  /// lines than the notes always had: this is the one place a value too long
+  /// for the edit table can be read.
+  Widget _itemCell(BuildContext context, LineItem it, InTheme tokens) {
     final notes = _notesText(it);
+    final custom = _customSummary(context, it);
+    final hasKey = it.productKey.isNotEmpty;
     return Expanded(
-      flex: 4,
       child: Padding(
         padding: const EdgeInsetsDirectional.only(end: _kGap),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
+            // A line with no item name leads with its description in the
+            // name's ink rather than a dash over it.
+            if (hasKey || notes.isEmpty)
+              _copyable(
+                it.productKey,
+                Text(
+                  hasKey ? it.productKey : '—',
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: tokens.ink,
+                  ),
+                ),
+              ),
             if (notes.isNotEmpty) ...[
+              if (hasKey) const SizedBox(height: 2),
               Text(
                 notes,
                 maxLines: 3,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 13, color: tokens.ink2),
+                style: TextStyle(
+                  fontSize: 13,
+                  color: hasKey ? tokens.ink2 : tokens.ink,
+                ),
               ),
-              const SizedBox(height: 2),
             ],
-            Text(custom, style: _customStyle(tokens)),
+            if (custom.isNotEmpty) ...[
+              const SizedBox(height: 2),
+              Text(custom, style: _customStyle(tokens)),
+            ],
           ],
         ),
       ),
@@ -381,20 +429,23 @@ class LineItemsReadonlyTable extends StatelessWidget {
   TextStyle _customStyle(InTheme tokens) =>
       TextStyle(fontSize: 11.5, color: tokens.ink3);
 
-  Widget _flexHead(int flex, String text, InTheme tokens) => Expanded(
-    flex: flex,
+  /// Column heads are small capitals in `ink2`: at 11 px the muted `ink3`
+  /// is under the contrast floor on the header's surface.
+  TextStyle _headStyle(InTheme tokens) => TextStyle(
+    fontSize: 11,
+    fontWeight: FontWeight.w600,
+    color: tokens.ink2,
+    letterSpacing: 0.5,
+  );
+
+  Widget _flexHead(String text, InTheme tokens) => Expanded(
     child: Padding(
       padding: const EdgeInsetsDirectional.only(end: _kGap),
       child: Text(
-        text,
+        text.toUpperCase(),
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-          color: tokens.ink3,
-          letterSpacing: 0.3,
-        ),
+        style: _headStyle(tokens),
       ),
     ),
   );
@@ -402,16 +453,11 @@ class LineItemsReadonlyTable extends StatelessWidget {
   Widget _numHead(double w, String text, InTheme tokens) => SizedBox(
     width: w,
     child: Text(
-      text,
+      text.toUpperCase(),
       textAlign: TextAlign.end,
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
-      style: TextStyle(
-        fontSize: 11,
-        fontWeight: FontWeight.w600,
-        color: tokens.ink3,
-        letterSpacing: 0.3,
-      ),
+      style: _headStyle(tokens),
     ),
   );
 
@@ -427,33 +473,6 @@ class LineItemsReadonlyTable extends StatelessWidget {
     // rather than chasing the end of each name.
     child: SizedBox(width: double.infinity, child: child),
   );
-
-  Widget _flexCell(
-    int flex,
-    String text,
-    InTheme tokens, {
-    bool strong = false,
-    Color? color,
-    String? copyValue,
-  }) {
-    final cell = Text(
-      text,
-      maxLines: 3,
-      overflow: TextOverflow.ellipsis,
-      style: TextStyle(
-        fontSize: 13,
-        fontWeight: strong ? FontWeight.w500 : FontWeight.w400,
-        color: color ?? tokens.ink,
-      ),
-    );
-    return Expanded(
-      flex: flex,
-      child: Padding(
-        padding: const EdgeInsetsDirectional.only(end: _kGap),
-        child: copyValue == null ? cell : _copyable(copyValue, cell),
-      ),
-    );
-  }
 
   Widget _numCell(
     double w,

@@ -115,6 +115,10 @@ class PartyContactRow extends StatelessWidget {
 
     Widget emailLine(TextStyle? style) => CopyableValue(
       value: email,
+      // Its own width, so it can share a line with the name; the copy icon
+      // floats rather than holding a slot between this and the next fact.
+      fillWidth: false,
+      floatIcon: true,
       child: Text(
         email,
         style: style,
@@ -123,64 +127,79 @@ class PartyContactRow extends StatelessWidget {
       ),
     );
 
+    final nameLine = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Flexible(
+          // The title is the email only when there is no name, and then it
+          // is the copyable one.
+          child: (hasName || email.isEmpty)
+              ? Text(
+                  title,
+                  style: titleStyle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                )
+              : emailLine(titleStyle),
+        ),
+        if (isPrimary) ...[
+          const SizedBox(width: 6),
+          // A bare star says nothing to a screen reader and little to anyone
+          // who has not learned it.
+          Tooltip(
+            message: context.tr('primary_contact'),
+            child: Icon(
+              Icons.star,
+              size: 14,
+              color: tokens.accent,
+              semanticLabel: context.tr('primary_contact'),
+            ),
+          ),
+        ],
+      ],
+    );
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: InSpacing.sm),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        // Centred against the buttons: on one line the name sits level with
+        // them, and stacked it is a block beside them.
         children: [
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Row(
+                // A `Wrap`, so the facts share one line where the card is
+                // wide enough for them and stack where it is not — the card
+                // is a third of a wide window and the whole of a pane, and a
+                // contact was three lines tall in both. Not a `LayoutBuilder`:
+                // this row sits in a card levelled with `IntrinsicHeight`.
+                Wrap(
+                  spacing: InSpacing.lg(context),
+                  runSpacing: 2,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
-                    Flexible(
-                      // The title is the email only when there is no name, and
-                      // then it is the copyable one.
-                      child: (hasName || email.isEmpty)
-                          ? Text(
-                              title,
-                              style: titleStyle,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            )
-                          : emailLine(titleStyle),
-                    ),
-                    if (isPrimary) ...[
-                      const SizedBox(width: 6),
-                      // A bare star says nothing to a screen reader and little
-                      // to anyone who has not learned it.
-                      Tooltip(
-                        message: context.tr('primary_contact'),
-                        child: Icon(
-                          Icons.star,
-                          size: 14,
-                          color: tokens.accent,
-                          semanticLabel: context.tr('primary_contact'),
-                        ),
+                    // A floor under the name, so the addresses down a list
+                    // of contacts start on one edge.
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(
+                        minWidth: kPartyContactNameWidth,
                       ),
-                    ],
+                      child: nameLine,
+                    ),
+                    if (hasName && email.isNotEmpty) emailLine(subStyle),
+                    if (phone.isNotEmpty)
+                      PhoneNumberValue(
+                        phone: phone,
+                        style: subStyle,
+                        subject: phoneSubject,
+                        clientId: clientId,
+                        logTarget: logTarget,
+                      ),
+                    ...pills,
                   ],
                 ),
-                if (pills.isNotEmpty) ...[
-                  const SizedBox(height: InSpacing.xs),
-                  Wrap(spacing: 6, runSpacing: 4, children: pills),
-                ],
-                if (hasName && email.isNotEmpty) ...[
-                  const SizedBox(height: 2),
-                  emailLine(subStyle),
-                ],
-                if (phone.isNotEmpty) ...[
-                  const SizedBox(height: 2),
-                  PhoneNumberValue(
-                    phone: phone,
-                    style: subStyle,
-                    subject: phoneSubject,
-                    clientId: clientId,
-                    logTarget: logTarget,
-                  ),
-                ],
                 for (final line in details) ...[
                   const SizedBox(height: 2),
                   Text(line, style: subStyle),
@@ -204,6 +223,10 @@ class PartyContactRow extends StatelessWidget {
     );
   }
 }
+
+/// The least width a contact's name takes on the line it shares with the
+/// address — wide enough for most names, so the addresses line up.
+const double kPartyContactNameWidth = 168;
 
 /// The side of a contact action button: the touch floor on touch, the app's
 /// compact icon-button size with a pointer.

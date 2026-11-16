@@ -99,7 +99,23 @@ class BillingDocStanding extends StatelessWidget {
             : Decimal.zero;
         final nextSend = nextSendDate;
         final f = formatter;
+        // What has been settled of the whole — paid of an invoice, applied of
+        // a credit. Only once something has been: like the secondary figures
+        // it is drawn when it is not zero, so a draft carries no empty bar
+        // promising a payment nobody has been asked for.
+        final share =
+            balanceKey != null &&
+                settledKey != null &&
+                settled != null &&
+                settled != Decimal.zero &&
+                doc.amount > Decimal.zero
+            ? (settled / doc.amount).toDouble()
+            : null;
         return StandingCard(
+          progress: share,
+          progressLabel: share == null || settled == null || settledKey == null
+              ? null
+              : '${context.tr(settledKey)}: ${money(settled)}',
           primary: [
             figure('amount', doc.amount),
             if (balanceKey != null) figure(balanceKey, doc.balance),

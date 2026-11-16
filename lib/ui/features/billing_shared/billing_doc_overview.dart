@@ -19,7 +19,8 @@ import 'package:admin/ui/features/billing_shared/totals_widget.dart';
 import 'package:admin/utils/formatting.dart';
 
 /// Shared read-only Overview body for all five billing-doc detail screens:
-/// the line-items table and a totals breakdown card — the document's content.
+/// the line-items table with the totals breakdown at its foot — the
+/// document's content.
 /// Invoice-only extras (reminders, applied payments) are appended via
 /// [trailing].
 ///
@@ -144,35 +145,36 @@ class _BillingDocOverviewState extends State<BillingDocOverview> {
           discountIsAmount: totalsInput.isAmountDiscount,
           customFields: company?.customFields,
           onTapItem: widget.onEditLineItem,
-        ),
-        SizedBox(height: gap),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final totalsCard = TotalsWidget(
-              totals: totals,
-              discount: totalsInput.discount,
-              discountIsAmount: totalsInput.isAmountDiscount,
-              surcharges: surchargeRows,
-              paidToDate: paidToDate,
-              balance: balance,
-              formatter: formatter,
-              currencyId: currencyId,
-            );
-            // Right-aligned at its own width where there is room to see that
-            // it is — and full width where there is not. Capped a few pixels
-            // short of the table above it (a 390 px phone leaves six), it
-            // read as a card that had slipped.
-            if (constraints.maxWidth < _kTotalsWidth + _kTotalsMinMargin) {
-              return totalsCard;
-            }
-            return Align(
-              alignment: AlignmentDirectional.centerEnd,
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: _kTotalsWidth),
-                child: totalsCard,
-              ),
-            );
-          },
+          // The totals are the table's foot, under the column they add up:
+          // at the end of the row and no wider than a sum needs to be where
+          // there is room to see that, and the whole row where there is not —
+          // capped a few pixels short of the row (a 390 px phone leaves
+          // four) they read as rows that had slipped.
+          footer: LayoutBuilder(
+            builder: (context, constraints) {
+              final totalsRows = TotalsWidget(
+                totals: totals,
+                discount: totalsInput.discount,
+                discountIsAmount: totalsInput.isAmountDiscount,
+                surcharges: surchargeRows,
+                paidToDate: paidToDate,
+                balance: balance,
+                bordered: false,
+                formatter: formatter,
+                currencyId: currencyId,
+              );
+              if (constraints.maxWidth < _kTotalsWidth + _kTotalsMinMargin) {
+                return totalsRows;
+              }
+              return Align(
+                alignment: AlignmentDirectional.centerEnd,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: _kTotalsWidth),
+                  child: totalsRows,
+                ),
+              );
+            },
+          ),
         ),
         for (final w in trailing) ...[SizedBox(height: gap), w],
       ],
@@ -180,9 +182,12 @@ class _BillingDocOverviewState extends State<BillingDocOverview> {
   }
 }
 
-/// The totals card's width when it sits at the end of its row, and how much
-/// room has to be left beside it for that to read as deliberate.
+/// The widest the totals run at the foot of the table: label to amount is a
+/// line the eye has to cross, and past this it loses the row.
 const double _kTotalsWidth = 360;
+
+/// How much room has to be left beside them for the cap to read as
+/// deliberate.
 const double _kTotalsMinMargin = 64;
 
 /// [BillingDocOverview] for a document in hand — the Overview tab of every

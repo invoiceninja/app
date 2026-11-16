@@ -77,6 +77,73 @@ void main() {
       expect(find.byIcon(Icons.bolt), findsNWidgets(6));
     });
 
+    testWidgets('with room: buttons at their own width, icon beside label, '
+        'and only the first is filled', (tester) async {
+      final all = [_quick('a'), _quick('b'), _quick('c')];
+      await pumpAt(tester, 700, EntityQuickActions<String>(priority: all));
+      expect(find.text('a'), findsOneWidget);
+      expect(find.text('b'), findsOneWidget);
+      final buttons = tester
+          .widgetList<Material>(
+            find.ancestor(
+              of: find.byType(InkWell),
+              matching: find.byType(Material),
+            ),
+          )
+          .where((m) => m.shape != null)
+          .toList();
+      expect(buttons, hasLength(3));
+      expect(buttons.first.color, isNot(buttons[1].color));
+      expect(buttons[1].color, buttons[2].color);
+      // Their own width, not a third of the strip each.
+      final widths = [
+        for (final w in tester.widgetList<InkWell>(find.byType(InkWell)))
+          tester.getSize(find.byWidget(w)),
+      ];
+      expect(widths.every((s) => s.width < 200), isTrue);
+      expect(widths.every((s) => s.height >= 44), isTrue);
+      // Icon and label share a line.
+      final icon = tester.getCenter(find.byIcon(Icons.bolt).first);
+      final label = tester.getCenter(find.text('a'));
+      expect((icon.dy - label.dy).abs(), lessThan(2));
+      expectNoOverflow(tester);
+    });
+
+    testWidgets('with room, more buttons than fit take a second row', (
+      tester,
+    ) async {
+      final all = [
+        for (final k in 'abcdef'.split('')) _quick('A label of some length $k'),
+      ];
+      await pumpAt(tester, 600, EntityQuickActions<String>(priority: all));
+      final tops = tester
+          .widgetList<InkWell>(find.byType(InkWell))
+          .map((w) => tester.getTopLeft(find.byWidget(w)).dy)
+          .toSet();
+      expect(tops.length, greaterThan(1));
+      expectNoOverflow(tester);
+    });
+
+    testWidgets('in a pane the first tile is the filled one too', (
+      tester,
+    ) async {
+      await pumpAt(
+        tester,
+        440,
+        EntityQuickActions<String>(priority: [_quick('a'), _quick('b')]),
+      );
+      final tiles = tester
+          .widgetList<Material>(
+            find.ancestor(
+              of: find.byType(InkWell),
+              matching: find.byType(Material),
+            ),
+          )
+          .where((m) => m.shape != null)
+          .toList();
+      expect(tiles.first.color, isNot(tiles.last.color));
+    });
+
     testWidgets('builds nothing, and takes no height, with nothing to show', (
       tester,
     ) async {

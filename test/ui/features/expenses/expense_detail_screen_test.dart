@@ -445,12 +445,7 @@ void main() {
         final header = tester.getRect(find.byType(ExpenseDetailHeader));
         expect(standing.top, header.top);
         expect(standing.left, greaterThan(header.right));
-        final tile = tester.getRect(
-          find.ancestor(
-            of: find.text('+ Invoice'),
-            matching: find.byType(InkWell),
-          ),
-        );
+        final tile = quickActionsFoot(tester);
         expect(standing.bottom, moreOrLessEquals(tile.bottom, epsilon: 0.5));
       },
       size: const Size(1300, 1600),
