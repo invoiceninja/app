@@ -1,0 +1,2 @@
+- Fixed a freeze when leaving a record, such as going from a client back to the Clients list
+- The Linux app opens on a computer with a font that has no family name

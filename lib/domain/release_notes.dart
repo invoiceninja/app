@@ -258,6 +258,21 @@ List<ReleaseNotes> releasesToShow({
 
 const List<ReleaseNotes> kReleaseNotes = [
   ReleaseNotes(
+    version: '5.1.30',
+    items: [
+      ReleaseNoteItem(
+        'Fixed: The app could freeze when leaving a record, for example '
+        'when opening a client and then going back to the Clients list',
+      ),
+      ReleaseNoteItem(
+        'Fixed: On Linux, the app started without ever showing a window on '
+        'a computer with a font that has no family name '
+        '[#194](https://github.com/invoiceninja/flutter/issues/194)',
+        hiddenOn: {ReleaseNoteSurface.appleStore},
+      ),
+    ],
+  ),
+  ReleaseNotes(
     version: '5.1.29',
     items: [
       ReleaseNoteItem(
