@@ -8,6 +8,7 @@ project(runner LANGUAGES CXX)
 # Any new source files that you add to the application should be added here.
 add_executable(${BINARY_NAME}
   "main.cc"
+  "font_guard.cc"
   "my_application.cc"
   "${FLUTTER_MANAGED_DIR}/generated_plugin_registrant.cc"
 )
@@ -42,5 +43,15 @@ target_link_options(${BINARY_NAME} PRIVATE
 # Add dependency libraries. Add any application-specific dependencies here.
 target_link_libraries(${BINARY_NAME} PRIVATE flutter)
 target_link_libraries(${BINARY_NAME} PRIVATE PkgConfig::GTK)
+
+# font_guard.cc lists the installed fonts with fontconfig itself. GTK's
+# development packages bring fontconfig's with them everywhere this is built;
+# where they somehow don't, the guard compiles to nothing rather than break
+# the build.
+pkg_check_modules(FONTCONFIG IMPORTED_TARGET fontconfig)
+if(FONTCONFIG_FOUND)
+  target_compile_definitions(${BINARY_NAME} PRIVATE NINJA_HAVE_FONTCONFIG)
+  target_link_libraries(${BINARY_NAME} PRIVATE PkgConfig::FONTCONFIG)
+endif()
 
 target_include_directories(${BINARY_NAME} PRIVATE "${CMAKE_SOURCE_DIR}")
