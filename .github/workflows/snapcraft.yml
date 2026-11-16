@@ -72,7 +72,8 @@ jobs:
             clang cmake ninja-build pkg-config \
             libgtk-3-dev liblzma-dev \
             libsecret-1-dev libcurl4-openssl-dev \
-            execstack
+            execstack \
+            xvfb dbus libegl1 libgl1-mesa-dri
 
       - name: Install dependencies
         run: flutter pub get
@@ -88,6 +89,12 @@ jobs:
         run: |
           flutter config --enable-linux-desktop
           flutter build linux --release --dart-define=IN_SENTRY_DSN=${{ secrets.IN_SENTRY_DSN }}
+
+      # Before anything is packed or published: with no keyring the build must
+      # end on the keyring screen, not in an abort (invoiceninja/app#194,
+      # docs/upstream-workarounds.md entry 23).
+      - name: Launch with no keyring
+        run: tools/check_linux_keyring_failure.sh
 
       - name: Clear executable stack (strict confinement)
         run: |

@@ -175,7 +175,8 @@ jobs:
             dpkg-dev librsvg2-dev librsvg2-common \
             libglib2.0-bin libgdk-pixbuf2.0-bin libgtk-3-bin \
             gobject-introspection libgirepository1.0-dev \
-            gsettings-desktop-schemas desktop-file-utils appstream patchelf dbus
+            gsettings-desktop-schemas desktop-file-utils appstream patchelf dbus \
+            xvfb libegl1 libgl1-mesa-dri
 
       - name: Install dependencies
         run: flutter pub get
@@ -210,6 +211,13 @@ jobs:
           APPIMAGE_VERSION: ${{ steps.ver.outputs.version }}
         run: tools/build_appimage.sh
 
+      # Before anything is published: with no keyring the build must end on the
+      # keyring screen, not in an abort (invoiceninja/app#194,
+      # docs/upstream-workarounds.md entry 23). This is the build Deploy to all
+      # gates every Linux package on.
+      - name: Launch with no keyring
+        run: tools/check_linux_keyring_failure.sh
+
       # Cheap validity check — no GUI/GL needed (full launch isn't headless-friendly).
       - name: Smoke-check the AppImage
         run: |
@@ -218,6 +226,9 @@ jobs:
           test -f squashfs-root/usr/bin/admin
           test -f squashfs-root/usr/bin/lib/libapp.so
           test -f squashfs-root/usr/bin/data/icudtl.dat
+          # Packaging must not have moved libgcc_s off the front of the
+          # executable's library list (docs/upstream-workarounds.md entry 23).
+          readelf -d squashfs-root/usr/bin/admin | grep -m1 NEEDED | grep -q 'libgcc_s.so.1'
           test -x squashfs-root/usr/bin/lib/crashpad_handler  # must be +x or Sentry crashes the app at startup (posix_spawn EACCES)
           test -f squashfs-root/usr/lib/libsqlite3mc.so  # opened by bare name, so it must sit on the rpath beside the engine (flutter#190)
           if ldd squashfs-root/usr/bin/admin | grep -i 'not found'; then

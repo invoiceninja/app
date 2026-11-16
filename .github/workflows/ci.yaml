@@ -302,7 +302,8 @@ jobs:
           sudo apt-get install -y \
             clang cmake ninja-build pkg-config \
             libgtk-3-dev liblzma-dev \
-            libsecret-1-dev libcurl4-openssl-dev
+            libsecret-1-dev libcurl4-openssl-dev \
+            xvfb dbus libegl1 libgl1-mesa-dri
 
       - name: Install dependencies
         run: flutter pub get
@@ -314,6 +315,12 @@ jobs:
         run: |
           flutter config --enable-linux-desktop
           flutter build linux --release
+
+      # The one place CI runs the Linux build: with no keyring, which must end
+      # on the keyring screen, not in an abort (invoiceninja/app#194,
+      # docs/upstream-workarounds.md entry 23).
+      - name: Launch with no keyring
+        run: tools/check_linux_keyring_failure.sh
 
   # Windows desktop compile gate — mirrors build-linux: validates the C++
   # runner + desktop plugins compile and the sqlite3mc windows-x64 native
