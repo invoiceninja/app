@@ -166,6 +166,9 @@ PeriodFiguresCard buildPeriodCard(
   String money(DashboardCurrencyTotals? t, _Pick pick) =>
       formatter.money(figureAmount(pick(t)), currencyId: currencyKey);
   double? delta(_Pick pick) => percentDelta(pick(current), pick(previous));
+  // Only beside a trend: with nothing to compare against there is no "vs".
+  String? compared(_Pick pick) =>
+      delta(pick) == null ? null : money(previous, pick);
 
   return PeriodFiguresCard(
     state: vm.totals.valueState,
@@ -177,6 +180,7 @@ PeriodFiguresCard buildPeriodCard(
         label: context.tr('invoices'),
         value: money(current, (t) => t?.invoicedAmount),
         deltaPercent: delta((t) => t?.invoicedAmount),
+        compared: compared((t) => t?.invoicedAmount),
         goodDirection: GoodDirection.up,
         onTap: onInvoicesTap,
       ),
@@ -184,6 +188,7 @@ PeriodFiguresCard buildPeriodCard(
         label: context.tr('payments'),
         value: money(current, (t) => t?.revenuePaidToDate),
         deltaPercent: delta((t) => t?.revenuePaidToDate),
+        compared: compared((t) => t?.revenuePaidToDate),
         goodDirection: GoodDirection.up,
         onTap: onPaidTap,
       ),
@@ -192,6 +197,7 @@ PeriodFiguresCard buildPeriodCard(
           label: context.tr('expenses'),
           value: money(current, (t) => t?.expensesAmount),
           deltaPercent: delta((t) => t?.expensesAmount),
+          compared: compared((t) => t?.expensesAmount),
           // Spending less is the good direction.
           goodDirection: GoodDirection.down,
           // No link: the expenses list has no date filter it can show, and a

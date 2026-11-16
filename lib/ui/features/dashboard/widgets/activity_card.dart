@@ -2,6 +2,7 @@ import 'package:material_ui/material_ui.dart';
 
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/data/models/domain/dashboard/dashboard_activity.dart';
+import 'package:admin/domain/activity/activity_timeline.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/features/activity/activity_deep_link.dart';
 import 'package:admin/ui/features/activity/widgets/activity_feed_row.dart';
@@ -81,7 +82,13 @@ class ActivityCard extends StatelessWidget {
     }
     final formatter = ActivityFormatter(context);
     final tokens = context.inTheme;
-    final visible = section.data!.take(5).toList();
+    // As on the Activity screen: an edit made within minutes of creating a
+    // record is part of creating it, and five rows are too few to spend two on
+    // one act (`absorbCreateEdits`).
+    final visible = absorbCreateEdits(
+      section.data!,
+      targetOf: activityDeepLinkTarget,
+    ).rows.take(5).toList();
     return Column(
       children: [
         for (var i = 0; i < visible.length; i++) ...[

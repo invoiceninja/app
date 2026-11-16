@@ -49,7 +49,7 @@ class DeltaChip extends StatelessWidget {
         ? Icons.arrow_drop_up
         : Icons.arrow_drop_down;
     final formatted = '${p > 0 ? '+' : ''}${p.toStringAsFixed(1)}%';
-    return Row(
+    final trend = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         if (!isZero) Icon(arrow, size: 14, color: color),
@@ -61,10 +61,25 @@ class DeltaChip extends StatelessWidget {
             color: color,
           ),
         ),
-        if (suffix != null) ...[
-          const SizedBox(width: 4),
-          Text(suffix!, style: TextStyle(fontSize: 11.5, color: tokens.ink3)),
-        ],
+      ],
+    );
+    final tail = suffix;
+    if (tail == null) return trend;
+    // A `Wrap`, so a suffix the cell has no room for ("vs $9,286.00" in a
+    // third of a phone's width, or at a large text size) drops to a line of
+    // its own instead of overflowing. Not a `LayoutBuilder`: the dashboard's
+    // figure cells sit in an `IntrinsicHeight` row.
+    return Wrap(
+      spacing: 4,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        trend,
+        Text(
+          tail,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(fontSize: 11.5, color: tokens.ink3),
+        ),
       ],
     );
   }

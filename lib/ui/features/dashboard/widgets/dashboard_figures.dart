@@ -15,8 +15,14 @@ class PeriodFigure {
     required this.value,
     required this.deltaPercent,
     required this.goodDirection,
+    this.compared,
     this.onTap,
   });
+
+  /// The compared period's amount, formatted, shown after the trend ("vs
+  /// $9,286.00") where the cell has room: a percentage alone does not say
+  /// whether 43 % down is a bad month or a rounding of two small ones.
+  final String? compared;
 
   final String label;
 
@@ -451,7 +457,15 @@ class _PeriodCell extends StatelessWidget {
       fontSize: valueFontSize,
     );
     final chip = known && delta != null
-        ? DeltaChip(percent: delta, goodDirection: figure.goodDirection)
+        ? DeltaChip(
+            percent: delta,
+            goodDirection: figure.goodDirection,
+            // Not under Compact or on a phone's inline cell: three figures
+            // share that row.
+            suffix: dense || figure.compared == null
+                ? null
+                : context.tr('vs_amount', {'amount': figure.compared!}),
+          )
         : null;
     final Widget body;
     if (dense && inlineDelta) {
