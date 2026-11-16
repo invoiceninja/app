@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 
 import 'package:admin/domain/expenses/receipt_fill.dart';
 import 'package:admin/ui/features/expenses/view_models/expense_edit_view_model.dart';
+import 'package:admin/ui/features/expenses/widgets/edit/expense_edit_identity_section.dart';
 import 'package:admin/ui/features/expenses/widgets/edit/expense_tax_section.dart';
 import 'package:admin/ui/features/expenses/widgets/edit/receipt_read_banner.dart';
 
@@ -30,6 +31,7 @@ class ExpenseEditAmountTaxSection extends StatelessWidget {
         companyId: vm.companyId,
         useCommaAsDecimalPlace: vm.useCommaAsDecimalPlace,
         amount: d.amount,
+        amountBeside: ExpenseCurrencyPicker(vm: vm),
         amountError: vm.fieldErrorFor('amount'),
         taxNames: [d.taxName1, d.taxName2, d.taxName3],
         taxRates: [d.taxRate1, d.taxRate2, d.taxRate3],

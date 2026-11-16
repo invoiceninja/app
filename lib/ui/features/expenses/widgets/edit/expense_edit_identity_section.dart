@@ -29,7 +29,7 @@ import 'package:admin/ui/features/vendors/widgets/vendor_inline_create.dart';
 import 'package:admin/ui/features/vendors/widgets/vendor_picker_field.dart';
 
 /// Identity & links section — date, number, vendor, client, project (narrowed
-/// by client), category, assigned user, and currency. Every picker is
+/// by client), category, and assigned user (the currency sits beside the amount). Every picker is
 /// type-to-search per CLAUDE.md § Forms. Vendor, client and category can be
 /// created inline from their own popover (`VendorPickerField`,
 /// `ClientPickerField`, `ExpenseCategoryPickerField`), so a new one never means
@@ -74,13 +74,14 @@ class ExpenseEditIdentitySection extends StatelessWidget {
             left: _ClientPicker(vm: vm),
             right: _ProjectPicker(vm: vm),
           ),
+          // Half width, like the fields above it.
           ClientEditFieldPair(
             left: AssignedUserPickerField(
               companyId: vm.companyId,
               selectedId: vm.draft.assignedUserId,
               onChanged: vm.setAssignedUserId,
             ),
-            right: _CurrencyPicker(vm: vm),
+            right: const SizedBox.shrink(),
           ),
           SizedBox(height: InSpacing.md(context)),
           EntityTagsField(
@@ -347,8 +348,11 @@ class _CategoryPicker extends StatelessWidget {
   }
 }
 
-class _CurrencyPicker extends StatelessWidget {
-  const _CurrencyPicker({required this.vm});
+/// The expense's currency. Drawn beside the amount in the Amount card
+/// (`ExpenseEditAmountTaxSection`), not among the details: it is the
+/// currency the amount is in.
+class ExpenseCurrencyPicker extends StatelessWidget {
+  const ExpenseCurrencyPicker({super.key, required this.vm});
   final ExpenseEditViewModel vm;
 
   @override

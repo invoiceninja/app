@@ -13,6 +13,7 @@ import 'package:admin/data/models/value/parsing.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/edit/entity_edit_field.dart';
 import 'package:admin/ui/core/widgets/searchable_dropdown_field.dart';
+import 'package:admin/ui/features/clients/widgets/edit/client_edit_field_pair.dart';
 import 'package:admin/ui/features/dashboard/widgets/card_shell.dart';
 import 'package:admin/utils/formatting.dart';
 
@@ -42,6 +43,7 @@ class ExpenseTaxSection extends StatefulWidget {
     required this.companyId,
     this.useCommaAsDecimalPlace = false,
     required this.amount,
+    this.amountBeside,
     required this.amountError,
     required this.taxNames,
     required this.taxRates,
@@ -67,6 +69,10 @@ class ExpenseTaxSection extends StatefulWidget {
   /// rewritten and the caret jumps — the exact bug `numeric` exists to stop.
   final bool useCommaAsDecimalPlace;
   final Decimal amount;
+
+  /// Sits beside the amount where the card has room: the expense's currency
+  /// picker, since that is the currency the amount is in.
+  final Widget? amountBeside;
   final String? amountError;
 
   /// Current tier values, length 3 (index 0 → slot 1).
@@ -157,25 +163,29 @@ class _ExpenseTaxSectionState extends State<ExpenseTaxSection> {
         );
         final visible = _visibleTaxRows;
 
+        final amountField = EntityEditField(
+          numeric: true,
+          useCommaAsDecimalPlace: widget.useCommaAsDecimalPlace,
+          label: context.tr('amount'),
+          initial: decimalInputText(widget.amount),
+          onChanged: widget.onAmountChanged,
+          keyboardType: const TextInputType.numberWithOptions(
+            decimal: true,
+            signed: true,
+          ),
+          errorText: widget.amountError,
+          helper: widget.amountHelper,
+        );
         return DashboardCardShell(
           title: context.tr('amount'),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             mainAxisSize: MainAxisSize.min,
             children: [
-              EntityEditField(
-                numeric: true,
-                useCommaAsDecimalPlace: widget.useCommaAsDecimalPlace,
-                label: context.tr('amount'),
-                initial: decimalInputText(widget.amount),
-                onChanged: widget.onAmountChanged,
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                  signed: true,
-                ),
-                errorText: widget.amountError,
-                helper: widget.amountHelper,
-              ),
+              if (widget.amountBeside case final beside?)
+                ClientEditFieldPair(left: amountField, right: beside)
+              else
+                amountField,
               if (visible == 0)
                 _TaxDisabledHint()
               else
