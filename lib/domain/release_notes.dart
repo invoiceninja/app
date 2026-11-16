@@ -261,6 +261,13 @@ const List<ReleaseNotes> kReleaseNotes = [
     version: '5.1.30',
     items: [
       ReleaseNoteItem(
+        'Updated: The task Kanban board shows the project and assignee on '
+        'each card, and adds collapsible columns, lanes by client, project '
+        'or assignee, column time totals, a choice of card fields and an '
+        'inline add '
+        '[#195](https://github.com/invoiceninja/flutter/issues/195)',
+      ),
+      ReleaseNoteItem(
         'Fixed: The app could freeze when leaving a record, for example '
         'when opening a client and then going back to the Clients list',
       ),

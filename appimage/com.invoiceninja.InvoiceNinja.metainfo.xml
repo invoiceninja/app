@@ -92,6 +92,7 @@
     <release version="5.1.30" date="2026-11-16">
       <description>
         <ul>
+          <li>Kanban cards show the project and assignee; the board adds lanes, collapsible columns, time totals and an inline add</li>
           <li>Fixed a freeze when leaving a record, such as going from a client back to the Clients list</li>
           <li>The Linux app opens on a computer with a font that has no family name</li>
         </ul>
