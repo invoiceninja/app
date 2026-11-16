@@ -108,11 +108,20 @@ ThemeData buildInTheme(InTheme baseTokens, {Color? accentOverride}) {
     // AppBar has fewer than 2 actions, so action-less screens (Reports,
     // Settings, Outbox) drifted out of line with the action-bearing list
     // screens. (Per-AppBar `style`/properties can still override.)
-    appBarTheme: const AppBarTheme(
+    // An app bar's title is 18 px semibold, one size for every page's title
+    // (Settings, Activity, a phone's record): Material's 22 px regular made
+    // those pages read as another app beside the 16-18 px semibold titles of
+    // the edit and record headers.
+    appBarTheme: AppBarTheme(
       centerTitle: false,
       scrolledUnderElevation: 0,
       surfaceTintColor: Colors.transparent,
       elevation: 0,
+      titleTextStyle: textTheme.titleLarge?.copyWith(
+        fontSize: 18,
+        fontWeight: FontWeight.w600,
+        color: tokens.ink,
+      ),
     ),
 
     inputDecorationTheme: InputDecorationTheme(

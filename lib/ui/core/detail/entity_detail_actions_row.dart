@@ -494,6 +494,11 @@ class EntityDetailActionsRow<A> extends StatelessWidget {
             // and overflow into "More".
             ? ActionBarLayoutScope(
                 wide: true,
+                // Three beside the primary, the rest under More, as on the
+                // edit screens: a record's bar spread six or seven bordered
+                // buttons above the quick actions that already offer the
+                // common ones.
+                maxInline: kEditBarMaxInline,
                 child: EntityOverflowActionBar<A>(
                   leading: primary == null
                       ? null

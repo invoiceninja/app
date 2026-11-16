@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import 'package:admin/app/design_tokens.dart';
+import 'package:admin/app/env.dart';
 import 'package:admin/app/search_focus_registry.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/data/models/domain/company.dart';
@@ -146,7 +147,7 @@ class _SettingsListSidebarState extends State<SettingsListSidebar> {
               Expanded(
                 child: Text(
                   context.tr('settings'),
-                  style: Theme.of(context).textTheme.titleLarge,
+                  style: Theme.of(context).appBarTheme.titleTextStyle,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -413,7 +414,17 @@ class _SettingsListSidebarState extends State<SettingsListSidebar> {
     final selected = section.slug == activeSlug;
     final gate = _gateLevelFor(section.slug, session);
     return ListTile(
-      leading: Icon(section.icon),
+      // The size of the main sidebar's rows: 14 px, 20 px icons and, with a
+      // pointer, a dense row. At 16 px in 56 px rows the settings list read
+      // as another app beside the sidebar it opens from. Touch keeps the
+      // full row for the finger.
+      dense: !Env.isTouchPrimary,
+      visualDensity: Env.isTouchPrimary ? null : VisualDensity.compact,
+      minLeadingWidth: 24,
+      titleTextStyle: Theme.of(
+        context,
+      ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
+      leading: Icon(section.icon, size: 20),
       title: Text(context.tr(section.titleKey)),
       trailing: gate == null
           ? null
