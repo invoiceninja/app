@@ -282,11 +282,18 @@ class DashboardCardFooterLink extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
+              // `accentInk`: it is a link, and in a muted ink it read as a
+              // caption (the dashboard designs draw it in the accent).
               LinkText(
                 label: label,
-                style: TextStyle(fontSize: 12, color: tokens.ink3),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: tokens.accentInk,
+                  fontWeight: FontWeight.w500,
+                ),
+                color: tokens.accentInk,
               ),
-              Icon(Icons.chevron_right, size: 14, color: tokens.ink3),
+              Icon(Icons.chevron_right, size: 14, color: tokens.accentInk),
             ],
           ),
         ),

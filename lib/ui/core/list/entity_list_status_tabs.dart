@@ -498,9 +498,14 @@ class _StatusTabButton extends StatelessWidget {
           minHeight: Env.isTouchPrimary ? InSizes.touchTarget : 0,
         ),
         child: Container(
+          // The wrapped (dashboard) chip is a compact pill: 6 px top and
+          // bottom, about 30 px with its label; at the list strip's 12 it was
+          // 42 px, taller than the rows it filters.
           padding: EdgeInsets.symmetric(
-            horizontal: InSpacing.md(context),
-            vertical: dense ? InSpacing.sm : InSpacing.md(context),
+            horizontal: wrapped ? 10 : InSpacing.md(context),
+            vertical: wrapped
+                ? 6
+                : (dense ? InSpacing.sm : InSpacing.md(context)),
           ),
           decoration: wrapped
               ? BoxDecoration(
