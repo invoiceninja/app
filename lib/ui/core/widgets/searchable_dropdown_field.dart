@@ -745,7 +745,7 @@ class _SearchableDropdownFieldState<T extends Object>
       _highlight = null;
       _optionsVisible = false;
       return Padding(
-        padding: const EdgeInsets.symmetric(vertical: InSpacing.xs),
+        padding: const EdgeInsets.symmetric(vertical: kFieldVerticalGap),
         // RawAutocomplete (below) provides no Material around its field,
         // unlike Flutter's Autocomplete — so this widget supplies its own
         // so hosts without a Material ancestor don't throw "No Material
@@ -811,7 +811,7 @@ class _SearchableDropdownFieldState<T extends Object>
             : 360.0;
         final popoverWidth = math.min(fieldWidth, 360.0);
         return Padding(
-          padding: const EdgeInsets.symmetric(vertical: InSpacing.xs),
+          padding: const EdgeInsets.symmetric(vertical: kFieldVerticalGap),
           child: RawAutocomplete<_Opt<T>>(
             textEditingController: _controller,
             focusNode: _focusNode,

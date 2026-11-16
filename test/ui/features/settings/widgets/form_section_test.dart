@@ -15,16 +15,15 @@ void main() {
     );
   }
 
-  testWidgets('renders the title + divider when title is non-null', (
-    tester,
-  ) async {
+  testWidgets('renders the title with no rule under it', (tester) async {
     await pump(
       tester,
       const FormSection(title: 'Client', children: [Text('field')]),
     );
 
     expect(find.text('Client'), findsOneWidget);
-    expect(find.byType(Divider), findsOneWidget);
+    // The fields follow the title in the card's padding, as on the edit forms.
+    expect(find.byType(Divider), findsNothing);
     expect(find.text('field'), findsOneWidget);
   });
 

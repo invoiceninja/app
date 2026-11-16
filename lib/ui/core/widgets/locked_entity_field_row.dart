@@ -150,7 +150,7 @@ class LockedEntityFieldRow extends StatelessWidget {
     return Padding(
       // Matches `ClientPickerField.build`'s own wrapper, so swapping the picker
       // for this row doesn't shift the card's vertical rhythm.
-      padding: const EdgeInsets.symmetric(vertical: InSpacing.xs),
+      padding: const EdgeInsets.symmetric(vertical: kFieldVerticalGap),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,

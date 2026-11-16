@@ -1,6 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 
 import 'package:admin/app/design_tokens.dart';
+import 'package:admin/ui/features/dashboard/widgets/card_shell.dart';
 
 /// Groups a related set of form fields under a single subheading, rendered
 /// as a bordered card (surface + 1px border + r3 + shadow1) with a header
@@ -57,46 +58,55 @@ class FormSection extends StatelessWidget {
         // this Container's background would hide the ink.
         child: Material(
           type: MaterialType.transparency,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (title != null) ...[
-                Padding(
-                  padding: EdgeInsets.fromLTRB(
-                    InSpacing.lg(context),
-                    InSpacing.lg(context),
-                    InSpacing.lg(context),
-                    InSpacing.md(context),
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          title!,
-                          style: theme.textTheme.titleSmall?.copyWith(
-                            color: tokens.ink,
-                            fontWeight: FontWeight.w600,
+          child: formCardListTileTheme(
+            context,
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (title != null) ...[
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(
+                      InSpacing.lg(context),
+                      InSpacing.lg(context),
+                      InSpacing.lg(context),
+                      InSpacing.md(context),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            title!,
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              color: tokens.ink,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
-                      ),
-                      if (trailing != null) trailing!,
-                    ],
+                        if (trailing != null) trailing!,
+                      ],
+                    ),
+                  ),
+                ],
+                // No rule under the title: it sits in the card's padding and the
+                // fields follow it, as on the edit forms (`DashboardCardShell`).
+                Padding(
+                  padding: EdgeInsetsDirectional.fromSTEB(
+                    InSpacing.lg(context),
+                    title == null ? InSpacing.lg(context) : 0,
+                    InSpacing.lg(context),
+                    InSpacing.lg(context),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: _interleave(
+                      children,
+                      spacing ?? InSpacing.lg(context),
+                    ),
                   ),
                 ),
-                Divider(height: 1, thickness: 1, color: tokens.border),
               ],
-              Padding(
-                padding: EdgeInsets.all(InSpacing.lg(context)),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: _interleave(
-                    children,
-                    spacing ?? InSpacing.lg(context),
-                  ),
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),

@@ -108,14 +108,22 @@ class DashboardCardShell extends StatelessWidget {
     final hasHeader = title != null || trailing != null;
     final dense = _dense(context);
     final onDashboard = DashboardScope.contains(context);
+    // An edit form's card has no rule under its title: the title sits in the
+    // card's own padding and the fields follow it, the way the form designs
+    // draw it. The dashboard and the record screens keep the rule — their
+    // cards hold lists, where it separates the heading from the rows.
+    final ruled = onDashboard || RecordColumnScope.contains(context);
+    final vertical = dense ? InSpacing.sm : InSpacing.md(context);
     final Widget body = Padding(
       padding:
           padding ??
-          EdgeInsets.symmetric(
-            horizontal: InSpacing.lg(context),
-            vertical: dense ? InSpacing.sm : InSpacing.md(context),
+          EdgeInsetsDirectional.fromSTEB(
+            InSpacing.lg(context),
+            hasHeader && !ruled ? 0 : vertical,
+            InSpacing.lg(context),
+            vertical,
           ),
-      child: child,
+      child: ruled ? child : _FormCardText(child: child),
     );
     return Container(
       decoration: BoxDecoration(
@@ -139,7 +147,7 @@ class DashboardCardShell extends StatelessWidget {
           children: [
             if (hasHeader) _header(context, theme, tokens),
             if (showBody) ...[
-              if (hasHeader)
+              if (hasHeader && ruled)
                 Divider(height: 1, thickness: 1, color: tokens.border),
               if (bodyFills) Expanded(child: body) else body,
             ],
@@ -285,4 +293,31 @@ class DashboardCardFooterLink extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Inside a form card, a switch or list row's title is the size of the form's
+/// fields (`bodyMedium`, 14 px) and its subtitle the size of their labels. A
+/// `SwitchListTile` otherwise draws its title in `bodyLarge`, 16 px, and
+/// "Should be invoiced" stood out over the fields it sits among.
+class _FormCardText extends StatelessWidget {
+  const _FormCardText({required this.child});
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => formCardListTileTheme(context, child);
+}
+
+/// The list-tile text sizes of a form card: see [_FormCardText]. Shared with
+/// `FormSection`, the settings screens' card.
+Widget formCardListTileTheme(BuildContext context, Widget child) {
+  final theme = Theme.of(context);
+  final tokens = context.inTheme;
+  return ListTileTheme.merge(
+    titleTextStyle: theme.textTheme.bodyMedium?.copyWith(
+      color: tokens.ink,
+      fontWeight: FontWeight.w500,
+    ),
+    subtitleTextStyle: theme.textTheme.bodySmall?.copyWith(color: tokens.ink3),
+    child: child,
+  );
 }

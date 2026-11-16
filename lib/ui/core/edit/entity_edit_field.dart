@@ -211,7 +211,7 @@ class _EntityEditFieldState extends State<EntityEditField> {
         widget.obscureText ||
         isLtrValueKeyboard(widget.keyboardType);
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: InSpacing.xs),
+      padding: const EdgeInsets.symmetric(vertical: kFieldVerticalGap),
       child: LabeledField(
         label: widget.label,
         padded: false,

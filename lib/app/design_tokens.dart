@@ -628,7 +628,8 @@ class InTheme extends ThemeExtension<InTheme> {
 
 /// The one border of a form field, for every state it can be in.
 ///
-/// Resting is [InTheme.border]; under the mouse it is [InTheme.borderStrong];
+/// Resting is [InTheme.borderStrong] ([InTheme.border] when disabled); under
+/// the mouse it is [InTheme.ink4];
 /// focus is the accent at 1.5 px; an error is [InTheme.overdue], and stays so
 /// under the mouse. Hover speaks through the border alone — the fill does not
 /// move (`theme.dart` sets `hoverColor` transparent): the fill is what makes a
@@ -651,9 +652,11 @@ InputBorder inFieldBorder(InTheme tokens, {double radius = InRadii.r2}) {
       color = tokens.accent;
     } else if (states.contains(WidgetState.hovered) &&
         !states.contains(WidgetState.disabled)) {
-      color = tokens.borderStrong;
-    } else {
+      color = tokens.ink4;
+    } else if (states.contains(WidgetState.disabled)) {
       color = tokens.border;
+    } else {
+      color = tokens.borderStrong;
     }
     return OutlineInputBorder(
       borderRadius: BorderRadius.circular(radius),

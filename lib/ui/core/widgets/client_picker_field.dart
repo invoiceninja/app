@@ -509,7 +509,7 @@ class _ClientPickerFieldState extends State<ClientPickerField> {
             : 360.0;
         final popoverWidth = math.min(fieldWidth, 360.0);
         return Padding(
-          padding: const EdgeInsets.symmetric(vertical: InSpacing.xs),
+          padding: const EdgeInsets.symmetric(vertical: kFieldVerticalGap),
           child: RawAutocomplete<_ClientOption>(
             textEditingController: _controller,
             focusNode: _focusNode,
@@ -597,6 +597,14 @@ class _ClientPickerFieldState extends State<ClientPickerField> {
                                   context,
                                   tokens,
                                   textController,
+                                ),
+                                // As `SearchableDropdownField` does: the icon
+                                // sets no floor of its own, so the client
+                                // picker is the height of the pickers beside
+                                // it (a 48 px icon box made it 4 px taller).
+                                suffixIconConstraints: const BoxConstraints(
+                                  minWidth: 40,
+                                  minHeight: 0,
                                 ),
                               ),
                         ),

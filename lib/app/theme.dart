@@ -116,12 +116,13 @@ ThemeData buildInTheme(InTheme baseTokens, {Color? accentOverride}) {
     ),
 
     inputDecorationTheme: InputDecorationTheme(
-      // A field is a well: filled with the page colour, so on a card (the
-      // surface colour, where nearly every form field sits) it reads as a
-      // place to type rather than an outline on the same ground. On the page
-      // itself the fill matches and the border alone marks the field.
+      // A field is raised a step off its card: `surfaceAlt` inside a
+      // `borderStrong` outline (`inFieldBorder`), so it reads as a place to
+      // type on the card it sits on. It was the page colour, a darker well,
+      // which in the dark themes read as a hole and set the field apart from
+      // the pickers and editors drawn on `surface`.
       filled: true,
-      fillColor: tokens.bg,
+      fillColor: tokens.surfaceAlt,
       isDense: true,
       contentPadding: const EdgeInsets.symmetric(
         horizontal: 14,

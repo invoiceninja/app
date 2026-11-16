@@ -70,16 +70,32 @@ class ExpenseEditIdentitySection extends StatelessWidget {
             left: _VendorPicker(vm: vm),
             right: _CategoryPicker(vm: vm),
           ),
-          // Half width, like the fields above it.
-          ClientEditFieldPair(
-            left: AssignedUserPickerField(
-              companyId: vm.companyId,
-              selectedId: vm.draft.assignedUserId,
-              onChanged: vm.setAssignedUserId,
-            ),
-            right: const SizedBox.shrink(),
+        ],
+      ),
+    );
+  }
+}
+
+/// Who the expense is assigned to and its tags: how it is filed, not what it
+/// is. A card of its own in the sidebar, under Notes, so Details holds only
+/// the facts of the expense (date, number, vendor, category).
+class ExpenseEditOrganizeSection extends StatelessWidget {
+  const ExpenseEditOrganizeSection({super.key, required this.vm});
+  final ExpenseEditViewModel vm;
+
+  @override
+  Widget build(BuildContext context) {
+    return DashboardCardShell(
+      title: context.tr('organize'),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AssignedUserPickerField(
+            companyId: vm.companyId,
+            selectedId: vm.draft.assignedUserId,
+            onChanged: vm.setAssignedUserId,
           ),
-          SizedBox(height: InSpacing.md(context)),
           EntityTagsField(
             entityType: 'expense',
             selectedIds: vm.draft.tagIds,

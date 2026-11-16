@@ -322,7 +322,7 @@ class _TagPickerFieldState extends State<TagPickerField> {
     ];
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: InSpacing.xs),
+      padding: const EdgeInsets.symmetric(vertical: kFieldVerticalGap),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

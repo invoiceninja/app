@@ -80,10 +80,12 @@ void main() {
 
     test('two activity days: a chart, whenever the project began', () {
       final tasks = [
-        _task([_entry(at(1, 9), at(1, 11)), _entry(at(0, 9), at(0, 10))]),
+        // Both days in the past: an entry at 9:00 today is still in the
+        // future before 9:00, and the series leaves it out.
+        _task([_entry(at(2, 9), at(2, 11)), _entry(at(1, 9), at(1, 10))]),
       ];
       expect(
-        ProjectProgressCard.hasContent(tasks, createdAt: at(1, 8)),
+        ProjectProgressCard.hasContent(tasks, createdAt: at(2, 8)),
         isTrue,
       );
     });

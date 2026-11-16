@@ -22,6 +22,16 @@ import 'package:admin/ui/core/list/list_density_scope.dart';
 /// A null or empty [label] returns [child] untouched, so a shared field whose
 /// label is optional (a table cell under a column header) wraps
 /// unconditionally.
+/// The space above and below a labelled field: with the label's own line that
+/// puts about 20 px between one field and the next label, the rhythm the
+/// form designs use. Shared by the fields that pad themselves
+/// (`EntityEditField`, `SearchableDropdownField`, the locked row, the client
+/// and tag pickers) and by [LabeledField] for the ones that do not.
+const double kFieldVerticalGap = 8;
+
+/// Between a field's label and its box.
+const double kLabelGap = 6;
+
 class LabeledField extends StatelessWidget {
   const LabeledField({
     super.key,
@@ -120,6 +130,14 @@ class LabeledField extends StatelessWidget {
     final theme = Theme.of(context);
     final sized = Theme(data: _fieldTheme(theme), child: child);
     if (!above(context)) return _pad(sized);
+    // Full height at Comfortable: the desktop theme's compact density took
+    // 8 px off every field (36 px), which with a label above read as
+    // cramped. 44 px, the touch floor, on every platform. Compact keeps the
+    // app's density, with the label inside.
+    final roomy = Theme(
+      data: _fieldTheme(theme).copyWith(visualDensity: VisualDensity.standard),
+      child: child,
+    );
     final Widget field = InputDecorationTheme(
       data: theme.inputDecorationTheme.copyWith(
         floatingLabelBehavior: FloatingLabelBehavior.always,
@@ -130,8 +148,8 @@ class LabeledField extends StatelessWidget {
       // (a dropdown, a read-only decorator) is named here, since its
       // inside label is no longer drawn.
       child: child is TextField || child is TextFormField
-          ? sized
-          : Semantics(label: label, child: sized),
+          ? roomy
+          : Semantics(label: label, child: roomy),
     );
     return _pad(
       Column(
@@ -140,9 +158,8 @@ class LabeledField extends StatelessWidget {
         children: [
           Padding(
             padding: const EdgeInsetsDirectional.only(
-              top: InSpacing.xs,
               start: 2,
-              bottom: InSpacing.xs,
+              bottom: kLabelGap,
             ),
             // The field itself still carries the name for a screen reader.
             // `RichText`, not `Text`: the decoration's own label is still a
@@ -164,7 +181,7 @@ class LabeledField extends StatelessWidget {
 
   Widget _pad(Widget w) => _padded
       ? Padding(
-          padding: const EdgeInsets.symmetric(vertical: InSpacing.xs),
+          padding: const EdgeInsets.symmetric(vertical: kFieldVerticalGap),
           child: w,
         )
       : w;

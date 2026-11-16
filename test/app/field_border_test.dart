@@ -15,8 +15,8 @@ void main() {
           .borderSide;
 
   test('rest, hover and focus are one ramp on the border', () {
-    expect(side({}).color, t.border);
-    expect(side({WidgetState.hovered}).color, t.borderStrong);
+    expect(side({}).color, t.borderStrong);
+    expect(side({WidgetState.hovered}).color, t.ink4);
     expect(side({WidgetState.focused}).color, t.accent);
     // Only focus changes the width, or text shimmers as the mouse passes.
     expect(side({}).width, 1);
@@ -51,8 +51,8 @@ void main() {
     expect(
       find.byType(TextField),
       paints
-        ..rrect(color: t.bg)
-        ..rrect(color: t.borderStrong),
+        ..rrect(color: t.surfaceAlt)
+        ..rrect(color: t.ink4),
     );
   });
 }
