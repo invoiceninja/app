@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/data/models/value/country.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/core/widgets/form_field_pair.dart';
 import 'package:admin/ui/features/settings/view_models/company_details_view_model.dart';
 import 'package:admin/ui/features/settings/widgets/form_section.dart';
 import 'package:admin/ui/features/settings/widgets/overridable_searchable_dropdown_field.dart';
@@ -48,25 +49,31 @@ class CompanyDetailsAddressScreen extends StatelessWidget {
               textCapitalization: TextCapitalization.words,
               autofillHints: const [AutofillHints.streetAddressLine2],
             ),
-            OverridableTextField(
-              label: context.tr('city'),
-              apiKey: 'city',
-              textCapitalization: TextCapitalization.words,
-              autofillHints: const [AutofillHints.addressCity],
+            FormFieldPair(
+              minPairWidth: kAddressPairWidth,
+              left: OverridableTextField(
+                label: context.tr('city'),
+                apiKey: 'city',
+                textCapitalization: TextCapitalization.words,
+                autofillHints: const [AutofillHints.addressCity],
+              ),
+              right: OverridableTextField(
+                label: context.tr('state'),
+                apiKey: 'state',
+                autofillHints: const [AutofillHints.addressState],
+              ),
             ),
-            OverridableTextField(
-              label: context.tr('state'),
-              apiKey: 'state',
-              autofillHints: const [AutofillHints.addressState],
+            FormFieldPair(
+              minPairWidth: kAddressPairWidth,
+              left: OverridableTextField(
+                label: context.tr('postal_code'),
+                apiKey: 'postal_code',
+                textCapitalization: TextCapitalization.characters,
+                autocorrect: false,
+                autofillHints: const [AutofillHints.postalCode],
+              ),
+              right: _CountryField(),
             ),
-            OverridableTextField(
-              label: context.tr('postal_code'),
-              apiKey: 'postal_code',
-              textCapitalization: TextCapitalization.characters,
-              autocorrect: false,
-              autofillHints: const [AutofillHints.postalCode],
-            ),
-            _CountryField(),
           ],
         ),
       ],

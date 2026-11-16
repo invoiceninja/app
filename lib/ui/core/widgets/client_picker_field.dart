@@ -551,6 +551,7 @@ class _ClientPickerFieldState extends State<ClientPickerField> {
                       onEscape: () => _optionsVisible = false,
                       child: LabeledField(
                         label: label,
+                        padded: false,
                         child: TextField(
                           controller: textController,
                           focusNode: focusNode,

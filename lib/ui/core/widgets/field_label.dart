@@ -28,6 +28,7 @@ class LabeledField extends StatelessWidget {
     required this.label,
     required this.child,
     this.fills = false,
+    this.padded,
   });
 
   final String? label;
@@ -37,6 +38,23 @@ class LabeledField extends StatelessWidget {
   /// `expands: true` in a bounded slot). Without this the column shrink-wraps
   /// and such a field has no height to expand into.
   final bool fills;
+
+  /// Whether to add the shared fields' 4 px of space above and below.
+  ///
+  /// `EntityEditField`, `SearchableDropdownField` and the locked row pad
+  /// themselves and pass false; a field that does not (a raw `TextField`, a
+  /// `DropdownButtonFormField`, the date and settings fields) gets it here.
+  /// Without it, a padded and an unpadded field side by side in a
+  /// `FormFieldPair` put their labels 4 px apart. Null decides by type: true
+  /// for the raw Material fields.
+  final bool? padded;
+
+  bool get _padded =>
+      padded ??
+      (child is TextField ||
+          child is TextFormField ||
+          child is DropdownButtonFormField ||
+          child is InputDecorator);
 
   /// The label's text style: the one hand-drawn label rows (the notes editor,
   /// the tag picker, the email composer) are matched to.
@@ -101,7 +119,7 @@ class LabeledField extends StatelessWidget {
     if (label == null || label.isEmpty) return child;
     final theme = Theme.of(context);
     final sized = Theme(data: _fieldTheme(theme), child: child);
-    if (!above(context)) return sized;
+    if (!above(context)) return _pad(sized);
     final Widget field = InputDecorationTheme(
       data: theme.inputDecorationTheme.copyWith(
         floatingLabelBehavior: FloatingLabelBehavior.always,
@@ -115,30 +133,39 @@ class LabeledField extends StatelessWidget {
           ? sized
           : Semantics(label: label, child: sized),
     );
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      mainAxisSize: fills ? MainAxisSize.max : MainAxisSize.min,
-      children: [
-        Padding(
-          padding: const EdgeInsetsDirectional.only(
-            top: InSpacing.xs,
-            start: 2,
-            bottom: InSpacing.xs,
-          ),
-          // The field itself still carries the name for a screen reader.
-          // `RichText`, not `Text`: the decoration's own label is still a
-          // `Text` in the tree, and a second one would double every match.
-          child: ExcludeSemantics(
-            child: RichText(
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              textScaler: MediaQuery.textScalerOf(context),
-              text: TextSpan(text: label, style: textStyle(context)),
+    return _pad(
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: fills ? MainAxisSize.max : MainAxisSize.min,
+        children: [
+          Padding(
+            padding: const EdgeInsetsDirectional.only(
+              top: InSpacing.xs,
+              start: 2,
+              bottom: InSpacing.xs,
+            ),
+            // The field itself still carries the name for a screen reader.
+            // `RichText`, not `Text`: the decoration's own label is still a
+            // `Text` in the tree, and a second one would double every match.
+            child: ExcludeSemantics(
+              child: RichText(
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textScaler: MediaQuery.textScalerOf(context),
+                text: TextSpan(text: label, style: textStyle(context)),
+              ),
             ),
           ),
-        ),
-        if (fills) Expanded(child: field) else field,
-      ],
+          if (fills) Expanded(child: field) else field,
+        ],
+      ),
     );
   }
+
+  Widget _pad(Widget w) => _padded
+      ? Padding(
+          padding: const EdgeInsets.symmetric(vertical: InSpacing.xs),
+          child: w,
+        )
+      : w;
 }

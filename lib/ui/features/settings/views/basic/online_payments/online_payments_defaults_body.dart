@@ -7,6 +7,7 @@ import 'package:admin/data/models/domain/enabled_modules.dart';
 import 'package:admin/data/models/domain/payment_term.dart';
 import 'package:admin/data/models/value/payment_type.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/core/widgets/form_field_pair.dart';
 import 'package:admin/ui/features/payments/widgets/payment_type_picker_field.dart';
 import 'package:admin/ui/features/settings/view_models/settings_draft_view_model.dart';
 import 'package:admin/ui/features/settings/widgets/form_section.dart';
@@ -62,45 +63,42 @@ class OnlinePaymentsDefaultsBody extends StatelessWidget {
               companyId: companyId,
               builder: (context, hidden) {
                 final types = PaymentTypeOptions.of(context, hidden: hidden);
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    OverridableSearchableDropdownField<PaymentType>(
-                      label: context.tr('default_payment_type'),
-                      apiKey: 'payment_type_id',
-                      value: host.settings.paymentTypeId,
-                      items: types.items,
-                      displayString: types.displayString,
-                      idOf: (p) => p.id,
-                      searchTextOf: types.searchTextOf,
-                      idleExcludes: types.idleExcludes,
-                      idleResults: types.items.length,
-                      optionTrailingBuilder: types.trailingFor(
-                        host.settings.paymentTypeId,
-                      ),
-                      onChanged: (v) => host.updateSettings(
-                        (s) => s.copyWith(paymentTypeId: v),
-                      ),
+                // For payments and for expenses, side by side.
+                return FormFieldPair(
+                  left: OverridableSearchableDropdownField<PaymentType>(
+                    label: context.tr('default_payment_type'),
+                    apiKey: 'payment_type_id',
+                    value: host.settings.paymentTypeId,
+                    items: types.items,
+                    displayString: types.displayString,
+                    idOf: (p) => p.id,
+                    searchTextOf: types.searchTextOf,
+                    idleExcludes: types.idleExcludes,
+                    idleResults: types.items.length,
+                    optionTrailingBuilder: types.trailingFor(
+                      host.settings.paymentTypeId,
                     ),
-                    const SizedBox(height: 16),
-                    OverridableSearchableDropdownField<PaymentType>(
-                      label: context.tr('default_expense_payment_type'),
-                      apiKey: 'default_expense_payment_type_id',
-                      value: host.settings.defaultExpensePaymentTypeId,
-                      items: types.items,
-                      displayString: types.displayString,
-                      idOf: (p) => p.id,
-                      searchTextOf: types.searchTextOf,
-                      idleExcludes: types.idleExcludes,
-                      idleResults: types.items.length,
-                      optionTrailingBuilder: types.trailingFor(
-                        host.settings.defaultExpensePaymentTypeId,
-                      ),
-                      onChanged: (v) => host.updateSettings(
-                        (s) => s.copyWith(defaultExpensePaymentTypeId: v),
-                      ),
+                    onChanged: (v) => host.updateSettings(
+                      (s) => s.copyWith(paymentTypeId: v),
                     ),
-                  ],
+                  ),
+                  right: OverridableSearchableDropdownField<PaymentType>(
+                    label: context.tr('default_expense_payment_type'),
+                    apiKey: 'default_expense_payment_type_id',
+                    value: host.settings.defaultExpensePaymentTypeId,
+                    items: types.items,
+                    displayString: types.displayString,
+                    idOf: (p) => p.id,
+                    searchTextOf: types.searchTextOf,
+                    idleExcludes: types.idleExcludes,
+                    idleResults: types.items.length,
+                    optionTrailingBuilder: types.trailingFor(
+                      host.settings.defaultExpensePaymentTypeId,
+                    ),
+                    onChanged: (v) => host.updateSettings(
+                      (s) => s.copyWith(defaultExpensePaymentTypeId: v),
+                    ),
+                  ),
                 );
               },
             ),
@@ -110,30 +108,33 @@ class OnlinePaymentsDefaultsBody extends StatelessWidget {
             // empty (brand-new company), the field renders disabled with
             // the `no_payment_terms` hint — the "Configure payment terms"
             // button below is the create path.
-            if (invoicesOn)
-              OverridableSearchableDropdownField<PaymentTerm>(
-                label: context.tr('invoice_payment_terms'),
-                apiKey: 'payment_terms',
-                value: host.settings.paymentTerms,
-                items: terms,
-                displayString: termDisplay,
-                idOf: (t) => t.numDays.toString(),
-                emptyHintKey: 'no_payment_terms',
-                onChanged: (v) =>
-                    host.updateSettings((s) => s.copyWith(paymentTerms: v)),
-              ),
-            if (quotesOn)
-              OverridableSearchableDropdownField<PaymentTerm>(
-                label: context.tr('quote_valid_until'),
-                apiKey: 'valid_until',
-                value: host.settings.validUntil,
-                items: terms,
-                displayString: termDisplay,
-                idOf: (t) => t.numDays.toString(),
-                emptyHintKey: 'no_payment_terms',
-                onChanged: (v) =>
-                    host.updateSettings((s) => s.copyWith(validUntil: v)),
-              ),
+            // Invoice terms beside quote validity: the same list of terms.
+            ...pairFields([
+              if (invoicesOn)
+                OverridableSearchableDropdownField<PaymentTerm>(
+                  label: context.tr('invoice_payment_terms'),
+                  apiKey: 'payment_terms',
+                  value: host.settings.paymentTerms,
+                  items: terms,
+                  displayString: termDisplay,
+                  idOf: (t) => t.numDays.toString(),
+                  emptyHintKey: 'no_payment_terms',
+                  onChanged: (v) =>
+                      host.updateSettings((s) => s.copyWith(paymentTerms: v)),
+                ),
+              if (quotesOn)
+                OverridableSearchableDropdownField<PaymentTerm>(
+                  label: context.tr('quote_valid_until'),
+                  apiKey: 'valid_until',
+                  value: host.settings.validUntil,
+                  items: terms,
+                  displayString: termDisplay,
+                  idOf: (t) => t.numDays.toString(),
+                  emptyHintKey: 'no_payment_terms',
+                  onChanged: (v) =>
+                      host.updateSettings((s) => s.copyWith(validUntil: v)),
+                ),
+            ]),
             Align(
               alignment: AlignmentDirectional.centerStart,
               child: OutlinedButton.icon(

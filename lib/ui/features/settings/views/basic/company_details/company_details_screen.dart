@@ -7,6 +7,7 @@ import 'package:admin/data/models/value/industry.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/edit/entity_custom_fields_section.dart';
 import 'package:admin/ui/core/widgets/field_label.dart';
+import 'package:admin/ui/core/widgets/form_field_pair.dart';
 import 'package:admin/ui/core/widgets/searchable_dropdown_field.dart';
 import 'package:admin/ui/features/settings/view_models/company_details_view_model.dart';
 import 'package:admin/ui/features/settings/widgets/form_section.dart';
@@ -80,37 +81,41 @@ class CompanyDetailsScreen extends StatelessWidget {
               // platform would offer the admin's own details for someone else.
               autofillHints: const [AutofillHints.organizationName],
             ),
-            OverridableTextField(
-              label: context.tr('id_number'),
-              apiKey: 'id_number',
-              enabled: !legalEntityBound,
-              autocorrect: false,
-            ),
-            OverridableTextField(
-              label: context.tr('vat_number'),
-              apiKey: 'vat_number',
-              enabled: !legalEntityBound,
-              autocorrect: false,
-              // When a legal entity is bound (PEPPOL), the server manages
-              // VAT / ID number — explain why the fields are disabled. Mirrors
-              // React's note under VAT (Details.tsx).
-              helperText: legalEntityBound
-                  ? context.tr('changing_vat_and_id_number_note')
-                  : null,
+            // Related fields two to a row, as on the entity forms.
+            FormFieldPair(
+              left: OverridableTextField(
+                label: context.tr('id_number'),
+                apiKey: 'id_number',
+                enabled: !legalEntityBound,
+                autocorrect: false,
+              ),
+              right: OverridableTextField(
+                label: context.tr('vat_number'),
+                apiKey: 'vat_number',
+                enabled: !legalEntityBound,
+                autocorrect: false,
+                // When a legal entity is bound (PEPPOL), the server manages
+                // VAT / ID number — explain why the fields are disabled. Mirrors
+                // React's note under VAT (Details.tsx).
+                helperText: legalEntityBound
+                    ? context.tr('changing_vat_and_id_number_note')
+                    : null,
+              ),
             ),
             _ClassificationField(),
-            if (isSwiss) ...[
-              OverridableTextField(
-                label: context.tr('qr_iban'),
-                apiKey: 'qr_iban',
-                autocorrect: false,
+            if (isSwiss)
+              FormFieldPair(
+                left: OverridableTextField(
+                  label: context.tr('qr_iban'),
+                  apiKey: 'qr_iban',
+                  autocorrect: false,
+                ),
+                right: OverridableTextField(
+                  label: context.tr('besr_id'),
+                  apiKey: 'besr_id',
+                  autocorrect: false,
+                ),
               ),
-              OverridableTextField(
-                label: context.tr('besr_id'),
-                apiKey: 'besr_id',
-                autocorrect: false,
-              ),
-            ],
           ],
         ),
         FormSection(
@@ -122,18 +127,20 @@ class CompanyDetailsScreen extends StatelessWidget {
               keyboardType: TextInputType.url,
               autocorrect: false,
             ),
-            OverridableTextField(
-              label: context.tr('email'),
-              apiKey: 'email',
-              keyboardType: TextInputType.emailAddress,
-              autocorrect: false,
-              autofillHints: const [AutofillHints.email],
-            ),
-            OverridableTextField(
-              label: context.tr('phone'),
-              apiKey: 'phone',
-              keyboardType: TextInputType.phone,
-              autofillHints: const [AutofillHints.telephoneNumber],
+            FormFieldPair(
+              left: OverridableTextField(
+                label: context.tr('email'),
+                apiKey: 'email',
+                keyboardType: TextInputType.emailAddress,
+                autocorrect: false,
+                autofillHints: const [AutofillHints.email],
+              ),
+              right: OverridableTextField(
+                label: context.tr('phone'),
+                apiKey: 'phone',
+                keyboardType: TextInputType.phone,
+                autofillHints: const [AutofillHints.telephoneNumber],
+              ),
             ),
           ],
         ),
@@ -141,7 +148,9 @@ class CompanyDetailsScreen extends StatelessWidget {
         // through the settings cascade, so no PropertyCheckbox wrapper.
         FormSection(
           title: context.tr('business'),
-          children: [_SizeField(), _IndustryField()],
+          children: [
+            FormFieldPair(left: _SizeField(), right: _IndustryField()),
+          ],
         ),
         if (hasCompanyCustomFields)
           FormSection(

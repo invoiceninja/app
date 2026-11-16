@@ -82,6 +82,7 @@ class LockedEntityFieldRow extends StatelessWidget {
     // trade the always-visible helper line is not (see [helperText]).
     final decorated = LabeledField(
       label: label,
+      padded: false,
       child: InputDecorator(
         decoration: billingFieldDecoration(context).copyWith(
           labelText: label,

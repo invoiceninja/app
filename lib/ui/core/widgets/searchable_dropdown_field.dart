@@ -754,6 +754,7 @@ class _SearchableDropdownFieldState<T extends Object>
           type: MaterialType.transparency,
           child: LabeledField(
             label: widget.label,
+            padded: false,
             child: TextField(
               enabled: false,
               decoration: InputDecoration(
@@ -895,6 +896,7 @@ class _SearchableDropdownFieldState<T extends Object>
                       onEscape: () => _optionsVisible = false,
                       child: LabeledField(
                         label: widget.label,
+                        padded: false,
                         child: TextField(
                           controller: textController,
                           focusNode: focusNode,

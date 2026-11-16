@@ -214,6 +214,7 @@ class _EntityEditFieldState extends State<EntityEditField> {
       padding: const EdgeInsets.symmetric(vertical: InSpacing.xs),
       child: LabeledField(
         label: widget.label,
+        padded: false,
         child: TextField(
           controller: _controller,
           textDirection: ltrValueDirection(ltr: ltr),

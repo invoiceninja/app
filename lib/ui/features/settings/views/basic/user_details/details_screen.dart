@@ -7,6 +7,7 @@ import 'package:admin/app/services.dart';
 import 'package:admin/data/models/value/language.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/edit/entity_custom_fields_section.dart';
+import 'package:admin/ui/core/widgets/form_field_pair.dart';
 import 'package:admin/ui/core/widgets/markdown_text_field.dart';
 import 'package:admin/ui/core/widgets/searchable_dropdown_field.dart';
 import 'package:admin/ui/features/settings/settings_actions.dart';
@@ -74,26 +75,28 @@ class _DetailsForm extends StatelessWidget {
       children: [
         _NameRow(user: user, vm: vm),
         SizedBox(height: InSpacing.lg(context)),
-        SettingsTextField(
-          labelText: context.tr('email'),
-          initialValue: user.email,
-          keyboardType: TextInputType.emailAddress,
-          autocorrect: false,
-          // The signed-in user's own record, so OS autofill is correct here.
-          // A client / vendor / contact field must NEVER carry hints — the
-          // platform would offer the admin's own details for someone else.
-          autofillHints: const [AutofillHints.email],
-          errorText: vm.fieldErrors['email']?.firstOrNull,
-          onChanged: (v) => vm.updateUser((u) => u.copyWith(email: v.trim())),
-        ),
-        SizedBox(height: InSpacing.lg(context)),
-        SettingsTextField(
-          labelText: context.tr('phone'),
-          initialValue: user.phone,
-          keyboardType: TextInputType.phone,
-          autofillHints: const [AutofillHints.telephoneNumber],
-          errorText: vm.fieldErrors['phone']?.firstOrNull,
-          onChanged: (v) => vm.updateUser((u) => u.copyWith(phone: v.trim())),
+        // Email beside phone, as the names are paired above.
+        FormFieldPair(
+          left: SettingsTextField(
+            labelText: context.tr('email'),
+            initialValue: user.email,
+            keyboardType: TextInputType.emailAddress,
+            autocorrect: false,
+            // The signed-in user's own record, so OS autofill is correct here.
+            // A client / vendor / contact field must NEVER carry hints — the
+            // platform would offer the admin's own details for someone else.
+            autofillHints: const [AutofillHints.email],
+            errorText: vm.fieldErrors['email']?.firstOrNull,
+            onChanged: (v) => vm.updateUser((u) => u.copyWith(email: v.trim())),
+          ),
+          right: SettingsTextField(
+            labelText: context.tr('phone'),
+            initialValue: user.phone,
+            keyboardType: TextInputType.phone,
+            autofillHints: const [AutofillHints.telephoneNumber],
+            errorText: vm.fieldErrors['phone']?.firstOrNull,
+            onChanged: (v) => vm.updateUser((u) => u.copyWith(phone: v.trim())),
+          ),
         ),
         SizedBox(height: InSpacing.lg(context)),
         SearchableDropdownField<Language>(

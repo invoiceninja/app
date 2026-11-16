@@ -9,6 +9,7 @@ import 'package:admin/data/models/value/language.dart';
 import 'package:admin/data/models/value/timezone.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/field_label.dart';
+import 'package:admin/ui/core/widgets/form_field_pair.dart';
 import 'package:admin/ui/features/settings/state/settings_level_controller.dart';
 import 'package:admin/ui/features/settings/view_models/settings_draft_view_model.dart';
 import 'package:admin/ui/features/settings/widgets/form_section.dart';
@@ -97,7 +98,9 @@ class LocalizationSettingsBody extends StatelessWidget {
       sections: [
         FormSection(
           title: context.tr('region'),
-          children: [
+          // Two to a row: the currency beside how it is written, then the
+          // language, timezone and date format.
+          children: pairFields([
             OverridableSearchableDropdownField<Currency>(
               label: context.tr('currency'),
               apiKey: 'currency_id',
@@ -140,7 +143,7 @@ class LocalizationSettingsBody extends StatelessWidget {
               onChanged: (v) =>
                   host.updateSettings((s) => s.copyWith(dateFormatId: v)),
             ),
-          ],
+          ]),
         ),
         FormSection(
           title: context.tr('format'),
@@ -182,37 +185,39 @@ class LocalizationSettingsBody extends StatelessWidget {
               // settings-cascade value — a plain dropdown bound to the company
               // draft (like Company Details' size / industry), not an
               // OverridableDropdownField.
-              LabeledField(
-                label: context.tr('first_month_of_the_year'),
-                child: DropdownButtonFormField<String>(
-                  isExpanded: true,
-                  decoration: InputDecoration(
-                    labelText: context.tr('first_month_of_the_year'),
-                  ),
-                  initialValue: months.any((m) => m.value == firstMonth)
-                      ? firstMonth
-                      : null,
-                  items: months,
-                  onChanged: (v) => host.updateCompany(
-                    (c) => c.copyWith(firstMonthOfYear: v ?? ''),
+              FormFieldPair(
+                left: LabeledField(
+                  label: context.tr('first_month_of_the_year'),
+                  child: DropdownButtonFormField<String>(
+                    isExpanded: true,
+                    decoration: InputDecoration(
+                      labelText: context.tr('first_month_of_the_year'),
+                    ),
+                    initialValue: months.any((m) => m.value == firstMonth)
+                        ? firstMonth
+                        : null,
+                    items: months,
+                    onChanged: (v) => host.updateCompany(
+                      (c) => c.copyWith(firstMonthOfYear: v ?? ''),
+                    ),
                   ),
                 ),
-              ),
-              // first_day_of_week — also a top-level company field, same plain
-              // dropdown bound to the company draft.
-              LabeledField(
-                label: context.tr('first_day_of_the_week'),
-                child: DropdownButtonFormField<String>(
-                  isExpanded: true,
-                  decoration: InputDecoration(
-                    labelText: context.tr('first_day_of_the_week'),
-                  ),
-                  initialValue: days.any((d) => d.value == firstDay)
-                      ? firstDay
-                      : null,
-                  items: days,
-                  onChanged: (v) => host.updateCompany(
-                    (c) => c.copyWith(firstDayOfWeek: v ?? ''),
+                // first_day_of_week — also a top-level company field, same plain
+                // dropdown bound to the company draft.
+                right: LabeledField(
+                  label: context.tr('first_day_of_the_week'),
+                  child: DropdownButtonFormField<String>(
+                    isExpanded: true,
+                    decoration: InputDecoration(
+                      labelText: context.tr('first_day_of_the_week'),
+                    ),
+                    initialValue: days.any((d) => d.value == firstDay)
+                        ? firstDay
+                        : null,
+                    items: days,
+                    onChanged: (v) => host.updateCompany(
+                      (c) => c.copyWith(firstDayOfWeek: v ?? ''),
+                    ),
                   ),
                 ),
               ),
