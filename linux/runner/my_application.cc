@@ -33,6 +33,8 @@ struct _MyApplication {
   gint drag_x_root;
   gint drag_y_root;
   guint32 drag_time;
+  // Shows the window when no frame has come; see first_frame_timeout_cb.
+  guint first_frame_timeout_id;
 };
 
 G_DEFINE_TYPE(MyApplication, my_application, GTK_TYPE_APPLICATION)
@@ -247,9 +249,41 @@ static void window_method_cb(FlMethodChannel* channel,
   }
 }
 
+// How long the window stays hidden waiting for the first frame.
+static constexpr guint kFirstFrameTimeoutSeconds = 5;
+
+static void cancel_first_frame_timeout(MyApplication* self) {
+  if (self->first_frame_timeout_id != 0) {
+    g_source_remove(self->first_frame_timeout_id);
+    self->first_frame_timeout_id = 0;
+  }
+}
+
 // Called when first Flutter frame received.
 static void first_frame_cb(MyApplication* self, FlView* view) {
+  cancel_first_frame_timeout(self);
   gtk_widget_show(gtk_widget_get_toplevel(GTK_WIDGET(view)));
+}
+
+// The window is shown on the first frame, so a launch that never draws one
+// (the GPU driver refusing the context inside a sandbox, or the Dart side
+// stalling before runApp) used to leave a running process with no window and
+// nothing on screen to close or report (invoiceninja/flutter#194). After
+// kFirstFrameTimeoutSeconds the window is shown regardless: empty, but there,
+// with a line on stderr saying why. A frame that comes later draws into it.
+static gboolean first_frame_timeout_cb(gpointer data) {
+  MyApplication* self = MY_APPLICATION(data);
+  self->first_frame_timeout_id = 0;
+  if (self->window != nullptr &&
+      !gtk_widget_get_visible(GTK_WIDGET(self->window))) {
+    g_warning(
+        "No frame was drawn in %u seconds, so the window is shown empty. If it "
+        "stays empty, the graphics driver or the app's startup is stuck: "
+        "please report it with this output.",
+        kFirstFrameTimeoutSeconds);
+    gtk_widget_show(GTK_WIDGET(self->window));
+  }
+  return G_SOURCE_REMOVE;
 }
 
 // Implements GApplication::activate.
@@ -316,6 +350,14 @@ static void my_application_activate(GApplication* application) {
   g_autoptr(FlDartProject) project = fl_dart_project_new();
   fl_dart_project_set_dart_entrypoint_arguments(
       project, self->dart_entrypoint_arguments);
+  // A way to run on the older renderer when Impeller draws nothing on a
+  // machine (invoiceninja/flutter#194). The engine's own
+  // FLUTTER_ENGINE_SWITCHES are compiled out of a release build, so this is
+  // the only switch a user of a published build has.
+  if (g_strcmp0(g_getenv("INVOICENINJA_NO_IMPELLER"), "1") == 0) {
+    g_message("INVOICENINJA_NO_IMPELLER=1: Impeller is off.");
+    fl_dart_project_set_enable_impeller(project, FALSE);
+  }
 
   FlView* view = fl_view_new(project);
   GdkRGBA background_color;
@@ -330,6 +372,10 @@ static void my_application_activate(GApplication* application) {
   // Requires the view to be realized so we can start rendering.
   g_signal_connect_swapped(view, "first-frame", G_CALLBACK(first_frame_cb),
                            self);
+  // activate can run more than once; one timer, for the newest window.
+  cancel_first_frame_timeout(self);
+  self->first_frame_timeout_id = g_timeout_add_seconds(
+      kFirstFrameTimeoutSeconds, first_frame_timeout_cb, self);
   gtk_widget_realize(GTK_WIDGET(view));
 
   fl_register_plugins(FL_PLUGIN_REGISTRY(view));
@@ -394,6 +440,8 @@ static void my_application_shutdown(GApplication* application) {
 static void my_application_dispose(GObject* object) {
   MyApplication* self = MY_APPLICATION(object);
   g_clear_pointer(&self->dart_entrypoint_arguments, g_strfreev);
+  // The timer holds a raw pointer to this object.
+  cancel_first_frame_timeout(self);
   // Restore the default dispatcher before this object dies. `ninja_event_handler`
   // holds a raw MyApplication* and WRITES into it, so leaving it installed is a
   // use-after-free waiting for any GDK dispatch during teardown — a plugin
