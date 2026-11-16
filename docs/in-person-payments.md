@@ -71,6 +71,12 @@ static on `StripeTerminal`; each payment is a `TerminalPayment` from `beginPayme
   merely has Bluetooth. A hosted plan below Pro shows it as an upgrade.
 - **Build switches**: `IN_CARD_PRESENT`, `IN_CARD_PRESENT_BLUETOOTH`, `IN_CARD_PRESENT_SURCHARGE`
   (all default true) pull the feature or one part of it without a code change.
+- **The server offers no surcharge for now.** It was taken out of invoiceninja#13435 before the
+  merge (2026-11-16): nothing reported the surcharge to the card networks, and a debit card could be
+  surcharged and then refunded. `terminal/config` carries no `surcharge` key, so
+  `TerminalSurchargeConfig` parses as not allowed and every surcharge surface stays hidden; `quote`
+  answers `total == amount` and `finalize` always answers `recollect: false`. The app's surcharge
+  flow below is kept for when the server offers one again.
 - **The SDK session is one Stripe account and Location** (`account: company/gateway/location`): a
   connection token belongs to exactly one.
 - **A session end or a company switch resets it** (`onBeforeLogout`, `onActiveCompanyChanged`):
