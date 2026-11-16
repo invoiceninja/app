@@ -298,6 +298,10 @@ class _VendorDetailScreenState extends State<VendorDetailScreen>
         strip: strip,
         body: body,
         top: _top(context, v, notes, tabIds),
+        // A vendor is opened for its expenses and purchase orders, so on a
+        // wide page they lead (`EntityRecordPage.rail`).
+        lead: _top(context, v, notes, tabIds, part: RecordColumnPart.lead),
+        rail: _top(context, v, notes, tabIds, part: RecordColumnPart.rail),
       ),
       tabs: [
         EntityDetailTab(
@@ -391,8 +395,9 @@ class _VendorDetailScreenState extends State<VendorDetailScreen>
     BuildContext context,
     Vendor v,
     EntityNoteActions notes,
-    Set<String> tabIds,
-  ) {
+    Set<String> tabIds, {
+    RecordColumnPart part = RecordColumnPart.all,
+  }) {
     return WatchBuilder<Company?>(
       cacheKey: _companyId,
       // Seeded from what is already in memory, so the rows that depend on the
@@ -404,6 +409,7 @@ class _VendorDetailScreenState extends State<VendorDetailScreen>
       ),
       create: () => _services.company.watchCompany(_companyId),
       builder: (context, company) => EntityRecordColumn(
+        part: part,
         header: VendorDetailHeader(
           vendor: v,
           formatter: formatter,

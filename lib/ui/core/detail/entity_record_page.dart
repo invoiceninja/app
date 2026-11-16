@@ -52,9 +52,26 @@ class EntityRecordPage extends StatefulWidget {
     required this.top,
     required this.tabStrip,
     required this.tabBody,
+    this.lead,
+    this.rail,
     this.controller,
     this.onRefresh,
   });
+
+  /// With [rail], the wide layout of a record that is a hub for other records
+  /// (a client, a vendor): from [kRecordRailMinWidth] the tabs and
+  /// their lists come up under [lead] (identity and actions) and the
+  /// reference cards move into [rail], a fixed column at the end edge. The
+  /// lists are what such a record is opened for, and stacked under the
+  /// profile they started a screen and more down.
+  ///
+  /// Below that width, and for any host that passes neither, [top] sits above
+  /// the tabs as it always has: the docked pane, a tablet and a phone keep
+  /// the one layout.
+  final Widget? lead;
+
+  /// See [lead]. Scrolls with the page: one scroll view, one scrollbar.
+  final Widget? rail;
 
   /// Pull-to-refresh. Null leaves the page with no indicator.
   ///
@@ -74,6 +91,16 @@ class EntityRecordPage extends StatefulWidget {
   State<EntityRecordPage> createState() => _EntityRecordPageState();
 }
 
+/// The page width from which a record with a rail uses it. A rail takes
+/// [kRecordRailWidth] and a gap, and under about 760 px an embedded list starts
+/// dropping the columns the user chose, so this is their sum. In practice: a
+/// 1440 px window with the sidebar open, never the docked pane.
+const double kRecordRailMinWidth = 1200;
+
+/// A fixed width, not a share of the page: its cards are the same cards a
+/// 440 px pane shows, and they gain nothing from more.
+const double kRecordRailWidth = 400;
+
 /// How much of the tab body has to be on screen for the strip to count as
 /// "in view". Without it a request that leaves the strip on the last visible
 /// row would be answered by a tab changing under the user's thumb with none of
@@ -83,6 +110,11 @@ const double _kBodyPeek = 160;
 class _EntityRecordPageState extends State<EntityRecordPage> {
   final GlobalKey _topKey = GlobalKey();
   final GlobalKey _stripKey = GlobalKey();
+
+  /// The tab body keeps its `State` (an embedded list's loaded pages, its
+  /// scroll-driven paging) when the window is dragged across
+  /// [kRecordRailMinWidth] and the body moves between the two layouts.
+  final GlobalKey _bodyKey = GlobalKey();
 
   /// Only for a host with no `DetailScrollScope` above it (a widget test, a
   /// settings-hosted screen); `EntityDetailScaffold` normally supplies one.
@@ -143,40 +175,88 @@ class _EntityRecordPageState extends State<EntityRecordPage> {
     _scroll =
         DetailScrollScope.maybeOf(context) ??
         (_ownScroll ??= ScrollController());
-    final page = CustomScrollView(
-      controller: _scroll,
-      // A scroll view handed a controller is not always-scrollable by default,
-      // and a record shorter than its viewport could then never be pulled.
-      physics: const AlwaysScrollableScrollPhysics(),
-      slivers: [
-        SliverToBoxAdapter(
-          // The key is on the padded box, so its height is exactly the scroll
-          // offset at which the strip pins.
-          child: Padding(
-            key: _topKey,
-            padding: EdgeInsets.fromLTRB(pad, pad, pad, pad),
-            child: widget.top,
-          ),
+    final strip = PinnedHeaderSliver(
+      // Opaque: the body scrolls *under* a pinned strip, and the strip's own
+      // fades already dissolve into this colour.
+      child: ColoredBox(
+        key: _stripKey,
+        color: tokens.bg,
+        child: Padding(
+          padding: EdgeInsets.symmetric(horizontal: pad),
+          child: widget.tabStrip,
         ),
-        PinnedHeaderSliver(
-          // Opaque: the body scrolls *under* a pinned strip, and the strip's
-          // own fades already dissolve into this colour.
-          child: ColoredBox(
-            key: _stripKey,
-            color: tokens.bg,
-            child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: pad),
-              child: widget.tabStrip,
-            ),
-          ),
-        ),
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: EdgeInsets.fromLTRB(pad, 0, pad, pad),
-            child: widget.tabBody,
-          ),
-        ),
-      ],
+      ),
+    );
+    final body = SliverToBoxAdapter(
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(pad, 0, pad, pad),
+        child: KeyedSubtree(key: _bodyKey, child: widget.tabBody),
+      ),
+    );
+    final lead = widget.lead;
+    final rail = widget.rail;
+    final page = LayoutBuilder(
+      builder: (context, constraints) {
+        final useRail =
+            lead != null &&
+            rail != null &&
+            constraints.maxWidth >= kRecordRailMinWidth;
+        return CustomScrollView(
+          controller: _scroll,
+          // A scroll view handed a controller is not always-scrollable by
+          // default, and a record shorter than its viewport could then never
+          // be pulled.
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            if (!useRail) ...[
+              SliverToBoxAdapter(
+                // The key is on the padded box, so its height is exactly the
+                // scroll offset at which the strip pins.
+                child: Padding(
+                  key: _topKey,
+                  padding: EdgeInsets.fromLTRB(pad, pad, pad, pad),
+                  child: widget.top,
+                ),
+              ),
+              strip,
+              body,
+            ] else
+              SliverCrossAxisGroup(
+                slivers: [
+                  SliverCrossAxisExpanded(
+                    flex: 1,
+                    sliver: SliverMainAxisGroup(
+                      slivers: [
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            key: _topKey,
+                            padding: EdgeInsets.fromLTRB(pad, pad, pad, 0),
+                            child: lead,
+                          ),
+                        ),
+                        strip,
+                        body,
+                      ],
+                    ),
+                  ),
+                  SliverConstrainedCrossAxis(
+                    maxExtent: kRecordRailWidth + pad,
+                    sliver: SliverToBoxAdapter(
+                      child: Padding(
+                        padding: EdgeInsetsDirectional.only(
+                          top: pad,
+                          end: pad,
+                          bottom: pad,
+                        ),
+                        child: rail,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+          ],
+        );
+      },
     );
     final refresh = widget.onRefresh;
     final scoped = widget.controller == null

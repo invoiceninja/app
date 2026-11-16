@@ -18,11 +18,14 @@ import 'package:admin/ui/core/widgets/centered_form_column.dart';
 /// use that read as hiding the address behind a click, and the row and the
 /// summary are gone.
 ///
-/// **One layout at every width.** At [Breakpoints.entityFormMultiColumn] and
-/// up, identity and quick actions sit beside the standing card; nothing moves
-/// to a side rail. A rail was tried on paper and dropped: it left the embedded
-/// tables 640-800 px on a 1280-1440 px window, and re-parenting the tabs as the
-/// pane animates between its two widths would have reset them.
+/// **One order at every width.** At [Breakpoints.entityFormMultiColumn] and
+/// up, identity and quick actions sit beside the standing card. A hub record
+/// (a client, a vendor) on a page of `kRecordRailMinWidth` or more draws
+/// this column in two parts instead ([part]): identity and actions above the
+/// tabs, the rest in a rail beside them. A rail was once dropped on paper for
+/// leaving the embedded tables 640-800 px wide and for resetting the tabs as
+/// the pane changes width; the threshold and a keyed tab body answer both
+/// (docs/detail-screen-layout.md § The rail).
 ///
 /// Slots are plain widgets and this takes no `Services`, so a host that cannot
 /// give up the page — a billing document, whose scroll view shares a row with
@@ -36,7 +39,14 @@ class EntityRecordColumn extends StatelessWidget {
     this.comments,
     this.profile,
     this.timestamps,
+    this.part = RecordColumnPart.all,
   });
+
+  /// Which of the slots this instance draws: all of them (the one layout
+  /// every width used to get), or one side of the wide rail layout
+  /// (`EntityRecordPage.rail`), where identity and actions lead the lists and
+  /// the rest sits in a column beside them. Same slots, same order.
+  final RecordColumnPart part;
 
   final Widget header;
 
@@ -79,6 +89,34 @@ class EntityRecordColumn extends StatelessWidget {
             : profile,
       ?timestamps,
     ];
+    if (part == RecordColumnPart.lead) {
+      return RecordColumnScope(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // The strip owns its own trailing gap; with none, the header pays
+            // the gap down to the tabs.
+            header,
+            gap,
+            ?quickActions,
+          ],
+        ),
+      );
+    }
+    if (part == RecordColumnPart.rail) {
+      final standing = this.standing;
+      return RecordColumnScope(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (standing != null) ...[standing, gap],
+            ...below,
+          ],
+        ),
+      );
+    }
     return RecordColumnScope(
       child: LayoutBuilder(
         builder: (context, constraints) {
@@ -145,6 +183,18 @@ class EntityRecordColumn extends StatelessWidget {
       ),
     );
   }
+}
+
+/// The slots an [EntityRecordColumn] draws.
+enum RecordColumnPart {
+  /// Everything, above the tabs.
+  all,
+
+  /// Identity and quick actions: what stays above the tabs beside a rail.
+  lead,
+
+  /// Standing, comments, profile and dates, stacked: the rail itself.
+  rail,
 }
 
 /// Marks everything above a record's tabs, so a shared widget can tell it is

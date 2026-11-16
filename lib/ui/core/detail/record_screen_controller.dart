@@ -327,12 +327,16 @@ class RecordScreenController extends ChangeNotifier implements TabCounts {
     required Widget strip,
     required Widget body,
     required Widget top,
+    Widget? lead,
+    Widget? rail,
   }) => EntityRecordPage(
     controller: page,
     onRefresh: refresh,
     tabStrip: strip,
     tabBody: body,
     top: top,
+    lead: lead,
+    rail: rail,
   );
 
   @override

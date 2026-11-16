@@ -262,6 +262,11 @@ class _ClientDetailScreenState extends State<ClientDetailScreen>
           strip: strip,
           body: body,
           top: _top(context, c, notes, tabIds),
+          // A client is opened for its invoices and payments as often as for
+          // itself, so on a wide page they lead and the reference cards sit
+          // beside them (`EntityRecordPage.rail`).
+          lead: _top(context, c, notes, tabIds, part: RecordColumnPart.lead),
+          rail: _top(context, c, notes, tabIds, part: RecordColumnPart.rail),
         ),
       ),
     );
@@ -276,8 +281,9 @@ class _ClientDetailScreenState extends State<ClientDetailScreen>
     BuildContext context,
     Client c,
     EntityNoteActions notes,
-    Set<String> tabIds,
-  ) {
+    Set<String> tabIds, {
+    RecordColumnPart part = RecordColumnPart.all,
+  }) {
     return WatchBuilder<Company?>(
       cacheKey: _companyId,
       // Seeded from what is already in memory, so the rows that depend on the
@@ -289,6 +295,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen>
       ),
       create: () => _services.company.watchCompany(_companyId),
       builder: (context, company) => EntityRecordColumn(
+        part: part,
         header: ClientDetailHeader(
           client: c,
           formatter: formatter,

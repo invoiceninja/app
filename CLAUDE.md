@@ -556,7 +556,7 @@ Panels are ordered and hidden per user — `DashboardKind.panelKinds` is the reg
 
 ## Detail screens
 
-- **A record screen runs identity, quick actions, standing, comments and an always-shown profile above a pinned tab strip, in that order at every width.** → `docs/detail-screen-layout.md`
+- **A record screen runs identity, quick actions, standing, comments and an always-shown profile above a pinned tab strip, in that order (a rail on wide hub records).** → `docs/detail-screen-layout.md`
 - **On a phone the record layout is the same order, denser: the standing card's secondary figures on one line with its footnote, created / updated as one muted line above the tabs, and no tab icons — all gated on `isPhoneRecordLayout`; the header avatar and the action tiles stay where they are.** → `docs/detail-screen-layout.md`
 - **A quick-action tile is a second render of an existing `EntityActionItem`, never a second definition, one that does not apply yields its slot, and only the first is accent-filled.** → `docs/detail-screen-layout.md`
 - **A figure the server does not supply is shown only when proven — the past-due line needs a complete fetch *and* a sum equal to the client's balance.** → `docs/detail-screen-layout.md`
