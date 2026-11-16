@@ -1,6 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 
 import 'package:admin/app/design_tokens.dart';
+import 'package:admin/ui/core/adaptive.dart';
 import 'package:admin/app/env.dart';
 import 'package:admin/data/models/domain/dashboard/dashboard_activity.dart';
 import 'package:admin/ui/features/dashboard/helpers/activity_formatter.dart';
@@ -123,6 +124,12 @@ class ActivityFeedRow extends StatelessWidget {
     final (bg, fg) = activityToneColors(tokens, render.tone);
 
     final avatarSize = _isDense ? 22.0 : (_isCard ? 26.0 : 28.0);
+    // The time beside the sentence where the row has room: the dashboard's
+    // card (its meta is a short "2 h ago"), and the full feed on a wide
+    // window. Not a `LayoutBuilder`: the card sits in an `IntrinsicHeight`
+    // row on the dashboard.
+    final inline =
+        _isCard || MediaQuery.sizeOf(context).width >= Breakpoints.slideOver;
     final padded = Padding(
       padding: _isCard
           ? EdgeInsets.symmetric(vertical: _isDense ? 4 : 10, horizontal: 4)
@@ -147,39 +154,81 @@ class ActivityFeedRow extends StatelessWidget {
           ),
           SizedBox(width: _isCard ? 10 : InSpacing.md(context)),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  render.title,
-                  // The dashboard card only. A logged call's note is
-                  // deliberately multi-line (a metadata header, then what was
-                  // said), and five unbounded ones grew the card to fill its
-                  // column. The full-page feed and the User Details audit
-                  // section stay unclamped on purpose: a typed comment can run
-                  // to six lines (`add_comment_dialog.dart`), the row's tap
-                  // deep-links to the *entity* rather than to the note, and
-                  // there is no other place on those screens to read the rest.
-                  maxLines: _isDense ? 1 : (_isCard ? 2 : null),
-                  overflow: _isCard ? TextOverflow.ellipsis : null,
-                  style: _isCard
-                      ? TextStyle(
-                          fontSize: 12.5,
-                          color: tokens.ink,
-                          height: 1.35,
-                        )
-                      : theme.textTheme.bodyMedium,
-                ),
-                if (!_isCard) const SizedBox(height: 2),
-                Text(
-                  meta,
-                  style: _isCard
-                      ? TextStyle(fontSize: 11, color: tokens.ink3)
-                      : theme.textTheme.bodySmall?.copyWith(color: tokens.ink3),
-                ),
-              ],
-            ),
+            child: inline
+                // One line: the sentence, then when (and from where) at the
+                // row's end, muted. Two lines a row made the feed twice as
+                // long as the events in it.
+                ? Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          render.title,
+                          // The dashboard card only. A logged call's note is
+                          // deliberately multi-line (a metadata header, then what was
+                          // said), and five unbounded ones grew the card to fill its
+                          // column. The full-page feed and the User Details audit
+                          // section stay unclamped on purpose: a typed comment can run
+                          // to six lines (`add_comment_dialog.dart`), the row's tap
+                          // deep-links to the *entity* rather than to the note, and
+                          // there is no other place on those screens to read the rest.
+                          maxLines: _isDense ? 1 : (_isCard ? 2 : null),
+                          overflow: _isCard ? TextOverflow.ellipsis : null,
+                          style: _isCard
+                              ? TextStyle(
+                                  fontSize: 12.5,
+                                  color: tokens.ink,
+                                  height: 1.35,
+                                )
+                              : theme.textTheme.bodyMedium,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        meta,
+                        style: _isCard
+                            ? TextStyle(fontSize: 11, color: tokens.ink3)
+                            : theme.textTheme.bodySmall?.copyWith(
+                                color: tokens.ink3,
+                              ),
+                      ),
+                    ],
+                  )
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        render.title,
+                        // The dashboard card only. A logged call's note is
+                        // deliberately multi-line (a metadata header, then what was
+                        // said), and five unbounded ones grew the card to fill its
+                        // column. The full-page feed and the User Details audit
+                        // section stay unclamped on purpose: a typed comment can run
+                        // to six lines (`add_comment_dialog.dart`), the row's tap
+                        // deep-links to the *entity* rather than to the note, and
+                        // there is no other place on those screens to read the rest.
+                        maxLines: _isDense ? 1 : (_isCard ? 2 : null),
+                        overflow: _isCard ? TextOverflow.ellipsis : null,
+                        style: _isCard
+                            ? TextStyle(
+                                fontSize: 12.5,
+                                color: tokens.ink,
+                                height: 1.35,
+                              )
+                            : theme.textTheme.bodyMedium,
+                      ),
+                      if (!_isCard) const SizedBox(height: 2),
+                      Text(
+                        meta,
+                        style: _isCard
+                            ? TextStyle(fontSize: 11, color: tokens.ink3)
+                            : theme.textTheme.bodySmall?.copyWith(
+                                color: tokens.ink3,
+                              ),
+                      ),
+                    ],
+                  ),
           ),
           if (onTap != null) ...[
             const SizedBox(width: 4),
