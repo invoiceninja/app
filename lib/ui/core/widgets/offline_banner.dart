@@ -2,6 +2,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 
 import 'package:admin/app/design_tokens.dart';
+import 'package:admin/app/env.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/l10n/localization.dart';
 
@@ -12,11 +13,26 @@ import 'package:admin/l10n/localization.dart';
 /// Subscribes to [Services.connectivity]'s `isOnlineStream`, which seeds
 /// with the current state on listen so the banner appears immediately if
 /// the app boots offline.
+///
+/// The pre-authenticated demo build ([Env.isDemoBuild]) shows a "Demo mode"
+/// strip here instead, always, and never the offline one: a browser's
+/// `navigator.onLine` is the only signal on web and it reports offline on
+/// machines that are plainly loading the demo, where "your changes will sync"
+/// is the wrong thing to tell a visitor to shared sample data.
 class OfflineBanner extends StatelessWidget {
-  const OfflineBanner({super.key});
+  const OfflineBanner({super.key, this.isDemoBuild = Env.isDemoBuild});
+
+  final bool isDemoBuild;
 
   @override
   Widget build(BuildContext context) {
+    if (isDemoBuild) {
+      return const _BannerStrip(
+        icon: Icons.science_outlined,
+        titleKey: 'demo_mode',
+        bodyKey: 'demo_mode_banner',
+      );
+    }
     final services = context.read<Services>();
     return StreamBuilder<bool>(
       stream: services.connectivity.isOnlineStream,
@@ -25,13 +41,27 @@ class OfflineBanner extends StatelessWidget {
         // Hide while we don't know yet — avoids a flash of "offline" during
         // the first frame on a slow platform channel response.
         if (online == null || online) return const SizedBox.shrink();
-        return _OfflineStrip();
+        return const _BannerStrip(
+          icon: Icons.wifi_off,
+          titleKey: 'offline',
+          bodyKey: 'offline_changes_will_sync',
+        );
       },
     );
   }
 }
 
-class _OfflineStrip extends StatelessWidget {
+class _BannerStrip extends StatelessWidget {
+  const _BannerStrip({
+    required this.icon,
+    required this.titleKey,
+    required this.bodyKey,
+  });
+
+  final IconData icon;
+  final String titleKey;
+  final String bodyKey;
+
   @override
   Widget build(BuildContext context) {
     final tokens = context.inTheme;
@@ -51,10 +81,10 @@ class _OfflineStrip extends StatelessWidget {
           ),
           child: Row(
             children: [
-              Icon(Icons.wifi_off, size: 18, color: tokens.partial),
+              Icon(icon, size: 18, color: tokens.partial),
               const SizedBox(width: InSpacing.sm),
               Text(
-                context.tr('offline'),
+                context.tr(titleKey),
                 style: TextStyle(
                   color: tokens.partial,
                   fontWeight: FontWeight.w600,
@@ -64,7 +94,7 @@ class _OfflineStrip extends StatelessWidget {
               const SizedBox(width: InSpacing.sm),
               Expanded(
                 child: Text(
-                  context.tr('offline_changes_will_sync'),
+                  context.tr(bodyKey),
                   style: TextStyle(color: tokens.ink2, fontSize: 13),
                   overflow: TextOverflow.ellipsis,
                 ),
