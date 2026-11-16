@@ -56,7 +56,9 @@ import 'package:admin/ui/features/webhooks/views/webhook_list_screen.dart';
 // Entity edit (create) screens.
 import 'package:admin/ui/features/clients/views/client_edit_screen.dart';
 import 'package:admin/ui/features/expenses/views/expense_edit_screen.dart';
+import 'package:admin/data/models/api/client_api_model.dart';
 import 'package:admin/data/models/api/invoice_api_model.dart';
+import 'package:admin/ui/features/clients/views/client_detail_screen.dart';
 import 'package:admin/ui/features/invoices/views/invoice_detail_screen.dart';
 import 'package:admin/ui/features/invoices/views/invoice_edit_screen.dart';
 import 'package:admin/ui/features/products/views/product_edit_screen.dart';
@@ -860,6 +862,53 @@ void main() {
     // real shell/router does not). DetailScreen present + dialog gone is
     // the meaningful, non-brittle proof that the deep-link gate worked.
     expect(find.byType(InvoiceDetailScreen), findsOneWidget);
+  });
+
+  // 5.1.26 to 5.1.29 froze on exactly this: open a client, go back to the
+  // list. With go_router 18 a widget first built under the departing record
+  // asked for the router state and never got an answer
+  // (docs/upstream-workarounds.md entry 25). Every other scenario here only
+  // mounts a route; none left a record screen through the real router. A
+  // freeze cannot fail an `expect`: it shows as this test never finishing, and
+  // the job's timeout is what reports it.
+  testWidgets('leaving a client for the Clients list', (tester) async {
+    final seed = await _seedAdminSession();
+    addTearDown(seed.db.close);
+    final services = _buildTestServices(
+      db: seed.db,
+      tokenStorage: seed.storage,
+      httpClient: _silentNetwork(),
+    );
+    await services.auth.restore();
+    await services.clients.applyUpdateResponse(
+      companyId: 'co_a',
+      serverResponse: const ClientApi(
+        id: 'c1',
+        name: 'Bahringer LLC',
+        updatedAt: 1700000000,
+      ),
+    );
+
+    await tester.pumpWidget(
+      InvoiceNinjaApp(
+        services: services,
+        dbWasReset: false,
+        initialLocation: '/clients/c1',
+      ),
+    );
+    await _pumpUntilFound(tester, find.byType(ClientDetailScreen));
+    expect(find.byType(ClientDetailScreen), findsOneWidget);
+
+    await _tapSidebarItem(tester, 'Clients');
+    // Through the exit transition, and whatever the record builds on its way
+    // out.
+    for (var i = 0; i < 50; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+      if (find.byType(ClientDetailScreen).evaluate().isEmpty) break;
+    }
+
+    expect(find.byType(ClientDetailScreen), findsNothing);
+    expect(find.byType(ClientListScreen), findsOneWidget);
   });
 }
 
