@@ -239,24 +239,34 @@ class TaskEditTimesSection extends StatelessWidget {
                       children: [
                         Row(
                           children: [
-                            Flexible(
-                              child: Text(
-                                context.tr('time_log').toUpperCase(),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: tokens.ink3,
-                                  letterSpacing: 0.4,
-                                ),
+                            // Title and total take what the buttons leave.
+                            // Not a `Flexible` title beside a `Spacer`: they
+                            // halve the free width, and what the title did not
+                            // use was left after the buttons, which then sat
+                            // in the middle of the card.
+                            Expanded(
+                              child: Row(
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      context.tr('time_log').toUpperCase(),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: tokens.ink3,
+                                        letterSpacing: 0.4,
+                                      ),
+                                    ),
+                                  ),
+                                  SizedBox(width: InSpacing.md(context)),
+                                  // Live wall-clock total — ticks every second when an
+                                  // entry is running, otherwise renders statically.
+                                  TaskTotalDurationLabel(vm: vm),
+                                ],
                               ),
                             ),
-                            SizedBox(width: InSpacing.md(context)),
-                            // Live wall-clock total — ticks every second when an
-                            // entry is running, otherwise renders statically.
-                            TaskTotalDurationLabel(vm: vm),
-                            const Spacer(),
                             if (!locked) ...[
                               // Per-call minimumSize override: lib/app/theme.dart
                               // sets `Size.fromHeight(40)` on OutlinedButton which
@@ -312,7 +322,6 @@ class TaskEditTimesSection extends StatelessWidget {
                       vm: vm,
                       locked: locked,
                       formatter: formatter,
-                      onAddEntry: _addEntryInline,
                       allowBillable: allowBillable,
                       showDescription: showItemDescription,
                     )

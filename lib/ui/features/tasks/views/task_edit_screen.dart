@@ -180,11 +180,18 @@ class _TaskEditScreenState extends State<TaskEditScreen>
       actionsBuilder: (ctx, vm, onTap, saveButton) =>
           EntityOverflowActionBar<TaskAction>(
             leading: saveButton,
-            items: filterForEditScreen(
-              TaskActions.itemsFor(ctx, vm.draft, (a) => onTap(a)),
-              isCreate: vm.isCreate,
-              isLifecycle: TaskActions.isLifecycle,
-            ),
+            items: [
+              // No Start / Stop / Resume up here: the time log, the first
+              // thing on this screen, has that button beside its total, and
+              // it works on the draft. A second one in the toolbar (and a
+              // third in the floating timer) read as three different stops.
+              for (final item in filterForEditScreen(
+                TaskActions.itemsFor(ctx, vm.draft, (a) => onTap(a)),
+                isCreate: vm.isCreate,
+                isLifecycle: TaskActions.isLifecycle,
+              ))
+                if (!TaskActions.isTimerAction(item.kind)) item,
+            ],
           ),
       onAfterSaveAction: (ctx, saved, a) {
         final services = ctx.read<Services>();

@@ -46,7 +46,7 @@ void main() {
   Future<void> pumpTable(WidgetTester tester, TaskEditViewModel vm) => pumpAt(
     tester,
     900, // wide → the table layout (not the phone row fallback)
-    TimeEntryTable(vm: vm, locked: false, onAddEntry: () {}),
+    TimeEntryTable(vm: vm, locked: false),
   );
 
   /// Drain any captured exceptions and assert none is a duplicate-key error
@@ -99,11 +99,7 @@ void main() {
         await pumpAt(
           tester,
           900, // wide → the table layout, not the phone row fallback
-          TimeEntryTable(
-            vm: vmWith([stopped(8)]),
-            locked: false,
-            onAddEntry: () {},
-          ),
+          TimeEntryTable(vm: vmWith([stopped(8)]), locked: false),
           textScale: scale,
         );
 

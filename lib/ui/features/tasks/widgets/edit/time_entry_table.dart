@@ -31,7 +31,6 @@ class TimeEntryTable extends StatefulWidget {
     super.key,
     required this.vm,
     required this.locked,
-    required this.onAddEntry,
     this.allowBillable = true,
     this.showDescription = true,
     this.formatter,
@@ -44,11 +43,6 @@ class TimeEntryTable extends StatefulWidget {
   /// false. `show_task_item_description` hides the per-row description.
   final bool allowBillable;
   final bool showDescription;
-
-  /// Called when the trailing "+ Add row" tile is tapped. The parent
-  /// section already owns the seed defaults; routing through the same
-  /// handler keeps both paths consistent.
-  final VoidCallback onAddEntry;
 
   final Formatter? formatter;
 
@@ -162,10 +156,6 @@ class _TimeEntryTableState extends State<TimeEntryTable> {
             // focusDisplayIndex above for the running-timer case).
             autofocusStart: i == focusDisplayIndex && shouldAutoFocus,
           ),
-        if (!widget.locked) ...[
-          Divider(height: 1, color: tokens.border),
-          _AddTimeRow(onTap: widget.onAddEntry),
-        ],
       ],
     );
 
@@ -222,7 +212,9 @@ class _Headers extends StatelessWidget {
           _label(context, 'end_time', width: TimeEntryTable._wTime),
           const SizedBox(width: TimeEntryTable._gap),
           _label(context, 'duration', width: TimeEntryTable._wDuration),
-          const SizedBox(width: TimeEntryTable._gap),
+          // Billable and the remove button sit at the card's end edge, so the
+          // table spans the card instead of stopping two thirds across.
+          const Spacer(),
           if (allowBillable) ...[
             _label(context, 'billable', width: TimeEntryTable._wBillable),
             const SizedBox(width: TimeEntryTable._gap),
@@ -328,7 +320,7 @@ class _EntryBlock extends StatelessWidget {
                     actualIndex: actualIndex,
                   ),
                 ),
-                const SizedBox(width: TimeEntryTable._gap),
+                const Spacer(),
                 if (allowBillable) ...[
                   SizedBox(
                     width: TimeEntryTable._wBillable,
@@ -704,19 +696,22 @@ class _BillableCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tokens = context.inTheme;
     final billable = entry.billable;
-    return IconButton(
-      tooltip: context.tr(billable ? 'billable' : 'non_billable'),
-      icon: Icon(
-        billable ? Icons.attach_money : Icons.money_off_outlined,
-        size: 18,
-        color: billable ? tokens.accent : tokens.ink3,
+    // A checkbox under the BILLABLE header, start-aligned with it. It was a
+    // `$` glyph that changed colour: not obviously a switch, and the wrong
+    // sign for a company that bills in any other currency.
+    return Align(
+      alignment: AlignmentDirectional.centerStart,
+      child: Tooltip(
+        message: context.tr(billable ? 'billable' : 'non_billable'),
+        child: Checkbox(
+          value: billable,
+          visualDensity: VisualDensity.compact,
+          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          onChanged: (_) =>
+              vm.updateEntry(actualIndex, entry.copyWith(billable: !billable)),
+        ),
       ),
-      onPressed: () =>
-          vm.updateEntry(actualIndex, entry.copyWith(billable: !billable)),
-      visualDensity: VisualDensity.compact,
-      constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
     );
   }
 }
@@ -803,43 +798,6 @@ class _DescriptionFieldState extends State<_DescriptionField> {
           widget.entry.copyWith(description: v),
         );
       },
-    );
-  }
-}
-
-class _AddTimeRow extends StatelessWidget {
-  const _AddTimeRow({required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final tokens = context.inTheme;
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        // Horizontal `InSpacing.lg(context)` aligns the `+` with the column
-        // headers + cell values above (canonical card padding,
-        // CLAUDE.md § Design system v2).
-        padding: EdgeInsets.symmetric(
-          horizontal: InSpacing.lg(context),
-          vertical: InSpacing.sm,
-        ),
-        child: Row(
-          children: [
-            Icon(Icons.add, size: 18, color: tokens.ink3),
-            const SizedBox(width: 8),
-            Text(
-              context.tr('add_time'),
-              style: TextStyle(
-                color: tokens.ink3,
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
