@@ -258,6 +258,8 @@ FormSaveScope(
 
 Reusable fields (`OverridableTextField`, `ClientEditField`) read the scope themselves. A raw single-line `TextField` reads `FormSaveScope.maybeOf(context)`, sets `textInputAction: TextInputAction.done` and pipes `onSubmitted` to `scope.trySubmit()`; a dialog with one text input wraps its body in `FormSaveScope` too. → `docs/form-fields.md`
 
+- **A labelled field is wrapped in `LabeledField` and keeps its `labelText`: above the box at Comfortable, inside under Compact.** → `docs/form-fields.md`
+
 ### Empty for blank numeric fields
 
 Numeric fields seeded from a non-nullable `Decimal` render **empty for zero**, not `"0"`: `decimalInputText(value)` for an `EntityEditField`'s `initial:` (never `.toString()`), `Formatter.inputMoney(value, currencyId: ...)` for money (`''` for zero), `Formatter.inputAmount(value)` for a `num`. Reference: `product_edit_screen.dart`.
@@ -315,7 +317,7 @@ Email-template `$variables` render as chips wherever a template is edited (Templ
 
 ### Two-choice fields → radio, not dropdown
 
-A fixed field with two choices (occasionally up to ~4) is a **radio group, not a dropdown** — `OverridableRadioField<T>` on cascade settings (reference: `empty_columns` on Invoice Design → General).
+A fixed field with two choices (occasionally up to ~4) is a **radio group, not a dropdown** — `OverridableRadioField<T>` on cascade settings.
 
 ### Date and time fields
 
@@ -726,7 +728,7 @@ When the user asks for "release notes" (or "releasenotes"), follow `docs/release
 Four read-only sources to mirror, never copy from:
 
 - **`/Users/hillel/Code/admin-portal`** — the previous Flutter (Redux) app; file pointers in `docs/probing-the-demo-api.md`.
-- **`/Users/hillel/Code/react`** — the React web client. A second reference for entity shapes, request flows, and UI behaviors when admin-portal is unclear or out of date.
+- **`/Users/hillel/Code/react`** — the React web client.
 - **API reference** — <https://invoiceninja.github.io/docs/api-reference/invoice-ninja-api-reference>.
 - **`/Users/hillel/Code/invoiceninja`** — the live Laravel API server source (official `invoiceninja/invoiceninja`, `v5-develop`, kept current) and the authoritative answer to any API-contract question: params, `include=` sets, transformers (`app/Transformers/`), validation (`app/Http/Requests/`), filters (`app/Filters/`). Read the PHP; never copy it. (`…/invoiceninja-fork` is a PR fork that can lag — never read it for the current contract.)
 

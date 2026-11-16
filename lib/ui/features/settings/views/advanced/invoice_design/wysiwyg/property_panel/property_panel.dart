@@ -4,6 +4,7 @@ import 'package:admin/app/design_tokens.dart';
 import 'package:admin/data/models/domain/design.dart';
 import 'package:admin/data/static/google_fonts_catalog.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/searchable_dropdown_field.dart';
 import 'package:admin/ui/features/settings/views/advanced/invoice_design/wysiwyg/canvas/page_metrics.dart';
 import 'package:admin/ui/features/settings/views/advanced/invoice_design/wysiwyg/block_actions.dart';
@@ -740,19 +741,22 @@ class _ContentEditorState extends State<_ContentEditor> {
 
   @override
   Widget build(BuildContext context) {
-    return TextField(
-      controller: _controller,
-      maxLines: null,
-      minLines: 3,
-      decoration: InputDecoration(
-        labelText: context.tr('content'),
-        border: const OutlineInputBorder(),
+    return LabeledField(
+      label: context.tr('content'),
+      child: TextField(
+        controller: _controller,
+        maxLines: null,
+        minLines: 3,
+        decoration: InputDecoration(
+          labelText: context.tr('content'),
+          border: const OutlineInputBorder(),
+        ),
+        onChanged: (v) {
+          final next = Map<String, dynamic>.from(widget.block.properties);
+          next['content'] = v;
+          widget.vm.updateBlock(widget.block.copyWith(properties: next));
+        },
       ),
-      onChanged: (v) {
-        final next = Map<String, dynamic>.from(widget.block.properties);
-        next['content'] = v;
-        widget.vm.updateBlock(widget.block.copyWith(properties: next));
-      },
     );
   }
 }

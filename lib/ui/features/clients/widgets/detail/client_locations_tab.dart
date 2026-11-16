@@ -6,6 +6,7 @@ import 'package:admin/app/services.dart';
 import 'package:admin/data/models/domain/client.dart';
 import 'package:admin/data/models/domain/location.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/utils/address_format.dart';
 import 'package:admin/ui/core/edit/entity_custom_fields_section.dart';
 import 'package:admin/ui/core/widgets/empty_state.dart';
@@ -411,20 +412,23 @@ class _LocationFormDialogState extends State<_LocationFormDialog> {
     bool autocorrect = true,
   }) => Padding(
     padding: const EdgeInsets.only(bottom: 8),
-    child: TextField(
-      controller: c,
-      // Single-line: Enter submits the form (matches the § Forms convention).
-      textInputAction: TextInputAction.done,
-      textCapitalization: textCapitalization,
-      autocorrect: autocorrect,
-      enableSuggestions: autocorrect,
-      onSubmitted: (_) {
-        if (!_busy) _save();
-      },
-      decoration: InputDecoration(
-        labelText: context.tr(labelKey),
-        border: const OutlineInputBorder(),
-        isDense: true,
+    child: LabeledField(
+      label: context.tr(labelKey),
+      child: TextField(
+        controller: c,
+        // Single-line: Enter submits the form (matches the § Forms convention).
+        textInputAction: TextInputAction.done,
+        textCapitalization: textCapitalization,
+        autocorrect: autocorrect,
+        enableSuggestions: autocorrect,
+        onSubmitted: (_) {
+          if (!_busy) _save();
+        },
+        decoration: InputDecoration(
+          labelText: context.tr(labelKey),
+          border: const OutlineInputBorder(),
+          isDense: true,
+        ),
       ),
     ),
   );

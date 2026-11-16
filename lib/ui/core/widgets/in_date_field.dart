@@ -2,6 +2,7 @@ import 'package:material_ui/material_ui.dart';
 
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/utils/formatting.dart';
 
 /// Single-date input with typed shortcuts + a calendar-picker fallback.
@@ -291,42 +292,48 @@ class _InDateFieldState extends State<InDateField> {
       onPressed: widget.enabled ? _openPicker : null,
     );
     if (!dense) suffixChildren.add(calendar);
-    final field = TextField(
-      controller: _controller,
-      focusNode: _focusNode,
-      enabled: widget.enabled,
-      autofocus: widget.autofocus,
-      textAlignVertical: TextAlignVertical.center,
-      style: TextStyle(fontSize: dense ? 13 : 14),
-      decoration: InputDecoration(
-        isDense: true,
-        labelText: widget.labelText,
-        hintText: _hint(),
-        errorText: widget.errorText,
-        helperText: widget.helper == null ? widget.helperText : null,
-        helper: widget.helper,
-        contentPadding: dense
-            ? const EdgeInsets.all(8)
-            : EdgeInsets.symmetric(
-                horizontal: InSpacing.md(context),
-                vertical: 14,
-              ),
-        border: dense ? InputBorder.none : _border(context),
-        enabledBorder: dense ? InputBorder.none : _border(context),
-        focusedBorder: dense
-            ? UnderlineInputBorder(
-                borderSide: BorderSide(color: context.inTheme.accent, width: 2),
-              )
-            : null,
-        suffixIcon: dense
-            ? null
-            : Row(mainAxisSize: MainAxisSize.min, children: suffixChildren),
-        suffixIconConstraints: const BoxConstraints(
-          minWidth: 28,
-          minHeight: 28,
+    final field = LabeledField(
+      label: widget.labelText,
+      child: TextField(
+        controller: _controller,
+        focusNode: _focusNode,
+        enabled: widget.enabled,
+        autofocus: widget.autofocus,
+        textAlignVertical: TextAlignVertical.center,
+        style: TextStyle(fontSize: dense ? 13 : 14),
+        decoration: InputDecoration(
+          isDense: true,
+          labelText: widget.labelText,
+          hintText: _hint(),
+          errorText: widget.errorText,
+          helperText: widget.helper == null ? widget.helperText : null,
+          helper: widget.helper,
+          contentPadding: dense
+              ? const EdgeInsets.all(8)
+              : EdgeInsets.symmetric(
+                  horizontal: InSpacing.md(context),
+                  vertical: InSizes.fieldPadV,
+                ),
+          border: dense ? InputBorder.none : _border(context),
+          enabledBorder: dense ? InputBorder.none : _border(context),
+          focusedBorder: dense
+              ? UnderlineInputBorder(
+                  borderSide: BorderSide(
+                    color: context.inTheme.accent,
+                    width: 2,
+                  ),
+                )
+              : null,
+          suffixIcon: dense
+              ? null
+              : Row(mainAxisSize: MainAxisSize.min, children: suffixChildren),
+          suffixIconConstraints: const BoxConstraints(
+            minWidth: 28,
+            minHeight: 28,
+          ),
         ),
+        onSubmitted: (_) => _commitTyped(),
       ),
-      onSubmitted: (_) => _commitTyped(),
     );
     if (!dense) return field;
     final label = widget.semanticLabel;

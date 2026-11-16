@@ -10,6 +10,7 @@ import 'package:admin/data/models/domain/schedule_constants.dart';
 import 'package:admin/data/models/value/date.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/empty_state.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/in_date_field.dart';
 import 'package:admin/ui/core/widgets/notify_async.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
@@ -330,16 +331,19 @@ class _CreatePaymentScheduleDialogState
           ),
           const SizedBox(width: 8),
           Expanded(
-            child: TextField(
-              controller: row.amount,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              onChanged: (_) => setState(() {}),
-              decoration: InputDecoration(
-                labelText: context.tr('amount'),
-                border: const OutlineInputBorder(),
-                isDense: true,
+            child: LabeledField(
+              label: context.tr('amount'),
+              child: TextField(
+                controller: row.amount,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                onChanged: (_) => setState(() {}),
+                decoration: InputDecoration(
+                  labelText: context.tr('amount'),
+                  border: const OutlineInputBorder(),
+                  isDense: true,
+                ),
               ),
             ),
           ),
@@ -395,35 +399,42 @@ class _CreatePaymentScheduleDialogState
               ),
               const SizedBox(height: 12),
               if (_mode == 'count') ...[
-                TextField(
-                  controller: _count,
-                  keyboardType: TextInputType.number,
-                  onChanged: (_) => setState(() {}),
-                  decoration: InputDecoration(
-                    labelText: context.tr('number_of_payments'),
-                    border: const OutlineInputBorder(),
-                    isDense: true,
+                LabeledField(
+                  label: context.tr('number_of_payments'),
+                  child: TextField(
+                    controller: _count,
+                    keyboardType: TextInputType.number,
+                    onChanged: (_) => setState(() {}),
+                    decoration: InputDecoration(
+                      labelText: context.tr('number_of_payments'),
+                      border: const OutlineInputBorder(),
+                      isDense: true,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  initialValue: _frequencyId,
-                  isExpanded: true,
-                  decoration: InputDecoration(
-                    labelText: context.tr('frequency'),
-                    border: const OutlineInputBorder(),
-                    isDense: true,
+                LabeledField(
+                  label: context.tr('frequency'),
+                  child: DropdownButtonFormField<String>(
+                    initialValue: _frequencyId,
+                    isExpanded: true,
+                    decoration: InputDecoration(
+                      labelText: context.tr('frequency'),
+                      border: const OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                    onChanged: _busy
+                        ? null
+                        : (v) =>
+                              setState(() => _frequencyId = v ?? _frequencyId),
+                    items: [
+                      for (final e in kScheduleFrequencies.entries)
+                        DropdownMenuItem(
+                          value: e.key,
+                          child: Text(context.tr(e.value)),
+                        ),
+                    ],
                   ),
-                  onChanged: _busy
-                      ? null
-                      : (v) => setState(() => _frequencyId = v ?? _frequencyId),
-                  items: [
-                    for (final e in kScheduleFrequencies.entries)
-                      DropdownMenuItem(
-                        value: e.key,
-                        child: Text(context.tr(e.value)),
-                      ),
-                  ],
                 ),
                 const SizedBox(height: 12),
                 InDateField(

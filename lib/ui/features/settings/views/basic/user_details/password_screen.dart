@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/form_save_scope.dart';
 import 'package:admin/ui/features/settings/view_models/user_details_view_model.dart';
 import 'package:admin/ui/features/settings/widgets/form_section.dart';
@@ -69,47 +70,53 @@ class _UserDetailsPasswordScreenState extends State<UserDetailsPasswordScreen> {
           child: FormSection(
             title: context.tr('password'),
             children: [
-              TextField(
-                controller: _password,
-                obscureText: _obscure,
-                autocorrect: false,
-                enableSuggestions: false,
-                keyboardType: TextInputType.visiblePassword,
-                // `newPassword`, not `password`: this is a change-password form,
-                // so the OS should offer to generate and save a new credential
-                // rather than fill the existing one.
-                autofillHints: const [AutofillHints.newPassword],
-                decoration: InputDecoration(
-                  labelText: context.tr('new_password'),
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      _obscure
-                          ? Icons.visibility_outlined
-                          : Icons.visibility_off_outlined,
+              LabeledField(
+                label: context.tr('new_password'),
+                child: TextField(
+                  controller: _password,
+                  obscureText: _obscure,
+                  autocorrect: false,
+                  enableSuggestions: false,
+                  keyboardType: TextInputType.visiblePassword,
+                  // `newPassword`, not `password`: this is a change-password form,
+                  // so the OS should offer to generate and save a new credential
+                  // rather than fill the existing one.
+                  autofillHints: const [AutofillHints.newPassword],
+                  decoration: InputDecoration(
+                    labelText: context.tr('new_password'),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _obscure
+                            ? Icons.visibility_outlined
+                            : Icons.visibility_off_outlined,
+                      ),
+                      tooltip: _obscure
+                          ? context.tr('show_password')
+                          : context.tr('hide_password'),
+                      onPressed: () => setState(() => _obscure = !_obscure),
                     ),
-                    tooltip: _obscure
-                        ? context.tr('show_password')
-                        : context.tr('hide_password'),
-                    onPressed: () => setState(() => _obscure = !_obscure),
+                    errorText: fieldError ?? _passwordError(),
                   ),
-                  errorText: fieldError ?? _passwordError(),
+                  textInputAction: TextInputAction.next,
                 ),
-                textInputAction: TextInputAction.next,
               ),
               SizedBox(height: InSpacing.lg(context)),
-              TextField(
-                controller: _confirm,
-                obscureText: _obscure,
-                autocorrect: false,
-                enableSuggestions: false,
-                keyboardType: TextInputType.visiblePassword,
-                autofillHints: const [AutofillHints.newPassword],
-                decoration: InputDecoration(
-                  labelText: context.tr('confirm_password'),
-                  errorText: _confirmError(),
+              LabeledField(
+                label: context.tr('confirm_password'),
+                child: TextField(
+                  controller: _confirm,
+                  obscureText: _obscure,
+                  autocorrect: false,
+                  enableSuggestions: false,
+                  keyboardType: TextInputType.visiblePassword,
+                  autofillHints: const [AutofillHints.newPassword],
+                  decoration: InputDecoration(
+                    labelText: context.tr('confirm_password'),
+                    errorText: _confirmError(),
+                  ),
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: scope == null ? null : (_) => scope.trySubmit(),
                 ),
-                textInputAction: TextInputAction.done,
-                onSubmitted: scope == null ? null : (_) => scope.trySubmit(),
               ),
             ],
           ),

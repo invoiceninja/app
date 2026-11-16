@@ -13,22 +13,20 @@ InputDecoration billingFieldDecoration(
   String? hint,
   String? errorText,
 }) {
-  final theme = Theme.of(context);
   final tokens = context.inTheme;
   final border = OutlineInputBorder(
     borderRadius: BorderRadius.circular(InRadii.r1),
     borderSide: BorderSide(color: tokens.border),
   );
   return InputDecoration(
+    // lint: allow-inside-label every caller wraps its field in LabeledField
     labelText: label,
     hintText: hint,
     errorText: errorText,
-    labelStyle: theme.textTheme.bodyMedium?.copyWith(color: tokens.ink3),
-    floatingLabelStyle: theme.textTheme.bodySmall?.copyWith(color: tokens.ink2),
     isDense: true,
     contentPadding: EdgeInsets.symmetric(
       horizontal: InSpacing.md(context),
-      vertical: 14,
+      vertical: InSizes.fieldPadV,
     ),
     border: border,
     enabledBorder: border,

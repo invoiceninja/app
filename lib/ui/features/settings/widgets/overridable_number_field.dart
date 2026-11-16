@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import 'package:admin/ui/core/utils/field_text_direction.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/form_save_scope.dart';
 import 'package:admin/ui/features/settings/view_models/settings_draft_view_model.dart';
 import 'package:admin/ui/features/settings/widgets/overridable_field.dart';
@@ -129,38 +130,41 @@ class _OverridableNumberFieldState extends State<OverridableNumberField> {
     final errorText = (errors != null && errors.isNotEmpty)
         ? errors.first
         : null;
-    final field = TextField(
-      controller: _controller,
-      focusNode: _focusNode,
-      enabled: widget.enabled,
-      textDirection: TextDirection.ltr,
-      textAlign: ltrValueAlign(context, ltr: true),
-      keyboardType: widget.integerOnly
-          ? TextInputType.number
-          : const TextInputType.numberWithOptions(decimal: true),
-      inputFormatters: widget.integerOnly
-          ? <TextInputFormatter>[FilteringTextInputFormatter.digitsOnly]
-          : null,
-      textInputAction: TextInputAction.done,
-      decoration: InputDecoration(
-        labelText: widget.label,
-        errorText: errorText,
+    final field = LabeledField(
+      label: widget.label,
+      child: TextField(
+        controller: _controller,
+        focusNode: _focusNode,
+        enabled: widget.enabled,
+        textDirection: TextDirection.ltr,
+        textAlign: ltrValueAlign(context, ltr: true),
+        keyboardType: widget.integerOnly
+            ? TextInputType.number
+            : const TextInputType.numberWithOptions(decimal: true),
+        inputFormatters: widget.integerOnly
+            ? <TextInputFormatter>[FilteringTextInputFormatter.digitsOnly]
+            : null,
+        textInputAction: TextInputAction.done,
+        decoration: InputDecoration(
+          labelText: widget.label,
+          errorText: errorText,
+        ),
+        onChanged: (v) {
+          // integerOnly: empty/unparseable input clears the field (the int
+          // binding's `int.tryParse('')` → null on save). Decimal: `parseDecimal`
+          // returns `Decimal.zero` for empty input, so it persists as "0" — these
+          // numeric settings treat 0 and absent alike. Decimal input is
+          // canonicalized so the wire stays locale-agnostic (the server expects
+          // `1.5`, never `1,5`).
+          if (widget.integerOnly) {
+            host.updateSettings((s) => _write(s, v));
+          } else {
+            final parsed = parseDecimal(v, useCommaAsDecimalPlace: useComma);
+            host.updateSettings((s) => _write(s, parsed?.toString() ?? ''));
+          }
+        },
+        onSubmitted: scope == null ? null : (_) => scope.trySubmit(),
       ),
-      onChanged: (v) {
-        // integerOnly: empty/unparseable input clears the field (the int
-        // binding's `int.tryParse('')` → null on save). Decimal: `parseDecimal`
-        // returns `Decimal.zero` for empty input, so it persists as "0" — these
-        // numeric settings treat 0 and absent alike. Decimal input is
-        // canonicalized so the wire stays locale-agnostic (the server expects
-        // `1.5`, never `1,5`).
-        if (widget.integerOnly) {
-          host.updateSettings((s) => _write(s, v));
-        } else {
-          final parsed = parseDecimal(v, useCommaAsDecimalPlace: useComma);
-          host.updateSettings((s) => _write(s, parsed?.toString() ?? ''));
-        }
-      },
-      onSubmitted: scope == null ? null : (_) => scope.trySubmit(),
     );
     return OverridableField.bind(
       apiKey: widget.apiKey,

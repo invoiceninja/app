@@ -2,6 +2,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
 import 'package:admin/utils/formatting.dart';
 
@@ -74,22 +75,25 @@ class _IncreasePricesDialogState extends State<_IncreasePricesDialog> {
       title: Text(context.tr('increase_prices')),
       content: SizedBox(
         width: 360,
-        child: TextField(
-          controller: _controller,
-          autofocus: true,
-          // NOT signed: the formatter below blocks `-` and `_valid` requires
-          // n > 0 (the server caps at max:100), so a minus key would be
-          // swallowed while costing every user the large iOS decimal pad.
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          inputFormatters: [
-            FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
-          ],
-          textInputAction: TextInputAction.done,
-          onChanged: (_) => setState(() {}),
-          onSubmitted: (_) => _submit(),
-          decoration: InputDecoration(
-            labelText: context.tr('percentage_increase'),
-            suffixText: '%',
+        child: LabeledField(
+          label: context.tr('percentage_increase'),
+          child: TextField(
+            controller: _controller,
+            autofocus: true,
+            // NOT signed: the formatter below blocks `-` and `_valid` requires
+            // n > 0 (the server caps at max:100), so a minus key would be
+            // swallowed while costing every user the large iOS decimal pad.
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            inputFormatters: [
+              FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+            ],
+            textInputAction: TextInputAction.done,
+            onChanged: (_) => setState(() {}),
+            onSubmitted: (_) => _submit(),
+            decoration: InputDecoration(
+              labelText: context.tr('percentage_increase'),
+              suffixText: '%',
+            ),
           ),
         ),
       ),

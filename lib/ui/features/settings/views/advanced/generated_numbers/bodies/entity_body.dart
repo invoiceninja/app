@@ -9,6 +9,7 @@ import 'package:admin/data/models/domain/company.dart';
 import 'package:admin/data/models/domain/company_custom_fields.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/utils/field_text_direction.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/form_save_scope.dart';
 import 'package:admin/ui/core/widgets/link_text.dart';
 import 'package:admin/ui/features/settings/state/settings_level_controller.dart';
@@ -257,17 +258,20 @@ class _PatternField extends StatelessWidget {
         ? context.tr('counter_pattern_error').replaceAll(':', r'$')
         : null;
     final errorText = serverError ?? localError;
-    final field = TextField(
-      controller: controller,
-      focusNode: focusNode,
-      textInputAction: TextInputAction.done,
-      decoration: InputDecoration(
-        labelText: context.tr('number_pattern'),
-        errorText: errorText,
+    final field = LabeledField(
+      label: context.tr('number_pattern'),
+      child: TextField(
+        controller: controller,
+        focusNode: focusNode,
+        textInputAction: TextInputAction.done,
+        decoration: InputDecoration(
+          labelText: context.tr('number_pattern'),
+          errorText: errorText,
+        ),
+        onChanged: onChanged,
+        onSubmitted: scope == null ? null : (_) => scope.trySubmit(),
+        autocorrect: false,
       ),
-      onChanged: onChanged,
-      onSubmitted: scope == null ? null : (_) => scope.trySubmit(),
-      autocorrect: false,
     );
     return OverridableField.bind(
       apiKey: apiKey,

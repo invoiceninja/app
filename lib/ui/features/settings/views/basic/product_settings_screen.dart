@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/form_save_scope.dart';
 import 'package:admin/ui/core/widgets/markup_text.dart';
 import 'package:admin/ui/features/settings/view_models/product_settings_view_model.dart';
@@ -273,23 +274,26 @@ class _ThresholdFieldState extends State<_ThresholdField> {
     // scaffold wraps the body in a FormSaveScope; `onChanged` has already
     // synced each keystroke to the draft, so submit just fires the save.
     final scope = FormSaveScope.maybeOf(context);
-    return TextField(
-      controller: _controller,
-      keyboardType: TextInputType.number,
-      textInputAction: TextInputAction.done,
-      inputFormatters: <TextInputFormatter>[
-        FilteringTextInputFormatter.digitsOnly,
-      ],
-      decoration: InputDecoration(
-        labelText: context.tr('notification_threshold'),
+    return LabeledField(
+      label: context.tr('notification_threshold'),
+      child: TextField(
+        controller: _controller,
+        keyboardType: TextInputType.number,
+        textInputAction: TextInputAction.done,
+        inputFormatters: <TextInputFormatter>[
+          FilteringTextInputFormatter.digitsOnly,
+        ],
+        decoration: InputDecoration(
+          labelText: context.tr('notification_threshold'),
+        ),
+        onChanged: (value) {
+          final parsed = int.tryParse(value) ?? 0;
+          widget.vm.updateCompany(
+            (c) => c.copyWith(inventoryNotificationThreshold: parsed),
+          );
+        },
+        onSubmitted: (_) => scope?.trySubmit(),
       ),
-      onChanged: (value) {
-        final parsed = int.tryParse(value) ?? 0;
-        widget.vm.updateCompany(
-          (c) => c.copyWith(inventoryNotificationThreshold: parsed),
-        );
-      },
-      onSubmitted: (_) => scope?.trySubmit(),
     );
   }
 }

@@ -243,7 +243,7 @@ class _EmailSheetState extends State<_EmailSheet> {
                       controller: scrollController,
                       padding: EdgeInsets.all(InSpacing.lg(context)),
                       children: [
-                        LabeledField(
+                        ComposerLabeledField(
                           label: context.tr('template'),
                           child: DropdownButtonFormField<String>(
                             initialValue: _template,
@@ -261,7 +261,7 @@ class _EmailSheetState extends State<_EmailSheet> {
                           ),
                         ),
                         SizedBox(height: InSpacing.md(context)),
-                        LabeledField(
+                        ComposerLabeledField(
                           label: context.tr('subject'),
                           child: TextField(
                             controller: _subjectController,
@@ -271,7 +271,7 @@ class _EmailSheetState extends State<_EmailSheet> {
                           ),
                         ),
                         SizedBox(height: InSpacing.md(context)),
-                        LabeledField(
+                        ComposerLabeledField(
                           label: context.tr('body'),
                           child: TextField(
                             controller: _bodyController,
@@ -283,7 +283,7 @@ class _EmailSheetState extends State<_EmailSheet> {
                           ),
                         ),
                         SizedBox(height: InSpacing.md(context)),
-                        LabeledField(
+                        ComposerLabeledField(
                           label: context.tr('cc_email'),
                           child: TextField(
                             controller: _ccController,

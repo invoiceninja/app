@@ -21,6 +21,7 @@ import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/adaptive.dart';
 import 'package:admin/ui/core/detail/entity_detail_actions_row.dart';
 import 'package:admin/ui/core/list/entity_list_constants.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/form_save_scope.dart';
 import 'package:admin/ui/core/unsaved_changes/unsaved_changes_scope.dart';
 import 'package:admin/ui/core/list/entity_actions_popup_button.dart';
@@ -1260,19 +1261,22 @@ class _NotifyDropdown extends StatelessWidget {
       DnNotify.all,
       DnNotify.allUser,
     ];
-    return DropdownButtonFormField<DnNotify>(
-      key: ValueKey('$label:$value'),
-      initialValue: options.contains(value) ? value : DnNotify.none,
-      decoration: InputDecoration(labelText: label),
-      items: [
-        for (final o in options)
-          DropdownMenuItem(value: o, child: Text(text(o))),
-      ],
-      onChanged: enabled
-          ? (v) {
-              if (v != null) onChanged(v);
-            }
-          : null,
+    return LabeledField(
+      label: label,
+      child: DropdownButtonFormField<DnNotify>(
+        key: ValueKey('$label:$value'),
+        initialValue: options.contains(value) ? value : DnNotify.none,
+        decoration: InputDecoration(labelText: label),
+        items: [
+          for (final o in options)
+            DropdownMenuItem(value: o, child: Text(text(o))),
+        ],
+        onChanged: enabled
+            ? (v) {
+                if (v != null) onChanged(v);
+              }
+            : null,
+      ),
     );
   }
 }

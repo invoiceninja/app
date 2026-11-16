@@ -7,6 +7,7 @@ import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/env.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/escape_observer.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/picker_dismissal.dart';
 import 'package:admin/utils/search_fold.dart';
 
@@ -748,44 +749,47 @@ class _SearchableDropdownFieldState<T extends Object>
         // widget found". Transparency = no visual change.
         child: Material(
           type: MaterialType.transparency,
-          child: TextField(
-            enabled: false,
-            decoration: InputDecoration(
-              labelText: widget.label,
-              hintText: context.tr(widget.emptyHintKey ?? 'loading'),
-              // Without this the hint below is invisible, and this branch is
-              // the ONLY place in the widget where that matters.
-              // `_InputDecoratorState.labelShouldWithdraw` is
-              // `widget._labelShouldWithdraw || floatingLabelBehavior ==
-              // always`, where the first term is `!isEmpty || (isFocused &&
-              // enabled)` — and a DISABLED, EMPTY field can be neither. So
-              // `_hasInlineLabel` stays true, `showHint = isEmpty &&
-              // !_hasInlineLabel` is false, and `input_decorator.dart` wraps
-              // the hint in `AnimatedOpacity(opacity: 0)`; worse,
-              // `RenderAnimatedOpacityMixin.visitChildrenForSemantics` drops
-              // it at alpha 0, so it isn't announced either. The label simply
-              // sits where the hint would have been, and the user gets an
-              // outlined, un-tappable box with no ✕, no ▾ and no explanation —
-              // which is what a company with no projects saw on the Tasks
-              // filter bar (invoiceninja/flutter#134 follow-up). Floating the
-              // label withdraws it and lets the hint paint.
-              //
-              // Testing this needs care, and the obvious two ways both LIE.
-              // `decoration.hintText != null` asserts a property, not a pixel —
-              // that is what let the invisible hint ship. And **`find.text`
-              // cannot see it either**: the `Text` is in the tree in both
-              // states, just wrapped in `AnimatedOpacity(opacity: 0)`, so a
-              // finder-based test passes with this line reverted (checked by
-              // experiment). Assert the computed opacity.
-              floatingLabelBehavior: FloatingLabelBehavior.always,
-              errorText: widget.errorText,
-              isDense: true,
-              contentPadding: EdgeInsets.symmetric(
-                horizontal: InSpacing.md(context),
-                vertical: 14,
+          child: LabeledField(
+            label: widget.label,
+            child: TextField(
+              enabled: false,
+              decoration: InputDecoration(
+                labelText: widget.label,
+                hintText: context.tr(widget.emptyHintKey ?? 'loading'),
+                // Without this the hint below is invisible, and this branch is
+                // the ONLY place in the widget where that matters.
+                // `_InputDecoratorState.labelShouldWithdraw` is
+                // `widget._labelShouldWithdraw || floatingLabelBehavior ==
+                // always`, where the first term is `!isEmpty || (isFocused &&
+                // enabled)` — and a DISABLED, EMPTY field can be neither. So
+                // `_hasInlineLabel` stays true, `showHint = isEmpty &&
+                // !_hasInlineLabel` is false, and `input_decorator.dart` wraps
+                // the hint in `AnimatedOpacity(opacity: 0)`; worse,
+                // `RenderAnimatedOpacityMixin.visitChildrenForSemantics` drops
+                // it at alpha 0, so it isn't announced either. The label simply
+                // sits where the hint would have been, and the user gets an
+                // outlined, un-tappable box with no ✕, no ▾ and no explanation —
+                // which is what a company with no projects saw on the Tasks
+                // filter bar (invoiceninja/flutter#134 follow-up). Floating the
+                // label withdraws it and lets the hint paint.
+                //
+                // Testing this needs care, and the obvious two ways both LIE.
+                // `decoration.hintText != null` asserts a property, not a pixel —
+                // that is what let the invisible hint ship. And **`find.text`
+                // cannot see it either**: the `Text` is in the tree in both
+                // states, just wrapped in `AnimatedOpacity(opacity: 0)`, so a
+                // finder-based test passes with this line reverted (checked by
+                // experiment). Assert the computed opacity.
+                floatingLabelBehavior: FloatingLabelBehavior.always,
+                errorText: widget.errorText,
+                isDense: true,
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: InSpacing.md(context),
+                  vertical: InSizes.fieldPadV,
+                ),
+                border: border,
+                disabledBorder: border,
               ),
-              border: border,
-              disabledBorder: border,
             ),
           ),
         ),
@@ -886,91 +890,89 @@ class _SearchableDropdownFieldState<T extends Object>
                       // `DismissIntent` hides the overlay without touching
                       // focus, so nothing else would tell us it is gone.
                       onEscape: () => _optionsVisible = false,
-                      child: TextField(
-                        controller: textController,
-                        focusNode: focusNode,
-                        // On native touch nothing else can close the popover —
-                        // see `picker_dismissal.dart`.
-                        onTapOutside: dismissPickerOnTapOutside(focusNode),
-                        onTap: _reopenOptions,
-                        // Without this the toggle in `_reopenOptions` is
-                        // intermittent. `TextField.onTap` arrives via
-                        // `TextSelectionGestureDetectorBuilder.onUserTap`,
-                        // which `_handleTapUp` calls only on the FIRST tap of a
-                        // series (`text_selection.dart`) — so a second tap
-                        // inside `kDoubleTapTimeout` at roughly the same spot
-                        // is swallowed, and `enableInteractiveSelection: false`
-                        // means the double-tap branch does nothing either: the
-                        // tap is simply lost. Wait 300 ms and it works, which
-                        // is the worst possible behaviour for a button.
-                        //
-                        // Gated on the same flag as the toggle, not `true`: on
-                        // a typable picker the second tap of a series IS
-                        // word-select, and `_reopenOptions`' select-all would
-                        // fight it. Safe here precisely because a keyboard-less
-                        // picker has no selection to steal.
-                        onTapAlwaysCalled: _suppressKeyboard,
-                        onSubmitted: (_) => _onSubmitted(onFieldSubmitted),
-                        // A short list on a touch device needs no typing, so keep
-                        // the soft keyboard (which would cover the list) away.
-                        // `TextInputType.none` rather than `readOnly` — readOnly
-                        // also tears down the text input connection.
-                        keyboardType: _suppressKeyboard
-                            ? TextInputType.none
-                            : null,
-                        showCursor: _suppressKeyboard ? false : null,
-                        // Nothing to select on a field that can't be typed into,
-                        // and leaving it on lets a long-press raise the copy
-                        // toolbar over what is really just a button.
-                        enableInteractiveSelection: !_suppressKeyboard,
-                        decoration: InputDecoration(
-                          labelText: widget.label,
-                          errorText: widget.errorText,
-                          helper: widget.helper,
-                          labelStyle: theme.textTheme.bodyMedium?.copyWith(
-                            color: tokens.ink3,
-                          ),
-                          floatingLabelStyle: theme.textTheme.bodySmall
-                              ?.copyWith(color: tokens.ink2),
-                          isDense: true,
-                          contentPadding: EdgeInsets.symmetric(
-                            horizontal: InSpacing.md(context),
-                            vertical: 14,
-                          ),
-                          border: border,
-                          enabledBorder: border,
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(InRadii.r1),
-                            borderSide: BorderSide(
-                              color: tokens.accent,
-                              width: 1.5,
+                      child: LabeledField(
+                        label: widget.label,
+                        child: TextField(
+                          controller: textController,
+                          focusNode: focusNode,
+                          // On native touch nothing else can close the popover —
+                          // see `picker_dismissal.dart`.
+                          onTapOutside: dismissPickerOnTapOutside(focusNode),
+                          onTap: _reopenOptions,
+                          // Without this the toggle in `_reopenOptions` is
+                          // intermittent. `TextField.onTap` arrives via
+                          // `TextSelectionGestureDetectorBuilder.onUserTap`,
+                          // which `_handleTapUp` calls only on the FIRST tap of a
+                          // series (`text_selection.dart`) — so a second tap
+                          // inside `kDoubleTapTimeout` at roughly the same spot
+                          // is swallowed, and `enableInteractiveSelection: false`
+                          // means the double-tap branch does nothing either: the
+                          // tap is simply lost. Wait 300 ms and it works, which
+                          // is the worst possible behaviour for a button.
+                          //
+                          // Gated on the same flag as the toggle, not `true`: on
+                          // a typable picker the second tap of a series IS
+                          // word-select, and `_reopenOptions`' select-all would
+                          // fight it. Safe here precisely because a keyboard-less
+                          // picker has no selection to steal.
+                          onTapAlwaysCalled: _suppressKeyboard,
+                          onSubmitted: (_) => _onSubmitted(onFieldSubmitted),
+                          // A short list on a touch device needs no typing, so keep
+                          // the soft keyboard (which would cover the list) away.
+                          // `TextInputType.none` rather than `readOnly` — readOnly
+                          // also tears down the text input connection.
+                          keyboardType: _suppressKeyboard
+                              ? TextInputType.none
+                              : null,
+                          showCursor: _suppressKeyboard ? false : null,
+                          // Nothing to select on a field that can't be typed into,
+                          // and leaving it on lets a long-press raise the copy
+                          // toolbar over what is really just a button.
+                          enableInteractiveSelection: !_suppressKeyboard,
+                          decoration: InputDecoration(
+                            labelText: widget.label,
+                            errorText: widget.errorText,
+                            helper: widget.helper,
+                            isDense: true,
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: InSpacing.md(context),
+                              vertical: InSizes.fieldPadV,
+                            ),
+                            border: border,
+                            enabledBorder: border,
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(InRadii.r1),
+                              borderSide: BorderSide(
+                                color: tokens.accent,
+                                width: 1.5,
+                              ),
+                            ),
+                            prefixIcon: prefix == null
+                                ? null
+                                : Padding(
+                                    padding: EdgeInsetsDirectional.only(
+                                      start: InSpacing.md(context),
+                                      end: InSpacing.sm,
+                                    ),
+                                    child: prefix,
+                                  ),
+                            prefixIconConstraints: const BoxConstraints(
+                              minWidth: 0,
+                              minHeight: 0,
+                            ),
+                            suffixIcon: _buildSuffix(
+                              context,
+                              tokens,
+                              textController,
+                            ),
+                            suffixIconConstraints: const BoxConstraints(
+                              minWidth: 0,
+                              minHeight: 0,
                             ),
                           ),
-                          prefixIcon: prefix == null
-                              ? null
-                              : Padding(
-                                  padding: EdgeInsetsDirectional.only(
-                                    start: InSpacing.md(context),
-                                    end: InSpacing.sm,
-                                  ),
-                                  child: prefix,
-                                ),
-                          prefixIconConstraints: const BoxConstraints(
-                            minWidth: 0,
-                            minHeight: 0,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: tokens.ink,
                           ),
-                          suffixIcon: _buildSuffix(
-                            context,
-                            tokens,
-                            textController,
-                          ),
-                          suffixIconConstraints: const BoxConstraints(
-                            minWidth: 0,
-                            minHeight: 0,
-                          ),
-                        ),
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: tokens.ink,
                         ),
                       ),
                     ),

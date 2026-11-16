@@ -1,6 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/features/settings/view_models/settings_draft_view_model.dart';
 import 'package:admin/ui/features/settings/widgets/overridable_field.dart';
 import 'package:admin/ui/features/settings/widgets/settings_field_bindings.dart';
@@ -73,13 +74,16 @@ class OverridableTimeField extends StatelessWidget {
                   '${picked.minute.toString().padLeft(2, '0')}';
               host.updateSettings((s) => writeFn(s, wire));
             },
-      child: InputDecorator(
-        decoration: InputDecoration(
-          labelText: label,
-          errorText: errorText,
-          suffixIcon: const Icon(Icons.access_time, size: 18),
+      child: LabeledField(
+        label: label,
+        child: InputDecorator(
+          decoration: InputDecoration(
+            labelText: label,
+            errorText: errorText,
+            suffixIcon: const Icon(Icons.access_time, size: 18),
+          ),
+          child: Text(display.isEmpty ? ' ' : display),
         ),
-        child: Text(display.isEmpty ? ' ' : display),
       ),
     );
     return OverridableField.bind(

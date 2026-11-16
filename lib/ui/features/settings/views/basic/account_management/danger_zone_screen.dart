@@ -20,6 +20,7 @@ import 'package:admin/data/services/web_oauth.dart';
 import 'package:admin/data/services/web_sign_in.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/empty_state.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/form_save_scope.dart';
 import 'package:admin/ui/core/widgets/microsoft_logo.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
@@ -818,32 +819,40 @@ class _DangerDialogBodyState extends State<_DangerDialogBody> {
                 Text(scope, style: TextStyle(color: tokens.ink2)),
                 SizedBox(height: InSpacing.md(context)),
               ],
-              TextField(
-                autofocus: true,
-                enabled: !_busy,
-                controller: _confirmCtrl,
-                decoration: InputDecoration(
-                  labelText: context
-                      .tr('please_type_to_confirm')
-                      .replaceFirst(':value', _expectedConfirm),
+              LabeledField(
+                label: context
+                    .tr('please_type_to_confirm')
+                    .replaceFirst(':value', _expectedConfirm),
+                child: TextField(
+                  autofocus: true,
+                  enabled: !_busy,
+                  controller: _confirmCtrl,
+                  decoration: InputDecoration(
+                    labelText: context
+                        .tr('please_type_to_confirm')
+                        .replaceFirst(':value', _expectedConfirm),
+                  ),
+                  textInputAction: TextInputAction.next,
                 ),
-                textInputAction: TextInputAction.next,
               ),
               if (showFeedback) ...[
                 SizedBox(height: InSpacing.md(context)),
-                TextField(
-                  enabled: !_busy,
-                  controller: _feedbackCtrl,
-                  minLines: 2,
-                  maxLines: 4,
-                  textCapitalization: TextCapitalization.sentences,
-                  decoration: InputDecoration(
-                    labelText: feedbackLabel,
-                    errorText: _feedbackError,
+                LabeledField(
+                  label: feedbackLabel,
+                  child: TextField(
+                    enabled: !_busy,
+                    controller: _feedbackCtrl,
+                    minLines: 2,
+                    maxLines: 4,
+                    textCapitalization: TextCapitalization.sentences,
+                    decoration: InputDecoration(
+                      labelText: feedbackLabel,
+                      errorText: _feedbackError,
+                    ),
+                    // No textInputAction: a multi-line field must keep Return
+                    // for newlines, and Flutter derives `newline` from
+                    // maxLines. `.next` here made Return move focus instead.
                   ),
-                  // No textInputAction: a multi-line field must keep Return
-                  // for newlines, and Flutter derives `newline` from
-                  // maxLines. `.next` here made Return move focus instead.
                 ),
               ],
               SizedBox(height: InSpacing.md(context)),
@@ -885,29 +894,32 @@ class _DangerDialogBodyState extends State<_DangerDialogBody> {
                   ),
                 ),
               ] else if (_credential == _DangerCredential.password)
-                TextField(
-                  enabled: !_busy,
-                  controller: _passwordCtrl,
-                  focusNode: _passwordFocus,
-                  obscureText: _obscure,
-                  keyboardType: TextInputType.visiblePassword,
-                  autocorrect: false,
-                  enableSuggestions: false,
-                  decoration: InputDecoration(
-                    labelText: context.tr('password'),
-                    errorText: _passwordError,
-                    suffixIcon: Focus(
-                      canRequestFocus: false,
-                      child: IconButton(
-                        icon: Icon(
-                          _obscure ? Icons.visibility : Icons.visibility_off,
+                LabeledField(
+                  label: context.tr('password'),
+                  child: TextField(
+                    enabled: !_busy,
+                    controller: _passwordCtrl,
+                    focusNode: _passwordFocus,
+                    obscureText: _obscure,
+                    keyboardType: TextInputType.visiblePassword,
+                    autocorrect: false,
+                    enableSuggestions: false,
+                    decoration: InputDecoration(
+                      labelText: context.tr('password'),
+                      errorText: _passwordError,
+                      suffixIcon: Focus(
+                        canRequestFocus: false,
+                        child: IconButton(
+                          icon: Icon(
+                            _obscure ? Icons.visibility : Icons.visibility_off,
+                          ),
+                          onPressed: () => setState(() => _obscure = !_obscure),
                         ),
-                        onPressed: () => setState(() => _obscure = !_obscure),
                       ),
                     ),
+                    textInputAction: TextInputAction.done,
+                    onSubmitted: (_) => _submit(),
                   ),
-                  textInputAction: TextInputAction.done,
-                  onSubmitted: (_) => _submit(),
                 ),
               SizedBox(height: InSpacing.lg(context)),
               Wrap(

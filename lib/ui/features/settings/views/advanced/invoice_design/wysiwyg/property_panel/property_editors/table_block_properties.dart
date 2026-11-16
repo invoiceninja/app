@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/data/models/domain/design.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/features/settings/views/advanced/invoice_design/wysiwyg/property_panel/cell_typography_editor.dart';
 import 'package:admin/ui/features/settings/views/advanced/invoice_design/wysiwyg/property_panel/expandable_property_row.dart';
 import 'package:admin/ui/features/settings/views/advanced/invoice_design/wysiwyg/property_panel/property_inputs.dart';
@@ -538,13 +539,16 @@ class _ExpandedColumnEditor extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          TextFormField(
-            initialValue: (column['header'] as String?) ?? '',
-            decoration: InputDecoration(
-              labelText: context.tr('header'),
-              border: const OutlineInputBorder(),
+          LabeledField(
+            label: context.tr('header'),
+            child: TextFormField(
+              initialValue: (column['header'] as String?) ?? '',
+              decoration: InputDecoration(
+                labelText: context.tr('header'),
+                border: const OutlineInputBorder(),
+              ),
+              onChanged: (v) => onColumnChanged('header', v),
             ),
-            onChanged: (v) => onColumnChanged('header', v),
           ),
           SizedBox(height: InSpacing.md(context)),
           _ColumnFieldPicker(

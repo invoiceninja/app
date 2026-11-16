@@ -6,6 +6,7 @@ import 'package:admin/app/services.dart';
 import 'package:admin/data/models/domain/company_settings.dart';
 import 'package:admin/data/models/domain/tax_rate.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/searchable_dropdown_field.dart';
 import 'package:admin/ui/features/settings/state/settings_level_controller.dart';
 import 'package:admin/ui/features/settings/view_models/settings_draft_view_model.dart';
@@ -217,11 +218,14 @@ class _EmptyRatesRow extends StatelessWidget {
     final body = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        TextField(
-          enabled: false,
-          decoration: InputDecoration(
-            labelText: label,
-            hintText: context.tr('no_tax_rates_yet'),
+        LabeledField(
+          label: label,
+          child: TextField(
+            enabled: false,
+            decoration: InputDecoration(
+              labelText: label,
+              hintText: context.tr('no_tax_rates_yet'),
+            ),
           ),
         ),
         Padding(

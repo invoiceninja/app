@@ -9,6 +9,7 @@ import 'package:admin/data/models/domain/company.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/utils/external_url.dart';
 import 'package:admin/ui/core/widgets/empty_state.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
 import 'package:admin/ui/core/widgets/searchable_dropdown_field.dart';
@@ -777,23 +778,29 @@ class _ConnectedState extends State<_Connected> {
               title: Text(context.tr('automatic_taxes')),
             ),
             const SizedBox(height: 8),
-            TextField(
-              controller: _taxable,
-              onChanged: (_) => setState(() => _settingsDirty = true),
-              decoration: InputDecoration(
-                labelText: context.tr('default_taxable_code'),
-                border: const OutlineInputBorder(),
-                isDense: true,
+            LabeledField(
+              label: context.tr('default_taxable_code'),
+              child: TextField(
+                controller: _taxable,
+                onChanged: (_) => setState(() => _settingsDirty = true),
+                decoration: InputDecoration(
+                  labelText: context.tr('default_taxable_code'),
+                  border: const OutlineInputBorder(),
+                  isDense: true,
+                ),
               ),
             ),
             const SizedBox(height: 12),
-            TextField(
-              controller: _exempt,
-              onChanged: (_) => setState(() => _settingsDirty = true),
-              decoration: InputDecoration(
-                labelText: context.tr('default_exempt_code'),
-                border: const OutlineInputBorder(),
-                isDense: true,
+            LabeledField(
+              label: context.tr('default_exempt_code'),
+              child: TextField(
+                controller: _exempt,
+                onChanged: (_) => setState(() => _settingsDirty = true),
+                decoration: InputDecoration(
+                  labelText: context.tr('default_exempt_code'),
+                  border: const OutlineInputBorder(),
+                  isDense: true,
+                ),
               ),
             ),
             SizedBox(height: InSpacing.md(context)),

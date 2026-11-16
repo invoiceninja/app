@@ -6,6 +6,7 @@ import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/data/models/value/gateway.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/features/gateways/view_models/company_gateway_edit_view_model.dart';
 import 'package:admin/ui/features/settings/widgets/form_section.dart';
@@ -162,15 +163,18 @@ class _GatewayConfigFormState extends State<GatewayConfigForm> {
           .where((s) => s.isNotEmpty)
           .toList();
       final value = current?.toString();
-      return DropdownButtonFormField<String>(
-        initialValue: options.contains(value) ? value : null,
-        isExpanded: true,
-        decoration: InputDecoration(labelText: _humanize(name)),
-        items: [
-          for (final opt in options)
-            DropdownMenuItem(value: opt, child: Text(opt)),
-        ],
-        onChanged: (v) => widget.vm.updateConfigField(name, v),
+      return LabeledField(
+        label: _humanize(name),
+        child: DropdownButtonFormField<String>(
+          initialValue: options.contains(value) ? value : null,
+          isExpanded: true,
+          decoration: InputDecoration(labelText: _humanize(name)),
+          items: [
+            for (final opt in options)
+              DropdownMenuItem(value: opt, child: Text(opt)),
+          ],
+          onChanged: (v) => widget.vm.updateConfigField(name, v),
+        ),
       );
     }
     // Color hex.
@@ -180,13 +184,16 @@ class _GatewayConfigFormState extends State<GatewayConfigForm> {
         (descriptor is String &&
             RegExp(r'^#?[0-9A-Fa-f]{6}$').hasMatch(descriptor));
     if (looksLikeColor) {
-      return TextFormField(
-        initialValue: current?.toString() ?? descriptor?.toString() ?? '',
-        decoration: InputDecoration(
-          labelText: _humanize(name),
-          hintText: '#RRGGBB',
+      return LabeledField(
+        label: _humanize(name),
+        child: TextFormField(
+          initialValue: current?.toString() ?? descriptor?.toString() ?? '',
+          decoration: InputDecoration(
+            labelText: _humanize(name),
+            hintText: '#RRGGBB',
+          ),
+          onChanged: (v) => widget.vm.updateConfigField(name, v),
         ),
-        onChanged: (v) => widget.vm.updateConfigField(name, v),
       );
     }
     // Plain text — obscure for sensitive field names.
@@ -223,37 +230,41 @@ class _GatewayConfigFormState extends State<GatewayConfigForm> {
     } else {
       keyboardType = null;
     }
-    return TextFormField(
-      initialValue: isHtml
-          ? markdownFromLegacyHtml(current?.toString() ?? '')
-          : current?.toString() ?? '',
-      maxLines: isMultiline ? 5 : 1,
-      obscureText: isSensitive && !reveal,
-      keyboardType: keyboardType,
-      autocorrect: false,
-      enableSuggestions: false,
-      decoration: InputDecoration(
-        labelText: _humanize(name),
-        errorText: widget.vm.fieldErrorFor('config.$name'),
-        suffixIcon: isSensitive
-            ? IconButton(
-                icon: Icon(
-                  reveal
-                      ? Icons.visibility_off_outlined
-                      : Icons.visibility_outlined,
-                ),
-                onPressed: () => setState(() => _showSensitive[name] = !reveal),
-                tooltip: reveal ? context.tr('hide') : context.tr('show'),
-              )
-            : null,
-      ),
-      // `htmlFromEditableValue`, not the plain-text converter: the field shows
-      // the fold of the stored value, so the way back has to be the fold's
-      // inverse — otherwise a blurb carrying a link or bold degrades to literal
-      // markdown the moment the gateway is saved.
-      onChanged: (v) => widget.vm.updateConfigField(
-        name,
-        isHtml ? htmlFromEditableValue(v) : v,
+    return LabeledField(
+      label: _humanize(name),
+      child: TextFormField(
+        initialValue: isHtml
+            ? markdownFromLegacyHtml(current?.toString() ?? '')
+            : current?.toString() ?? '',
+        maxLines: isMultiline ? 5 : 1,
+        obscureText: isSensitive && !reveal,
+        keyboardType: keyboardType,
+        autocorrect: false,
+        enableSuggestions: false,
+        decoration: InputDecoration(
+          labelText: _humanize(name),
+          errorText: widget.vm.fieldErrorFor('config.$name'),
+          suffixIcon: isSensitive
+              ? IconButton(
+                  icon: Icon(
+                    reveal
+                        ? Icons.visibility_off_outlined
+                        : Icons.visibility_outlined,
+                  ),
+                  onPressed: () =>
+                      setState(() => _showSensitive[name] = !reveal),
+                  tooltip: reveal ? context.tr('hide') : context.tr('show'),
+                )
+              : null,
+        ),
+        // `htmlFromEditableValue`, not the plain-text converter: the field shows
+        // the fold of the stored value, so the way back has to be the fold's
+        // inverse — otherwise a blurb carrying a link or bold degrades to literal
+        // markdown the moment the gateway is saved.
+        onChanged: (v) => widget.vm.updateConfigField(
+          name,
+          isHtml ? htmlFromEditableValue(v) : v,
+        ),
       ),
     );
   }

@@ -21,6 +21,7 @@ import 'package:admin/ui/core/list/entity_actions_popup_button.dart';
 import 'package:admin/ui/core/list/selectable_list_row.dart';
 import 'package:admin/ui/core/widgets/empty_state.dart';
 import 'package:admin/ui/core/widgets/error_view.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/form_save_scope.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
@@ -925,27 +926,33 @@ class _TemplateOptionsDialogState extends State<_TemplateOptionsDialog> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(
-                controller: _name,
-                autofocus: true,
-                textCapitalization: TextCapitalization.sentences,
-                textInputAction: TextInputAction.done,
-                decoration: InputDecoration(
-                  labelText: context.tr('name'),
-                  errorText: _nameError,
+              LabeledField(
+                label: context.tr('name'),
+                child: TextField(
+                  controller: _name,
+                  autofocus: true,
+                  textCapitalization: TextCapitalization.sentences,
+                  textInputAction: TextInputAction.done,
+                  decoration: InputDecoration(
+                    labelText: context.tr('name'),
+                    errorText: _nameError,
+                  ),
+                  onChanged: (_) => setState(() {}),
+                  onSubmitted: (_) => _save(),
                 ),
-                onChanged: (_) => setState(() {}),
-                onSubmitted: (_) => _save(),
               ),
               const SizedBox(height: InSpacing.sm),
-              TextField(
-                controller: _description,
-                minLines: 2,
-                maxLines: 5,
-                textCapitalization: TextCapitalization.sentences,
-                decoration: InputDecoration(
-                  labelText: context.tr('description'),
-                  errorText: _descriptionError,
+              LabeledField(
+                label: context.tr('description'),
+                child: TextField(
+                  controller: _description,
+                  minLines: 2,
+                  maxLines: 5,
+                  textCapitalization: TextCapitalization.sentences,
+                  decoration: InputDecoration(
+                    labelText: context.tr('description'),
+                    errorText: _descriptionError,
+                  ),
                 ),
               ),
             ],
@@ -1222,27 +1229,33 @@ class _TemplateWizardState extends State<_TemplateWizard> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               heading('create_your_own', 'create_your_own_description'),
-              TextField(
-                controller: _name,
-                autofocus: true,
-                textCapitalization: TextCapitalization.sentences,
-                textInputAction: TextInputAction.done,
-                decoration: InputDecoration(
-                  labelText: context.tr('name'),
-                  hintText: context.tr('template_name'),
-                  errorText: _nameError,
+              LabeledField(
+                label: context.tr('name'),
+                child: TextField(
+                  controller: _name,
+                  autofocus: true,
+                  textCapitalization: TextCapitalization.sentences,
+                  textInputAction: TextInputAction.done,
+                  decoration: InputDecoration(
+                    labelText: context.tr('name'),
+                    hintText: context.tr('template_name'),
+                    errorText: _nameError,
+                  ),
+                  onSubmitted: (_) => _create(),
                 ),
-                onSubmitted: (_) => _create(),
               ),
               const SizedBox(height: InSpacing.sm),
-              TextField(
-                controller: _description,
-                minLines: 2,
-                maxLines: 5,
-                textCapitalization: TextCapitalization.sentences,
-                decoration: InputDecoration(
-                  labelText: context.tr('description'),
-                  errorText: _descriptionError,
+              LabeledField(
+                label: context.tr('description'),
+                child: TextField(
+                  controller: _description,
+                  minLines: 2,
+                  maxLines: 5,
+                  textCapitalization: TextCapitalization.sentences,
+                  decoration: InputDecoration(
+                    labelText: context.tr('description'),
+                    errorText: _descriptionError,
+                  ),
                 ),
               ),
             ],

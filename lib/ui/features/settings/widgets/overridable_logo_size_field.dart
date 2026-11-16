@@ -6,6 +6,7 @@ import 'package:admin/app/design_tokens.dart';
 import 'package:admin/data/static/pdf_catalogs.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/utils/field_text_direction.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/features/settings/view_models/settings_draft_view_model.dart';
 import 'package:admin/ui/features/settings/widgets/overridable_field.dart';
 import 'package:admin/ui/features/settings/widgets/settings_field_bindings.dart';
@@ -112,21 +113,24 @@ class _OverridableLogoSizeFieldState extends State<OverridableLogoSizeField> {
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Expanded(
-          child: TextField(
-            controller: _controller,
-            textDirection: TextDirection.ltr,
-            textAlign: ltrValueAlign(context, ltr: true),
-            keyboardType: const TextInputType.numberWithOptions(
-              decimal: false,
-              signed: false,
+          child: LabeledField(
+            label: context.tr('logo_size'),
+            child: TextField(
+              controller: _controller,
+              textDirection: TextDirection.ltr,
+              textAlign: ltrValueAlign(context, ltr: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: false,
+                signed: false,
+              ),
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              decoration: InputDecoration(
+                labelText: context.tr('logo_size'),
+                errorText: errorText,
+              ),
+              onChanged: (_) => _commit(),
+              onSubmitted: (_) => _commit(),
             ),
-            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-            decoration: InputDecoration(
-              labelText: context.tr('logo_size'),
-              errorText: errorText,
-            ),
-            onChanged: (_) => _commit(),
-            onSubmitted: (_) => _commit(),
           ),
         ),
         SizedBox(width: InSpacing.md(context)),

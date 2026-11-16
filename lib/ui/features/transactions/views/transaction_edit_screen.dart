@@ -10,6 +10,7 @@ import 'package:admin/data/models/domain/bank_transaction.dart';
 import 'package:admin/data/models/value/currency.dart';
 import 'package:admin/data/models/value/date.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/utils/formatting.dart';
 import 'package:admin/ui/core/detail/entity_detail_actions_row.dart';
 import 'package:admin/ui/core/edit/edit_action_filter.dart';
@@ -126,30 +127,33 @@ class _TransactionEditBody extends StatelessWidget {
               },
             ),
             const SizedBox(height: 16),
-            TextFormField(
-              initialValue: vm.draft.amount == Decimal.zero
-                  ? ''
-                  : (useComma
-                        ? vm.draft.amount.toString().replaceAll('.', ',')
-                        : vm.draft.amount.toString()),
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
+            LabeledField(
+              label: context.tr('amount'),
+              child: TextFormField(
+                initialValue: vm.draft.amount == Decimal.zero
+                    ? ''
+                    : (useComma
+                          ? vm.draft.amount.toString().replaceAll('.', ',')
+                          : vm.draft.amount.toString()),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                // Allow the comma so comma-locale users can type their decimal
+                // separator; `parseDecimal` interprets it via `useComma`.
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+                ],
+                decoration: InputDecoration(
+                  labelText: context.tr('amount'),
+                  errorText: vm.fieldErrorFor('amount'),
+                ),
+                onChanged: (v) {
+                  final parsed =
+                      parseDecimal(v, useCommaAsDecimalPlace: useComma) ??
+                      Decimal.zero;
+                  vm.setAmount(parsed);
+                },
               ),
-              // Allow the comma so comma-locale users can type their decimal
-              // separator; `parseDecimal` interprets it via `useComma`.
-              inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
-              ],
-              decoration: InputDecoration(
-                labelText: context.tr('amount'),
-                errorText: vm.fieldErrorFor('amount'),
-              ),
-              onChanged: (v) {
-                final parsed =
-                    parseDecimal(v, useCommaAsDecimalPlace: useComma) ??
-                    Decimal.zero;
-                vm.setAmount(parsed);
-              },
             ),
             const SizedBox(height: 12),
             _CurrencyPicker(vm: vm),
@@ -200,14 +204,17 @@ class _TransactionEditBody extends StatelessWidget {
               },
             ),
             const SizedBox(height: 12),
-            TextFormField(
-              initialValue: vm.draft.description,
-              decoration: InputDecoration(
-                labelText: context.tr('description'),
-                errorText: vm.fieldErrorFor('description'),
+            LabeledField(
+              label: context.tr('description'),
+              child: TextFormField(
+                initialValue: vm.draft.description,
+                decoration: InputDecoration(
+                  labelText: context.tr('description'),
+                  errorText: vm.fieldErrorFor('description'),
+                ),
+                maxLines: 3,
+                onChanged: vm.setDescription,
               ),
-              maxLines: 3,
-              onChanged: vm.setDescription,
             ),
             const SizedBox(height: 12),
             EntityTagsField(

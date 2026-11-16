@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/data/models/domain/payment_link.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/features/settings/widgets/form_section.dart';
 import 'package:admin/ui/features/settings/widgets/settings_form_shell.dart';
 import 'package:admin/ui/features/payment_links/view_models/payment_link_edit_view_model.dart';
@@ -109,31 +110,37 @@ class _StepPickers extends StatelessWidget {
     final otherOptions = catalog
         .where((s) => !s.id.startsWith('auth.') && !selected.contains(s.id))
         .toList(growable: false);
-    final authPicker = DropdownButtonFormField<String>(
-      initialValue: null,
-      decoration: InputDecoration(labelText: context.tr('authentication')),
-      // "Auth-only-one": once an auth step is in the list, hide the rest.
-      // Matches React's behavior.
-      items: hasAuth
-          ? const <DropdownMenuItem<String>>[]
-          : [
-              for (final s in authOptions)
-                DropdownMenuItem(value: s.id, child: Text(s.label)),
-            ],
-      onChanged: (id) {
-        if (id != null) vm.addStep(id);
-      },
+    final authPicker = LabeledField(
+      label: context.tr('authentication'),
+      child: DropdownButtonFormField<String>(
+        initialValue: null,
+        decoration: InputDecoration(labelText: context.tr('authentication')),
+        // "Auth-only-one": once an auth step is in the list, hide the rest.
+        // Matches React's behavior.
+        items: hasAuth
+            ? const <DropdownMenuItem<String>>[]
+            : [
+                for (final s in authOptions)
+                  DropdownMenuItem(value: s.id, child: Text(s.label)),
+              ],
+        onChanged: (id) {
+          if (id != null) vm.addStep(id);
+        },
+      ),
     );
-    final otherPicker = DropdownButtonFormField<String>(
-      initialValue: null,
-      decoration: InputDecoration(labelText: context.tr('other_steps')),
-      items: [
-        for (final s in otherOptions)
-          DropdownMenuItem(value: s.id, child: Text(s.label)),
-      ],
-      onChanged: (id) {
-        if (id != null) vm.addStep(id);
-      },
+    final otherPicker = LabeledField(
+      label: context.tr('other_steps'),
+      child: DropdownButtonFormField<String>(
+        initialValue: null,
+        decoration: InputDecoration(labelText: context.tr('other_steps')),
+        items: [
+          for (final s in otherOptions)
+            DropdownMenuItem(value: s.id, child: Text(s.label)),
+        ],
+        onChanged: (id) {
+          if (id != null) vm.addStep(id);
+        },
+      ),
     );
     // Two-up on roomy widths; stack on a narrow phone so neither picker's
     // label/menu gets crushed to ~half a phone width.

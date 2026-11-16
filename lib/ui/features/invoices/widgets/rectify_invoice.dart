@@ -7,6 +7,7 @@ import 'package:admin/data/models/domain/invoice.dart';
 import 'package:admin/data/models/domain/invoice_status.dart';
 import 'package:admin/data/models/value/date.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
 import 'package:admin/ui/features/settings/views/advanced/e_invoice/e_invoice_constants.dart';
 
@@ -145,14 +146,17 @@ class _RectifyReasonDialogState extends State<_RectifyReasonDialog> {
         children: [
           Text(context.tr('rectify_invoice_help')),
           const SizedBox(height: 12),
-          TextField(
-            controller: _controller,
-            autofocus: true,
-            maxLines: 2,
-            onChanged: (_) => setState(() {}),
-            decoration: InputDecoration(
-              labelText: context.tr('reason'),
-              hintText: context.tr('enter_reason'),
+          LabeledField(
+            label: context.tr('reason'),
+            child: TextField(
+              controller: _controller,
+              autofocus: true,
+              maxLines: 2,
+              onChanged: (_) => setState(() {}),
+              decoration: InputDecoration(
+                labelText: context.tr('reason'),
+                hintText: context.tr('enter_reason'),
+              ),
             ),
           ),
         ],

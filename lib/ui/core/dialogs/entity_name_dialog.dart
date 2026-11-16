@@ -1,6 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/form_save_scope.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
 
@@ -71,13 +72,16 @@ class _EntityNameDialogState extends State<_EntityNameDialog> {
       content: FormSaveScope(
         onSubmit: _submit,
         enabled: _canSave,
-        child: TextField(
-          controller: _controller,
-          autofocus: true,
-          textInputAction: TextInputAction.done,
-          textCapitalization: TextCapitalization.words,
-          decoration: InputDecoration(labelText: context.tr('name')),
-          onSubmitted: (_) => _submit(),
+        child: LabeledField(
+          label: context.tr('name'),
+          child: TextField(
+            controller: _controller,
+            autofocus: true,
+            textInputAction: TextInputAction.done,
+            textCapitalization: TextCapitalization.words,
+            decoration: InputDecoration(labelText: context.tr('name')),
+            onSubmitted: (_) => _submit(),
+          ),
         ),
       ),
       actions: [

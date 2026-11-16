@@ -6,6 +6,7 @@ import 'package:admin/data/models/domain/custom_field_types.dart';
 import 'package:admin/data/models/value/industry.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/edit/entity_custom_fields_section.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/searchable_dropdown_field.dart';
 import 'package:admin/ui/features/settings/view_models/company_details_view_model.dart';
 import 'package:admin/ui/features/settings/widgets/form_section.dart';
@@ -187,19 +188,22 @@ class _ClassificationField extends StatelessWidget {
   Widget build(BuildContext context) {
     final vm = context.watch<CompanyDetailsViewModel>();
     final current = vm.settings.classification;
-    return DropdownButtonFormField<String>(
-      // `initialValue` only seeds the FormField once; re-key on the current
-      // value so an external draft change (background refresh / company switch)
-      // re-seeds the field instead of showing the stale first-seeded value.
-      key: ValueKey('classification:$current'),
-      decoration: InputDecoration(labelText: context.tr('classification')),
-      initialValue: _options.contains(current) ? current : null,
-      items: [
-        for (final v in _options)
-          DropdownMenuItem(value: v, child: Text(context.tr(v))),
-      ],
-      onChanged: (v) =>
-          vm.updateSettings((s) => s.copyWith(classification: v ?? '')),
+    return LabeledField(
+      label: context.tr('classification'),
+      child: DropdownButtonFormField<String>(
+        // `initialValue` only seeds the FormField once; re-key on the current
+        // value so an external draft change (background refresh / company switch)
+        // re-seeds the field instead of showing the stale first-seeded value.
+        key: ValueKey('classification:$current'),
+        decoration: InputDecoration(labelText: context.tr('classification')),
+        initialValue: _options.contains(current) ? current : null,
+        items: [
+          for (final v in _options)
+            DropdownMenuItem(value: v, child: Text(context.tr(v))),
+        ],
+        onChanged: (v) =>
+            vm.updateSettings((s) => s.copyWith(classification: v ?? '')),
+      ),
     );
   }
 }
@@ -214,18 +218,21 @@ class _SizeField extends StatelessWidget {
     final sizes = statics.sizes.values.toList()
       ..sort((a, b) => (int.tryParse(a.id) ?? 0) - (int.tryParse(b.id) ?? 0));
     final current = vm.draft?.sizeId ?? '';
-    return DropdownButtonFormField<String>(
-      // See `_ClassificationField` — re-key so an external draft change
-      // re-seeds the once-only `initialValue`.
-      key: ValueKey('size:$current'),
-      decoration: InputDecoration(labelText: context.tr('size')),
-      initialValue: sizes.any((s) => s.id == current) ? current : null,
-      disabledHint: sizes.isEmpty ? Text(context.tr('loading')) : null,
-      items: [
-        for (final s in sizes)
-          DropdownMenuItem(value: s.id, child: Text(s.name)),
-      ],
-      onChanged: (v) => vm.updateCompany((c) => c.copyWith(sizeId: v ?? '')),
+    return LabeledField(
+      label: context.tr('size'),
+      child: DropdownButtonFormField<String>(
+        // See `_ClassificationField` — re-key so an external draft change
+        // re-seeds the once-only `initialValue`.
+        key: ValueKey('size:$current'),
+        decoration: InputDecoration(labelText: context.tr('size')),
+        initialValue: sizes.any((s) => s.id == current) ? current : null,
+        disabledHint: sizes.isEmpty ? Text(context.tr('loading')) : null,
+        items: [
+          for (final s in sizes)
+            DropdownMenuItem(value: s.id, child: Text(s.name)),
+        ],
+        onChanged: (v) => vm.updateCompany((c) => c.copyWith(sizeId: v ?? '')),
+      ),
     );
   }
 }

@@ -18,6 +18,7 @@ import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/dialogs/discard_changes_dialog.dart';
 import 'package:admin/ui/core/utils/external_url.dart';
 import 'package:admin/ui/core/widgets/document_capture.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/file_drop_zone.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
@@ -405,19 +406,22 @@ class _ContactUsDialogState extends State<_ContactUsDialog> {
                       style: TextStyle(fontSize: 12, color: tokens.ink3),
                     ),
                   SizedBox(height: InSpacing.md(context)),
-                  TextField(
-                    controller: _controller,
-                    autofocus: true,
-                    maxLines: 6,
-                    minLines: 4,
-                    enabled: !vm.sending,
-                    keyboardType: TextInputType.multiline,
-                    // Multi-line: Enter inserts a newline (per CLAUDE.md form
-                    // conventions). No FormSaveScope wiring here.
-                    textInputAction: TextInputAction.newline,
-                    decoration: InputDecoration(
-                      labelText: context.tr('message'),
-                      border: const OutlineInputBorder(),
+                  LabeledField(
+                    label: context.tr('message'),
+                    child: TextField(
+                      controller: _controller,
+                      autofocus: true,
+                      maxLines: 6,
+                      minLines: 4,
+                      enabled: !vm.sending,
+                      keyboardType: TextInputType.multiline,
+                      // Multi-line: Enter inserts a newline (per CLAUDE.md form
+                      // conventions). No FormSaveScope wiring here.
+                      textInputAction: TextInputAction.newline,
+                      decoration: InputDecoration(
+                        labelText: context.tr('message'),
+                        border: const OutlineInputBorder(),
+                      ),
                     ),
                   ),
                   if (vm.attachmentsEnabled) ...[

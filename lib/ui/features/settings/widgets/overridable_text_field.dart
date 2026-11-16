@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:admin/domain/email_template_variables.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/utils/field_text_direction.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/form_save_scope.dart';
 import 'package:admin/ui/core/widgets/field_action_button.dart';
 import 'package:admin/ui/core/widgets/template_variables/template_variable_field_shell.dart';
@@ -218,6 +219,7 @@ class _OverridableTextFieldState extends State<OverridableTextField> {
         hostValue.isNotEmpty &&
         widget.enabled;
     final decoration = InputDecoration(
+      // lint: allow-inside-label the field built from this is wrapped below
       labelText: widget.label,
       hintText: widget.hintText,
       helperText: widget.helperText,
@@ -278,29 +280,32 @@ class _OverridableTextFieldState extends State<OverridableTextField> {
     );
     final focusNode = _focusNode;
     final controller = _controller;
-    final Widget field =
-        templateScope != null &&
-            focusNode != null &&
-            controller is TemplateVariableTextController
-        ? TemplateVariableFieldShell(
-            key: _shellKey,
-            controller: controller,
-            focusNode: focusNode,
-            // The button lives above the field instead — see below.
-            showInsertButton: false,
-            decoration: decoration,
-            enabled: widget.enabled,
-            // An inherited value renders but stays inert — and unfocusable,
-            // which the `IgnorePointer` in `OverridableField` can't make it.
-            interactive:
-                !host.isCascadeScope || host.isOverridden(widget.apiKey),
-            defaultText: companyDefault,
-            style: widget.style,
-            onEdited: (text) => _commit(host, text),
-            fieldBuilder: (context, decoration, onTapOutside) =>
-                buildField(decoration, onTapOutside: onTapOutside),
-          )
-        : buildField(decoration);
+    final Widget field = LabeledField(
+      label: widget.label,
+      child:
+          templateScope != null &&
+              focusNode != null &&
+              controller is TemplateVariableTextController
+          ? TemplateVariableFieldShell(
+              key: _shellKey,
+              controller: controller,
+              focusNode: focusNode,
+              // The button lives above the field instead — see below.
+              showInsertButton: false,
+              decoration: decoration,
+              enabled: widget.enabled,
+              // An inherited value renders but stays inert — and unfocusable,
+              // which the `IgnorePointer` in `OverridableField` can't make it.
+              interactive:
+                  !host.isCascadeScope || host.isOverridden(widget.apiKey),
+              defaultText: companyDefault,
+              style: widget.style,
+              onEdited: (text) => _commit(host, text),
+              fieldBuilder: (context, decoration, onTapOutside) =>
+                  buildField(decoration, onTapOutside: onTapOutside),
+            )
+          : buildField(decoration),
+    );
     // "Insert variable" sits above the field, right-aligned and labelled,
     // rather than as a bare `+` inside it. Three reasons it moved: a suffix
     // glyph has no tooltip on touch, so it said nothing about what it did; it

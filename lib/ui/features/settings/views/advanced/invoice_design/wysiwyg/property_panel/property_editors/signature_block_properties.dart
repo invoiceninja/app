@@ -2,6 +2,7 @@ import 'package:material_ui/material_ui.dart';
 
 import 'package:admin/data/models/domain/design.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/features/settings/views/advanced/invoice_design/wysiwyg/property_panel/property_inputs.dart';
 import 'package:admin/ui/features/settings/views/advanced/invoice_design/wysiwyg/wysiwyg_design_view_model.dart';
 
@@ -65,13 +66,16 @@ class _SignatureBlockPropertiesState extends State<SignatureBlockProperties> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        TextField(
-          controller: _label,
-          decoration: InputDecoration(
-            labelText: context.tr('label'),
-            border: const OutlineInputBorder(),
+        LabeledField(
+          label: context.tr('label'),
+          child: TextField(
+            controller: _label,
+            decoration: InputDecoration(
+              labelText: context.tr('label'),
+              border: const OutlineInputBorder(),
+            ),
+            onChanged: (v) => _write('label', v),
           ),
-          onChanged: (v) => _write('label', v),
         ),
         PropertySwitch(
           labelKey: 'show_line',

@@ -4,6 +4,7 @@ import 'package:admin/app/design_tokens.dart';
 import 'package:admin/data/models/api/tax_config_api_model.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/utils/field_text_direction.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/form_save_scope.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
 import 'package:admin/utils/formatting.dart';
@@ -136,52 +137,64 @@ class _SubregionEditDialogState extends State<SubregionEditDialog> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              TextField(
-                controller: _name,
-                decoration: InputDecoration(
-                  labelText: context.tr('tax_name'),
-                  errorText: _errorFor('tax_name'),
+              LabeledField(
+                label: context.tr('tax_name'),
+                child: TextField(
+                  controller: _name,
+                  decoration: InputDecoration(
+                    labelText: context.tr('tax_name'),
+                    errorText: _errorFor('tax_name'),
+                  ),
+                  textInputAction: TextInputAction.next,
                 ),
-                textInputAction: TextInputAction.next,
               ),
               SizedBox(height: InSpacing.md(context)),
-              TextField(
-                controller: _rate,
-                textDirection: TextDirection.ltr,
-                textAlign: ltrValueAlign(context, ltr: true),
-                decoration: InputDecoration(
-                  labelText: context.tr('tax_rate'),
-                  errorText: _errorFor('tax_rate'),
+              LabeledField(
+                label: context.tr('tax_rate'),
+                child: TextField(
+                  controller: _rate,
+                  textDirection: TextDirection.ltr,
+                  textAlign: ltrValueAlign(context, ltr: true),
+                  decoration: InputDecoration(
+                    labelText: context.tr('tax_rate'),
+                    errorText: _errorFor('tax_rate'),
+                  ),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  textInputAction: TextInputAction.next,
                 ),
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
-                textInputAction: TextInputAction.next,
               ),
               SizedBox(height: InSpacing.md(context)),
-              TextField(
-                controller: _reducedRate,
-                textDirection: TextDirection.ltr,
-                textAlign: ltrValueAlign(context, ltr: true),
-                decoration: InputDecoration(
-                  labelText: context.tr('reduced_rate'),
-                  errorText: _errorFor('reduced_tax_rate'),
+              LabeledField(
+                label: context.tr('reduced_rate'),
+                child: TextField(
+                  controller: _reducedRate,
+                  textDirection: TextDirection.ltr,
+                  textAlign: ltrValueAlign(context, ltr: true),
+                  decoration: InputDecoration(
+                    labelText: context.tr('reduced_rate'),
+                    errorText: _errorFor('reduced_tax_rate'),
+                  ),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  textInputAction: TextInputAction.next,
                 ),
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
-                textInputAction: TextInputAction.next,
               ),
               SizedBox(height: InSpacing.md(context)),
-              TextField(
-                controller: _vatNumber,
-                decoration: InputDecoration(
-                  labelText: context.tr('vat_number'),
-                  errorText: _errorFor('vat_number'),
+              LabeledField(
+                label: context.tr('vat_number'),
+                child: TextField(
+                  controller: _vatNumber,
+                  decoration: InputDecoration(
+                    labelText: context.tr('vat_number'),
+                    errorText: _errorFor('vat_number'),
+                  ),
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (_) => _submit(),
+                  autocorrect: false,
                 ),
-                textInputAction: TextInputAction.done,
-                onSubmitted: (_) => _submit(),
-                autocorrect: false,
               ),
             ],
           ),

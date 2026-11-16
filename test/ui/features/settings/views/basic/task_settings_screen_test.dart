@@ -296,6 +296,8 @@ void main() {
       );
 
       // Opting in registers the override on the client (not a no-op).
+      await tester.ensureVisible(roundingCheckbox);
+      await tester.pump();
       await tester.tap(roundingCheckbox);
       await tester.pump();
       expect(hostOf(tester).isOverridden('task_round_to_nearest'), isTrue);

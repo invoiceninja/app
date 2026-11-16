@@ -10,6 +10,7 @@ import 'package:admin/data/models/domain/client.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/utils/session_permissions.dart';
 import 'package:admin/ui/core/widgets/escape_observer.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/picker_dismissal.dart';
 import 'package:admin/ui/features/billing_shared/edit/billing_edit_field_decoration.dart';
 
@@ -548,53 +549,56 @@ class _ClientPickerFieldState extends State<ClientPickerField> {
                       // gone — and a stale "visible" flag makes the next Enter
                       // fire create on a popover the user just dismissed.
                       onEscape: () => _optionsVisible = false,
-                      child: TextField(
-                        controller: textController,
-                        focusNode: focusNode,
-                        // On native touch nothing else can close the popover —
-                        // see `picker_dismissal.dart`.
-                        onTapOutside: dismissPickerOnTapOutside(focusNode),
-                        enabled: widget.enabled,
-                        onTap: _reopenOptions,
-                        onSubmitted: (_) {
-                          if (_highlightIsCreateRow) {
-                            // Seed with the same query the options were built
-                            // from, so Enter and a tap on the create row agree:
-                            // on an untouched field that's "" ("New Client"),
-                            // not the committed client's own name.
-                            final text = textController.text;
-                            unawaited(
-                              _handleCreate(
-                                _isPristine(text.trim()) ? '' : text,
-                              ),
-                            );
-                            return; // never reaches `_select`
-                          }
-                          if (_highlightIsCommitted) {
-                            // Enter on the value the field already holds is a
-                            // dismissal, not a re-pick — see
-                            // [_highlightIsCommitted].
-                            _optionsVisible = false;
-                            _focusNode.unfocus();
-                            return; // never reaches `_select`
-                          }
-                          onFieldSubmitted();
-                        },
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: tokens.ink,
-                        ),
-                        decoration:
-                            billingFieldDecoration(
-                              context,
-                              label: label,
-                              errorText: widget.errorText,
-                            ).copyWith(
-                              suffixIcon: _buildSuffix(
+                      child: LabeledField(
+                        label: label,
+                        child: TextField(
+                          controller: textController,
+                          focusNode: focusNode,
+                          // On native touch nothing else can close the popover —
+                          // see `picker_dismissal.dart`.
+                          onTapOutside: dismissPickerOnTapOutside(focusNode),
+                          enabled: widget.enabled,
+                          onTap: _reopenOptions,
+                          onSubmitted: (_) {
+                            if (_highlightIsCreateRow) {
+                              // Seed with the same query the options were built
+                              // from, so Enter and a tap on the create row agree:
+                              // on an untouched field that's "" ("New Client"),
+                              // not the committed client's own name.
+                              final text = textController.text;
+                              unawaited(
+                                _handleCreate(
+                                  _isPristine(text.trim()) ? '' : text,
+                                ),
+                              );
+                              return; // never reaches `_select`
+                            }
+                            if (_highlightIsCommitted) {
+                              // Enter on the value the field already holds is a
+                              // dismissal, not a re-pick — see
+                              // [_highlightIsCommitted].
+                              _optionsVisible = false;
+                              _focusNode.unfocus();
+                              return; // never reaches `_select`
+                            }
+                            onFieldSubmitted();
+                          },
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: tokens.ink,
+                          ),
+                          decoration:
+                              billingFieldDecoration(
                                 context,
-                                tokens,
-                                textController,
+                                label: label,
+                                errorText: widget.errorText,
+                              ).copyWith(
+                                suffixIcon: _buildSuffix(
+                                  context,
+                                  tokens,
+                                  textController,
+                                ),
                               ),
-                            ),
+                        ),
                       ),
                     ),
                   );

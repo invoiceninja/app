@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/form_save_scope.dart';
 import 'package:admin/ui/features/settings/view_models/settings_draft_view_model.dart';
 
@@ -152,24 +153,27 @@ class _SubdomainFieldState extends State<SubdomainField> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        TextField(
-          controller: _controller,
-          enabled: widget.enabled,
-          textInputAction: TextInputAction.done,
-          // A DNS label. `url` is the closest keyboard — it keeps the
-          // default (no) auto-capitalization and surfaces `.`; it does NOT
-          // lowercase anything, and it offers `/` and `.com`, neither legal
-          // in a single label. The server validates the value regardless.
-          keyboardType: TextInputType.url,
-          autocorrect: false,
-          enableSuggestions: false,
-          decoration: InputDecoration(
-            labelText: context.tr('subdomain'),
-            errorText: errorText,
-            suffixIcon: _StateIcon(state: _state),
+        LabeledField(
+          label: context.tr('subdomain'),
+          child: TextField(
+            controller: _controller,
+            enabled: widget.enabled,
+            textInputAction: TextInputAction.done,
+            // A DNS label. `url` is the closest keyboard — it keeps the
+            // default (no) auto-capitalization and surfaces `.`; it does NOT
+            // lowercase anything, and it offers `/` and `.com`, neither legal
+            // in a single label. The server validates the value regardless.
+            keyboardType: TextInputType.url,
+            autocorrect: false,
+            enableSuggestions: false,
+            decoration: InputDecoration(
+              labelText: context.tr('subdomain'),
+              errorText: errorText,
+              suffixIcon: _StateIcon(state: _state),
+            ),
+            onChanged: _onChanged,
+            onSubmitted: scope == null ? null : (_) => scope.trySubmit(),
           ),
-          onChanged: _onChanged,
-          onSubmitted: scope == null ? null : (_) => scope.trySubmit(),
         ),
         if (_state == _AvailabilityState.taken) ...[
           SizedBox(height: InSpacing.xs),

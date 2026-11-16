@@ -7,6 +7,7 @@ import 'package:admin/app/mdi_icons.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/data/models/api/tax_config_api_model.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
 import 'package:admin/ui/core/widgets/searchable_dropdown_field.dart';
 import 'package:admin/ui/features/settings/state/settings_level_controller.dart';
@@ -231,19 +232,25 @@ class _RateCountDropdown extends StatelessWidget {
     // resets `enabledTaxRates → 0`) flips the underlying field, the new
     // key forces the form-field state to rebuild against the fresh
     // `initialValue`.
-    return DropdownButtonFormField<int>(
-      key: ValueKey('rate-count-$label-$value'),
-      decoration: InputDecoration(labelText: label),
-      initialValue: value,
-      items: [
-        DropdownMenuItem(value: 0, child: Text(context.tr('disabled'))),
-        DropdownMenuItem(value: 1, child: Text(context.tr('one_tax_rate'))),
-        DropdownMenuItem(value: 2, child: Text(context.tr('two_tax_rates'))),
-        DropdownMenuItem(value: 3, child: Text(context.tr('three_tax_rates'))),
-      ],
-      onChanged: (v) {
-        if (v != null) onChanged(v);
-      },
+    return LabeledField(
+      label: label,
+      child: DropdownButtonFormField<int>(
+        key: ValueKey('rate-count-$label-$value'),
+        decoration: InputDecoration(labelText: label),
+        initialValue: value,
+        items: [
+          DropdownMenuItem(value: 0, child: Text(context.tr('disabled'))),
+          DropdownMenuItem(value: 1, child: Text(context.tr('one_tax_rate'))),
+          DropdownMenuItem(value: 2, child: Text(context.tr('two_tax_rates'))),
+          DropdownMenuItem(
+            value: 3,
+            child: Text(context.tr('three_tax_rates')),
+          ),
+        ],
+        onChanged: (v) {
+          if (v != null) onChanged(v);
+        },
+      ),
     );
   }
 }
@@ -425,11 +432,14 @@ class _SellerSubregionRowState extends State<_SellerSubregionRow> {
       _ => null,
     };
     if (fixedCode != null) {
-      return TextFormField(
-        key: ValueKey('seller-fixed-$fixedCode'),
-        enabled: false,
-        initialValue: fixedCode,
-        decoration: InputDecoration(labelText: label, errorText: errorText),
+      return LabeledField(
+        label: label,
+        child: TextFormField(
+          key: ValueKey('seller-fixed-$fixedCode'),
+          enabled: false,
+          initialValue: fixedCode,
+          decoration: InputDecoration(labelText: label, errorText: errorText),
+        ),
       );
     }
 

@@ -10,6 +10,7 @@ import 'package:admin/data/repositories/auth/auth_session.dart';
 import 'package:admin/domain/upgrade/upgrade_launcher.dart';
 import 'package:admin/domain/upgrade/white_label.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/form_save_scope.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
@@ -476,16 +477,19 @@ class _LicenseKeyDialogState extends State<_LicenseKeyDialog> {
         child: FormSaveScope(
           enabled: true,
           onSubmit: _submit,
-          child: TextField(
-            controller: _controller,
-            autofocus: true,
-            decoration: InputDecoration(
-              labelText: context.tr('license'),
-              border: const OutlineInputBorder(),
+          child: LabeledField(
+            label: context.tr('license'),
+            child: TextField(
+              controller: _controller,
+              autofocus: true,
+              decoration: InputDecoration(
+                labelText: context.tr('license'),
+                border: const OutlineInputBorder(),
+              ),
+              textInputAction: TextInputAction.done,
+              onSubmitted: (_) => _submit(),
+              autocorrect: false,
             ),
-            textInputAction: TextInputAction.done,
-            onSubmitted: (_) => _submit(),
-            autocorrect: false,
           ),
         ),
       ),

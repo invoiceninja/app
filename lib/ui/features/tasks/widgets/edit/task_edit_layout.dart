@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 
 import 'package:admin/app/design_tokens.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/in_date_field.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/data/models/domain/project.dart';
@@ -238,26 +239,32 @@ class _IdentitySection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          TextFormField(
-            initialValue: vm.draft.description,
-            enabled: !locked,
-            maxLines: 3,
-            minLines: 1,
-            textInputAction: TextInputAction.newline,
-            decoration: InputDecoration(labelText: context.tr('description')),
-            onChanged: vm.setDescription,
+          LabeledField(
+            label: context.tr('description'),
+            child: TextFormField(
+              initialValue: vm.draft.description,
+              enabled: !locked,
+              maxLines: 3,
+              minLines: 1,
+              textInputAction: TextInputAction.newline,
+              decoration: InputDecoration(labelText: context.tr('description')),
+              onChanged: vm.setDescription,
+            ),
           ),
           SizedBox(height: InSpacing.md(context)),
-          TextFormField(
-            // Server auto-assigns when left blank on create; editable to
-            // match admin-portal / React.
-            initialValue: vm.draft.number,
-            enabled: !locked,
-            textInputAction: TextInputAction.done,
-            decoration: InputDecoration(labelText: context.tr('number')),
-            onChanged: vm.setNumber,
-            onFieldSubmitted: submit,
-            autocorrect: false,
+          LabeledField(
+            label: context.tr('number'),
+            child: TextFormField(
+              // Server auto-assigns when left blank on create; editable to
+              // match admin-portal / React.
+              initialValue: vm.draft.number,
+              enabled: !locked,
+              textInputAction: TextInputAction.done,
+              decoration: InputDecoration(labelText: context.tr('number')),
+              onChanged: vm.setNumber,
+              onFieldSubmitted: submit,
+              autocorrect: false,
+            ),
           ),
           SizedBox(height: InSpacing.md(context)),
           _ClientPicker(vm: vm, locked: locked),
@@ -296,25 +303,28 @@ class _IdentitySection extends StatelessWidget {
               );
               final showHint =
                   vm.draft.rate == Decimal.zero && inherited > Decimal.zero;
-              return TextFormField(
-                initialValue: decimalInputText(vm.draft.rate),
-                enabled: !locked,
-                textInputAction: TextInputAction.done,
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
+              return LabeledField(
+                label: context.tr('rate'),
+                child: TextFormField(
+                  initialValue: decimalInputText(vm.draft.rate),
+                  enabled: !locked,
+                  textInputAction: TextInputAction.done,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  decoration: InputDecoration(
+                    labelText: context.tr('rate'),
+                    // Surface the inherited rate so leaving rate blank is
+                    // clearly "bill at the default" — the cascade
+                    // (resolveTaskRate) applies it on invoice.
+                    helperText: showHint
+                        ? '${context.tr('default_task_rate')}: '
+                              '${formatter?.money(inherited, clientCurrencyId: rates.client?.currencyId) ?? inherited}'
+                        : null,
+                  ),
+                  onChanged: vm.setRate,
+                  onFieldSubmitted: submit,
                 ),
-                decoration: InputDecoration(
-                  labelText: context.tr('rate'),
-                  // Surface the inherited rate so leaving rate blank is
-                  // clearly "bill at the default" — the cascade
-                  // (resolveTaskRate) applies it on invoice.
-                  helperText: showHint
-                      ? '${context.tr('default_task_rate')}: '
-                            '${formatter?.money(inherited, clientCurrencyId: rates.client?.currencyId) ?? inherited}'
-                      : null,
-                ),
-                onChanged: vm.setRate,
-                onFieldSubmitted: submit,
               );
             },
           ),
@@ -342,22 +352,25 @@ class _IdentitySection extends StatelessWidget {
               ),
               const SizedBox(width: InSpacing.sm),
               Expanded(
-                child: TextFormField(
-                  initialValue: vm.draft.estimatedSeconds <= 0
-                      ? ''
-                      : formatDuration(
-                          Duration(seconds: vm.draft.estimatedSeconds),
-                          compactDays: true,
-                          showSeconds: false,
-                        ),
-                  enabled: !locked,
-                  textInputAction: TextInputAction.done,
-                  decoration: InputDecoration(
-                    labelText: context.tr('estimated_duration'),
-                    hintText: '1h 30m',
+                child: LabeledField(
+                  label: context.tr('estimated_duration'),
+                  child: TextFormField(
+                    initialValue: vm.draft.estimatedSeconds <= 0
+                        ? ''
+                        : formatDuration(
+                            Duration(seconds: vm.draft.estimatedSeconds),
+                            compactDays: true,
+                            showSeconds: false,
+                          ),
+                    enabled: !locked,
+                    textInputAction: TextInputAction.done,
+                    decoration: InputDecoration(
+                      labelText: context.tr('estimated_duration'),
+                      hintText: '1h 30m',
+                    ),
+                    onChanged: vm.setEstimatedDuration,
+                    onFieldSubmitted: submit,
                   ),
-                  onChanged: vm.setEstimatedDuration,
-                  onFieldSubmitted: submit,
                 ),
               ),
             ],

@@ -297,12 +297,12 @@ Finder get _ccField => find.byWidgetPredicate(
 );
 
 /// The "Default" pill beside the Subject label — it lives in the
-/// `LabeledField` row, outside the field, so descending into the shell misses
+/// `ComposerLabeledField` row, outside the field, so descending into the shell misses
 /// it.
 Finder get _subjectBadge => find.descendant(
   of: find.ancestor(
     of: find.byType(TemplateVariableFieldShell),
-    matching: find.byType(LabeledField),
+    matching: find.byType(ComposerLabeledField),
   ),
   matching: find.byType(TemplateDefaultBadge),
 );

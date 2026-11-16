@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/data/models/domain/design.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/features/settings/views/advanced/invoice_design/wysiwyg/block_renderers/_shared.dart';
 import 'package:admin/ui/features/settings/views/advanced/invoice_design/wysiwyg/property_panel/cell_typography_editor.dart';
 import 'package:admin/ui/features/settings/views/advanced/invoice_design/wysiwyg/property_panel/expandable_property_row.dart';
@@ -179,13 +180,16 @@ class _InfoBlockPropertiesState extends State<InfoBlockProperties> {
         if (showTitle)
           Padding(
             padding: EdgeInsets.only(bottom: InSpacing.md(context)),
-            child: TextFormField(
-              initialValue: title,
-              decoration: InputDecoration(
-                labelText: context.tr('title'),
-                border: const OutlineInputBorder(),
+            child: LabeledField(
+              label: context.tr('title'),
+              child: TextFormField(
+                initialValue: title,
+                decoration: InputDecoration(
+                  labelText: context.tr('title'),
+                  border: const OutlineInputBorder(),
+                ),
+                onChanged: (v) => _updateProperty('title', v),
               ),
-              onChanged: (v) => _updateProperty('title', v),
             ),
           ),
         SizedBox(height: InSpacing.md(context)),
@@ -403,34 +407,43 @@ class _ExpandedFieldEditor extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            TextFormField(
-              initialValue: (field['label'] as String?) ?? '',
-              decoration: InputDecoration(
-                labelText: context.tr('label'),
-                border: const OutlineInputBorder(),
+            LabeledField(
+              label: context.tr('label'),
+              child: TextFormField(
+                initialValue: (field['label'] as String?) ?? '',
+                decoration: InputDecoration(
+                  labelText: context.tr('label'),
+                  border: const OutlineInputBorder(),
+                ),
+                onChanged: (v) => onFieldChanged('label', v),
               ),
-              onChanged: (v) => onFieldChanged('label', v),
             ),
             if (printsAffixes) ...[
               SizedBox(height: InSpacing.md(context)),
-              TextFormField(
-                initialValue: (field['prefix'] as String?) ?? '',
-                decoration: InputDecoration(
-                  labelText: context.tr('prefix'),
-                  border: const OutlineInputBorder(),
+              LabeledField(
+                label: context.tr('prefix'),
+                child: TextFormField(
+                  initialValue: (field['prefix'] as String?) ?? '',
+                  decoration: InputDecoration(
+                    labelText: context.tr('prefix'),
+                    border: const OutlineInputBorder(),
+                  ),
+                  onChanged: (v) => onFieldChanged('prefix', v),
+                  autocorrect: false,
                 ),
-                onChanged: (v) => onFieldChanged('prefix', v),
-                autocorrect: false,
               ),
               SizedBox(height: InSpacing.md(context)),
-              TextFormField(
-                initialValue: (field['suffix'] as String?) ?? '',
-                decoration: InputDecoration(
-                  labelText: context.tr('suffix'),
-                  border: const OutlineInputBorder(),
+              LabeledField(
+                label: context.tr('suffix'),
+                child: TextFormField(
+                  initialValue: (field['suffix'] as String?) ?? '',
+                  decoration: InputDecoration(
+                    labelText: context.tr('suffix'),
+                    border: const OutlineInputBorder(),
+                  ),
+                  onChanged: (v) => onFieldChanged('suffix', v),
+                  autocorrect: false,
                 ),
-                onChanged: (v) => onFieldChanged('suffix', v),
-                autocorrect: false,
               ),
             ],
             PropertySwitch(

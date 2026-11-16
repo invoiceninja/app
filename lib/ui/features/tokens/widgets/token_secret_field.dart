@@ -8,6 +8,7 @@ import 'package:admin/data/services/api_exception.dart';
 import 'package:admin/data/services/company_switched_exception.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/copyable_value.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
 
 TextStyle _monoValueStyle(BuildContext context) => TextStyle(
@@ -130,50 +131,53 @@ class _TokenSecretFieldState extends State<TokenSecretField> {
     final secret = _secret;
     final revealed = _revealed && secret != null;
     final style = _monoValueStyle(context);
-    return InputDecorator(
-      decoration: InputDecoration(
-        labelText: context.tr('token'),
-        // Nothing editable inside, so the decorator is never "empty" or
-        // focused and the label would sit on the value without this.
-        floatingLabelBehavior: FloatingLabelBehavior.always,
-        suffixIcon: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconButton(
-              tooltip: context.tr(revealed ? 'hide' : 'show'),
-              onPressed: _loading ? null : (revealed ? _hide : _reveal),
-              // The spinner takes the eye's place rather than its own slot,
-              // so the row doesn't shift while the fetch runs.
-              icon: _loading
-                  ? const SizedBox.square(
-                      dimension: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : Icon(
-                      revealed
-                          ? Icons.visibility_off_outlined
-                          : Icons.visibility_outlined,
-                      size: 20,
-                    ),
-            ),
-            IconButton(
-              tooltip: context.tr('copy_token'),
-              onPressed: _loading ? null : _copy,
-              icon: const Icon(Icons.content_copy, size: 18),
-            ),
-          ],
-        ),
-      ),
-      child: revealed
-          ? SelectableText(secret, style: style)
-          : Semantics(
-              label: '${context.tr('token')}, ${context.tr('hidden')}',
-              excludeSemantics: true,
-              child: Text(
-                widget.hint,
-                style: style.copyWith(color: tokens.ink2),
+    return LabeledField(
+      label: context.tr('token'),
+      child: InputDecorator(
+        decoration: InputDecoration(
+          labelText: context.tr('token'),
+          // Nothing editable inside, so the decorator is never "empty" or
+          // focused and the label would sit on the value without this.
+          floatingLabelBehavior: FloatingLabelBehavior.always,
+          suffixIcon: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                tooltip: context.tr(revealed ? 'hide' : 'show'),
+                onPressed: _loading ? null : (revealed ? _hide : _reveal),
+                // The spinner takes the eye's place rather than its own slot,
+                // so the row doesn't shift while the fetch runs.
+                icon: _loading
+                    ? const SizedBox.square(
+                        dimension: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Icon(
+                        revealed
+                            ? Icons.visibility_off_outlined
+                            : Icons.visibility_outlined,
+                        size: 20,
+                      ),
               ),
-            ),
+              IconButton(
+                tooltip: context.tr('copy_token'),
+                onPressed: _loading ? null : _copy,
+                icon: const Icon(Icons.content_copy, size: 18),
+              ),
+            ],
+          ),
+        ),
+        child: revealed
+            ? SelectableText(secret, style: style)
+            : Semantics(
+                label: '${context.tr('token')}, ${context.tr('hidden')}',
+                excludeSemantics: true,
+                child: Text(
+                  widget.hint,
+                  style: style.copyWith(color: tokens.ink2),
+                ),
+              ),
+      ),
     );
   }
 }
@@ -190,17 +194,20 @@ class TokenEndpointField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InputDecorator(
-      decoration: InputDecoration(
-        labelText: context.tr('endpoint'),
-        floatingLabelBehavior: FloatingLabelBehavior.always,
-        suffixIcon: IconButton(
-          tooltip: context.tr('copy'),
-          onPressed: () => copyToClipboard(context, url),
-          icon: const Icon(Icons.content_copy, size: 18),
+    return LabeledField(
+      label: context.tr('endpoint'),
+      child: InputDecorator(
+        decoration: InputDecoration(
+          labelText: context.tr('endpoint'),
+          floatingLabelBehavior: FloatingLabelBehavior.always,
+          suffixIcon: IconButton(
+            tooltip: context.tr('copy'),
+            onPressed: () => copyToClipboard(context, url),
+            icon: const Icon(Icons.content_copy, size: 18),
+          ),
         ),
+        child: SelectableText(url, style: _monoValueStyle(context)),
       ),
-      child: SelectableText(url, style: _monoValueStyle(context)),
     );
   }
 }

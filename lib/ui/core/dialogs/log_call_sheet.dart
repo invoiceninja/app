@@ -10,6 +10,7 @@ import 'package:admin/domain/phone/call_note.dart';
 import 'package:admin/domain/phone/phone_candidates.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/utils/field_text_direction.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/in_date_field.dart';
 import 'package:admin/ui/core/widgets/in_time_field.dart';
 import 'package:admin/ui/core/widgets/party_call_button.dart';
@@ -407,33 +408,39 @@ class _LogCallFormState extends State<_LogCallForm> {
                         ),
                         const SizedBox(width: InSpacing.sm),
                         Expanded(
-                          child: TextField(
-                            controller: _duration,
-                            textDirection: TextDirection.ltr,
-                            textAlign: ltrValueAlign(context, ltr: true),
-                            keyboardType: TextInputType.number,
-                            inputFormatters: [
-                              FilteringTextInputFormatter.digitsOnly,
-                            ],
-                            decoration: InputDecoration(
-                              labelText: context.tr('duration'),
-                              hintText: context.tr('minutes'),
+                          child: LabeledField(
+                            label: context.tr('duration'),
+                            child: TextField(
+                              controller: _duration,
+                              textDirection: TextDirection.ltr,
+                              textAlign: ltrValueAlign(context, ltr: true),
+                              keyboardType: TextInputType.number,
+                              inputFormatters: [
+                                FilteringTextInputFormatter.digitsOnly,
+                              ],
+                              decoration: InputDecoration(
+                                labelText: context.tr('duration'),
+                                hintText: context.tr('minutes'),
+                              ),
                             ),
                           ),
                         ),
                       ],
                     ),
                     SizedBox(height: InSpacing.md(context)),
-                    TextField(
-                      controller: _summary,
-                      autofocus: true,
-                      maxLines: 5,
-                      minLines: 3,
-                      textInputAction: TextInputAction.newline,
-                      keyboardType: TextInputType.multiline,
-                      decoration: InputDecoration(
-                        labelText: context.tr('summary'),
-                        border: const OutlineInputBorder(),
+                    LabeledField(
+                      label: context.tr('summary'),
+                      child: TextField(
+                        controller: _summary,
+                        autofocus: true,
+                        maxLines: 5,
+                        minLines: 3,
+                        textInputAction: TextInputAction.newline,
+                        keyboardType: TextInputType.multiline,
+                        decoration: InputDecoration(
+                          labelText: context.tr('summary'),
+                          border: const OutlineInputBorder(),
+                        ),
                       ),
                     ),
                   ],

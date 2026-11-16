@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/data/models/domain/transaction_rule.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
 import 'package:admin/ui/core/widgets/searchable_dropdown_field.dart';
 import 'package:admin/utils/formatting.dart';
@@ -148,31 +149,40 @@ class _RuleCriterionSheetState extends State<_RuleCriterionSheet> {
           const SizedBox(height: 16),
           _buildSearchKeyField(context),
           const SizedBox(height: 12),
-          DropdownButtonFormField<String>(
-            initialValue: _operator,
-            decoration: InputDecoration(labelText: context.tr('operator')),
-            items: [
-              for (final op in operators)
-                DropdownMenuItem(value: op, child: Text(labelForOperator(op))),
-            ],
-            onChanged: (v) {
-              if (v == null) return;
-              setState(() => _operator = v);
-            },
+          LabeledField(
+            label: context.tr('operator'),
+            child: DropdownButtonFormField<String>(
+              initialValue: _operator,
+              decoration: InputDecoration(labelText: context.tr('operator')),
+              items: [
+                for (final op in operators)
+                  DropdownMenuItem(
+                    value: op,
+                    child: Text(labelForOperator(op)),
+                  ),
+              ],
+              onChanged: (v) {
+                if (v == null) return;
+                setState(() => _operator = v);
+              },
+            ),
           ),
           const SizedBox(height: 12),
           if (widget.isCredit)
             _buildCreditValueField(context)
           else if (!hideValue)
-            TextField(
-              controller: _value,
-              decoration: InputDecoration(labelText: context.tr('value')),
-              keyboardType: isNumericSearchKey(_searchKey)
-                  ? const TextInputType.numberWithOptions(decimal: true)
-                  : TextInputType.text,
-              autofocus: true,
-              // Re-render so canSave flips as the user types.
-              onChanged: (_) => setState(() {}),
+            LabeledField(
+              label: context.tr('value'),
+              child: TextField(
+                controller: _value,
+                decoration: InputDecoration(labelText: context.tr('value')),
+                keyboardType: isNumericSearchKey(_searchKey)
+                    ? const TextInputType.numberWithOptions(decimal: true)
+                    : TextInputType.text,
+                autofocus: true,
+                // Re-render so canSave flips as the user types.
+                onChanged: (_) => setState(() {}),
+              ),
             ),
           const SizedBox(height: 20),
           Row(
@@ -243,21 +253,24 @@ class _RuleCriterionSheetState extends State<_RuleCriterionSheet> {
   /// debit the operator set follows this key; for credit the operator set
   /// follows the placeholder, so reconcile against [_operatorKey].
   Widget _buildSearchKeyField(BuildContext context) {
-    return DropdownButtonFormField<String>(
-      initialValue: _searchKey,
-      decoration: InputDecoration(labelText: context.tr('field')),
-      items: [
-        for (final k in _debitKeys)
-          DropdownMenuItem(value: k, child: Text(labelForSearchKey(k))),
-      ],
-      onChanged: (v) {
-        if (v == null) return;
-        setState(() {
-          _searchKey = v;
-          final next = ruleOperatorsFor(_operatorKey);
-          if (!next.contains(_operator)) _operator = next.first;
-        });
-      },
+    return LabeledField(
+      label: context.tr('field'),
+      child: DropdownButtonFormField<String>(
+        initialValue: _searchKey,
+        decoration: InputDecoration(labelText: context.tr('field')),
+        items: [
+          for (final k in _debitKeys)
+            DropdownMenuItem(value: k, child: Text(labelForSearchKey(k))),
+        ],
+        onChanged: (v) {
+          if (v == null) return;
+          setState(() {
+            _searchKey = v;
+            final next = ruleOperatorsFor(_operatorKey);
+            if (!next.contains(_operator)) _operator = next.first;
+          });
+        },
+      ),
     );
   }
 

@@ -18,6 +18,7 @@ import 'package:admin/ui/core/edit/entity_edit_field.dart';
 import 'package:admin/ui/core/widgets/assigned_user_picker_field.dart';
 import 'package:admin/ui/core/widgets/client_picker_field.dart';
 import 'package:admin/ui/core/widgets/entity_picker_field.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/form_save_scope.dart';
 import 'package:admin/ui/core/widgets/in_date_field.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
@@ -350,23 +351,29 @@ class _BulkUpdateDialogState extends State<_BulkUpdateDialog> {
       case BulkUpdateValueKind.autoBill:
         // Labels match the recurring invoice form's: `always` reads
         // "Enabled", as React labels it.
-        return DropdownButtonFormField<String>(
-          key: key,
-          initialValue: _value.isEmpty ? null : _value,
-          decoration: InputDecoration(labelText: label),
-          items: [
-            DropdownMenuItem(value: 'off', child: Text(context.tr('off'))),
-            DropdownMenuItem(
-              value: 'always',
-              child: Text(context.tr('enabled')),
-            ),
-            DropdownMenuItem(
-              value: 'optout',
-              child: Text(context.tr('opt_out')),
-            ),
-            DropdownMenuItem(value: 'optin', child: Text(context.tr('opt_in'))),
-          ],
-          onChanged: (v) => set(v ?? ''),
+        return LabeledField(
+          label: label,
+          child: DropdownButtonFormField<String>(
+            key: key,
+            initialValue: _value.isEmpty ? null : _value,
+            decoration: InputDecoration(labelText: label),
+            items: [
+              DropdownMenuItem(value: 'off', child: Text(context.tr('off'))),
+              DropdownMenuItem(
+                value: 'always',
+                child: Text(context.tr('enabled')),
+              ),
+              DropdownMenuItem(
+                value: 'optout',
+                child: Text(context.tr('opt_out')),
+              ),
+              DropdownMenuItem(
+                value: 'optin',
+                child: Text(context.tr('opt_in')),
+              ),
+            ],
+            onChanged: (v) => set(v ?? ''),
+          ),
         );
       case BulkUpdateValueKind.taskStatus:
         return TaskStatusPickerField(

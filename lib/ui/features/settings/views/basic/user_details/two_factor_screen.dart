@@ -7,6 +7,7 @@ import 'package:admin/app/services.dart';
 import 'package:admin/data/repositories/auth/auth_session.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/utils/field_text_direction.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
 import 'package:admin/ui/core/widgets/qr_code_image.dart';
@@ -341,15 +342,18 @@ class _ConfirmPasswordDialogState extends State<_ConfirmPasswordDialog> {
   Widget build(BuildContext context) {
     return AlertDialog(
       title: Text(context.tr('please_type_password')),
-      content: TextField(
-        controller: _controller,
-        obscureText: true,
-        autofocus: true,
-        keyboardType: TextInputType.visiblePassword,
-        autocorrect: false,
-        enableSuggestions: false,
-        decoration: InputDecoration(labelText: context.tr('password')),
-        onSubmitted: (v) => Navigator.of(context).pop(v),
+      content: LabeledField(
+        label: context.tr('password'),
+        child: TextField(
+          controller: _controller,
+          obscureText: true,
+          autofocus: true,
+          keyboardType: TextInputType.visiblePassword,
+          autocorrect: false,
+          enableSuggestions: false,
+          decoration: InputDecoration(labelText: context.tr('password')),
+          onSubmitted: (v) => Navigator.of(context).pop(v),
+        ),
       ),
       actions: [
         OutlinedButton(

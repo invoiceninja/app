@@ -10,6 +10,7 @@ import 'package:admin/data/models/value/parsing.dart';
 import 'package:admin/domain/product_tax_categories.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/edit/entity_edit_field.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/searchable_dropdown_field.dart';
 import 'package:admin/ui/features/dashboard/widgets/card_shell.dart';
 import 'package:admin/ui/features/products/view_models/product_edit_view_model.dart';
@@ -53,23 +54,26 @@ class ProductEditTaxesSection extends StatelessWidget {
               ),
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: InSpacing.xs),
-                child: DropdownButtonFormField<String>(
-                  decoration: InputDecoration(
-                    labelText: context.tr('tax_category'),
+                child: LabeledField(
+                  label: context.tr('tax_category'),
+                  child: DropdownButtonFormField<String>(
+                    decoration: InputDecoration(
+                      labelText: context.tr('tax_category'),
+                    ),
+                    initialValue:
+                        kProductTaxCategories.containsKey(vm.draft.taxId)
+                        ? vm.draft.taxId
+                        : null,
+                    items: [
+                      for (final MapEntry(key: id, value: labelKey)
+                          in kProductTaxCategories.entries)
+                        DropdownMenuItem(
+                          value: id,
+                          child: Text(context.tr(labelKey)),
+                        ),
+                    ],
+                    onChanged: (v) => vm.setTaxId(v ?? ''),
                   ),
-                  initialValue:
-                      kProductTaxCategories.containsKey(vm.draft.taxId)
-                      ? vm.draft.taxId
-                      : null,
-                  items: [
-                    for (final MapEntry(key: id, value: labelKey)
-                        in kProductTaxCategories.entries)
-                      DropdownMenuItem(
-                        value: id,
-                        child: Text(context.tr(labelKey)),
-                      ),
-                  ],
-                  onChanged: (v) => vm.setTaxId(v ?? ''),
                 ),
               ),
               // One subscription to the bundled tax rates feeds every enabled

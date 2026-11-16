@@ -8,6 +8,7 @@ import 'package:admin/app/services.dart';
 import 'package:admin/domain/companion_apps.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/utils/external_url.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/form_save_scope.dart';
 import 'package:admin/ui/features/settings/state/settings_level_controller.dart';
 import 'package:admin/ui/features/settings/view_models/settings_draft_view_model.dart';
@@ -379,34 +380,40 @@ class _RoundingSectionState extends State<_RoundingSection> {
           // stick.
           cascadedValueOnEnable: () =>
               (host.settings.taskRoundToNearest?.toInt() ?? 1).toString(),
-          child: DropdownButtonFormField<bool>(
-            key: ValueKey('round-enable-$enabled'),
-            isExpanded: true,
-            initialValue: enabled,
-            decoration: InputDecoration(
-              labelText: context.tr('round_tasks'),
-              helperText: context.tr('round_tasks_help'),
-            ),
-            items: [
-              DropdownMenuItem(value: true, child: Text(context.tr('enabled'))),
-              DropdownMenuItem(
-                value: false,
-                child: Text(context.tr('disabled')),
+          child: LabeledField(
+            label: context.tr('round_tasks'),
+            child: DropdownButtonFormField<bool>(
+              key: ValueKey('round-enable-$enabled'),
+              isExpanded: true,
+              initialValue: enabled,
+              decoration: InputDecoration(
+                labelText: context.tr('round_tasks'),
+                helperText: context.tr('round_tasks_help'),
               ),
-            ],
-            onChanged: (v) {
-              if (v == null) return;
-              host.updateSettings((s) {
-                if (v) {
-                  // Re-enable: restore previous granularity, not a hardcoded
-                  // default — preserves the user's choice across an off/on flip.
-                  return s.copyWith(
-                    taskRoundToNearest: _lastEnabledSeconds.toDouble(),
-                  );
-                }
-                return s.copyWith(taskRoundToNearest: 1);
-              });
-            },
+              items: [
+                DropdownMenuItem(
+                  value: true,
+                  child: Text(context.tr('enabled')),
+                ),
+                DropdownMenuItem(
+                  value: false,
+                  child: Text(context.tr('disabled')),
+                ),
+              ],
+              onChanged: (v) {
+                if (v == null) return;
+                host.updateSettings((s) {
+                  if (v) {
+                    // Re-enable: restore previous granularity, not a hardcoded
+                    // default — preserves the user's choice across an off/on flip.
+                    return s.copyWith(
+                      taskRoundToNearest: _lastEnabledSeconds.toDouble(),
+                    );
+                  }
+                  return s.copyWith(taskRoundToNearest: 1);
+                });
+              },
+            ),
           ),
         ),
         if (enabled) ...[
@@ -430,48 +437,60 @@ class _RoundingSectionState extends State<_RoundingSection> {
           // Granularity — plain dropdown; the enable dropdown above owns the
           // `task_round_to_nearest` override checkbox. Editable only once the
           // override is on (mirrors `_CustomSecondsField` below).
-          DropdownButtonFormField<int>(
-            key: ValueKey('round-granularity-$granularitySeconds'),
-            initialValue:
-                (granularitySeconds == 0 ||
-                    _kPresetSeconds.contains(granularitySeconds))
-                ? granularitySeconds
-                : null,
-            isExpanded: true,
-            decoration: InputDecoration(
-              labelText: context.tr('task_round_to_nearest'),
-              helperText: context.tr('task_round_to_nearest_help'),
-              errorText: roundErrorText,
-              enabled: isOverridden,
+          LabeledField(
+            label: context.tr('task_round_to_nearest'),
+            child: DropdownButtonFormField<int>(
+              key: ValueKey('round-granularity-$granularitySeconds'),
+              initialValue:
+                  (granularitySeconds == 0 ||
+                      _kPresetSeconds.contains(granularitySeconds))
+                  ? granularitySeconds
+                  : null,
+              isExpanded: true,
+              decoration: InputDecoration(
+                labelText: context.tr('task_round_to_nearest'),
+                helperText: context.tr('task_round_to_nearest_help'),
+                errorText: roundErrorText,
+                enabled: isOverridden,
+              ),
+              items: [
+                DropdownMenuItem(
+                  value: 60,
+                  child: Text(context.tr('1_minute')),
+                ),
+                DropdownMenuItem(
+                  value: 300,
+                  child: Text(context.tr('5_minutes')),
+                ),
+                DropdownMenuItem(
+                  value: 900,
+                  child: Text(context.tr('15_minutes')),
+                ),
+                DropdownMenuItem(
+                  value: 1800,
+                  child: Text(context.tr('30_minutes')),
+                ),
+                DropdownMenuItem(
+                  value: 3600,
+                  child: Text(context.tr('1_hour')),
+                ),
+                DropdownMenuItem(
+                  value: 86400,
+                  child: Text(context.tr('1_day')),
+                ),
+                DropdownMenuItem(value: 0, child: Text(context.tr('custom'))),
+              ],
+              onChanged: isOverridden
+                  ? (v) {
+                      if (v == null) return;
+                      // Picking "Custom" (sentinel 0) flips isCustomValue so the
+                      // seconds field appears. Mirrors admin-portal behavior.
+                      host.updateSettings(
+                        (s) => s.copyWith(taskRoundToNearest: v.toDouble()),
+                      );
+                    }
+                  : null,
             ),
-            items: [
-              DropdownMenuItem(value: 60, child: Text(context.tr('1_minute'))),
-              DropdownMenuItem(
-                value: 300,
-                child: Text(context.tr('5_minutes')),
-              ),
-              DropdownMenuItem(
-                value: 900,
-                child: Text(context.tr('15_minutes')),
-              ),
-              DropdownMenuItem(
-                value: 1800,
-                child: Text(context.tr('30_minutes')),
-              ),
-              DropdownMenuItem(value: 3600, child: Text(context.tr('1_hour'))),
-              DropdownMenuItem(value: 86400, child: Text(context.tr('1_day'))),
-              DropdownMenuItem(value: 0, child: Text(context.tr('custom'))),
-            ],
-            onChanged: isOverridden
-                ? (v) {
-                    if (v == null) return;
-                    // Picking "Custom" (sentinel 0) flips isCustomValue so the
-                    // seconds field appears. Mirrors admin-portal behavior.
-                    host.updateSettings(
-                      (s) => s.copyWith(taskRoundToNearest: v.toDouble()),
-                    );
-                  }
-                : null,
           ),
           if (isCustomValue)
             _CustomSecondsField(
@@ -537,22 +556,25 @@ class _CustomSecondsFieldState extends State<_CustomSecondsField> {
   @override
   Widget build(BuildContext context) {
     final scope = FormSaveScope.maybeOf(context);
-    return TextField(
-      controller: _controller,
-      enabled: widget.enabled,
-      keyboardType: TextInputType.number,
-      inputFormatters: <TextInputFormatter>[
-        FilteringTextInputFormatter.digitsOnly,
-      ],
-      textInputAction: TextInputAction.done,
-      decoration: InputDecoration(labelText: context.tr('round_to_seconds')),
-      onChanged: (v) {
-        final parsed = int.tryParse(v.trim());
-        widget.host.updateSettings(
-          (s) => s.copyWith(taskRoundToNearest: parsed?.toDouble()),
-        );
-      },
-      onSubmitted: scope == null ? null : (_) => scope.trySubmit(),
+    return LabeledField(
+      label: context.tr('round_to_seconds'),
+      child: TextField(
+        controller: _controller,
+        enabled: widget.enabled,
+        keyboardType: TextInputType.number,
+        inputFormatters: <TextInputFormatter>[
+          FilteringTextInputFormatter.digitsOnly,
+        ],
+        textInputAction: TextInputAction.done,
+        decoration: InputDecoration(labelText: context.tr('round_to_seconds')),
+        onChanged: (v) {
+          final parsed = int.tryParse(v.trim());
+          widget.host.updateSettings(
+            (s) => s.copyWith(taskRoundToNearest: parsed?.toDouble()),
+          );
+        },
+        onSubmitted: scope == null ? null : (_) => scope.trySubmit(),
+      ),
     );
   }
 }
@@ -573,19 +595,22 @@ class _ProjectLocationDropdown extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final field = DropdownButtonFormField<bool>(
-      key: ValueKey('project-location-$value-$enabled'),
-      isExpanded: true,
-      initialValue: enabled ? value : null,
-      decoration: InputDecoration(
-        labelText: context.tr('project_location'),
-        enabled: enabled,
+    final field = LabeledField(
+      label: context.tr('project_location'),
+      child: DropdownButtonFormField<bool>(
+        key: ValueKey('project-location-$value-$enabled'),
+        isExpanded: true,
+        initialValue: enabled ? value : null,
+        decoration: InputDecoration(
+          labelText: context.tr('project_location'),
+          enabled: enabled,
+        ),
+        items: [
+          DropdownMenuItem(value: false, child: Text(context.tr('service'))),
+          DropdownMenuItem(value: true, child: Text(context.tr('description'))),
+        ],
+        onChanged: enabled ? (v) => v == null ? null : onChanged(v) : null,
       ),
-      items: [
-        DropdownMenuItem(value: false, child: Text(context.tr('service'))),
-        DropdownMenuItem(value: true, child: Text(context.tr('description'))),
-      ],
-      onChanged: enabled ? (v) => v == null ? null : onChanged(v) : null,
     );
     if (enabled) return field;
     return Tooltip(message: context.tr('invoice_task_project'), child: field);

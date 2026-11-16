@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/data/models/domain/design.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/features/settings/views/advanced/invoice_design/wysiwyg/block_renderers/_shared.dart';
 import 'package:admin/ui/features/settings/views/advanced/invoice_design/wysiwyg/property_panel/cell_typography_editor.dart';
 import 'package:admin/ui/features/settings/views/advanced/invoice_design/wysiwyg/property_panel/expandable_property_row.dart';
@@ -424,13 +425,16 @@ class _ExpandedTotalEditor extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            TextFormField(
-              initialValue: (item['label'] as String?) ?? '',
-              decoration: InputDecoration(
-                labelText: context.tr('label'),
-                border: const OutlineInputBorder(),
+            LabeledField(
+              label: context.tr('label'),
+              child: TextFormField(
+                initialValue: (item['label'] as String?) ?? '',
+                decoration: InputDecoration(
+                  labelText: context.tr('label'),
+                  border: const OutlineInputBorder(),
+                ),
+                onChanged: (v) => onItemChanged('label', v),
               ),
-              onChanged: (v) => onItemChanged('label', v),
             ),
             SizedBox(height: InSpacing.md(context)),
             // Phase 8d: per-item typography editor — matches the

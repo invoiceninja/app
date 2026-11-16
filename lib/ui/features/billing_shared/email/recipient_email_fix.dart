@@ -5,6 +5,7 @@ import 'package:admin/app/services.dart';
 import 'package:admin/data/models/domain/billing/invitation.dart';
 import 'package:admin/data/models/value/parsing.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/form_save_scope.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
@@ -91,23 +92,26 @@ class _AddContactEmailDialogState extends State<_AddContactEmailDialog> {
       onSubmit: _submit,
       child: AlertDialog(
         title: Text(context.tr('add_email')),
-        content: TextField(
-          controller: _controller,
-          autofocus: true,
-          keyboardType: TextInputType.emailAddress,
-          autocorrect: false,
-          textInputAction: TextInputAction.done,
-          decoration: InputDecoration(
-            labelText: context.tr('email'),
-            helperText: widget.contactLabel.isEmpty
-                ? null
-                : widget.contactLabel,
-            errorText: _invalid ? context.tr('email_is_invalid') : null,
+        content: LabeledField(
+          label: context.tr('email'),
+          child: TextField(
+            controller: _controller,
+            autofocus: true,
+            keyboardType: TextInputType.emailAddress,
+            autocorrect: false,
+            textInputAction: TextInputAction.done,
+            decoration: InputDecoration(
+              labelText: context.tr('email'),
+              helperText: widget.contactLabel.isEmpty
+                  ? null
+                  : widget.contactLabel,
+              errorText: _invalid ? context.tr('email_is_invalid') : null,
+            ),
+            onChanged: (_) {
+              if (_invalid) setState(() => _invalid = false);
+            },
+            onSubmitted: (_) => _submit(),
           ),
-          onChanged: (_) {
-            if (_invalid) setState(() => _invalid = false);
-          },
-          onSubmitted: (_) => _submit(),
         ),
         actions: [
           TextButton(

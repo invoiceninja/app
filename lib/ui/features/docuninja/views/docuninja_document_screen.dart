@@ -28,6 +28,7 @@ import 'package:admin/ui/core/widgets/copyable_value.dart';
 import 'package:admin/ui/core/widgets/dashed_border.dart';
 import 'package:admin/ui/core/widgets/empty_state.dart';
 import 'package:admin/ui/core/widgets/error_view.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/form_save_scope.dart';
 import 'package:admin/ui/core/widgets/in_date_field.dart';
 import 'package:admin/ui/core/widgets/ltr_value.dart';
@@ -1567,16 +1568,19 @@ class _OptionsDialogState extends State<_OptionsDialog> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(
-                  controller: _description,
-                  autofocus: true,
-                  textCapitalization: TextCapitalization.sentences,
-                  textInputAction: TextInputAction.done,
-                  decoration: InputDecoration(
-                    labelText: context.tr('description'),
-                    errorText: _descriptionError,
+                LabeledField(
+                  label: context.tr('description'),
+                  child: TextField(
+                    controller: _description,
+                    autofocus: true,
+                    textCapitalization: TextCapitalization.sentences,
+                    textInputAction: TextInputAction.done,
+                    decoration: InputDecoration(
+                      labelText: context.tr('description'),
+                      errorText: _descriptionError,
+                    ),
+                    onSubmitted: (_) => _save(),
                   ),
-                  onSubmitted: (_) => _save(),
                 ),
                 if (canExpire) ...[
                   const SizedBox(height: InSpacing.sm),

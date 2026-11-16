@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/domain/recurring_frequency.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/features/settings/widgets/form_section.dart';
 import 'package:admin/ui/features/settings/widgets/settings_form_shell.dart';
 import 'package:admin/ui/features/settings/widgets/settings_text_field.dart';
@@ -171,11 +172,14 @@ class _FrequencyDropdown extends StatelessWidget {
           child: Text(context.tr(kRecurringFrequencyLabelKey[id]!)),
         ),
     ];
-    return DropdownButtonFormField<String>(
-      initialValue: items.any((m) => m.value == selected) ? selected : '',
-      items: items,
-      decoration: InputDecoration(labelText: context.tr('frequency')),
-      onChanged: (v) => vm.setFrequencyId(v ?? ''),
+    return LabeledField(
+      label: context.tr('frequency'),
+      child: DropdownButtonFormField<String>(
+        initialValue: items.any((m) => m.value == selected) ? selected : '',
+        items: items,
+        decoration: InputDecoration(labelText: context.tr('frequency')),
+        onChanged: (v) => vm.setFrequencyId(v ?? ''),
+      ),
     );
   }
 }
@@ -198,11 +202,14 @@ class _RemainingCyclesDropdown extends StatelessWidget {
     if (!items.any((m) => m.value == v)) {
       items.add(DropdownMenuItem(value: v, child: Text('$v')));
     }
-    return DropdownButtonFormField<int>(
-      initialValue: v,
-      items: items,
-      decoration: InputDecoration(labelText: context.tr('remaining_cycles')),
-      onChanged: (next) => vm.setRemainingCycles(next ?? -1),
+    return LabeledField(
+      label: context.tr('remaining_cycles'),
+      child: DropdownButtonFormField<int>(
+        initialValue: v,
+        items: items,
+        decoration: InputDecoration(labelText: context.tr('remaining_cycles')),
+        onChanged: (next) => vm.setRemainingCycles(next ?? -1),
+      ),
     );
   }
 }
@@ -228,11 +235,14 @@ class _AutoBillDropdown extends StatelessWidget {
           ),
         ),
     ];
-    return DropdownButtonFormField<String>(
-      initialValue: items.any((m) => m.value == v) ? v : '',
-      items: items,
-      decoration: InputDecoration(labelText: context.tr('auto_bill')),
-      onChanged: (next) => vm.setAutoBill(next ?? ''),
+    return LabeledField(
+      label: context.tr('auto_bill'),
+      child: DropdownButtonFormField<String>(
+        initialValue: items.any((m) => m.value == v) ? v : '',
+        items: items,
+        decoration: InputDecoration(labelText: context.tr('auto_bill')),
+        onChanged: (next) => vm.setAutoBill(next ?? ''),
+      ),
     );
   }
 }
@@ -261,11 +271,14 @@ class _DurationDropdown extends StatelessWidget {
           ),
         ),
     ];
-    return DropdownButtonFormField<int>(
-      initialValue: items.any((m) => m.value == value) ? value : 0,
-      items: items,
-      decoration: InputDecoration(labelText: context.tr(labelKey)),
-      onChanged: (next) => onChanged(next ?? 0),
+    return LabeledField(
+      label: context.tr(labelKey),
+      child: DropdownButtonFormField<int>(
+        initialValue: items.any((m) => m.value == value) ? value : 0,
+        items: items,
+        decoration: InputDecoration(labelText: context.tr(labelKey)),
+        onChanged: (next) => onChanged(next ?? 0),
+      ),
     );
   }
 
@@ -279,18 +292,21 @@ class _PromoDiscountRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final typeField = DropdownButtonFormField<bool>(
-      // Fill the constrained 140px slot and ellipsize rather than sizing to
-      // content (which overflows the slot — the amount/percent value + arrow
-      // don't fit the narrow width without this).
-      isExpanded: true,
-      initialValue: vm.draft.isAmountDiscount,
-      items: [
-        DropdownMenuItem(value: true, child: Text(context.tr('amount'))),
-        DropdownMenuItem(value: false, child: Text(context.tr('percent'))),
-      ],
-      decoration: InputDecoration(labelText: context.tr('type')),
-      onChanged: (v) => vm.setIsAmountDiscount(v ?? true),
+    final typeField = LabeledField(
+      label: context.tr('type'),
+      child: DropdownButtonFormField<bool>(
+        // Fill the constrained 140px slot and ellipsize rather than sizing to
+        // content (which overflows the slot — the amount/percent value + arrow
+        // don't fit the narrow width without this).
+        isExpanded: true,
+        initialValue: vm.draft.isAmountDiscount,
+        items: [
+          DropdownMenuItem(value: true, child: Text(context.tr('amount'))),
+          DropdownMenuItem(value: false, child: Text(context.tr('percent'))),
+        ],
+        decoration: InputDecoration(labelText: context.tr('type')),
+        onChanged: (v) => vm.setIsAmountDiscount(v ?? true),
+      ),
     );
     final valueField = SettingsTextField(
       initialValue: _decimalText(vm.draft.promoDiscount.toString()),
@@ -338,14 +354,17 @@ class _BoolDropdown extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DropdownButtonFormField<bool>(
-      initialValue: value,
-      items: [
-        DropdownMenuItem(value: true, child: Text(context.tr('enabled'))),
-        DropdownMenuItem(value: false, child: Text(context.tr('disabled'))),
-      ],
-      decoration: InputDecoration(labelText: context.tr(labelKey)),
-      onChanged: (v) => onChanged(v ?? false),
+    return LabeledField(
+      label: context.tr(labelKey),
+      child: DropdownButtonFormField<bool>(
+        initialValue: value,
+        items: [
+          DropdownMenuItem(value: true, child: Text(context.tr('enabled'))),
+          DropdownMenuItem(value: false, child: Text(context.tr('disabled'))),
+        ],
+        decoration: InputDecoration(labelText: context.tr(labelKey)),
+        onChanged: (v) => onChanged(v ?? false),
+      ),
     );
   }
 }

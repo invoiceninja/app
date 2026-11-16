@@ -18,6 +18,7 @@ import 'package:admin/domain/tasks/task_day.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/list/entity_list_constants.dart';
 import 'package:admin/ui/core/widgets/assigned_user_picker_field.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/form_save_scope.dart';
 import 'package:admin/ui/core/widgets/in_date_field.dart';
 import 'package:admin/ui/core/widgets/in_time_field.dart';
@@ -445,12 +446,15 @@ class _CreateTaskFromLineItemSheetState
                 style: Theme.of(context).textTheme.titleMedium,
               ),
               SizedBox(height: InSpacing.lg(context)),
-              TextField(
-                controller: _description,
-                minLines: 2,
-                maxLines: 5,
-                decoration: InputDecoration(
-                  labelText: context.tr('description'),
+              LabeledField(
+                label: context.tr('description'),
+                child: TextField(
+                  controller: _description,
+                  minLines: 2,
+                  maxLines: 5,
+                  decoration: InputDecoration(
+                    labelText: context.tr('description'),
+                  ),
                 ),
               ),
               SizedBox(height: InSpacing.md(context)),
@@ -481,16 +485,19 @@ class _CreateTaskFromLineItemSheetState
                   Expanded(child: _durationField(context)),
                   const SizedBox(width: InSpacing.sm),
                   Expanded(
-                    child: TextField(
-                      controller: _rate,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
-                      textInputAction: TextInputAction.done,
-                      onSubmitted: (_) =>
-                          FormSaveScope.maybeOf(context)?.trySubmit(),
-                      decoration: InputDecoration(
-                        labelText: context.tr('rate'),
+                    child: LabeledField(
+                      label: context.tr('rate'),
+                      child: TextField(
+                        controller: _rate,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        textInputAction: TextInputAction.done,
+                        onSubmitted: (_) =>
+                            FormSaveScope.maybeOf(context)?.trySubmit(),
+                        decoration: InputDecoration(
+                          labelText: context.tr('rate'),
+                        ),
                       ),
                     ),
                   ),
@@ -583,42 +590,45 @@ class _CreateTaskFromLineItemSheetState
     );
   }
 
-  Widget _durationField(BuildContext context) => TextField(
-    controller: _durationText,
-    focusNode: _durationFocus,
-    onChanged: _onDurationChanged,
-    textInputAction: TextInputAction.done,
-    onSubmitted: (_) => FormSaveScope.maybeOf(context)?.trySubmit(),
-    decoration: InputDecoration(
-      labelText: context.tr('duration'),
-      hintText: '1h 30m',
-      // The same 15 → 120-minute presets the time-log table offers; scheduling
-      // a service is exactly the "pick a round block" case they exist for.
-      // Unlike that table this sheet also renders as a phone bottom sheet, so
-      // the trigger is sized from the platform (44 on touch) rather than the
-      // table's fixed 28 — see `actionButtonSize`.
-      suffixIcon: PopupMenuButton<int>(
-        tooltip: context.tr('duration'),
-        icon: const Icon(Icons.arrow_drop_down, size: 18),
-        padding: EdgeInsets.zero,
-        iconSize: 18,
-        onSelected: _applyDurationPreset,
-        itemBuilder: (_) => [
-          for (final m in const [15, 30, 45, 60, 75, 90, 105, 120])
-            PopupMenuItem<int>(
-              value: m,
-              child: Text(
-                formatDuration(Duration(minutes: m), showSeconds: false),
-                style: const TextStyle(
-                  fontFeatures: [FontFeature.tabularFigures()],
+  Widget _durationField(BuildContext context) => LabeledField(
+    label: context.tr('duration'),
+    child: TextField(
+      controller: _durationText,
+      focusNode: _durationFocus,
+      onChanged: _onDurationChanged,
+      textInputAction: TextInputAction.done,
+      onSubmitted: (_) => FormSaveScope.maybeOf(context)?.trySubmit(),
+      decoration: InputDecoration(
+        labelText: context.tr('duration'),
+        hintText: '1h 30m',
+        // The same 15 → 120-minute presets the time-log table offers; scheduling
+        // a service is exactly the "pick a round block" case they exist for.
+        // Unlike that table this sheet also renders as a phone bottom sheet, so
+        // the trigger is sized from the platform (44 on touch) rather than the
+        // table's fixed 28 — see `actionButtonSize`.
+        suffixIcon: PopupMenuButton<int>(
+          tooltip: context.tr('duration'),
+          icon: const Icon(Icons.arrow_drop_down, size: 18),
+          padding: EdgeInsets.zero,
+          iconSize: 18,
+          onSelected: _applyDurationPreset,
+          itemBuilder: (_) => [
+            for (final m in const [15, 30, 45, 60, 75, 90, 105, 120])
+              PopupMenuItem<int>(
+                value: m,
+                child: Text(
+                  formatDuration(Duration(minutes: m), showSeconds: false),
+                  style: const TextStyle(
+                    fontFeatures: [FontFeature.tabularFigures()],
+                  ),
                 ),
               ),
-            ),
-        ],
-      ),
-      suffixIconConstraints: BoxConstraints(
-        minWidth: actionButtonSize(),
-        minHeight: actionButtonSize(),
+          ],
+        ),
+        suffixIconConstraints: BoxConstraints(
+          minWidth: actionButtonSize(),
+          minHeight: actionButtonSize(),
+        ),
       ),
     ),
   );

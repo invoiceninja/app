@@ -8,6 +8,7 @@ import 'package:admin/data/models/domain/billing/line_item_type.dart';
 import 'package:admin/data/models/domain/tax_rate.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/edit/custom_field_input.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
 import 'package:admin/ui/core/widgets/spell_check.dart';
 import 'package:admin/ui/features/billing_shared/edit/tax_rate_tier_picker.dart';
@@ -220,52 +221,68 @@ class _LineItemEditDialogState extends State<_LineItemEditDialog> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               LineItemSpellCheck(
-                builder: (context, config) => TextField(
-                  controller: _productKey,
-                  decoration: InputDecoration(labelText: label('product')),
-                  textInputAction: TextInputAction.next,
-                  autofocus: widget.autofocusProduct,
-                  spellCheckConfiguration: config,
-                  contextMenuBuilder: spellCheckContextMenuBuilder,
+                builder: (context, config) => LabeledField(
+                  label: label('product'),
+                  child: TextField(
+                    controller: _productKey,
+                    decoration: InputDecoration(labelText: label('product')),
+                    textInputAction: TextInputAction.next,
+                    autofocus: widget.autofocusProduct,
+                    spellCheckConfiguration: config,
+                    contextMenuBuilder: spellCheckContextMenuBuilder,
+                  ),
                 ),
               ),
               SizedBox(height: InSpacing.md(context)),
               LineItemSpellCheck(
-                builder: (context, config) => TextField(
-                  controller: _notes,
-                  decoration: InputDecoration(labelText: label('description')),
-                  // Grows with the text up to eight lines, then scrolls — three
-                  // left a paragraph mostly out of sight while typing it.
-                  maxLines: 8,
-                  minLines: 3,
-                  textCapitalization: TextCapitalization.sentences,
-                  spellCheckConfiguration: config,
-                  contextMenuBuilder: spellCheckContextMenuBuilder,
+                builder: (context, config) => LabeledField(
+                  label: label('description'),
+                  child: TextField(
+                    controller: _notes,
+                    decoration: InputDecoration(
+                      labelText: label('description'),
+                    ),
+                    // Grows with the text up to eight lines, then scrolls — three
+                    // left a paragraph mostly out of sight while typing it.
+                    maxLines: 8,
+                    minLines: 3,
+                    textCapitalization: TextCapitalization.sentences,
+                    spellCheckConfiguration: config,
+                    contextMenuBuilder: spellCheckContextMenuBuilder,
+                  ),
                 ),
               ),
               SizedBox(height: InSpacing.md(context)),
               Row(
                 children: [
                   Expanded(
-                    child: TextField(
-                      controller: _cost,
-                      decoration: InputDecoration(
-                        labelText: label('unit_cost'),
-                      ),
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                        signed: true,
+                    child: LabeledField(
+                      label: label('unit_cost'),
+                      child: TextField(
+                        controller: _cost,
+                        decoration: InputDecoration(
+                          labelText: label('unit_cost'),
+                        ),
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                          signed: true,
+                        ),
                       ),
                     ),
                   ),
                   SizedBox(width: InSpacing.md(context)),
                   Expanded(
-                    child: TextField(
-                      controller: _quantity,
-                      decoration: InputDecoration(labelText: label('quantity')),
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                        signed: true,
+                    child: LabeledField(
+                      label: label('quantity'),
+                      child: TextField(
+                        controller: _quantity,
+                        decoration: InputDecoration(
+                          labelText: label('quantity'),
+                        ),
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                          signed: true,
+                        ),
                       ),
                     ),
                   ),
@@ -273,12 +290,15 @@ class _LineItemEditDialogState extends State<_LineItemEditDialog> {
               ),
               if (config.showDiscount) ...[
                 SizedBox(height: InSpacing.md(context)),
-                TextField(
-                  controller: _discount,
-                  decoration: InputDecoration(labelText: label('discount')),
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                    signed: true,
+                LabeledField(
+                  label: label('discount'),
+                  child: TextField(
+                    controller: _discount,
+                    decoration: InputDecoration(labelText: label('discount')),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                      signed: true,
+                    ),
                   ),
                 ),
               ],
@@ -404,23 +424,31 @@ class _TaxRow extends StatelessWidget {
       children: [
         Expanded(
           flex: 3,
-          child: TextField(
-            controller: name,
-            decoration: InputDecoration(
-              labelText: '${context.tr('tax_name')} $index',
+          child: LabeledField(
+            label: '${context.tr('tax_name')} $index',
+            child: TextField(
+              controller: name,
+              decoration: InputDecoration(
+                labelText: '${context.tr('tax_name')} $index',
+              ),
             ),
           ),
         ),
         SizedBox(width: InSpacing.md(context)),
         Expanded(
           flex: 2,
-          child: TextField(
-            controller: rate,
-            decoration: InputDecoration(
-              labelText: '${context.tr('tax_rate')} $index',
-              suffixText: '%',
+          child: LabeledField(
+            label: '${context.tr('tax_rate')} $index',
+            child: TextField(
+              controller: rate,
+              decoration: InputDecoration(
+                labelText: '${context.tr('tax_rate')} $index',
+                suffixText: '%',
+              ),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
             ),
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
           ),
         ),
       ],

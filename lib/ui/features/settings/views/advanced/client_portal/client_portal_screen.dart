@@ -8,6 +8,7 @@ import 'package:admin/data/models/domain/enabled_modules.dart';
 import 'package:admin/domain/client_portal_urls.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/utils/external_url.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/form_save_scope.dart';
 import 'package:admin/ui/features/settings/state/settings_level_controller.dart';
 import 'package:admin/ui/features/settings/view_models/settings_draft_view_model.dart';
@@ -272,46 +273,53 @@ class _PortalConfigurationSectionState
       title: context.tr('portal_settings'),
       children: [
         if (widget.isHosted) ...[
-          DropdownButtonFormField<String>(
-            initialValue: portalMode.isEmpty ? null : portalMode,
-            decoration: InputDecoration(
-              labelText: context.tr('portal_mode'),
-              helperText: widget.isEnterprisePlan
-                  ? null
-                  : context.tr('requires_an_enterprise_plan'),
+          LabeledField(
+            label: context.tr('portal_mode'),
+            child: DropdownButtonFormField<String>(
+              initialValue: portalMode.isEmpty ? null : portalMode,
+              decoration: InputDecoration(
+                labelText: context.tr('portal_mode'),
+                helperText: widget.isEnterprisePlan
+                    ? null
+                    : context.tr('requires_an_enterprise_plan'),
+              ),
+              items: [
+                DropdownMenuItem(
+                  value: kClientPortalModeSubdomain,
+                  child: Text(context.tr(kClientPortalModeSubdomain)),
+                ),
+                DropdownMenuItem(
+                  value: kClientPortalModeDomain,
+                  child: Text(context.tr(kClientPortalModeDomain)),
+                ),
+              ],
+              onChanged: widget.isEnterprisePlan
+                  ? (v) => host.updateCompany(
+                      (c) => c.copyWith(portalMode: v ?? ''),
+                    )
+                  : null,
             ),
-            items: [
-              DropdownMenuItem(
-                value: kClientPortalModeSubdomain,
-                child: Text(context.tr(kClientPortalModeSubdomain)),
-              ),
-              DropdownMenuItem(
-                value: kClientPortalModeDomain,
-                child: Text(context.tr(kClientPortalModeDomain)),
-              ),
-            ],
-            onChanged: widget.isEnterprisePlan
-                ? (v) =>
-                      host.updateCompany((c) => c.copyWith(portalMode: v ?? ''))
-                : null,
           ),
         ],
         if (showSubdomain) SubdomainField(enabled: !widget.isFreePlan),
         if (showDomain)
-          TextField(
-            controller: _domainController,
-            textInputAction: TextInputAction.done,
-            keyboardType: TextInputType.url,
-            autocorrect: false,
-            enableSuggestions: false,
-            decoration: InputDecoration(
-              labelText: context.tr('domain_url'),
-              helperText: context.tr('portal_domain_help'),
-              helperMaxLines: 2,
+          LabeledField(
+            label: context.tr('domain_url'),
+            child: TextField(
+              controller: _domainController,
+              textInputAction: TextInputAction.done,
+              keyboardType: TextInputType.url,
+              autocorrect: false,
+              enableSuggestions: false,
+              decoration: InputDecoration(
+                labelText: context.tr('domain_url'),
+                helperText: context.tr('portal_domain_help'),
+                helperMaxLines: 2,
+              ),
+              onChanged: (v) =>
+                  host.updateCompany((c) => c.copyWith(portalDomain: v)),
+              onSubmitted: scope == null ? null : (_) => scope.trySubmit(),
             ),
-            onChanged: (v) =>
-                host.updateCompany((c) => c.copyWith(portalDomain: v)),
-            onSubmitted: scope == null ? null : (_) => scope.trySubmit(),
           ),
         if (showViewDocs)
           Align(

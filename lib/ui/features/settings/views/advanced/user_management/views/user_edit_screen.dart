@@ -13,6 +13,7 @@ import 'package:admin/domain/permissions.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/edit/entity_custom_fields_section.dart';
 import 'package:admin/ui/core/widgets/confirm_password_sheet.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/form_save_scope.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/features/settings/views/advanced/user_management/view_models/user_edit_view_model.dart';
@@ -592,21 +593,24 @@ class _LabeledFieldState extends State<_LabeledField> {
         horizontal: InSpacing.lg(context),
         vertical: 6,
       ),
-      child: TextField(
-        controller: _controller,
-        decoration: InputDecoration(
-          labelText:
-              context.tr(widget.labelKey) + (widget.required ? ' *' : ''),
-          errorText: widget.errorText,
-          border: const OutlineInputBorder(),
+      child: LabeledField(
+        label: context.tr(widget.labelKey) + (widget.required ? ' *' : ''),
+        child: TextField(
+          controller: _controller,
+          decoration: InputDecoration(
+            labelText:
+                context.tr(widget.labelKey) + (widget.required ? ' *' : ''),
+            errorText: widget.errorText,
+            border: const OutlineInputBorder(),
+          ),
+          keyboardType: widget.keyboardType,
+          textCapitalization: widget.textCapitalization,
+          autocorrect: widget.autocorrect,
+          enableSuggestions: widget.autocorrect,
+          textInputAction: TextInputAction.done,
+          onChanged: widget.onChanged,
+          onSubmitted: (_) => scope?.trySubmit(),
         ),
-        keyboardType: widget.keyboardType,
-        textCapitalization: widget.textCapitalization,
-        autocorrect: widget.autocorrect,
-        enableSuggestions: widget.autocorrect,
-        textInputAction: TextInputAction.done,
-        onChanged: widget.onChanged,
-        onSubmitted: (_) => scope?.trySubmit(),
       ),
     );
   }

@@ -16,6 +16,7 @@ import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/edit/create_form_documents.dart';
 import 'package:admin/ui/core/edit/entity_custom_fields_section.dart';
 import 'package:admin/ui/core/widgets/centered_form_column.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/form_save_scope.dart';
 import 'package:admin/ui/core/widgets/in_date_field.dart';
 import 'package:admin/ui/features/billing_shared/billing_doc_type.dart';
@@ -826,17 +827,22 @@ class _DatesCardDesktopState<T extends BillingDocFields>
         ),
         SizedBox(height: InSpacing.md(context)),
         if (partialVm != null) ...[
-          TextField(
-            controller: _partial,
-            decoration: billingFieldDecoration(
-              context,
-              label: context.tr('partial'),
-              errorText: vm.fieldErrorFor('partial'),
+          LabeledField(
+            label: context.tr('partial'),
+            child: TextField(
+              controller: _partial,
+              decoration: billingFieldDecoration(
+                context,
+                label: context.tr('partial'),
+                errorText: vm.fieldErrorFor('partial'),
+              ),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              onChanged: partialVm.setPartial,
+              textInputAction: TextInputAction.done,
+              onSubmitted: _saveOnEnter(context),
             ),
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            onChanged: partialVm.setPartial,
-            textInputAction: TextInputAction.done,
-            onSubmitted: _saveOnEnter(context),
           ),
           if (_partialOf(type, vm.draft) > Decimal.zero) ...[
             SizedBox(height: InSpacing.md(context)),
@@ -901,32 +907,38 @@ class _NumberCardDesktopState<T extends BillingDocFields>
       spacing: 0,
       elevated: false,
       children: [
-        TextField(
-          controller: _number,
-          decoration: billingFieldDecoration(
-            context,
-            label: context.tr(type.desktopNumberLabelKey),
-            hint: vm.isCreate ? context.tr('auto_generated') : null,
-            errorText: vm.fieldErrorFor('number'),
-          ),
-          onChanged: vm.setNumber,
-          autocorrect: false,
-          textInputAction: TextInputAction.done,
-          onSubmitted: _saveOnEnter(context),
-        ),
-        SizedBox(height: InSpacing.md(context)),
-        if (type.hasPoNumberField) ...[
-          TextField(
-            controller: _poNumber,
+        LabeledField(
+          label: context.tr(type.desktopNumberLabelKey),
+          child: TextField(
+            controller: _number,
             decoration: billingFieldDecoration(
               context,
-              label: context.tr('po_number'),
-              errorText: vm.fieldErrorFor('po_number'),
+              label: context.tr(type.desktopNumberLabelKey),
+              hint: vm.isCreate ? context.tr('auto_generated') : null,
+              errorText: vm.fieldErrorFor('number'),
             ),
-            onChanged: vm.setPoNumber,
+            onChanged: vm.setNumber,
             autocorrect: false,
             textInputAction: TextInputAction.done,
             onSubmitted: _saveOnEnter(context),
+          ),
+        ),
+        SizedBox(height: InSpacing.md(context)),
+        if (type.hasPoNumberField) ...[
+          LabeledField(
+            label: context.tr('po_number'),
+            child: TextField(
+              controller: _poNumber,
+              decoration: billingFieldDecoration(
+                context,
+                label: context.tr('po_number'),
+                errorText: vm.fieldErrorFor('po_number'),
+              ),
+              onChanged: vm.setPoNumber,
+              autocorrect: false,
+              textInputAction: TextInputAction.done,
+              onSubmitted: _saveOnEnter(context),
+            ),
           ),
           SizedBox(height: InSpacing.md(context)),
         ],
@@ -961,16 +973,24 @@ class _DiscountRow<T extends BillingDocFields> extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Expanded(
-          child: TextField(
-            controller: controller,
-            decoration: desktop
-                ? billingFieldDecoration(context, label: context.tr('discount'))
-                : InputDecoration(labelText: context.tr('discount')),
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            onChanged: (v) =>
-                vm.setDiscount(v, isAmount: vm.draft.isAmountDiscount),
-            textInputAction: TextInputAction.done,
-            onSubmitted: _saveOnEnter(context),
+          child: LabeledField(
+            label: context.tr('discount'),
+            child: TextField(
+              controller: controller,
+              decoration: desktop
+                  ? billingFieldDecoration(
+                      context,
+                      label: context.tr('discount'),
+                    )
+                  : InputDecoration(labelText: context.tr('discount')),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              onChanged: (v) =>
+                  vm.setDiscount(v, isAmount: vm.draft.isAmountDiscount),
+              textInputAction: TextInputAction.done,
+              onSubmitted: _saveOnEnter(context),
+            ),
           ),
         ),
         SizedBox(width: InSpacing.md(context)),
@@ -1481,28 +1501,34 @@ class _DetailsTabState<T extends BillingDocFields>
     final partialVm = type.hasPartial ? _partialSetters(vm) : null;
     final autoBillMode = widget.slots.autoBillMode;
 
-    final numberField = TextField(
-      controller: _number,
-      decoration: InputDecoration(
-        labelText: context.tr(type.numberLabelKey),
-        hintText: vm.isCreate ? context.tr('auto_generated') : null,
-        errorText: vm.fieldErrorFor('number'),
+    final numberField = LabeledField(
+      label: context.tr(type.numberLabelKey),
+      child: TextField(
+        controller: _number,
+        decoration: InputDecoration(
+          labelText: context.tr(type.numberLabelKey),
+          hintText: vm.isCreate ? context.tr('auto_generated') : null,
+          errorText: vm.fieldErrorFor('number'),
+        ),
+        onChanged: vm.setNumber,
+        autocorrect: false,
+        textInputAction: TextInputAction.done,
+        onSubmitted: _saveOnEnter(context),
       ),
-      onChanged: vm.setNumber,
-      autocorrect: false,
-      textInputAction: TextInputAction.done,
-      onSubmitted: _saveOnEnter(context),
     );
-    Widget partialField() => TextField(
-      controller: _partial,
-      decoration: InputDecoration(
-        labelText: context.tr('partial'),
-        errorText: vm.fieldErrorFor('partial'),
+    Widget partialField() => LabeledField(
+      label: context.tr('partial'),
+      child: TextField(
+        controller: _partial,
+        decoration: InputDecoration(
+          labelText: context.tr('partial'),
+          errorText: vm.fieldErrorFor('partial'),
+        ),
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        onChanged: partialVm!.setPartial,
+        textInputAction: TextInputAction.done,
+        onSubmitted: _saveOnEnter(context),
       ),
-      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      onChanged: partialVm!.setPartial,
-      textInputAction: TextInputAction.done,
-      onSubmitted: _saveOnEnter(context),
     );
     Widget partialDueDate() => InDateField(
       value: _partialDueDateOf(vm.draft)?.toDateTime(),
@@ -1542,16 +1568,19 @@ class _DetailsTabState<T extends BillingDocFields>
                 Expanded(child: numberField),
                 SizedBox(width: InSpacing.md(context)),
                 Expanded(
-                  child: TextField(
-                    controller: _poNumber,
-                    decoration: InputDecoration(
-                      labelText: context.tr('po_number'),
-                      errorText: vm.fieldErrorFor('po_number'),
+                  child: LabeledField(
+                    label: context.tr('po_number'),
+                    child: TextField(
+                      controller: _poNumber,
+                      decoration: InputDecoration(
+                        labelText: context.tr('po_number'),
+                        errorText: vm.fieldErrorFor('po_number'),
+                      ),
+                      onChanged: vm.setPoNumber,
+                      autocorrect: false,
+                      textInputAction: TextInputAction.done,
+                      onSubmitted: _saveOnEnter(context),
                     ),
-                    onChanged: vm.setPoNumber,
-                    autocorrect: false,
-                    textInputAction: TextInputAction.done,
-                    onSubmitted: _saveOnEnter(context),
                   ),
                 ),
               ],

@@ -2,6 +2,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 
 import 'package:admin/ui/core/utils/field_text_direction.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/form_save_scope.dart';
 import 'package:admin/ui/features/settings/view_models/settings_draft_view_model.dart';
 import 'package:admin/ui/features/settings/widgets/overridable_field.dart';
@@ -108,29 +109,32 @@ class _OverridableCurrencyFieldState extends State<OverridableCurrencyField> {
     final errorText = (errors != null && errors.isNotEmpty)
         ? errors.first
         : null;
-    final field = TextField(
-      controller: _controller,
-      focusNode: _focusNode,
-      enabled: widget.enabled,
-      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      textDirection: TextDirection.ltr,
-      textAlign: ltrValueAlign(context, ltr: true),
-      textInputAction: TextInputAction.done,
-      decoration: InputDecoration(
-        labelText: widget.label,
-        errorText: errorText,
+    final field = LabeledField(
+      label: widget.label,
+      child: TextField(
+        controller: _controller,
+        focusNode: _focusNode,
+        enabled: widget.enabled,
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        textDirection: TextDirection.ltr,
+        textAlign: ltrValueAlign(context, ltr: true),
+        textInputAction: TextInputAction.done,
+        decoration: InputDecoration(
+          labelText: widget.label,
+          errorText: errorText,
+        ),
+        onChanged: (v) {
+          // Store the parsed canonical Decimal string so the wire stays
+          // locale-agnostic. parseDecimal returning null becomes empty.
+          final parsed = parseDecimal(
+            v,
+            useCommaAsDecimalPlace:
+                widget.formatter.settings.useCommaAsDecimalPlace,
+          );
+          host.updateSettings((s) => _write(s, parsed?.toString() ?? ''));
+        },
+        onSubmitted: scope == null ? null : (_) => scope.trySubmit(),
       ),
-      onChanged: (v) {
-        // Store the parsed canonical Decimal string so the wire stays
-        // locale-agnostic. parseDecimal returning null becomes empty.
-        final parsed = parseDecimal(
-          v,
-          useCommaAsDecimalPlace:
-              widget.formatter.settings.useCommaAsDecimalPlace,
-        );
-        host.updateSettings((s) => _write(s, parsed?.toString() ?? ''));
-      },
-      onSubmitted: scope == null ? null : (_) => scope.trySubmit(),
     );
     return OverridableField.bind(
       apiKey: widget.apiKey,

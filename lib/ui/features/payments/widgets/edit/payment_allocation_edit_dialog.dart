@@ -5,6 +5,7 @@ import 'package:material_ui/material_ui.dart';
 
 import 'package:admin/data/models/domain/payment.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
 import 'package:admin/ui/core/widgets/searchable_dropdown_field.dart';
 import 'package:admin/ui/features/payments/widgets/edit/open_amount.dart';
@@ -191,19 +192,26 @@ class _PaymentAllocationEditDialogState
               },
             ),
             const SizedBox(height: 12),
-            TextFormField(
-              controller: _amountController,
-              decoration: InputDecoration(
-                labelText: context.tr(
-                  widget.kind == AllocationKind.invoice ? 'amount' : 'applied',
+            LabeledField(
+              label: context.tr(
+                widget.kind == AllocationKind.invoice ? 'amount' : 'applied',
+              ),
+              child: TextFormField(
+                controller: _amountController,
+                decoration: InputDecoration(
+                  labelText: context.tr(
+                    widget.kind == AllocationKind.invoice
+                        ? 'amount'
+                        : 'applied',
+                  ),
                 ),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                autofocus: widget.initial != null,
+                textInputAction: TextInputAction.done,
+                onFieldSubmitted: (_) => _save(),
               ),
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              autofocus: widget.initial != null,
-              textInputAction: TextInputAction.done,
-              onFieldSubmitted: (_) => _save(),
             ),
           ],
         ),

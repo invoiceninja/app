@@ -9,6 +9,7 @@ import 'package:admin/data/models/domain/payment.dart';
 import 'package:admin/data/models/value/date.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/empty_state.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/in_date_field.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/features/payments/widgets/payment_status_pill.dart';
@@ -343,26 +344,29 @@ class _PaymentRefundScreenState extends State<PaymentRefundScreen> {
                 ),
                 SizedBox(
                   width: 140,
-                  child: TextFormField(
-                    initialValue: decimalInputText(
-                      _allocations[pa.invoiceId] ?? Decimal.zero,
+                  child: LabeledField(
+                    label: context.tr('amount'),
+                    child: TextFormField(
+                      initialValue: decimalInputText(
+                        _allocations[pa.invoiceId] ?? Decimal.zero,
+                      ),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      decoration: InputDecoration(
+                        labelText: context.tr('amount'),
+                      ),
+                      onChanged: (v) {
+                        setState(() {
+                          _allocations[pa.invoiceId] =
+                              parseDecimal(
+                                v,
+                                useCommaAsDecimalPlace: _useComma,
+                              ) ??
+                              Decimal.zero;
+                        });
+                      },
                     ),
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
-                    decoration: InputDecoration(
-                      labelText: context.tr('amount'),
-                    ),
-                    onChanged: (v) {
-                      setState(() {
-                        _allocations[pa.invoiceId] =
-                            parseDecimal(
-                              v,
-                              useCommaAsDecimalPlace: _useComma,
-                            ) ??
-                            Decimal.zero;
-                      });
-                    },
                   ),
                 ),
               ],

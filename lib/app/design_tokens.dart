@@ -800,6 +800,11 @@ class InSizes {
   /// platforms keep their denser metrics. See issue #11.
   static const double touchTarget = 44;
 
+  /// Vertical content padding of a form field: a 20 px line plus twice this is
+  /// [touchTarget]. It was 14; with the label on its own line above the box
+  /// the box needs no room for one, and every row of a form is 4 px shorter.
+  static const double fieldPadV = 12;
+
   /// Total height of the app's top header band — the sidebar's company-switcher
   /// row and the content pane's header, which sit side by side and must line up
   /// or the seam between them reads as a mistake.

@@ -2,6 +2,7 @@ import 'package:material_ui/material_ui.dart';
 
 import 'package:admin/data/models/domain/product.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/form_save_scope.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
 import 'package:admin/utils/formatting.dart';
@@ -91,35 +92,44 @@ class _QuickProductDialogState extends State<_QuickProductDialog> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(
-                controller: _key,
-                autocorrect: false,
-                textInputAction: TextInputAction.next,
-                decoration: InputDecoration(labelText: context.tr('item')),
-                onChanged: (_) => setState(() {}),
+              LabeledField(
+                label: context.tr('item'),
+                child: TextField(
+                  controller: _key,
+                  autocorrect: false,
+                  textInputAction: TextInputAction.next,
+                  decoration: InputDecoration(labelText: context.tr('item')),
+                  onChanged: (_) => setState(() {}),
+                ),
               ),
               const SizedBox(height: 12),
-              TextField(
-                controller: _price,
-                // The price field's own focus: the key is usually right
-                // already — it is what the user just searched for.
-                autofocus: true,
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
+              LabeledField(
+                label: context.tr(widget.vendorDoc ? 'cost' : 'price'),
+                child: TextField(
+                  controller: _price,
+                  // The price field's own focus: the key is usually right
+                  // already — it is what the user just searched for.
+                  autofocus: true,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  textInputAction: TextInputAction.done,
+                  decoration: InputDecoration(
+                    labelText: context.tr(widget.vendorDoc ? 'cost' : 'price'),
+                  ),
+                  onSubmitted: (_) => _submit(),
                 ),
-                textInputAction: TextInputAction.done,
-                decoration: InputDecoration(
-                  labelText: context.tr(widget.vendorDoc ? 'cost' : 'price'),
-                ),
-                onSubmitted: (_) => _submit(),
               ),
               const SizedBox(height: 12),
-              TextField(
-                controller: _notes,
-                minLines: 2,
-                maxLines: 4,
-                decoration: InputDecoration(
-                  labelText: context.tr('description'),
+              LabeledField(
+                label: context.tr('description'),
+                child: TextField(
+                  controller: _notes,
+                  minLines: 2,
+                  maxLines: 4,
+                  decoration: InputDecoration(
+                    labelText: context.tr('description'),
+                  ),
                 ),
               ),
             ],

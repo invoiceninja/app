@@ -5,6 +5,7 @@ import 'package:admin/data/models/value/currency.dart';
 import 'package:admin/data/models/value/language.dart';
 import 'package:admin/data/services/upload_source.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/file_drop_zone.dart';
 import 'package:admin/ui/core/widgets/form_save_scope.dart';
 import 'package:admin/ui/core/widgets/searchable_dropdown_field.dart';
@@ -144,23 +145,26 @@ class SetupStepBusiness extends StatelessWidget {
           ),
           gap,
         ],
-        TextField(
-          key: const ValueKey('setup_company_name'),
-          controller: nameController,
-          focusNode: nameFocus,
-          textCapitalization: TextCapitalization.words,
-          // The signed-in user's own company (CLAUDE.md § Forms).
-          autofillHints: const [AutofillHints.organizationName],
-          textInputAction: TextInputAction.done,
-          onChanged: vm.setBusinessName,
-          onSubmitted: (_) => FormSaveScope.maybeOf(context)?.trySubmit(),
-          decoration: InputDecoration(
-            labelText: context.tr('setup_business_name'),
-            helperText: context.tr('setup_business_name_helper'),
-            helperMaxLines: 2,
-            errorText: vm.showNameError
-                ? context.tr('setup_business_name_required')
-                : null,
+        LabeledField(
+          label: context.tr('setup_business_name'),
+          child: TextField(
+            key: const ValueKey('setup_company_name'),
+            controller: nameController,
+            focusNode: nameFocus,
+            textCapitalization: TextCapitalization.words,
+            // The signed-in user's own company (CLAUDE.md § Forms).
+            autofillHints: const [AutofillHints.organizationName],
+            textInputAction: TextInputAction.done,
+            onChanged: vm.setBusinessName,
+            onSubmitted: (_) => FormSaveScope.maybeOf(context)?.trySubmit(),
+            decoration: InputDecoration(
+              labelText: context.tr('setup_business_name'),
+              helperText: context.tr('setup_business_name_helper'),
+              helperMaxLines: 2,
+              errorText: vm.showNameError
+                  ? context.tr('setup_business_name_required')
+                  : null,
+            ),
           ),
         ),
         AnimatedSize(
@@ -361,28 +365,34 @@ class SetupUserNameFields extends StatelessWidget {
     return Row(
       children: [
         Expanded(
-          child: TextField(
-            key: const ValueKey('setup_first_name'),
-            controller: first,
-            focusNode: firstFocus,
-            textCapitalization: TextCapitalization.words,
-            autofillHints: const [AutofillHints.givenName],
-            textInputAction: TextInputAction.next,
-            onChanged: (v) => onChanged(v, null),
-            decoration: InputDecoration(labelText: context.tr('first_name')),
+          child: LabeledField(
+            label: context.tr('first_name'),
+            child: TextField(
+              key: const ValueKey('setup_first_name'),
+              controller: first,
+              focusNode: firstFocus,
+              textCapitalization: TextCapitalization.words,
+              autofillHints: const [AutofillHints.givenName],
+              textInputAction: TextInputAction.next,
+              onChanged: (v) => onChanged(v, null),
+              decoration: InputDecoration(labelText: context.tr('first_name')),
+            ),
           ),
         ),
         SizedBox(width: InSpacing.md(context)),
         Expanded(
-          child: TextField(
-            key: const ValueKey('setup_last_name'),
-            controller: last,
-            textCapitalization: TextCapitalization.words,
-            autofillHints: const [AutofillHints.familyName],
-            textInputAction: TextInputAction.next,
-            onChanged: (v) => onChanged(null, v),
-            onSubmitted: (_) => nameFocus.requestFocus(),
-            decoration: InputDecoration(labelText: context.tr('last_name')),
+          child: LabeledField(
+            label: context.tr('last_name'),
+            child: TextField(
+              key: const ValueKey('setup_last_name'),
+              controller: last,
+              textCapitalization: TextCapitalization.words,
+              autofillHints: const [AutofillHints.familyName],
+              textInputAction: TextInputAction.next,
+              onChanged: (v) => onChanged(null, v),
+              onSubmitted: (_) => nameFocus.requestFocus(),
+              decoration: InputDecoration(labelText: context.tr('last_name')),
+            ),
           ),
         ),
       ],

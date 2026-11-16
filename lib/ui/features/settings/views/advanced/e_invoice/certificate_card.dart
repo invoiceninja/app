@@ -5,6 +5,7 @@ import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/data/services/upload_source.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/file_drop_zone.dart';
 import 'package:admin/ui/core/widgets/form_save_scope.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
@@ -223,35 +224,38 @@ class _PassphraseRowState extends State<_PassphraseRow> {
         ),
         SizedBox(width: InSpacing.md(context)),
         Expanded(
-          child: TextField(
-            controller: _controller,
-            obscureText: _obscured,
-            // Stored service credential, not the user's own login: keyboard
-            // hardened, and autofillHints deliberately never set so the OS
-            // password manager can't offer or capture it here.
-            keyboardType: TextInputType.visiblePassword,
-            autocorrect: false,
-            enableSuggestions: false,
-            textInputAction: TextInputAction.done,
-            decoration: InputDecoration(
-              labelText: context.tr('certificate_passphrase'),
-              helperText: context.tr(
-                widget.isSet ? 'passphrase_set' : 'passphrase_not_set',
-              ),
-              errorText: errorText,
-              suffixIcon: IconButton(
-                icon: Icon(
-                  _obscured
-                      ? Icons.visibility_outlined
-                      : Icons.visibility_off_outlined,
+          child: LabeledField(
+            label: context.tr('certificate_passphrase'),
+            child: TextField(
+              controller: _controller,
+              obscureText: _obscured,
+              // Stored service credential, not the user's own login: keyboard
+              // hardened, and autofillHints deliberately never set so the OS
+              // password manager can't offer or capture it here.
+              keyboardType: TextInputType.visiblePassword,
+              autocorrect: false,
+              enableSuggestions: false,
+              textInputAction: TextInputAction.done,
+              decoration: InputDecoration(
+                labelText: context.tr('certificate_passphrase'),
+                helperText: context.tr(
+                  widget.isSet ? 'passphrase_set' : 'passphrase_not_set',
                 ),
-                onPressed: () => setState(() => _obscured = !_obscured),
+                errorText: errorText,
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _obscured
+                        ? Icons.visibility_outlined
+                        : Icons.visibility_off_outlined,
+                  ),
+                  onPressed: () => setState(() => _obscured = !_obscured),
+                ),
               ),
+              onChanged: (v) => widget.host.updateCompany(
+                (c) => c.copyWith(eInvoiceCertificatePassphrase: v),
+              ),
+              onSubmitted: scope == null ? null : (_) => scope.trySubmit(),
             ),
-            onChanged: (v) => widget.host.updateCompany(
-              (c) => c.copyWith(eInvoiceCertificatePassphrase: v),
-            ),
-            onSubmitted: scope == null ? null : (_) => scope.trySubmit(),
           ),
         ),
       ],

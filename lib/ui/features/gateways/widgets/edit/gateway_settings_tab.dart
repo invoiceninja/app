@@ -8,6 +8,7 @@ import 'package:admin/data/repositories/statics_repository.dart';
 import 'package:admin/domain/gateway_constants.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/l10n/tap_to_pay_names.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/features/gateways/view_models/company_gateway_edit_view_model.dart';
 import 'package:admin/ui/features/settings/widgets/card_reader_section.dart';
 import 'package:admin/ui/features/settings/widgets/form_section.dart';
@@ -39,13 +40,16 @@ class GatewaySettingsTab extends StatelessWidget {
         FormSection(
           title: context.tr('identity_and_flow'),
           children: [
-            TextFormField(
-              initialValue: draft.label,
-              decoration: InputDecoration(
-                labelText: context.tr('label'),
-                errorText: vm.fieldErrorFor('label'),
+            LabeledField(
+              label: context.tr('label'),
+              child: TextFormField(
+                initialValue: draft.label,
+                decoration: InputDecoration(
+                  labelText: context.tr('label'),
+                  errorText: vm.fieldErrorFor('label'),
+                ),
+                onChanged: (v) => vm.mutate((g) => g.copyWith(label: v)),
               ),
-              onChanged: (v) => vm.mutate((g) => g.copyWith(label: v)),
             ),
             SwitchListTile(
               title: Text(context.tr('test_mode')),
@@ -54,25 +58,33 @@ class GatewaySettingsTab extends StatelessWidget {
               contentPadding: EdgeInsets.zero,
             ),
             if (showTokenBilling)
-              DropdownButtonFormField<String>(
-                // Guard the seed value: a stray `token_billing` outside the
-                // four options would trip Flutter's "exactly one item"
-                // assertion. Mirrors the config-form dropdown's guard.
-                initialValue: kAutoBillOptions.contains(draft.tokenBilling)
-                    ? draft.tokenBilling
-                    : kAutoBillOff,
-                isExpanded: true,
-                decoration: InputDecoration(
-                  labelText: context.tr('token_billing'),
-                  errorText: vm.fieldErrorFor('token_billing'),
+              LabeledField(
+                label: context.tr('token_billing'),
+                child: DropdownButtonFormField<String>(
+                  // Guard the seed value: a stray `token_billing` outside the
+                  // four options would trip Flutter's "exactly one item"
+                  // assertion. Mirrors the config-form dropdown's guard.
+                  initialValue: kAutoBillOptions.contains(draft.tokenBilling)
+                      ? draft.tokenBilling
+                      : kAutoBillOff,
+                  isExpanded: true,
+                  decoration: InputDecoration(
+                    labelText: context.tr('token_billing'),
+                    errorText: vm.fieldErrorFor('token_billing'),
+                  ),
+                  items: [
+                    for (final opt in kAutoBillOptions)
+                      DropdownMenuItem(
+                        value: opt,
+                        child: Text(context.tr(opt)),
+                      ),
+                  ],
+                  onChanged: (v) {
+                    if (v != null) {
+                      vm.mutate((g) => g.copyWith(tokenBilling: v));
+                    }
+                  },
                 ),
-                items: [
-                  for (final opt in kAutoBillOptions)
-                    DropdownMenuItem(value: opt, child: Text(context.tr(opt))),
-                ],
-                onChanged: (v) {
-                  if (v != null) vm.mutate((g) => g.copyWith(tokenBilling: v));
-                },
               ),
           ],
         ),

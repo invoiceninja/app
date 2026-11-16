@@ -8,6 +8,7 @@ import 'package:admin/app/services.dart';
 import 'package:admin/data/models/api/calendar_connection_api_model.dart';
 import 'package:admin/data/models/domain/task.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
 import 'package:admin/ui/features/tasks/view_models/calendar_connection_view_model.dart';
@@ -164,13 +165,16 @@ class _ConvertEventSheetState extends State<_ConvertEventSheet> {
           const SizedBox(height: 4),
           Text(_subtitle(context), style: TextStyle(color: tokens.ink3)),
           SizedBox(height: InSpacing.lg(context)),
-          TextField(
-            controller: _description,
-            minLines: 2,
-            maxLines: 5,
-            decoration: InputDecoration(
-              labelText: context.tr('description'),
-              border: const OutlineInputBorder(),
+          LabeledField(
+            label: context.tr('description'),
+            child: TextField(
+              controller: _description,
+              minLines: 2,
+              maxLines: 5,
+              decoration: InputDecoration(
+                labelText: context.tr('description'),
+                border: const OutlineInputBorder(),
+              ),
             ),
           ),
           SizedBox(height: InSpacing.sm),

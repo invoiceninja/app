@@ -28,6 +28,7 @@ import 'package:admin/domain/reports/report_filter_options.dart';
 import 'package:admin/domain/reports/report_registry.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/adaptive.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/in_date_field.dart';
 import 'package:admin/ui/core/widgets/multi_entity_picker.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
@@ -301,36 +302,42 @@ class _CommonFieldsSection extends StatelessWidget {
             },
           ),
         if (vm.draft.supportsFrequency)
-          DropdownButtonFormField<String>(
-            initialValue: vm.draft.frequencyId.isEmpty
-                ? null
-                : vm.draft.frequencyId,
-            decoration: InputDecoration(labelText: context.tr('frequency')),
-            items: [
-              for (final entry in kScheduleFrequencies.entries)
-                DropdownMenuItem<String>(
-                  value: entry.key,
-                  child: Text(context.tr(entry.value)),
-                ),
-            ],
-            onChanged: (v) => vm.setFrequencyId(v ?? ''),
+          LabeledField(
+            label: context.tr('frequency'),
+            child: DropdownButtonFormField<String>(
+              initialValue: vm.draft.frequencyId.isEmpty
+                  ? null
+                  : vm.draft.frequencyId,
+              decoration: InputDecoration(labelText: context.tr('frequency')),
+              items: [
+                for (final entry in kScheduleFrequencies.entries)
+                  DropdownMenuItem<String>(
+                    value: entry.key,
+                    child: Text(context.tr(entry.value)),
+                  ),
+              ],
+              onChanged: (v) => vm.setFrequencyId(v ?? ''),
+            ),
           ),
         if (vm.draft.supportsRemainingCycles)
-          DropdownButtonFormField<int>(
-            initialValue: vm.draft.remainingCycles,
-            decoration: InputDecoration(
-              labelText: context.tr('remaining_cycles'),
-            ),
-            items: [
-              DropdownMenuItem<int>(
-                value: kScheduleRemainingCyclesEndless,
-                child: Text(context.tr('endless')),
+          LabeledField(
+            label: context.tr('remaining_cycles'),
+            child: DropdownButtonFormField<int>(
+              initialValue: vm.draft.remainingCycles,
+              decoration: InputDecoration(
+                labelText: context.tr('remaining_cycles'),
               ),
-              for (var i = 0; i <= kScheduleRemainingCyclesMax; i++)
-                DropdownMenuItem<int>(value: i, child: Text(i.toString())),
-            ],
-            onChanged: (v) =>
-                vm.setRemainingCycles(v ?? kScheduleRemainingCyclesEndless),
+              items: [
+                DropdownMenuItem<int>(
+                  value: kScheduleRemainingCyclesEndless,
+                  child: Text(context.tr('endless')),
+                ),
+                for (var i = 0; i <= kScheduleRemainingCyclesMax; i++)
+                  DropdownMenuItem<int>(value: i, child: Text(i.toString())),
+              ],
+              onChanged: (v) =>
+                  vm.setRemainingCycles(v ?? kScheduleRemainingCyclesEndless),
+            ),
           ),
       ],
     );
@@ -357,23 +364,29 @@ class _TemplateDisplayField extends StatelessWidget {
     if (vm.isCreate) {
       // Show the template name as a read-only label; switching back to
       // the picker is a one-button affordance.
-      return InputDecorator(
-        decoration: InputDecoration(labelText: context.tr('template')),
-        child: Row(
-          children: [
-            Expanded(child: Text(context.tr(vm.draft.template))),
-            TextButton(
-              onPressed: () => _onChange(context),
-              child: Text(context.tr('change')),
-            ),
-          ],
+      return LabeledField(
+        label: context.tr('template'),
+        child: InputDecorator(
+          decoration: InputDecoration(labelText: context.tr('template')),
+          child: Row(
+            children: [
+              Expanded(child: Text(context.tr(vm.draft.template))),
+              TextButton(
+                onPressed: () => _onChange(context),
+                child: Text(context.tr('change')),
+              ),
+            ],
+          ),
         ),
       );
     }
     // On edit: template is locked. Matches React (Edit.tsx disables it).
-    return InputDecorator(
-      decoration: InputDecoration(labelText: context.tr('template')),
-      child: Text(context.tr(vm.draft.template)),
+    return LabeledField(
+      label: context.tr('template'),
+      child: InputDecorator(
+        decoration: InputDecoration(labelText: context.tr('template')),
+        child: Text(context.tr(vm.draft.template)),
+      ),
     );
   }
 
@@ -463,14 +476,17 @@ class _EmailStatementSection extends StatelessWidget {
           onChanged: vm.setStatementDateRange,
           options: kStatementDateRangeOptions,
         ),
-        DropdownButtonFormField<String>(
-          initialValue: vm.draft.statementStatus,
-          decoration: InputDecoration(labelText: context.tr('status')),
-          items: [
-            for (final s in kStatementStatuses)
-              DropdownMenuItem<String>(value: s, child: Text(context.tr(s))),
-          ],
-          onChanged: (v) => vm.setStatementStatus(v ?? kStatementStatusAll),
+        LabeledField(
+          label: context.tr('status'),
+          child: DropdownButtonFormField<String>(
+            initialValue: vm.draft.statementStatus,
+            decoration: InputDecoration(labelText: context.tr('status')),
+            items: [
+              for (final s in kStatementStatuses)
+                DropdownMenuItem<String>(value: s, child: Text(context.tr(s))),
+            ],
+            onChanged: (v) => vm.setStatementStatus(v ?? kStatementStatusAll),
+          ),
         ),
         SwitchListTile.adaptive(
           contentPadding: EdgeInsets.zero,
@@ -529,34 +545,43 @@ class _EmailRecordSection extends StatelessWidget {
     return FormSection(
       title: context.tr('email_record'),
       children: [
-        DropdownButtonFormField<String>(
-          initialValue: vm.draft.recordEntityType,
-          decoration: InputDecoration(labelText: context.tr('type')),
-          items: [
-            // Keep the currently-selected type even if its module is off so
-            // editing an existing schedule that targets it isn't broken.
-            for (final t in kEmailRecordEntityTypes)
-              if (t == vm.draft.recordEntityType ||
-                  isWireModuleEnabledForCompany(t, modules))
-                DropdownMenuItem<String>(value: t, child: Text(context.tr(t))),
-          ],
-          onChanged: (v) {
-            if (v != null) vm.setRecordEntityType(v);
-          },
+        LabeledField(
+          label: context.tr('type'),
+          child: DropdownButtonFormField<String>(
+            initialValue: vm.draft.recordEntityType,
+            decoration: InputDecoration(labelText: context.tr('type')),
+            items: [
+              // Keep the currently-selected type even if its module is off so
+              // editing an existing schedule that targets it isn't broken.
+              for (final t in kEmailRecordEntityTypes)
+                if (t == vm.draft.recordEntityType ||
+                    isWireModuleEnabledForCompany(t, modules))
+                  DropdownMenuItem<String>(
+                    value: t,
+                    child: Text(context.tr(t)),
+                  ),
+            ],
+            onChanged: (v) {
+              if (v != null) vm.setRecordEntityType(v);
+            },
+          ),
         ),
         _RecordEntityField(vm: vm),
-        DropdownButtonFormField<String>(
-          initialValue: templates.contains(vm.draft.recordEmailTemplate)
-              ? vm.draft.recordEmailTemplate
-              : (templates.isNotEmpty ? templates.first : null),
-          decoration: InputDecoration(labelText: context.tr('template')),
-          items: [
-            for (final t in templates)
-              DropdownMenuItem<String>(value: t, child: Text(context.tr(t))),
-          ],
-          onChanged: (v) {
-            if (v != null) vm.setRecordEmailTemplate(v);
-          },
+        LabeledField(
+          label: context.tr('template'),
+          child: DropdownButtonFormField<String>(
+            initialValue: templates.contains(vm.draft.recordEmailTemplate)
+                ? vm.draft.recordEmailTemplate
+                : (templates.isNotEmpty ? templates.first : null),
+            decoration: InputDecoration(labelText: context.tr('template')),
+            items: [
+              for (final t in templates)
+                DropdownMenuItem<String>(value: t, child: Text(context.tr(t))),
+            ],
+            onChanged: (v) {
+              if (v != null) vm.setRecordEmailTemplate(v);
+            },
+          ),
         ),
       ],
     );
@@ -1153,36 +1178,41 @@ class _PaymentScheduleRowTileState extends State<_PaymentScheduleRowTile> {
             SizedBox(width: InSpacing.md(context)),
             Expanded(
               flex: 2,
-              child: TextField(
-                controller: _amountController,
-                decoration: InputDecoration(
-                  labelText: widget.isAmountMode
-                      ? context.tr('amount')
-                      : context.tr('percent'),
+              child: LabeledField(
+                label: widget.isAmountMode
+                    ? context.tr('amount')
+                    : context.tr('percent'),
+                child: TextField(
+                  controller: _amountController,
+                  decoration: InputDecoration(
+                    labelText: widget.isAmountMode
+                        ? context.tr('amount')
+                        : context.tr('percent'),
+                  ),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                    signed: true,
+                  ),
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r'[0-9.,-]')),
+                  ],
+                  enabled: !isPast,
+                  onChanged: (v) {
+                    final services = context.read<Services>();
+                    final companyId =
+                        services.auth.session.value?.currentCompanyId ?? '';
+                    final useComma =
+                        services
+                            .formatterIfReady(companyId)
+                            ?.settings
+                            .useCommaAsDecimalPlace ??
+                        false;
+                    final parsed =
+                        parseDecimal(v, useCommaAsDecimalPlace: useComma) ??
+                        Decimal.zero;
+                    widget.onChanged(row.copyWith(amount: parsed));
+                  },
                 ),
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                  signed: true,
-                ),
-                inputFormatters: [
-                  FilteringTextInputFormatter.allow(RegExp(r'[0-9.,-]')),
-                ],
-                enabled: !isPast,
-                onChanged: (v) {
-                  final services = context.read<Services>();
-                  final companyId =
-                      services.auth.session.value?.currentCompanyId ?? '';
-                  final useComma =
-                      services
-                          .formatterIfReady(companyId)
-                          ?.settings
-                          .useCommaAsDecimalPlace ??
-                      false;
-                  final parsed =
-                      parseDecimal(v, useCommaAsDecimalPlace: useComma) ??
-                      Decimal.zero;
-                  widget.onChanged(row.copyWith(amount: parsed));
-                },
               ),
             ),
             const SizedBox(width: InSpacing.xs),
@@ -1206,16 +1236,19 @@ Widget _dateRangeDropdown(
   required ValueChanged<String> onChanged,
   required List<String> options,
 }) {
-  return DropdownButtonFormField<String>(
-    initialValue: options.contains(value) ? value : null,
-    decoration: InputDecoration(labelText: context.tr('date_range')),
-    items: [
-      for (final o in options)
-        DropdownMenuItem<String>(value: o, child: Text(context.tr(o))),
-    ],
-    onChanged: (v) {
-      if (v != null) onChanged(v);
-    },
+  return LabeledField(
+    label: context.tr('date_range'),
+    child: DropdownButtonFormField<String>(
+      initialValue: options.contains(value) ? value : null,
+      decoration: InputDecoration(labelText: context.tr('date_range')),
+      items: [
+        for (final o in options)
+          DropdownMenuItem<String>(value: o, child: Text(context.tr(o))),
+      ],
+      onChanged: (v) {
+        if (v != null) onChanged(v);
+      },
+    ),
   );
 }
 
@@ -1470,15 +1503,18 @@ class _InvoiceReadonlyFieldState extends State<_InvoiceReadonlyField> {
             break;
           }
         }
-        return InputDecorator(
-          decoration: InputDecoration(
-            labelText: context.tr('invoice'),
-            enabled: false,
-          ),
-          child: Text(
-            label,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
+        return LabeledField(
+          label: context.tr('invoice'),
+          child: InputDecorator(
+            decoration: InputDecoration(
+              labelText: context.tr('invoice'),
+              enabled: false,
+            ),
+            child: Text(
+              label,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
             ),
           ),
         );

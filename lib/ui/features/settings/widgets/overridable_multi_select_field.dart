@@ -2,6 +2,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 
 import 'package:admin/app/design_tokens.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/features/settings/view_models/settings_draft_view_model.dart';
 import 'package:admin/ui/features/settings/widgets/overridable_field.dart';
 import 'package:admin/ui/features/settings/widgets/settings_field_bindings.dart';
@@ -86,14 +87,17 @@ class OverridableMultiSelectField extends StatelessWidget {
         ),
     ];
 
-    final field = InputDecorator(
-      decoration: InputDecoration(labelText: label, errorText: errorText),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: InSpacing.xs),
-        child: Wrap(
-          spacing: InSpacing.sm,
-          runSpacing: InSpacing.xs,
-          children: chips,
+    final field = LabeledField(
+      label: label,
+      child: InputDecorator(
+        decoration: InputDecoration(labelText: label, errorText: errorText),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: InSpacing.xs),
+          child: Wrap(
+            spacing: InSpacing.sm,
+            runSpacing: InSpacing.xs,
+            children: chips,
+          ),
         ),
       ),
     );

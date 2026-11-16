@@ -12,6 +12,7 @@ import 'package:admin/data/models/value/date.dart';
 import 'package:admin/data/services/api_exception.dart';
 import 'package:admin/data/services/import_api.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/file_drop_zone.dart';
 import 'package:admin/ui/core/widgets/in_date_field.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
@@ -451,82 +452,94 @@ class _ImportExportScreenState extends State<ImportExportScreen> {
     return FormSection(
       title: context.tr('export'),
       children: [
-        DropdownButtonFormField<String>(
-          initialValue: _exportType,
-          isExpanded: true,
-          decoration: InputDecoration(
-            labelText: context.tr('export_type'),
-            border: const OutlineInputBorder(),
-            isDense: true,
-          ),
-          onChanged: _exporting
-              ? null
-              : (v) => setState(() {
-                  _exportType = v ?? _exportType;
-                  // Reset the date filter when the entity changes (React parity).
-                  _exportDateKey = null;
-                  _exportDateRange = _kDefaultExportDateRange;
-                  _exportStart = null;
-                  _exportEnd = null;
-                  // Drop a stale "attach documents" choice when switching to a
-                  // type that doesn't support it.
-                  _exportDocuments = false;
-                }),
-          items: [
-            // No module filter here: this State persists across a company
-            // switch (the settings shell keys its subtree by level, not
-            // company), so a filtered list could omit the stale `_exportType`
-            // and trip DropdownButtonFormField's value-in-items assertion.
-            // React's Export.tsx lists every type unconditionally too.
-            for (final t in _exportTypes)
-              DropdownMenuItem(value: t, child: Text(context.tr(t))),
-          ],
-        ),
-        if (dateKeys.isNotEmpty) ...[
-          SizedBox(height: InSpacing.md(context)),
-          DropdownButtonFormField<String?>(
-            initialValue: _exportDateKey,
+        LabeledField(
+          label: context.tr('export_type'),
+          child: DropdownButtonFormField<String>(
+            initialValue: _exportType,
             isExpanded: true,
             decoration: InputDecoration(
-              labelText: context.tr('date'),
+              labelText: context.tr('export_type'),
               border: const OutlineInputBorder(),
               isDense: true,
             ),
             onChanged: _exporting
                 ? null
                 : (v) => setState(() {
-                    _exportDateKey = v;
-                    if (v != null) _exportDateRange = _kDefaultExportDateRange;
+                    _exportType = v ?? _exportType;
+                    // Reset the date filter when the entity changes (React parity).
+                    _exportDateKey = null;
+                    _exportDateRange = _kDefaultExportDateRange;
+                    _exportStart = null;
+                    _exportEnd = null;
+                    // Drop a stale "attach documents" choice when switching to a
+                    // type that doesn't support it.
+                    _exportDocuments = false;
                   }),
             items: [
-              DropdownMenuItem(value: null, child: Text(context.tr('all'))),
-              for (final k in dateKeys)
-                DropdownMenuItem(value: k, child: Text(context.tr(k))),
+              // No module filter here: this State persists across a company
+              // switch (the settings shell keys its subtree by level, not
+              // company), so a filtered list could omit the stale `_exportType`
+              // and trip DropdownButtonFormField's value-in-items assertion.
+              // React's Export.tsx lists every type unconditionally too.
+              for (final t in _exportTypes)
+                DropdownMenuItem(value: t, child: Text(context.tr(t))),
             ],
+          ),
+        ),
+        if (dateKeys.isNotEmpty) ...[
+          SizedBox(height: InSpacing.md(context)),
+          LabeledField(
+            label: context.tr('date'),
+            child: DropdownButtonFormField<String?>(
+              initialValue: _exportDateKey,
+              isExpanded: true,
+              decoration: InputDecoration(
+                labelText: context.tr('date'),
+                border: const OutlineInputBorder(),
+                isDense: true,
+              ),
+              onChanged: _exporting
+                  ? null
+                  : (v) => setState(() {
+                      _exportDateKey = v;
+                      if (v != null) {
+                        _exportDateRange = _kDefaultExportDateRange;
+                      }
+                    }),
+              items: [
+                DropdownMenuItem(value: null, child: Text(context.tr('all'))),
+                for (final k in dateKeys)
+                  DropdownMenuItem(value: k, child: Text(context.tr(k))),
+              ],
+            ),
           ),
         ],
         if (_exportDateKey != null) ...[
           SizedBox(height: InSpacing.md(context)),
-          DropdownButtonFormField<String>(
-            // Re-created per date column: `initialValue` is read once, so a
-            // switch between two columns would otherwise keep showing the
-            // old range while the reset one is what gets sent.
-            key: ValueKey(_exportDateKey),
-            initialValue: _exportDateRange,
-            isExpanded: true,
-            decoration: InputDecoration(
-              labelText: context.tr('date_range'),
-              border: const OutlineInputBorder(),
-              isDense: true,
+          LabeledField(
+            label: context.tr('date_range'),
+            child: DropdownButtonFormField<String>(
+              // Re-created per date column: `initialValue` is read once, so a
+              // switch between two columns would otherwise keep showing the
+              // old range while the reset one is what gets sent.
+              key: ValueKey(_exportDateKey),
+              initialValue: _exportDateRange,
+              isExpanded: true,
+              decoration: InputDecoration(
+                labelText: context.tr('date_range'),
+                border: const OutlineInputBorder(),
+                isDense: true,
+              ),
+              onChanged: _exporting
+                  ? null
+                  : (v) => setState(
+                      () => _exportDateRange = v ?? _exportDateRange,
+                    ),
+              items: [
+                for (final (id, label) in _kDateRanges)
+                  DropdownMenuItem(value: id, child: Text(context.tr(label))),
+              ],
             ),
-            onChanged: _exporting
-                ? null
-                : (v) =>
-                      setState(() => _exportDateRange = v ?? _exportDateRange),
-            items: [
-              for (final (id, label) in _kDateRanges)
-                DropdownMenuItem(value: id, child: Text(context.tr(label))),
-            ],
           ),
         ],
         if (_exportDateKey != null && _exportDateRange == 'custom') ...[
@@ -598,24 +611,27 @@ class _ImportExportScreenState extends State<ImportExportScreen> {
       // "Import") so the two stacked sections aren't indistinguishable.
       title: context.tr('import_third_party'),
       children: [
-        DropdownButtonFormField<String>(
-          initialValue: _thirdPartyType,
-          isExpanded: true,
-          decoration: InputDecoration(
-            labelText: context.tr('import_type'),
-            border: const OutlineInputBorder(),
-            isDense: true,
+        LabeledField(
+          label: context.tr('import_type'),
+          child: DropdownButtonFormField<String>(
+            initialValue: _thirdPartyType,
+            isExpanded: true,
+            decoration: InputDecoration(
+              labelText: context.tr('import_type'),
+              border: const OutlineInputBorder(),
+              isDense: true,
+            ),
+            onChanged: _thirdPartyBusy
+                ? null
+                : (v) => setState(() {
+                    _thirdPartyType = v ?? _thirdPartyType;
+                    _thirdPartyFiles.clear();
+                  }),
+            items: [
+              for (final t in _kThirdPartyImports.keys)
+                DropdownMenuItem(value: t, child: Text(context.tr(t))),
+            ],
           ),
-          onChanged: _thirdPartyBusy
-              ? null
-              : (v) => setState(() {
-                  _thirdPartyType = v ?? _thirdPartyType;
-                  _thirdPartyFiles.clear();
-                }),
-          items: [
-            for (final t in _kThirdPartyImports.keys)
-              DropdownMenuItem(value: t, child: Text(context.tr(t))),
-          ],
         ),
         for (final group in groups) ...[
           SizedBox(height: InSpacing.md(context)),
@@ -753,24 +769,27 @@ class _ImportExportScreenState extends State<ImportExportScreen> {
           final selected = accounts.any((a) => a.id == _bankIntegrationId)
               ? _bankIntegrationId
               : null;
-          return DropdownButtonFormField<String>(
-            initialValue: selected,
-            isExpanded: true,
-            decoration: InputDecoration(
-              labelText: context.tr('bank_account'),
-              border: const OutlineInputBorder(),
-              isDense: true,
+          return LabeledField(
+            label: context.tr('bank_account'),
+            child: DropdownButtonFormField<String>(
+              initialValue: selected,
+              isExpanded: true,
+              decoration: InputDecoration(
+                labelText: context.tr('bank_account'),
+                border: const OutlineInputBorder(),
+                isDense: true,
+              ),
+              onChanged: _busy
+                  ? null
+                  : (v) => setState(() => _bankIntegrationId = v),
+              items: [
+                for (final a in accounts)
+                  DropdownMenuItem(
+                    value: a.id,
+                    child: Text(a.name.isEmpty ? a.id : a.name),
+                  ),
+              ],
             ),
-            onChanged: _busy
-                ? null
-                : (v) => setState(() => _bankIntegrationId = v),
-            items: [
-              for (final a in accounts)
-                DropdownMenuItem(
-                  value: a.id,
-                  child: Text(a.name.isEmpty ? a.id : a.name),
-                ),
-            ],
           );
         },
       ),
@@ -781,28 +800,31 @@ class _ImportExportScreenState extends State<ImportExportScreen> {
     return FormSection(
       title: context.tr('import'),
       children: [
-        DropdownButtonFormField<String>(
-          initialValue: _entity,
-          isExpanded: true,
-          decoration: InputDecoration(
-            labelText: context.tr('import_type'),
-            border: const OutlineInputBorder(),
-            isDense: true,
+        LabeledField(
+          label: context.tr('import_type'),
+          child: DropdownButtonFormField<String>(
+            initialValue: _entity,
+            isExpanded: true,
+            decoration: InputDecoration(
+              labelText: context.tr('import_type'),
+              border: const OutlineInputBorder(),
+              isDense: true,
+            ),
+            onChanged: _busy
+                ? null
+                : (v) => setState(() {
+                    _entity = v ?? _entity;
+                    _bankIntegrationId = null;
+                  }),
+            items: [
+              // List every importable entity unconditionally (no module filter):
+              // this State persists across a company switch, so a filtered list
+              // could omit the stale `_entity` and trip DropdownButtonFormField's
+              // value-in-items assertion. Mirrors the export picker above.
+              for (final e in kImportableEntities)
+                DropdownMenuItem(value: e, child: Text(context.tr(e))),
+            ],
           ),
-          onChanged: _busy
-              ? null
-              : (v) => setState(() {
-                  _entity = v ?? _entity;
-                  _bankIntegrationId = null;
-                }),
-          items: [
-            // List every importable entity unconditionally (no module filter):
-            // this State persists across a company switch, so a filtered list
-            // could omit the stale `_entity` and trip DropdownButtonFormField's
-            // value-in-items assertion. Mirrors the export picker above.
-            for (final e in kImportableEntities)
-              DropdownMenuItem(value: e, child: Text(context.tr(e))),
-          ],
         ),
         if (_entity == 'bank_transaction') _bankAccountField(context),
         FileDropZone(

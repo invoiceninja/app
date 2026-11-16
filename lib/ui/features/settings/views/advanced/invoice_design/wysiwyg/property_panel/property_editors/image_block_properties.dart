@@ -7,6 +7,7 @@ import 'package:admin/app/design_tokens.dart';
 import 'package:admin/data/models/domain/design.dart';
 import 'package:admin/data/services/upload_source.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/file_drop_zone.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/features/settings/views/advanced/invoice_design/wysiwyg/block_renderers/designer_image.dart';
@@ -150,22 +151,25 @@ class _ImageBlockPropertiesState extends State<ImageBlockProperties> {
           },
         ),
         SizedBox(height: InSpacing.md(context)),
-        TextField(
-          controller: _source,
-          // Also accepts the `$company.logo` token and a data: URI, so no
-          // formatter — the url keyboard is purely an affordance here.
-          keyboardType: TextInputType.url,
-          autocorrect: false,
-          enableSuggestions: false,
-          decoration: InputDecoration(
-            labelText: context.tr('image_url'),
-            hintText: r'$company.logo  or  https://…',
-            border: const OutlineInputBorder(),
-            helperText: src.startsWith('data:')
-                ? context.tr('uploaded_image_data_url')
-                : null,
+        LabeledField(
+          label: context.tr('image_url'),
+          child: TextField(
+            controller: _source,
+            // Also accepts the `$company.logo` token and a data: URI, so no
+            // formatter — the url keyboard is purely an affordance here.
+            keyboardType: TextInputType.url,
+            autocorrect: false,
+            enableSuggestions: false,
+            decoration: InputDecoration(
+              labelText: context.tr('image_url'),
+              hintText: r'$company.logo  or  https://…',
+              border: const OutlineInputBorder(),
+              helperText: src.startsWith('data:')
+                  ? context.tr('uploaded_image_data_url')
+                  : null,
+            ),
+            onChanged: (v) => _write('source', v.trim()),
           ),
-          onChanged: (v) => _write('source', v.trim()),
         ),
         const SectionDivider(labelKey: 'dimensions'),
         PxInput(
@@ -191,31 +195,37 @@ class _ImageBlockPropertiesState extends State<ImageBlockProperties> {
           onChanged: (v) => _write('align', v),
         ),
         SizedBox(height: InSpacing.md(context)),
-        DropdownButtonFormField<String>(
-          decoration: InputDecoration(
-            labelText: context.tr('object_fit'),
-            border: const OutlineInputBorder(),
+        LabeledField(
+          label: context.tr('object_fit'),
+          child: DropdownButtonFormField<String>(
+            decoration: InputDecoration(
+              labelText: context.tr('object_fit'),
+              border: const OutlineInputBorder(),
+            ),
+            initialValue: (props['objectFit'] as String?) ?? 'contain',
+            // CSS object-fit values. The stored `value` stays the CSS keyword;
+            // the label routes through `context.tr` (keys in _app_pending.json,
+            // except `none` which already lives in en.json).
+            items: [
+              DropdownMenuItem(
+                value: 'contain',
+                child: Text(context.tr('contain')),
+              ),
+              DropdownMenuItem(
+                value: 'cover',
+                child: Text(context.tr('cover')),
+              ),
+              DropdownMenuItem(value: 'fill', child: Text(context.tr('fill'))),
+              DropdownMenuItem(
+                value: 'scale-down',
+                child: Text(context.tr('scale_down')),
+              ),
+              DropdownMenuItem(value: 'none', child: Text(context.tr('none'))),
+            ],
+            onChanged: (v) {
+              if (v != null) _write('objectFit', v);
+            },
           ),
-          initialValue: (props['objectFit'] as String?) ?? 'contain',
-          // CSS object-fit values. The stored `value` stays the CSS keyword;
-          // the label routes through `context.tr` (keys in _app_pending.json,
-          // except `none` which already lives in en.json).
-          items: [
-            DropdownMenuItem(
-              value: 'contain',
-              child: Text(context.tr('contain')),
-            ),
-            DropdownMenuItem(value: 'cover', child: Text(context.tr('cover'))),
-            DropdownMenuItem(value: 'fill', child: Text(context.tr('fill'))),
-            DropdownMenuItem(
-              value: 'scale-down',
-              child: Text(context.tr('scale_down')),
-            ),
-            DropdownMenuItem(value: 'none', child: Text(context.tr('none'))),
-          ],
-          onChanged: (v) {
-            if (v != null) _write('objectFit', v);
-          },
         ),
         const SectionDivider(labelKey: 'spacing'),
         PxInput(

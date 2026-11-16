@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/data/models/domain/design.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/features/settings/views/advanced/invoice_design/wysiwyg/property_panel/property_inputs.dart';
 import 'package:admin/ui/features/settings/views/advanced/invoice_design/wysiwyg/wysiwyg_design_view_model.dart';
 
@@ -48,19 +49,25 @@ class DividerBlockProperties extends StatelessWidget {
           defaultValue: '#E5E7EB',
         ),
         SizedBox(height: InSpacing.md(context)),
-        DropdownButtonFormField<String>(
-          decoration: InputDecoration(labelText: context.tr('style')),
-          initialValue: (props['style'] as String?) ?? 'solid',
-          items: [
-            DropdownMenuItem(value: 'solid', child: Text(context.tr('solid'))),
-            DropdownMenuItem(
-              value: 'dashed',
-              child: Text(context.tr('dashed')),
-            ),
-          ],
-          onChanged: (v) {
-            if (v != null) _write('style', v);
-          },
+        LabeledField(
+          label: context.tr('style'),
+          child: DropdownButtonFormField<String>(
+            decoration: InputDecoration(labelText: context.tr('style')),
+            initialValue: (props['style'] as String?) ?? 'solid',
+            items: [
+              DropdownMenuItem(
+                value: 'solid',
+                child: Text(context.tr('solid')),
+              ),
+              DropdownMenuItem(
+                value: 'dashed',
+                child: Text(context.tr('dashed')),
+              ),
+            ],
+            onChanged: (v) {
+              if (v != null) _write('style', v);
+            },
+          ),
         ),
         const SectionDivider(labelKey: 'spacing'),
         PxInput(

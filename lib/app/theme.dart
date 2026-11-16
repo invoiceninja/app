@@ -123,7 +123,10 @@ ThemeData buildInTheme(InTheme baseTokens, {Color? accentOverride}) {
       filled: true,
       fillColor: tokens.bg,
       isDense: true,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: 14,
+        vertical: InSizes.fieldPadV,
+      ),
       labelStyle: textTheme.bodyMedium?.copyWith(color: tokens.ink3),
       floatingLabelStyle: textTheme.bodySmall?.copyWith(color: tokens.ink2),
       // `ink3`, not `ink4`. A hint tells the user what the field expects, so

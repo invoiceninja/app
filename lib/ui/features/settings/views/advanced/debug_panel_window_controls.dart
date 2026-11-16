@@ -5,6 +5,7 @@ import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/screenshot_window_controller.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/back_dismissible_menu_anchor.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/form_save_scope.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
@@ -274,22 +275,25 @@ class _SizeField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return TextField(
-      controller: controller,
-      autofocus: autofocus,
-      keyboardType: TextInputType.number,
-      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-      textInputAction: textInputAction,
-      decoration: InputDecoration(
-        isDense: true,
-        labelText: context.tr(labelKey),
+    return LabeledField(
+      label: context.tr(labelKey),
+      child: TextField(
+        controller: controller,
+        autofocus: autofocus,
+        keyboardType: TextInputType.number,
+        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+        textInputAction: textInputAction,
+        decoration: InputDecoration(
+          isDense: true,
+          labelText: context.tr(labelKey),
+        ),
+        onChanged: (_) => onChanged(),
+        onSubmitted: (_) {
+          if (textInputAction == TextInputAction.done) {
+            FormSaveScope.maybeOf(context)?.trySubmit();
+          }
+        },
       ),
-      onChanged: (_) => onChanged(),
-      onSubmitted: (_) {
-        if (textInputAction == TextInputAction.done) {
-          FormSaveScope.maybeOf(context)?.trySubmit();
-        }
-      },
     );
   }
 }

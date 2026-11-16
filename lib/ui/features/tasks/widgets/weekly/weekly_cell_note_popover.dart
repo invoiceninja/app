@@ -2,6 +2,7 @@ import 'package:material_ui/material_ui.dart';
 
 import 'package:admin/data/models/value/date.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
 import 'package:admin/ui/features/tasks/view_models/task_weekly_view_model.dart';
 
@@ -62,13 +63,16 @@ class _WeeklyCellNoteDialogState extends State<_WeeklyCellNoteDialog> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(
-              controller: _controller,
-              maxLines: 3,
-              autofocus: true,
-              decoration: InputDecoration(
-                labelText: context.tr('description'),
-                border: const OutlineInputBorder(),
+            LabeledField(
+              label: context.tr('description'),
+              child: TextField(
+                controller: _controller,
+                maxLines: 3,
+                autofocus: true,
+                decoration: InputDecoration(
+                  labelText: context.tr('description'),
+                  border: const OutlineInputBorder(),
+                ),
               ),
             ),
             const SizedBox(height: 12),

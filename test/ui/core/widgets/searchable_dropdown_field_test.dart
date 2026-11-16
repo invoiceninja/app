@@ -759,7 +759,9 @@ void main() {
       // Above the field…
       expect(tester.getTopLeft(options).dy, lessThan(fieldTop));
       // …and anchored to it, not stranded at the top of the screen.
-      expect(tester.getBottomLeft(options).dy, closeTo(fieldTop, 8));
+      // The field's own label sits between the two (`LabeledField`): the
+      // popover clears it rather than covering the field's name.
+      expect(tester.getBottomLeft(options).dy, closeTo(fieldTop, 32));
     });
   });
 

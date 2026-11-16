@@ -8,6 +8,7 @@ import 'package:admin/data/models/value/date.dart';
 import 'package:admin/domain/recurring_frequency.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/edit/entity_custom_fields_section.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/in_date_field.dart';
 import 'package:admin/ui/core/widgets/searchable_dropdown_field.dart';
 import 'package:admin/ui/features/billing_shared/billing_doc_type.dart';
@@ -106,13 +107,16 @@ class _AutoBillModeField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DropdownButtonFormField<String>(
-      initialValue: vm.draft.autoBill.isEmpty ? 'off' : vm.draft.autoBill,
-      decoration: desktop
-          ? billingFieldDecoration(context, label: context.tr('auto_bill'))
-          : InputDecoration(labelText: context.tr('auto_bill')),
-      items: _autoBillItems(context),
-      onChanged: (v) => vm.setAutoBill(v ?? 'off'),
+    return LabeledField(
+      label: context.tr('auto_bill'),
+      child: DropdownButtonFormField<String>(
+        initialValue: vm.draft.autoBill.isEmpty ? 'off' : vm.draft.autoBill,
+        decoration: desktop
+            ? billingFieldDecoration(context, label: context.tr('auto_bill'))
+            : InputDecoration(labelText: context.tr('auto_bill')),
+        items: _autoBillItems(context),
+        onChanged: (v) => vm.setAutoBill(v ?? 'off'),
+      ),
     );
   }
 }
@@ -129,16 +133,19 @@ class _ScheduleCardDesktop extends StatelessWidget {
       spacing: 0,
       elevated: false,
       children: [
-        DropdownButtonFormField<String>(
-          initialValue: vm.draft.frequencyId.isEmpty
-              ? null
-              : vm.draft.frequencyId,
-          decoration: billingFieldDecoration(
-            context,
-            label: context.tr('frequency'),
+        LabeledField(
+          label: context.tr('frequency'),
+          child: DropdownButtonFormField<String>(
+            initialValue: vm.draft.frequencyId.isEmpty
+                ? null
+                : vm.draft.frequencyId,
+            decoration: billingFieldDecoration(
+              context,
+              label: context.tr('frequency'),
+            ),
+            items: _frequencyItems(context),
+            onChanged: (v) => vm.setFrequencyId(v ?? ''),
           ),
-          items: _frequencyItems(context),
-          onChanged: (v) => vm.setFrequencyId(v ?? ''),
         ),
         SizedBox(height: InSpacing.md(context)),
         InDateField(
@@ -198,13 +205,16 @@ class _ScheduleTab extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          DropdownButtonFormField<String>(
-            initialValue: vm.draft.frequencyId.isEmpty
-                ? null
-                : vm.draft.frequencyId,
-            decoration: InputDecoration(labelText: context.tr('frequency')),
-            items: _frequencyItems(context),
-            onChanged: (v) => vm.setFrequencyId(v ?? ''),
+          LabeledField(
+            label: context.tr('frequency'),
+            child: DropdownButtonFormField<String>(
+              initialValue: vm.draft.frequencyId.isEmpty
+                  ? null
+                  : vm.draft.frequencyId,
+              decoration: InputDecoration(labelText: context.tr('frequency')),
+              items: _frequencyItems(context),
+              onChanged: (v) => vm.setFrequencyId(v ?? ''),
+            ),
           ),
           SizedBox(height: InSpacing.md(context)),
           InDateField(

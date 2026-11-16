@@ -2,6 +2,7 @@ import 'package:material_ui/material_ui.dart';
 
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/features/webhooks/view_models/webhook_edit_view_model.dart';
 
 /// Lightweight key/value editor for the webhook's outgoing HTTP headers.
@@ -67,18 +68,24 @@ class _WebhookHeadersEditorState extends State<WebhookHeadersEditor> {
         Row(
           children: [
             Expanded(
-              child: TextField(
-                controller: _keyController,
-                decoration: InputDecoration(labelText: context.tr('header')),
-                textInputAction: TextInputAction.next,
+              child: LabeledField(
+                label: context.tr('header'),
+                child: TextField(
+                  controller: _keyController,
+                  decoration: InputDecoration(labelText: context.tr('header')),
+                  textInputAction: TextInputAction.next,
+                ),
               ),
             ),
             const SizedBox(width: 8),
             Expanded(
-              child: TextField(
-                controller: _valueController,
-                decoration: InputDecoration(labelText: context.tr('value')),
-                onSubmitted: (_) => _addHeader(),
+              child: LabeledField(
+                label: context.tr('value'),
+                child: TextField(
+                  controller: _valueController,
+                  decoration: InputDecoration(labelText: context.tr('value')),
+                  onSubmitted: (_) => _addHeader(),
+                ),
               ),
             ),
             const SizedBox(width: 8),

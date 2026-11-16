@@ -9,6 +9,7 @@ import 'package:admin/data/models/api/tax_config_api_model.dart';
 import 'package:admin/data/models/value/country.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/empty_state.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/form_save_scope.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
@@ -255,17 +256,20 @@ class _AddIdentifierDialogState extends State<_AddIdentifierDialog> {
               Builder(
                 builder: (ctx) {
                   final scope = FormSaveScope.maybeOf(ctx);
-                  return TextField(
-                    controller: _vatController,
-                    textInputAction: TextInputAction.done,
-                    decoration: InputDecoration(
-                      labelText: context.tr('vat_number'),
+                  return LabeledField(
+                    label: context.tr('vat_number'),
+                    child: TextField(
+                      controller: _vatController,
+                      textInputAction: TextInputAction.done,
+                      decoration: InputDecoration(
+                        labelText: context.tr('vat_number'),
+                      ),
+                      onChanged: (_) => setState(() {}),
+                      onSubmitted: scope == null
+                          ? null
+                          : (_) => scope.trySubmit(),
+                      autocorrect: false,
                     ),
-                    onChanged: (_) => setState(() {}),
-                    onSubmitted: scope == null
-                        ? null
-                        : (_) => scope.trySubmit(),
-                    autocorrect: false,
                   );
                 },
               ),

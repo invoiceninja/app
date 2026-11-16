@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/utils/field_text_direction.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/form_save_scope.dart';
 import 'package:admin/utils/formatting.dart';
 
@@ -209,93 +210,97 @@ class _EntityEditFieldState extends State<EntityEditField> {
         isLtrValueKeyboard(widget.keyboardType);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: InSpacing.xs),
-      child: TextField(
-        controller: _controller,
-        textDirection: ltrValueDirection(ltr: ltr),
-        textAlign: ltrValueAlign(context, ltr: ltr),
-        decoration: InputDecoration(
-          labelText: widget.label,
-          hintText: widget.hintText,
-          helper: widget.helper,
-          prefixText: widget.prefixText,
-          // Reveal toggle — a bare IconButton, matching `AuthPasswordField`.
-          // Deliberately NOT wrapped in `Focus(canRequestFocus: false)`:
-          // that shape appears elsewhere in the app but is inert, because
-          // `FocusNode.canRequestFocus` resolves against each ancestor's
-          // `descendantsAreFocusable`, never its `canRequestFocus`
-          // (`focus_manager.dart`). Excluding it properly would need
-          // `ExcludeFocus`, which would be wrong anyway — a keyboard user
-          // should be able to reach the reveal button.
-          suffixIcon: widget.obscureText
-              ? IconButton(
-                  tooltip: _obscured
-                      ? context.tr('show_password')
-                      : context.tr('hide_password'),
-                  icon: Icon(
-                    _obscured
-                        ? Icons.visibility_outlined
-                        : Icons.visibility_off_outlined,
-                    size: 18,
-                    color: tokens.ink3,
-                  ),
-                  onPressed: () => setState(() => _obscured = !_obscured),
-                )
-              : null,
-          prefixStyle: theme.textTheme.bodyMedium?.copyWith(color: tokens.ink3),
-          labelStyle: theme.textTheme.bodyMedium?.copyWith(color: tokens.ink3),
-          floatingLabelStyle: theme.textTheme.bodySmall?.copyWith(
-            color: tokens.ink2,
+      child: LabeledField(
+        label: widget.label,
+        child: TextField(
+          controller: _controller,
+          textDirection: ltrValueDirection(ltr: ltr),
+          textAlign: ltrValueAlign(context, ltr: ltr),
+          decoration: InputDecoration(
+            labelText: widget.label,
+            hintText: widget.hintText,
+            helper: widget.helper,
+            prefixText: widget.prefixText,
+            // Reveal toggle — a bare IconButton, matching `AuthPasswordField`.
+            // Deliberately NOT wrapped in `Focus(canRequestFocus: false)`:
+            // that shape appears elsewhere in the app but is inert, because
+            // `FocusNode.canRequestFocus` resolves against each ancestor's
+            // `descendantsAreFocusable`, never its `canRequestFocus`
+            // (`focus_manager.dart`). Excluding it properly would need
+            // `ExcludeFocus`, which would be wrong anyway — a keyboard user
+            // should be able to reach the reveal button.
+            suffixIcon: widget.obscureText
+                ? IconButton(
+                    tooltip: _obscured
+                        ? context.tr('show_password')
+                        : context.tr('hide_password'),
+                    icon: Icon(
+                      _obscured
+                          ? Icons.visibility_outlined
+                          : Icons.visibility_off_outlined,
+                      size: 18,
+                      color: tokens.ink3,
+                    ),
+                    onPressed: () => setState(() => _obscured = !_obscured),
+                  )
+                : null,
+            prefixStyle: theme.textTheme.bodyMedium?.copyWith(
+              color: tokens.ink3,
+            ),
+            isDense: true,
+            contentPadding: EdgeInsets.symmetric(
+              horizontal: InSpacing.md(context),
+              vertical: InSizes.fieldPadV,
+            ),
+            border: border,
+            enabledBorder: border,
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(InRadii.r1),
+              borderSide: BorderSide(color: tokens.accent, width: 1.5),
+            ),
+            errorText: widget.errorText,
+            errorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(InRadii.r1),
+              borderSide: BorderSide(color: theme.colorScheme.error),
+            ),
+            focusedErrorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(InRadii.r1),
+              borderSide: BorderSide(
+                color: theme.colorScheme.error,
+                width: 1.5,
+              ),
+            ),
+            errorStyle: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.error,
+              fontSize: 11.5,
+            ),
           ),
-          isDense: true,
-          contentPadding: EdgeInsets.symmetric(
-            horizontal: InSpacing.md(context),
-            vertical: 14,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: widget.readOnly ? tokens.ink2 : tokens.ink,
           ),
-          border: border,
-          enabledBorder: border,
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(InRadii.r1),
-            borderSide: BorderSide(color: tokens.accent, width: 1.5),
-          ),
-          errorText: widget.errorText,
-          errorBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(InRadii.r1),
-            borderSide: BorderSide(color: theme.colorScheme.error),
-          ),
-          focusedErrorBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(InRadii.r1),
-            borderSide: BorderSide(color: theme.colorScheme.error, width: 1.5),
-          ),
-          errorStyle: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.error,
-            fontSize: 11.5,
-          ),
+          maxLines: widget.maxLines,
+          minLines: widget.minLines,
+          autofocus: widget.autofocus,
+          keyboardType: widget.keyboardType,
+          textCapitalization: widget.textCapitalization,
+          autofillHints: widget.autofillHints,
+          // One knob, not two — the pairing `AuthField` already uses. A field
+          // declared obscurable never wants either.
+          // Keyed on the DECLARATION, not `_obscured`: revealing a secret
+          // does not make it stop being a secret. Keyed on the live reveal
+          // state, a call site that declared `obscureToggle`/`obscureText` but
+          // forgot `autocorrect: false` handed the IME a revealed API
+          // credential the moment the user edited it.
+          autocorrect: widget.autocorrect && !widget.obscureText,
+          enableSuggestions: widget.autocorrect && !widget.obscureText,
+          obscureText: _obscured,
+          readOnly: widget.readOnly,
+          textInputAction: isSingleLine
+              ? TextInputAction.done
+              : TextInputAction.newline,
+          onChanged: widget.onChanged,
+          onSubmitted: scope == null ? null : (_) => scope.trySubmit(),
         ),
-        style: theme.textTheme.bodyMedium?.copyWith(
-          color: widget.readOnly ? tokens.ink2 : tokens.ink,
-        ),
-        maxLines: widget.maxLines,
-        minLines: widget.minLines,
-        autofocus: widget.autofocus,
-        keyboardType: widget.keyboardType,
-        textCapitalization: widget.textCapitalization,
-        autofillHints: widget.autofillHints,
-        // One knob, not two — the pairing `AuthField` already uses. A field
-        // declared obscurable never wants either.
-        // Keyed on the DECLARATION, not `_obscured`: revealing a secret
-        // does not make it stop being a secret. Keyed on the live reveal
-        // state, a call site that declared `obscureToggle`/`obscureText` but
-        // forgot `autocorrect: false` handed the IME a revealed API
-        // credential the moment the user edited it.
-        autocorrect: widget.autocorrect && !widget.obscureText,
-        enableSuggestions: widget.autocorrect && !widget.obscureText,
-        obscureText: _obscured,
-        readOnly: widget.readOnly,
-        textInputAction: isSingleLine
-            ? TextInputAction.done
-            : TextInputAction.newline,
-        onChanged: widget.onChanged,
-        onSubmitted: scope == null ? null : (_) => scope.trySubmit(),
       ),
     );
   }

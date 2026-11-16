@@ -13,6 +13,7 @@ import 'package:admin/data/models/value/currency.dart';
 import 'package:admin/data/models/value/date.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/entity_tags_field.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/locked_entity_field_row.dart';
 import 'package:admin/ui/features/dashboard/widgets/card_shell.dart';
 import 'package:admin/ui/core/adaptive.dart';
@@ -253,11 +254,14 @@ class _IdentitySection extends StatelessWidget {
           PaymentInvoicePicker(vm: vm, formatter: formatter),
         ],
         const SizedBox(height: 12),
-        TextFormField(
-          initialValue: vm.draft.number,
-          decoration: InputDecoration(labelText: context.tr('number')),
-          onChanged: vm.setNumber,
-          autocorrect: false,
+        LabeledField(
+          label: context.tr('number'),
+          child: TextFormField(
+            initialValue: vm.draft.number,
+            decoration: InputDecoration(labelText: context.tr('number')),
+            onChanged: vm.setNumber,
+            autocorrect: false,
+          ),
         ),
         const SizedBox(height: 12),
         InDateField(
@@ -292,13 +296,16 @@ class _PaymentMetaSection extends StatelessWidget {
       children: [
         _PaymentTypePicker(vm: vm),
         const SizedBox(height: 12),
-        TextFormField(
-          initialValue: vm.draft.transactionReference,
-          decoration: InputDecoration(
-            labelText: context.tr('transaction_reference'),
+        LabeledField(
+          label: context.tr('transaction_reference'),
+          child: TextFormField(
+            initialValue: vm.draft.transactionReference,
+            decoration: InputDecoration(
+              labelText: context.tr('transaction_reference'),
+            ),
+            onChanged: vm.setTransactionReference,
+            autocorrect: false,
           ),
-          onChanged: vm.setTransactionReference,
-          autocorrect: false,
         ),
       ],
     );
@@ -314,11 +321,14 @@ class _NotesSection extends StatelessWidget {
     return _Section(
       title: context.tr('notes'),
       children: [
-        TextFormField(
-          initialValue: vm.draft.privateNotes,
-          decoration: InputDecoration(labelText: context.tr('private_notes')),
-          maxLines: 4,
-          onChanged: vm.setPrivateNotes,
+        LabeledField(
+          label: context.tr('private_notes'),
+          child: TextFormField(
+            initialValue: vm.draft.privateNotes,
+            decoration: InputDecoration(labelText: context.tr('private_notes')),
+            maxLines: 4,
+            onChanged: vm.setPrivateNotes,
+          ),
         ),
       ],
     );
@@ -769,19 +779,22 @@ class _ConvertedAmountFieldState extends State<_ConvertedAmountField> {
   @override
   Widget build(BuildContext context) {
     final code = widget.currency?.code ?? '';
-    return TextFormField(
-      controller: _controller,
-      focusNode: _focusNode,
-      enabled: widget.vm.draft.amount != Decimal.zero,
-      decoration: InputDecoration(
-        labelText: context.tr('converted_amount'),
-        suffixText: code.isEmpty ? null : code,
+    return LabeledField(
+      label: context.tr('converted_amount'),
+      child: TextFormField(
+        controller: _controller,
+        focusNode: _focusNode,
+        enabled: widget.vm.draft.amount != Decimal.zero,
+        decoration: InputDecoration(
+          labelText: context.tr('converted_amount'),
+          suffixText: code.isEmpty ? null : code,
+        ),
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        onChanged: widget.vm.setConvertedAmount,
+        // Enter saves, like every single-line field under the screen's scope.
+        textInputAction: TextInputAction.done,
+        onFieldSubmitted: (_) => FormSaveScope.maybeOf(context)?.trySubmit(),
       ),
-      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      onChanged: widget.vm.setConvertedAmount,
-      // Enter saves, like every single-line field under the screen's scope.
-      textInputAction: TextInputAction.done,
-      onFieldSubmitted: (_) => FormSaveScope.maybeOf(context)?.trySubmit(),
     );
   }
 }
@@ -948,16 +961,19 @@ class _AmountFieldState extends State<_AmountField> {
     // same reason. Leaving it editable let users "change" the amount, get a
     // success toast, and watch the value snap back on the next sync.
     final locked = !widget.vm.isCreate;
-    return TextFormField(
-      controller: _controller,
-      focusNode: _focusNode,
-      enabled: !locked,
-      decoration: InputDecoration(labelText: context.tr('amount')),
-      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      onChanged: widget.vm.setAmount,
-      // Enter saves, like every single-line field under the screen's scope.
-      textInputAction: TextInputAction.done,
-      onFieldSubmitted: (_) => FormSaveScope.maybeOf(context)?.trySubmit(),
+    return LabeledField(
+      label: context.tr('amount'),
+      child: TextFormField(
+        controller: _controller,
+        focusNode: _focusNode,
+        enabled: !locked,
+        decoration: InputDecoration(labelText: context.tr('amount')),
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        onChanged: widget.vm.setAmount,
+        // Enter saves, like every single-line field under the screen's scope.
+        textInputAction: TextInputAction.done,
+        onFieldSubmitted: (_) => FormSaveScope.maybeOf(context)?.trySubmit(),
+      ),
     );
   }
 }
@@ -1016,18 +1032,21 @@ class _RateFieldState extends State<_RateField> {
 
   @override
   Widget build(BuildContext context) {
-    return TextFormField(
-      controller: _controller,
-      focusNode: _focusNode,
-      decoration: InputDecoration(
-        labelText: context.tr('exchange_rate'),
-        errorText: widget.vm.fieldErrorFor('exchange_rate'),
+    return LabeledField(
+      label: context.tr('exchange_rate'),
+      child: TextFormField(
+        controller: _controller,
+        focusNode: _focusNode,
+        decoration: InputDecoration(
+          labelText: context.tr('exchange_rate'),
+          errorText: widget.vm.fieldErrorFor('exchange_rate'),
+        ),
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        onChanged: widget.vm.setExchangeRate,
+        // Enter saves, like every single-line field under the screen's scope.
+        textInputAction: TextInputAction.done,
+        onFieldSubmitted: (_) => FormSaveScope.maybeOf(context)?.trySubmit(),
       ),
-      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      onChanged: widget.vm.setExchangeRate,
-      // Enter saves, like every single-line field under the screen's scope.
-      textInputAction: TextInputAction.done,
-      onFieldSubmitted: (_) => FormSaveScope.maybeOf(context)?.trySubmit(),
     );
   }
 }

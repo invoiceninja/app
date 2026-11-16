@@ -2,6 +2,7 @@ import 'package:material_ui/material_ui.dart';
 
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/features/settings/widgets/form_section.dart';
 import 'package:admin/ui/features/settings/widgets/settings_form_shell.dart';
 import 'package:admin/ui/features/settings/widgets/settings_text_field.dart';
@@ -32,20 +33,31 @@ class PaymentLinkWebhookTab extends StatelessWidget {
               keyboardType: TextInputType.url,
               autocorrect: false,
             ),
-            DropdownButtonFormField<String>(
-              initialValue: const ['', 'post', 'put'].contains(method)
-                  ? method
-                  : '',
-              items: [
-                DropdownMenuItem(value: '', child: Text(context.tr('select'))),
-                DropdownMenuItem(
-                  value: 'post',
-                  child: Text(context.tr('post')),
+            LabeledField(
+              label: context.tr('rest_method'),
+              child: DropdownButtonFormField<String>(
+                initialValue: const ['', 'post', 'put'].contains(method)
+                    ? method
+                    : '',
+                items: [
+                  DropdownMenuItem(
+                    value: '',
+                    child: Text(context.tr('select')),
+                  ),
+                  DropdownMenuItem(
+                    value: 'post',
+                    child: Text(context.tr('post')),
+                  ),
+                  DropdownMenuItem(
+                    value: 'put',
+                    child: Text(context.tr('put')),
+                  ),
+                ],
+                decoration: InputDecoration(
+                  labelText: context.tr('rest_method'),
                 ),
-                DropdownMenuItem(value: 'put', child: Text(context.tr('put'))),
-              ],
-              decoration: InputDecoration(labelText: context.tr('rest_method')),
-              onChanged: (v) => vm.setWebhookRestMethod(v ?? ''),
+                onChanged: (v) => vm.setWebhookRestMethod(v ?? ''),
+              ),
             ),
           ],
         ),
@@ -121,29 +133,35 @@ class _HeadersEditorState extends State<_HeadersEditor> {
           children: [
             Expanded(
               flex: 4,
-              child: TextField(
-                controller: _keyController,
-                focusNode: _keyFocus,
-                textInputAction: TextInputAction.next,
-                onSubmitted: (_) => _valueFocus.requestFocus(),
-                decoration: InputDecoration(
-                  labelText: context.tr('header_key'),
+              child: LabeledField(
+                label: context.tr('header_key'),
+                child: TextField(
+                  controller: _keyController,
+                  focusNode: _keyFocus,
+                  textInputAction: TextInputAction.next,
+                  onSubmitted: (_) => _valueFocus.requestFocus(),
+                  decoration: InputDecoration(
+                    labelText: context.tr('header_key'),
+                  ),
                 ),
               ),
             ),
             SizedBox(width: InSpacing.md(context)),
             Expanded(
               flex: 5,
-              child: TextField(
-                controller: _valueController,
-                focusNode: _valueFocus,
-                textInputAction: TextInputAction.done,
-                // Intercept Enter: commit the row instead of bubbling to
-                // FormSaveScope.trySubmit. Otherwise mid-add Enter fires a
-                // half-state save (per CLAUDE.md § Forms § Enter to save).
-                onSubmitted: (_) => _commitRow(),
-                decoration: InputDecoration(
-                  labelText: context.tr('header_value'),
+              child: LabeledField(
+                label: context.tr('header_value'),
+                child: TextField(
+                  controller: _valueController,
+                  focusNode: _valueFocus,
+                  textInputAction: TextInputAction.done,
+                  // Intercept Enter: commit the row instead of bubbling to
+                  // FormSaveScope.trySubmit. Otherwise mid-add Enter fires a
+                  // half-state save (per CLAUDE.md § Forms § Enter to save).
+                  onSubmitted: (_) => _commitRow(),
+                  decoration: InputDecoration(
+                    labelText: context.tr('header_value'),
+                  ),
                 ),
               ),
             ),

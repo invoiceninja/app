@@ -10,6 +10,7 @@ import 'package:admin/data/models/domain/tax_rate.dart';
 import 'package:admin/data/repositories/statics_repository.dart';
 import 'package:admin/domain/gateway_constants.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/utils/formatting.dart';
 import 'package:admin/ui/core/widgets/searchable_dropdown_field.dart';
 import 'package:admin/ui/features/gateways/view_models/company_gateway_edit_view_model.dart';
@@ -176,18 +177,21 @@ class _LimitsAndFeesEditor extends StatelessWidget {
               contentPadding: EdgeInsets.zero,
             ),
             if (minEnabled)
-              TextFormField(
-                initialValue: _seed(fees.minLimit),
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
+              LabeledField(
+                label: context.tr('min_amount'),
+                child: TextFormField(
+                  initialValue: _seed(fees.minLimit),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  // `min_amount` / `max_amount`, not `min_limit` / `max_limit` —
+                  // the latter are the display forms "Min: :min" / "Max: :max".
+                  decoration: InputDecoration(
+                    labelText: context.tr('min_amount'),
+                  ),
+                  onChanged: (v) =>
+                      vm.updateFees(typeId, fees.copyWith(minLimit: _parse(v))),
                 ),
-                // `min_amount` / `max_amount`, not `min_limit` / `max_limit` —
-                // the latter are the display forms "Min: :min" / "Max: :max".
-                decoration: InputDecoration(
-                  labelText: context.tr('min_amount'),
-                ),
-                onChanged: (v) =>
-                    vm.updateFees(typeId, fees.copyWith(minLimit: _parse(v))),
               ),
             SwitchListTile(
               title: Text(context.tr('enable_max')),
@@ -199,41 +203,54 @@ class _LimitsAndFeesEditor extends StatelessWidget {
               contentPadding: EdgeInsets.zero,
             ),
             if (maxEnabled)
-              TextFormField(
-                initialValue: _seed(fees.maxLimit),
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
+              LabeledField(
+                label: context.tr('max_amount'),
+                child: TextFormField(
+                  initialValue: _seed(fees.maxLimit),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  decoration: InputDecoration(
+                    labelText: context.tr('max_amount'),
+                  ),
+                  onChanged: (v) =>
+                      vm.updateFees(typeId, fees.copyWith(maxLimit: _parse(v))),
                 ),
-                decoration: InputDecoration(
-                  labelText: context.tr('max_amount'),
-                ),
-                onChanged: (v) =>
-                    vm.updateFees(typeId, fees.copyWith(maxLimit: _parse(v))),
               ),
           ],
         ),
         FormSection(
           title: context.tr('fees'),
           children: [
-            TextFormField(
-              initialValue: _seed(fees.feeAmount),
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-                signed: true,
+            LabeledField(
+              label: context.tr('fee_amount'),
+              child: TextFormField(
+                initialValue: _seed(fees.feeAmount),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                  signed: true,
+                ),
+                decoration: InputDecoration(
+                  labelText: context.tr('fee_amount'),
+                ),
+                onChanged: (v) =>
+                    vm.updateFees(typeId, fees.copyWith(feeAmount: _parse(v))),
               ),
-              decoration: InputDecoration(labelText: context.tr('fee_amount')),
-              onChanged: (v) =>
-                  vm.updateFees(typeId, fees.copyWith(feeAmount: _parse(v))),
             ),
-            TextFormField(
-              initialValue: _seed(fees.feePercent),
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-                signed: true,
+            LabeledField(
+              label: context.tr('fee_percent'),
+              child: TextFormField(
+                initialValue: _seed(fees.feePercent),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                  signed: true,
+                ),
+                decoration: InputDecoration(
+                  labelText: context.tr('fee_percent'),
+                ),
+                onChanged: (v) =>
+                    vm.updateFees(typeId, fees.copyWith(feePercent: _parse(v))),
               ),
-              decoration: InputDecoration(labelText: context.tr('fee_percent')),
-              onChanged: (v) =>
-                  vm.updateFees(typeId, fees.copyWith(feePercent: _parse(v))),
             ),
             // Fee-tax slots — one per company item-tax-rate (0-3). Each picks
             // a bundled tax rate and writes the `fee_tax_name<N>` /
@@ -246,18 +263,21 @@ class _LimitsAndFeesEditor extends StatelessWidget {
                 slot: slot,
                 singleSlot: taxRateSlots == 1,
               ),
-            TextFormField(
-              initialValue: _seed(fees.feeCap),
-              // NOT signed, unlike the fee amount / percent above: those can
-              // be negative (a discount for using this method), but a ceiling
-              // on a fee has no negative form — same reason min_amount and
-              // max_amount stay unsigned.
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
+            LabeledField(
+              label: context.tr('fee_cap'),
+              child: TextFormField(
+                initialValue: _seed(fees.feeCap),
+                // NOT signed, unlike the fee amount / percent above: those can
+                // be negative (a discount for using this method), but a ceiling
+                // on a fee has no negative form — same reason min_amount and
+                // max_amount stay unsigned.
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                decoration: InputDecoration(labelText: context.tr('fee_cap')),
+                onChanged: (v) =>
+                    vm.updateFees(typeId, fees.copyWith(feeCap: _parse(v))),
               ),
-              decoration: InputDecoration(labelText: context.tr('fee_cap')),
-              onChanged: (v) =>
-                  vm.updateFees(typeId, fees.copyWith(feeCap: _parse(v))),
             ),
             SwitchListTile(
               title: Text(context.tr('adjust_fee_percent')),

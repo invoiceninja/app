@@ -1,6 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/features/settings/view_models/settings_draft_view_model.dart';
 import 'package:admin/ui/features/settings/widgets/overridable_field.dart';
 
@@ -53,18 +54,21 @@ class OverridableDropdownField<T> extends StatelessWidget {
     final errorText = (errors != null && errors.isNotEmpty)
         ? errors.first
         : null;
-    final field = DropdownButtonFormField<T>(
-      initialValue: effective,
-      isExpanded: true,
-      decoration: InputDecoration(
-        labelText: label,
-        errorText: errorText,
-        helperText: helperText,
-        // Translations run longer than English; one line silently truncates.
-        helperMaxLines: 3,
+    final field = LabeledField(
+      label: label,
+      child: DropdownButtonFormField<T>(
+        initialValue: effective,
+        isExpanded: true,
+        decoration: InputDecoration(
+          labelText: label,
+          errorText: errorText,
+          helperText: helperText,
+          // Translations run longer than English; one line silently truncates.
+          helperMaxLines: 3,
+        ),
+        items: items,
+        onChanged: onChanged,
       ),
-      items: items,
-      onChanged: onChanged,
     );
     return OverridableField.bind(
       apiKey: apiKey,

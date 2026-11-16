@@ -12,6 +12,7 @@ import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/dialogs/confirm_action_dialog.dart';
 import 'package:admin/ui/core/dialogs/untrusted_certificate_dialog.dart'
     show fallbackCertificateFormatter;
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/form_save_scope.dart';
 import 'package:admin/ui/core/widgets/formatter_host_mixin.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
@@ -334,15 +335,18 @@ class _PasskeyNameDialogState extends State<_PasskeyNameDialog> {
       content: FormSaveScope(
         onSubmit: _submit,
         child: Builder(
-          builder: (context) => TextField(
-            key: const ValueKey('passkey_name'),
-            controller: _controller,
-            autofocus: true,
-            textInputAction: TextInputAction.done,
-            textCapitalization: TextCapitalization.sentences,
-            inputFormatters: [LengthLimitingTextInputFormatter(255)],
-            decoration: InputDecoration(labelText: context.tr('name')),
-            onSubmitted: (_) => FormSaveScope.maybeOf(context)?.trySubmit(),
+          builder: (context) => LabeledField(
+            label: context.tr('name'),
+            child: TextField(
+              key: const ValueKey('passkey_name'),
+              controller: _controller,
+              autofocus: true,
+              textInputAction: TextInputAction.done,
+              textCapitalization: TextCapitalization.sentences,
+              inputFormatters: [LengthLimitingTextInputFormatter(255)],
+              decoration: InputDecoration(labelText: context.tr('name')),
+              onSubmitted: (_) => FormSaveScope.maybeOf(context)?.trySubmit(),
+            ),
           ),
         ),
       ),

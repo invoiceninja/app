@@ -6,6 +6,7 @@ import 'package:admin/app/services.dart';
 import 'package:admin/data/models/domain/saved_view.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/list/saved_view_icons.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
 
@@ -73,12 +74,15 @@ class _RenameSavedViewDialogState extends State<_RenameSavedViewDialog> {
   Widget build(BuildContext context) {
     return AlertDialog(
       title: Text(context.tr('rename')),
-      content: TextField(
-        controller: _controller,
-        autofocus: true,
-        textInputAction: TextInputAction.done,
-        decoration: InputDecoration(labelText: context.tr('view_name')),
-        onSubmitted: (v) => Navigator.of(context).pop(v.trim()),
+      content: LabeledField(
+        label: context.tr('view_name'),
+        child: TextField(
+          controller: _controller,
+          autofocus: true,
+          textInputAction: TextInputAction.done,
+          decoration: InputDecoration(labelText: context.tr('view_name')),
+          onSubmitted: (v) => Navigator.of(context).pop(v.trim()),
+        ),
       ),
       actions: [
         TextButton(

@@ -14,6 +14,7 @@ import 'package:admin/ui/core/adaptive.dart';
 import 'package:admin/ui/core/widgets/copyable_value.dart';
 import 'package:admin/ui/core/widgets/empty_state.dart';
 import 'package:admin/ui/core/widgets/error_view.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/features/settings/widgets/form_section.dart';
 import 'package:admin/ui/features/settings/widgets/settings_form_shell.dart';
@@ -675,26 +676,29 @@ class _FilterDropdown<T> extends StatelessWidget {
     return ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: 220),
       child: IntrinsicWidth(
-        child: DropdownButtonFormField<T>(
-          // `FormField` seeds its state from `initialValue` once and never
-          // re-reads it (`didUpdateWidget` only tracks `forceErrorText`), so
-          // without a value-derived key the Clear Filters button would empty
-          // the feed's filter while both dropdowns still displayed the old
-          // selection.
-          key: ValueKey<T>(value),
-          initialValue: value,
-          isDense: true,
-          decoration: InputDecoration(
-            labelText: context.tr(labelKey),
+        child: LabeledField(
+          label: context.tr(labelKey),
+          child: DropdownButtonFormField<T>(
+            // `FormField` seeds its state from `initialValue` once and never
+            // re-reads it (`didUpdateWidget` only tracks `forceErrorText`), so
+            // without a value-derived key the Clear Filters button would empty
+            // the feed's filter while both dropdowns still displayed the old
+            // selection.
+            key: ValueKey<T>(value),
+            initialValue: value,
             isDense: true,
-            border: const OutlineInputBorder(),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 10,
+            decoration: InputDecoration(
+              labelText: context.tr(labelKey),
+              isDense: true,
+              border: const OutlineInputBorder(),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 10,
+              ),
             ),
+            items: items,
+            onChanged: (v) => onChanged(v as T),
           ),
-          items: items,
-          onChanged: (v) => onChanged(v as T),
         ),
       ),
     );

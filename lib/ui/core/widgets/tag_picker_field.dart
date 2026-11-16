@@ -9,6 +9,7 @@ import 'package:logging/logging.dart';
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/data/models/domain/tag.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/picker_dismissal.dart';
 import 'package:admin/ui/core/widgets/tag_pill.dart';
 import 'package:admin/utils/search_fold.dart';
@@ -328,10 +329,7 @@ class _TagPickerFieldState extends State<TagPickerField> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            widget.label,
-            style: theme.textTheme.bodySmall?.copyWith(color: tokens.ink2),
-          ),
+          Text(widget.label, style: LabeledField.textStyle(context)),
           if (chips.isNotEmpty) ...[
             const SizedBox(height: InSpacing.sm),
             Wrap(

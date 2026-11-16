@@ -8,6 +8,7 @@ import 'package:admin/app/services.dart';
 import 'package:admin/data/models/domain/company.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/dialogs/confirm_sign_out_dialog.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/features/settings/views/basic/account_management/company_settings_gate.dart';
 import 'package:admin/ui/features/settings/widgets/form_section.dart';
@@ -204,43 +205,51 @@ class _AccountManagementSecuritySettingsScreenState
         FormSection(
           title: context.tr('security_settings'),
           children: [
-            DropdownButtonFormField<int>(
-              initialValue: passwordTimeoutValue,
-              decoration: InputDecoration(
-                labelText: context.tr('password_timeout'),
-                border: const OutlineInputBorder(),
+            LabeledField(
+              label: context.tr('password_timeout'),
+              child: DropdownButtonFormField<int>(
+                initialValue: passwordTimeoutValue,
+                decoration: InputDecoration(
+                  labelText: context.tr('password_timeout'),
+                  border: const OutlineInputBorder(),
+                ),
+                items: [
+                  for (final o in opts)
+                    DropdownMenuItem<int>(value: o.ms, child: Text(o.label)),
+                ],
+                onChanged: ready
+                    ? (v) {
+                        if (v == null) return;
+                        applyAndSave(
+                          company.copyWith(defaultPasswordTimeout: v),
+                        );
+                      }
+                    : null,
               ),
-              items: [
-                for (final o in opts)
-                  DropdownMenuItem<int>(value: o.ms, child: Text(o.label)),
-              ],
-              onChanged: ready
-                  ? (v) {
-                      if (v == null) return;
-                      applyAndSave(company.copyWith(defaultPasswordTimeout: v));
-                    }
-                  : null,
             ),
-            DropdownButtonFormField<int>(
-              initialValue: sessionTimeoutValue,
-              decoration: InputDecoration(
-                labelText: context.tr('web_session_timeout'),
-                // Only the browser enforces it (`IdleTimeoutController`), so
-                // say so where the phone and desktop apps show the setting.
-                helperText: context.tr('web_session_timeout_help'),
-                helperMaxLines: 3,
-                border: const OutlineInputBorder(),
+            LabeledField(
+              label: context.tr('web_session_timeout'),
+              child: DropdownButtonFormField<int>(
+                initialValue: sessionTimeoutValue,
+                decoration: InputDecoration(
+                  labelText: context.tr('web_session_timeout'),
+                  // Only the browser enforces it (`IdleTimeoutController`), so
+                  // say so where the phone and desktop apps show the setting.
+                  helperText: context.tr('web_session_timeout_help'),
+                  helperMaxLines: 3,
+                  border: const OutlineInputBorder(),
+                ),
+                items: [
+                  for (final o in opts)
+                    DropdownMenuItem<int>(value: o.ms, child: Text(o.label)),
+                ],
+                onChanged: ready
+                    ? (v) {
+                        if (v == null) return;
+                        applyAndSave(company.copyWith(sessionTimeout: v));
+                      }
+                    : null,
               ),
-              items: [
-                for (final o in opts)
-                  DropdownMenuItem<int>(value: o.ms, child: Text(o.label)),
-              ],
-              onChanged: ready
-                  ? (v) {
-                      if (v == null) return;
-                      applyAndSave(company.copyWith(sessionTimeout: v));
-                    }
-                  : null,
             ),
             // Two-choice field → radio group (CLAUDE.md § Forms), so both
             // options stay visible instead of hiding one behind a tap.

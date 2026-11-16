@@ -7,6 +7,7 @@ import 'package:admin/data/models/domain/company.dart';
 import 'package:admin/data/models/domain/custom_field_types.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/adaptive.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/features/settings/view_models/settings_draft_view_model.dart';
 
 /// One editable slot in `company.custom_fields` — e.g. `client2` or
@@ -211,14 +212,17 @@ class _CustomFieldRowState<V extends SettingsDraftHost>
   Widget build(BuildContext context) {
     final vm = context.watch<V>();
 
-    final labelField = TextField(
-      controller: _label,
-      enabled: widget.enabled,
-      inputFormatters: _denyPipe,
-      decoration: InputDecoration(
-        labelText: '${context.tr('label')} ${widget.slot}',
+    final labelField = LabeledField(
+      label: '${context.tr('label')} ${widget.slot}',
+      child: TextField(
+        controller: _label,
+        enabled: widget.enabled,
+        inputFormatters: _denyPipe,
+        decoration: InputDecoration(
+          labelText: '${context.tr('label')} ${widget.slot}',
+        ),
+        onChanged: (v) => _write(vm, label: v),
       ),
-      onChanged: (v) => _write(vm, label: v),
     );
 
     if (_isSurcharge) {
@@ -242,33 +246,36 @@ class _CustomFieldRowState<V extends SettingsDraftHost>
       'multi_line_text' || 'switch' || 'date' || 'dropdown' => type,
       _ => '',
     };
-    final typeField = DropdownButtonFormField<String>(
-      key: ValueKey('type-${widget.prefix}${widget.slot}-$selectedType'),
-      decoration: InputDecoration(labelText: context.tr('field_type')),
-      initialValue: selectedType,
-      // Fill the column and ellipsize a long selected label instead of
-      // overflowing — the dropdown sits in an `Expanded` in the wide
-      // three-column (label / type / options) layout.
-      isExpanded: true,
-      // Literal-key calls keep `search_catalog_consistency_test` happy — its
-      // regex scans for `context.tr('<key>')` at parse time.
-      items: [
-        DropdownMenuItem(
-          value: '',
-          child: Text(context.tr('single_line_text')),
-        ),
-        DropdownMenuItem(
-          value: 'multi_line_text',
-          child: Text(context.tr('multi_line_text')),
-        ),
-        DropdownMenuItem(value: 'switch', child: Text(context.tr('switch'))),
-        DropdownMenuItem(value: 'date', child: Text(context.tr('date'))),
-        DropdownMenuItem(
-          value: 'dropdown',
-          child: Text(context.tr('dropdown')),
-        ),
-      ],
-      onChanged: widget.enabled ? (v) => _write(vm, type: v ?? '') : null,
+    final typeField = LabeledField(
+      label: context.tr('field_type'),
+      child: DropdownButtonFormField<String>(
+        key: ValueKey('type-${widget.prefix}${widget.slot}-$selectedType'),
+        decoration: InputDecoration(labelText: context.tr('field_type')),
+        initialValue: selectedType,
+        // Fill the column and ellipsize a long selected label instead of
+        // overflowing — the dropdown sits in an `Expanded` in the wide
+        // three-column (label / type / options) layout.
+        isExpanded: true,
+        // Literal-key calls keep `search_catalog_consistency_test` happy — its
+        // regex scans for `context.tr('<key>')` at parse time.
+        items: [
+          DropdownMenuItem(
+            value: '',
+            child: Text(context.tr('single_line_text')),
+          ),
+          DropdownMenuItem(
+            value: 'multi_line_text',
+            child: Text(context.tr('multi_line_text')),
+          ),
+          DropdownMenuItem(value: 'switch', child: Text(context.tr('switch'))),
+          DropdownMenuItem(value: 'date', child: Text(context.tr('date'))),
+          DropdownMenuItem(
+            value: 'dropdown',
+            child: Text(context.tr('dropdown')),
+          ),
+        ],
+        onChanged: widget.enabled ? (v) => _write(vm, type: v ?? '') : null,
+      ),
     );
     final optionsField = TextField(
       controller: _options,

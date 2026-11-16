@@ -10,6 +10,7 @@ import 'package:admin/data/models/domain/payment.dart';
 import 'package:admin/data/models/value/date.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/adaptive.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/form_save_scope.dart';
 import 'package:admin/ui/core/widgets/searchable_dropdown_field.dart';
 import 'package:admin/ui/features/payments/widgets/edit/open_amount.dart';
@@ -734,27 +735,32 @@ class _AmountFieldState extends State<_AmountField> {
   @override
   Widget build(BuildContext context) {
     final scope = FormSaveScope.maybeOf(context);
-    return TextFormField(
-      controller: _controller,
-      focusNode: _focusNode,
-      enabled: widget.enabled,
-      decoration: InputDecoration(
-        labelText: context.tr(
-          widget.kind == AllocationKind.invoice ? 'amount' : 'applied',
-        ),
+    return LabeledField(
+      label: context.tr(
+        widget.kind == AllocationKind.invoice ? 'amount' : 'applied',
       ),
-      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      textInputAction: TextInputAction.done,
-      onChanged: (v) {
-        widget.onChanged(
-          parseDecimal(
-                v,
-                useCommaAsDecimalPlace: widget.useCommaAsDecimalPlace,
-              ) ??
-              Decimal.zero,
-        );
-      },
-      onFieldSubmitted: (_) => scope?.trySubmit(),
+      child: TextFormField(
+        controller: _controller,
+        focusNode: _focusNode,
+        enabled: widget.enabled,
+        decoration: InputDecoration(
+          labelText: context.tr(
+            widget.kind == AllocationKind.invoice ? 'amount' : 'applied',
+          ),
+        ),
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        textInputAction: TextInputAction.done,
+        onChanged: (v) {
+          widget.onChanged(
+            parseDecimal(
+                  v,
+                  useCommaAsDecimalPlace: widget.useCommaAsDecimalPlace,
+                ) ??
+                Decimal.zero,
+          );
+        },
+        onFieldSubmitted: (_) => scope?.trySubmit(),
+      ),
     );
   }
 }

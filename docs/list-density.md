@@ -84,6 +84,7 @@ On a phone, the two-line tile goes from 72 px to about 57 px per row.
 | Group section header, top / bottom | `lg` / `sm` | `sm` / `xs` |
 | Standalone table card inset (`entityListCardInset`) | 24 all round | 24 horizontal, 12 vertical |
 | Record screen quick-action tile (`EntityQuickActions`): floor / vertical padding | 56 / 8 | 48 / 4 |
+| Form field label (`LabeledField`, `docs/form-fields.md` § Labels sit above the field) | on its own line above the field | inside the field (floating) |
 | Record screen standing card (`StandingCard`) padding, vertical only | `InSpacing.lg` | `InSpacing.md` |
 | Record screen cards above the tabs — profile and Comments (`DashboardCardShell` inside `RecordColumnScope`): title band top / bottom, body vertical | `lg` / `md`, `md` | `md` / `sm`, `sm` |
 
@@ -209,8 +210,9 @@ rule 1).
 - **The header band (search row).** Its height is shared with the sidebar's company row
   across the seam (`InSizes.headerBand`).
 - **The embedded list toolbar.** It keeps its 16 / 16 gap.
-- **Forms, the sidebar, and reports.** That includes the edit forms that reuse
-  `DashboardCardShell` (`DashboardScope` is what keeps them out).
+- **Forms' spacing, the sidebar, and reports.** That includes the edit forms that reuse
+  `DashboardCardShell` (`DashboardScope` is what keeps them out). The one thing Compact
+  does change on a form is where a field's label is drawn (the table above).
 - **The settings-hosted lists** (tax rates, payment terms, groups, users, …). They are
   `ListTile`s in a `FormSection` (`SettingsEntityListScaffold`), with no 72 px floor to
   remove.

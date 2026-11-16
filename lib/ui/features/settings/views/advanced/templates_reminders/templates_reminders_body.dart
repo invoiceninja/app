@@ -10,6 +10,7 @@ import 'package:admin/app/services.dart';
 import 'package:admin/data/models/value/static_template.dart';
 import 'package:admin/domain/email_template_variables.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/features/settings/state/settings_level_controller.dart';
 import 'package:admin/ui/features/settings/view_models/settings_draft_view_model.dart';
 import 'package:admin/ui/features/settings/views/advanced/templates_reminders/preview_controller.dart';
@@ -409,20 +410,23 @@ class _TemplatePicker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DropdownButtonFormField<String>(
-      initialValue: selectedKey,
-      isExpanded: true,
-      decoration: InputDecoration(labelText: context.tr('template')),
-      items: [
-        for (final o in options)
-          DropdownMenuItem<String>(
-            value: o.key,
-            child: Text(context.tr(o.labelKey)),
-          ),
-      ],
-      onChanged: (v) {
-        if (v != null) onChanged(v);
-      },
+    return LabeledField(
+      label: context.tr('template'),
+      child: DropdownButtonFormField<String>(
+        initialValue: selectedKey,
+        isExpanded: true,
+        decoration: InputDecoration(labelText: context.tr('template')),
+        items: [
+          for (final o in options)
+            DropdownMenuItem<String>(
+              value: o.key,
+              child: Text(context.tr(o.labelKey)),
+            ),
+        ],
+        onChanged: (v) {
+          if (v != null) onChanged(v);
+        },
+      ),
     );
   }
 }

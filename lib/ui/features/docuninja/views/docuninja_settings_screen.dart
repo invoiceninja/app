@@ -21,6 +21,7 @@ import 'package:admin/ui/core/dialogs/confirm_action_dialog.dart';
 import 'package:admin/ui/core/unsaved_changes/unsaved_changes_scope.dart';
 import 'package:admin/ui/core/widgets/empty_state.dart';
 import 'package:admin/ui/core/widgets/error_view.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/form_save_scope.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
@@ -549,27 +550,33 @@ class _CompanySettingsTabState extends State<_CompanySettingsTab>
               FormSection(
                 title: context.tr('email_settings'),
                 children: [
-                  TextField(
-                    controller: _fromName,
-                    textCapitalization: TextCapitalization.words,
-                    textInputAction: TextInputAction.done,
-                    decoration: InputDecoration(
-                      labelText: context.tr('from_name'),
-                      errorText: _fieldErrors['email_from_name'],
+                  LabeledField(
+                    label: context.tr('from_name'),
+                    child: TextField(
+                      controller: _fromName,
+                      textCapitalization: TextCapitalization.words,
+                      textInputAction: TextInputAction.done,
+                      decoration: InputDecoration(
+                        labelText: context.tr('from_name'),
+                        errorText: _fieldErrors['email_from_name'],
+                      ),
+                      onSubmitted: (_) => _save(),
                     ),
-                    onSubmitted: (_) => _save(),
                   ),
-                  TextField(
-                    controller: _replyTo,
-                    keyboardType: TextInputType.emailAddress,
-                    autocorrect: false,
-                    enableSuggestions: false,
-                    textInputAction: TextInputAction.done,
-                    decoration: InputDecoration(
-                      labelText: context.tr('reply_to_email'),
-                      errorText: _fieldErrors['reply_to_email'],
+                  LabeledField(
+                    label: context.tr('reply_to_email'),
+                    child: TextField(
+                      controller: _replyTo,
+                      keyboardType: TextInputType.emailAddress,
+                      autocorrect: false,
+                      enableSuggestions: false,
+                      textInputAction: TextInputAction.done,
+                      decoration: InputDecoration(
+                        labelText: context.tr('reply_to_email'),
+                        errorText: _fieldErrors['reply_to_email'],
+                      ),
+                      onSubmitted: (_) => _save(),
                     ),
-                    onSubmitted: (_) => _save(),
                   ),
                 ],
               ),
@@ -873,44 +880,53 @@ class _EmailTemplatesTabState extends State<_EmailTemplatesTab>
         FormSection(
           title: context.tr('email_templates'),
           children: [
-            DropdownButtonFormField<int>(
-              initialValue: _selected.clamp(0, templates.length - 1),
-              // Fills the field, so a long name ellipsizes on a phone at a
-              // large text size instead of overflowing it.
-              isExpanded: true,
-              decoration: InputDecoration(labelText: context.tr('template')),
-              items: [
-                for (var i = 0; i < templates.length; i++)
-                  DropdownMenuItem(
-                    value: i,
-                    child: Text(
-                      templates[i].name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+            LabeledField(
+              label: context.tr('template'),
+              child: DropdownButtonFormField<int>(
+                initialValue: _selected.clamp(0, templates.length - 1),
+                // Fills the field, so a long name ellipsizes on a phone at a
+                // large text size instead of overflowing it.
+                isExpanded: true,
+                decoration: InputDecoration(labelText: context.tr('template')),
+                items: [
+                  for (var i = 0; i < templates.length; i++)
+                    DropdownMenuItem(
+                      value: i,
+                      child: Text(
+                        templates[i].name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                  ),
-              ],
-              onChanged: (i) => setState(() => _selected = i ?? 0),
+                ],
+                onChanged: (i) => setState(() => _selected = i ?? 0),
+              ),
             ),
-            TextField(
-              key: ValueKey('subject:${current.id}'),
-              controller: _subjects[current.id],
-              focusNode: _subjectFocus,
-              textCapitalization: TextCapitalization.sentences,
-              textInputAction: TextInputAction.done,
-              decoration: InputDecoration(labelText: context.tr('subject')),
-              onSubmitted: (_) => _save(),
+            LabeledField(
+              label: context.tr('subject'),
+              child: TextField(
+                key: ValueKey('subject:${current.id}'),
+                controller: _subjects[current.id],
+                focusNode: _subjectFocus,
+                textCapitalization: TextCapitalization.sentences,
+                textInputAction: TextInputAction.done,
+                decoration: InputDecoration(labelText: context.tr('subject')),
+                onSubmitted: (_) => _save(),
+              ),
             ),
-            TextField(
-              key: ValueKey('body:${current.id}'),
-              controller: _bodies[current.id],
-              focusNode: _bodyFocus,
-              minLines: 6,
-              maxLines: 16,
-              textCapitalization: TextCapitalization.sentences,
-              decoration: InputDecoration(
-                labelText: context.tr('body'),
-                alignLabelWithHint: true,
+            LabeledField(
+              label: context.tr('body'),
+              child: TextField(
+                key: ValueKey('body:${current.id}'),
+                controller: _bodies[current.id],
+                focusNode: _bodyFocus,
+                minLines: 6,
+                maxLines: 16,
+                textCapitalization: TextCapitalization.sentences,
+                decoration: InputDecoration(
+                  labelText: context.tr('body'),
+                  alignLabelWithHint: true,
+                ),
               ),
             ),
           ],
@@ -1333,49 +1349,61 @@ class _ReminderScheduleDialogState extends State<_ReminderScheduleDialog> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(
-                controller: _name,
-                autofocus: true,
-                textCapitalization: TextCapitalization.sentences,
-                textInputAction: TextInputAction.done,
-                decoration: InputDecoration(
-                  labelText: context.tr('name'),
-                  errorText: _error('name'),
-                ),
-                onSubmitted: (_) => _save(),
-              ),
-              TextField(
-                controller: _subject,
-                textCapitalization: TextCapitalization.sentences,
-                textInputAction: TextInputAction.done,
-                decoration: InputDecoration(
-                  labelText: context.tr('subject'),
-                  errorText: _error('subject'),
-                ),
-                onSubmitted: (_) => _save(),
-              ),
-              TextField(
-                controller: _body,
-                minLines: 4,
-                maxLines: 10,
-                textCapitalization: TextCapitalization.sentences,
-                decoration: InputDecoration(
-                  labelText: context.tr('body'),
-                  alignLabelWithHint: true,
-                  errorText: _error('body'),
+              LabeledField(
+                label: context.tr('name'),
+                child: TextField(
+                  controller: _name,
+                  autofocus: true,
+                  textCapitalization: TextCapitalization.sentences,
+                  textInputAction: TextInputAction.done,
+                  decoration: InputDecoration(
+                    labelText: context.tr('name'),
+                    errorText: _error('name'),
+                  ),
+                  onSubmitted: (_) => _save(),
                 ),
               ),
-              TextField(
-                controller: _days,
-                keyboardType: TextInputType.number,
-                // Whole days only: anything else would save as 0.
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                textInputAction: TextInputAction.done,
-                decoration: InputDecoration(
-                  labelText: context.tr('num_days'),
-                  errorText: _error('num_days'),
+              LabeledField(
+                label: context.tr('subject'),
+                child: TextField(
+                  controller: _subject,
+                  textCapitalization: TextCapitalization.sentences,
+                  textInputAction: TextInputAction.done,
+                  decoration: InputDecoration(
+                    labelText: context.tr('subject'),
+                    errorText: _error('subject'),
+                  ),
+                  onSubmitted: (_) => _save(),
                 ),
-                onSubmitted: (_) => _save(),
+              ),
+              LabeledField(
+                label: context.tr('body'),
+                child: TextField(
+                  controller: _body,
+                  minLines: 4,
+                  maxLines: 10,
+                  textCapitalization: TextCapitalization.sentences,
+                  decoration: InputDecoration(
+                    labelText: context.tr('body'),
+                    alignLabelWithHint: true,
+                    errorText: _error('body'),
+                  ),
+                ),
+              ),
+              LabeledField(
+                label: context.tr('num_days'),
+                child: TextField(
+                  controller: _days,
+                  keyboardType: TextInputType.number,
+                  // Whole days only: anything else would save as 0.
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  textInputAction: TextInputAction.done,
+                  decoration: InputDecoration(
+                    labelText: context.tr('num_days'),
+                    errorText: _error('num_days'),
+                  ),
+                  onSubmitted: (_) => _save(),
+                ),
               ),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,

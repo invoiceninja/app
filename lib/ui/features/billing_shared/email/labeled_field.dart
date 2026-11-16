@@ -2,6 +2,11 @@ import 'package:material_ui/material_ui.dart';
 
 import 'package:admin/app/design_tokens.dart';
 
+/// The email composer's label row: a label above the field that can also carry
+/// a badge and an end-aligned action. A plain labelled field is the app-wide
+/// `LabeledField` (`lib/ui/core/widgets/field_label.dart`), whose label this
+/// one is styled to match.
+///
 /// A form control with its label rendered *above* the field (12px muted
 /// label + the child below) — the clean "label-above-field" list look used
 /// by both email surfaces.
@@ -9,8 +14,8 @@ import 'package:admin/app/design_tokens.dart';
 /// Lifted out of `billing_doc_email_sheet.dart` so the bottom sheet and the
 /// full-screen [BillingDocEmailScreen] share one definition and stay
 /// visually identical.
-class LabeledField extends StatelessWidget {
-  const LabeledField({
+class ComposerLabeledField extends StatelessWidget {
+  const ComposerLabeledField({
     super.key,
     required this.label,
     required this.child,

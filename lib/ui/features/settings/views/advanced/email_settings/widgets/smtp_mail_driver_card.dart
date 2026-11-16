@@ -6,6 +6,7 @@ import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/data/models/domain/company.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/features/settings/view_models/settings_draft_view_model.dart';
 import 'package:admin/ui/features/settings/widgets/form_section.dart';
@@ -113,22 +114,25 @@ class _SmtpMailDriverCardState extends State<SmtpMailDriverCard> {
     SettingsDraftHost host,
     Company company,
   ) {
-    return DropdownButtonFormField<String>(
-      initialValue: _normalizeEncryption(company.smtpEncryption),
-      decoration: InputDecoration(labelText: context.tr('encryption')),
-      items: const [
-        // Values are the lowercase tokens the server feeds straight into
-        // Symfony Mailer (see CompanyTransformer / NinjaMailerJob): 'tls' =
-        // STARTTLS (port 587), 'ssl' = implicit TLS/SSL (port 465). Sending
-        // 'TLS'/'STARTTLS' breaks the 465 path.
-        // i18n-exempt: protocol identifiers (STARTTLS / SSL/TLS).
-        DropdownMenuItem(value: 'tls', child: Text('STARTTLS')),
-        DropdownMenuItem(value: 'ssl', child: Text('SSL/TLS')),
-      ],
-      onChanged: (v) {
-        if (v == null) return;
-        host.updateCompany((c) => c.copyWith(smtpEncryption: v));
-      },
+    return LabeledField(
+      label: context.tr('encryption'),
+      child: DropdownButtonFormField<String>(
+        initialValue: _normalizeEncryption(company.smtpEncryption),
+        decoration: InputDecoration(labelText: context.tr('encryption')),
+        items: const [
+          // Values are the lowercase tokens the server feeds straight into
+          // Symfony Mailer (see CompanyTransformer / NinjaMailerJob): 'tls' =
+          // STARTTLS (port 587), 'ssl' = implicit TLS/SSL (port 465). Sending
+          // 'TLS'/'STARTTLS' breaks the 465 path.
+          // i18n-exempt: protocol identifiers (STARTTLS / SSL/TLS).
+          DropdownMenuItem(value: 'tls', child: Text('STARTTLS')),
+          DropdownMenuItem(value: 'ssl', child: Text('SSL/TLS')),
+        ],
+        onChanged: (v) {
+          if (v == null) return;
+          host.updateCompany((c) => c.copyWith(smtpEncryption: v));
+        },
+      ),
     );
   }
 
@@ -278,30 +282,33 @@ class _SmtpTextFieldState extends State<_SmtpTextField> {
 
   @override
   Widget build(BuildContext context) {
-    return TextField(
-      controller: _controller,
-      obscureText: _obscured,
-      keyboardType: widget.keyboardType,
-      // Keyed on the declaration, not the live reveal state — see
-      // `overridable_text_field.dart`.
-      autocorrect: widget.autocorrect && !widget.obscureToggle,
-      enableSuggestions: widget.autocorrect && !widget.obscureToggle,
-      inputFormatters: widget.inputFormatters,
-      decoration: InputDecoration(
-        labelText: widget.label,
-        helperText: widget.helper,
-        suffixIcon: widget.obscureToggle
-            ? IconButton(
-                icon: Icon(
-                  _obscured
-                      ? Icons.visibility_outlined
-                      : Icons.visibility_off_outlined,
-                ),
-                onPressed: () => setState(() => _obscured = !_obscured),
-              )
-            : null,
+    return LabeledField(
+      label: widget.label,
+      child: TextField(
+        controller: _controller,
+        obscureText: _obscured,
+        keyboardType: widget.keyboardType,
+        // Keyed on the declaration, not the live reveal state — see
+        // `overridable_text_field.dart`.
+        autocorrect: widget.autocorrect && !widget.obscureToggle,
+        enableSuggestions: widget.autocorrect && !widget.obscureToggle,
+        inputFormatters: widget.inputFormatters,
+        decoration: InputDecoration(
+          labelText: widget.label,
+          helperText: widget.helper,
+          suffixIcon: widget.obscureToggle
+              ? IconButton(
+                  icon: Icon(
+                    _obscured
+                        ? Icons.visibility_outlined
+                        : Icons.visibility_off_outlined,
+                  ),
+                  onPressed: () => setState(() => _obscured = !_obscured),
+                )
+              : null,
+        ),
+        onChanged: widget.onChanged,
       ),
-      onChanged: widget.onChanged,
     );
   }
 }

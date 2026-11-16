@@ -2,6 +2,7 @@ import 'package:material_ui/material_ui.dart';
 
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/form_save_scope.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
 
@@ -112,27 +113,33 @@ class _TypeToConfirmDialogState extends State<_TypeToConfirmDialog> {
             children: [
               Text(widget.message, style: TextStyle(color: tokens.ink2)),
               SizedBox(height: InSpacing.md(context)),
-              TextField(
-                controller: _typeCtrl,
-                autofocus: true,
-                onChanged: (_) => setState(() {}),
-                onSubmitted: (_) => _submit(),
-                textInputAction: widget.reasonLabel == null
-                    ? TextInputAction.done
-                    : TextInputAction.next,
-                decoration: InputDecoration(
-                  labelText: hint,
-                  border: const OutlineInputBorder(),
+              LabeledField(
+                label: hint,
+                child: TextField(
+                  controller: _typeCtrl,
+                  autofocus: true,
+                  onChanged: (_) => setState(() {}),
+                  onSubmitted: (_) => _submit(),
+                  textInputAction: widget.reasonLabel == null
+                      ? TextInputAction.done
+                      : TextInputAction.next,
+                  decoration: InputDecoration(
+                    labelText: hint,
+                    border: const OutlineInputBorder(),
+                  ),
                 ),
               ),
               if (widget.reasonLabel != null) ...[
                 SizedBox(height: InSpacing.md(context)),
-                TextField(
-                  controller: _reasonCtrl,
-                  maxLines: 4,
-                  decoration: InputDecoration(
-                    labelText: widget.reasonLabel,
-                    border: const OutlineInputBorder(),
+                LabeledField(
+                  label: widget.reasonLabel,
+                  child: TextField(
+                    controller: _reasonCtrl,
+                    maxLines: 4,
+                    decoration: InputDecoration(
+                      labelText: widget.reasonLabel,
+                      border: const OutlineInputBorder(),
+                    ),
                   ),
                 ),
               ],

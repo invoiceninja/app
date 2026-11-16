@@ -15,6 +15,7 @@ import 'package:admin/data/services/upload_source.dart';
 import 'package:admin/domain/docuninja/docuninja_create.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/document_capture.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/file_drop_zone.dart';
 import 'package:admin/ui/core/widgets/form_save_scope.dart';
 import 'package:admin/ui/core/widgets/icon_label_tile.dart';
@@ -184,24 +185,27 @@ class _CreateDialogState extends State<_CreateDialog> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                TextField(
-                  controller: _name,
-                  // The name is optional: on touch a keyboard raised at once
-                  // covered the file pickers below it, the dialog's one
-                  // required input.
-                  autofocus: !Env.isTouchPrimary,
-                  enabled: !_saving,
-                  textCapitalization: TextCapitalization.sentences,
-                  textInputAction: TextInputAction.done,
-                  decoration: InputDecoration(
-                    labelText: context.tr('name'),
-                    // React starts the name as this; it is what an empty
-                    // field saves as.
-                    hintText: context.tr('untitled_document'),
-                    errorText: _nameError,
+                LabeledField(
+                  label: context.tr('name'),
+                  child: TextField(
+                    controller: _name,
+                    // The name is optional: on touch a keyboard raised at once
+                    // covered the file pickers below it, the dialog's one
+                    // required input.
+                    autofocus: !Env.isTouchPrimary,
+                    enabled: !_saving,
+                    textCapitalization: TextCapitalization.sentences,
+                    textInputAction: TextInputAction.done,
+                    decoration: InputDecoration(
+                      labelText: context.tr('name'),
+                      // React starts the name as this; it is what an empty
+                      // field saves as.
+                      hintText: context.tr('untitled_document'),
+                      errorText: _nameError,
+                    ),
+                    onChanged: (_) => _nameTyped = true,
+                    onSubmitted: (_) => _save(),
                   ),
-                  onChanged: (_) => _nameTyped = true,
-                  onSubmitted: (_) => _save(),
                 ),
                 SizedBox(height: InSpacing.md(context)),
                 FileDropZone(
@@ -625,16 +629,19 @@ class _PasswordDialogState extends State<_PasswordDialog> {
         children: [
           Text(widget.fileName),
           const SizedBox(height: InSpacing.sm),
-          TextField(
-            controller: _password,
-            autofocus: true,
-            obscureText: true,
-            autocorrect: false,
-            enableSuggestions: false,
-            keyboardType: TextInputType.visiblePassword,
-            textInputAction: TextInputAction.done,
-            decoration: InputDecoration(labelText: context.tr('password')),
-            onSubmitted: (_) => _ok(),
+          LabeledField(
+            label: context.tr('password'),
+            child: TextField(
+              controller: _password,
+              autofocus: true,
+              obscureText: true,
+              autocorrect: false,
+              enableSuggestions: false,
+              keyboardType: TextInputType.visiblePassword,
+              textInputAction: TextInputAction.done,
+              decoration: InputDecoration(labelText: context.tr('password')),
+              onSubmitted: (_) => _ok(),
+            ),
           ),
         ],
       ),

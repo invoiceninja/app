@@ -933,7 +933,7 @@ class _BillingDocEmailScreenState extends State<BillingDocEmailScreen> {
       children: [
         _toLine(context),
         SizedBox(height: InSpacing.md(context)),
-        LabeledField(
+        ComposerLabeledField(
           label: context.tr('template'),
           child: DropdownButtonFormField<String>(
             initialValue: _template,
@@ -953,7 +953,7 @@ class _BillingDocEmailScreenState extends State<BillingDocEmailScreen> {
           ),
         ),
         SizedBox(height: InSpacing.md(context)),
-        LabeledField(
+        ComposerLabeledField(
           label: context.tr('cc_email'),
           child: TextField(
             controller: _cc,
@@ -991,7 +991,7 @@ class _BillingDocEmailScreenState extends State<BillingDocEmailScreen> {
         // fields show the server's own template, muted, until the user edits:
         // it is what will actually be sent, and posting a snapshot of it back
         // would freeze the per-client language the server resolves at send.
-        LabeledField(
+        ComposerLabeledField(
           label: context.tr('subject'),
           // `!_editedSubject`, not `text.isEmpty`: the shell adopts a copy of
           // the default into the controller the moment the user taps in, so
@@ -1054,7 +1054,7 @@ class _BillingDocEmailScreenState extends State<BillingDocEmailScreen> {
           ),
         ],
         SizedBox(height: InSpacing.md(context)),
-        // No `LabeledField`: the editor draws its own label row (label +
+        // No `ComposerLabeledField`: the editor draws its own label row (label +
         // "Default" badge + Insert variable + `labelTrailing`), and two label
         // rows would be worse than one.
         MarkdownTextField(
@@ -1197,7 +1197,7 @@ class _BillingDocEmailScreenState extends State<BillingDocEmailScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        LabeledField(
+        ComposerLabeledField(
           label: context.tr('to'),
           child: Semantics(
             label: '${context.tr('recipients')}: ${text.isEmpty ? '—' : text}',
@@ -1213,7 +1213,7 @@ class _BillingDocEmailScreenState extends State<BillingDocEmailScreen> {
           ),
         ),
         if (cc.isNotEmpty)
-          LabeledField(
+          ComposerLabeledField(
             label: context.tr('cc'),
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 6),

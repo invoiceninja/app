@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/data/models/domain/company.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/features/settings/views/basic/account_management/company_settings_gate.dart';
 import 'package:admin/ui/features/settings/widgets/form_section.dart';
@@ -148,46 +149,55 @@ class _IntegrationsAnalyticsScreenState
                         FormSection(
                           title: context.tr('analytics'),
                           children: [
-                            TextField(
-                              controller: _gaCtrl,
-                              enabled: ready,
-                              onChanged: (_) => _markDirty(),
-                              decoration: InputDecoration(
-                                labelText: context.tr(
-                                  'google_analytics_tracking_id',
+                            LabeledField(
+                              label: context.tr('google_analytics_tracking_id'),
+                              child: TextField(
+                                controller: _gaCtrl,
+                                enabled: ready,
+                                onChanged: (_) => _markDirty(),
+                                decoration: InputDecoration(
+                                  labelText: context.tr(
+                                    'google_analytics_tracking_id',
+                                  ),
+                                  border: const OutlineInputBorder(),
                                 ),
-                                border: const OutlineInputBorder(),
+                                keyboardType: TextInputType.text,
+                                textInputAction: TextInputAction.next,
+                                autocorrect: false,
                               ),
-                              keyboardType: TextInputType.text,
-                              textInputAction: TextInputAction.next,
-                              autocorrect: false,
                             ),
-                            TextField(
-                              controller: _matomoIdCtrl,
-                              enabled: ready,
-                              onChanged: (_) => _markDirty(),
-                              decoration: InputDecoration(
-                                labelText: context.tr('matomo_id'),
-                                border: const OutlineInputBorder(),
+                            LabeledField(
+                              label: context.tr('matomo_id'),
+                              child: TextField(
+                                controller: _matomoIdCtrl,
+                                enabled: ready,
+                                onChanged: (_) => _markDirty(),
+                                decoration: InputDecoration(
+                                  labelText: context.tr('matomo_id'),
+                                  border: const OutlineInputBorder(),
+                                ),
+                                keyboardType: TextInputType.text,
+                                textInputAction: TextInputAction.next,
+                                autocorrect: false,
                               ),
-                              keyboardType: TextInputType.text,
-                              textInputAction: TextInputAction.next,
-                              autocorrect: false,
                             ),
-                            TextField(
-                              controller: _matomoUrlCtrl,
-                              enabled: ready,
-                              onChanged: (_) => _markDirty(),
-                              decoration: InputDecoration(
-                                labelText: context.tr('matomo_url'),
-                                border: const OutlineInputBorder(),
+                            LabeledField(
+                              label: context.tr('matomo_url'),
+                              child: TextField(
+                                controller: _matomoUrlCtrl,
+                                enabled: ready,
+                                onChanged: (_) => _markDirty(),
+                                decoration: InputDecoration(
+                                  labelText: context.tr('matomo_url'),
+                                  border: const OutlineInputBorder(),
+                                ),
+                                keyboardType: TextInputType.url,
+                                autocorrect: false,
+                                textInputAction: TextInputAction.done,
+                                onSubmitted: (_) {
+                                  if (canSave) _save();
+                                },
                               ),
-                              keyboardType: TextInputType.url,
-                              autocorrect: false,
-                              textInputAction: TextInputAction.done,
-                              onSubmitted: (_) {
-                                if (canSave) _save();
-                              },
                             ),
                             // Inline Save, hidden when the draft matches the
                             // persisted values.

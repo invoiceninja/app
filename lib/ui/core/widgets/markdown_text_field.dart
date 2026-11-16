@@ -1499,7 +1499,10 @@ class _MarkdownTextFieldState extends State<MarkdownTextField>
     final frame = TextInputFocusScope(
       child: Container(
         decoration: BoxDecoration(
-          color: t.surface,
+          // The page colour, like every other field (`theme.dart`'s
+          // `fillColor`): on a card a notes box is a well to type in, not an
+          // outline on the card's own ground.
+          color: t.bg,
           border: Border.all(color: t.border),
           borderRadius: BorderRadius.circular(InRadii.r1),
         ),

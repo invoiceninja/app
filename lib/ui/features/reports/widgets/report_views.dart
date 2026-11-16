@@ -8,6 +8,7 @@ import 'package:admin/data/repositories/saved_views_repository.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/dialogs/confirm_action_dialog.dart';
 import 'package:admin/ui/core/widgets/back_dismissible_menu_anchor.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/form_save_scope.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
 import 'package:admin/ui/features/reports/view_models/reports_view_model.dart';
@@ -238,18 +239,21 @@ class _NameDialogState extends State<_NameDialog> {
         title: Text(tr('save_view')),
         content: SizedBox(
           width: 360,
-          child: TextField(
-            key: const Key('report-view-name'),
-            controller: _name,
-            autofocus: true,
-            textCapitalization: TextCapitalization.sentences,
-            textInputAction: TextInputAction.done,
-            // Read from the field, not from this build's `canSave`: Enter
-            // can arrive before the rebuild the last keystroke asked for.
-            onSubmitted: (_) {
-              if (_name.text.trim().isNotEmpty) _submit();
-            },
-            decoration: InputDecoration(labelText: tr('view_name')),
+          child: LabeledField(
+            label: tr('view_name'),
+            child: TextField(
+              key: const Key('report-view-name'),
+              controller: _name,
+              autofocus: true,
+              textCapitalization: TextCapitalization.sentences,
+              textInputAction: TextInputAction.done,
+              // Read from the field, not from this build's `canSave`: Enter
+              // can arrive before the rebuild the last keystroke asked for.
+              onSubmitted: (_) {
+                if (_name.text.trim().isNotEmpty) _submit();
+              },
+              decoration: InputDecoration(labelText: tr('view_name')),
+            ),
           ),
         ),
         actions: [

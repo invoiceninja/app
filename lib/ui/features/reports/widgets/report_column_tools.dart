@@ -10,6 +10,7 @@ import 'package:admin/domain/reports/report_group_label.dart';
 import 'package:admin/domain/reports/report_related_columns.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/adaptive.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/form_save_scope.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
 import 'package:admin/ui/features/dashboard/widgets/filters/date_range_picker_button.dart';
@@ -279,22 +280,28 @@ class _RangeDialogState extends State<_RangeDialog> {
         child: Row(
           children: [
             Expanded(
-              child: TextField(
-                controller: _min,
-                autofocus: true,
-                keyboardType: keyboard,
-                textInputAction: TextInputAction.next,
-                decoration: InputDecoration(labelText: tr('min')),
+              child: LabeledField(
+                label: tr('min'),
+                child: TextField(
+                  controller: _min,
+                  autofocus: true,
+                  keyboardType: keyboard,
+                  textInputAction: TextInputAction.next,
+                  decoration: InputDecoration(labelText: tr('min')),
+                ),
               ),
             ),
             SizedBox(width: InSpacing.md(context)),
             Expanded(
-              child: TextField(
-                controller: _max,
-                keyboardType: keyboard,
-                textInputAction: TextInputAction.done,
-                onSubmitted: (_) => _apply(),
-                decoration: InputDecoration(labelText: tr('max')),
+              child: LabeledField(
+                label: tr('max'),
+                child: TextField(
+                  controller: _max,
+                  keyboardType: keyboard,
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (_) => _apply(),
+                  decoration: InputDecoration(labelText: tr('max')),
+                ),
               ),
             ),
           ],

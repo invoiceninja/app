@@ -9,6 +9,7 @@ import 'package:admin/data/models/value/payment_type.dart';
 import 'package:admin/domain/payment_types.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/back_dismissible_menu_anchor.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/form_save_scope.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
@@ -510,21 +511,24 @@ class _RenameDialogState extends State<_RenameDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            TextField(
-              controller: _controller,
-              autofocus: true,
-              keyboardType: TextInputType.text,
-              textInputAction: TextInputAction.done,
-              textCapitalization: TextCapitalization.words,
-              decoration: InputDecoration(
-                labelText: context.tr('name'),
-                hintText: widget.stockName,
-                helperText: clash
-                    ? context.tr('payment_type_name_in_use')
-                    : null,
-                helperMaxLines: 2,
+            LabeledField(
+              label: context.tr('name'),
+              child: TextField(
+                controller: _controller,
+                autofocus: true,
+                keyboardType: TextInputType.text,
+                textInputAction: TextInputAction.done,
+                textCapitalization: TextCapitalization.words,
+                decoration: InputDecoration(
+                  labelText: context.tr('name'),
+                  hintText: widget.stockName,
+                  helperText: clash
+                      ? context.tr('payment_type_name_in_use')
+                      : null,
+                  helperMaxLines: 2,
+                ),
+                onSubmitted: (_) => _submit(),
               ),
-              onSubmitted: (_) => _submit(),
             ),
             const SizedBox(height: InSpacing.sm),
             Text(

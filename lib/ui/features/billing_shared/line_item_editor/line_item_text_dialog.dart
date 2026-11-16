@@ -5,6 +5,7 @@ import 'package:admin/data/models/domain/billing/line_item.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/adaptive.dart';
 import 'package:admin/ui/core/dialogs/discard_changes_dialog.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
 import 'package:admin/ui/core/widgets/spell_check.dart';
 
@@ -191,19 +192,23 @@ class _LineItemTextDialogState extends State<_LineItemTextDialog> {
       children: [
         Expanded(
           child: LineItemSpellCheck(
-            builder: (context, config) => TextField(
-              controller: _notes,
-              autofocus: true,
-              expands: true,
-              maxLines: null,
-              textAlignVertical: TextAlignVertical.top,
-              textCapitalization: TextCapitalization.sentences,
-              decoration: InputDecoration(
-                labelText: widget.label,
-                alignLabelWithHint: true,
+            builder: (context, config) => LabeledField(
+              label: widget.label,
+              fills: true,
+              child: TextField(
+                controller: _notes,
+                autofocus: true,
+                expands: true,
+                maxLines: null,
+                textAlignVertical: TextAlignVertical.top,
+                textCapitalization: TextCapitalization.sentences,
+                decoration: InputDecoration(
+                  labelText: widget.label,
+                  alignLabelWithHint: true,
+                ),
+                spellCheckConfiguration: config,
+                contextMenuBuilder: spellCheckContextMenuBuilder,
               ),
-              spellCheckConfiguration: config,
-              contextMenuBuilder: spellCheckContextMenuBuilder,
             ),
           ),
         ),

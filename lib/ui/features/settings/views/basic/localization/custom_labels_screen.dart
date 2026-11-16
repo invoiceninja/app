@@ -10,6 +10,7 @@ import 'package:admin/data/models/value/country.dart';
 import 'package:admin/l10n/company_labels_scope.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/adaptive.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/form_save_scope.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
@@ -311,12 +312,15 @@ class _AddCustomLabelDialogState extends State<_AddCustomLabelDialog> {
   Widget build(BuildContext context) {
     return AlertDialog(
       title: Text(context.tr('add_custom')),
-      content: TextField(
-        controller: _controller,
-        autofocus: true,
-        decoration: InputDecoration(labelText: context.tr('property_name')),
-        textInputAction: TextInputAction.done,
-        onSubmitted: (v) => Navigator.of(context).pop(v.trim()),
+      content: LabeledField(
+        label: context.tr('property_name'),
+        child: TextField(
+          controller: _controller,
+          autofocus: true,
+          decoration: InputDecoration(labelText: context.tr('property_name')),
+          textInputAction: TextInputAction.done,
+          onSubmitted: (v) => Navigator.of(context).pop(v.trim()),
+        ),
       ),
       actions: [
         OutlinedButton(
@@ -561,12 +565,16 @@ class _TranslationRowState extends State<_TranslationRow> {
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Expanded(
-          child: TextField(
-            controller: _controller,
-            textInputAction: TextInputAction.done,
-            decoration: InputDecoration(labelText: widget.displayLabel),
-            onChanged: (v) => host.updateSettings((s) => _binding.write(s, v)),
-            onSubmitted: scope == null ? null : (_) => scope.trySubmit(),
+          child: LabeledField(
+            label: widget.displayLabel,
+            child: TextField(
+              controller: _controller,
+              textInputAction: TextInputAction.done,
+              decoration: InputDecoration(labelText: widget.displayLabel),
+              onChanged: (v) =>
+                  host.updateSettings((s) => _binding.write(s, v)),
+              onSubmitted: scope == null ? null : (_) => scope.trySubmit(),
+            ),
           ),
         ),
         IconButton(

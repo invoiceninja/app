@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import 'package:admin/app/services.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/form_save_scope.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/core/widgets/searchable_dropdown_field.dart';
@@ -171,14 +172,17 @@ class _SubField extends StatelessWidget {
     final scope = FormSaveScope.maybeOf(context);
     final labelKey = _kLabelKey[field] ?? field;
     final helperKey = _helperKey(field);
-    return TextField(
-      controller: controller,
-      textInputAction: TextInputAction.done,
-      decoration: InputDecoration(
-        labelText: context.tr(labelKey),
-        helperText: helperKey == null ? null : context.tr(helperKey),
+    return LabeledField(
+      label: context.tr(labelKey),
+      child: TextField(
+        controller: controller,
+        textInputAction: TextInputAction.done,
+        decoration: InputDecoration(
+          labelText: context.tr(labelKey),
+          helperText: helperKey == null ? null : context.tr(helperKey),
+        ),
+        onSubmitted: scope == null ? null : (_) => scope.trySubmit(),
       ),
-      onSubmitted: scope == null ? null : (_) => scope.trySubmit(),
     );
   }
 

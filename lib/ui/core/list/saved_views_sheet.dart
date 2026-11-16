@@ -12,6 +12,7 @@ import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/list/generic_list_view_model.dart';
 import 'package:admin/ui/core/list/saved_view_dialogs.dart';
 import 'package:admin/ui/core/list/saved_view_icons.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/form_save_scope.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
 
@@ -301,16 +302,19 @@ class _NameField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scope = FormSaveScope.maybeOf(context);
-    return TextField(
-      controller: controller,
-      enabled: enabled,
-      autofocus: true,
-      textInputAction: TextInputAction.done,
-      decoration: InputDecoration(
-        labelText: context.tr('view_name'),
-        isDense: true,
+    return LabeledField(
+      label: context.tr('view_name'),
+      child: TextField(
+        controller: controller,
+        enabled: enabled,
+        autofocus: true,
+        textInputAction: TextInputAction.done,
+        decoration: InputDecoration(
+          labelText: context.tr('view_name'),
+          isDense: true,
+        ),
+        onSubmitted: scope == null ? null : (_) => scope.trySubmit(),
       ),
-      onSubmitted: scope == null ? null : (_) => scope.trySubmit(),
     );
   }
 }

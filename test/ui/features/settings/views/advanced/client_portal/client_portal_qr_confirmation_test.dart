@@ -214,6 +214,8 @@ void main() {
 
     // Delivered: the row leaves the outbox.
     outbox.unaccepted.add(false);
+    // One frame for the stream's event to arrive, one to build from it.
+    await tester.pump();
     await tester.pump();
 
     expect(qrButton, findsOneWidget);

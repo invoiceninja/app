@@ -1,6 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/utils/formatting.dart';
 
 /// Single time-of-day input with typed shortcuts + a clock-picker
@@ -194,28 +195,34 @@ class _InTimeFieldState extends State<InTimeField> {
       ),
     );
 
-    return TextField(
-      controller: _controller,
-      focusNode: _focusNode,
-      enabled: widget.enabled,
-      autofocus: widget.autofocus,
-      textAlignVertical: TextAlignVertical.center,
-      style: const TextStyle(fontSize: 12),
-      decoration: InputDecoration(
-        isDense: true,
-        labelText: widget.labelText,
-        hintText: _hint(),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-        suffixIcon: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: suffixChildren,
+    return LabeledField(
+      label: widget.labelText,
+      child: TextField(
+        controller: _controller,
+        focusNode: _focusNode,
+        enabled: widget.enabled,
+        autofocus: widget.autofocus,
+        textAlignVertical: TextAlignVertical.center,
+        style: const TextStyle(fontSize: 12),
+        decoration: InputDecoration(
+          isDense: true,
+          labelText: widget.labelText,
+          hintText: _hint(),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 8,
+            vertical: 8,
+          ),
+          suffixIcon: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: suffixChildren,
+          ),
+          suffixIconConstraints: const BoxConstraints(
+            minWidth: 28,
+            minHeight: 28,
+          ),
         ),
-        suffixIconConstraints: const BoxConstraints(
-          minWidth: 28,
-          minHeight: 28,
-        ),
+        onSubmitted: (_) => _commitTyped(),
       ),
-      onSubmitted: (_) => _commitTyped(),
     );
   }
 }

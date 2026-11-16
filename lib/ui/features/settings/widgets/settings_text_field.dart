@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/utils/field_text_direction.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/form_save_scope.dart';
 
 /// Canonical single-line text input for any settings screen — covers both
@@ -154,32 +155,35 @@ class _SettingsTextFieldState extends State<SettingsTextField> {
     final scope = FormSaveScope.maybeOf(context);
     final labelKey = widget.labelKey;
     final label = labelKey != null ? context.tr(labelKey) : widget.labelText!;
-    return TextField(
-      controller: _controller,
-      decoration: InputDecoration(
-        labelText: label,
-        helperText: widget.helperText,
-        helperMaxLines: widget.helperMaxLines,
-        errorText: widget.errorText,
+    return LabeledField(
+      label: label,
+      child: TextField(
+        controller: _controller,
+        decoration: InputDecoration(
+          labelText: label,
+          helperText: widget.helperText,
+          helperMaxLines: widget.helperMaxLines,
+          errorText: widget.errorText,
+        ),
+        keyboardType: widget.keyboardType,
+        // A number, phone, email or URL reads LTR in every language.
+        textDirection: ltrValueDirection(
+          ltr: isLtrValueKeyboard(widget.keyboardType),
+        ),
+        textAlign: ltrValueAlign(
+          context,
+          ltr: isLtrValueKeyboard(widget.keyboardType),
+        ),
+        textCapitalization: widget.textCapitalization,
+        autofillHints: widget.autofillHints,
+        // One knob, not two — the pairing `AuthField` already uses.
+        autocorrect: widget.autocorrect,
+        enableSuggestions: widget.autocorrect,
+        inputFormatters: widget.inputFormatters,
+        textInputAction: widget.textInputAction,
+        onChanged: widget.onChanged,
+        onSubmitted: scope == null ? null : (_) => scope.trySubmit(),
       ),
-      keyboardType: widget.keyboardType,
-      // A number, phone, email or URL reads LTR in every language.
-      textDirection: ltrValueDirection(
-        ltr: isLtrValueKeyboard(widget.keyboardType),
-      ),
-      textAlign: ltrValueAlign(
-        context,
-        ltr: isLtrValueKeyboard(widget.keyboardType),
-      ),
-      textCapitalization: widget.textCapitalization,
-      autofillHints: widget.autofillHints,
-      // One knob, not two — the pairing `AuthField` already uses.
-      autocorrect: widget.autocorrect,
-      enableSuggestions: widget.autocorrect,
-      inputFormatters: widget.inputFormatters,
-      textInputAction: widget.textInputAction,
-      onChanged: widget.onChanged,
-      onSubmitted: scope == null ? null : (_) => scope.trySubmit(),
     );
   }
 }

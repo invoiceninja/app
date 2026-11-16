@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
 import 'package:admin/ui/features/auth/view_models/login_view_model.dart';
@@ -123,27 +124,30 @@ class _SendCodeDialogState extends State<_SendCodeDialog> {
       title: Text(context.tr('disable_2fa')),
       content: SizedBox(
         width: 400,
-        child: TextField(
-          key: const ValueKey('disable_2fa_email'),
-          controller: _email,
-          autofocus: true,
-          // Read-only, not disabled, while sending: a disabled field drops
-          // focus, so after a failure the user would have to click back in.
-          readOnly: _busy,
-          keyboardType: TextInputType.emailAddress,
-          autocorrect: false,
-          autofillHints: const [AutofillHints.email],
-          textInputAction: TextInputAction.done,
-          decoration: InputDecoration(
-            labelText: context.tr('email'),
-            errorText: _emailError,
+        child: LabeledField(
+          label: context.tr('email'),
+          child: TextField(
+            key: const ValueKey('disable_2fa_email'),
+            controller: _email,
+            autofocus: true,
+            // Read-only, not disabled, while sending: a disabled field drops
+            // focus, so after a failure the user would have to click back in.
+            readOnly: _busy,
+            keyboardType: TextInputType.emailAddress,
+            autocorrect: false,
+            autofillHints: const [AutofillHints.email],
+            textInputAction: TextInputAction.done,
+            decoration: InputDecoration(
+              labelText: context.tr('email'),
+              errorText: _emailError,
+            ),
+            onChanged: (_) => setState(() => _emailError = null),
+            // Enter sends. The no-op keeps the framework's `done` handling
+            // from unfocusing the field first, so after a failure the user
+            // can retype straight away.
+            onEditingComplete: () {},
+            onSubmitted: (_) => _send(),
           ),
-          onChanged: (_) => setState(() => _emailError = null),
-          // Enter sends. The no-op keeps the framework's `done` handling
-          // from unfocusing the field first, so after a failure the user
-          // can retype straight away.
-          onEditingComplete: () {},
-          onSubmitted: (_) => _send(),
         ),
       ),
       actions: [
@@ -239,26 +243,29 @@ class _VerifyCodeDialogState extends State<_VerifyCodeDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            TextField(
-              key: const ValueKey('disable_2fa_code'),
-              controller: _code,
-              autofocus: true,
-              readOnly: _busy,
-              keyboardType: TextInputType.number,
-              autocorrect: false,
-              enableSuggestions: false,
-              autofillHints: const [AutofillHints.oneTimeCode],
-              textInputAction: TextInputAction.done,
-              inputFormatters: [
-                FilteringTextInputFormatter.digitsOnly,
-                LengthLimitingTextInputFormatter(_codeLength),
-              ],
-              decoration: InputDecoration(labelText: context.tr('sms_code')),
-              onChanged: (_) => setState(() {}),
-              // See the email field: Enter verifies without unfocusing, so
-              // an early Enter (five digits) leaves the user still typing.
-              onEditingComplete: () {},
-              onSubmitted: (_) => _verify(),
+            LabeledField(
+              label: context.tr('sms_code'),
+              child: TextField(
+                key: const ValueKey('disable_2fa_code'),
+                controller: _code,
+                autofocus: true,
+                readOnly: _busy,
+                keyboardType: TextInputType.number,
+                autocorrect: false,
+                enableSuggestions: false,
+                autofillHints: const [AutofillHints.oneTimeCode],
+                textInputAction: TextInputAction.done,
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                  LengthLimitingTextInputFormatter(_codeLength),
+                ],
+                decoration: InputDecoration(labelText: context.tr('sms_code')),
+                onChanged: (_) => setState(() {}),
+                // See the email field: Enter verifies without unfocusing, so
+                // an early Enter (five digits) leaves the user still typing.
+                onEditingComplete: () {},
+                onSubmitted: (_) => _verify(),
+              ),
             ),
             SizedBox(height: InSpacing.md(context)),
             Align(

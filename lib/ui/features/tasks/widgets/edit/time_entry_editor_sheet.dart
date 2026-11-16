@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/data/models/domain/time_entry.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/in_date_field.dart';
 import 'package:admin/ui/core/widgets/in_time_field.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
@@ -390,13 +391,16 @@ class _TimeEntryEditorSheetState extends State<TimeEntryEditorSheet> {
                 ),
                 const SizedBox(width: InSpacing.sm),
                 Expanded(
-                  child: TextField(
-                    controller: _duration,
-                    decoration: InputDecoration(
-                      labelText: context.tr('duration'),
-                      hintText: '1h 30m',
+                  child: LabeledField(
+                    label: context.tr('duration'),
+                    child: TextField(
+                      controller: _duration,
+                      decoration: InputDecoration(
+                        labelText: context.tr('duration'),
+                        hintText: '1h 30m',
+                      ),
+                      onChanged: _onDurationChanged,
                     ),
-                    onChanged: _onDurationChanged,
                   ),
                 ),
               ],
@@ -406,14 +410,17 @@ class _TimeEntryEditorSheetState extends State<TimeEntryEditorSheet> {
               // Teams keep lengthy work notes per entry (beta feedback), so
               // the box opens three lines tall and grows to ten before it
               // scrolls; it was 1–3, which read as a one-line label.
-              TextField(
-                controller: _description,
-                minLines: 3,
-                maxLines: 10,
-                textCapitalization: TextCapitalization.sentences,
-                decoration: InputDecoration(
-                  labelText: context.tr('description'),
-                  alignLabelWithHint: true,
+              LabeledField(
+                label: context.tr('description'),
+                child: TextField(
+                  controller: _description,
+                  minLines: 3,
+                  maxLines: 10,
+                  textCapitalization: TextCapitalization.sentences,
+                  decoration: InputDecoration(
+                    labelText: context.tr('description'),
+                    alignLabelWithHint: true,
+                  ),
                 ),
               ),
             ],

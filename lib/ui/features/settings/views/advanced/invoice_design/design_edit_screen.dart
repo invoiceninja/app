@@ -13,6 +13,7 @@ import 'package:admin/data/services/live_design_service.dart';
 import 'package:admin/data/static/design_template_completions.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/dialogs/discard_changes_dialog.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/features/settings/view_models/design_edit_view_model.dart';
 import 'package:admin/ui/features/settings/views/advanced/invoice_design/widgets/design_code_field.dart';
@@ -554,52 +555,55 @@ class _StartFromField extends StatelessWidget {
         final custom = seedable.where((d) => d.isCustom).toList();
         return Padding(
           padding: EdgeInsets.only(top: InSpacing.md(context)),
-          child: DropdownButtonFormField<String>(
-            initialValue: null,
-            isExpanded: true,
-            decoration: InputDecoration(
-              labelText: context.tr('start_from'),
-              border: const OutlineInputBorder(),
-            ),
-            items: [
-              DropdownMenuItem(
-                value: '__blank__',
-                child: Text(context.tr('blank')),
+          child: LabeledField(
+            label: context.tr('start_from'),
+            child: DropdownButtonFormField<String>(
+              initialValue: null,
+              isExpanded: true,
+              decoration: InputDecoration(
+                labelText: context.tr('start_from'),
+                border: const OutlineInputBorder(),
               ),
-              if (builtIn.isNotEmpty)
+              items: [
                 DropdownMenuItem(
-                  enabled: false,
-                  child: Text(
-                    context.tr('built_in'),
-                    style: Theme.of(context).textTheme.labelSmall,
-                  ),
+                  value: '__blank__',
+                  child: Text(context.tr('blank')),
                 ),
-              for (final d in builtIn)
-                DropdownMenuItem(value: d.id, child: Text(d.name)),
-              if (custom.isNotEmpty)
-                DropdownMenuItem(
-                  enabled: false,
-                  child: Text(
-                    context.tr('custom_designs'),
-                    style: Theme.of(context).textTheme.labelSmall,
+                if (builtIn.isNotEmpty)
+                  DropdownMenuItem(
+                    enabled: false,
+                    child: Text(
+                      context.tr('built_in'),
+                      style: Theme.of(context).textTheme.labelSmall,
+                    ),
                   ),
-                ),
-              for (final d in custom)
-                DropdownMenuItem(value: d.id, child: Text(d.name)),
-            ],
-            onChanged: (id) async {
-              if (id == null) return;
-              if (vm.templateIsNonEmpty) {
-                final ok = await showDiscardChangesDialog(context);
-                if (!ok || !context.mounted) return;
-              }
-              if (id == '__blank__') {
-                vm.loadBlankScaffold();
-                return;
-              }
-              final src = seedable.firstWhere((d) => d.id == id);
-              vm.loadFrom(src);
-            },
+                for (final d in builtIn)
+                  DropdownMenuItem(value: d.id, child: Text(d.name)),
+                if (custom.isNotEmpty)
+                  DropdownMenuItem(
+                    enabled: false,
+                    child: Text(
+                      context.tr('custom_designs'),
+                      style: Theme.of(context).textTheme.labelSmall,
+                    ),
+                  ),
+                for (final d in custom)
+                  DropdownMenuItem(value: d.id, child: Text(d.name)),
+              ],
+              onChanged: (id) async {
+                if (id == null) return;
+                if (vm.templateIsNonEmpty) {
+                  final ok = await showDiscardChangesDialog(context);
+                  if (!ok || !context.mounted) return;
+                }
+                if (id == '__blank__') {
+                  vm.loadBlankScaffold();
+                  return;
+                }
+                final src = seedable.firstWhere((d) => d.id == id);
+                vm.loadFrom(src);
+              },
+            ),
           ),
         );
       },

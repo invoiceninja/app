@@ -4,6 +4,7 @@ import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/router.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/client_name_label.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/link_text.dart';
 import 'package:admin/ui/core/widgets/vendor_name_label.dart';
 import 'package:admin/ui/features/billing_shared/edit/billing_edit_field_decoration.dart';
@@ -79,20 +80,23 @@ class LockedEntityFieldRow extends StatelessWidget {
     // `errorText` stays ON the decoration: it owns the error border, and it is
     // rare and transient, so having it inside the tap area is an acceptable
     // trade the always-visible helper line is not (see [helperText]).
-    final decorated = InputDecorator(
-      decoration: billingFieldDecoration(context).copyWith(
-        labelText: label,
-        errorText: errorText,
-        errorMaxLines: 3,
-        suffixIcon: Icon(Icons.lock_outline, size: 18, color: tokens.ink3),
-        // An `InputDecorator` with no editable child never focuses and is never
-        // "empty" (`_labelShouldWithdraw` is `!isEmpty || (isFocused &&
-        // enabled)`), so without this the label sits ON the value instead of
-        // floating. Same mechanism `docs/pickers.md` § A picker's empty state
-        // has to say something documents for the disabled-placeholder branch.
-        floatingLabelBehavior: FloatingLabelBehavior.always,
+    final decorated = LabeledField(
+      label: label,
+      child: InputDecorator(
+        decoration: billingFieldDecoration(context).copyWith(
+          labelText: label,
+          errorText: errorText,
+          errorMaxLines: 3,
+          suffixIcon: Icon(Icons.lock_outline, size: 18, color: tokens.ink3),
+          // An `InputDecorator` with no editable child never focuses and is never
+          // "empty" (`_labelShouldWithdraw` is `!isEmpty || (isFocused &&
+          // enabled)`), so without this the label sits ON the value instead of
+          // floating. Same mechanism `docs/pickers.md` § A picker's empty state
+          // has to say something documents for the disabled-placeholder branch.
+          floatingLabelBehavior: FloatingLabelBehavior.always,
+        ),
+        child: child,
       ),
-      child: child,
     );
     final tap = onTap;
     final field = tap == null

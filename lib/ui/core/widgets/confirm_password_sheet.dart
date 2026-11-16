@@ -8,6 +8,7 @@ import 'package:admin/data/services/web_oauth.dart';
 import 'package:admin/data/services/web_sign_in.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/utils/field_text_direction.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/microsoft_logo.dart';
 import 'package:admin/ui/core/widgets/form_save_scope.dart';
 import 'package:admin/ui/core/widgets/notify.dart' show formatNotifyError;
@@ -306,25 +307,28 @@ class _PasswordField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return TextField(
-      controller: controller,
-      obscureText: obscure,
-      keyboardType: TextInputType.visiblePassword,
-      textDirection: TextDirection.ltr,
-      textAlign: ltrValueAlign(context, ltr: true),
-      autocorrect: false,
-      enableSuggestions: false,
-      autofocus: true,
-      decoration: InputDecoration(
-        labelText: context.tr('password'),
-        suffixIcon: IconButton(
-          icon: Icon(obscure ? Icons.visibility : Icons.visibility_off),
-          onPressed: onObscureToggle,
+    return LabeledField(
+      label: context.tr('password'),
+      child: TextField(
+        controller: controller,
+        obscureText: obscure,
+        keyboardType: TextInputType.visiblePassword,
+        textDirection: TextDirection.ltr,
+        textAlign: ltrValueAlign(context, ltr: true),
+        autocorrect: false,
+        enableSuggestions: false,
+        autofocus: true,
+        decoration: InputDecoration(
+          labelText: context.tr('password'),
+          suffixIcon: IconButton(
+            icon: Icon(obscure ? Icons.visibility : Icons.visibility_off),
+            onPressed: onObscureToggle,
+          ),
         ),
+        textInputAction: TextInputAction.done,
+        onChanged: onChanged,
+        onSubmitted: (_) => onSubmitted(),
       ),
-      textInputAction: TextInputAction.done,
-      onChanged: onChanged,
-      onSubmitted: (_) => onSubmitted(),
     );
   }
 }

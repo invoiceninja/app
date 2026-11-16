@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/data/models/value/country.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/form_save_scope.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/core/widgets/searchable_dropdown_field.dart';
@@ -477,15 +478,18 @@ class _OnboardingField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scope = FormSaveScope.maybeOf(context);
-    return TextField(
-      controller: controller,
-      textInputAction: TextInputAction.done,
-      keyboardType: keyboardType,
-      textCapitalization: textCapitalization,
-      autocorrect: autocorrect,
-      enableSuggestions: autocorrect,
-      decoration: InputDecoration(labelText: label),
-      onSubmitted: scope == null ? null : (_) => scope.trySubmit(),
+    return LabeledField(
+      label: label,
+      child: TextField(
+        controller: controller,
+        textInputAction: TextInputAction.done,
+        keyboardType: keyboardType,
+        textCapitalization: textCapitalization,
+        autocorrect: autocorrect,
+        enableSuggestions: autocorrect,
+        decoration: InputDecoration(labelText: label),
+        onSubmitted: scope == null ? null : (_) => scope.trySubmit(),
+      ),
     );
   }
 }

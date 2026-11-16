@@ -6,6 +6,7 @@ import 'package:admin/app/services.dart';
 import 'package:admin/data/repositories/auth/auth_session.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/confirm_password_sheet.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/form_save_scope.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
@@ -151,31 +152,37 @@ class _NameDialogState extends State<_NameDialog> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(
-                  controller: _first,
-                  autofocus: true,
-                  textCapitalization: TextCapitalization.words,
-                  textInputAction: TextInputAction.next,
-                  // The signed-in user's own identity — autofill is right.
-                  autofillHints: const [AutofillHints.givenName],
-                  decoration: InputDecoration(
-                    labelText: context.tr('first_name'),
-                    errorText: errorFor(_first, 'please_enter_a_first_name'),
+                LabeledField(
+                  label: context.tr('first_name'),
+                  child: TextField(
+                    controller: _first,
+                    autofocus: true,
+                    textCapitalization: TextCapitalization.words,
+                    textInputAction: TextInputAction.next,
+                    // The signed-in user's own identity — autofill is right.
+                    autofillHints: const [AutofillHints.givenName],
+                    decoration: InputDecoration(
+                      labelText: context.tr('first_name'),
+                      errorText: errorFor(_first, 'please_enter_a_first_name'),
+                    ),
+                    onChanged: (_) => setState(() {}),
                   ),
-                  onChanged: (_) => setState(() {}),
                 ),
                 const SizedBox(height: 12),
-                TextField(
-                  controller: _last,
-                  textCapitalization: TextCapitalization.words,
-                  textInputAction: TextInputAction.done,
-                  autofillHints: const [AutofillHints.familyName],
-                  decoration: InputDecoration(
-                    labelText: context.tr('last_name'),
-                    errorText: errorFor(_last, 'please_enter_a_last_name'),
+                LabeledField(
+                  label: context.tr('last_name'),
+                  child: TextField(
+                    controller: _last,
+                    textCapitalization: TextCapitalization.words,
+                    textInputAction: TextInputAction.done,
+                    autofillHints: const [AutofillHints.familyName],
+                    decoration: InputDecoration(
+                      labelText: context.tr('last_name'),
+                      errorText: errorFor(_last, 'please_enter_a_last_name'),
+                    ),
+                    onChanged: (_) => setState(() {}),
+                    onSubmitted: (_) => _submit(),
                   ),
-                  onChanged: (_) => setState(() {}),
-                  onSubmitted: (_) => _submit(),
                 ),
               ],
             ),
