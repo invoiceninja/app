@@ -177,6 +177,15 @@ class _MasterDetailLayoutState extends State<MasterDetailLayout>
   bool get _hasPane => widget.hasPane;
   bool get _isFullScreen => widget.viewMode == 'full';
 
+  /// How much of the end edge the list gives up to the pane: the pane's width
+  /// while it floats beside the list and leaves it [kListBesidePaneMinWidth],
+  /// else nothing.
+  double _listInset(BuildContext context, double available) {
+    if (!_hasPane || _isFullScreen) return 0;
+    final pane = _paneWidth(context);
+    return available - pane >= kListBesidePaneMinWidth ? pane : 0;
+  }
+
   /// Whether the pane should be **docked** (`_slide` at 1) vs
   /// translated off-screen (0). True whenever a pane exists on a wide
   /// viewport — deliberately independent of full-screen: [_expand]
@@ -545,7 +554,24 @@ class _MasterDetailLayoutState extends State<MasterDetailLayout>
             return Stack(
               children: [
                 Positioned.fill(
-                  child: Offstage(offstage: listHidden, child: widget.list),
+                  child: Offstage(
+                    offstage: listHidden,
+                    // The list ends where the pane begins. Left at full width
+                    // it ran on underneath, so its columns were cut off
+                    // mid-word at the pane's edge with nothing to say there
+                    // were more; inset, the table lays out in what is visible
+                    // and its own scroller reaches the rest. Always a
+                    // `Padding` (zero with no pane) so the list keeps its
+                    // place in the tree. Not while the pane fills the window:
+                    // the list is covered then, and must come back at the
+                    // width it will have.
+                    child: Padding(
+                      padding: EdgeInsetsDirectional.only(
+                        end: _listInset(context, constraints.maxWidth),
+                      ),
+                      child: widget.list,
+                    ),
+                  ),
                 ),
                 // *Positioned*, so this Stack keeps sizing itself from
                 // `constraints.biggest`: a non-positioned child would flip it
@@ -911,6 +937,11 @@ void goAfterEntitySave(
 // ─── Width math + pane scope marker ──────────────────────────────────────
 
 double _lerp(double a, double b, double t) => a + (b - a) * t;
+
+/// The least width a list keeps beside the pane. Below it the list stays full
+/// width under the pane, as it always did: its toolbar is laid out for a wide
+/// window and has no narrower form to fall back to.
+const double kListBesidePaneMinWidth = 640;
 
 double _paneWidth(BuildContext context) {
   final w = MediaQuery.sizeOf(context).width;
