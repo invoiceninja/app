@@ -227,14 +227,10 @@ class _CollapsibleFormSectionState extends State<_CollapsibleFormSection> {
         icon: Icon(_expanded ? Icons.expand_less : Icons.expand_more),
         onPressed: () => setState(() => _expanded = !_expanded),
       ),
-      child: AnimatedCrossFade(
-        firstChild: const SizedBox.shrink(),
-        secondChild: widget.child,
-        crossFadeState: _expanded
-            ? CrossFadeState.showSecond
-            : CrossFadeState.showFirst,
-        duration: const Duration(milliseconds: 150),
-      ),
+      // Collapsed is the header alone. It used to keep the divider and the
+      // body's padding around nothing, which read as an empty card.
+      showBody: _expanded,
+      child: widget.child,
     );
   }
 }

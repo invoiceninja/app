@@ -20,6 +20,7 @@ class DashboardCardShell extends StatelessWidget {
     this.padding,
     this.onHeaderTap,
     this.bodyFills = false,
+    this.showBody = true,
     required this.child,
   }) : assert(
          onHeaderTap == null || title != null || trailing != null,
@@ -93,6 +94,11 @@ class DashboardCardShell extends StatelessWidget {
   /// around it.
   final VoidCallback? onHeaderTap;
 
+  /// False draws the header alone: no divider and no body. For a collapsed
+  /// section, which otherwise kept the divider and the body's padding around
+  /// nothing and read as an empty card.
+  final bool showBody;
+
   final Widget child;
 
   @override
@@ -131,11 +137,12 @@ class DashboardCardShell extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: bodyFills ? MainAxisSize.max : MainAxisSize.min,
           children: [
-            if (hasHeader) ...[
-              _header(context, theme, tokens),
-              Divider(height: 1, thickness: 1, color: tokens.border),
+            if (hasHeader) _header(context, theme, tokens),
+            if (showBody) ...[
+              if (hasHeader)
+                Divider(height: 1, thickness: 1, color: tokens.border),
+              if (bodyFills) Expanded(child: body) else body,
             ],
-            if (bodyFills) Expanded(child: body) else body,
           ],
         ),
       ),

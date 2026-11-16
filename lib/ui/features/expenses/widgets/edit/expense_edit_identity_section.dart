@@ -19,6 +19,7 @@ import 'package:admin/ui/core/widgets/field_action_button.dart';
 import 'package:admin/ui/core/widgets/formatter_host_mixin.dart';
 import 'package:admin/ui/core/widgets/in_date_field.dart';
 import 'package:admin/ui/core/widgets/searchable_dropdown_field.dart';
+import 'package:admin/ui/features/clients/widgets/edit/client_edit_field_pair.dart';
 import 'package:admin/ui/features/clients/widgets/client_picker_field_with_create.dart';
 import 'package:admin/ui/features/dashboard/widgets/card_shell.dart';
 import 'package:admin/ui/features/expense_categories/widgets/expense_category_picker_field.dart';
@@ -50,25 +51,37 @@ class ExpenseEditIdentitySection extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
-          _DateField(vm: vm),
-          EntityEditField(
-            label: context.tr('number'),
-            initial: vm.draft.number,
-            onChanged: vm.setNumber,
-            errorText: vm.fieldErrorFor('number'),
-            hintText: vm.isCreate ? context.tr('auto_generated') : null,
-            autocorrect: false,
+          // Two to a row where the card has room: eight fields each the full
+          // width of a desktop card were eight long empty boxes. Paired by
+          // what they describe: when and which, who was paid for what, who
+          // it is billed to, who owns it and in what currency.
+          ClientEditFieldPair(
+            left: _DateField(vm: vm),
+            right: EntityEditField(
+              label: context.tr('number'),
+              initial: vm.draft.number,
+              onChanged: vm.setNumber,
+              errorText: vm.fieldErrorFor('number'),
+              hintText: vm.isCreate ? context.tr('auto_generated') : null,
+              autocorrect: false,
+            ),
           ),
-          _VendorPicker(vm: vm),
-          _ClientPicker(vm: vm),
-          _ProjectPicker(vm: vm),
-          _CategoryPicker(vm: vm),
-          AssignedUserPickerField(
-            companyId: vm.companyId,
-            selectedId: vm.draft.assignedUserId,
-            onChanged: vm.setAssignedUserId,
+          ClientEditFieldPair(
+            left: _VendorPicker(vm: vm),
+            right: _CategoryPicker(vm: vm),
           ),
-          _CurrencyPicker(vm: vm),
+          ClientEditFieldPair(
+            left: _ClientPicker(vm: vm),
+            right: _ProjectPicker(vm: vm),
+          ),
+          ClientEditFieldPair(
+            left: AssignedUserPickerField(
+              companyId: vm.companyId,
+              selectedId: vm.draft.assignedUserId,
+              onChanged: vm.setAssignedUserId,
+            ),
+            right: _CurrencyPicker(vm: vm),
+          ),
           SizedBox(height: InSpacing.md(context)),
           EntityTagsField(
             entityType: 'expense',

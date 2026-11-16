@@ -198,14 +198,9 @@ class _CollapsibleFormSectionState extends State<_CollapsibleFormSection> {
         icon: Icon(_expanded ? Icons.expand_less : Icons.expand_more),
         onPressed: () => setState(() => _expanded = !_expanded),
       ),
-      child: AnimatedCrossFade(
-        firstChild: const SizedBox.shrink(),
-        secondChild: widget.child,
-        crossFadeState: _expanded
-            ? CrossFadeState.showSecond
-            : CrossFadeState.showFirst,
-        duration: const Duration(milliseconds: 150),
-      ),
+      // Collapsed is the header alone, as on the expense form.
+      showBody: _expanded,
+      child: widget.child,
     );
   }
 }
