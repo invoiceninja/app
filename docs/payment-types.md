@@ -36,7 +36,7 @@ A company renames a type by setting its server key in `settings.translations` (`
 
 ## Hidden payment types: out of the opening list, still searchable, never the selected value
 
-`settings.hidden_payment_types` is a comma-separated id list, edited on Settings → Payment Types (company scope only) or from the Type pickers' "Manage payment types" footer, which opens the same editor as a dialog so the record being entered survives.
+`settings.hidden_payment_types` is a comma-separated id list, edited on Settings → Payment Settings → Payment Types (company scope only; `/settings/online_payments/payment_types`, a section of its own until 5.1.31) or from the Type pickers' "Manage payment types" footer, which opens the same editor as a dialog so the record being entered survives.
 
 - **It applies to the payment and expense Type pickers and the default-type pickers** (`PaymentTypePickerField`, `PaymentTypeOptions`), never to lists, filters, detail screens or reports.
 - **A hidden type leaves the opening list but a typed query still finds it** (`SearchableDropdownField.idleExcludes`), tagged "Hidden". A query matching nothing would close the popover, footer and all, with no word on where the type went.

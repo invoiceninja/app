@@ -413,7 +413,7 @@ const List<ReleaseNotes> kReleaseNotes = [
         title: 'Your payment types',
         body: 'Hide the types you never use, and rename any of them.',
         target: ReleaseHighlightRoute(
-          '/settings/payment_types',
+          '/settings/online_payments/payment_types',
           module: EntityType.payment,
         ),
       ),

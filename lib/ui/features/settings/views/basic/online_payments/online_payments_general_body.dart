@@ -2,6 +2,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import 'package:admin/app/design_tokens.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/features/settings/state/settings_level_controller.dart';
 import 'package:admin/ui/features/settings/view_models/settings_draft_view_model.dart';
@@ -18,6 +19,7 @@ const kOnlinePaymentsGeneralSearchKeys = <String>[
   'use_available_payments',
   'use_available_credits',
   'configure_gateways',
+  'payment_types',
   'admin_initiated_payments',
   'client_initiated_payments',
   'minimum_payment_amount',
@@ -93,16 +95,28 @@ class OnlinePaymentsGeneralBody extends StatelessWidget {
               onChanged: (v) =>
                   host.updateSettings((s) => s.copyWith(useCreditsPayment: v)),
             ),
-            Align(
-              alignment: AlignmentDirectional.centerStart,
-              child: OutlinedButton.icon(
-                onPressed: () => context.go('/settings/company_gateways'),
-                icon: const Icon(
-                  Icons.account_balance_wallet_outlined,
-                  size: 18,
+            Wrap(
+              spacing: InSpacing.sm,
+              runSpacing: InSpacing.sm,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: () => context.go('/settings/company_gateways'),
+                  icon: const Icon(
+                    Icons.account_balance_wallet_outlined,
+                    size: 18,
+                  ),
+                  label: Text(context.tr('configure_gateways')),
                 ),
-                label: Text(context.tr('configure_gateways')),
-              ),
+                // Which types the pickers offer and what they are called is
+                // the company's, with no per-group or per-client value.
+                if (isCompanyScope)
+                  OutlinedButton.icon(
+                    onPressed: () =>
+                        context.go('/settings/online_payments/payment_types'),
+                    icon: const Icon(Icons.credit_card_outlined, size: 18),
+                    label: Text(context.tr('payment_types')),
+                  ),
+              ],
             ),
             OverridableSwitchField(
               label: context.tr('client_initiated_payments'),

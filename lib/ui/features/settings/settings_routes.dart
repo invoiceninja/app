@@ -335,7 +335,14 @@ final List<RouteBase> settingsRoutes = [
   _leaf('product_settings', () => const ProductSettingsScreen()),
   _leaf('task_settings', () => const TaskSettingsScreen()),
   _leaf('expense_settings', () => const ExpenseSettingsScreen()),
-  _leaf('payment_types', () => const PaymentTypesScreen()),
+  // Payment Types is a page of Payment Settings, reached from its General
+  // section. It was a section of its own until 5.1.31; the old URL (a bookmark,
+  // the 5.1.24 What's New highlight) still lands on it.
+  _leaf('online_payments/payment_types', () => const PaymentTypesScreen()),
+  GoRoute(
+    path: 'payment_types',
+    redirect: (_, _) => '/settings/online_payments/payment_types',
+  ),
   // Workflow Settings is one shell with two tabs (Invoices / Quotes), shared
   // page key so the bare URL and `/quotes` resolve to the same Navigator Page
   // — keeps the cascade VM + TabController alive across the two paths.

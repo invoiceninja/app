@@ -208,19 +208,6 @@ const kSettingsSections = <SettingsSectionDef>[
     isBasic: true,
     docsPath: 'user-guide/gateways',
   ),
-  // Hide unused payment types from the Type pickers and rename one
-  // (invoiceninja/flutter#191, docs/payment-types.md). Company-wide
-  // `settings.*` keys with no per-client meaning, so company scope only.
-  SettingsSectionDef(
-    slug: 'payment_types',
-    titleKey: 'payment_types',
-    icon: Icons.credit_card_outlined,
-    route: '/settings/payment_types',
-    isBasic: true,
-    // Payments ride the invoices bit; the expense picker uses the list too.
-    enabledBy: [EnabledModule.invoices, EnabledModule.expenses],
-    clientEditable: false,
-  ),
   SettingsSectionDef(
     slug: 'tax_settings',
     titleKey: 'tax_settings',
@@ -690,6 +677,14 @@ const kSettingsSearchCatalog = <String, List<SettingsSearchTab>>{
       kOnlinePaymentsEmailsSearchKeys,
       titleKey: 'emails',
     ),
+    // Its own page under Payment Settings (company scope only): hide unused
+    // payment types from the Type pickers and rename one
+    // (invoiceninja/flutter#191, docs/payment-types.md).
+    SettingsSearchTab(
+      'payment_types',
+      kPaymentTypesSearchKeys,
+      titleKey: 'payment_types',
+    ),
   ],
   'tax_settings': [SettingsSearchTab('', kTaxSettingsSearchKeys)],
   'product_settings': [SettingsSearchTab('', kProductSettingsSearchKeys)],
@@ -702,7 +697,6 @@ const kSettingsSearchCatalog = <String, List<SettingsSearchTab>>{
   ],
   'tags': [SettingsSearchTab('', kTagsSearchKeys)],
   'expense_settings': [SettingsSearchTab('', kExpenseSettingsSearchKeys)],
-  'payment_types': [SettingsSearchTab('', kPaymentTypesSearchKeys)],
   // With only Quotes on, the shell renders the Quotes body at the bare path
   // and `/quotes` resolves to that same single page.
   'workflow_settings': [
@@ -1187,7 +1181,7 @@ const kSettingsSearchKeywords = <String, String>{
   'online_payments':
       'gateway stripe paypal gocardless mollie checkout braintree authorize '
       'razorpay payment methods',
-  'payment_types':
+  'online_payments/payment_types':
       'payment methods hide rename cash check cheque bank transfer card',
   'tax_settings': 'vat gst sales tax rates inclusive percentage',
   'product_settings': 'items inventory stock',
