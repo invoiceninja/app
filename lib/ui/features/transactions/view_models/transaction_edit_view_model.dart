@@ -44,7 +44,10 @@ class TransactionEditViewModel extends GenericEditViewModel<BankTransaction> {
   bool draftIsNonEmpty() =>
       draft.amount != Decimal.zero ||
       draft.description.isNotEmpty ||
-      draft.bankAccountId.isNotEmpty;
+      // Against the baseline, not `isNotEmpty`: the company's only account is
+      // seeded as a default (`seedBankAccountId`), and a default is not a
+      // change.
+      draft.bankAccountId != createBaseline.bankAccountId;
 
   @override
   Future<SaveResult<BankTransaction>> performSave() async {
@@ -67,6 +70,15 @@ class TransactionEditViewModel extends GenericEditViewModel<BankTransaction> {
   void setDate(Date? v) => updateDraft(draft.copyWith(date: v));
   void setBankAccountId(String v) =>
       updateDraft(draft.copyWith(bankAccountId: v));
+
+  /// The company's only bank account, filled in for a new transaction as a
+  /// default rather than an edit. As an edit (`setBankAccountId`) it made a
+  /// form nobody had typed in "changed": leaving it asked to discard changes,
+  /// and Discard reset the draft, which re-ran this, which made it changed
+  /// again, so the pane never closed. A user's own pick is kept.
+  void seedBankAccountId(String id) => seedCreateDefault(
+    (d) => d.bankAccountId.isEmpty ? d.copyWith(bankAccountId: id) : d,
+  );
   void setDescription(String v) => updateDraft(draft.copyWith(description: v));
   void setBaseType(String v) => updateDraft(draft.copyWith(baseType: v));
   void setTagIds(List<String> v) => updateDraft(draft.copyWith(tagIds: v));

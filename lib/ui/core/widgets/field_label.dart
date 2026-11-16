@@ -72,11 +72,36 @@ class LabeledField extends StatelessWidget {
     wordSpacing: -20,
   );
 
+  /// One derived theme per app theme (a `ThemeData` is the same object from
+  /// one build to the next), so thirty fields on a form do not each copy it.
+  static final Expando<ThemeData> _fieldThemes = Expando<ThemeData>();
+
+  /// [theme] with the two styles Material draws a field's value in set to the
+  /// app's field size. A plain `TextField` takes `bodyLarge` (16 px) and a
+  /// `DropdownButtonFormField` `titleMedium`, while the shared fields
+  /// (`EntityEditField`, the pickers, the date field) pass `bodyMedium` (14):
+  /// two sizes of text, and so two heights of box (48 and 44), side by side
+  /// in one card. Every labelled field is under this, at either density.
+  static ThemeData _fieldTheme(ThemeData theme) {
+    return _fieldThemes[theme] ??= () {
+      final text = theme.textTheme;
+      final size = text.bodyMedium;
+      return theme.copyWith(
+        textTheme: text.copyWith(
+          bodyLarge: size?.copyWith(color: text.bodyLarge?.color),
+          titleMedium: size?.copyWith(color: text.titleMedium?.color),
+        ),
+      );
+    }();
+  }
+
   @override
   Widget build(BuildContext context) {
     final label = this.label;
-    if (label == null || label.isEmpty || !above(context)) return child;
+    if (label == null || label.isEmpty) return child;
     final theme = Theme.of(context);
+    final sized = Theme(data: _fieldTheme(theme), child: child);
+    if (!above(context)) return sized;
     final Widget field = InputDecorationTheme(
       data: theme.inputDecorationTheme.copyWith(
         floatingLabelBehavior: FloatingLabelBehavior.always,
@@ -87,8 +112,8 @@ class LabeledField extends StatelessWidget {
       // (a dropdown, a read-only decorator) is named here, since its
       // inside label is no longer drawn.
       child: child is TextField || child is TextFormField
-          ? child
-          : Semantics(label: label, child: child),
+          ? sized
+          : Semantics(label: label, child: sized),
     );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,

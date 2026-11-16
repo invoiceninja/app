@@ -27,6 +27,38 @@ void main() {
     bankAccountRequiredMessage: 'Please select a bank account',
   );
 
+  group('the lone bank account is a default, not an edit', () {
+    test('seeding it leaves an untouched form clean', () {
+      final vm = makeVm();
+      vm.seedBankAccountId('bank1');
+      expect(vm.draft.bankAccountId, 'bank1');
+      expect(vm.isDirty, isFalse);
+      vm.dispose();
+    });
+
+    test('Discard is final: a re-seed cannot make the form changed again', () {
+      // It was `setBankAccountId`: Discard reset the draft, the screen
+      // seeded the account again, the form was dirty again, and the pane
+      // never closed.
+      final vm = makeVm();
+      vm.seedBankAccountId('bank1');
+      vm.setDescription('typed');
+      expect(vm.isDirty, isTrue);
+      vm.resetToEmpty();
+      vm.seedBankAccountId('bank1');
+      expect(vm.isDirty, isFalse);
+      vm.dispose();
+    });
+
+    test("the user's own pick is kept", () {
+      final vm = makeVm();
+      vm.setBankAccountId('mine');
+      vm.seedBankAccountId('bank1');
+      expect(vm.draft.bankAccountId, 'mine');
+      vm.dispose();
+    });
+  });
+
   group('TransactionEditViewModel.validate (E5)', () {
     test('flags the server-required bank account when none is selected', () {
       final vm = makeVm();

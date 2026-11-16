@@ -158,9 +158,9 @@ class LockedEntityFieldRow extends StatelessWidget {
           if (helper != null && errorText == null) ...[
             const SizedBox(height: 4),
             Padding(
-              // Line the reason up with the field's own content box rather than
-              // its border, the way Material insets its helper row.
-              padding: EdgeInsets.symmetric(horizontal: InSpacing.md(context)),
+              // On the label's own inset, so the name above the box and the
+              // reason below it share an edge.
+              padding: const EdgeInsetsDirectional.only(start: 2),
               child: Text(
                 helper,
                 maxLines: 3,

@@ -135,7 +135,9 @@ How the inside label is hidden, and why the call site is not edited. `LabeledFie
 
 Two things defeat the hiding, and neither fails a test: an explicit `labelStyle` / `floatingLabelStyle` on the decoration (it wins over the theme, so the name shows twice — the theme's styles are the app's, so delete the copy), and a `label:` widget in place of `labelText`.
 
-`InSizes.fieldPadV` (12) is every field's vertical content padding, down from 14: a 20 px line plus twice 12 is the 44 px touch floor, and the label no longer needs room inside the box. A new labelled field: wrap it, keep `labelText`, use the token.
+`InSizes.fieldPadV` (12) is every field's vertical content padding, down from 14, since the label no longer needs room inside the box. A new labelled field: wrap it, keep `labelText`, use the token.
+
+**One text size, so one height.** A plain `TextField` draws its value in `bodyLarge` (16 px) and a `DropdownButtonFormField` in `titleMedium`, while the shared fields pass `bodyMedium` (14). Side by side that was two sizes of text and two heights of box, which is what put the labels of the three invoice cards on different lines and made Invoice Number taller than Invoice Date. `LabeledField` puts a derived theme over its child that sets both styles to `bodyMedium`'s metrics (one copy per app theme, cached in an `Expando`), at either density. The height that results is not a constant: it is twice the padding plus a line of text, less what the platform's visual density takes (about 36 px on desktop). So a control that sits beside a field is stretched to it, never given a number: the Discount field and its Percent / Amount toggle share one `LabeledField` over an `IntrinsicHeight` row.
 
 Pinned by `test/ui/core/widgets/labeled_field_test.dart`.
 

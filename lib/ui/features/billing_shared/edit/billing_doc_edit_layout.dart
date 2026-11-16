@@ -44,6 +44,7 @@ import 'package:admin/ui/features/billing_shared/markdown_notes_section.dart';
 import 'package:admin/ui/features/billing_shared/pdf/billing_doc_draft_preview.dart';
 import 'package:admin/ui/features/billing_shared/pdf/billing_doc_pdf_view.dart';
 import 'package:admin/ui/features/billing_shared/view_models/billing_doc_edit_view_model.dart';
+import 'package:admin/ui/features/dashboard/widgets/card_shell.dart';
 import 'package:admin/ui/features/settings/widgets/form_section.dart';
 import 'package:admin/ui/features/tasks/widgets/create_task_from_line_item_sheet.dart';
 import 'package:admin/utils/notes_html.dart';
@@ -969,41 +970,54 @@ class _DiscountRow<T extends BillingDocFields> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Expanded(
-          child: LabeledField(
-            label: context.tr('discount'),
-            child: TextField(
-              controller: controller,
-              decoration: desktop
-                  ? billingFieldDecoration(
-                      context,
-                      label: context.tr('discount'),
-                    )
-                  : InputDecoration(labelText: context.tr('discount')),
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
+    // The label sits above the pair, and the pair shares one height: the
+    // toggle is stretched to whatever the field measures (which depends on
+    // platform density and text size), so the two read as one control. With
+    // the label over the field alone, centring left the toggle half a label
+    // too high and its own height a few pixels off the field's.
+    return LabeledField(
+      label: context.tr('discount'),
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              child: TextField(
+                controller: controller,
+                decoration: desktop
+                    ? billingFieldDecoration(
+                        context,
+                        label: context.tr('discount'),
+                      )
+                    : InputDecoration(labelText: context.tr('discount')),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                onChanged: (v) =>
+                    vm.setDiscount(v, isAmount: vm.draft.isAmountDiscount),
+                textInputAction: TextInputAction.done,
+                onSubmitted: _saveOnEnter(context),
               ),
-              onChanged: (v) =>
-                  vm.setDiscount(v, isAmount: vm.draft.isAmountDiscount),
-              textInputAction: TextInputAction.done,
-              onSubmitted: _saveOnEnter(context),
             ),
-          ),
-        ),
-        SizedBox(width: InSpacing.md(context)),
-        SegmentedButton<bool>(
-          segments: [
-            ButtonSegment(value: false, label: Text(context.tr('percent'))),
-            ButtonSegment(value: true, label: Text(context.tr('amount'))),
+            SizedBox(width: InSpacing.md(context)),
+            SegmentedButton<bool>(
+              // No floor of its own, so the field decides the height.
+              style: SegmentedButton.styleFrom(
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                visualDensity: VisualDensity.compact,
+              ),
+              segments: [
+                ButtonSegment(value: false, label: Text(context.tr('percent'))),
+                ButtonSegment(value: true, label: Text(context.tr('amount'))),
+              ],
+              selected: {vm.draft.isAmountDiscount},
+              onSelectionChanged: (s) =>
+                  vm.setDiscount(controller.text, isAmount: s.first),
+            ),
           ],
-          selected: {vm.draft.isAmountDiscount},
-          onSelectionChanged: (s) =>
-              vm.setDiscount(controller.text, isAmount: s.first),
         ),
-      ],
+      ),
     );
   }
 }
@@ -1449,7 +1463,7 @@ class _SettingsTab<T extends BillingDocFields> extends StatelessWidget {
   Widget build(BuildContext context) {
     return SingleChildScrollView(
       padding: EdgeInsets.all(InSpacing.lg(context)),
-      child: _settings(type, vm, slots),
+      child: DashboardCardShell(child: _settings(type, vm, slots)),
     );
   }
 }
@@ -1549,109 +1563,114 @@ class _DetailsTabState<T extends BillingDocFields>
 
     return SingleChildScrollView(
       padding: EdgeInsets.all(InSpacing.lg(context)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (type.party == BillingDocParty.client)
-            BillingDocClientPicker(vm: vm, companyId: vm.companyId)
-          else
-            BillingDocVendorPicker(vm: vm, companyId: vm.companyId),
-          SizedBox(height: InSpacing.lg(context)),
-          // One number field on a purchase order, labelled "PO Number" — the
-          // order's own number, exactly as the desktop card, React and v1
-          // present it. That layout used to add a second field writing the
-          // separate `po_number` column under the same label, so "PO Number"
-          // meant different data on a phone and on a desktop.
-          if (type.hasPoNumberField)
-            Row(
-              children: [
-                Expanded(child: numberField),
-                SizedBox(width: InSpacing.md(context)),
-                Expanded(
-                  child: LabeledField(
-                    label: context.tr('po_number'),
-                    child: TextField(
-                      controller: _poNumber,
-                      decoration: InputDecoration(
-                        labelText: context.tr('po_number'),
-                        errorText: vm.fieldErrorFor('po_number'),
+      // In a card, like the wide layout's and every other edit form's: on
+      // the tabbed layout the fields used to sit bare on the page.
+      child: DashboardCardShell(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (type.party == BillingDocParty.client)
+              BillingDocClientPicker(vm: vm, companyId: vm.companyId)
+            else
+              BillingDocVendorPicker(vm: vm, companyId: vm.companyId),
+            SizedBox(height: InSpacing.lg(context)),
+            // One number field on a purchase order, labelled "PO Number" — the
+            // order's own number, exactly as the desktop card, React and v1
+            // present it. That layout used to add a second field writing the
+            // separate `po_number` column under the same label, so "PO Number"
+            // meant different data on a phone and on a desktop.
+            if (type.hasPoNumberField)
+              Row(
+                children: [
+                  Expanded(child: numberField),
+                  SizedBox(width: InSpacing.md(context)),
+                  Expanded(
+                    child: LabeledField(
+                      label: context.tr('po_number'),
+                      child: TextField(
+                        controller: _poNumber,
+                        decoration: InputDecoration(
+                          labelText: context.tr('po_number'),
+                          errorText: vm.fieldErrorFor('po_number'),
+                        ),
+                        onChanged: vm.setPoNumber,
+                        autocorrect: false,
+                        textInputAction: TextInputAction.done,
+                        onSubmitted: _saveOnEnter(context),
                       ),
-                      onChanged: vm.setPoNumber,
-                      autocorrect: false,
-                      textInputAction: TextInputAction.done,
-                      onSubmitted: _saveOnEnter(context),
                     ),
                   ),
-                ),
-              ],
-            )
-          else
-            numberField,
-          SizedBox(height: InSpacing.md(context)),
-          if (type.dateLabelKey != null) ...[
-            Row(
-              // Top-aligned, so an error line under one date grows that field
-              // downward instead of shifting its neighbour.
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: InDateField(
-                    value: vm.draft.date?.toDateTime(),
-                    formatter: fmt,
-                    onChanged: _onDate(vm.setDate),
-                    labelText: context.tr(type.dateLabelKey!),
+                ],
+              )
+            else
+              numberField,
+            SizedBox(height: InSpacing.md(context)),
+            if (type.dateLabelKey != null) ...[
+              Row(
+                // Top-aligned, so an error line under one date grows that field
+                // downward instead of shifting its neighbour.
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: InDateField(
+                      value: vm.draft.date?.toDateTime(),
+                      formatter: fmt,
+                      onChanged: _onDate(vm.setDate),
+                      labelText: context.tr(type.dateLabelKey!),
+                    ),
                   ),
-                ),
-                SizedBox(width: InSpacing.md(context)),
-                Expanded(
-                  child: InDateField(
-                    value: vm.draft.dueDate?.toDateTime(),
-                    formatter: fmt,
-                    onChanged: _onDate(vm.setDueDate),
-                    labelText: context.tr(type.dueDateLabelKey!),
-                    clearable: true,
-                    errorText: vm.fieldErrorFor('due_date'),
-                    helperText: _dueDaysHint(context, type, vm),
+                  SizedBox(width: InSpacing.md(context)),
+                  Expanded(
+                    child: InDateField(
+                      value: vm.draft.dueDate?.toDateTime(),
+                      formatter: fmt,
+                      onChanged: _onDate(vm.setDueDate),
+                      labelText: context.tr(type.dueDateLabelKey!),
+                      clearable: true,
+                      errorText: vm.fieldErrorFor('due_date'),
+                      helperText: _dueDaysHint(context, type, vm),
+                    ),
                   ),
-                ),
-              ],
-            ),
-            SizedBox(height: InSpacing.md(context)),
+                ],
+              ),
+              SizedBox(height: InSpacing.md(context)),
+            ],
+            if (partialVm != null &&
+                placement == BillingDocPartialPlacement.afterDates) ...[
+              ...stackedPartial(),
+              SizedBox(height: InSpacing.md(context)),
+            ],
+            if (partialVm != null &&
+                placement == BillingDocPartialPlacement.afterDatesRow) ...[
+              Row(
+                // Top-aligned: a hint under the due date grows it downward.
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: partialField()),
+                  SizedBox(width: InSpacing.md(context)),
+                  Expanded(child: partialDueDate()),
+                ],
+              ),
+              SizedBox(height: InSpacing.md(context)),
+            ],
+            _DiscountRow<T>(vm: vm, controller: _discount, desktop: false),
+            if (partialVm != null &&
+                placement == BillingDocPartialPlacement.afterDiscount) ...[
+              SizedBox(height: InSpacing.md(context)),
+              ...stackedPartial(),
+            ],
+            if (autoBillMode != null) ...[
+              SizedBox(height: InSpacing.md(context)),
+              autoBillMode(context, desktop: false),
+            ],
+            _TaxSurchargeSection<T>(vm: vm),
+            SizedBox(height: InSpacing.lg(context)),
+            // No Design picker here: it is the Settings tab's first field, and
+            // a second copy on this tab showed it twice on phones and tablets.
+            _customFields(context, vm),
           ],
-          if (partialVm != null &&
-              placement == BillingDocPartialPlacement.afterDates) ...[
-            ...stackedPartial(),
-            SizedBox(height: InSpacing.md(context)),
-          ],
-          if (partialVm != null &&
-              placement == BillingDocPartialPlacement.afterDatesRow) ...[
-            Row(
-              // Top-aligned: a hint under the due date grows it downward.
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(child: partialField()),
-                SizedBox(width: InSpacing.md(context)),
-                Expanded(child: partialDueDate()),
-              ],
-            ),
-            SizedBox(height: InSpacing.md(context)),
-          ],
-          _DiscountRow<T>(vm: vm, controller: _discount, desktop: false),
-          if (partialVm != null &&
-              placement == BillingDocPartialPlacement.afterDiscount) ...[
-            SizedBox(height: InSpacing.md(context)),
-            ...stackedPartial(),
-          ],
-          if (autoBillMode != null) ...[
-            SizedBox(height: InSpacing.md(context)),
-            autoBillMode(context, desktop: false),
-          ],
-          _TaxSurchargeSection<T>(vm: vm),
-          SizedBox(height: InSpacing.lg(context)),
-          // No Design picker here: it is the Settings tab's first field, and
-          // a second copy on this tab showed it twice on phones and tablets.
-          _customFields(context, vm),
-        ],
+        ),
       ),
     );
   }

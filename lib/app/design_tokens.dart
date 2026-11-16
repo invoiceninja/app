@@ -800,9 +800,12 @@ class InSizes {
   /// platforms keep their denser metrics. See issue #11.
   static const double touchTarget = 44;
 
-  /// Vertical content padding of a form field: a 20 px line plus twice this is
-  /// [touchTarget]. It was 14; with the label on its own line above the box
-  /// the box needs no room for one, and every row of a form is 4 px shorter.
+  /// Vertical content padding of a form field. It was 14; with the label on
+  /// its own line above the box the box needs no room for one, and every row
+  /// of a form is 4 px shorter. The box's height is this twice plus a line of
+  /// text, less what the platform's visual density takes (about 36 px on
+  /// desktop), so nothing beside a field may assume a number: stretch it to
+  /// the field instead (the Discount toggle, `IntrinsicHeight`).
   static const double fieldPadV = 12;
 
   /// Total height of the app's top header band — the sidebar's company-switcher

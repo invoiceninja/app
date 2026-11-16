@@ -40,7 +40,12 @@ void main() {
 
   Future<void> enterIn(WidgetTester tester, String label) async {
     final field = find.widgetWithText(TextField, label).first;
-    await tester.ensureVisible(field);
+    // To the middle of the viewport, not its top edge: `ensureVisible` parks
+    // a field flush with the top, and a neighbour sharing that row (Discount
+    // beside Partial/Deposit, now the same height) is then left there without
+    // a scroll of its own, where a tap at its centre misses.
+    await Scrollable.ensureVisible(tester.element(field), alignment: 0.5);
+    await tester.pump();
     await tester.tap(field);
     await tester.pump();
     await tester.testTextInput.receiveAction(TextInputAction.done);

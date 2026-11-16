@@ -22,6 +22,8 @@ import 'package:admin/ui/core/widgets/in_date_field.dart';
 import 'package:admin/ui/core/widgets/searchable_dropdown_field.dart';
 import 'package:admin/ui/features/transactions/view_models/transaction_edit_view_model.dart';
 import 'package:admin/ui/features/transactions/widgets/transaction_actions.dart';
+import 'package:admin/ui/features/dashboard/widgets/card_shell.dart';
+import 'package:admin/ui/features/clients/widgets/edit/client_edit_field_pair.dart';
 
 /// `/transactions/new` and `/transactions/:id/edit`. Bare manual-entry form
 /// — most transactions arrive via bank-feed sync, but the API supports
@@ -101,128 +103,138 @@ class _TransactionEditBody extends StatelessWidget {
     return SingleChildScrollView(
       padding: EdgeInsets.all(InSpacing.lg(context)),
       child: CenteredFormColumn(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // CREDIT / DEBIT segmented switcher — drives both the panel
-            // selection on the detail screen and the deposit/withdrawal
-            // column rendering on the list.
-            SegmentedButton<String>(
-              segments: [
-                ButtonSegment(
-                  value: kTransactionTypeCredit,
-                  label: Text(context.tr('deposit')),
-                  icon: const Icon(Icons.south_west, size: 16),
-                ),
-                ButtonSegment(
-                  value: kTransactionTypeDebit,
-                  label: Text(context.tr('withdrawal')),
-                  icon: const Icon(Icons.north_east, size: 16),
-                ),
-              ],
-              selected: {vm.draft.baseType},
-              onSelectionChanged: (set) {
-                if (set.isEmpty) return;
-                vm.setBaseType(set.first);
-              },
-            ),
-            const SizedBox(height: 16),
-            LabeledField(
-              label: context.tr('amount'),
-              child: TextFormField(
-                initialValue: vm.draft.amount == Decimal.zero
-                    ? ''
-                    : (useComma
-                          ? vm.draft.amount.toString().replaceAll('.', ',')
-                          : vm.draft.amount.toString()),
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
-                // Allow the comma so comma-locale users can type their decimal
-                // separator; `parseDecimal` interprets it via `useComma`.
-                inputFormatters: [
-                  FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+        // In a card, like every other edit form; the fields used to sit bare
+        // on the page.
+        child: DashboardCardShell(
+          title: context.tr('details'),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // CREDIT / DEBIT segmented switcher — drives both the panel
+              // selection on the detail screen and the deposit/withdrawal
+              // column rendering on the list.
+              SegmentedButton<String>(
+                segments: [
+                  ButtonSegment(
+                    value: kTransactionTypeCredit,
+                    label: Text(context.tr('deposit')),
+                    icon: const Icon(Icons.south_west, size: 16),
+                  ),
+                  ButtonSegment(
+                    value: kTransactionTypeDebit,
+                    label: Text(context.tr('withdrawal')),
+                    icon: const Icon(Icons.north_east, size: 16),
+                  ),
                 ],
-                decoration: InputDecoration(
-                  labelText: context.tr('amount'),
-                  errorText: vm.fieldErrorFor('amount'),
-                ),
-                onChanged: (v) {
-                  final parsed =
-                      parseDecimal(v, useCommaAsDecimalPlace: useComma) ??
-                      Decimal.zero;
-                  vm.setAmount(parsed);
+                selected: {vm.draft.baseType},
+                onSelectionChanged: (set) {
+                  if (set.isEmpty) return;
+                  vm.setBaseType(set.first);
                 },
               ),
-            ),
-            const SizedBox(height: 12),
-            _CurrencyPicker(vm: vm),
-            const SizedBox(height: 12),
-            InDateField(
-              value: vm.draft.date?.toDateTime(),
-              labelText: context.tr('date'),
-              formatter: services.formatterIfReady(companyId),
-              clearable: true,
-              onChanged: (dt) => vm.setDate(
-                dt == null ? null : Date(dt.year, dt.month, dt.day),
-              ),
-            ),
-            const SizedBox(height: 12),
-            StreamBuilder<List<BankAccount>>(
-              stream: services.bankAccounts.watchAll(companyId: companyId),
-              builder: (context, snapshot) {
-                final accounts = snapshot.data ?? const <BankAccount>[];
-                // Auto-seed: if the user hasn't picked a bank account yet
-                // and exactly one active account exists, default to it.
-                // Idempotent — the post-frame callback only fires once
-                // per "no selection + one candidate" state.
-                if (vm.draft.bankAccountId.isEmpty && accounts.length == 1) {
-                  final only = accounts.first.id;
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    // The pane can close on the very frame the accounts stream
-                    // first emits; without this guard the seed lands on a
-                    // disposed VM.
-                    if (vm.isDisposed) return;
-                    if (vm.draft.bankAccountId.isEmpty) {
-                      vm.setBankAccountId(only);
-                    }
-                  });
-                }
-                final selected = accounts
-                    .where((a) => a.id == vm.draft.bankAccountId)
-                    .toList(growable: false);
-                return SearchableDropdownField<BankAccount>(
-                  label: context.tr('bank_account'),
-                  items: accounts,
-                  initialValue: selected.isEmpty ? null : selected.first,
-                  idOf: (a) => a.id,
-                  displayString: (a) => a.name.isEmpty ? a.id : a.name,
-                  onChanged: (a) => vm.setBankAccountId(a?.id ?? ''),
-                  emptyHintKey: 'connect_a_bank_account_first',
-                  errorText: vm.fieldErrorFor('bank_integration_id'),
-                );
-              },
-            ),
-            const SizedBox(height: 12),
-            LabeledField(
-              label: context.tr('description'),
-              child: TextFormField(
-                initialValue: vm.draft.description,
-                decoration: InputDecoration(
-                  labelText: context.tr('description'),
-                  errorText: vm.fieldErrorFor('description'),
+              const SizedBox(height: 16),
+              ClientEditFieldPair(
+                left: LabeledField(
+                  label: context.tr('amount'),
+                  child: TextFormField(
+                    initialValue: vm.draft.amount == Decimal.zero
+                        ? ''
+                        : (useComma
+                              ? vm.draft.amount.toString().replaceAll('.', ',')
+                              : vm.draft.amount.toString()),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    // Allow the comma so comma-locale users can type their decimal
+                    // separator; `parseDecimal` interprets it via `useComma`.
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+                    ],
+                    decoration: InputDecoration(
+                      labelText: context.tr('amount'),
+                      errorText: vm.fieldErrorFor('amount'),
+                    ),
+                    onChanged: (v) {
+                      final parsed =
+                          parseDecimal(v, useCommaAsDecimalPlace: useComma) ??
+                          Decimal.zero;
+                      vm.setAmount(parsed);
+                    },
+                  ),
                 ),
-                maxLines: 3,
-                onChanged: vm.setDescription,
+                right: _CurrencyPicker(vm: vm),
               ),
-            ),
-            const SizedBox(height: 12),
-            EntityTagsField(
-              entityType: 'bank_transaction',
-              selectedIds: vm.draft.tagIds,
-              onChanged: vm.setTagIds,
-            ),
-          ],
+              const SizedBox(height: InSpacing.sm),
+              ClientEditFieldPair(
+                left: InDateField(
+                  value: vm.draft.date?.toDateTime(),
+                  labelText: context.tr('date'),
+                  formatter: services.formatterIfReady(companyId),
+                  clearable: true,
+                  onChanged: (dt) => vm.setDate(
+                    dt == null ? null : Date(dt.year, dt.month, dt.day),
+                  ),
+                ),
+                right: StreamBuilder<List<BankAccount>>(
+                  stream: services.bankAccounts.watchAll(companyId: companyId),
+                  builder: (context, snapshot) {
+                    final accounts = snapshot.data ?? const <BankAccount>[];
+                    // Auto-seed: if the user hasn't picked a bank account yet
+                    // and exactly one active account exists, default to it.
+                    // Idempotent — the post-frame callback only fires once
+                    // per "no selection + one candidate" state.
+                    if (vm.draft.bankAccountId.isEmpty &&
+                        accounts.length == 1) {
+                      final only = accounts.first.id;
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        // The pane can close on the very frame the accounts stream
+                        // first emits; without this guard the seed lands on a
+                        // disposed VM.
+                        if (vm.isDisposed) return;
+                        if (vm.draft.bankAccountId.isEmpty) {
+                          // A default, not an edit: see `seedBankAccountId`.
+                          vm.seedBankAccountId(only);
+                        }
+                      });
+                    }
+                    final selected = accounts
+                        .where((a) => a.id == vm.draft.bankAccountId)
+                        .toList(growable: false);
+                    return SearchableDropdownField<BankAccount>(
+                      label: context.tr('bank_account'),
+                      items: accounts,
+                      initialValue: selected.isEmpty ? null : selected.first,
+                      idOf: (a) => a.id,
+                      displayString: (a) => a.name.isEmpty ? a.id : a.name,
+                      onChanged: (a) => vm.setBankAccountId(a?.id ?? ''),
+                      emptyHintKey: 'connect_a_bank_account_first',
+                      errorText: vm.fieldErrorFor('bank_integration_id'),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 12),
+              LabeledField(
+                label: context.tr('description'),
+                child: TextFormField(
+                  initialValue: vm.draft.description,
+                  decoration: InputDecoration(
+                    labelText: context.tr('description'),
+                    errorText: vm.fieldErrorFor('description'),
+                  ),
+                  maxLines: 3,
+                  onChanged: vm.setDescription,
+                ),
+              ),
+              const SizedBox(height: 12),
+              EntityTagsField(
+                entityType: 'bank_transaction',
+                selectedIds: vm.draft.tagIds,
+                onChanged: vm.setTagIds,
+              ),
+            ],
+          ),
         ),
       ),
     );

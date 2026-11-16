@@ -9,6 +9,7 @@ import 'package:admin/domain/entity_registry.dart';
 import 'package:admin/domain/entity_type.dart';
 import 'package:admin/domain/sidebar_badge_modes.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/core/adaptive.dart';
 import 'package:admin/ui/core/widgets/watch_builder.dart';
 import 'package:admin/ui/features/settings/widgets/form_section.dart';
 import 'package:admin/ui/features/shell/widgets/sidebar_badge.dart';
@@ -115,6 +116,10 @@ class _CounterRow extends StatelessWidget {
       (m) => m.id == selected,
       orElse: () => modes.first,
     );
+    // Narrower on a phone, where the entity's name needs the room.
+    final pickerWidth = MediaQuery.sizeOf(context).width < Breakpoints.wide
+        ? 132.0
+        : 180.0;
     return ListTile(
       contentPadding: EdgeInsets.zero,
       leading: Icon(handlers.effectiveOutlinedIcon, size: 20),
@@ -132,22 +137,34 @@ class _CounterRow extends StatelessWidget {
             mode: mode,
           ),
           SizedBox(width: InSpacing.sm),
-          DropdownButton<String>(
-            value: selected,
-            isDense: true,
-            // Borderless — sits flush in the trailing slot like the theme rows.
-            underline: const SizedBox.shrink(),
-            onChanged: (value) {
-              if (value == null) return;
-              services.sidebarBadgeModes.set(handlers.type, value);
-            },
-            items: [
-              for (final m in modes)
-                DropdownMenuItem(
-                  value: m.id,
-                  child: Text(context.tr(m.labelKey)),
-                ),
-            ],
+          // One width for every row's picker. Left to size itself a
+          // `DropdownButton` is as wide as its longest option, which differs
+          // per entity, so the labels and the badges beside them started at a
+          // different place on every line.
+          SizedBox(
+            width: pickerWidth,
+            child: DropdownButton<String>(
+              value: selected,
+              isDense: true,
+              isExpanded: true,
+              // Borderless — sits flush in the trailing slot like the theme rows.
+              underline: const SizedBox.shrink(),
+              onChanged: (value) {
+                if (value == null) return;
+                services.sidebarBadgeModes.set(handlers.type, value);
+              },
+              items: [
+                for (final m in modes)
+                  DropdownMenuItem(
+                    value: m.id,
+                    child: Text(
+                      context.tr(m.labelKey),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+              ],
+            ),
           ),
         ],
       ),
