@@ -89,6 +89,13 @@
     <control>touch</control>
   </supports>
   <releases>
+    <release version="5.1.28" date="2026-11-16">
+      <description>
+        <ul>
+          <li>The Linux app opens when the system keyring can't be reached</li>
+        </ul>
+      </description>
+    </release>
     <release version="5.1.27" date="2026-11-15">
       <description>
         <ul>
