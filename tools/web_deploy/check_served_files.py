@@ -89,6 +89,11 @@ def main():
         urls.add(under_base(e))
     hashes = re.search(r'"wasmHashes":(\{[^}]*\})', bootstrap)
     for key in json.loads(hashes.group(1)) if hashes else []:
+        # Flutter 3.50 lists the app's own main.dart.wasm here too (carrying
+        # our ?v=), beside the engine files that live under canvaskit/.
+        if not (build / "canvaskit" / key).is_file():
+            urls.add(under_base(key))
+            continue
         urls.add(under_base("canvaskit/" + key))
         urls.add(under_base("canvaskit/" + key[: -len(".wasm")] + ".js"))
     # 4. Manifest icons and fonts.

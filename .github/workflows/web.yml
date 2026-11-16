@@ -18,7 +18,9 @@ name: Deploy to Web
 # `preview` also deploys `pages/` to the Pages preview branch. `production`
 # (Deploy to all only, on the release's tagged commit) deploys to the preview
 # branch, checks what Pages serves there, then promotes to the production
-# branch, and uploads the tarball. Until the Pages project exists (repo
+# branch, and uploads the tarball. A `production` dispatch is the retry for a
+# release whose web leg failed on this workflow's own checks: it runs from
+# main and refuses unless everything the build reads is as the tag left it. Until the Pages project exists (repo
 # variable CLOUDFLARE_PAGES_PROJECT, secrets CLOUDFLARE_API_TOKEN and
 # CLOUDFLARE_ACCOUNT_ID), the Pages deploy is skipped with a notice.
 #
@@ -33,9 +35,9 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: test builds and checks only; preview also deploys to the Pages preview branch.
+        description: test builds and checks only; preview also deploys to the Pages preview branch; production retries a released version's web leg.
         type: choice
-        options: [test, preview]
+        options: [test, preview, production]
         default: test
   workflow_call:
     inputs:
@@ -129,9 +131,12 @@ jobs:
           # moves every URL the app loads and the server needs no cache rules.
           echo "build_id=$(cd build/web && find . -type f -print0 | LC_ALL=C sort -z | xargs -0 sha256sum | sha256sum | cut -c1-12)" >> "$GITHUB_OUTPUT"
 
-      # The tarball names the release, so production only ships the commit the
-      # release tagged (appimage.yml creates v<version> from pubspec).
-      - name: Production ships the tagged commit only
+      # The tarball names the release, so production only ships what the
+      # release tagged (appimage.yml creates v<version> from pubspec): that
+      # commit, or a later one that differs from it only in this workflow, its
+      # checkers, the docs and the tests. That second case is the retry after
+      # a fix to a gate here (a production dispatch on main).
+      - name: Production ships the tagged build only
         if: env.MODE == 'production'
         env:
           GH_TOKEN: ${{ github.token }}
@@ -139,9 +144,23 @@ jobs:
           set -euo pipefail
           tag="v${{ steps.prep.outputs.version }}"
           tagged="$(gh api "repos/$GITHUB_REPOSITORY/commits/$tag" --jq .sha 2>/dev/null || true)"
-          if [ "$tagged" != "$GITHUB_SHA" ]; then
-            echo "::error::$tag is ${tagged:-missing}, not this commit ($GITHUB_SHA). Production runs only from Deploy to all after the release."
+          if [ -z "$tagged" ]; then
+            echo "::error::$tag does not exist. Production runs only after the release."
             exit 1
+          fi
+          if [ "$tagged" != "$GITHUB_SHA" ]; then
+            git fetch --no-tags --depth=1 origin "$tagged"
+            changed="$(git diff --name-only "$tagged" "$GITHUB_SHA" -- . \
+              ':(exclude).github' ':(exclude)docs' ':(exclude)test' \
+              ':(exclude)tools/web_deploy/check_served_files.py' \
+              ':(exclude)tools/web_deploy/check_server_tarball.sh' \
+              ':(exclude)tools/web_deploy/smoke_webdriver.sh')"
+            if [ -n "$changed" ]; then
+              echo "::error::$tag is $tagged and this commit ($GITHUB_SHA) builds something else. Changed since the tag:"
+              echo "$changed"
+              exit 1
+            fi
+            echo "::notice::$tag is $tagged; this commit differs from it only in the workflow, its checkers, docs and tests."
           fi
 
       - name: Assemble the two trees
