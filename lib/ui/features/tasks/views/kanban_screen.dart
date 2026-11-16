@@ -11,6 +11,10 @@ import 'package:admin/ui/features/tasks/widgets/kanban/kanban_board.dart';
 import 'package:admin/ui/features/tasks/widgets/task_filter_bar.dart';
 import 'package:admin/ui/features/tasks/widgets/task_filters_sheet.dart';
 import 'package:admin/ui/features/tasks/widgets/tasks_view_toggle.dart';
+import 'package:admin/app/design_tokens.dart';
+import 'package:admin/domain/tasks/kanban_prefs.dart';
+import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/core/widgets/back_dismissible_menu_anchor.dart';
 
 /// Top-level kanban screen. Mounts its own [KanbanViewModel] (separate from
 /// the list VM) and renders the board. AppBar carries the same toggle the
@@ -36,6 +40,7 @@ class _KanbanScreenState extends State<KanbanScreen> {
       repo: _services.tasks,
       statusRepo: _services.taskStatuses,
       companyId: _companyId,
+      projectRepo: _services.projects,
     );
     _services.auth.session.addListener(_onSessionChanged);
   }
@@ -50,6 +55,7 @@ class _KanbanScreenState extends State<KanbanScreen> {
         repo: _services.tasks,
         statusRepo: _services.taskStatuses,
         companyId: _companyId,
+        projectRepo: _services.projects,
       );
     });
     old.dispose();
@@ -70,6 +76,18 @@ class _KanbanScreenState extends State<KanbanScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final prefs = _services.kanbanPrefs;
+    return ValueListenableBuilder<KanbanPrefs>(
+      valueListenable: prefs,
+      builder: (context, value, _) => _build(context, value, prefs.set),
+    );
+  }
+
+  Widget _build(
+    BuildContext context,
+    KanbanPrefs prefs,
+    ValueChanged<KanbanPrefs> setPrefs,
+  ) {
     return LayoutBuilder(
       builder: (context, constraints) {
         // One gate, all of this screen's consumers of it — the AppBar's
@@ -92,6 +110,7 @@ class _KanbanScreenState extends State<KanbanScreen> {
             // there would be redundant chrome over the row itself.
             filters: inline ? null : _vm,
             onEditFilters: _openFilters,
+            viewAction: _DisplayMenu(prefs: prefs, onChanged: setPrefs),
           ),
           // The drawer itself — the AppBar's hamburger needs something to
           // open. Mirrors `EntityListScreenScaffold`, which attaches it the
@@ -131,13 +150,99 @@ class _KanbanScreenState extends State<KanbanScreen> {
                     inline: inline,
                     onEditFilters: _openFilters,
                   ),
-                  const Expanded(child: KanbanBoard()),
+                  // The opening sync (`KanbanViewModel.isSyncing`): the board
+                  // is already showing what the device holds, so this is a
+                  // hairline, never a spinner over it.
+                  ListenableBuilder(
+                    listenable: _vm,
+                    builder: (context, _) => SizedBox(
+                      height: 2,
+                      child: _vm.isSyncing
+                          ? const LinearProgressIndicator(minHeight: 2)
+                          : null,
+                    ),
+                  ),
+                  Expanded(
+                    child: KanbanBoard(prefs: prefs, onPrefsChanged: setPrefs),
+                  ),
                 ],
               ),
             ),
           ),
         );
       },
+    );
+  }
+}
+
+/// The board's own AppBar control: what the lanes group by, and which lines a
+/// card shows. Everything in it is a `KanbanPrefs` field, saved as it is
+/// picked; the menu stays open across picks so several can be made at once.
+class _DisplayMenu extends StatelessWidget {
+  const _DisplayMenu({required this.prefs, required this.onChanged});
+
+  final KanbanPrefs prefs;
+  final ValueChanged<KanbanPrefs> onChanged;
+
+  static String _groupLabel(BuildContext context, KanbanGroupBy g) =>
+      context.tr(switch (g) {
+        KanbanGroupBy.none => 'none',
+        KanbanGroupBy.client => 'client',
+        KanbanGroupBy.project => 'project',
+        KanbanGroupBy.assignee => 'assigned_to',
+      });
+
+  static String _fieldLabel(BuildContext context, KanbanCardField f) =>
+      context.tr(switch (f) {
+        KanbanCardField.client => 'client',
+        KanbanCardField.project => 'project',
+        KanbanCardField.assignee => 'assigned_to',
+        KanbanCardField.time => 'duration',
+        KanbanCardField.number => 'task_number',
+      });
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.inTheme;
+    Widget heading(String key) => Padding(
+      padding: const EdgeInsetsDirectional.fromSTEB(12, 8, 12, 4),
+      child: Text(
+        context.tr(key),
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          color: tokens.ink3,
+        ),
+      ),
+    );
+    return BackDismissibleMenuAnchor(
+      consumeOutsideTap: true,
+      menuChildren: [
+        heading('group_by'),
+        for (final g in KanbanGroupBy.values)
+          RadioMenuButton<KanbanGroupBy>(
+            value: g,
+            groupValue: prefs.groupBy,
+            closeOnActivate: false,
+            onChanged: (next) => onChanged(prefs.copyWith(groupBy: next)),
+            child: Text(_groupLabel(context, g)),
+          ),
+        const Divider(height: 8),
+        heading('card_fields'),
+        for (final f in KanbanCardField.values)
+          CheckboxMenuButton(
+            value: prefs.shows(f),
+            closeOnActivate: false,
+            onChanged: (_) => onChanged(prefs.toggleField(f)),
+            child: Text(_fieldLabel(context, f)),
+          ),
+      ],
+      builder: (context, controller, _) => IconButton(
+        icon: const Icon(Icons.tune),
+        tooltip: context.tr('board_display'),
+        onPressed: () =>
+            controller.isOpen ? controller.close() : controller.open(),
+      ),
     );
   }
 }

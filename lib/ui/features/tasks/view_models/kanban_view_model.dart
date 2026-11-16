@@ -4,9 +4,12 @@ import 'package:flutter/foundation.dart';
 
 import 'package:admin/data/models/domain/task.dart';
 import 'package:admin/data/models/domain/task_status.dart';
+import 'package:admin/data/repositories/project_repository.dart';
 import 'package:admin/data/repositories/task_repository.dart';
 import 'package:admin/data/repositories/task_status_repository.dart';
 import 'package:admin/domain/entity_state.dart';
+import 'package:admin/ui/features/tasks/view_models/task_edit_view_model.dart'
+    show emptyTask;
 import 'package:admin/ui/features/tasks/view_models/task_filters_mixin.dart';
 
 /// State for the Kanban board view. Subscribes to:
@@ -22,6 +25,7 @@ class KanbanViewModel extends ChangeNotifier with TaskFiltersMixin {
     required this.repo,
     required this.statusRepo,
     required this.companyId,
+    this.projectRepo,
   }) {
     _statusesSub = statusRepo
         .watchAll(companyId: companyId)
@@ -32,11 +36,22 @@ class KanbanViewModel extends ChangeNotifier with TaskFiltersMixin {
           states: const {EntityState.active},
         )
         .listen(_onTasks);
+    unawaited(_syncAll());
   }
+
+  /// The id of the leading column that holds tasks on no status — a blank
+  /// `status_id` (a task created offline before the server assigns one) or the
+  /// id of a status that has since been deleted. Not a status: nothing can be
+  /// dropped INTO it, only dragged out.
+  static const String noStatusId = '';
 
   final TaskRepository repo;
   final TaskStatusRepository statusRepo;
   final String companyId;
+
+  /// Only [quickAdd] reads it, to give a task created under a project filter
+  /// that project's client and rate. Null leaves such a task on no project.
+  final ProjectRepository? projectRepo;
 
   StreamSubscription<List<TaskStatus>>? _statusesSub;
   StreamSubscription<Map<String, List<Task>>>? _tasksSub;
@@ -58,16 +73,35 @@ class KanbanViewModel extends ChangeNotifier with TaskFiltersMixin {
   // Client-side Project / Client / Assignee filters live in [TaskFiltersMixin]
   // (shared with the calendar / daily / weekly views). Applied in [tasksFor]
   // before the board groups/renders, so column card-counts reflect the filter
-  // too. While any filter is active the board is read-only for reordering
-  // (`filtersActive` gates `KanbanColumn.canEdit`) — a partial reorder would
-  // drop hidden tasks from a status's persisted order. It deliberately stops
-  // there: it does NOT reach `KanbanColumn.canCreate`, because a quick-add
-  // writes one task's `status_id` and rewrites no order — and since the screen
-  // has no FAB (invoiceninja/flutter#135) that footer is the board's only way
-  // to add a task.
+  // too. A filter does NOT make the board read-only: [moveTask] works on the
+  // unfiltered columns.
 
   bool _isResolving = true;
   bool get isResolving => _isResolving;
+
+  /// True while the opening sync is in flight — see [_syncAll].
+  bool get isSyncing => _isSyncing;
+  bool _isSyncing = false;
+
+  /// The board reads Drift and nothing else, and lists load a page at a time,
+  /// so on its own it showed only the tasks some other screen had happened to
+  /// fetch — a user whose remembered view is the board opened a partial one.
+  /// `refreshAll` is the Sync pass's own sweep for this table: the first call
+  /// pages everything, every later one is the delta behind the cursor.
+  ///
+  /// Offline (or any failure) it leaves the board on what Drift holds; the
+  /// catch is bare because nothing awaits this and test doubles raise `Error`s.
+  Future<void> _syncAll() async {
+    _isSyncing = true;
+    try {
+      await repo.refreshAll(companyId: companyId);
+    } catch (_) {
+      // Whatever is cached is still the best board there is.
+    } finally {
+      _isSyncing = false;
+      if (!_disposed) notifyListeners();
+    }
+  }
 
   bool _isReordering = false;
   bool get isReordering => _isReordering;
@@ -94,33 +128,91 @@ class KanbanViewModel extends ChangeNotifier with TaskFiltersMixin {
     if (!_disposed) notifyListeners();
   }
 
-  /// Tasks for [statusId] in the order the user last saw them. Prefers
-  /// the optimistic snapshot when a reorder is in flight; otherwise
-  /// reads from the persisted `_tasksByStatus`.
+  /// Every task on [statusId], filters ignored, in the order the user last
+  /// saw them: the optimistic snapshot while a move is in flight, otherwise
+  /// the persisted order. What a move is computed against — see [moveTask].
+  List<Task> _allFor(String statusId) =>
+      (_optimisticByStatus ?? _tasksByStatus)[statusId] ?? const <Task>[];
+
+  /// Tasks for [statusId] as the board draws them — [_allFor] narrowed by the
+  /// active filters. [noStatusId] answers with the tasks on no column.
   List<Task> tasksFor(String statusId) {
-    final optimistic = _optimisticByStatus;
-    final base = optimistic != null
-        ? (optimistic[statusId] ?? const <Task>[])
-        : (_tasksByStatus[statusId] ?? const <Task>[]);
+    final base = statusId == noStatusId ? _orphans() : _allFor(statusId);
     if (!filtersActive) return base;
     return base.where(matchesFilters).toList(growable: false);
   }
 
-  /// Persist a card move. The board has already computed the optimistic
-  /// rearrangement; this method paints it instantly, writes the new
-  /// `(status_id, status_order)` for every affected task, and enqueues
-  /// the bulk `reorder` outbox row.
+  /// Tasks whose `status_id` names no column. They used to be on the board's
+  /// data and in none of its columns — invisible.
+  List<Task> _orphans() {
+    final known = {for (final s in _statuses) s.id};
+    // An optimistic layout holds only real columns, so a task just dragged
+    // out of here is already in one of them.
+    final placed = {
+      for (final list in (_optimisticByStatus ?? const {}).values)
+        for (final t in list) t.id,
+    };
+    return [
+      for (final entry in _tasksByStatus.entries)
+        if (!known.contains(entry.key))
+          for (final t in entry.value)
+            if (!placed.contains(t.id)) t,
+    ];
+  }
+
+  /// Every task the board is showing, column by column — the order `J` / `K`
+  /// step through behind an open task pane.
+  List<Task> get visibleTasks => [
+    ...tasksFor(noStatusId),
+    for (final s in _statuses) ...tasksFor(s.id),
+  ];
+
+  /// Move [task] to [toStatusId]: above [beforeTaskId], at the top
+  /// ([toTop], what a menu move does — there is no position to point at), or
+  /// at the bottom.
   ///
-  /// [orderedByStatus] is the *full* board layout — not just the changed
-  /// column — so a drag from column A into column B writes both columns.
+  /// Computed against the UNFILTERED columns. A reorder built from what a
+  /// filter leaves visible would drop every hidden task from its status's
+  /// persisted order, which is why a filter used to switch drag off
+  /// altogether; placed relative to a card that is really there, the hidden
+  /// ones simply keep their places.
+  Future<void> moveTask(
+    Task task, {
+    required String toStatusId,
+    String? beforeTaskId,
+    bool toTop = false,
+  }) {
+    final next = <String, List<Task>>{
+      for (final s in _statuses)
+        s.id: List<Task>.of(_allFor(s.id))..removeWhere((t) => t.id == task.id),
+    };
+    final target = next[toStatusId];
+    if (target == null) return Future<void>.value();
+    final moved = task.copyWith(statusId: toStatusId);
+    final at = toTop
+        ? 0
+        : beforeTaskId == null
+        ? -1
+        : target.indexWhere((t) => t.id == beforeTaskId);
+    if (at < 0) {
+      target.add(moved);
+    } else {
+      target.insert(at, moved);
+    }
+    return commitReorder(orderedByStatus: next);
+  }
+
+  /// Persist a card move. Paints [orderedByStatus] instantly, writes the new
+  /// `(status_id, status_order)` for every task in it, and enqueues the bulk
+  /// `reorder` outbox row.
+  ///
+  /// [orderedByStatus] is the *full*, unfiltered board layout — every status,
+  /// every task — which is what [moveTask] builds. Call that instead.
+  @visibleForTesting
   Future<void> commitReorder({
     required Map<String, List<Task>> orderedByStatus,
   }) async {
     if (_isReordering) return;
-    // Defensive: the board already gates drag on `!filtersActive`, but
-    // never persist a reorder computed from a filtered (partial) set —
-    // it would drop hidden tasks from the status's order.
-    if (filtersActive) return;
     _isReordering = true;
     // Paint the optimistic layout synchronously before the await so the
     // dropped card doesn't snap back to its source position for a frame.
@@ -143,6 +235,45 @@ class KanbanViewModel extends ChangeNotifier with TaskFiltersMixin {
       _isReordering = false;
       if (!_disposed) notifyListeners();
     }
+  }
+
+  /// Create a task titled [description] at the bottom of [statusId] — the
+  /// column's inline add. It goes through `TaskRepository.create` like any
+  /// other, so it works offline and syncs from the outbox.
+  ///
+  /// The active filters seed it. A card added to a board filtered to one
+  /// client, project or assignee that then vanished behind that very filter
+  /// would read as a failed create; and it is what the user meant.
+  Future<void> quickAdd({
+    required String statusId,
+    required String description,
+  }) async {
+    final text = description.trim();
+    if (text.isEmpty) return;
+    var draft = emptyTask().copyWith(
+      description: text,
+      statusId: statusId,
+      statusOrder: _allFor(statusId).length,
+      clientId: clientId,
+      assignedUserId: assignedUserId,
+      // Orders this create among other unsynced ones.
+      updatedAt: DateTime.now().toUtc(),
+    );
+    if (projectId.isNotEmpty) {
+      // A task on a project carries the project's client and rate — the same
+      // three fields the project screen's own quick-add sets.
+      final project = await projectRepo
+          ?.watch(companyId: companyId, id: projectId)
+          .first;
+      if (project != null) {
+        draft = draft.copyWith(
+          projectId: project.id,
+          clientId: project.clientId,
+          rate: project.taskRate,
+        );
+      }
+    }
+    await repo.create(companyId: companyId, draft: draft);
   }
 
   /// Persist a column-header drag (status reordering on kanban).

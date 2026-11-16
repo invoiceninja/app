@@ -250,9 +250,10 @@ final kWiredEntityModules = <EntityModuleSpec>[
         focusDate: Date.tryParse(state.uri.queryParameters['date']),
         clientId: clientId == null || clientId.isEmpty ? null : clientId,
         // Same signal `buildEntityRouteBlock` computes for the layout itself
-        // (`router.dart`). A pane over the list pins it to the plain list: only
-        // `EntityListScreenScaffold` publishes into `MasterDetailNavController`,
-        // which the pane needs for J/K stepping and its first-frame seed.
+        // (`router.dart`). A pane over the list pins it to the plain list —
+        // the pane needs `MasterDetailNavController` for J/K stepping and its
+        // first-frame seed — unless the view is the board, which publishes
+        // there itself and so stays behind its pane.
         hasPane: state.matchedLocation != '/tasks',
         // A dashboard card's drill-down filter is consumed by the list VM only.
         hasListIntent: state.extra is ListFilterIntent,

@@ -43,6 +43,7 @@ PreferredSizeWidget buildTasksViewAppBar(
   required bool wide,
   TaskFiltersMixin? filters,
   VoidCallback? onEditFilters,
+  Widget? viewAction,
 }) {
   final filterAction = filters == null || onEditFilters == null
       ? null
@@ -91,6 +92,12 @@ PreferredSizeWidget buildTasksViewAppBar(
                   filterAction,
                   const SizedBox(width: InSpacing.sm),
                 ],
+                // The active view's own control (the board's Display menu).
+                // In this `Row` for the reason the filter action is.
+                if (viewAction != null) ...[
+                  viewAction,
+                  const SizedBox(width: InSpacing.sm),
+                ],
                 TasksViewToggle(active: active, wide: true),
               ],
             ),
@@ -134,6 +141,7 @@ PreferredSizeWidget buildTasksViewAppBar(
     title: Text(context.tr('tasks')),
     actions: [
       if (filterAction != null) filterAction,
+      ?viewAction,
       Padding(
         padding: const EdgeInsetsDirectional.only(end: 8),
         child: TasksViewToggle(active: active, wide: false),

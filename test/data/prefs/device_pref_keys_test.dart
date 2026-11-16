@@ -25,6 +25,7 @@ void main() {
     'phone_actions_json': PrefScope.device,
     'sidebar_menu_json': PrefScope.account,
     'tasks_view': PrefScope.account,
+    'kanban_json': PrefScope.account,
     'hide_unverified_users': PrefScope.account,
     'hide_empty_panels': PrefScope.account,
     'sidebar_collapsed': PrefScope.device,

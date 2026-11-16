@@ -52,11 +52,13 @@ void main() {
 
   test('the tasks listBuilder passes the two lock signals', () {
     final source = read('lib/app/entity_modules.dart');
-    // Without `hasPane`, a remembered board mounts behind every open task pane.
-    // Only `EntityListScreenScaffold` publishes into `MasterDetailNavController`,
-    // so J/K row-stepping and `EntityDetailScaffold`'s first-frame seed both go
-    // dead, and a remembered calendar fires a connection-status request per
-    // record opened. Nothing throws; the pane just opens on a spinner.
+    // Without `hasPane`, a remembered calendar / daily / weekly view mounts
+    // behind every open task pane. Nothing there publishes into
+    // `MasterDetailNavController`, so J/K row-stepping and
+    // `EntityDetailScaffold`'s first-frame seed both go dead, and a remembered
+    // calendar fires a connection-status request per record opened. Nothing
+    // throws; the pane just opens on a spinner. (The board is the exception —
+    // see the next test.)
     expect(source, contains("hasPane: state.matchedLocation != '/tasks'"));
     // Without `hasListIntent`, a dashboard task card's drill-down lands on the
     // board, which never reads the intent.
@@ -67,13 +69,27 @@ void main() {
     final source = read('lib/ui/features/tasks/views/task_list_screen.dart');
     for (final arm in [
       'embedded ||',
-      'hasPane ||',
       'hasListIntent ||',
       'clientId != null ||',
       'projectId != null',
     ]) {
       expect(source, contains(arm), reason: 'lock arm "$arm" is gone');
     }
+    // The pane is a lock too, but not an unconditional one: the board stays
+    // behind its pane, so it reaches the resolver on its own rather than
+    // through `locked`...
+    expect(source, contains('hasPane: widget.hasPane,'));
+    expect(source, contains('embedded || hasListIntent ||'));
+    // ...and that is only safe because the board does what a list does for
+    // the pane in front of it.
+    expect(
+      read('lib/ui/features/tasks/widgets/kanban/kanban_board.dart'),
+      contains('MasterDetailNavScope.maybeOf(context)?.update('),
+      reason:
+          'the board stays mounted behind an open task pane, so it must '
+          'publish its ids and tasks or J / K and the first-frame seed go '
+          'dead',
+    );
     // The read must stay live: the toggle sets the preference and navigates to
     // the same bare `/tasks` the board is already on, which
     // `GoRouterDelegate.setNewRoutePath` short-circuits — so this subscription
@@ -152,47 +168,41 @@ void main() {
     );
   });
 
-  test('the column\'s create gate is not the reorder gate', () {
-    // `KanbanBoard` folds `!filtersActive` into `canEdit` so a reorder can
-    // never be computed from a partial set. With the FAB gone the footer is the
-    // board's ONLY create path, so passing that same expression as `canCreate`
-    // would take it away from anyone who applies a filter — and `create_task`
-    // is what the server authorizes a create against, which `can()` never
-    // derives from `edit_task`. Both halves are silent: the footer just isn't
-    // drawn. `kanban_column_test.dart` pins the widget's side of this.
+  test('the column\'s create gate is not the reorder gate, and no filter '
+      'reaches either', () {
+    // `create_task` is what the server authorizes a create against, and
+    // `can()` never derives it from `edit_task` — with the FAB gone the footer
+    // is the board's ONLY create path, so it must not ride on the reorder
+    // gate. `kanban_column_test.dart` pins the widget's side of this.
     final source = read(
       'lib/ui/features/tasks/widgets/kanban/kanban_board.dart',
     );
     expect(source, contains("me?.can('create_task')"));
-    expect(source, contains('canCreate: canCreate,'));
-    // The argument alone is not enough: the filter reads just as naturally
-    // folded into the DECLARATION (`final canCreate = (…) && !vm.filtersActive`
-    // ), which leaves `canCreate: canCreate,` intact and both assertions above
-    // green. Count the mentions instead — there must be exactly two, and both
-    // must be reorder gates. Comments are stripped or the count picks up the
-    // one right beside `canCreate:` explaining why it is NOT folded in.
-    final gates = source
+    expect(source, contains('canCreate: canCreate && !col.isNoStatus,'));
+    // A filter used to switch drag off (a reorder built from the visible cards
+    // dropped the hidden ones), and the same expression once took the create
+    // footer with it. Moves are now computed on the unfiltered columns
+    // (`KanbanViewModel.moveTask`), so the board has no reason to read
+    // `filtersActive` at all — and a mention coming back means a gate did.
+    final mentions = source
         .split('\n')
         .map((line) {
           final i = line.indexOf('//');
           return i < 0 ? line : line.substring(0, i);
         })
         .where((line) => line.contains('filtersActive'))
-        .map((line) => line.trim())
         .toList();
     expect(
-      gates,
-      [
-        'canEdit: canEdit && !vm.filtersActive,',
-        'onAcceptStatus: (canEdit && !vm.filtersActive)',
-      ],
+      mentions,
+      isEmpty,
       reason:
-          'a filter reached the create gate — a filtered board would then have '
-          'no way to create a task at all (invoiceninja/flutter#135).',
+          'a filter reached a board gate again — drag works under a filter, '
+          'and a filtered board must still be able to create a task '
+          '(invoiceninja/flutter#135).',
     );
     expect(
       read('lib/ui/features/tasks/widgets/kanban/kanban_column.dart'),
-      contains('if (canCreate) ...['),
+      contains('if (widget.canCreate) ...['),
     );
   });
 

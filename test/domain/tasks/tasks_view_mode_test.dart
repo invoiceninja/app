@@ -72,6 +72,33 @@ void main() {
       );
     });
 
+    test('a pane locks every view but the board, which stays behind it', () {
+      for (final mode in TasksViewMode.values) {
+        expect(
+          resolveTasksViewMode(
+            urlView: null,
+            remembered: mode,
+            locked: false,
+            hasPane: true,
+          ),
+          mode == TasksViewMode.kanban
+              ? TasksViewMode.kanban
+              : TasksViewMode.list,
+          reason: '$mode behind a pane',
+        );
+      }
+      // An intent or a scoped list still outranks it.
+      expect(
+        resolveTasksViewMode(
+          urlView: null,
+          remembered: TasksViewMode.kanban,
+          locked: true,
+          hasPane: true,
+        ),
+        TasksViewMode.list,
+      );
+    });
+
     test('nothing chosen anywhere falls back to the list', () {
       expect(
         resolveTasksViewMode(urlView: null, remembered: null, locked: false),

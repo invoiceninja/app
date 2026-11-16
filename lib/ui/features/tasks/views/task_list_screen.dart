@@ -86,15 +86,14 @@ class TaskListScreen extends StatelessWidget {
     // "Locked" = this screen can only be the plain list, so the remembered
     // preference must not apply. Each arm breaks something silently otherwise —
     // see `resolveTasksViewMode` for what and why.
+    // `hasPane` is NOT in here: it locks every view but the board, which
+    // stays behind its pane — the resolver takes it separately.
     final locked =
-        embedded ||
-        hasPane ||
-        hasListIntent ||
-        clientId != null ||
-        projectId != null;
+        embedded || hasListIntent || clientId != null || projectId != null;
     return _RememberedTasksView(
       urlView: view,
       locked: locked,
+      hasPane: hasPane,
       builder: _bodyFor,
     );
   }
@@ -334,11 +333,15 @@ class _RememberedTasksView extends StatefulWidget {
   const _RememberedTasksView({
     required this.urlView,
     required this.locked,
+    required this.hasPane,
     required this.builder,
   });
 
   final TasksViewMode? urlView;
   final bool locked;
+
+  /// A task pane is open over this screen — see [resolveTasksViewMode].
+  final bool hasPane;
   final Widget Function(BuildContext context, TasksViewMode mode) builder;
 
   @override
@@ -356,14 +359,15 @@ class _RememberedTasksViewState extends State<_RememberedTasksView> {
   void didUpdateWidget(covariant _RememberedTasksView oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.urlView != oldWidget.urlView ||
-        widget.locked != oldWidget.locked) {
+        widget.locked != oldWidget.locked ||
+        widget.hasPane != oldWidget.hasPane) {
       _mirror();
     }
   }
 
   void _mirror() {
     final mode = widget.urlView;
-    if (widget.locked || mode == null) return;
+    if (widget.locked || widget.hasPane || mode == null) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       context.read<Services>().tasksView.set(mode);
@@ -402,6 +406,7 @@ class _RememberedTasksViewState extends State<_RememberedTasksView> {
           urlView: widget.urlView,
           remembered: remembered,
           locked: widget.locked,
+          hasPane: widget.hasPane,
         ),
       ),
     );

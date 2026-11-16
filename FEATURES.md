@@ -476,6 +476,20 @@ the honest default.
 | Task — "Due now" on the shell timer pill | ❌ | ❌ | ✅ |  | flutter#149 |
 | Task — kanban drag-to-reorder within status | ✅ | ✅ | ✅ | ✅ | |
 | Task — kanban filter by project / client / assignee | ✅ | ✅ | ✅ | ✅ | |
+| Task — kanban card names the client and the project | ❌ | ✅ | ✅ |  | app#195 |
+| Task — kanban card shows the assignee | ❌ | ❌ | ✅ |  | |
+| Task — kanban column header totals the time worked | ❌ | ❌ | ✅ |  | |
+| Task — kanban card drags whole (no handle); the board scrolls at its edges under a drag | ✅ | ✅ | ✅ |  | |
+| Task — kanban on a phone shows one column at a time and snaps to it | — | ❌ | ✅ |  | |
+| Task — kanban loads every open task itself (no partial board) | ✅ | ✅ | ✅ |  | |
+| Task — kanban drag works while a filter is applied | ✅ | ✅ | ✅ |  | |
+| Task — kanban "Move to" from the card's ⋮ menu (and for screen readers), with the task's other actions | ❌ | ❌ | ✅ |  | |
+| Task — kanban stays behind an open task (side panel on wide) | ✅ | ❌ | ✅ |  | |
+| Task — kanban "No status" column for tasks on no column | ❌ | ❌ | ✅ |  | |
+| Task — kanban collapsible columns | ❌ | ❌ | ✅ |  | |
+| Task — kanban lanes: group by client / project / assignee | ❌ | ❌ | ✅ |  | |
+| Task — kanban choose which fields a card shows | ❌ | ❌ | ✅ |  | |
+| Task — kanban inline add: type a title in the column, Enter, keep going | ❌ | ❌ | ✅ |  | |
 | Task — narrow panes collapse the Project / Client / Assignee filters to an AppBar icon + removable chips | ❌ | ❌ | ✅ | | |
 | Task — invoice from task | ✅ | ✅ | ✅ | ✅ | |
 | Task — create/convert a quote or invoice line item into a dated task | ❌ | ❌ | ✅ | | |

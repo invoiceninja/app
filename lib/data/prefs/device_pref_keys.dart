@@ -156,6 +156,16 @@ abstract final class DevicePrefKeys {
     PrefCodec.string,
     PrefScope.account,
   );
+
+  /// How the kanban board is drawn — card fields, lane grouping, collapsed
+  /// columns — as `KanbanPrefs` JSON (docs/tasks-views.md). The collapsed set
+  /// names this account's statuses, so a sign-out forgets it, like
+  /// [tasksView].
+  static const kanban = PrefKey<String>(
+    'kanban_json',
+    PrefCodec.string,
+    PrefScope.account,
+  );
   static const hideUnverifiedUsers = PrefKey<bool>(
     'hide_unverified_users',
     PrefCodec.boolean,
@@ -358,6 +368,7 @@ abstract final class DevicePrefKeys {
     phoneActions,
     sidebarMenu,
     tasksView,
+    kanban,
     hideUnverifiedUsers,
     hideEmptyPanels,
     sidebarCollapsed,

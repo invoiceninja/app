@@ -56,13 +56,24 @@ TasksViewMode? tasksViewModeFromQuery(String? raw) {
 ///    so a board would swallow the drill-down.
 ///  * **Embedded, or scoped to a client / project** — the kanban and calendar
 ///    bodies take no such argument and would drop the filter.
+///
+/// [hasPane] is the first of those, passed apart from [locked] because it has
+/// one exception: **the kanban board stays behind its pane.** Leaving the
+/// board for a list the user never chose, to read one card, was the one place
+/// the board lost its place; and unlike the other views it can meet what the
+/// pane asks of the screen behind it — `KanbanBoard` writes
+/// `MasterDetailNavController.update` itself (ids in board order for J / K,
+/// the tasks for the first-frame seed) and does no I/O per record opened.
 TasksViewMode resolveTasksViewMode({
   TasksViewMode? urlView,
   TasksViewMode? remembered,
   required bool locked,
+  bool hasPane = false,
 }) {
   if (locked) return TasksViewMode.list;
-  return urlView ?? remembered ?? TasksViewMode.list;
+  final mode = urlView ?? remembered ?? TasksViewMode.list;
+  if (hasPane && mode != TasksViewMode.kanban) return TasksViewMode.list;
+  return mode;
 }
 
 /// Whether the Tasks layout at [mode] mounts its create FAB **regardless of

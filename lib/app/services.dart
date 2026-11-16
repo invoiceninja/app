@@ -177,6 +177,7 @@ import 'package:admin/ui/features/expenses/view_models/expense_edit_view_model.d
 import 'package:admin/ui/features/settings/state/settings_level_controller.dart';
 import 'package:admin/utils/formatting.dart';
 import 'package:admin/utils/perf_trace.dart';
+import 'package:admin/app/kanban_prefs_controller.dart';
 
 final Logger _servicesLog = Logger('Services');
 
@@ -398,6 +399,7 @@ class Services implements SidebarBadgeContext {
     required this.statusTabs,
     required this.hideUnverifiedUsers,
     required this.tasksView,
+    required this.kanbanPrefs,
     required this.hideEmptyPanels,
     required this.defaultItemsTab,
     required this.hoursFormat,
@@ -813,6 +815,10 @@ class Services implements SidebarBadgeContext {
   /// `GoRouterDelegate.setNewRoutePath` short-circuits, so the repaint cannot
   /// depend on the router noticing. See invoiceninja/flutter#133.
   final TasksViewController tasksView;
+
+  /// How the kanban board is drawn — card fields, lanes, collapsed columns
+  /// (`DevicePrefKeys.kanban`).
+  final KanbanPrefsController kanbanPrefs;
 
   /// Device-local "leave dashboard panels with nothing to show off the
   /// dashboard" preference (Settings → Device Settings → Dashboard, and the
@@ -2223,6 +2229,7 @@ class Services implements SidebarBadgeContext {
       prefs: devicePrefs,
     );
     final tasksView = TasksViewController(prefs: devicePrefs);
+    final kanbanPrefs = KanbanPrefsController(prefs: devicePrefs);
     final hideEmptyPanels = HideEmptyPanelsController(prefs: devicePrefs);
     final defaultItemsTab = DefaultItemsTabController(prefs: devicePrefs);
     final hoursFormat = HoursFormatController(prefs: devicePrefs);
@@ -2684,6 +2691,7 @@ class Services implements SidebarBadgeContext {
       statusTabs: statusTabs,
       hideUnverifiedUsers: hideUnverifiedUsers,
       tasksView: tasksView,
+      kanbanPrefs: kanbanPrefs,
       hideEmptyPanels: hideEmptyPanels,
       defaultItemsTab: defaultItemsTab,
       hoursFormat: hoursFormat,
