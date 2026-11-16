@@ -18,6 +18,7 @@ import 'package:admin/domain/contacts_sync/contacts_sync_types.dart';
 import 'package:admin/domain/entity_type.dart';
 import 'package:admin/domain/sidebar_badge_modes.dart';
 import 'package:admin/domain/sidebar_menu.dart';
+import 'package:admin/domain/tasks/kanban_prefs.dart';
 import 'package:admin/domain/tasks/tasks_view_mode.dart';
 
 import '../ui/features/shell/_shell_test_helpers.dart';
@@ -113,6 +114,13 @@ final Map<PrefKey<Object>, _Probe> _probes = {
   DevicePrefKeys.tasksView: _Probe(
     (s) => s.tasksView.set(TasksViewMode.kanban),
     (s) => s.tasksView.value == null,
+  ),
+  // The collapsed columns name one account's task statuses, so the board's
+  // arrangement goes with the account, like the Tasks view above.
+  DevicePrefKeys.kanban: _Probe(
+    (s) =>
+        s.kanbanPrefs.set(const KanbanPrefs(collapsedStatusIds: {'status_1'})),
+    (s) => s.kanbanPrefs.value == const KanbanPrefs(),
   ),
   DevicePrefKeys.hideUnverifiedUsers: _Probe(
     (s) => s.hideUnverifiedUsers.set(true),
