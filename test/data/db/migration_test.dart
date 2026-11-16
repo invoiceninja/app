@@ -288,6 +288,7 @@ void main() {
         'pending_card_payments_json',
         'how_to_tap_shown',
         'tap_to_pay_announced',
+        'kanban_json',
       };
       for (final key in DevicePrefKeys.all) {
         if (addedAfterV12.contains(key.name)) {
