@@ -199,8 +199,8 @@ Four more things are load-bearing:
 table would have to be mirrored into the shared `EntityListColumnHeaders` strip and
 `computeTableMinWidth`, which every entity reads — a framework change to serve one entity. Since
 `Breakpoints.isWide` is 600 px of *pane* width, that means a **phone in landscape** and every tablet
-get the wide table and no button. `tapToCall` defaults off on desktop, so the pointer audience is
-small either way; the "Call" entity action above is the thing that would close this properly.
+get the wide table and no button. `tapToCall` defaults off everywhere (Nov 2026), so the audience
+is whoever switched it on; the "Call" entity action above is the thing that would close this properly.
 
 **What it costs the row.** Exactly 52 px off the identity column (the button plus its leading
 `InSpacing.sm`). Measured at 390 px in a throwaway golden with the bundled TTFs
@@ -215,7 +215,7 @@ edit. Two consequences were weighed and accepted:
   instead; the interactive columns are the ones a thumb needs to find in the same place every row,
   and the status pill already shifts money further than this. Reserving a fixed empty slot on
   numberless rows would hold both alignments but taxes every row of an account that stores no
-  numbers — including the phone user, for whom `tapToCall` is on by default.
+  numbers — including a phone user who has switched `tapToCall` on.
 - **Overflow.** `client_list_tile_test.dart`'s `layout` group pins the fullest row the tile can
   build (status pill + `▾` + a balance wide enough to hit the narrow money cap) at the app's own
   responsive floor of 500 px, at 1.0× and `kTextScaleMax`. That case has teeth: before the caret was
@@ -224,8 +224,8 @@ edit. Two consequences were weighed and accepted:
   It does **not** pin that fixture at a handset width, for two reasons. `flutter test` substitutes a
   font whose every glyph is a full em square, so text measures far wider than it ever will on a
   device — a 10-character amount is 132.5 px under it against 80.5 px of the bundled JetBrains Mono
-  the money column used when this was measured (`moneyTextStyle` is Inter Tight with tabular figures
-  since Nov 2026, which sets narrower still; neither is what the test process renders). And under that same substituted font a
+  the money column (`moneyTextStyle`; it was briefly Inter Tight in Nov 2026 and is JetBrains Mono
+  again — neither is what the test process renders). And under that same substituted font a
   nine-figure balance overflows a 390 px row *without* the call button at all — 22 px at 1.0×, 53 px
   at 1.4× measured on the pre-#111 tile — so pinning it would assert a pre-existing limit rather
   than this change. The handset case uses an ordinary row instead.
@@ -236,7 +236,7 @@ Six fields in one JSON blob, the device preference `DevicePrefKeys.phoneActions`
 
 | Field | Default | Why |
 |---|---|---|
-| `tapToCall` | `Env.isTouchPrimary` | see below. Gates the call link, the Call / Message buttons, the billing-doc header glyph **and** the list-row button, checked both where they're drawn and again at fire time. Deliberately **not** the local-time suffix, which is contact context rather than part of the calling flow — so "off" is not quite the pre-#109 rendering. |
+| `tapToCall` | off | see below. Gates the call link, the Call / Message buttons, the billing-doc header glyph **and** the list-row button, checked both where they're drawn and again at fire time. Deliberately **not** the local-time suffix, which is contact context rather than part of the calling flow — so "off" is not quite the pre-#109 rendering. |
 | `confirmBeforeCall` | off | the OS already confirms |
 | `warnOutsideBusinessHours` | on | the only guard the OS can't give you |
 | `startMinutes` / `endMinutes` | 08:00 / 20:00 | generous — it exists to catch a 2 a.m. mis-tap, not to police a working day |
@@ -245,15 +245,34 @@ Six fields in one JSON blob, the device preference `DevicePrefKeys.phoneActions`
 The sixth field landed after schema v7 shipped and cost **no migration** — which is the blob paying
 for itself a second time.
 
-**The default is per-device, and that is the reason this is a blob rather than five typed columns.**
-The app cannot ask whether a `tel:` handler exists — `canLaunchUrl` is banned by
-`test/lint/no_can_launch_url_test.dart` because on Android 11+ it answers a package-visibility
-question and lies — so on a Windows or Linux desktop with no dialer, an on-by-default link would
-both stop the number selecting as text *and* report "Couldn't open the link" to someone who never
-asked for the feature. A null column therefore means "ask this device"
-(`PhoneActionsSettings.deviceDefaults()`); a SQL `withDefault` could only pick one answer for a
-phone and a desktop alike. A *stored* blob is taken literally — the platform must never re-decide
-for a user who has already chosen.
+**`tapToCall` is off on every platform, and the record's Call action does not ask it.** Until Nov
+2026 the default was `Env.isTouchPrimary` — on for a phone, off for a desktop that may have no
+dialer. Hillel turned it off everywhere with the mobile Clients design: a number that dials on a
+tap stops selecting as text and puts a call one mis-tap away, and the list rows' call buttons
+crowded a phone row. Someone who wants it switches it on once.
+
+- **The record screen's Call quick action (client and vendor) works regardless.** It is an
+  explicit verb, not a number that happened to be tapped, so `quickItemsFor` enables it whenever
+  there is a number and `dispatch` passes `explicitAction: true` through `pickAndCallPhone` to
+  `callPhoneNumber`, which then skips its fire-time `tapToCall` gate. Everything after that gate
+  still applies: the out-of-hours warning, Confirm before calling, the log-call offer. Those three
+  switches are therefore always editable in Device Settings, no longer greyed while `tapToCall` is
+  off. On a desktop with no `tel:` handler a Call tap reports "Couldn't open the link" — the cost
+  of a verb that is always there.
+- **Every other phone surface stays behind the preference**: the call link on a number, the
+  contact rows' Call / Message buttons, the billing-doc header glyph, the narrow list rows' button
+  and the dashboard rows' button.
+- **No migration.** Nothing stored means the default, so an install that never touched the Phone
+  numbers card gets Off on its next launch. The blob is written whole on any change to the card,
+  so a phone that changed another field there under the old default stored an explicit
+  `tapToCall: true` and keeps it — indistinguishable from a choice, and taken as one.
+
+**It is still a blob rather than five typed columns.** The app cannot ask whether a `tel:` handler
+exists — `canLaunchUrl` is banned by `test/lint/no_can_launch_url_test.dart` because on Android
+11+ it answers a package-visibility question and lies — and a null column means "the default"
+(`PhoneActionsSettings.deviceDefaults()`), which left room for a per-device answer when there was
+one. A *stored* blob is taken literally — a default must never re-decide for a user who has
+already chosen.
 
 **Why `confirmBeforeCall` defaults off.** `tel:` is launched as `ACTION_VIEW`, so Android opens the
 dialer *pre-filled* and the user still presses the call button, and iOS shows its own `Call …?`
@@ -485,15 +504,15 @@ burst dedupe and not a cache — `SettingsRepository.resolved` stays uncached, a
 
 Moved here from CLAUDE.md § Tap to call, which now carries one line per rule. These are the traps: each one compiles, runs, and produces a wrong number, a wrong-sized button or a missing prompt rather than an error.
 
-## The `tapToCall` default is the platform, not `true`
+## `tapToCall` defaults off everywhere; the record's Call ignores it
 
-**The `tapToCall` default is `Env.isTouchPrimary`, not `true`** — which is *why* it is a JSON blob
-and not typed columns. The app cannot ask whether a `tel:` handler exists (`canLaunchUrl` is
-banned — see `test/lint/no_can_launch_url_test.dart`), so on a Windows/Linux desktop with no
-dialer an on-by-default link would stop the number selecting as text **and** report "Couldn't open
-the link" to someone who never asked for the feature. A null column means "ask this device"; a SQL
-`withDefault` could only pick one answer for a phone and a desktop alike. A *stored* blob is then
-taken literally — the platform must never re-decide for a user who already chose.
+**`tapToCall` defaults off everywhere; the record's Call ignores it** (Nov 2026;
+it was `Env.isTouchPrimary`). The record screen's Call quick action passes `explicitAction: true`
+to `callPhoneNumber`, which skips only the preference gate — the out-of-hours warning and Confirm
+before calling still run. A stored blob is taken literally, so a user who switched it on keeps it;
+nothing stored means off, with no migration. Pinned in `phone_actions_settings_test.dart`,
+`client_actions_test.dart` and `vendor_actions_test.dart`. The full reasoning is § The preference
+above.
 
 ## `tel:` / `sms:` deliberately bypass `isSafeWebUrl`
 

@@ -38,7 +38,8 @@ void main() {
   test('a fresh install takes the device defaults', () async {
     debugDefaultTargetPlatformOverride = TargetPlatform.android;
     final controller = await relaunch();
-    expect(controller.value.tapToCall, isTrue);
+    // Off on a phone too (Nov 2026) — docs/tap-to-call.md § The preference.
+    expect(controller.value.tapToCall, isFalse);
     expect(controller.value.confirmBeforeCall, isFalse);
     expect(controller.value.warnOutsideBusinessHours, isTrue);
   });
@@ -78,10 +79,10 @@ void main() {
       debugDefaultTargetPlatformOverride = TargetPlatform.android;
       await PhoneActionsController(
         prefs: DevicePrefsStore(db),
-      ).setTapToCall(false);
+      ).setTapToCall(true);
 
       final fresh = await relaunch();
-      expect(fresh.value.tapToCall, isFalse);
+      expect(fresh.value.tapToCall, isTrue);
     },
   );
 
@@ -106,10 +107,10 @@ void main() {
     var notifications = 0;
     controller.addListener(() => notifications++);
 
-    await controller.setTapToCall(true);
-    expect(notifications, 0, reason: 'already on for a touch device');
-
     await controller.setTapToCall(false);
+    expect(notifications, 0, reason: 'already off by default');
+
+    await controller.setTapToCall(true);
     expect(notifications, 1);
   });
 }

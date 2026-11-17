@@ -1817,7 +1817,6 @@
   "due_on_date_label": "مستحق في :date",
   "valid_until_date_label": "صالح حتى :date",
   "add_deposit": "إضافة دفعة مقدمة",
-  "settings_group_billing": "الفوترة",
-  "settings_group_products_and_work": "المنتجات والعمل",
-  "settings_group_app_and_data": "التطبيق والبيانات"
+  "net_received": "صافي المقبوضات",
+  "paid_on_date_label": "دُفعت :date"
 }

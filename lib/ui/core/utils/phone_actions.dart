@@ -67,6 +67,7 @@ Future<void> callPhoneNumber(
   String? subject,
   String? clientId,
   CallLogTarget? logTarget,
+  bool explicitAction = false,
 }) async {
   final uri = telUri(phone);
   if (uri == null) return;
@@ -75,7 +76,14 @@ Future<void> callPhoneNumber(
   // `confirmActions`. A surface that forgets `PhoneActionsScope` renders a
   // stale button; this is what stops that stale button from actually placing a
   // call with the feature switched off.
-  if (!context.read<Services>().phoneActions.value.tapToCall) return;
+  //
+  // [explicitAction] skips it: the record screen's Call action is a verb the
+  // user chose, not a number that happened to be tapped, so it works with
+  // tap-to-call off (its default). The guards below still apply.
+  if (!explicitAction &&
+      !context.read<Services>().phoneActions.value.tapToCall) {
+    return;
+  }
 
   // Everything context-derived is captured before the first await — the widget
   // may be gone by the time the settings read or the dialog resolves.

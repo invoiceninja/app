@@ -137,7 +137,7 @@ void main() {
 
   test('the kanban screen has no create FAB', () {
     // Its three siblings — daily / weekly / calendar — each build the same
-    // `FloatingActionButton` (withdrawn, like the list's, from a user without
+    // `EntityCreateFab` (withdrawn, like the list's, from a user without
     // `create_task`), and they keep it: a FAB may only be dropped where the
     // substitute is the SAME verb. Daily and weekly do have a second create
     // (`TaskDailyActions.logTime`, behind a `Log time` button under the same
@@ -160,7 +160,8 @@ void main() {
     // `no_list_tile_name_link_test.dart` already records.
     final source = codeOf('lib/ui/features/tasks/views/kanban_screen.dart');
     expect(
-      source.contains('loatingActionButton'),
+      source.contains('loatingActionButton') ||
+          source.contains('EntityCreateFab'),
       isFalse,
       reason:
           'KanbanScreen has a FAB again — the per-column "+ New Task" is the '

@@ -1899,7 +1899,6 @@
   "due_on_date_label": "Vade :date",
   "valid_until_date_label": ":date tarihine kadar geçerli",
   "add_deposit": "Ön ödeme ekle",
-  "settings_group_billing": "Faturalandırma",
-  "settings_group_products_and_work": "Ürünler ve iş",
-  "settings_group_app_and_data": "Uygulama ve veriler"
+  "net_received": "Net tahsilat",
+  "paid_on_date_label": ":date tarihinde ödendi"
 }

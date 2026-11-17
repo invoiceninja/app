@@ -166,7 +166,7 @@ class TaxSettingsBody extends StatelessWidget {
             ],
           ),
 
-        // ── Section C — Calculate Taxes ─────────────────────────────────
+        // ── Section C — Automatic Taxes (the Calculate Taxes switch) ────
         // Top-level company.* field; hidden outside company scope (no
         // cascade override semantics). Gated by country: the React app only
         // exposes the toggle for the 33 ISO codes in
@@ -191,7 +191,10 @@ class TaxSettingsBody extends StatelessWidget {
             (_calculateTaxesAvailableFor(host.settings.countryId) ||
                 calculateTaxes))
           FormSection(
-            title: context.tr('calculate_taxes'),
+            // Never `calculate_taxes`: that is the switch's label inside, and
+            // the search reveal flashes the first text on the page reading a
+            // label — it would flash this title, not the switch.
+            title: context.tr('automatic_taxes'),
             children: [
               _CalculateTaxesToggle(host: host),
               if (calculateTaxes) ...[

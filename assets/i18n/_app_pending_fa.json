@@ -1899,7 +1899,6 @@
   "due_on_date_label": "سررسید :date",
   "valid_until_date_label": "معتبر تا :date",
   "add_deposit": "افزودن پیش‌پرداخت",
-  "settings_group_billing": "صورت‌حساب",
-  "settings_group_products_and_work": "محصولات و کار",
-  "settings_group_app_and_data": "برنامه و داده‌ها"
+  "net_received": "خالص دریافتی",
+  "paid_on_date_label": "پرداخت‌شده :date"
 }

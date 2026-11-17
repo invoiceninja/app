@@ -1888,7 +1888,6 @@
   "due_on_date_label": "Förfaller :date",
   "valid_until_date_label": "Giltig till :date",
   "add_deposit": "Lägg till handpenning",
-  "settings_group_billing": "Fakturering",
-  "settings_group_products_and_work": "Produkter och arbete",
-  "settings_group_app_and_data": "App och data"
+  "net_received": "Netto mottaget",
+  "paid_on_date_label": "Betald :date"
 }

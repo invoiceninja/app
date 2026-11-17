@@ -273,35 +273,40 @@ a keystroke never re-mounts it and focus stays put.
 
 The pinned header carries the **screen** title, never a group label. Lifting
 the first group header up into it was the obvious move and it's wrong: the
-header doesn't scroll, so the label goes on claiming Company once the user
-reaches Billing. Every group header stays in the list, identical at both
-widths.
+header doesn't scroll, so the label goes on claiming Basic Settings once the
+user reaches Advanced. Every group header stays in the list, at both widths.
 
-## The settings nav is five topic groups
+## The settings nav is React's Basic and Advanced halves
 
-`SettingsSectionDef.group` (a `SettingsGroup`) replaced the old `isBasic` flag
-(D6 of the settings pass): **Company** (Company Details, User Details,
-Localization, User Management, Account Management, Group Settings), **Billing**
-(Online Payments, Tax, Payment Links, Bank Accounts, E-Invoicing),
-**Documents** (Invoice Design, Generated Numbers, Custom Fields, Templates &
-Reminders, Email, Client Portal), **Products & Work** (Product, Task, Expense,
-Workflow, Schedules beside it, Tags) and **App & Data** (Device Settings,
-Keyboard Shortcuts, Backup & Restore, Import & Export, System Logs). Basic /
-Advanced said how often a page is visited, not what it is about, so a user
-hunting for Bank Accounts had no way to guess its half.
+`SettingsSectionDef.group` is a `SettingsGroup` — `basic` (**Basic Settings**)
+or `advanced` (**Advanced Settings**) — and the membership and order are the
+React app's (`basic` / `advanced` in `src/components/layouts/common/hooks.ts`),
+so a user moving between the two clients finds a page in the same half at the
+same rank:
+
+- **Basic**: Company Details, User Details, Localization, Payment Settings,
+  Tax Settings, Product Settings, Task Settings, Tags, Expense Settings,
+  Workflow Settings, Account Management, Backup | Restore, Import | Export —
+  then Device Settings and Keyboard Shortcuts, which only this app has.
+- **Advanced**: Invoice Design, Custom Fields, Generated Numbers, Client
+  Portal, E-Invoicing, Email Settings, Templates & Reminders, Bank Accounts,
+  Group Settings, Payment Links, Schedules, User Management, System Logs.
+
+A five-topic split (Company / Billing / Documents / Products & Work / App &
+Data) shipped for one round and was reverted on the owner's call: parity with
+React beats a grouping only this app has. React's "Pro" badge beside the
+Advanced header is not copied — the plan gate is a per-row lock here.
 
 - The nav lists `SettingsGroup.values` in order and, inside a group,
   `kSettingsSections` in catalog order — so a section moves by moving its
   entry, and `kSettingsSections` is kept sorted by group.
-- A group whose every section is out of scope (client scope empties most of
-  App & Data) draws no header.
-- A search hit for a whole section names its group as the subtitle
+- A group whose every section is out of scope draws no header (React hides
+  Advanced the same way).
+- A search hit for a whole section names its half as the subtitle
   (`settingsHitSubtitle`).
-- Company and Documents reuse Transifex's `company` / `documents`; the other
-  three are app-local (`settings_group_billing`,
-  `settings_group_products_and_work`, `settings_group_app_and_data`).
+- Both labels are Transifex's `basic_settings` / `advanced_settings`.
 
-Test: `settings_index_search_test.dart`.
+Test: `settings_index_search_test.dart` pins both lists against React's.
 
 ## The phone settings home shows each section's current value
 
@@ -349,9 +354,59 @@ leaving, gated on `!SettingsTwoPaneScope.of(context)` — a resize past
 an invisible open search must not swallow the press. When `canPop` is true the
 route bubbles to `SystemBackGate` exactly as before.
 
+## The phone settings home is two grouped cards
+
+On the phone home (the host-owned list in `SettingsScreen`) each half is one
+inset card — `InRadii.r3`, `surface`, the `border` side `FormSection` uses —
+under a small muted label (`ink3`, 13 px, never the accent heading or
+uppercase), instead of one flat list. The wide nav keeps its flat rows and
+accent headers: it sits beside the page it opens, with the open one tinted.
+
+- **A row** (`_SettingsHomeRow`) is the icon, the name, the R1 value as a
+  one-line `ink3` subtitle, the trailing count / warning / lock, and a `›`
+  (`chevron_right` matches the text direction, so it mirrors in RTL).
+- **56 px with a subtitle, 48 without**, as a `minHeight` — a large text
+  scale grows the row instead of clipping it, but nothing pads it taller.
+- Hairlines between rows start at the title, past the icon
+  (`Divider.indent` is directional).
+- **A screen reader hears one button per row** (`MergeSemantics` around a
+  `button` node) and **each group label as a level-2 heading**.
+- The company card and the search field stay above the groups.
+
+Test: `settings_index_search_test.dart`.
+
 ## The phone settings home opens on the company card
 
 The narrow `/settings` index (`SettingsScreen`, host-owned search) leads its list with a card for the active company: its avatar and name, and a second line that reads **Switch Company** at company scope or names the scope (**Client Settings: Acme**) when the settings are scoped to a client or group. A tap opens the existing `showCompanyPicker` sheet, whose "New company" row stays the only one — the card adds no second entry. The card is not drawn on the wide pane (the rail's switcher sits beside it) nor while a search is open (the results own the list). It is a local `Material` with a rounded-rectangle border and an `InkWell` (`Ink` is banned), and at least 44 px tall. Test: `settings_index_search_test.dart`.
+
+## The wide nav's rule and a page's tab-strip rule are one line
+
+On the two-pane layout the line under the nav's **Search Settings** field and
+the line under a page's tab strip are one line across the window. They used
+to miss by a few pixels: the nav stacked padding around its title and field
+while the page had a 56 px toolbar and a 48 px strip.
+
+- **Both come from `kSettingsHeaderHeight`** (`settings_tab_strip.dart`) =
+  `kSettingsTitleBarHeight` (the AppBar's `toolbarHeight`, set explicitly in
+  `SettingsScreenScaffold`) + `kSettingsTabStripHeight` (48, the strip's
+  hairline included; `SettingsTabStrip` fixes its `preferredSize` and box to
+  it). The nav's title row is the title bar's height — so the two titles share
+  a centre line — and its search row is the strip's height minus the 1 px
+  `Divider` under it.
+- Never fix a near-miss with a padding tweak: change the constants, and both
+  sides move together.
+- The page's AppBar takes the top inset (a tablet's status bar); the nav adds
+  the same `MediaQuery.paddingOf(context).top` above its block.
+- The wide search field caps its prefix icon (`SettingsSearchField.fitsRow`):
+  40 px with a pointer, `InSizes.touchTarget` on touch, so it fits the 47 px
+  row; the icon's default minimum would make it 48.
+- **An untabbed page draws no rule under its AppBar**, so there is nothing to
+  near-miss: its 56 px title bar ends in a tone change and its first card
+  starts well below the nav's rule (≥ 12 px clear, asserted).
+
+Test: `settings_index_search_test.dart` (`the wide header rule`) measures the
+nav's rule against the bottom of the `TabBar` (whose divider is its last pixel
+row) on a tabbed page, and the untabbed case.
 
 ## Save leads the settings AppBar cluster, and Discard undoes rather than asks
 
@@ -371,7 +426,7 @@ Tests: `settings_page_scaffold_test.dart`, `settings_docs_links_test.dart`.
 
 - **The shell always mounts `FormSectionSideLayout` and only flips `enabled`, and under it a section builds one tree for both layouts**, so a resize across the line keeps every field's state and focus. Outside a shell there is no scope and a section is the plain card, because a `Row` with `Expanded` would throw where an edit form gives it unbounded width. A card's own fields sit under `enabled: false`, so a nested section never splits again.
 - **A section title is a level-2 heading** (`header: true, headingLevel: 2`; the page title is level 1).
-- **A section title must never repeat a field label inside it**: the search reveal flashes the first `RichText` on the page that reads the label, and the title comes first in either layout.
+- **A section title must never repeat a field label inside it**: the search reveal flashes the first `RichText` on the page that reads the label, and the title comes first in either layout. Tax Settings' card around the Calculate Taxes switch is titled **Automatic Taxes** (`automatic_taxes`) for this reason.
 - Descriptions are added only where they say something the title and labels don't, from the existing Transifex `*_help` keys first (the Custom Fields sections, Company Details' Business) and one app-local key (`company_contact_section_help`).
 - Non-section content in a page body (a banner, a custom child) spans the full 1000 in side mode.
 

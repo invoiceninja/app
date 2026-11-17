@@ -10,15 +10,16 @@ import 'package:admin/ui/features/dashboard/widgets/dashboard_create_fab.dart';
 /// The widest the strip may grow.
 const double kDashboardCreateStripMaxWidth = 720;
 
-/// The most create buttons the strip shows, the primary among them; the rest
-/// are under More however wide the window is. It showed as many as fit in
+/// The most create buttons the strip shows, the primary among them: "+ Quote",
+/// "+ Payment" and the split "New Invoice". Everything else is in the split
+/// button's menu however wide the window is. It once showed as many as fit in
 /// 720 px, about six: a row of equal "+" buttons where the one the user comes
 /// for had to be found among them.
 const int kDashboardCreateStripMaxButtons = 3;
 
-/// The wide dashboard's create buttons: "+ Quote", "+ Payment", More, then the
-/// one filled "New Invoice" — everything the user may start, from the order
-/// the phone's `+` sheet uses.
+/// The wide dashboard's create buttons: "+ Quote", "+ Payment", then the one
+/// filled "New Invoice" — a split button whose ▾ opens every other create the
+/// user may start, in the order the phone's `+` sheet uses.
 ///
 /// It lives in the dashboard's fixed top bar, not in the page. A row of create
 /// buttons in the scrolling body is what the phone layout once had and lost
@@ -33,13 +34,21 @@ const int kDashboardCreateStripMaxButtons = 3;
 /// button reads as a label rather than a verb. The secondaries keep the bare
 /// noun beside a `+`.
 ///
+/// **The ▾ is the strip's only menu, and it lists every other create** —
+/// the outlined secondaries included. There was a separate "⋮ More" button
+/// beside the primary; it is gone, and the ▾ took its job: one place to look
+/// for "the rest", attached to the thing it is the rest *of*. Listing the
+/// visible secondaries again costs two menu rows and buys a menu that never
+/// changes with the window's width.
+///
 /// **How many secondaries show is measured, not guessed.** `OverflowView`
-/// lays out as many as fit and hands the rest to the More menu, so German's
-/// longer nouns or a narrower window move the cut without a breakpoint table
-/// to keep in step. That is also why no button here carries a `Tooltip`:
-/// `OverflowView` lays its children out inside a layout callback, where an
-/// `OverlayPortal` cannot mount (see `EntityOverflowActionBar`). A slot too
-/// narrow for the primary and a More is the host's to collapse
+/// lays out as many as fit and simply drops the rest — they are already in
+/// the ▾ menu — so German's longer nouns or a narrower window move the cut
+/// without a breakpoint table to keep in step. That is also why no button in
+/// the run carries a `Tooltip`: `OverflowView` lays its children out inside a
+/// layout callback, where an `OverlayPortal` cannot mount (see
+/// `EntityOverflowActionBar`). The split button is outside the run, so its ▾
+/// may. A slot too narrow for the split button is the host's to collapse
 /// ([dashboardCreateStripMinWidth], [DashboardCreateMenuButton]).
 ///
 /// Renders nothing — and takes no space — when [options] is empty, so a user
@@ -65,7 +74,6 @@ class DashboardCreateStrip extends StatelessWidget {
     final inline = rest.length < kDashboardCreateStripMaxButtons
         ? rest
         : rest.sublist(0, kDashboardCreateStripMaxButtons - 1);
-    final capped = rest.sublist(inline.length);
     return ConstrainedBox(
       constraints: const BoxConstraints(
         maxWidth: kDashboardCreateStripMaxWidth,
@@ -73,7 +81,7 @@ class DashboardCreateStrip extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (rest.isNotEmpty) ...[
+          if (inline.isNotEmpty) ...[
             // Loose: the run takes what the primary leaves, and no more.
             Flexible(
               child: OverflowView.flexible(
@@ -85,54 +93,41 @@ class DashboardCreateStrip extends StatelessWidget {
                       primary: false,
                       onTap: () => onCreate(option),
                     ),
-                  // The capped creates' own More, last so it is the first
-                  // child `OverflowView` hides; the builder's More then
-                  // carries them with whatever else did not fit.
-                  if (capped.isNotEmpty)
-                    _MoreCreates(options: capped, onCreate: onCreate),
                 ],
-                builder: (context, remaining) {
-                  // `remaining` counts hidden children from the end, the
-                  // capped More among them. Clamped: in a slot too tight for
-                  // even one secondary it can reach the whole run.
-                  final hiddenButtons = capped.isEmpty
-                      ? remaining
-                      : remaining - 1;
-                  final hidden = hiddenButtons > inline.length
-                      ? inline.length
-                      : (hiddenButtons < 0 ? 0 : hiddenButtons);
-                  return _MoreCreates(
-                    options: [
-                      ...inline.sublist(inline.length - hidden),
-                      ...capped,
-                    ],
-                    onCreate: onCreate,
-                  );
-                },
+                // A secondary that does not fit is simply not drawn: the ▾
+                // menu lists it already.
+                builder: (context, remaining) => const SizedBox.shrink(),
               ),
             ),
             const SizedBox(width: InSpacing.sm),
           ],
-          _CreateButton(
-            option: primary,
-            primary: true,
-            onTap: () => onCreate(primary),
-          ),
+          if (rest.isEmpty)
+            _CreateButton(
+              option: primary,
+              primary: true,
+              onTap: () => onCreate(primary),
+            )
+          else
+            _SplitCreateButton(
+              primary: primary,
+              others: rest,
+              onCreate: onCreate,
+            ),
         ],
       ),
     );
   }
 }
 
-/// The narrowest slot that still holds the strip's floor — the primary, and a
-/// More beside it when there is anything else — at the current text size.
+/// The narrowest slot that still holds the strip's floor — the split primary
+/// (or the plain one when there is nothing else) — at the current text size.
 ///
 /// The host collapses the strip to [DashboardCreateMenuButton] below this. It
-/// is measured from the labels rather than a constant because the primary now
+/// is measured from the label rather than a constant because the primary
 /// reads as a phrase, and "Neue Rechnung" at 140 % text is a different width
 /// from "New Invoice" at 100 %. The chrome figures are the button themes'
-/// (`theme.dart`): 18 px padding a side on a filled button, 14 on an outlined
-/// one, an icon, and the 8 px icon gap.
+/// (`theme.dart`): 18 px padding a side on a filled button, an icon, and the
+/// 8 px icon gap; then the ▾ segment and its 1 px seam.
 double dashboardCreateStripMinWidth(
   BuildContext context,
   List<QuickCreateOption> options,
@@ -141,31 +136,20 @@ double dashboardCreateStripMinWidth(
   final theme = Theme.of(context);
   final scaler = MediaQuery.textScalerOf(context);
   final direction = Directionality.of(context);
-  double measure(String text, TextStyle? style) {
-    final painter = TextPainter(
-      text: TextSpan(text: text, style: style),
-      textDirection: direction,
-      textScaler: scaler,
-      maxLines: 1,
-    )..layout();
-    final width = painter.width;
-    painter.dispose();
-    return width;
-  }
-
-  final label = theme.textTheme.labelLarge;
-  final primary =
-      measure(
-        context.tr(options.first.labelKey),
-        label?.copyWith(fontWeight: FontWeight.w600),
-      ) +
-      18 * 2 +
-      16 +
-      8;
+  final painter = TextPainter(
+    text: TextSpan(
+      text: context.tr(options.first.labelKey),
+      style: theme.textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
+    ),
+    textDirection: direction,
+    textScaler: scaler,
+    maxLines: 1,
+  )..layout();
+  final primary = painter.width + 18 * 2 + 16 + 8;
+  painter.dispose();
   if (options.length == 1) return primary.ceilToDouble() + 4;
-  final more = measure(context.tr('more'), label) + 14 * 2 + 18 + 8;
   // A few pixels of slack: the measured run must never be the one that clips.
-  return (primary + InSpacing.sm + more).ceilToDouble() + 8;
+  return (primary + 1 + _splitSegmentWidth()).ceilToDouble() + 8;
 }
 
 /// One height for every button in the strip. The theme floors a filled button
@@ -232,21 +216,108 @@ class _CreateButton extends StatelessWidget {
   }
 }
 
-/// The creates that did not fit, under a labelled More button drawn like its
-/// neighbours.
-class _MoreCreates extends StatelessWidget {
-  const _MoreCreates({
-    required this.options,
+/// The ▾ segment's width: the touch target on touch, else a narrow square-ish
+/// segment beside the 40 px tall primary.
+double _splitSegmentWidth() => Env.isTouchPrimary ? InSizes.touchTarget : 34;
+
+/// "New Invoice ▾": the primary create, with every other create one tap away
+/// on the ▾ segment attached to its end.
+///
+/// Two filled buttons sharing one rounded rectangle — the start corners on the
+/// main part, the end corners on the ▾ — with a 1 px seam in the button's own
+/// foreground at low opacity between them. The main part is the create; the
+/// ▾ opens a [BackDismissibleMenuAnchor] (Android's back closes it) listing
+/// [others] in their `quickCreateEntities` order.
+class _SplitCreateButton extends StatelessWidget {
+  const _SplitCreateButton({
+    required this.primary,
+    required this.others,
     required this.onCreate,
-    this.compact = false,
   });
+
+  final QuickCreateOption primary;
+  final List<QuickCreateOption> others;
+  final ValueChanged<QuickCreateOption> onCreate;
+
+  @override
+  Widget build(BuildContext context) {
+    final height = _stripButtonHeight();
+    final scheme = Theme.of(context).colorScheme;
+    const r = Radius.circular(InRadii.r2);
+    final main = Semantics(
+      button: true,
+      label: context.tr(primary.labelKey),
+      onTap: () => onCreate(primary),
+      excludeSemantics: true,
+      child: FilledButton.icon(
+        onPressed: () => onCreate(primary),
+        style: FilledButton.styleFrom(
+          minimumSize: Size(64, height),
+          maximumSize: Size(double.infinity, height),
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadiusDirectional.horizontal(start: r),
+          ),
+        ),
+        icon: const Icon(Icons.add, size: 16),
+        label: Text(context.tr(primary.labelKey), maxLines: 1, softWrap: false),
+      ),
+    );
+    final menu = BackDismissibleMenuAnchor(
+      consumeOutsideTap: true,
+      menuChildren: [
+        for (final option in others)
+          MenuItemButton(
+            leadingIcon: Icon(option.icon, size: 18),
+            onPressed: () => onCreate(option),
+            child: Text(context.tr(option.labelKey)),
+          ),
+      ],
+      builder: (context, controller, _) => FilledButton(
+        onPressed: () =>
+            controller.isOpen ? controller.close() : controller.open(),
+        style: FilledButton.styleFrom(
+          minimumSize: Size(_splitSegmentWidth(), height),
+          maximumSize: Size(_splitSegmentWidth(), height),
+          padding: EdgeInsets.zero,
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadiusDirectional.horizontal(end: r),
+          ),
+        ),
+        child: Tooltip(
+          message: context.tr('more'),
+          child: const Icon(Icons.keyboard_arrow_down, size: 18),
+        ),
+      ),
+    );
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        main,
+        // The seam: the filled button's own ink, faint, so the two halves
+        // read as one control with two targets.
+        Container(
+          width: 1,
+          height: height,
+          color: Color.alphaBlend(
+            scheme.onPrimary.withValues(alpha: 0.35),
+            scheme.primary,
+          ),
+        ),
+        menu,
+      ],
+    );
+  }
+}
+
+/// Every create behind one filled `+` — what the strip becomes in a slot too
+/// tight for the split button.
+class _AllCreatesMenu extends StatelessWidget {
+  const _AllCreatesMenu({required this.options, required this.onCreate});
 
   final List<QuickCreateOption> options;
   final ValueChanged<QuickCreateOption> onCreate;
-
-  /// A square filled `+` instead of a labelled "More" — the whole strip in one
-  /// button, for a slot too tight for anything else.
-  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -261,35 +332,20 @@ class _MoreCreates extends StatelessWidget {
             child: Text(context.tr(option.labelKey)),
           ),
       ],
-      builder: (context, controller, _) {
-        void toggle() =>
-            controller.isOpen ? controller.close() : controller.open();
-        if (compact) {
-          return IconButton.filled(
-            tooltip: context.tr('create'),
-            onPressed: toggle,
-            icon: const Icon(Icons.add, size: 20),
-            constraints: BoxConstraints.tightFor(width: height, height: height),
-            padding: EdgeInsets.zero,
-            style: IconButton.styleFrom(
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(InRadii.r2),
-              ),
-            ),
-          );
-        }
-        return OutlinedButton.icon(
-          onPressed: toggle,
-          style: OutlinedButton.styleFrom(
-            minimumSize: Size(64, height),
-            maximumSize: Size(double.infinity, height),
-            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      builder: (context, controller, _) => IconButton.filled(
+        tooltip: context.tr('create'),
+        onPressed: () =>
+            controller.isOpen ? controller.close() : controller.open(),
+        icon: const Icon(Icons.add, size: 20),
+        constraints: BoxConstraints.tightFor(width: height, height: height),
+        padding: EdgeInsets.zero,
+        style: IconButton.styleFrom(
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(InRadii.r2),
           ),
-          icon: const Icon(Icons.more_vert, size: 18),
-          label: Text(context.tr('more')),
-        );
-      },
+        ),
+      ),
     );
   }
 }
@@ -314,6 +370,6 @@ class DashboardCreateMenuButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (options.isEmpty) return const SizedBox.shrink();
-    return _MoreCreates(options: options, onCreate: onCreate, compact: true);
+    return _AllCreatesMenu(options: options, onCreate: onCreate);
   }
 }

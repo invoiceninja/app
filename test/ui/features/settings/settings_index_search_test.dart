@@ -11,7 +11,8 @@
 // in `actions:` while searching); on the wide 280 px pane, which has no
 // AppBar, it's a strip lifted out of the scroll area.
 //
-// Also: the five topic groups, and the phone home's per-row values (R1).
+// Also: React's Basic / Advanced halves, the phone home's grouped cards (R)
+// and its per-row values (R1).
 
 import 'package:admin/data/models/domain/company.dart';
 import 'package:admin/data/repositories/company_repository.dart';
@@ -29,6 +30,11 @@ import 'package:admin/data/models/domain/company_settings.dart';
 import 'package:admin/data/models/domain/design.dart';
 import 'package:admin/utils/formatting.dart';
 import 'package:admin/ui/features/settings/views/settings_screen.dart';
+import 'package:admin/ui/features/settings/views/settings_shell.dart';
+import 'package:admin/ui/features/settings/widgets/form_section.dart';
+import 'package:admin/ui/features/settings/widgets/settings_form_shell.dart';
+import 'package:admin/ui/features/settings/widgets/settings_screen_scaffold.dart';
+import 'package:admin/ui/features/settings/widgets/settings_tab_strip.dart';
 import 'package:admin/ui/features/settings/widgets/settings_two_pane_scope.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
@@ -298,24 +304,101 @@ void main() {
     await tester.drag(find.byType(ListView), const Offset(0, -3000));
     await tester.pumpAndSettle();
 
-    expect(find.text('App & Data'), findsOneWidget);
+    expect(find.text('Advanced Settings'), findsOneWidget);
     expect(appBarField(), findsOneWidget);
   });
 
-  testWidgets('the sections are listed under the five topic groups', (
-    tester,
-  ) async {
-    await pumpIndex(tester);
-    expect(find.text('Basic Settings'), findsNothing);
-    expect(find.text('Company'), findsOneWidget);
-    // Client Groups sit under Company, above the Billing header.
+  test('the sections are React\'s Basic and Advanced lists, in React\'s '
+      'order, plus the two pages only this app has', () {
+    // React: `basic` / `advanced` in src/components/layouts/common/hooks.ts.
+    List<String> slugs(SettingsGroup g) => [
+      for (final s in kSettingsSections)
+        if (s.group == g) s.slug,
+    ];
+    expect(slugs(SettingsGroup.basic), [
+      'company_details',
+      'user_details',
+      'localization',
+      'online_payments',
+      'tax_settings',
+      'product_settings',
+      'task_settings',
+      'tags',
+      'expense_settings',
+      'workflow_settings',
+      'account_management',
+      'backup_restore',
+      'import_export',
+      // Not in React.
+      'device_settings',
+      'keyboard_shortcuts',
+    ]);
+    expect(slugs(SettingsGroup.advanced), [
+      'invoice_design',
+      'custom_fields',
+      'generated_numbers',
+      'client_portal',
+      'e_invoice',
+      'email_settings',
+      'templates_and_reminders',
+      'bank_accounts',
+      'group_settings',
+      'payment_links',
+      'schedules',
+      'users',
+      'system_logs',
+    ]);
+    // Grouped in the catalog itself, so the nav and the catalog agree.
     expect(
-      tester.getTopLeft(find.text('Group Settings')).dy,
-      lessThan(tester.getTopLeft(find.text('Billing')).dy),
+      kSettingsSections.map((s) => s.group).toList(),
+      [...kSettingsSections.map((s) => s.group)]
+        ..sort((a, b) => a.index.compareTo(b.index)),
     );
-    await tester.drag(find.byType(ListView), const Offset(0, -3000));
-    await tester.pumpAndSettle();
-    expect(find.text('App & Data'), findsOneWidget);
+  });
+
+  testWidgets('the phone home lists Basic then Advanced Settings, each as one '
+      'card under a muted heading', (tester) async {
+    await pumpIndex(tester);
+    expect(find.text('Basic Settings'), findsOneWidget);
+    // Account Management is Basic, as in React; Invoice Design is Advanced.
+    await tester.scrollUntilVisible(
+      find.text('Advanced Settings'),
+      300,
+      scrollable: find
+          .descendant(
+            of: find.byType(ListView),
+            matching: find.byType(Scrollable),
+          )
+          .first,
+    );
+    expect(
+      tester.getTopLeft(find.text('Account Management')).dy,
+      lessThan(tester.getTopLeft(find.text('Advanced Settings')).dy),
+    );
+    expect(
+      tester.getTopLeft(find.text('Advanced Settings')).dy,
+      lessThan(tester.getTopLeft(find.text('Invoice Design')).dy),
+    );
+    // The group labels are level-2 headings; each row is one button.
+    final heading = tester.getSemantics(find.text('Advanced Settings'));
+    expect(heading.flagsCollection.isHeader, isTrue);
+    expect(heading.headingLevel, 2);
+    final row = tester.getSemantics(
+      find.byKey(const ValueKey('settings-home-row-invoice_design')),
+    );
+    expect(row.flagsCollection.isButton, isTrue);
+    expect(row.label, contains('Invoice Design'));
+    // Compact: 48 px without a value (signed out, so no values here).
+    expect(
+      tester
+          .getSize(
+            find.byKey(const ValueKey('settings-home-row-invoice_design')),
+          )
+          .height,
+      48,
+    );
+    // The flat list is gone: no ListTile rows on the phone home.
+    expect(find.byType(ListTile), findsNothing);
   });
 
   testWidgets('focusing the field opens the search and adds close', (
@@ -348,7 +431,7 @@ void main() {
     // The subtitle names the tab the hit opens.
     expect(find.text('Company Details › Address'), findsOneWidget);
     expect(
-      find.text('Company'),
+      find.text('Basic Settings'),
       findsNothing,
       reason: 'the section list is replaced by results while searching',
     );
@@ -366,7 +449,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.widgetWithIcon(IconButton, Icons.close), findsNothing);
-    expect(find.text('Company'), findsOneWidget);
+    expect(find.text('Basic Settings'), findsOneWidget);
     expect(appBarField(), findsOneWidget);
     expect(
       tester.widget<TextField>(find.byType(TextField)).controller?.text,
@@ -392,7 +475,7 @@ void main() {
       expect(currentUri(router), '/settings');
       expect(find.widgetWithIcon(IconButton, Icons.close), findsNothing);
       expect(appBarField(), findsOneWidget);
-      expect(find.text('Company'), findsOneWidget);
+      expect(find.text('Basic Settings'), findsOneWidget);
     },
   );
 
@@ -421,7 +504,7 @@ void main() {
     await tester.drag(find.byType(ListView), const Offset(0, -3000));
     await tester.pumpAndSettle();
 
-    expect(find.text('App & Data'), findsOneWidget);
+    expect(find.text('Advanced Settings'), findsOneWidget);
     expect(
       find.byType(TextField),
       findsOneWidget,
@@ -433,12 +516,12 @@ void main() {
       reason: 'the screen title is pinned, so it survives any scroll position',
     );
     expect(
-      find.text('Company'),
+      find.text('Basic Settings'),
       findsNothing,
       reason:
           'the pinned strip carries the SCREEN title, never a group label — '
-          'hoisting "Company" would leave it claiming Company down here in '
-          'App & Data',
+          'hoisting "Basic Settings" would leave it claiming that half down '
+          'here in Advanced',
     );
 
     // Focusing the field opens the search; typing swaps in results; ✕ closes.
@@ -490,7 +573,7 @@ void main() {
     // It leads the list, above the first group header.
     expect(
       tester.getTopLeft(card).dy,
-      lessThan(tester.getTopLeft(find.text('Company')).dy),
+      lessThan(tester.getTopLeft(find.text('Basic Settings')).dy),
     );
 
     tester
@@ -529,8 +612,14 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    Finder row(String title) =>
-        find.ancestor(of: find.text(title), matching: find.byType(ListTile));
+    Finder row(String title) => find.ancestor(
+      of: find.text(title),
+      matching: find.byWidgetPredicate(
+        (w) =>
+            w.key is ValueKey<String> &&
+            (w.key! as ValueKey<String>).value.startsWith('settings-home-row-'),
+      ),
+    );
 
     // A text value: a one-line subtitle.
     expect(
@@ -574,6 +663,9 @@ void main() {
       find.descendant(of: row('Device Settings'), matching: find.text('Dark')),
       findsOneWidget,
     );
+    // A row with a value is 56 px; one without stays 48.
+    expect(tester.getSize(row('Device Settings')).height, 56);
+    expect(tester.getSize(row('Keyboard Shortcuts')).height, 48);
 
     // At client scope a value would be the company's, not the page's.
     tester
@@ -606,7 +698,7 @@ void main() {
       await pumpIndex(tester);
       await openSearch(tester);
 
-      expect(find.text('Company'), findsOneWidget);
+      expect(find.text('Basic Settings'), findsOneWidget);
       expect(find.text('Company Details'), findsOneWidget);
     });
 
@@ -685,7 +777,7 @@ void main() {
       await tester.sendKeyEvent(LogicalKeyboardKey.escape);
       await tester.pumpAndSettle();
       expect(find.widgetWithIcon(IconButton, Icons.close), findsNothing);
-      expect(find.text('Company'), findsOneWidget);
+      expect(find.text('Basic Settings'), findsOneWidget);
     });
 
     testWidgets('`/` opens the search on the settings index', (tester) async {
@@ -702,6 +794,133 @@ void main() {
       expect(field.focusNode?.hasFocus, isTrue);
       expect(find.widgetWithIcon(IconButton, Icons.close), findsOneWidget);
     });
+  });
+
+  group('the wide header rule', () {
+    /// The real two-pane shell at a desktop width, the nav beside a tabbed
+    /// page (Invoice Design's shape) or an untabbed one.
+    Future<void> pumpWide(WidgetTester tester, String location) async {
+      sizeTo(tester, const Size(1440, 900));
+      final router = GoRouter(
+        initialLocation: location,
+        routes: [
+          ShellRoute(
+            builder: (context, state, child) => SettingsShell(child: child),
+            routes: [
+              GoRoute(
+                path: '/settings',
+                builder: (_, _) => const SettingsScreen(),
+                routes: [
+                  GoRoute(
+                    path: 'invoice_design',
+                    builder: (_, _) => DefaultTabController(
+                      length: 3,
+                      child: SettingsScreenScaffold(
+                        titleKey: 'invoice_design',
+                        bottom: SettingsTabStrip(
+                          tabBar: TabBar(
+                            isScrollable: true,
+                            tabAlignment: TabAlignment.start,
+                            padding: settingsTabBarPadding(),
+                            indicatorWeight: 2,
+                            tabs: const [
+                              Tab(text: 'General Settings'),
+                              Tab(text: 'Invoice Options'),
+                              Tab(text: 'Custom Designs'),
+                            ],
+                          ),
+                        ),
+                        body: const SettingsFormShell(
+                          sections: [
+                            FormSection(title: 'Design', children: [Text('x')]),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  GoRoute(
+                    path: 'product_settings',
+                    builder: (_, _) => const SettingsScreenScaffold(
+                      titleKey: 'product_settings',
+                      body: SettingsFormShell(
+                        sections: [
+                          FormSection(title: 'Stock', children: [Text('x')]),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ],
+      );
+      addTearDown(router.dispose);
+      await tester.pumpWidget(
+        wrap(
+          tester,
+          MaterialApp.router(
+            theme: buildInTheme(InTheme.light),
+            localizationsDelegates: kTestLocalizationsDelegates,
+            supportedLocales: kTestSupportedLocales,
+            routerConfig: router,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    double navRule(WidgetTester tester) =>
+        tester.getRect(find.byKey(kSettingsNavRuleKey)).bottom;
+
+    testWidgets('the line under Search Settings and the line under a page\'s '
+        'tabs are one line', (tester) async {
+      await pumpWide(tester, '/settings/invoice_design');
+      // A TabBar paints its divider as its own last pixel row, as the nav's
+      // 1 px Divider is.
+      final tabRule = tester.getRect(find.byType(TabBar)).bottom;
+      expect(navRule(tester), tabRule);
+      expect(navRule(tester), kSettingsHeaderHeight);
+      // And the two titles share a centre line.
+      expect(
+        tester.getCenter(find.text('Settings')).dy,
+        tester
+            .getCenter(
+              find.descendant(
+                of: find.byType(AppBar),
+                matching: find.text('Invoice Design'),
+              ),
+            )
+            .dy,
+      );
+    }, variant: TargetPlatformVariant.only(TargetPlatform.macOS));
+
+    testWidgets('an untabbed page draws no rule of its own, and nothing near '
+        'the nav\'s — no near-miss', (tester) async {
+      await pumpWide(tester, '/settings/product_settings');
+      final appBar = tester.widget<AppBar>(find.byType(AppBar));
+      expect(appBar.bottom, isNull);
+      expect(appBar.shape, isNull);
+      expect(
+        tester.getRect(find.byType(AppBar)).bottom,
+        kSettingsTitleBarHeight,
+      );
+      // The first card's top edge, the nearest horizontal line on the page,
+      // sits well clear of the nav's rule rather than a few pixels off it.
+      final cardTop = tester.getRect(find.byType(FormSection)).top;
+      expect((cardTop - navRule(tester)).abs(), greaterThanOrEqualTo(12));
+      expect(
+        tester.getCenter(find.text('Settings')).dy,
+        tester
+            .getCenter(
+              find.descendant(
+                of: find.byType(AppBar),
+                matching: find.text('Product Settings'),
+              ),
+            )
+            .dy,
+      );
+    }, variant: TargetPlatformVariant.only(TargetPlatform.macOS));
   });
 }
 

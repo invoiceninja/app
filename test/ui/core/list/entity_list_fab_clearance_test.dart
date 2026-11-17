@@ -149,6 +149,15 @@ void main() {
   testWidgets('the last row scrolls clear of the FAB', (tester) async {
     await pumpList(tester, rowCount: 30);
     expect(find.byType(FloatingActionButton), findsOneWidget);
+    // Extended: it says what it makes (`EntityCreateFab`), still 56 tall.
+    expect(
+      find.descendant(
+        of: find.byType(FloatingActionButton),
+        matching: find.text('New Quote'),
+      ),
+      findsOneWidget,
+    );
+    expect(tester.getSize(find.byType(FloatingActionButton)).height, 56);
 
     // To the very end of the list.
     await tester.fling(find.text('q0'), const Offset(0, -4000), 4000);

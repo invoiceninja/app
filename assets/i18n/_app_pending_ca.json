@@ -1818,7 +1818,6 @@
   "due_on_date_label": "Venciment :date",
   "valid_until_date_label": "Vàlid fins al :date",
   "add_deposit": "Afegeix dipòsit",
-  "settings_group_billing": "Facturació",
-  "settings_group_products_and_work": "Productes i feina",
-  "settings_group_app_and_data": "Aplicació i dades"
+  "net_received": "Net cobrat",
+  "paid_on_date_label": "Pagada :date"
 }

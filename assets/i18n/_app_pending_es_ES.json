@@ -1818,7 +1818,6 @@
   "due_on_date_label": "Vence :date",
   "valid_until_date_label": "Válido hasta :date",
   "add_deposit": "Añadir depósito",
-  "settings_group_billing": "Facturación",
-  "settings_group_products_and_work": "Productos y trabajo",
-  "settings_group_app_and_data": "Aplicación y datos"
+  "net_received": "Neto recibido",
+  "paid_on_date_label": "Pagada :date"
 }

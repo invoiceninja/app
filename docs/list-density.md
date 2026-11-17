@@ -16,9 +16,11 @@ the old app showed 20 or more.
   action buttons, and 10 px padding.
 - **The old app's rows were smaller.** Its `DataTable` rows were 48 px
   (`kMinInteractiveDimension`).
-- **The chrome above the rows adds up.** It takes about 222 px on web or macOS: header
+- **The chrome above the rows adds up.** It took about 222 px on web or macOS: header
   band 69, status tabs ~46, card inset 24 + 1, column headers 57, then 1 + 24 below (the
-  card and most of that inset went in Nov 2026: 8 above the header and nothing below).
+  card and most of that inset went in Nov 2026: 8 above the header and nothing below). The
+  title row (Nov 2026, docs/entity-lists.md § A list's title row) put 53 px back: the header
+  is now 122, a title row over the search row.
 - **The result:** (1100 − 222) / 72 ≈ 12 rows.
 
 Normal stays the default and is unchanged, because the tester liked the look. Compact is
@@ -209,8 +211,8 @@ rule 1).
 
 ## Out of scope
 
-- **The header band (search row).** Its height is shared with the sidebar's company row
-  across the seam (`InSizes.headerBand`).
+- **The header (title row and search row).** Each row is `InSizes.headerRow`; Compact
+  leaves both alone.
 - **The embedded list toolbar.** It keeps its 16 / 16 gap.
 - **Forms' spacing, the sidebar, and reports.** That includes the edit forms that reuse
   `DashboardCardShell` (`DashboardScope` is what keeps them out). The one thing Compact

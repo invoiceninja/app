@@ -125,12 +125,23 @@ bool chartGroupingFits(
 ///
 /// With no window it falls back to the span of the points' own dates; with
 /// nothing datable it returns an empty axis (the card says "no data").
+///
+/// **The axis stops at [today]** when the window runs past it ("This month" on
+/// the 17th): the empty slots after the current one are dropped, and the
+/// current slot ends on today, so the last bar is the one still filling up
+/// rather than the first of a row of blank future slots. A point dated later
+/// (an invoice dated next week) keeps the axis running to it — only *empty*
+/// future slots go. The grouping is still chosen on the whole window, so Week
+/// does not disable itself halfway through a month. A window that lies wholly
+/// in the future is drawn as asked. Null [today] (the tests' default) never
+/// trims.
 ChartAxis buildChartAxis({
   required Map<ChartSeriesId, List<DashboardChartPoint>> pointsBySeries,
   required Date? startDate,
   required Date? endDate,
   required ChartGrouping grouping,
   int firstDayOfWeek = 0,
+  Date? today,
 }) {
   Date? lo;
   Date? hi;
@@ -179,6 +190,7 @@ ChartAxis buildChartAxis({
         : start;
     buckets = cut(effective);
   }
+  buckets = _endAtToday(buckets, pointsBySeries, today);
 
   final values = <ChartSeriesId, List<double>>{
     for (final id in ChartSeriesId.values)
@@ -196,6 +208,37 @@ ChartAxis buildChartAxis({
   });
 
   return ChartAxis(buckets: buckets, values: values, grouping: effective);
+}
+
+/// [buckets] without the empty slots after [today] — the last kept slot
+/// clipped to end on the later of today and the last dated point in it. See
+/// [buildChartAxis].
+List<ChartPeriod> _endAtToday(
+  List<ChartPeriod> buckets,
+  Map<ChartSeriesId, List<DashboardChartPoint>> pointsBySeries,
+  Date? today,
+) {
+  if (today == null || buckets.isEmpty) return buckets;
+  // A look-ahead window, or one already over: nothing to trim.
+  if (today.compareTo(buckets.first.start) < 0) return buckets;
+  if (today.compareTo(buckets.last.end) >= 0) return buckets;
+  // The axis runs to today, or to the latest point inside the window if one
+  // is dated later.
+  var cutoff = today;
+  final windowEnd = buckets.last.end;
+  for (final pts in pointsBySeries.values) {
+    for (final p in pts) {
+      final d = p.date;
+      if (d == null || d.compareTo(windowEnd) > 0) continue;
+      if (d.compareTo(cutoff) > 0) cutoff = d;
+    }
+  }
+  final out = <ChartPeriod>[];
+  for (final b in buckets) {
+    if (b.start.compareTo(cutoff) > 0) break;
+    out.add(b.end.compareTo(cutoff) > 0 ? ChartPeriod(b.start, cutoff) : b);
+  }
+  return out;
 }
 
 /// The slot holding [d], or -1 when it falls outside the window.

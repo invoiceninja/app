@@ -64,30 +64,67 @@ void main() {
     );
   }
 
-  /// The create buttons drawn inline, in order — everything but More.
+  /// The split button's ▾ — the strip's one menu.
+  Finder splitToggle() => find.byIcon(Icons.keyboard_arrow_down);
+
+  /// The create buttons drawn inline, in order — the primary's main part,
+  /// then the outlined secondaries. The ▾ has no label and is not counted.
   List<String> inlineLabels(WidgetTester tester) => [
-    for (final e in find.byType(FilledButton).evaluate()) _labelOf(tester, e),
-    for (final e in find.byType(OutlinedButton).evaluate())
-      if (_labelOf(tester, e) != 'More') _labelOf(tester, e),
+    for (final e in find.byType(FilledButton).evaluate())
+      if (_hasText(e)) _labelOf(tester, e),
+    for (final e in find.byType(OutlinedButton).evaluate()) _labelOf(tester, e),
   ];
 
-  testWidgets('the first option is the primary, at the trailing end', (
-    tester,
-  ) async {
+  Future<List<String>> openSplitMenu(WidgetTester tester) async {
+    await tester.tap(splitToggle());
+    await tester.pumpAndSettle();
+    return [
+      for (final e in find.byType(MenuItemButton).evaluate())
+        tester
+                .widget<Text>(
+                  find
+                      .descendant(
+                        of: find.byWidget(e.widget),
+                        matching: find.byType(Text),
+                      )
+                      .first,
+                )
+                .data ??
+            '',
+    ];
+  }
+
+  testWidgets('the first option is the primary, a split button at the '
+      'trailing end', (tester) async {
     await pumpStrip(tester);
     final labels = inlineLabels(tester);
     // `kQuickCreateEntities` order: the primary as its full phrase, the
     // secondaries as bare nouns beside the `+`.
     expect(labels.take(3), ['New Invoice', 'Quote', 'Payment']);
-    expect(find.byType(FilledButton), findsOneWidget);
-    // Last on the line, after the secondaries and their More — and the only
-    // filled button, so the one the user comes for is found at a glance.
-    final primary = tester.getRect(find.byType(FilledButton));
+    // Two filled halves of one control: the create and its ▾.
+    expect(find.byType(FilledButton), findsNWidgets(2));
+    expect(splitToggle(), findsOneWidget);
+    final primary = tester.getRect(
+      find.widgetWithText(FilledButton, 'New Invoice'),
+    );
     for (final e in find.byType(OutlinedButton).evaluate()) {
       expect(
         tester.getRect(find.byWidget(e.widget)).right,
         lessThan(primary.left),
       );
+    }
+    // The ▾ is attached to the primary's end.
+    final toggle = tester.getRect(splitToggle());
+    expect(toggle.left, greaterThan(primary.right));
+    expect(toggle.left - primary.right, lessThan(20));
+  });
+
+  testWidgets('there is no More button and no horizontal ⋯', (tester) async {
+    for (final width in [280.0, 420.0, 600.0, 1400.0]) {
+      await pumpStrip(tester, width: width);
+      expect(find.text('More'), findsNothing, reason: '@ $width');
+      expect(find.byIcon(Icons.more_vert), findsNothing, reason: '@ $width');
+      expect(find.byIcon(Icons.more_horiz), findsNothing, reason: '@ $width');
     }
   });
 
@@ -97,12 +134,11 @@ void main() {
     await pumpStrip(tester, width: 280);
     expect(tester.takeException(), isNull);
     expect(find.text('New Invoice'), findsOneWidget);
-    expect(find.text('More'), findsOneWidget);
+    expect(splitToggle(), findsOneWidget);
+    expect(find.byType(OutlinedButton), findsNothing);
   });
 
-  testWidgets('the floor it reports holds the primary and a More', (
-    tester,
-  ) async {
+  testWidgets('the floor it reports holds the split primary', (tester) async {
     late double floor;
     await tester.pumpWidget(
       MaterialApp(
@@ -120,30 +156,29 @@ void main() {
     await pumpStrip(tester, width: floor);
     expect(tester.takeException(), isNull);
     expect(find.text('New Invoice'), findsOneWidget);
-    expect(find.text('More'), findsOneWidget);
+    expect(splitToggle(), findsOneWidget);
     expect(
       tester.getSize(find.byType(DashboardCreateStrip)).width,
       lessThanOrEqualTo(floor),
     );
   });
 
-  testWidgets('what does not fit goes under More, and nothing is lost', (
+  testWidgets('the ▾ lists every other create, in order, whatever fits', (
     tester,
   ) async {
-    await pumpStrip(tester, width: 420);
-    final inline = inlineLabels(tester);
-    expect(inline, isNotEmpty);
-    expect(inline.length, lessThan(allOptions.length));
-    expect(find.text('More'), findsOneWidget);
-    expect(tester.takeException(), isNull);
-
-    await tester.tap(find.text('More'));
-    await tester.pumpAndSettle();
-    // Menu entries use the full phrase; inline + menu = every option.
-    final inMenu = find.byType(MenuItemButton).evaluate().length;
-    expect(inline.length + inMenu, allOptions.length);
-    // The first hidden one is the next in order.
-    expect(find.text('Enter Expense'), findsOneWidget);
+    for (final width in [280.0, 1400.0]) {
+      await pumpStrip(tester, width: width);
+      final menu = await openSplitMenu(tester);
+      // Full phrases, every option but the primary, in the sheet's order —
+      // the secondaries drawn inline included, so the menu never changes
+      // with the window.
+      expect(menu, hasLength(allOptions.length - 1), reason: '@ $width');
+      expect(menu.first, 'New Quote', reason: '@ $width');
+      expect(menu, contains('Enter Expense'), reason: '@ $width');
+      expect(menu, isNot(contains('New Invoice')), reason: '@ $width');
+      await tester.tapAt(Offset.zero);
+      await tester.pumpAndSettle();
+    }
   });
 
   testWidgets('a narrower slot shows fewer buttons, never an overflow', (
@@ -160,8 +195,8 @@ void main() {
   testWidgets('larger text moves the cut instead of clipping a label', (
     tester,
   ) async {
-    // 380 px: room for the three capped buttons and More at normal size, so
-    // only the text size can move the cut.
+    // 380 px: room for the three capped buttons at normal size, so only the
+    // text size can move the cut.
     await pumpStrip(tester, width: 380);
     final normal = inlineLabels(tester).length;
     // The app's largest in-app setting: never more buttons, never an overflow.
@@ -180,15 +215,13 @@ void main() {
       tester.getSize(find.byType(DashboardCreateStrip)).width,
       lessThanOrEqualTo(kDashboardCreateStripMaxWidth),
     );
-    // So the tail stays under More even on an ultrawide window.
-    expect(find.text('More'), findsOneWidget);
     expect(inlineLabels(tester).length, lessThan(allOptions.length));
   });
 
-  testWidgets('three buttons at most, the rest under More', (tester) async {
+  testWidgets('three buttons at most, the rest in the ▾ menu', (tester) async {
     await pumpStrip(tester, width: 1400);
     expect(inlineLabels(tester).length, kDashboardCreateStripMaxButtons);
-    expect(find.text('More'), findsOneWidget);
+    expect(splitToggle(), findsOneWidget);
   });
 
   testWidgets('every button is one height', (tester) async {
@@ -206,7 +239,8 @@ void main() {
     final created = <QuickCreateOption>[];
     await pumpStrip(tester, onCreate: created.add);
     await tester.tap(find.text('Quote'));
-    expect(created.map((o) => o.type), [EntityType.quote]);
+    await tester.tap(find.text('New Invoice'));
+    expect(created.map((o) => o.type), [EntityType.quote, EntityType.invoice]);
   });
 
   // An action is not `+ <noun>`: it wears its own icon and its phrase.
@@ -238,20 +272,22 @@ void main() {
     expect(created.single.action, QuickCreateAction.scanReceipt);
   });
 
-  testWidgets('a pick from More creates that entity', (tester) async {
+  testWidgets('a pick from the ▾ creates that entity', (tester) async {
     final created = <QuickCreateOption>[];
     await pumpStrip(tester, width: 420, onCreate: created.add);
-    await tester.tap(find.text('More'));
-    await tester.pumpAndSettle();
+    await openSplitMenu(tester);
     await tester.tap(find.byType(MenuItemButton).last);
     await tester.pumpAndSettle();
     expect(created.map((o) => o.type), [kQuickCreateEntities.last]);
   });
 
-  testWidgets('with everything fitting there is no More', (tester) async {
-    await pumpStrip(tester, options: allOptions.take(2).toList(), width: 600);
-    expect(inlineLabels(tester), ['New Invoice', 'Quote']);
-    expect(find.text('More'), findsNothing);
+  testWidgets('with one option the primary is a plain button, no ▾', (
+    tester,
+  ) async {
+    await pumpStrip(tester, options: allOptions.take(1).toList(), width: 600);
+    expect(inlineLabels(tester), ['New Invoice']);
+    expect(splitToggle(), findsNothing);
+    expect(find.byType(FilledButton), findsOneWidget);
   });
 
   testWidgets('a user who may create nothing gets no strip', (tester) async {
@@ -281,6 +317,11 @@ void main() {
     handle.dispose();
   });
 }
+
+bool _hasText(Element button) => find
+    .descendant(of: find.byWidget(button.widget), matching: find.byType(Text))
+    .evaluate()
+    .isNotEmpty;
 
 String _labelOf(WidgetTester tester, Element button) {
   final text = find.descendant(

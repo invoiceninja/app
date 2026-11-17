@@ -1818,7 +1818,6 @@
   "due_on_date_label": "Падеж :date",
   "valid_until_date_label": "Валидна до :date",
   "add_deposit": "Добавяне на депозит",
-  "settings_group_billing": "Фактуриране",
-  "settings_group_products_and_work": "Продукти и работа",
-  "settings_group_app_and_data": "Приложение и данни"
+  "net_received": "Нето получени",
+  "paid_on_date_label": "Платена :date"
 }

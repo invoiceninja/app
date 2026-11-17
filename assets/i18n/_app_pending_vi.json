@@ -1787,7 +1787,6 @@
   "due_on_date_label": "Đến hạn :date",
   "valid_until_date_label": "Có hiệu lực đến :date",
   "add_deposit": "Thêm tiền đặt cọc",
-  "settings_group_billing": "Lập hóa đơn",
-  "settings_group_products_and_work": "Sản phẩm & công việc",
-  "settings_group_app_and_data": "Ứng dụng & dữ liệu"
+  "net_received": "Thực nhận",
+  "paid_on_date_label": "Đã thanh toán :date"
 }

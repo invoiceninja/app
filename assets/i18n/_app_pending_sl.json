@@ -1899,7 +1899,6 @@
   "due_on_date_label": "Zapadlost :date",
   "valid_until_date_label": "Velja do :date",
   "add_deposit": "Dodaj predplačilo",
-  "settings_group_billing": "Obračunavanje",
-  "settings_group_products_and_work": "Izdelki in delo",
-  "settings_group_app_and_data": "Aplikacija in podatki"
+  "net_received": "Neto prejeto",
+  "paid_on_date_label": "Plačano :date"
 }

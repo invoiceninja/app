@@ -901,6 +901,7 @@ class _LineItemTableDesktopState extends State<LineItemTableDesktop> {
                             final draft = await showQuickProductDialog(
                               context,
                               initialKey: query,
+                              companyId: widget.companyId,
                               useCommaAsDecimalPlace: _useComma,
                               vendorDoc: widget.vendorDoc,
                             );

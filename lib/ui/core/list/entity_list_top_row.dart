@@ -46,26 +46,36 @@ class HeaderRowSlot extends StatelessWidget {
   }
 }
 
-/// Wide-mode page header: primary "new" action, token search field, columns
-/// picker — all in one row. Rendered by [EntityListAppBar].
+/// Wide-mode title row: the list's name (and an optional [subtitle] line
+/// under it — the outstanding totals on Clients and Invoices) at the start,
+/// then Columns, Saved Views and the primary "New X" at the end. Rendered by
+/// [EntityListAppBar] above the search row.
 ///
-/// Top-aligned: the search field wraps its chips and may be several lines
-/// tall, and everything beside it stays on the first line ([HeaderRowSlot]).
+/// The title is the app's one title size (`AppBarTheme.titleTextStyle`, 18 px
+/// semibold), the size a phone's app bar gives the same word. No row count:
+/// the status strip below already counts.
 ///
 /// Generic over the [GenericListViewModel] so every entity list screen
-/// shares the same chrome — only the per-entity [searchField] differs.
-class EntityListTopRow<T> extends StatelessWidget {
-  const EntityListTopRow({
+/// shares the same chrome.
+class EntityListTitleRow<T> extends StatelessWidget {
+  const EntityListTitleRow({
     required this.vm,
+    required this.title,
     required this.newRoute,
     required this.newLabelKey,
-    required this.searchField,
+    this.subtitle,
     this.extraActions = const [],
     this.canCreate = true,
     super.key,
   });
 
   final GenericListViewModel<T> vm;
+
+  /// The entity's plural name, translated.
+  final String title;
+
+  /// A muted line under [title], or null.
+  final Widget? subtitle;
 
   /// Route the "New X" button navigates to (e.g. `/clients/new`). `null`
   /// leaves the button out — the entity has no create screen.
@@ -79,16 +89,11 @@ class EntityListTopRow<T> extends StatelessWidget {
   /// plan-gated screens so a free-plan user can't start a new entity.
   final bool canCreate;
 
-  /// Feature-built token search field. Each entity supplies its own
-  /// `FilterKey` set, so the widget is built by the caller.
-  final Widget searchField;
-
   /// Optional entity-specific actions rendered at the *trailing edge* of
-  /// the row, after the Saved Views button — e.g. the Tasks list/kanban
-  /// toggle. Anchored right so the affordance keeps its position when the
-  /// user navigates between sections that drop the Columns / Saved Views
-  /// buttons (e.g. switching to the kanban view). Each entry is rendered
-  /// with a 12 px gap before it; pass an empty list to opt out.
+  /// the row, after "New X" — e.g. the Tasks list/kanban toggle. Last, so the
+  /// toggle sits where the custom Tasks views' header puts it and keeps its
+  /// position when the user flips between them. Each entry is rendered with a
+  /// 12 px gap before it; pass an empty list to opt out.
   final List<Widget> extraActions;
 
   @override
@@ -96,53 +101,75 @@ class EntityListTopRow<T> extends StatelessWidget {
     final tokens = context.inTheme;
     final newRoute = this.newRoute;
     final newLabelKey = this.newLabelKey;
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (newRoute != null && newLabelKey != null) ...[
-          HeaderRowSlot(child: _newButton(context, newRoute, newLabelKey)),
-          const SizedBox(width: 16),
-        ],
-        // The token field carries every filter dimension. It fills the row
-        // between the New button and the Columns button; `Expanded` still
-        // keeps the Columns button glued to the row's trailing edge
-        // (24 px from the screen, flush with the table below).
-        Expanded(child: searchField),
-        const SizedBox(width: 12),
-        HeaderRowSlot(
-          child: OutlinedButton.icon(
-            onPressed: () => _openColumnsPicker(context),
-            icon: const Icon(Icons.view_column_outlined, size: 14),
-            label: Text(
-              context.tr('columns'),
-              style: const TextStyle(
-                fontSize: 12.5,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: tokens.ink2,
-              side: BorderSide(color: tokens.border),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(InRadii.r1),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              minimumSize: const Size(0, 36),
+    final subtitle = this.subtitle;
+    final titleStyle = Theme.of(context).appBarTheme.titleTextStyle;
+    // A floor, not a height: the title and its line grow with the text scale.
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: InSizes.headerRow),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Semantics(
+                  header: true,
+                  headingLevel: 1,
+                  child: Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: titleStyle,
+                  ),
+                ),
+                ?subtitle,
+              ],
             ),
           ),
-        ),
-        const SizedBox(width: 12),
-        HeaderRowSlot(child: SavedViewsButton<T>(vm: vm)),
-        for (final w in extraActions) ...[
           const SizedBox(width: 12),
-          HeaderRowSlot(child: w),
+          HeaderRowSlot(
+            child: OutlinedButton.icon(
+              onPressed: () => _openColumnsPicker(context),
+              icon: const Icon(Icons.view_column_outlined, size: 14),
+              label: Text(
+                context.tr('columns'),
+                style: const TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: tokens.ink2,
+                side: BorderSide(color: tokens.border),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(InRadii.r1),
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                minimumSize: const Size(0, 36),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          HeaderRowSlot(child: SavedViewsButton<T>(vm: vm)),
+          if (newRoute != null && newLabelKey != null) ...[
+            const SizedBox(width: 12),
+            HeaderRowSlot(child: _newButton(context, newRoute, newLabelKey)),
+          ],
+          for (final w in extraActions) ...[
+            const SizedBox(width: 12),
+            HeaderRowSlot(child: w),
+          ],
         ],
-      ],
+      ),
     );
   }
 
   Widget _newButton(BuildContext context, String newRoute, String labelKey) {
-    // Primary action leads the row. The `minimumSize` override fixes a
+    // The primary action ends the row. The `minimumSize` override fixes a
     // Flutter flex-first-pass sizing bug — without a finite minimum,
     // `_RenderInputPadding` collapses to invalid constraints when an
     // `Expanded` sibling sits next to it.
@@ -291,8 +318,8 @@ class EmbeddedListTopRow extends StatelessWidget {
     bool hasNew,
     Widget? segments,
   ) {
-    // Top-aligned for the same reason as [EntityListTopRow]: the field can
-    // wrap, and "New" stays level with its first line.
+    // Top-aligned: the field can wrap, and "New" stays level with its first
+    // line.
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

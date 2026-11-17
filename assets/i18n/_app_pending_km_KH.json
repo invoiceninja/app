@@ -1817,7 +1817,6 @@
   "due_on_date_label": "ផុតកំណត់ :date",
   "valid_until_date_label": "មានសុពលភាពរហូតដល់ :date",
   "add_deposit": "បន្ថែមប្រាក់កក់",
-  "settings_group_billing": "ការចេញវិក្កយបត្រ",
-  "settings_group_products_and_work": "ផលិតផល និងការងារ",
-  "settings_group_app_and_data": "កម្មវិធី និងទិន្នន័យ"
+  "net_received": "ចំណូលសុទ្ធ",
+  "paid_on_date_label": "បានបង់ :date"
 }

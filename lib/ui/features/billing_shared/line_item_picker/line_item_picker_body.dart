@@ -890,6 +890,7 @@ class _LineItemPickerBodyState extends State<LineItemPickerBody>
     final draft = await showQuickProductDialog(
       context,
       initialKey: _filter.trim(),
+      companyId: widget.companyId,
       useCommaAsDecimalPlace:
           widget.formatter?.settings.useCommaAsDecimalPlace ?? false,
       vendorDoc: widget.vendorDoc,

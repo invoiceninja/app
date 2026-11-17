@@ -1,7 +1,5 @@
 import 'package:flutter/foundation.dart';
 
-import 'package:admin/app/env.dart';
-
 /// Device-local preferences for the tap-to-call / tap-to-message affordances
 /// on phone numbers (invoiceninja/flutter#109).
 ///
@@ -29,24 +27,25 @@ class PhoneActionsSettings {
   static const int defaultStartMinutes = 8 * 60;
   static const int defaultEndMinutes = 20 * 60;
 
-  /// The defaults for *this device*, used when the column is null.
+  /// [tapToCall] when nothing is stored — see [deviceDefaults].
+  static const bool kTapToCallDefault = false;
+
+  /// The defaults, used when nothing is stored.
   ///
-  /// [tapToCall] follows [Env.isTouchPrimary] rather than being flatly `true`.
-  /// The app deliberately cannot ask whether a `tel:` handler exists —
-  /// `canLaunchUrl` is banned by `test/lint/no_can_launch_url_test.dart`
-  /// because on Android 11+ it answers a package-visibility question and lies
-  /// — so on a Windows or Linux desktop with no dialer an on-by-default link
-  /// would both stop the number selecting as text and fire "Couldn't open the
-  /// link", a regression for a user who never asked for the feature. A macOS
-  /// (FaceTime) or Phone Link user opts in with one switch; a field worker on
-  /// a phone, who is who the issue is about, gets it out of the box.
+  /// [tapToCall] is **off on every platform** (it was `Env.isTouchPrimary`
+  /// until Nov 2026). A number that dials on a tap stops selecting as text and
+  /// puts a call one mis-tap away, and the list rows' call buttons crowded a
+  /// phone row; someone who wants it switches it on once. The record screen's
+  /// Call action is not behind this preference: it is an explicit verb, so it
+  /// works whatever this says (`callPhoneNumber(explicitAction: true)`).
   ///
-  /// This is a *device* preference, so a phone and a desktop signed into the
-  /// same account legitimately differ. Only expressible because the pref is a
-  /// JSON blob: a null column means "ask the platform", whereas a SQL column
-  /// default would have to pick one answer for every device.
+  /// A stored blob is still taken literally — a user who switched it on keeps
+  /// it on. A blob is written whole on any change to the Phone numbers card,
+  /// so a phone that changed another field there under the old default
+  /// carries an explicit `true` and keeps it; there is no telling that apart
+  /// from a choice.
   factory PhoneActionsSettings.deviceDefaults() =>
-      PhoneActionsSettings(tapToCall: Env.isTouchPrimary);
+      const PhoneActionsSettings(tapToCall: kTapToCallDefault);
 
   /// Tapping a phone number opens the dialer, and contact rows grow Call /
   /// Message buttons. Off restores the plain copyable text the app had before.
@@ -74,7 +73,7 @@ class PhoneActionsSettings {
   /// the record's activity feed (invoiceninja/flutter#120).
   ///
   /// On by default, but the *offer itself* is additionally gated on
-  /// [Env.isMobile] at the call site: it hangs off an app-lifecycle round
+  /// `Env.isMobile` at the call site: it hangs off an app-lifecycle round
   /// trip, and only a phone reliably backgrounds the app for a call. A desktop
   /// `tel:` handler may never background it at all, and on mobile **web**
   /// `AppLifecycleState` follows page visibility, so every tab switch would
@@ -137,15 +136,10 @@ class PhoneActionsSettings {
   };
 
   /// Tolerant of a partial / older blob: a key that is present is taken
-  /// literally — a *stored* value is the user's choice and the platform must
-  /// not re-decide it — while a **missing** key falls back to the same default
-  /// a fresh install on this device would get, including
-  /// [Env.isTouchPrimary] for [tapToCall].
-  ///
-  /// That last part matters for a blob written by a build that predates a
-  /// field: falling back to a flat `true` instead would switch tap-to-call on
-  /// for desktop users who never asked for it, which is precisely what
-  /// [deviceDefaults] exists to avoid.
+  /// literally — a *stored* value is the user's choice and must not be
+  /// re-decided — while a **missing** key falls back to the same default a
+  /// fresh install gets ([deviceDefaults]), so tap-to-call stays off for
+  /// anyone who never asked for it.
   factory PhoneActionsSettings.fromJson(Map<String, dynamic> json) {
     bool flag(String key, bool fallback) {
       final v = json[key];
@@ -160,7 +154,7 @@ class PhoneActionsSettings {
     }
 
     return PhoneActionsSettings(
-      tapToCall: flag('tapToCall', Env.isTouchPrimary),
+      tapToCall: flag('tapToCall', kTapToCallDefault),
       confirmBeforeCall: flag('confirmBeforeCall', false),
       warnOutsideBusinessHours: flag('warnOutsideBusinessHours', true),
       offerToLogCalls: flag('offerToLogCalls', true),

@@ -1899,7 +1899,6 @@
   "due_on_date_label": "Splatnost :date",
   "valid_until_date_label": "Platné do :date",
   "add_deposit": "Přidat zálohu",
-  "settings_group_billing": "Fakturace",
-  "settings_group_products_and_work": "Produkty a práce",
-  "settings_group_app_and_data": "Aplikace a data"
+  "net_received": "Čistý příjem",
+  "paid_on_date_label": "Zaplaceno :date"
 }

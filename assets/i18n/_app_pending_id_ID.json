@@ -1819,7 +1819,6 @@
   "due_on_date_label": "Jatuh tempo :date",
   "valid_until_date_label": "Berlaku hingga :date",
   "add_deposit": "Tambah deposit",
-  "settings_group_billing": "Penagihan",
-  "settings_group_products_and_work": "Produk & pekerjaan",
-  "settings_group_app_and_data": "Aplikasi & data"
+  "net_received": "Penerimaan bersih",
+  "paid_on_date_label": "Dibayar :date"
 }

@@ -83,8 +83,8 @@ class DashboardTopBar extends StatelessWidget {
       // Three things want this row, and when it is tight they are served in
       // this order: Customize (fixed — never pushed off), then the
       // company's name (up to [_kTitleMaxWidth]), then the create buttons,
-      // which take what is left and fold what does not fit into their own More
-      // menu. A plain flex row cannot say that — it would share the squeeze
+      // which take what is left and drop the outlined ones that do not fit
+      // (the New Invoice ▾ menu lists them). A plain flex row cannot say that — it would share the squeeze
       // between the name and the buttons in proportion — so Customize is laid
       // out first and the other two split the remainder by measurement.
       child: Row(
@@ -204,7 +204,7 @@ class _CreateSlot extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        // Below this the slot cannot hold the primary beside its More, and
+        // Below this the slot cannot hold the split New Invoice ▾, and
         // collapses to one `+` that opens them all. Measured from the labels
         // at the current text size, not a constant.
         final floor = gap + dashboardCreateStripMinWidth(context, options);

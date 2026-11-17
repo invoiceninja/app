@@ -1899,7 +1899,6 @@
   "due_on_date_label": "Срок :date",
   "valid_until_date_label": "Действует до :date",
   "add_deposit": "Добавить предоплату",
-  "settings_group_billing": "Выставление счетов",
-  "settings_group_products_and_work": "Товары и работа",
-  "settings_group_app_and_data": "Приложение и данные"
+  "net_received": "Чистые поступления",
+  "paid_on_date_label": "Оплачен :date"
 }

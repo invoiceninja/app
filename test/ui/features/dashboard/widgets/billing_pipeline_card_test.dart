@@ -18,6 +18,8 @@ import 'package:admin/data/repositories/auth_repository.dart';
 import 'package:admin/data/repositories/client_repository.dart';
 import 'package:admin/data/repositories/ensure_loaded_outcome.dart';
 import 'package:admin/data/repositories/invoice_repository.dart';
+import 'package:admin/data/repositories/payment_repository.dart';
+import 'package:admin/data/models/domain/payment.dart';
 import 'package:admin/data/repositories/quote_repository.dart';
 import 'package:admin/domain/entity_registry.dart';
 import 'package:admin/domain/sidebar_badge_modes.dart';
@@ -26,6 +28,7 @@ import 'package:admin/domain/entity_state.dart';
 import 'package:admin/domain/entity_type.dart';
 import 'package:admin/ui/core/list/entity_list_status_tabs.dart';
 import 'package:admin/ui/features/invoices/view_models/invoice_edit_view_model.dart';
+import 'package:admin/ui/features/payments/view_models/payment_edit_view_model.dart';
 import 'package:admin/ui/features/quotes/view_models/quote_edit_view_model.dart';
 import 'package:admin/ui/features/dashboard/widgets/billing_pipeline_card.dart';
 import 'package:admin/ui/features/quotes/widgets/quote_status_pill.dart';
@@ -200,13 +203,37 @@ class _FakeAuth implements AuthRepository {
   Object? noSuchMethod(Invocation i) => throw UnimplementedError();
 }
 
+/// Each invoice's payments, for a paid row's "Paid Nov 16".
+class _FakePaymentRepo implements PaymentRepository {
+  _FakePaymentRepo(this.byInvoice);
+  final Map<String, List<Payment>> byInvoice;
+
+  @override
+  Stream<List<Payment>> watchForInvoice({
+    required String companyId,
+    required String invoiceId,
+  }) => _multi(byInvoice[invoiceId] ?? const <Payment>[]);
+
+  @override
+  Object? noSuchMethod(Invocation i) => throw UnimplementedError();
+}
+
 class _FakeServices implements Services {
   _FakeServices({
     required this.invoices,
     required this.quotes,
     required this.clients,
     this.counts = const {},
-  });
+    PaymentRepository? payments,
+  }) : _payments = payments;
+
+  final PaymentRepository? _payments;
+
+  /// Unset in most suites: the card then never learns a paid date, and a lookup
+  /// that throws must leave the row on its invoice date.
+  @override
+  PaymentRepository get payments =>
+      _payments ?? (throw UnimplementedError('payments'));
 
   /// Each tab's count by mode id; a mode not named here counts 1, so the
   /// occasional tabs (`kOccasionalBillingTabs`) are on the strip.
@@ -373,11 +400,13 @@ _FakeServices _services({
   List<Invoice> invoices = const [],
   List<Quote> quotes = const [],
   Map<String, int> counts = const {},
+  PaymentRepository? payments,
 }) => _FakeServices(
   invoices: _FakeInvoiceRepo(rows: invoices),
   quotes: _FakeQuoteRepo(rows: quotes),
   clients: _FakeClientRepo(),
   counts: counts,
+  payments: payments,
 );
 
 /// intl ships only `en_US` initialised; the app loads the rest through
@@ -1006,5 +1035,109 @@ void main() {
       tester.widget<Text>(find.text('12 days late')).style!.color,
       isSameColorAs(InTheme.light.overdue),
     );
+  });
+
+  group('the date slot says what the date is', () {
+    final year = DateTime.now().year;
+
+    testWidgets('an open invoice its due date, a paid one when it was paid', (
+      tester,
+    ) async {
+      Payment paidOn(Date d, {bool deleted = false}) =>
+          emptyPayment().copyWith(date: d, isDeleted: deleted);
+      await _pump(
+        tester,
+        services: _services(
+          invoices: [
+            _invoice('open').copyWith(dueDate: Date(year, 12, 31)),
+            _invoice(
+              'paid',
+              status: InvoiceStatus.paid,
+            ).copyWith(balance: Decimal.zero),
+            _invoice(
+              'paid-unsynced',
+              status: InvoiceStatus.paid,
+            ).copyWith(balance: Decimal.zero),
+            _invoice('draft', status: InvoiceStatus.draft),
+          ],
+          payments: _FakePaymentRepo({
+            // The latest live payment is the paid date; a deleted one is not.
+            'paid': [
+              paidOn(Date(year, 1, 2)),
+              paidOn(Date(year, 1, 9)),
+              paidOn(Date(year, 3, 1), deleted: true),
+            ],
+          }),
+        ),
+        nav: _Nav(),
+        narrow: false,
+        entity: EntityType.invoice,
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Due Dec 31'), findsOneWidget);
+      expect(find.text('Paid Jan 9'), findsOneWidget);
+      // No payment on the device, or a draft: the invoice's own date, in the
+      // company format.
+      expect(find.text('2026-09-14'), findsNWidgets(2));
+    });
+
+    testWidgets('a paid row whose lookup fails keeps its invoice date', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        services: _services(
+          invoices: [
+            _invoice(
+              'paid',
+              status: InvoiceStatus.paid,
+            ).copyWith(balance: Decimal.zero),
+          ],
+        ),
+        nav: _Nav(),
+        narrow: false,
+        entity: EntityType.invoice,
+      );
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      expect(find.text('2026-09-14'), findsOneWidget);
+    });
+
+    testWidgets('a quote out with the client its valid-until date', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        services: _services(
+          quotes: [
+            _quote(
+              'sent',
+              status: QuoteStatus.sent,
+            ).copyWith(dueDate: Date(year, 12, 14)),
+            _quote('draft'),
+          ],
+        ),
+        nav: _Nav(),
+        narrow: false,
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Valid until Dec 14'), findsOneWidget);
+      expect(find.text('2026-09-13'), findsOneWidget);
+    });
+
+    testWidgets('a deadline in another year keeps its year', (tester) async {
+      await _pump(
+        tester,
+        services: _services(
+          invoices: [_invoice('open').copyWith(dueDate: Date(year + 1, 1, 5))],
+        ),
+        nav: _Nav(),
+        narrow: false,
+        entity: EntityType.invoice,
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Due ${year + 1}-01-05'), findsOneWidget);
+    });
   });
 }

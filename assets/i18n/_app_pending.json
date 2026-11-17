@@ -2195,7 +2195,6 @@
   "due_on_date_label": "Due :date",
   "valid_until_date_label": "Valid until :date",
   "add_deposit": "Add deposit",
-  "settings_group_billing": "Billing",
-  "settings_group_products_and_work": "Products & Work",
-  "settings_group_app_and_data": "App & Data"
+  "net_received": "Net received",
+  "paid_on_date_label": "Paid :date"
 }

@@ -1818,7 +1818,6 @@
   "due_on_date_label": "Λήξη :date",
   "valid_until_date_label": "Ισχύει έως :date",
   "add_deposit": "Προσθήκη προκαταβολής",
-  "settings_group_billing": "Χρέωση",
-  "settings_group_products_and_work": "Προϊόντα & εργασία",
-  "settings_group_app_and_data": "Εφαρμογή & δεδομένα"
+  "net_received": "Καθαρές εισπράξεις",
+  "paid_on_date_label": "Πληρώθηκε :date"
 }

@@ -126,8 +126,8 @@ the honest default.
 | Global activity feed screen (day-grouped, filterable) | ❌ | 🟡 | ✅ | | |
 | Global activity feed — timeline of the loaded window (tap or drag a period to filter), date-range (quick ranges or custom), category and record-type filters with counts, repeated events folded, filters as a side rail on wide panes, Load more (250 at a time; up to 2500 where the server pages the feed, else 1000) | — | — | ✅ | | Pages with the feed's `before` cursor where the server has it, else re-asks for a bigger window; past the cap the Activity report takes over (BACKEND.md § F3f) |
 | Dashboard date range filter | ✅ | ✅ | ✅ | ✅ | |
-| Chart Day/Week/Month grouping | ✅ | ✅ | ✅ | ✅ | v2 draws the nearest grouping with 4 to 31 slots (one month by month is a single slot, a year by day 365 bars) and the control shows the one in effect |
-| Cash flow chart — grouped bars for Invoiced · Payments · Expenses, legend chips toggling each series, a tooltip naming a slot's dates and every value (hover, or tap on touch) | — | — | ✅ | | |
+| Chart Day/Week/Month grouping | ✅ | ✅ | ✅ | ✅ | v2 draws the nearest grouping with 4 to 31 slots (one month by month is a single slot, a year by day 365 points) and the control shows the one in effect |
+| Cash flow chart — a straight line per series (Invoiced · Payments · Expenses, a point per slot, empty slots on the baseline, ending at today), a Net received headline, legend chips toggling each series, a tooltip naming a slot's dates and every value (hover, or tap on touch) | — | — | ✅ | | |
 | Configurable dashboard cards (Dashboard Fields) | ✅ | ✅ | ✅ | ✅ | |
 | Dashboard cards — task estimate / due / overdue metrics (6 server fields added 2026-08-31) | ✅ | — | ✅ | | React on its develop branch (ui#3356), unreleased |
 | Reorder + show/hide dashboard panels (synced across devices) | — | — | ✅ | ✅ | |

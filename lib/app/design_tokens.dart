@@ -8,9 +8,9 @@ import 'package:admin/app/color_hex.dart';
 
 /// Bundled font families (declared in pubspec `fonts:`), referenced by name so
 /// they load from our own assets instead of fetching from fonts.gstatic.com.
-/// [kSansFontFamily] is the primary UI typeface, and with tabular figures it
-/// is also the money face ([moneyTextStyle]); [kMonoFontFamily] is for code,
-/// keys, ids and other values read character by character.
+/// [kSansFontFamily] is the primary UI typeface; [kMonoFontFamily] is the money
+/// face ([moneyTextStyle]) and the face for code, keys, ids and other values
+/// read character by character.
 const String kSansFontFamily = 'Inter Tight';
 const String kMonoFontFamily = 'JetBrains Mono';
 
@@ -27,17 +27,17 @@ const List<String> kScriptFallbackFonts = [
 ];
 
 /// Canonical text style for any standalone currency/amount display: the
-/// bundled [kSansFontFamily] (Inter Tight) with tabular figures, so digits
-/// take one width and align across rows while the amount still reads as text
-/// rather than code. Every money `Text` goes through this — pass the per-site
-/// size/weight/color; never re-inline the family or the feature, or the
-/// digits silently go proportional and a column of amounts stops lining up.
-/// Money rendered inside prose/activity spans is the one exception (it stays
-/// in the body font).
+/// bundled [kMonoFontFamily] (JetBrains Mono), the typewriter face amounts have
+/// always read in, so digits take one width and a column of amounts lines up.
+/// Every money `Text` goes through this — pass the per-site size/weight/color;
+/// never re-inline the family. Money rendered inside prose/activity spans is the
+/// one exception (it stays in the body font).
 ///
-/// It was JetBrains Mono until Nov 2026: the mono face made every amount read
-/// as an identifier and set it wider. Inter Tight carries `tnum`, and the
-/// currency signs JetBrains Mono lacked (₪ ₹ ₺ ₩ ₱ ₦).
+/// JetBrains Mono has no glyph for some currency signs (₪ ₹ ₺ ₩ ₱ ₦), so
+/// [kSansFontFamily] is the first fallback: the sign draws from Inter Tight and
+/// the digits stay mono, rather than the engine picking an arbitrary system
+/// font mid-amount. (It was Inter Tight with tabular figures for a day in Nov
+/// 2026; Hillel brought the typewriter face back.)
 TextStyle moneyTextStyle({
   double? fontSize,
   FontWeight? fontWeight,
@@ -45,9 +45,10 @@ TextStyle moneyTextStyle({
   double? height,
   double? letterSpacing,
 }) => TextStyle(
-  fontFamily: kSansFontFamily,
-  // Non-Latin digit sets come from the script fonts.
-  fontFamilyFallback: kScriptFallbackFonts,
+  fontFamily: kMonoFontFamily,
+  // Currency signs the mono face lacks come from the sans face; non-Latin
+  // digit sets from the script fonts.
+  fontFamilyFallback: const [kSansFontFamily, ...kScriptFallbackFonts],
   fontFeatures: const [FontFeature.tabularFigures()],
   fontSize: fontSize,
   fontWeight: fontWeight,

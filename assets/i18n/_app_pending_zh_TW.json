@@ -1818,7 +1818,6 @@
   "due_on_date_label": "到期 :date",
   "valid_until_date_label": "有效期至 :date",
   "add_deposit": "新增訂金",
-  "settings_group_billing": "帳單",
-  "settings_group_products_and_work": "產品與工作",
-  "settings_group_app_and_data": "應用程式與資料"
+  "net_received": "淨收款",
+  "paid_on_date_label": ":date 已付款"
 }

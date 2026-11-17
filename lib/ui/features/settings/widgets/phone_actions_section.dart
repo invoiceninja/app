@@ -66,18 +66,16 @@ class PhoneActionsSection extends StatelessWidget {
               value: prefs.tapToCall,
               onChanged: controller.setTapToCall,
             ),
-            // The two guards only mean anything while tapping dials, so they
-            // grey out rather than vanish — a disappearing row reads as a bug,
-            // and their state is worth seeing before you switch the master on.
+            // The guards and the log-call offer are always editable: the
+            // record screen's Call action dials with tap-to-call off too
+            // (docs/tap-to-call.md § The preference), and they apply to it.
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
               secondary: const Icon(Icons.help_outline),
               title: Text(context.tr('confirm_before_calling')),
               subtitle: Text(context.tr('confirm_before_calling_help')),
               value: prefs.confirmBeforeCall,
-              onChanged: prefs.tapToCall
-                  ? controller.setConfirmBeforeCall
-                  : null,
+              onChanged: controller.setConfirmBeforeCall,
             ),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
@@ -85,25 +83,21 @@ class PhoneActionsSection extends StatelessWidget {
               title: Text(context.tr('warn_outside_business_hours')),
               subtitle: Text(context.tr('warn_outside_business_hours_help')),
               value: prefs.warnOutsideBusinessHours,
-              onChanged: prefs.tapToCall
-                  ? controller.setWarnOutsideBusinessHours
-                  : null,
+              onChanged: controller.setWarnOutsideBusinessHours,
             ),
-            if (prefs.tapToCall && prefs.warnOutsideBusinessHours)
+            if (prefs.warnOutsideBusinessHours)
               _BusinessHoursRow(controller: controller, prefs: prefs),
             // Last, because it is about what happens *after* a call rather
-            // than before it — and greyed with the rest when tapping doesn't
-            // dial, since there is then no dialer round trip to notice.
-            // Native mobile only in effect (see
+            // than before it. Native mobile only in effect (see
             // `PhoneActionsSettings.offerToLogCalls`); the row still renders
-            // everywhere so the state is visible, exactly like the two guards.
+            // everywhere so the state is visible.
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
               secondary: const Icon(Icons.phone_in_talk_outlined),
               title: Text(context.tr('offer_to_log_calls')),
               subtitle: Text(context.tr('offer_to_log_calls_help')),
               value: prefs.offerToLogCalls,
-              onChanged: prefs.tapToCall ? controller.setOfferToLogCalls : null,
+              onChanged: controller.setOfferToLogCalls,
             ),
           ],
         );

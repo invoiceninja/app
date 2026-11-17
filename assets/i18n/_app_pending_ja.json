@@ -1899,7 +1899,6 @@
   "due_on_date_label": "期日 :date",
   "valid_until_date_label": ":date まで有効",
   "add_deposit": "前払金を追加",
-  "settings_group_billing": "請求",
-  "settings_group_products_and_work": "商品と作業",
-  "settings_group_app_and_data": "アプリとデータ"
+  "net_received": "純受取額",
+  "paid_on_date_label": ":date 支払済み"
 }

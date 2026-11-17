@@ -196,8 +196,16 @@ void main() {
 
     final strip = find.byType(DashboardCreateStrip);
     expect(strip, findsOneWidget);
+    // The split New Invoice: its create and its ▾.
     expect(
       find.descendant(of: strip, matching: find.byType(FilledButton)),
+      findsNWidgets(2),
+    );
+    expect(
+      find.descendant(
+        of: find.widgetWithText(FilledButton, 'New Invoice'),
+        matching: find.byIcon(Icons.add),
+      ),
       findsOneWidget,
     );
 
@@ -216,7 +224,7 @@ void main() {
   // The strip is the flexible one. However many creates it is handed, the
   // fixed pair to its right keeps its place and the company keeps its name.
   for (final width in const <double>[600, 760, 1000, 1400]) {
-    testWidgets('@ ${width.toInt()}px every create fits or folds into More', (
+    testWidgets('@ ${width.toInt()}px every create fits or is in a menu', (
       tester,
     ) async {
       await pumpBar(tester, width: width, creates: _manyCreates);
@@ -233,9 +241,9 @@ void main() {
         greaterThan(80),
         reason: 'the title must keep a readable slice, not collapse to "A…"',
       );
-      // Whatever does not fit is one tap away, never gone: the buttons that
-      // fit beside a More menu, or — in a slot too tight for a labelled
-      // button — one `+` that opens them all. The wide layout has no FAB.
+      // Whatever does not fit is one tap away, never gone: the New Invoice ▾
+      // lists every other create, or — in a slot too tight for the split
+      // button — one `+` opens them all. The wide layout has no FAB.
       final compact = find.byType(DashboardCreateMenuButton);
       if (compact.evaluate().isNotEmpty) {
         expect(find.byType(DashboardCreateStrip), findsNothing);
@@ -243,7 +251,13 @@ void main() {
         await tester.pump(const Duration(milliseconds: 300));
         expect(find.byType(MenuItemButton), findsNWidgets(_manyCreates.length));
       } else {
-        expect(find.text('More'), findsOneWidget);
+        expect(find.text('More'), findsNothing);
+        await tester.tap(find.byIcon(Icons.keyboard_arrow_down));
+        await tester.pump(const Duration(milliseconds: 300));
+        expect(
+          find.byType(MenuItemButton),
+          findsNWidgets(_manyCreates.length - 1),
+        );
       }
     });
   }
@@ -374,15 +388,11 @@ void main() {
     final strip = find.byType(DashboardCreateStrip);
     final filled = find.descendant(
       of: strip,
-      matching: find.byType(FilledButton),
+      matching: find.widgetWithText(FilledButton, 'New Invoice'),
     );
     expect(filled, findsOneWidget);
-    expect(
-      find.descendant(of: filled, matching: find.text('New Invoice')),
-      findsOneWidget,
-    );
     final primary = tester.getRect(filled);
-    for (final label in ['Quote', 'Payment', 'More']) {
+    for (final label in ['Quote', 'Payment']) {
       expect(
         tester
             .getRect(find.descendant(of: strip, matching: find.text(label)))
@@ -391,12 +401,15 @@ void main() {
         reason: '$label sits before the primary',
       );
     }
-    // The overflow is the vertical ⋮, never the horizontal ⋯.
-    expect(find.byIcon(Icons.more_vert), findsOneWidget);
+    // No More button: the rest is the New Invoice ▾, attached to its end.
+    expect(find.text('More'), findsNothing);
+    expect(find.byIcon(Icons.more_vert), findsNothing);
     expect(find.byIcon(Icons.more_horiz), findsNothing);
+    final toggle = tester.getRect(find.byIcon(Icons.keyboard_arrow_down));
+    expect(toggle.left, greaterThan(primary.right));
 
     final customize = tester.getRect(find.byType(DashboardCustomizeButton));
-    expect(customize.left, greaterThan(primary.right));
+    expect(customize.left, greaterThan(toggle.right));
     expect(find.byTooltip('Customize'), findsOneWidget);
     expect(
       find.descendant(

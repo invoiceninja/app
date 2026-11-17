@@ -272,8 +272,8 @@ class VendorActions {
   /// what was spent, order from them, write, ring — then the two that are
   /// set up once (a recurring expense, the vendor's own portal).
   ///
-  /// **Read under a `PhoneActionsScope`** — Call depends on the tap-to-call
-  /// preference, and a detail screen stays mounted behind `/settings`.
+  /// Call is enabled whenever there is a number to dial, whatever the
+  /// tap-to-call preference says (docs/tap-to-call.md § The preference).
   static List<EntityQuickAction<VendorAction>> quickItemsFor(
     BuildContext context,
     Vendor vendor,
@@ -301,9 +301,9 @@ class VendorActions {
     // and the screen reader get the full label either way.
     String create(String nounKey) => '+ ${context.tr(nounKey)}';
 
-    final canCall =
-        context.read<Services>().phoneActions.value.tapToCall &&
-        vendorPhoneCandidates(vendor).isNotEmpty;
+    // Not gated on the tap-to-call preference: Call is a verb the user picks
+    // on the record, so it works with tap-to-call off (its default).
+    final canCall = vendorPhoneCandidates(vendor).isNotEmpty;
     return [
       ?pick(VendorAction.newExpense, create('expense')),
       ?pick(VendorAction.newPurchaseOrder, create('order')),
@@ -412,6 +412,7 @@ class VendorActions {
             id: vendor.id,
             subject: _confirmSubject(vendor),
           ),
+          explicitAction: true,
         );
       case VendorAction.email:
         await pickAndComposeEmail(

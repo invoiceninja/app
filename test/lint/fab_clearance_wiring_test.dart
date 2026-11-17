@@ -52,22 +52,22 @@ void main() {
   const surfaces = <({String path, String fab, String clearance})>[
     (
       path: 'lib/ui/core/list/entity_list_screen_scaffold.dart',
-      fab: 'FloatingActionButton(',
+      fab: 'EntityCreateFab(',
       clearance: 'fabScrollClearance(',
     ),
     (
       path: 'lib/ui/features/tasks/views/task_daily_screen.dart',
-      fab: 'FloatingActionButton(',
+      fab: 'EntityCreateFab(',
       clearance: 'fabScrollClearance(',
     ),
     (
       path: 'lib/ui/features/tasks/views/task_weekly_screen.dart',
-      fab: 'FloatingActionButton(',
+      fab: 'EntityCreateFab(',
       clearance: 'fabScrollClearance(',
     ),
     (
       path: 'lib/ui/features/tasks/views/task_calendar_screen.dart',
-      fab: 'FloatingActionButton(',
+      fab: 'EntityCreateFab(',
       clearance: 'fabScrollClearance(',
     ),
     (

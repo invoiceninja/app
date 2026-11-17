@@ -5,6 +5,7 @@ import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/theme.dart';
 import 'package:admin/data/models/domain/dashboard/dashboard_activity.dart';
 import 'package:admin/ui/features/dashboard/view_models/async_section.dart';
+import 'package:admin/ui/core/widgets/initials_avatar.dart';
 import 'package:admin/ui/features/dashboard/widgets/activity_card.dart';
 import 'package:admin/data/models/value/company_format_settings.dart';
 import 'package:admin/data/models/value/datetime_format.dart';
@@ -236,6 +237,43 @@ void main() {
       await tester.tap(find.textContaining('Kohler LLC · '));
       expect(tapped, ['1']);
       expect(find.byType(InkWell), findsOneWidget);
+    });
+
+    testWidgets('the actor leads as initials, the verb as a corner badge', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        onViewAll: null,
+        section: AsyncSection<List<DashboardActivity>>.ready([
+          invoiceCreated(id: '1', createdAt: ago(hours: 1), user: 'Ada Byron'),
+          // A contact's view names no user: nobody to draw.
+          DashboardActivity.fromJson(<String, dynamic>{
+            'activity_type_id': 7, // ":contact viewed invoice :invoice"
+            'id': '2',
+            'created_at': ago(hours: 2),
+            'contact': {'label': 'Grace Hopper', 'hashed_id': 'k1'},
+            'invoice': {'label': '0027', 'hashed_id': 'i2'},
+            'client': {'label': 'Kohler LLC', 'hashed_id': 'c1'},
+          }),
+        ]),
+      );
+
+      final avatar = find.byType(InitialsAvatar);
+      expect(avatar, findsOneWidget);
+      final widget = tester.widget<InitialsAvatar>(avatar);
+      // Seeded on the user's id, never the name, so the tint matches every
+      // other surface that draws this user.
+      expect(widget.seed, 'u1');
+      expect(widget.label, 'AB');
+      // The tone icon rides the avatar's corner, inside the row's leading
+      // slot's reach.
+      final badge = find.descendant(
+        of: find.ancestor(of: avatar, matching: find.byType(Stack)).first,
+        matching: find.byType(Icon),
+      );
+      expect(badge, findsOneWidget);
+      expect(tester.takeException(), isNull);
     });
   });
 }

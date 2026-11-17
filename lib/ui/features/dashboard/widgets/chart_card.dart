@@ -9,6 +9,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/data/models/domain/dashboard/dashboard_chart_series.dart';
 import 'package:admin/data/models/value/dashboard_filter.dart';
+import 'package:admin/data/models/value/date.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/charts/chart_chrome.dart';
 import 'package:admin/utils/formatting.dart';
@@ -25,15 +26,20 @@ import 'package:admin/ui/features/dashboard/widgets/dashboard_density.dart';
 const double kChartMinPlotHeight = 220;
 
 /// The stacked plot's floor. A phone's width over the aspect ratio is ~120 px,
-/// too short to read a bar's height against its neighbour's.
+/// too short to read one point's height against its neighbour's.
 const double kChartStackedMinPlotHeight = 200;
 
 /// "Cash flow" — the period's invoiced amounts, payments and expenses per
-/// day, week or month, as grouped bars, with a legend that switches each
-/// series on and off.
+/// day, week or month, as one straight line per series with a point at the
+/// centre of each slot, and a legend that switches each series on and off.
 ///
-/// **It has no headline figure, and its legend no totals.** The figures above
-/// it already state the period's sums; the chart's job is their shape.
+/// **Its one headline is "Net received" — payments less expenses — and its
+/// legend carries no totals.** The figures above state each sum; the net is
+/// the one number they do not, and it is computed from those same totals so
+/// it always agrees with them. The chart's job is the shape.
+///
+/// **The time axis ends at today** (`buildChartAxis(today:)`): no blank slots
+/// for the rest of the period.
 ///
 /// **Beside the activity feed it fills the row's height** ([fillHeight]), so
 /// the two cards end on one line with their contents, not just their borders.
@@ -98,6 +104,9 @@ class ChartCard extends StatelessWidget {
       endDate: series?.endDate,
       grouping: vm.chartGrouping,
       firstDayOfWeek: formatter.settings.firstDayOfWeek,
+      // The axis ends at today: no row of blank slots for the rest of the
+      // month (the design's projected slot was declined).
+      today: Date.today(),
     );
     final shown = _shown;
 
@@ -133,6 +142,7 @@ class ChartCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: fillHeight ? MainAxisSize.max : MainAxisSize.min,
         children: [
+          ?_netReceivedLine(context, tokens, currencyKey, dense: dense),
           if (!legendInHeader) ...[
             _legend(context, tokens, shown),
             SizedBox(height: InSpacing.md(context)),
@@ -244,6 +254,71 @@ class ChartCard extends StatelessWidget {
           const SizedBox(width: 8),
           _groupingControl(context, series, axis),
         ],
+      ),
+    );
+  }
+
+  /// "+\$28,896.00  Net received" — payments less expenses for the period,
+  /// above the legend.
+  ///
+  /// **Computed from the figure cards' own totals** ([netReceived] over the
+  /// bucket `selectCurrencyTotals` picks for them), never from the chart's
+  /// series: the two come from different endpoints, and a headline that
+  /// disagreed with the Payments and Expenses cards directly above it by a
+  /// rounding or a late payment would make all three look wrong. Without the
+  /// expenses module it is the payments.
+  ///
+  /// **Hidden while the totals are unknown** — loading, or failed with nothing
+  /// cached (`ValueSectionState`): unknown is not zero. Over a stale cache it
+  /// shows, as the cards do. The sign is the ink: green above zero, red below,
+  /// plain at zero; the amount is an `LtrText` in the money face.
+  Widget? _netReceivedLine(
+    BuildContext context,
+    InTheme tokens,
+    String? currencyKey, {
+    required bool dense,
+  }) {
+    final state = vm.totals.valueState;
+    if (state != ValueSectionState.ready && state != ValueSectionState.stale) {
+      return null;
+    }
+    final net = netReceived(
+      selectCurrencyTotals(vm.totals.data, currencyKey),
+      expensesOn: expensesOn,
+    );
+    final money = formatter.money(net, currencyId: currencyKey);
+    final positive = net > Decimal.zero;
+    final color = positive
+        ? tokens.paid
+        : (net < Decimal.zero ? tokens.overdue : tokens.ink);
+    final label = context.tr('net_received');
+    return Padding(
+      padding: EdgeInsets.only(bottom: dense ? InSpacing.sm : 10),
+      child: MergeSemantics(
+        child: Wrap(
+          crossAxisAlignment: WrapCrossAlignment.end,
+          spacing: InSpacing.sm,
+          children: [
+            LtrText(
+              positive ? '+$money' : money,
+              maxLines: 1,
+              style: moneyTextStyle(
+                fontSize: dense ? 18 : 22,
+                fontWeight: FontWeight.w700,
+                color: color,
+                height: 1.15,
+              ),
+            ),
+            Padding(
+              // Sits on the amount's baseline rather than its centre.
+              padding: const EdgeInsets.only(bottom: 3),
+              child: Text(
+                label,
+                style: TextStyle(fontSize: 12, color: tokens.ink2),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -384,10 +459,10 @@ class ChartCard extends StatelessWidget {
     if (axis.isEmpty || !hasPoints) {
       return _disabledOverlay(tokens, context.tr('no_data_for_period'));
     }
-    return _CashFlowBarChart(
+    return _CashFlowLineChart(
       series: [
         for (final id in shown)
-          _BarSeries(
+          _ChartSeries(
             label: _labelFor(context, id),
             color: _colorFor(tokens, id),
             values: axis.values[id] ?? const [],
@@ -401,7 +476,7 @@ class ChartCard extends StatelessWidget {
     );
   }
 
-  /// Localized series label, paired with [_colorFor] by the legend, the bars
+  /// Localized series label, paired with [_colorFor] by the legend, the lines
   /// and the tooltip.
   String _labelFor(BuildContext context, ChartSeriesId id) => switch (id) {
     ChartSeriesId.invoices => context.tr('invoiced'),
@@ -438,8 +513,8 @@ const List<int> _kDash = [3, 3];
 
 /// One drawn series: its name, its colour and a value per slot.
 @immutable
-class _BarSeries {
-  const _BarSeries({
+class _ChartSeries {
+  const _ChartSeries({
     required this.label,
     required this.color,
     required this.values,
@@ -450,23 +525,36 @@ class _BarSeries {
   final List<double> values;
 }
 
-/// The plot. A [StatefulWidget] for two reasons.
+/// The plot: one straight line per series, a point at the centre of each slot.
+///
+/// **A point sits at its slot's centre, and an empty slot sits on the
+/// baseline.** The line chart this replaced (before the bars of Nov 2026) drew
+/// sparse daily points joined corner to corner, so a lone payment read as a
+/// slope across its neighbours — a triangle of money on days that had none.
+/// Here every slot has a point (zero-filled by `buildChartAxis`), the segments
+/// are straight (`isCurved: false`), and only a point with a value gets a dot,
+/// so a single payment is a spike in its own day. The x range runs half a slot
+/// past each end (`minX: -0.5`), so the first and last points are not jammed
+/// against the axes and the spacing of the points is the spacing of time.
+///
+/// A [StatefulWidget] for two reasons.
 ///
 /// **Its fl_chart callbacks are [State] methods**, so they are the same
 /// objects from one build to the next. fl_chart includes every callback in
-/// `BarChartData`'s equality, and `BarChart` is implicitly animated — it
+/// `LineChartData`'s equality, and `LineChart` is implicitly animated — it
 /// restarts its tween whenever the new data is not equal to the old. Written
 /// as closures in `build` they would re-run the 250 ms tween on every rebuild
 /// of the card with nothing different on screen (`docs/dashboard-panels.md`
 /// § A chart's callbacks are State tear-offs).
 ///
 /// **It owns which slot's tooltip is showing** ([_touched]), because the
-/// built-in touch handling shows one bar's value and hides it on a touch
-/// screen the moment the finger lifts. The tooltip here is the whole slot —
-/// its dates and every visible series — opened by a hover with a mouse and by
-/// a tap on touch, where a second tap on the same slot closes it.
-class _CashFlowBarChart extends StatefulWidget {
-  const _CashFlowBarChart({
+/// built-in touch handling shows the nearest spots only while a finger is
+/// down. The tooltip here is the whole slot — its dates and every visible
+/// series — opened by a hover with a mouse and by a tap on touch, where a
+/// second tap on the same slot closes it. The whole column is the target
+/// (x distance only, up to half a slot).
+class _CashFlowLineChart extends StatefulWidget {
+  const _CashFlowLineChart({
     required this.series,
     required this.buckets,
     required this.grouping,
@@ -475,7 +563,7 @@ class _CashFlowBarChart extends StatefulWidget {
     required this.currencyKey,
   });
 
-  final List<_BarSeries> series;
+  final List<_ChartSeries> series;
   final List<ChartPeriod> buckets;
 
   /// The grouping [buckets] were built at — picks the axis ticks' form.
@@ -485,10 +573,10 @@ class _CashFlowBarChart extends StatefulWidget {
   final String? currencyKey;
 
   @override
-  State<_CashFlowBarChart> createState() => _CashFlowBarChartState();
+  State<_CashFlowLineChart> createState() => _CashFlowLineChartState();
 }
 
-class _CashFlowBarChartState extends State<_CashFlowBarChart> {
+class _CashFlowLineChartState extends State<_CashFlowLineChart> {
   /// How many date labels the axis has room for — set in [build] from the
   /// plot's width, read by [_dateTitle]. A field rather than a closure
   /// argument so the callback stays a tear-off.
@@ -510,7 +598,7 @@ class _CashFlowBarChartState extends State<_CashFlowBarChart> {
   bool _touchOnly = false;
 
   @override
-  void didUpdateWidget(_CashFlowBarChart oldWidget) {
+  void didUpdateWidget(_CashFlowLineChart oldWidget) {
     super.didUpdateWidget(oldWidget);
     _touchOnly = false;
     // A new grouping or window moves every slot: the open one is gone.
@@ -525,8 +613,9 @@ class _CashFlowBarChartState extends State<_CashFlowBarChart> {
     });
   }
 
-  void _onTouch(FlTouchEvent event, BarTouchResponse? response) {
-    final slot = response?.spot?.touchedBarGroupIndex;
+  void _onTouch(FlTouchEvent event, LineTouchResponse? response) {
+    final spots = response?.lineBarSpots;
+    final slot = spots == null || spots.isEmpty ? null : spots.first.spotIndex;
     switch (event) {
       case FlPointerHoverEvent():
         _setTouched(slot);
@@ -557,7 +646,7 @@ class _CashFlowBarChartState extends State<_CashFlowBarChart> {
   /// locale — `Nov 12` / `12 Nov` for a day, the week's first day for a week
   /// (the tooltip names its last), `Nov` for a month, `Nov 2026` when the
   /// axis crosses a year. The company's full format (`11/12/2026`) does not
-  /// fit under a bar, and a bare `11/12` reads as the 11th of December to
+  /// fit under a point, and a bare `11/12` reads as the 11th of December to
   /// half the world. The tooltip carries the full format.
   String _tickLabel(ChartPeriod p) {
     final f = widget.formatter;
@@ -594,10 +683,38 @@ class _CashFlowBarChartState extends State<_CashFlowBarChart> {
   }
 
   /// A gridline between the floor and the top: dashed, a scale to read the
-  /// bars against. (fl_chart draws neither bound here — the baseline is the
+  /// lines against. (fl_chart draws neither bound here — the baseline is the
   /// solid bottom border and the top the dashed extra line, see [_plot].)
   FlLine _gridLine(double _) =>
       FlLine(color: widget.tokens.border, strokeWidth: 1, dashArray: _kDash);
+
+  /// A dot only where the slot has a value: an empty slot is a point on the
+  /// baseline, not a marker.
+  bool _hasValue(FlSpot spot, LineChartBarData bar) => spot.y != 0;
+
+  FlDotPainter _dot(FlSpot spot, double _, LineChartBarData bar, int _) =>
+      FlDotCirclePainter(
+        radius: 3,
+        color: bar.color ?? widget.tokens.ink,
+        strokeWidth: 1.5,
+        strokeColor: widget.tokens.surface,
+      );
+
+  /// The open slot's marker: a hairline down the column and the series' dots.
+  List<TouchedSpotIndicatorData?> _indicators(
+    LineChartBarData bar,
+    List<int> indexes,
+  ) => [
+    for (final _ in indexes)
+      TouchedSpotIndicatorData(
+        FlLine(color: widget.tokens.border, strokeWidth: 1),
+        FlDotData(getDotPainter: _dot),
+      ),
+  ];
+
+  /// Only the x distance counts, so the whole column is the target — a $5
+  /// point on the baseline is otherwise a 6 px target.
+  double _xDistance(Offset touch, Offset spot) => (touch.dx - spot.dx).abs();
 
   Widget _valueTitle(double value, TitleMeta meta) {
     // Only the round steps — fl_chart also offers the axis bounds.
@@ -619,6 +736,8 @@ class _CashFlowBarChartState extends State<_CashFlowBarChart> {
 
   Widget _dateTitle(double value, TitleMeta meta) {
     final buckets = widget.buckets;
+    // fl_chart also offers the half-slot bounds (-0.5, n - 0.5).
+    if ((value - value.round()).abs() > 0.001) return const SizedBox.shrink();
     final idx = value.round();
     if (idx < 0 ||
         idx >= buckets.length ||
@@ -640,23 +759,22 @@ class _CashFlowBarChartState extends State<_CashFlowBarChart> {
     );
   }
 
-  Color _tooltipColor(BarChartGroupData _) => widget.tokens.ink;
+  Color _tooltipColor(LineBarSpot _) => widget.tokens.ink;
 
-  /// The whole slot, whichever bar anchors it: its dates, then a row per
-  /// visible series — a swatch in the series' colour, its name and its value.
-  /// Values on `surface`, not the series colour: those reach only ~3.3:1
-  /// against the `ink` fill, below the small-text contrast floor.
-  BarTooltipItem? _tooltipItem(
-    BarChartGroupData group,
-    int groupIndex,
-    BarChartRodData rod,
-    int rodIndex,
-  ) {
+  /// The whole slot, in the first entry: its dates, then a row per visible
+  /// series — a swatch in the series' colour, its name and its value. fl_chart
+  /// asks for one entry per shown spot; the rest are null (skipped). Values on
+  /// `surface`, not the series colour: those reach only ~3.3:1 against the
+  /// `ink` fill, below the small-text contrast floor.
+  List<LineTooltipItem?> _tooltipItems(List<LineBarSpot> spots) {
     final tokens = widget.tokens;
     final buckets = widget.buckets;
-    if (groupIndex < 0 || groupIndex >= buckets.length) return null;
+    final slot = spots.isEmpty ? -1 : spots.first.spotIndex;
+    if (slot < 0 || slot >= buckets.length) {
+      return [for (final _ in spots) null];
+    }
     final plain = TextStyle(color: tokens.surface, fontSize: 11.5);
-    return BarTooltipItem(
+    final item = LineTooltipItem(
       '',
       plain,
       textAlign: TextAlign.start,
@@ -664,21 +782,22 @@ class _CashFlowBarChartState extends State<_CashFlowBarChart> {
       textDirection: Directionality.of(context),
       children: [
         TextSpan(
-          text: _periodLabel(buckets[groupIndex]),
+          text: _periodLabel(buckets[slot]),
           style: plain.copyWith(fontWeight: FontWeight.w600),
         ),
         for (final s in widget.series) ...[
           const TextSpan(text: '\n'),
           TextSpan(
-            text: '■ ',
+            text: '● ',
             style: plain.copyWith(color: s.color),
           ),
           TextSpan(text: '${s.label}  ', style: plain),
           TextSpan(
             text: widget.formatter.money(
               Decimal.parse(
-                (groupIndex < s.values.length ? s.values[groupIndex] : 0)
-                    .toStringAsFixed(2),
+                (slot < s.values.length ? s.values[slot] : 0).toStringAsFixed(
+                  2,
+                ),
               ),
               currencyId: widget.currencyKey,
             ),
@@ -687,13 +806,14 @@ class _CashFlowBarChartState extends State<_CashFlowBarChart> {
         ],
       ],
     );
+    return [for (var i = 0; i < spots.length; i++) i == 0 ? item : null];
   }
 
   @override
   Widget build(BuildContext context) {
-    // Measured, because the room for bars and dates is the plot's width. The
-    // plot's host never asks this subtree for an intrinsic size (it sits under
-    // an `AspectRatio` or a positioned `Stack` child), which is what makes a
+    // Measured, because the room for dates is the plot's width. The plot's
+    // host never asks this subtree for an intrinsic size (it sits under an
+    // `AspectRatio` or a positioned `Stack` child), which is what makes a
     // `LayoutBuilder` legal here — fl_chart's own plot is one too.
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -711,7 +831,6 @@ class _CashFlowBarChartState extends State<_CashFlowBarChart> {
     final buckets = widget.buckets;
     final series = widget.series;
     final n = math.max(1, buckets.length);
-    final k = math.max(1, series.length);
 
     var rawMax = 0.0;
     for (final s in series) {
@@ -722,74 +841,59 @@ class _CashFlowBarChartState extends State<_CashFlowBarChart> {
     final scale = chartValueScale(rawMax);
     _step = scale.step;
 
-    // Bar widths scale with the slot: a group takes about 60% of its slot,
-    // split between its bars, so a month by day and a quarter by week both
-    // read as bars. Between 2 px (a hairline still shows a value) and 16.
-    final slot = room / n;
-    final barsSpace = slot < 24 ? 1.0 : 3.0;
-    final rodWidth = ((slot * 0.6 - barsSpace * (k - 1)) / k).clamp(2.0, 16.0);
-    final groupWidth = rodWidth * k + barsSpace * (k - 1);
-    // The whole slot is the hover / tap target, not just the bars: each bar's
-    // hit box reaches out to the slot's edges, and a transparent back-draw
-    // makes it the full height of the plot.
-    final reach = math.max(0.0, (slot - groupWidth) / 2) + barsSpace;
-    final radius = BorderRadius.vertical(
-      top: Radius.circular(math.min(3, rodWidth / 2)),
-    );
-
     final touched = _touched;
-    final groups = <BarChartGroupData>[
-      for (var i = 0; i < buckets.length; i++)
-        BarChartGroupData(
-          x: i,
-          barsSpace: barsSpace,
-          // The tooltip hangs off the slot's tallest bar, so it never covers
-          // one of them.
-          showingTooltipIndicators: i == touched
-              ? [_tallestRod(series, i)]
-              : const [],
-          barRods: [
-            for (final s in series)
-              BarChartRodData(
-                toY: i < s.values.length ? s.values[i] : 0,
-                color: s.color,
-                width: rodWidth,
-                borderRadius: radius,
-                backDrawRodData: BackgroundBarChartRodData(
-                  show: true,
-                  toY: scale.max,
-                  color: Colors.transparent,
-                ),
-              ),
+    final lines = <LineChartBarData>[
+      for (final s in series)
+        LineChartBarData(
+          spots: [
+            for (var i = 0; i < buckets.length; i++)
+              FlSpot(i.toDouble(), i < s.values.length ? s.values[i] : 0),
           ],
+          // Straight segments: the points are totals per slot, and a spline
+          // between them draws money on days that had none.
+          isCurved: false,
+          color: s.color,
+          barWidth: 2,
+          isStrokeCapRound: true,
+          isStrokeJoinRound: true,
+          dotData: FlDotData(checkToShowDot: _hasValue, getDotPainter: _dot),
+          showingIndicators: touched == null ? const [] : [touched],
         ),
     ];
 
-    return BarChart(
-      BarChartData(
-        barGroups: groups,
-        // Every slot the same width, an empty one included: the spacing of
-        // the bars is the spacing of time.
-        alignment: BarChartAlignment.spaceAround,
+    return LineChart(
+      LineChartData(
+        lineBarsData: lines,
+        // Half a slot past each end: every point sits at its slot's centre.
+        minX: -0.5,
+        maxX: n - 0.5,
         minY: 0,
         maxY: scale.max,
+        showingTooltipIndicators: touched == null || lines.isEmpty
+            ? const []
+            : [
+                ShowingTooltipIndicators([
+                  for (var j = 0; j < lines.length; j++)
+                    LineBarSpot(lines[j], j, lines[j].spots[touched]),
+                ]),
+              ],
         gridData: FlGridData(
           show: true,
           drawVerticalLine: false,
           horizontalInterval: scale.step,
           getDrawingHorizontalLine: _gridLine,
         ),
-        // The baseline, solid: the bars stand on a floor. It also carries
-        // the grid's token into the compared data — the grid colour comes
-        // from a callback fl_chart cannot see inside, so without it a palette
-        // change that left every bar's colour alone would compare equal and
-        // never repaint the grid.
+        // The baseline, solid: an empty slot's point lies on it. It also
+        // carries the grid's token into the compared data — the grid colour
+        // comes from a callback fl_chart cannot see inside, so without it a
+        // palette change that left every line's colour alone would compare
+        // equal and never repaint the grid.
         borderData: FlBorderData(
           show: true,
           border: Border(bottom: BorderSide(color: tokens.border)),
         ),
-        // The top gridline, at the labelled round amount above the tallest
-        // bar. fl_chart's grid stops short of both bounds.
+        // The top gridline, at the labelled round amount above the highest
+        // point. fl_chart's grid stops short of both bounds.
         extraLinesData: ExtraLinesData(
           horizontalLines: [
             HorizontalLine(
@@ -802,7 +906,7 @@ class _CashFlowBarChartState extends State<_CashFlowBarChart> {
         ),
         // rtl: physical — a time axis runs left to right in every locale (as
         // the Reports and Projects charts do), so the amounts stay on the
-        // right, at the end the latest bar is drawn.
+        // right, at the end the latest point is drawn.
         titlesData: FlTitlesData(
           show: true,
           leftTitles: const AxisTitles(
@@ -822,20 +926,23 @@ class _CashFlowBarChartState extends State<_CashFlowBarChart> {
           bottomTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: true,
+              interval: 1,
               reservedSize: chartCategoryAxisHeight(context),
               getTitlesWidget: _dateTitle,
             ),
           ),
         ),
-        barTouchData: BarTouchData(
+        lineTouchData: LineTouchData(
           enabled: true,
           handleBuiltInTouches: false,
-          allowTouchBarBackDraw: true,
-          touchExtraThreshold: EdgeInsets.symmetric(horizontal: reach),
           touchCallback: _onTouch,
-          touchTooltipData: BarTouchTooltipData(
+          distanceCalculator: _xDistance,
+          // Half a slot either side of a point: the whole column.
+          touchSpotThreshold: math.max(8, room / n / 2),
+          getTouchedSpotIndicator: _indicators,
+          touchTooltipData: LineTouchTooltipData(
             getTooltipColor: _tooltipColor,
-            getTooltipItem: _tooltipItem,
+            getTooltipItems: _tooltipItems,
             tooltipBorderRadius: BorderRadius.circular(InRadii.r2),
             // The default 120 wraps a named amount, and the painter applies
             // the user's text scaler on top.
@@ -849,19 +956,5 @@ class _CashFlowBarChartState extends State<_CashFlowBarChart> {
           ? Duration.zero
           : const Duration(milliseconds: 250),
     );
-  }
-
-  static int _tallestRod(List<_BarSeries> series, int slot) {
-    var best = 0;
-    var bestValue = double.negativeInfinity;
-    for (var j = 0; j < series.length; j++) {
-      final values = series[j].values;
-      final v = slot < values.length ? values[slot] : 0.0;
-      if (v > bestValue) {
-        bestValue = v;
-        best = j;
-      }
-    }
-    return best;
   }
 }

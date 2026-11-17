@@ -23,6 +23,7 @@ import 'package:admin/ui/features/settings/view_models/settings_home_summary_vie
 import 'package:admin/ui/features/settings/views/settings_shell.dart'
     show hideSettingsListSidebar;
 import 'package:admin/ui/features/settings/widgets/settings_search_result.dart';
+import 'package:admin/ui/features/settings/widgets/settings_tab_strip.dart';
 import 'package:admin/ui/features/settings/widgets/settings_two_pane_scope.dart';
 import 'package:admin/ui/features/shell/widgets/app_drawer.dart';
 import 'package:admin/ui/features/shell/widgets/company_avatar.dart';
@@ -31,6 +32,10 @@ import 'package:admin/ui/core/utils/router_state.dart';
 
 // `PlanTier` (the tier surfaced on a locked sidebar row / search hit) now
 // comes from `package:admin/domain/plan_gate.dart` — imported above.
+
+/// The rule under the wide settings nav's title + search block — keyed so a
+/// test can measure it against the rule under a page's tab strip.
+const kSettingsNavRuleKey = ValueKey('settings-nav-rule');
 
 /// Master list of settings sections — pure list, no `Scaffold`. Used as the
 /// left pane on wide screens (mounted by `SettingsShell`) and as the body of
@@ -157,46 +162,68 @@ class _SettingsListSidebarState extends State<SettingsListSidebar> {
     // builder that swaps the list for results, so typing never re-mounts it
     // and focus stays put.
     //
-    // The screen title rides along, `titleLarge` to match what M3's AppBar
-    // gives the narrow layout — so both widths open on the same "Settings"
-    // heading above the first topic group, and this pane isn't the one layout
-    // that starts cold on a group header. A *group* label would not belong up
-    // here: the strip is pinned, so hoisting "Company" would leave it claiming
-    // Company while the user has scrolled into Billing. Every group header
-    // stays inside the list, exactly as they render on narrow.
+    // The screen title rides along, in the AppBar's title style — so both
+    // widths open on the same "Settings" heading. A *group* label would not
+    // belong up here: the strip is pinned, so hoisting "Basic Settings" would
+    // leave it claiming that half while the user has scrolled into Advanced.
+    // Every group header stays inside the list, exactly as on narrow.
+    //
+    // The block is exactly as tall as a page's header beside it — title row
+    // = the page's toolbar, search row = its tab strip — so this rule and the
+    // one under the page's tabs are one line across the window, and the two
+    // titles share a centre line. Both come from `kSettingsHeaderHeight`; a
+    // padding tweak here would drift again. The page's AppBar also takes the
+    // top inset (a tablet's status bar), so this block does too.
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Padding(
-          padding: const EdgeInsetsDirectional.fromSTEB(16, 12, 16, 4),
-          child: Text(
-            context.tr('settings'),
-            style: Theme.of(context).appBarTheme.titleTextStyle,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsetsDirectional.fromSTEB(12, 4, 4, 8),
-          child: Row(
-            children: [
-              Expanded(child: SettingsSearchField(controller: _search)),
-              ListenableBuilder(
-                listenable: _search,
-                // Close only while searching; the slot is kept so the field
-                // doesn't change width as the search opens.
-                builder: (context, _) => _search.isActive
-                    ? IconButton(
-                        icon: const Icon(Icons.close),
-                        tooltip: context.tr('cancel'),
-                        onPressed: _search.close,
-                      )
-                    : const SizedBox(width: 8),
+        SizedBox(height: MediaQuery.paddingOf(context).top),
+        SizedBox(
+          height: kSettingsTitleBarHeight,
+          child: Padding(
+            padding: const EdgeInsetsDirectional.symmetric(horizontal: 16),
+            child: Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: Text(
+                context.tr('settings'),
+                style: Theme.of(context).appBarTheme.titleTextStyle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
-            ],
+            ),
           ),
         ),
-        const Divider(height: 1),
+        SizedBox(
+          // The strip's height includes its hairline; here the hairline is
+          // the divider below.
+          height: kSettingsTabStripHeight - 1,
+          child: Padding(
+            padding: const EdgeInsetsDirectional.fromSTEB(12, 0, 4, 0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: SettingsSearchField(
+                    controller: _search,
+                    fitsRow: true,
+                  ),
+                ),
+                ListenableBuilder(
+                  listenable: _search,
+                  // Close only while searching; the slot is kept so the field
+                  // doesn't change width as the search opens.
+                  builder: (context, _) => _search.isActive
+                      ? IconButton(
+                          icon: const Icon(Icons.close),
+                          tooltip: context.tr('cancel'),
+                          onPressed: _search.close,
+                        )
+                      : const SizedBox(width: 8),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const Divider(key: kSettingsNavRuleKey, height: 1),
         Expanded(child: body),
       ],
     );
@@ -223,9 +250,9 @@ class _SettingsListSidebarState extends State<SettingsListSidebar> {
             (!isCascade || s.clientEditable) &&
             s.isVisibleFor(modules) &&
             (!s.adminOnly || isAdminOrOwner);
-        // Topic groups (D6), each listing its sections in catalog order. A
-        // group whose every section is out of scope (client scope hides most
-        // of App & Data) draws no header at all.
+        // Basic / Advanced, as in the React app, each listing its sections in
+        // catalog order. A group whose every section is out of scope draws no
+        // header at all.
         final groups = [
           for (final g in SettingsGroup.values)
             (
@@ -259,12 +286,25 @@ class _SettingsListSidebarState extends State<SettingsListSidebar> {
             // chrome above (the AppBar on narrow, a strip on the wide pane).
             // An in-list copy would be a second trigger that scrolls away, and
             // that IS issue #42.
-            for (final (i, g) in groups.indexed) ...[
-              if (i > 0) const Divider(height: 1),
-              _GroupHeader(context.tr(g.group.labelKey)),
-              for (final s in g.sections)
-                _tile(context, s, activeSlug, session, summary: summary),
-            ],
+            //
+            // The phone home draws each group as one inset card under a muted
+            // label (R of the settings pass); the wide nav keeps flat rows,
+            // the selected one tinted, beside the page they open.
+            for (final (i, g) in groups.indexed)
+              if (_hostOwned)
+                _SettingsHomeGroup(
+                  label: context.tr(g.group.labelKey),
+                  rows: [
+                    for (final s in g.sections)
+                      _homeRow(context, s, session, summary: summary),
+                  ],
+                )
+              else ...[
+                if (i > 0) const Divider(height: 1),
+                _GroupHeader(context.tr(g.group.labelKey)),
+                for (final s in g.sections)
+                  _tile(context, s, activeSlug, session),
+              ],
             const SizedBox(height: 32),
           ],
         );
@@ -377,20 +417,7 @@ class _SettingsListSidebarState extends State<SettingsListSidebar> {
               // Same compact gate affordance the sidebar `_tile` uses — a wide
               // "Pro"/"Enterprise" text chip here overflows the ~232 px
               // settings sidebar (RenderFlex overflowed on the right).
-              trailing: gate == null
-                  ? null
-                  : Tooltip(
-                      message: context.tr(
-                        gate == PlanTier.enterprise
-                            ? 'enterprise_plan'
-                            : 'pro_plan',
-                      ),
-                      child: Icon(
-                        Icons.lock_outline,
-                        size: 16,
-                        color: tokens.ink3,
-                      ),
-                    ),
+              trailing: gate == null ? null : _PlanLock(gate),
               // The keyboard selection. Enter opens this row; on touch it is
               // only ever the first row, which Enter on the soft keyboard
               // opens too.
@@ -448,27 +475,17 @@ class _SettingsListSidebarState extends State<SettingsListSidebar> {
     return context.read<Services>().unsavedChangesGuard.confirmIfDirty(context);
   }
 
+  /// A row of the wide settings nav: the main sidebar's row size, the open
+  /// section tinted.
   Widget _tile(
     BuildContext context,
     SettingsSectionDef section,
     String? activeSlug,
-    AuthSession? session, {
-    SettingsHomeSummaryViewModel? summary,
-  }) {
+    AuthSession? session,
+  ) {
     final tokens = context.inTheme;
     final selected = section.slug == activeSlug;
     final gate = _gateLevelFor(section.slug, session);
-    // The plan-gate lock wins: a locked page's value is not one the user can
-    // act on.
-    final value = gate != null || summary == null
-        ? null
-        : summary.valueFor(
-            section.slug,
-            tr: context.tr,
-            session: session,
-            rtl: Directionality.of(context) == TextDirection.rtl,
-          );
-    final valueText = value?.text;
     return ListTile(
       // The size of the main sidebar's rows: 14 px, 20 px icons and, with a
       // pointer, a dense row. At 16 px in 56 px rows the settings list read
@@ -482,24 +499,7 @@ class _SettingsListSidebarState extends State<SettingsListSidebar> {
       ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
       leading: Icon(section.icon, size: 20),
       title: Text(context.tr(section.titleKey)),
-      subtitle: valueText == null
-          ? null
-          : Text(
-              valueText,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: tokens.ink3),
-            ),
-      trailing: gate != null
-          ? Tooltip(
-              message: context.tr(
-                gate == PlanTier.enterprise ? 'enterprise_plan' : 'pro_plan',
-              ),
-              child: Icon(Icons.lock_outline, size: 16, color: tokens.ink3),
-            )
-          : _SettingsHomeTrailing.maybe(value),
+      trailing: gate == null ? null : _PlanLock(gate),
       selected: selected,
       selectedTileColor: tokens.accentSoft,
       // Drives both leading icon + title color when `selected` is true.
@@ -507,15 +507,51 @@ class _SettingsListSidebarState extends State<SettingsListSidebar> {
       selectedColor: tokens.accentInk,
       iconColor: tokens.ink3,
       textColor: tokens.ink2,
-      onTap: () async {
-        if (!await _confirmIfDirty(context)) return;
-        if (!context.mounted) return;
-        context.go(section.route);
-        // An open search with nothing typed lists the sections too; picking
-        // one is the end of that search.
-        _search.close();
-      },
+      onTap: () => unawaited(_openSection(context, section)),
     );
+  }
+
+  /// A row of the phone settings home's grouped cards, carrying the
+  /// section's current value (R1) when [summary] is given.
+  Widget _homeRow(
+    BuildContext context,
+    SettingsSectionDef section,
+    AuthSession? session, {
+    SettingsHomeSummaryViewModel? summary,
+  }) {
+    final gate = _gateLevelFor(section.slug, session);
+    // The plan-gate lock wins: a locked page's value is not one the user can
+    // act on.
+    final value = gate != null || summary == null
+        ? null
+        : summary.valueFor(
+            section.slug,
+            tr: context.tr,
+            session: session,
+            rtl: Directionality.of(context) == TextDirection.rtl,
+          );
+    return _SettingsHomeRow(
+      key: ValueKey('settings-home-row-${section.slug}'),
+      icon: section.icon,
+      title: context.tr(section.titleKey),
+      subtitle: value?.text,
+      trailing: gate != null
+          ? _PlanLock(gate)
+          : _SettingsHomeTrailing.maybe(value),
+      onTap: () => unawaited(_openSection(context, section)),
+    );
+  }
+
+  Future<void> _openSection(
+    BuildContext context,
+    SettingsSectionDef section,
+  ) async {
+    if (!await _confirmIfDirty(context)) return;
+    if (!context.mounted) return;
+    context.go(section.route);
+    // An open search with nothing typed lists the sections too; picking
+    // one is the end of that search.
+    _search.close();
   }
 
   /// Decides whether to render a trailing lock icon on a sidebar / search row.
@@ -539,9 +575,19 @@ class _SettingsListSidebarState extends State<SettingsListSidebar> {
 /// The settings search input. Shared so the AppBar-hosted (narrow) copy and
 /// the in-pane (wide) copy can't drift apart.
 class SettingsSearchField extends StatelessWidget {
-  const SettingsSearchField({super.key, required this.controller});
+  const SettingsSearchField({
+    super.key,
+    required this.controller,
+    this.fitsRow = false,
+  });
 
   final SettingsSearchController controller;
+
+  /// The wide pane's copy, which sits in a row one hairline short of a tab
+  /// strip ([kSettingsTabStripHeight]): its prefix icon is capped so the field
+  /// is 40 px with a pointer and [InSizes.touchTarget] on touch, never the
+  /// 48 px the icon's minimum otherwise forces at standard density.
+  final bool fitsRow;
 
   @override
   Widget build(BuildContext context) {
@@ -580,6 +626,12 @@ class SettingsSearchField extends StatelessWidget {
           decoration: InputDecoration(
             hintText: context.tr('search_settings'),
             prefixIcon: const Icon(Icons.search, size: 20),
+            prefixIconConstraints: fitsRow
+                ? BoxConstraints(
+                    minWidth: 40,
+                    minHeight: Env.isTouchPrimary ? InSizes.touchTarget : 40,
+                  )
+                : null,
             filled: true,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
@@ -906,10 +958,183 @@ class _SettingsHomeTrailing extends StatelessWidget {
   }
 }
 
-/// A settings group label. Deliberately label-only: the search trigger used to
-/// ride in a `trailing:` slot here, which is what made it scroll away (issue
-/// #42). It now lives in the pinned chrome at both widths, so both groups
-/// render identically.
+/// The trailing lock on a plan-gated settings row or search hit, naming the
+/// plan it needs. An icon, not a "Pro" / "Enterprise" chip: a chip overflowed
+/// the ~232 px wide nav.
+class _PlanLock extends StatelessWidget {
+  const _PlanLock(this.tier);
+
+  final PlanTier tier;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: context.tr(
+        tier == PlanTier.enterprise ? 'enterprise_plan' : 'pro_plan',
+      ),
+      child: Icon(Icons.lock_outline, size: 16, color: context.inTheme.ink3),
+    );
+  }
+}
+
+/// One group of the phone settings home: a small muted label (a heading to a
+/// screen reader) over one rounded card holding the group's rows, hairlines
+/// between them inset past the icon. Labelled inset groups instead of one
+/// flat list (R of the settings pass).
+class _SettingsHomeGroup extends StatelessWidget {
+  const _SettingsHomeGroup({required this.label, required this.rows});
+
+  final String label;
+  final List<Widget> rows;
+
+  /// Where a row's title starts: its padding, the icon and the gap after it.
+  /// The hairlines start here too.
+  static const double rowTextInset =
+      _SettingsHomeRow.hPad + _SettingsHomeRow.iconSize + _SettingsHomeRow.gap;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.inTheme;
+    final shape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(InRadii.r3),
+      side: BorderSide(color: tokens.border),
+    );
+    return Padding(
+      padding: const EdgeInsetsDirectional.fromSTEB(16, 20, 16, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsetsDirectional.fromSTEB(4, 0, 4, 6),
+            child: Semantics(
+              header: true,
+              headingLevel: 2,
+              child: Text(
+                label,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: tokens.ink3,
+                ),
+              ),
+            ),
+          ),
+          // `Ink` is banned: a local Material carries the surface, the rows'
+          // ripples paint on it, and the clip keeps them inside the corners.
+          Material(
+            color: tokens.surface,
+            shape: shape,
+            clipBehavior: Clip.antiAlias,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (final (i, row) in rows.indexed) ...[
+                  if (i > 0)
+                    Divider(
+                      height: 1,
+                      thickness: 1,
+                      indent: rowTextInset,
+                      color: tokens.border,
+                    ),
+                  row,
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A phone settings-home row: icon, name, the section's value as a one-line
+/// muted subtitle, the trailing count / warning / lock, and a chevron (which
+/// mirrors in RTL). 56 px with a subtitle, 48 without — a floor, so a large
+/// text scale grows the row instead of clipping it. One button to a screen
+/// reader.
+class _SettingsHomeRow extends StatelessWidget {
+  const _SettingsHomeRow({
+    super.key,
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.trailing,
+    required this.onTap,
+  });
+
+  static const double hPad = 16;
+  static const double iconSize = 20;
+  static const double gap = 16;
+
+  final IconData icon;
+  final String title;
+  final String? subtitle;
+  final Widget? trailing;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.inTheme;
+    final theme = Theme.of(context);
+    final sub = subtitle;
+    final tail = trailing;
+    return MergeSemantics(
+      child: Semantics(
+        button: true,
+        child: InkWell(
+          onTap: onTap,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: sub == null ? 48 : 56),
+            child: Padding(
+              padding: const EdgeInsetsDirectional.fromSTEB(hPad, 6, 12, 6),
+              child: Row(
+                children: [
+                  Icon(icon, size: iconSize, color: tokens.ink3),
+                  const SizedBox(width: gap),
+                  Expanded(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w500,
+                            color: tokens.ink,
+                          ),
+                        ),
+                        if (sub != null)
+                          Text(
+                            sub,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: tokens.ink3,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  if (tail != null) ...[const SizedBox(width: 8), tail],
+                  const SizedBox(width: 4),
+                  // `chevron_right` matches the text direction, so it points
+                  // inward-to-outward in RTL too.
+                  Icon(Icons.chevron_right, size: 20, color: tokens.ink3),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A wide-nav group label (Basic / Advanced Settings). Deliberately
+/// label-only: the search trigger used to ride in a `trailing:` slot here,
+/// which is what made it scroll away (issue #42). It now lives in the pinned
+/// chrome, so both groups render identically.
 class _GroupHeader extends StatelessWidget {
   const _GroupHeader(this.label);
   final String label;
@@ -918,11 +1143,15 @@ class _GroupHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
-      child: Text(
-        label,
-        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-          color: Theme.of(context).colorScheme.primary,
-          fontWeight: FontWeight.w600,
+      child: Semantics(
+        header: true,
+        headingLevel: 2,
+        child: Text(
+          label,
+          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+            color: Theme.of(context).colorScheme.primary,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ),
     );

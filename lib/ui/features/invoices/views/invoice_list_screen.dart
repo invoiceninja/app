@@ -64,6 +64,9 @@ class InvoiceListScreen extends StatelessWidget {
       titleKey: 'invoices',
       newRoute: '/invoices/new',
       newLabelKey: 'new_invoice',
+      // The company-wide figure, so never over a list narrowed to one client
+      // or project.
+      showOutstandingTotals: cid == null && pid == null,
       embeddedNewOverride: pid != null
           ? ((ctx) => goEntityCreateFullWidth(
               ctx,

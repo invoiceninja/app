@@ -1822,7 +1822,6 @@
   "due_on_date_label": "Forfald :date",
   "valid_until_date_label": "Gyldig til :date",
   "add_deposit": "Tilføj depositum",
-  "settings_group_billing": "Fakturering",
-  "settings_group_products_and_work": "Produkter og arbejde",
-  "settings_group_app_and_data": "App og data"
+  "net_received": "Netto modtaget",
+  "paid_on_date_label": "Betalt :date"
 }

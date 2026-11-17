@@ -1,5 +1,7 @@
 import 'package:material_ui/material_ui.dart';
+import 'package:provider/provider.dart';
 
+import 'package:admin/app/services.dart';
 import 'package:admin/data/models/domain/product.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/field_label.dart';
@@ -19,30 +21,50 @@ import 'package:admin/utils/formatting.dart';
 /// On a [vendorDoc] (a purchase order) the amount is what the product costs
 /// to buy, so the field reads Cost and is saved as the product's cost — the
 /// figure a purchase order fills — leaving the sale price for the user to set.
+///
+/// The other figure is offered beside it, so the product needn't be opened
+/// again afterwards (beta feedback): on a sales document the purchase Cost,
+/// when the company tracks product cost (`enable_product_cost`, the same gate
+/// as the product form); on a purchase order the sale Price, always.
 Future<Product?> showQuickProductDialog(
   BuildContext context, {
   required String initialKey,
+  String? companyId,
   bool useCommaAsDecimalPlace = false,
   bool vendorDoc = false,
-}) => showDialog<Product>(
-  context: context,
-  builder: (_) => _QuickProductDialog(
-    initialKey: initialKey,
-    useCommaAsDecimalPlace: useCommaAsDecimalPlace,
-    vendorDoc: vendorDoc,
-  ),
-);
+}) async {
+  var offerSecondary = vendorDoc;
+  if (!vendorDoc && companyId != null) {
+    final company = await context.read<Services>().company.get(companyId);
+    offerSecondary = company?.enableProductCost ?? false;
+  }
+  if (!context.mounted) return null;
+  return showDialog<Product>(
+    context: context,
+    builder: (_) => _QuickProductDialog(
+      initialKey: initialKey,
+      useCommaAsDecimalPlace: useCommaAsDecimalPlace,
+      vendorDoc: vendorDoc,
+      offerSecondary: offerSecondary,
+    ),
+  );
+}
 
 class _QuickProductDialog extends StatefulWidget {
   const _QuickProductDialog({
     required this.initialKey,
     required this.useCommaAsDecimalPlace,
     required this.vendorDoc,
+    required this.offerSecondary,
   });
 
   final String initialKey;
   final bool useCommaAsDecimalPlace;
   final bool vendorDoc;
+
+  /// Whether the other amount (Cost on a sales document, Price on a purchase
+  /// order) is asked for too.
+  final bool offerSecondary;
 
   @override
   State<_QuickProductDialog> createState() => _QuickProductDialogState();
@@ -53,6 +75,7 @@ class _QuickProductDialogState extends State<_QuickProductDialog> {
     text: widget.initialKey,
   );
   final TextEditingController _price = TextEditingController();
+  final TextEditingController _secondary = TextEditingController();
   final TextEditingController _notes = TextEditingController();
 
   bool get _canSave => _key.text.trim().isNotEmpty;
@@ -61,6 +84,7 @@ class _QuickProductDialogState extends State<_QuickProductDialog> {
   void dispose() {
     _key.dispose();
     _price.dispose();
+    _secondary.dispose();
     _notes.dispose();
     super.dispose();
   }
@@ -72,11 +96,76 @@ class _QuickProductDialogState extends State<_QuickProductDialog> {
       _price.text,
       useCommaAsDecimalPlace: widget.useCommaAsDecimalPlace,
     );
+    final other = widget.offerSecondary
+        ? parseDecimal(
+            _secondary.text,
+            useCommaAsDecimalPlace: widget.useCommaAsDecimalPlace,
+          )
+        : null;
     final notes = _notes.text.trim();
     Navigator.of(context).pop(
       widget.vendorDoc
-          ? blank.copyWith(cost: amount ?? blank.cost, notes: notes)
-          : blank.copyWith(price: amount ?? blank.price, notes: notes),
+          ? blank.copyWith(
+              cost: amount ?? blank.cost,
+              price: other ?? blank.price,
+              notes: notes,
+            )
+          : blank.copyWith(
+              price: amount ?? blank.price,
+              cost: other ?? blank.cost,
+              notes: notes,
+            ),
+    );
+  }
+
+  Widget _amountField(
+    BuildContext context, {
+    required TextEditingController controller,
+    required String labelKey,
+    required bool autofocus,
+    required TextInputAction action,
+  }) => LabeledField(
+    label: context.tr(labelKey),
+    child: TextField(
+      controller: controller,
+      // The first amount's own focus: the key is usually right already — it
+      // is what the user just searched for.
+      autofocus: autofocus,
+      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+      textInputAction: action,
+      decoration: InputDecoration(labelText: context.tr(labelKey)),
+      onSubmitted: action == TextInputAction.done ? (_) => _submit() : null,
+    ),
+  );
+
+  /// The document's own amount first (Price, or Cost on a purchase order),
+  /// and the other one beside it when it is offered.
+  Widget _amountRow(BuildContext context) {
+    final primary = _amountField(
+      context,
+      controller: _price,
+      labelKey: widget.vendorDoc ? 'cost' : 'price',
+      autofocus: true,
+      action: widget.offerSecondary
+          ? TextInputAction.next
+          : TextInputAction.done,
+    );
+    if (!widget.offerSecondary) return primary;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(child: primary),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _amountField(
+            context,
+            controller: _secondary,
+            labelKey: widget.vendorDoc ? 'price' : 'cost',
+            autofocus: false,
+            action: TextInputAction.done,
+          ),
+        ),
+      ],
     );
   }
 
@@ -103,23 +192,7 @@ class _QuickProductDialogState extends State<_QuickProductDialog> {
                 ),
               ),
               const SizedBox(height: 12),
-              LabeledField(
-                label: context.tr(widget.vendorDoc ? 'cost' : 'price'),
-                child: TextField(
-                  controller: _price,
-                  // The price field's own focus: the key is usually right
-                  // already — it is what the user just searched for.
-                  autofocus: true,
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                  ),
-                  textInputAction: TextInputAction.done,
-                  decoration: InputDecoration(
-                    labelText: context.tr(widget.vendorDoc ? 'cost' : 'price'),
-                  ),
-                  onSubmitted: (_) => _submit(),
-                ),
-              ),
+              _amountRow(context),
               const SizedBox(height: 12),
               LabeledField(
                 label: context.tr('description'),

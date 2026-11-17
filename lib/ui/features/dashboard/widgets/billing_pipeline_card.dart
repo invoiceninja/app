@@ -171,6 +171,14 @@ class _DashboardBillingPipelineCardState
       tabs: _tabs,
       rowLimit: _rowLimit,
       initialTab: initial,
+      // Read lazily, and only for a paid invoice row: "Paid Nov 16".
+      paidOnLookup: !widget._invoices
+          ? null
+          : (id) => latestPaymentDate(
+              _services.payments,
+              companyId: widget.companyId,
+              invoiceId: id,
+            ),
     );
   }
 
@@ -440,6 +448,7 @@ class _DashboardBillingPipelineCardState
             compact: widget.narrow,
             pill: pills,
             today: today,
+            paidOn: row.isPaid ? _vm.paidOn(row.id) : null,
             onTap: () => _openRecord(row),
           ),
       ],
@@ -523,6 +532,7 @@ class _PipelineRow extends StatelessWidget {
     required this.pill,
     required this.today,
     required this.onTap,
+    this.paidOn,
   });
 
   final BillingPipelineRow row;
@@ -531,6 +541,9 @@ class _PipelineRow extends StatelessWidget {
   final bool pill;
   final Date today;
   final VoidCallback onTap;
+
+  /// When a paid invoice was paid, if the device knows.
+  final Date? paidOn;
 
   @override
   Widget build(BuildContext context) {
@@ -568,7 +581,15 @@ class _PipelineRow extends StatelessWidget {
                 textStyle: pillStyle,
                 hasBounce: row.hasBounce,
               ),
-        lead: date is Date ? formatter.date(date.toIso()) : '',
+        lead: pipelineRowLead(
+          context,
+          formatter: formatter,
+          type: row.type,
+          date: date is Date ? date : null,
+          openDeadline: row.openDeadline,
+          paidOn: row.isPaid ? paidOn : null,
+          today: today,
+        ),
         subline: when == null ? null : rowWhenText(context, when),
         sublineIsLate: when?.isLate ?? false,
         amount: formatter.money(
@@ -588,4 +609,46 @@ class _PipelineRow extends StatelessWidget {
       ),
     );
   }
+}
+
+/// What an Invoices / Quotes panel row's date slot says.
+///
+/// * An open invoice — sent with something still owed — its deadline: "Due Dec
+///   17" (the deposit's due date while one is asked for, the date the late
+///   sub-line counts from).
+/// * A paid invoice whose payment date is on the device: "Paid Nov 16".
+/// * A quote out with the client: "Valid until Dec 14" (`valid_until_date_label`,
+///   the quotes list's own wording).
+/// * Anything else — a draft, a cancelled invoice, an open one with no due
+///   date, a paid one whose payments the device has not synced — the
+///   document's date, as before.
+///
+/// The date is short ("Dec 17", the company's locale) within the current year
+/// and the company's full format outside it, where a bare "Dec 17" would not
+/// say which December.
+@visibleForTesting
+String pipelineRowLead(
+  BuildContext context, {
+  required Formatter formatter,
+  required EntityType type,
+  required Date? date,
+  required Date? openDeadline,
+  required Date? paidOn,
+  required Date today,
+}) {
+  String fmt(Date d) => d.year == today.year
+      ? formatter.dateShort(d.toIso())
+      : formatter.date(d.toIso());
+  if (openDeadline != null) {
+    return context.tr(
+      type == EntityType.invoice
+          ? 'due_on_date_label'
+          : 'valid_until_date_label',
+      {'date': fmt(openDeadline)},
+    );
+  }
+  if (paidOn != null) {
+    return context.tr('paid_on_date_label', {'date': fmt(paidOn)});
+  }
+  return date == null ? '' : formatter.date(date.toIso());
 }

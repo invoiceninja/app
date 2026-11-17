@@ -397,8 +397,8 @@ class ClientActions {
   /// a statement are pointless on a client who owes nothing and has no
   /// history, and a tile for either would push out one that is useful.
   ///
-  /// **Read under a `PhoneActionsScope`** — Call depends on the tap-to-call
-  /// preference, and a detail screen stays mounted behind `/settings`.
+  /// Call is enabled whenever there is a number to dial, whatever the
+  /// tap-to-call preference says (docs/tap-to-call.md § The preference).
   static List<EntityQuickAction<ClientAction>> quickItemsFor(
     BuildContext context,
     Client client,
@@ -428,9 +428,9 @@ class ClientActions {
 
     final owes = client.balance > Decimal.zero;
     final hasHistory = owes || client.paidToDate != Decimal.zero;
-    final canCall =
-        context.read<Services>().phoneActions.value.tapToCall &&
-        clientPhoneCandidates(client).isNotEmpty;
+    // Not gated on the tap-to-call preference: Call is a verb the user picks
+    // on the record, so it works with tap-to-call off (its default).
+    final canCall = clientPhoneCandidates(client).isNotEmpty;
     return [
       ?pick(ClientAction.newInvoice, create('invoice')),
       ?pick(ClientAction.newPayment, create('payment'), applies: owes),
@@ -617,6 +617,7 @@ class ClientActions {
             id: client.id,
             subject: client.displayName,
           ),
+          explicitAction: true,
         );
       case ClientAction.email:
         await pickAndComposeEmail(

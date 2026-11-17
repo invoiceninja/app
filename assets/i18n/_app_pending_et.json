@@ -1818,7 +1818,6 @@
   "due_on_date_label": "Tähtaeg :date",
   "valid_until_date_label": "Kehtib kuni :date",
   "add_deposit": "Lisa ettemaks",
-  "settings_group_billing": "Arveldus",
-  "settings_group_products_and_work": "Tooted ja töö",
-  "settings_group_app_and_data": "Rakendus ja andmed"
+  "net_received": "Neto laekunud",
+  "paid_on_date_label": "Makstud :date"
 }

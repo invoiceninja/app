@@ -277,6 +277,77 @@ void main() {
     });
   });
 
+  group('the axis ends at today', () {
+    // "This month" on Nov 17, by week (Sunday weeks; Nov 1, 2026 is a
+    // Sunday): 1–7, 8–14, 15–21, 22–28, 29–30.
+    ChartAxis axis({
+      Date? today = const Date(2026, 11, 17),
+      List<DashboardChartPoint> invoices = const [],
+      ChartGrouping grouping = ChartGrouping.week,
+      Date start = const Date(2026, 11, 1),
+      Date end = const Date(2026, 11, 30),
+    }) => buildChartAxis(
+      pointsBySeries: {ChartSeriesId.invoices: invoices},
+      startDate: start,
+      endDate: end,
+      grouping: grouping,
+      today: today,
+    );
+
+    test('empty future slots go; the current one ends on today', () {
+      final a = axis(invoices: [_p('2026-11-03', 10)]);
+      expect(a.grouping, ChartGrouping.week);
+      expect(
+        a.buckets.last,
+        const ChartPeriod(Date(2026, 11, 15), Date(2026, 11, 17)),
+      );
+      expect(a.buckets.first.start, const Date(2026, 11, 1));
+      expect(a.buckets, hasLength(3));
+      expect(a.values[ChartSeriesId.invoices], hasLength(3));
+    });
+
+    test('past empty slots keep their place', () {
+      final a = axis(invoices: [_p('2026-11-16', 10)]);
+      expect(a.buckets, hasLength(3));
+      expect(a.values[ChartSeriesId.invoices], [0, 0, 10]);
+    });
+
+    test('a point dated after today keeps the axis running to it', () {
+      final a = axis(invoices: [_p('2026-11-24', 10)]);
+      // Nov 22–28 holds the point, so it stays — clipped to the point.
+      expect(
+        a.buckets.last,
+        const ChartPeriod(Date(2026, 11, 22), Date(2026, 11, 24)),
+      );
+      expect(_sum(a.values[ChartSeriesId.invoices]!), 10);
+      // The empty week between today and the point keeps its slot.
+      expect(a.buckets, hasLength(4));
+    });
+
+    test('the grouping is chosen on the whole window', () {
+      // Three weeks to today would refine Week to Day; the user's Week holds
+      // all month long.
+      final a = axis(today: const Date(2026, 11, 3));
+      expect(a.grouping, ChartGrouping.week);
+      expect(a.buckets, hasLength(1));
+      expect(a.buckets.last.end, const Date(2026, 11, 3));
+    });
+
+    test('a window already over, or wholly ahead, is drawn as asked', () {
+      final past = axis(today: const Date(2026, 12, 5));
+      expect(past.buckets.last.end, const Date(2026, 11, 30));
+      final ahead = axis(today: const Date(2026, 10, 20));
+      expect(ahead.buckets.last.end, const Date(2026, 11, 30));
+      expect(axis(today: null).buckets.last.end, const Date(2026, 11, 30));
+    });
+
+    test('today on the last day trims nothing', () {
+      final a = axis(today: const Date(2026, 11, 30));
+      expect(a.buckets.last.end, const Date(2026, 11, 30));
+      expect(a.buckets, hasLength(5));
+    });
+  });
+
   group('chartGroupingFits', () {
     test('a month fits days and weeks, not months', () {
       const start = Date(2026, 4, 1);

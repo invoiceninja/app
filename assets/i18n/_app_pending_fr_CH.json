@@ -1819,7 +1819,6 @@
   "due_on_date_label": "Échéance :date",
   "valid_until_date_label": "Valable jusqu'au :date",
   "add_deposit": "Ajouter un acompte",
-  "settings_group_billing": "Facturation",
-  "settings_group_products_and_work": "Produits et travail",
-  "settings_group_app_and_data": "Application et données"
+  "net_received": "Net encaissé",
+  "paid_on_date_label": "Payée le :date"
 }

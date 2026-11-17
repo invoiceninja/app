@@ -20,8 +20,12 @@ import 'package:admin/ui/features/dashboard/view_models/dashboard_view_model.dar
 import 'package:admin/ui/features/dashboard/widgets/chart_card.dart';
 import 'package:admin/ui/features/dashboard/widgets/delta_chip.dart';
 import 'package:admin/utils/formatting.dart';
+import 'package:admin/data/models/domain/dashboard/dashboard_totals.dart';
+import 'package:admin/ui/features/dashboard/helpers/totals_math.dart';
+import 'package:admin/ui/features/dashboard/view_models/async_section.dart';
 
 import '../../../../_localization_helper.dart';
+
 import '../_fake_dashboard_repo.dart';
 
 /// The Cash flow chart: grouped bars for Invoiced, Payments and Expenses, a
@@ -135,16 +139,32 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
   }
 
-  BarChartData chartData(WidgetTester tester) =>
-      tester.widget<BarChart>(find.byType(BarChart)).data;
+  LineChartData chartData(WidgetTester tester) =>
+      tester.widget<LineChart>(find.byType(LineChart)).data;
 
-  /// Each slot's bar heights, series by series.
-  List<List<double>> rods(WidgetTester tester) => [
-    for (final g in chartData(tester).barGroups)
-      [for (final r in g.barRods) r.toY],
-  ];
+  /// Each slot's point values, series by series.
+  List<List<double>> rods(WidgetTester tester) {
+    final lines = chartData(tester).lineBarsData;
+    if (lines.isEmpty) return const [];
+    return [
+      for (var i = 0; i < lines.first.spots.length; i++)
+        [for (final l in lines) l.spots[i].y],
+    ];
+  }
 
-  testWidgets('draws a group of bars per slot — three series by default', (
+  /// What the tooltip says for [slot]: fl_chart's `getTooltipItems` asked
+  /// with the slot's spot on every line, as the chart asks when it opens.
+  List<LineTooltipItem?> slotTooltip(LineChartData data, int slot) =>
+      data.lineTouchData.touchTooltipData.getTooltipItems([
+        for (var j = 0; j < data.lineBarsData.length; j++)
+          LineBarSpot(
+            data.lineBarsData[j],
+            j,
+            data.lineBarsData[j].spots[slot],
+          ),
+      ]);
+
+  testWidgets('draws a point per slot on each line — three series by default', (
     tester,
   ) async {
     await pump(tester);
@@ -164,17 +184,86 @@ void main() {
     expect(find.text('Invoices'), findsNothing);
   });
 
-  testWidgets('an empty slot keeps its place', (tester) async {
+  testWidgets('an empty slot is a point on the baseline, with no dot', (
+    tester,
+  ) async {
     await pump(tester);
 
-    final groups = chartData(tester).barGroups;
-    expect(groups.length, 3);
-    expect(chartData(tester).alignment, BarChartAlignment.spaceAround);
-    // Same bar width in the quiet slot as in the busy ones.
-    expect(
-      groups.last.barRods.map((r) => r.width).toSet(),
-      groups.first.barRods.map((r) => r.width).toSet(),
-    );
+    final data = chartData(tester);
+    for (final line in data.lineBarsData) {
+      // One point per slot, at the slot's centre: half a slot past each end.
+      expect(line.spots.map((s) => s.x), [0, 1, 2]);
+      // Straight segments — no hump of money on a day that had none.
+      expect(line.isCurved, isFalse);
+      // The quiet day sits on the floor, unmarked; a day with a value is
+      // dotted.
+      expect(line.spots.last.y, 0);
+      final dot = line.dotData.checkToShowDot;
+      expect(dot(line.spots.last, line), isFalse);
+      expect(dot(line.spots.first, line), isTrue);
+    }
+    expect(data.minX, -0.5);
+    expect(data.maxX, 2.5);
+    expect(data.minY, 0);
+  });
+
+  group('Net received', () {
+    DashboardTotals totals({String paid = '1200', String spent = '300'}) =>
+        DashboardTotals.fromJson({
+          'currencies': {'1': 'USD'},
+          '999': {
+            'revenue': {'paid_to_date': paid, 'code': 'USD'},
+            'expenses': {'amount': spent, 'code': 'USD'},
+            'invoices': {'invoiced_amount': '5000', 'code': 'USD'},
+          },
+        });
+
+    testWidgets('is payments less expenses, from the figures\' totals', (
+      tester,
+    ) async {
+      repo.totals.add(totals());
+      await pump(tester);
+      expect(find.text('Net received'), findsOneWidget);
+      expect(find.text(r'+$900.00'), findsOneWidget);
+      // Above the legend.
+      expect(
+        tester.getTopLeft(find.text(r'+$900.00')).dy,
+        lessThan(tester.getTopLeft(find.text('Invoiced')).dy),
+      );
+      final ink = tester.widget<Text>(find.text(r'+$900.00')).style?.color;
+      expect(ink, InTheme.light.paid);
+    });
+
+    testWidgets('a loss reads red, with its minus', (tester) async {
+      repo.totals.add(totals(paid: '100', spent: '250'));
+      await pump(tester);
+      expect(find.text(r'-$150.00'), findsOneWidget);
+      expect(
+        tester.widget<Text>(find.text(r'-$150.00')).style?.color,
+        InTheme.light.overdue,
+      );
+    });
+
+    testWidgets('unknown is not zero: hidden until the totals load', (
+      tester,
+    ) async {
+      await pump(tester);
+      expect(vm.totals.valueState, ValueSectionState.loading);
+      expect(find.text('Net received'), findsNothing);
+    });
+  });
+
+  test('netReceived: without the expenses module it is the payments', () {
+    final bucket = DashboardTotals.fromJson({
+      'currencies': {'1': 'USD'},
+      '1': {
+        'revenue': {'paid_to_date': '50', 'code': 'USD'},
+        'expenses': {'amount': '20', 'code': 'USD'},
+      },
+    }).byCurrency['1'];
+    expect(netReceived(bucket, expensesOn: true), Decimal.fromInt(30));
+    expect(netReceived(bucket, expensesOn: false), Decimal.fromInt(50));
+    expect(netReceived(null, expensesOn: true), Decimal.zero);
   });
 
   testWidgets('is "Cash flow", with no headline figure and no totals', (
@@ -291,7 +380,7 @@ void main() {
       await tester.pumpWidget(hostWith(expensesOn: false));
       await tester.pump(const Duration(milliseconds: 400));
 
-      expect(find.byType(BarChart), findsNothing);
+      expect(find.byType(LineChart), findsNothing);
       expect(find.text('No series selected.'), findsOneWidget);
     });
   });
@@ -304,9 +393,7 @@ void main() {
   ) async {
     await pump(tester);
 
-    final colors = [
-      for (final r in chartData(tester).barGroups.first.barRods) r.color,
-    ];
+    final colors = [for (final l in chartData(tester).lineBarsData) l.color];
     const t = InTheme.light;
     expect(colors, [t.partial, t.paid, t.ink3]);
     expect(colors, isNot(contains(t.accent)));
@@ -328,7 +415,7 @@ void main() {
     final top = data.extraLinesData.horizontalLines.single;
     expect(top.y, data.maxY);
     expect(top.dashArray, isNotNull);
-    // The top gridline is a round amount above the tallest bar (410).
+    // The top gridline is a round amount above the highest point (410).
     expect(chartData(tester).maxY, greaterThanOrEqualTo(410));
     expect(chartData(tester).maxY % step, 0);
     // Amounts on the right, physically, in every locale; none on the left.
@@ -349,7 +436,7 @@ void main() {
         await tester.pumpWidget(host());
         await tester.pump(const Duration(milliseconds: 10));
 
-        expect(find.byType(BarChart), findsNothing);
+        expect(find.byType(LineChart), findsNothing);
         expect(find.text('No data for this period.'), findsNothing);
       },
     );
@@ -383,7 +470,7 @@ void main() {
 
     // The positive control for the two `findsNothing` above: this is the
     // string, and only a loaded, empty series earns it.
-    expect(find.byType(BarChart), findsNothing);
+    expect(find.byType(LineChart), findsNothing);
     expect(find.text('No data for this period.'), findsOneWidget);
   });
 
@@ -425,12 +512,12 @@ void main() {
         ),
       );
       await tester.pump(const Duration(milliseconds: 400));
-      expect(chartData(tester).barGroups.length, 30);
+      expect(chartData(tester).lineBarsData.first.spots.length, 30);
       return [
         for (final e
             in find
                 .descendant(
-                  of: find.byType(BarChart),
+                  of: find.byType(LineChart),
                   matching: find.textContaining(RegExp(r'^Apr \d+$')),
                 )
                 .evaluate())
@@ -496,7 +583,7 @@ void main() {
       await tester.pumpWidget(host());
       await tester.pump(const Duration(milliseconds: 400));
 
-      expect(chartData(tester).barGroups.length, greaterThan(3));
+      expect(chartData(tester).lineBarsData.first.spots.length, greaterThan(3));
       expect(selected(tester), {ChartGrouping.week});
       expect(enabled(tester)[ChartGrouping.month], isFalse);
       expect(enabled(tester)[ChartGrouping.day], isTrue);
@@ -585,7 +672,7 @@ void main() {
     expect(tester.getSize(find.byType(ChartCard)).height, 520);
     // A 2.4 aspect ratio at this width would be under 320; filling, the plot
     // takes what the card has left.
-    expect(tester.getSize(find.byType(BarChart)).height, greaterThan(360));
+    expect(tester.getSize(find.byType(LineChart)).height, greaterThan(360));
   });
 
   testWidgets('fillHeight: beside a shorter card, the plot keeps its floor', (
@@ -632,7 +719,7 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(
-      tester.getSize(find.byType(BarChart)).height,
+      tester.getSize(find.byType(LineChart)).height,
       greaterThanOrEqualTo(kChartMinPlotHeight),
     );
   });
@@ -645,31 +732,23 @@ void main() {
     await pump(tester);
 
     final data = chartData(tester);
-    final group = data.barGroups.first;
-    String flat(BarTooltipItem item) =>
-        item.children!.map((c) => c.toPlainText()).join();
-    // Whichever bar anchors it, the tooltip is the whole slot.
-    for (var j = 0; j < group.barRods.length; j++) {
-      final item = data.barTouchData.touchTooltipData.getTooltipItem(
-        group,
-        0,
-        group.barRods[j],
-        j,
-      )!;
-      final text = flat(item);
-      expect(text, startsWith('2026-04-01'));
-      expect(text, contains(r'Invoiced  $400.00'));
-      expect(text, contains(r'Payments  $300.00'));
-      expect(text, contains(r'Expenses  $100.00'));
-    }
+    final items = slotTooltip(data, 0);
+    // One entry per shown spot (fl_chart's contract); the first carries the
+    // whole slot and the rest are skipped.
+    expect(items, hasLength(data.lineBarsData.length));
+    expect(items.skip(1), everyElement(isNull));
+    final item = items.first!;
+    final text = item.children!.map((c) => c.toPlainText()).join();
+    expect(text, startsWith('2026-04-01'));
+    expect(text, contains(r'Invoiced  $400.00'));
+    expect(text, contains(r'Payments  $300.00'));
+    expect(text, contains(r'Expenses  $100.00'));
     // Each row's swatch carries its series' colour.
-    final swatches = data.barTouchData.touchTooltipData
-        .getTooltipItem(group, 0, group.barRods.first, 0)!
-        .children!
-        .where((c) => c.toPlainText() == '■ ')
+    final swatches = item.children!
+        .where((c) => c.toPlainText() == '● ')
         .map((c) => c.style!.color)
         .toList();
-    expect(swatches, [for (final r in group.barRods) r.color]);
+    expect(swatches, [for (final l in data.lineBarsData) l.color]);
   });
 
   testWidgets('a week slot\'s tooltip spans its first and last day', (
@@ -687,14 +766,7 @@ void main() {
     await tester.pumpWidget(host());
     await tester.pump(const Duration(milliseconds: 400));
 
-    final data = chartData(tester);
-    final group = data.barGroups.first;
-    final item = data.barTouchData.touchTooltipData.getTooltipItem(
-      group,
-      0,
-      group.barRods.first,
-      0,
-    )!;
+    final item = slotTooltip(chartData(tester), 0).first!;
     // 2026-04-01 is a Wednesday; its week ends on Saturday the 4th.
     expect(item.children!.first.toPlainText(), '2026-04-01 – 2026-04-04');
   });
@@ -703,7 +775,7 @@ void main() {
   // month as a word (a bare `11/12` reads as December to half the world), the
   // tooltip in the company's own full format.
   group('dates', () {
-    Future<BarChartData> pumpWith(
+    Future<LineChartData> pumpWith(
       WidgetTester tester, {
       required String start,
       required String end,
@@ -752,25 +824,15 @@ void main() {
     Iterable<String> ticks(WidgetTester tester) => tester
         .widgetList<Text>(
           find.descendant(
-            of: find.byType(BarChart),
+            of: find.byType(LineChart),
             matching: find.byType(Text),
           ),
         )
         .map((t) => t.data ?? '')
         .where((t) => t.isNotEmpty && !t.contains(r'$'));
 
-    String tooltipDate(BarChartData data, int slot) => data
-        .barTouchData
-        .touchTooltipData
-        .getTooltipItem(
-          data.barGroups[slot],
-          slot,
-          data.barGroups[slot].barRods.first,
-          0,
-        )!
-        .children!
-        .first
-        .toPlainText();
+    String tooltipDate(LineChartData data, int slot) =>
+        slotTooltip(data, slot).first!.children!.first.toPlainText();
 
     testWidgets('a day: "Apr 1" on the axis, the company format in the '
         'tooltip', (tester) async {
@@ -802,8 +864,8 @@ void main() {
     ) async {
       await pumpWith(
         tester,
-        start: '2026-01-01',
-        end: '2026-12-31',
+        start: '2024-01-01',
+        end: '2024-12-31',
         grouping: ChartGrouping.month,
       );
       expect(ticks(tester), containsAll(['Jan', 'Dec']));
@@ -819,23 +881,25 @@ void main() {
   });
 
   int? openSlot(WidgetTester tester) {
-    final groups = chartData(tester).barGroups;
-    for (var i = 0; i < groups.length; i++) {
-      if (groups[i].showingTooltipIndicators.isNotEmpty) return i;
-    }
-    return null;
+    final shown = chartData(tester).showingTooltipIndicators;
+    if (shown.isEmpty) return null;
+    final spots = shown.single.showingSpots;
+    // The whole slot: one spot per series, all in the same column.
+    expect(spots, hasLength(chartData(tester).lineBarsData.length));
+    expect(spots.map((s) => s.spotIndex).toSet(), hasLength(1));
+    return spots.first.spotIndex;
   }
 
   testWidgets('a mouse opens a slot\'s tooltip by hovering anywhere in it', (
     tester,
   ) async {
     await pump(tester);
-    final box = tester.getRect(find.byType(BarChart));
+    final box = tester.getRect(find.byType(LineChart));
 
     final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
     addTearDown(mouse.removePointer);
     await mouse.addPointer(location: Offset.zero);
-    // High above the middle slot's bars, in the slot's own column.
+    // High above the middle slot's points, in the slot's own column.
     await mouse.moveTo(Offset(box.left + (box.width - 44) / 2, box.top + 8));
     await tester.pump();
     expect(openSlot(tester), 1);
@@ -849,7 +913,7 @@ void main() {
     'a tap opens a slot\'s tooltip on touch, and a second closes it',
     (tester) async {
       await pump(tester);
-      final box = tester.getRect(find.byType(BarChart));
+      final box = tester.getRect(find.byType(LineChart));
       final middle = Offset(box.left + (box.width - 44) / 2, box.center.dy);
 
       await tester.tapAt(middle);
@@ -862,8 +926,8 @@ void main() {
     },
   );
 
-  // `BarChart` is implicitly animated and restarts its tween whenever the new
-  // `BarChartData` is not equal to the old — and that equality includes every
+  // `LineChart` is implicitly animated and restarts its tween whenever the new
+  // `LineChartData` is not equal to the old — and that equality includes every
   // callback. The card rebuilds several times while the dashboard loads, so
   // callbacks minted in `build` meant a 250 ms tween per rebuild with nothing
   // different on screen.
@@ -912,10 +976,10 @@ void main() {
             height: 200,
             child: ValueListenableBuilder<int>(
               valueListenable: rebuild,
-              builder: (context, _, _) => BarChart(
-                BarChartData(
-                  barGroups: [
-                    BarChartGroupData(x: 0, barRods: [BarChartRodData(toY: 1)]),
+              builder: (context, _, _) => LineChart(
+                LineChartData(
+                  lineBarsData: [
+                    LineChartBarData(spots: const [FlSpot(0, 0), FlSpot(1, 1)]),
                   ],
                   gridData: FlGridData(
                     getDrawingHorizontalLine: (_) =>

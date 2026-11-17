@@ -490,6 +490,50 @@ class _StatusTabButton extends StatelessWidget {
     );
   }
 
+  /// The label and its count. [count] is null before the first emission —
+  /// nothing is drawn for it then, as a flash of "0" that jumps reads as a bug.
+  ///
+  /// In the wrapped (dashboard Invoices / Quotes) strip an inactive tab whose
+  /// count is 0 draws its label in `ink3`: faded, but still a tab — it stays
+  /// tappable. The list strip keeps `ink2` at zero; there the neutral badge
+  /// already says it.
+  Widget _content(
+    BuildContext context,
+    Color color,
+    int? count, {
+    bool hasCount = false,
+  }) {
+    final faded = wrapped && !active && count == 0;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          context.tr(tab.labelKey),
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: active ? FontWeight.w600 : FontWeight.w500,
+            color: faded ? tokens.ink3 : color,
+          ),
+        ),
+        if (hasCount && count != null) ...[
+          const SizedBox(width: InSpacing.sm),
+          SidebarBadge(
+            count: count,
+            active: active,
+            // Zero wears the neutral palette whatever the bucket's tone: a red
+            // "0" would claim urgency about the one outcome that means there's
+            // nothing to do. Unlike the rail, the badge still renders at zero —
+            // "Draft 0" is the answer to the question the tab asks.
+            tone: count == 0 ? SidebarBadgeTone.neutral : tab.tone,
+            // The wrapped form is the dashboard's, where the tab is already a
+            // fill on a card.
+            bordered: !wrapped,
+          ),
+        ],
+      ],
+    );
+  }
+
   Widget _button(BuildContext context, Color color, Stream<int>? stream) {
     return InkWell(
       onTap: onTap,
@@ -534,45 +578,16 @@ class _StatusTabButton extends StatelessWidget {
             alignment: Alignment.center,
             widthFactor: 1,
             heightFactor: 1,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  context.tr(tab.labelKey),
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: active ? FontWeight.w600 : FontWeight.w500,
-                    color: color,
-                  ),
-                ),
-                if (stream != null) ...[
-                  const SizedBox(width: InSpacing.sm),
-                  StreamBuilder<int>(
+            // The count stream wraps the label as well as the badge: in the
+            // wrapped (dashboard) strip a tab with nothing in it fades its
+            // label too, so the zero reads at a glance.
+            child: stream == null
+                ? _content(context, color, null)
+                : StreamBuilder<int>(
                     stream: stream,
-                    builder: (context, snap) {
-                      final count = snap.data;
-                      // Nothing until the first emission — a flash of "0" that
-                      // then jumps reads as a bug, and the strip is meant to be
-                      // glanced at.
-                      if (count == null) return const SizedBox.shrink();
-                      return SidebarBadge(
-                        count: count,
-                        active: active,
-                        // Zero wears the neutral palette whatever the bucket's
-                        // tone: a red "0" would claim urgency about the one
-                        // outcome that means there's nothing to do. Unlike the
-                        // rail, the badge still renders at zero — "Draft 0" is
-                        // the answer to the question the tab asks.
-                        tone: count == 0 ? SidebarBadgeTone.neutral : tab.tone,
-                        // The wrapped form is the dashboard's, where the tab
-                        // is already a fill on a card.
-                        bordered: !wrapped,
-                      );
-                    },
+                    builder: (context, snap) =>
+                        _content(context, color, snap.data, hasCount: true),
                   ),
-                ],
-              ],
-            ),
           ),
         ),
       ),

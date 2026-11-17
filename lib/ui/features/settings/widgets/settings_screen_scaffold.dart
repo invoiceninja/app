@@ -7,6 +7,7 @@ import 'package:admin/ui/core/adaptive.dart';
 import 'package:admin/ui/core/utils/external_url.dart';
 import 'package:admin/ui/features/settings/settings_search_catalog.dart';
 import 'package:admin/ui/features/settings/widgets/settings_scope_banner.dart';
+import 'package:admin/ui/features/settings/widgets/settings_tab_strip.dart';
 import 'package:admin/ui/features/settings/widgets/settings_two_pane_scope.dart';
 import 'package:admin/ui/features/shell/widgets/app_drawer.dart';
 
@@ -120,6 +121,9 @@ class SettingsScreenScaffold extends StatelessWidget {
       // menu.
       drawer: showHamburger ? const AppDrawer() : null,
       appBar: AppBar(
+        // Named, not defaulted: the wide settings nav's title row is this tall
+        // too (`kSettingsHeaderHeight`), so their rules line up.
+        toolbarHeight: kSettingsTitleBarHeight,
         title: title,
         // A custom title is a control, and sits at the start on every
         // platform rather than centred as iOS and macOS would have it.

@@ -35,7 +35,9 @@ import 'package:admin/ui/core/list/entity_bulk_message.dart';
 import 'package:admin/ui/core/list/embedded_list_scope.dart';
 import 'package:admin/ui/core/list/entity_list_selection_row.dart';
 import 'package:admin/ui/core/list/entity_list_result_scope.dart';
+import 'package:admin/ui/core/list/entity_create_fab.dart';
 import 'package:admin/ui/core/list/entity_list_app_bar.dart';
+import 'package:admin/ui/core/list/list_outstanding_line.dart';
 import 'package:admin/ui/core/list/entity_list_top_row.dart';
 import 'package:admin/ui/core/list/entity_list_column_headers.dart';
 import 'package:admin/ui/core/list/entity_list_constants.dart';
@@ -323,9 +325,16 @@ class EntityListScreenScaffold<T, VM extends GenericListViewModel<T>>
     this.embeddedNewOverride,
     this.embeddedOffersNew = true,
     this.selectionShortcuts,
+    this.showOutstandingTotals = false,
   });
 
-  /// Localization key for the narrow-mode AppBar title (e.g. `clients`).
+  /// Draw the server's per-currency outstanding totals under the list's title
+  /// (`ListOutstandingLine`) — on Clients and Invoices only, the two lists
+  /// whose rows are what is owed. Standalone only; never on an embedded list.
+  final bool showOutstandingTotals;
+
+  /// Localization key for the list's title — the wide title row and the
+  /// narrow AppBar (e.g. `clients`).
   final String titleKey;
 
   /// Route the wide-mode "New X" button + narrow-mode FAB navigate to
@@ -1512,11 +1521,10 @@ class _EntityListScreenScaffoldState<T, VM extends GenericListViewModel<T>>
               floatingActionButton:
                   (selecting || wide || !widget.canCreate || !_offersCreate)
                   ? null
-                  : FloatingActionButton(
-                      tooltip: context.tr(widget.newLabelKey!),
+                  : EntityCreateFab(
+                      labelKey: widget.newLabelKey!,
                       onPressed: () =>
                           goToCreateRoute(context, widget.newRoute!),
-                      child: const Icon(Icons.add),
                     ),
               // endFloat lifts the FAB above the bottom filter bar on mobile.
               floatingActionButtonLocation:
@@ -1578,6 +1586,17 @@ class _EntityListScreenScaffoldState<T, VM extends GenericListViewModel<T>>
                     widget.extraAppBarActions?.call(context, _vm, wide) ??
                     const <Widget>[],
                 canCreate: widget.canCreate,
+                subtitle: widget.showOutstandingTotals
+                    ? ListOutstandingLine(
+                        // Keyed like the search field: a company switch gets a
+                        // fresh watch rather than the old company's stream.
+                        key: ValueKey(_companyId),
+                        companyId: _companyId,
+                        formatter: formatter,
+                        // A phone's line holds three currencies at 12.
+                        fontSize: wide ? 13 : 12,
+                      )
+                    : null,
               ),
               body: () {
                 final body = _bodyWithBanner(

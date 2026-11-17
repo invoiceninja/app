@@ -1817,7 +1817,6 @@
   "due_on_date_label": "Dospeva :date",
   "valid_until_date_label": "Važi do :date",
   "add_deposit": "Dodaj avans",
-  "settings_group_billing": "Naplata",
-  "settings_group_products_and_work": "Proizvodi i rad",
-  "settings_group_app_and_data": "Aplikacija i podaci"
+  "net_received": "Neto primljeno",
+  "paid_on_date_label": "Plaćeno :date"
 }

@@ -64,7 +64,7 @@ void main() {
     testWidgets('money is the sans face with tabular figures', (tester) async {
       final c = emptyClient().copyWith(balance: Decimal.parse('12.5'));
       await _pump(tester, (ctx) => cell(c, ctx));
-      expect(_style(tester).fontFamily, kSansFontFamily);
+      expect(_style(tester).fontFamily, kMonoFontFamily);
       expect(
         _style(tester).fontFeatures,
         contains(const FontFeature.tabularFigures()),

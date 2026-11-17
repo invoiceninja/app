@@ -1818,7 +1818,6 @@
   "due_on_date_label": "Betaalbaar :date",
   "valid_until_date_label": "Geldig tot :date",
   "add_deposit": "Voeg deposito by",
-  "settings_group_billing": "Fakturering",
-  "settings_group_products_and_work": "Produkte en werk",
-  "settings_group_app_and_data": "Toep en data"
+  "net_received": "Netto ontvang",
+  "paid_on_date_label": "Betaal :date"
 }

@@ -1899,7 +1899,6 @@
   "due_on_date_label": "Scadenza :date",
   "valid_until_date_label": "Valido fino al :date",
   "add_deposit": "Aggiungi acconto",
-  "settings_group_billing": "Fatturazione",
-  "settings_group_products_and_work": "Prodotti e lavoro",
-  "settings_group_app_and_data": "App e dati"
+  "net_received": "Netto incassato",
+  "paid_on_date_label": "Pagata il :date"
 }

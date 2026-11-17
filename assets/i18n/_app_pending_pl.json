@@ -1819,7 +1819,6 @@
   "due_on_date_label": "Termin :date",
   "valid_until_date_label": "Ważna do :date",
   "add_deposit": "Dodaj zaliczkę",
-  "settings_group_billing": "Rozliczenia",
-  "settings_group_products_and_work": "Produkty i praca",
-  "settings_group_app_and_data": "Aplikacja i dane"
+  "net_received": "Netto otrzymane",
+  "paid_on_date_label": "Opłacono :date"
 }

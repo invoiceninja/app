@@ -9,6 +9,7 @@ import 'package:admin/data/models/domain/quote.dart';
 import 'package:admin/data/models/value/date.dart';
 import 'package:admin/data/repositories/base_entity_repository.dart';
 import 'package:admin/data/repositories/invoice_repository.dart';
+import 'package:admin/data/repositories/payment_repository.dart';
 import 'package:admin/data/repositories/quote_repository.dart';
 import 'package:admin/data/services/api_exception.dart';
 import 'package:admin/domain/dashboard/billing_status_tabs.dart';
@@ -45,6 +46,7 @@ class BillingPipelineRow {
     required this.sortCreatedAt,
     this.openDeadline,
     this.exchangeRate,
+    this.isPaid = false,
   });
 
   factory BillingPipelineRow.fromInvoice(Invoice e) => BillingPipelineRow(
@@ -70,6 +72,7 @@ class BillingPipelineRow {
         ? null
         : e.partialDueDate ?? e.dueDate,
     exchangeRate: e.exchangeRate,
+    isPaid: e.isPaid,
   );
 
   factory BillingPipelineRow.fromQuote(Quote e) => BillingPipelineRow(
@@ -118,6 +121,30 @@ class BillingPipelineRow {
   /// The document's stored rate from the company currency to its own
   /// (`exchange_rate`). Null when unknown. Feeds the "≈ base" line.
   final Decimal? exchangeRate;
+
+  /// A paid invoice — its date slot says when it was paid, once the view
+  /// model has found that out ([BillingPipelineViewModel.paidOn]).
+  final bool isPaid;
+}
+
+/// The date [invoiceId] was paid: its latest payment's date among the
+/// payments on this device (deleted ones aside), or null when there are none.
+/// One Drift read, no request.
+Future<Date?> latestPaymentDate(
+  PaymentRepository payments, {
+  required String companyId,
+  required String invoiceId,
+}) async {
+  final rows = await payments
+      .watchForInvoice(companyId: companyId, invoiceId: invoiceId)
+      .first;
+  Date? latest;
+  for (final p in rows) {
+    final d = p.date;
+    if (p.isDeleted || d == null) continue;
+    if (latest == null || d.compareTo(latest) > 0) latest = d;
+  }
+  return latest;
 }
 
 /// The total order the DAO produces, restated for the cross-entity merge.
@@ -156,6 +183,7 @@ class BillingPipelineViewModel extends ChangeNotifier {
     required this.includeQuotes,
     required this.tabs,
     required this.rowLimit,
+    this.paidOnLookup,
     BillingStatusTab? initialTab,
   }) : _tab = initialTab ?? (tabs.isEmpty ? null : tabs.first) {
     _subscribe();
@@ -169,6 +197,20 @@ class BillingPipelineViewModel extends ChangeNotifier {
   final bool includeQuotes;
   final List<BillingStatusTab> tabs;
   final int rowLimit;
+
+  /// When a paid invoice was paid ([latestPaymentDate] in the app). Null
+  /// (the default, and the widget suites') leaves every paid row on its
+  /// invoice date. A lookup that throws is treated as "not known".
+  final Future<Date?> Function(String invoiceId)? paidOnLookup;
+
+  /// The date each paid invoice on the panel was paid — its latest payment's
+  /// date, from the payments in Drift — or null when none is on the device.
+  /// Looked up once per invoice for the life of the panel.
+  final Map<String, Date?> _paidOn = {};
+
+  /// When the paid invoice [invoiceId] was paid, if known. The row falls back
+  /// to the invoice date otherwise: "Paid Nov 16" only when it is true.
+  Date? paidOn(String invoiceId) => _paidOn[invoiceId];
 
   BillingStatusTab? _tab;
   BillingStatusTab? get tab => _tab;
@@ -291,7 +333,31 @@ class BillingPipelineViewModel extends ChangeNotifier {
     _rows = merged.length > rowLimit
         ? List<BillingPipelineRow>.unmodifiable(merged.take(rowLimit))
         : List<BillingPipelineRow>.unmodifiable(merged);
+    for (final row in _rows) {
+      if (row.isPaid && !_paidOn.containsKey(row.id)) {
+        unawaited(_lookUpPaidOn(row.id));
+      }
+    }
     notifyListeners();
+  }
+
+  /// Reads [invoiceId]'s payments from Drift once and keeps the latest date.
+  ///
+  /// Local only — no request per row. A payment the device has not synced
+  /// leaves the row on its invoice date, which is what it said before.
+  Future<void> _lookUpPaidOn(String invoiceId) async {
+    final lookup = paidOnLookup;
+    // Claimed before the await so a second emission does not ask again.
+    _paidOn[invoiceId] = null;
+    if (lookup == null) return;
+    try {
+      final latest = await lookup(invoiceId);
+      if (_disposed || latest == null) return;
+      _paidOn[invoiceId] = latest;
+      notifyListeners();
+    } catch (e, st) {
+      _log.fine('paid date lookup failed for $invoiceId', e, st);
+    }
   }
 
   /// Select [next], re-subscribing the participating halves.

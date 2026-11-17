@@ -1900,7 +1900,6 @@
   "due_on_date_label": "Termiņš :date",
   "valid_until_date_label": "Derīgs līdz :date",
   "add_deposit": "Pievienot avansu",
-  "settings_group_billing": "Norēķini",
-  "settings_group_products_and_work": "Produkti un darbs",
-  "settings_group_app_and_data": "Lietotne un dati"
+  "net_received": "Neto saņemts",
+  "paid_on_date_label": "Apmaksāts :date"
 }

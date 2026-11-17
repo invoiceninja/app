@@ -1899,7 +1899,6 @@
   "due_on_date_label": "Достасува :date",
   "valid_until_date_label": "Важи до :date",
   "add_deposit": "Додади депозит",
-  "settings_group_billing": "Наплата",
-  "settings_group_products_and_work": "Производи и работа",
-  "settings_group_app_and_data": "Апликација и податоци"
+  "net_received": "Нето примено",
+  "paid_on_date_label": "Платена :date"
 }

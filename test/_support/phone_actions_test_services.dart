@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:drift/native.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
@@ -21,7 +24,9 @@ import 'package:admin/data/repositories/settings_repository.dart';
 import 'package:admin/data/repositories/statics_repository.dart';
 import 'package:admin/ui/core/widgets/toast_controller.dart';
 import 'package:admin/utils/formatting.dart';
+import 'package:admin/data/prefs/device_pref_keys.dart';
 import 'package:admin/data/prefs/device_prefs_store.dart';
+import 'package:admin/domain/phone/phone_actions_settings.dart';
 
 /// UTC+13:45 — not an offset any real machine runs at, so the
 /// "same offset as this device ⇒ render nothing" branch of `ContactLocalTime`
@@ -71,17 +76,38 @@ class PhoneActionsTestServices implements Services {
   /// `_hydrate`'s miss → hydrate → hit path; [clientWatchError] makes `watch`
   /// emit an error instead, for the degradation path. Both are ignored unless
   /// [client] is supplied.
+  ///
+  /// [tapToCall] starts on: these harnesses exercise the phone surfaces, which
+  /// is a user who switched the preference on (it defaults off, Nov 2026). A
+  /// test of the off state flips it with `phoneActions.setTapToCall(false)`.
   factory PhoneActionsTestServices({
     Timezone? timezone = kTestForeignTimezone,
     Client? client,
     Vendor? vendor,
     bool clientHydratesOnEnsureLoaded = false,
     bool clientWatchError = false,
+    bool tapToCall = true,
   }) {
     final db = AppDatabase(NativeDatabase.memory());
     addTearDown(db.close);
+    // With [tapToCall] the store is in memory, seeded before the controller
+    // reads it — never a Drift write, which a widget test's fake clock never
+    // lets finish, so `db.close` in tear-down would hang on it.
+    final prefs = tapToCall ? DevicePrefsStore(null) : DevicePrefsStore(db);
+    if (tapToCall) {
+      unawaited(
+        prefs.write(
+          DevicePrefKeys.phoneActions,
+          jsonEncode(
+            PhoneActionsSettings.deviceDefaults()
+                .copyWith(tapToCall: true)
+                .toJson(),
+          ),
+        ),
+      );
+    }
     return PhoneActionsTestServices._(
-      PhoneActionsController(prefs: DevicePrefsStore(db)),
+      PhoneActionsController(prefs: prefs),
       timezone,
       client == null
           ? null

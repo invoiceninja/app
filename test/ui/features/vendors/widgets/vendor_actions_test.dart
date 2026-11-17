@@ -498,9 +498,8 @@ void main() {
       ]);
     });
 
-    testWidgets('Call needs both the preference and a number to dial', (
-      tester,
-    ) async {
+    testWidgets('Call needs a number to dial, not the tap-to-call '
+        'preference', (tester) async {
       final withPhone = _vendor(phone: '+1 555 0100');
       expect(
         kindsOf(await quick(tester, withPhone, tapToCall: true)),
@@ -508,8 +507,8 @@ void main() {
       );
       expect(
         kindsOf(await quick(tester, withPhone)),
-        isNot(contains(VendorAction.call)),
-        reason: 'tap to call is off',
+        contains(VendorAction.call),
+        reason: 'the record\'s Call is an explicit verb — tap to call is off',
       );
       expect(
         kindsOf(await quick(tester, _vendor(), tapToCall: true)),
@@ -535,7 +534,13 @@ void main() {
         _vendor(contacts: reachable),
         enabledModules: 0,
       );
-      expect(kindsOf(off), [VendorAction.email, VendorAction.vendorPortal]);
+      // Call rides along: the contact has a number, and the record's Call
+      // does not ask the tap-to-call preference.
+      expect(kindsOf(off), [
+        VendorAction.email,
+        VendorAction.call,
+        VendorAction.vendorPortal,
+      ]);
     });
 
     testWidgets('an archived vendor keeps its tiles', (tester) async {

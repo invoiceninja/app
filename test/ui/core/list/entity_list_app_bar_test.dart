@@ -13,6 +13,7 @@ import 'package:admin/app/theme.dart';
 import 'package:admin/data/db/app_database.dart';
 import 'package:admin/ui/core/list/entity_list_app_bar.dart';
 import 'package:admin/ui/core/list/generic_list_view_model.dart';
+import 'package:admin/ui/core/list/list_outstanding_line.dart';
 import 'package:admin/ui/core/list/search/filter_suggestion_menu.dart';
 import 'package:admin/ui/core/list/search/filter_token_chip.dart';
 import 'package:admin/ui/core/list/search/token_search_field.dart';
@@ -26,7 +27,10 @@ import '../../../_localization_helper.dart';
 import 'search/_token_search_harness.dart';
 
 const _bodyKey = Key('body');
-const _surface = Size(1100, 700);
+// The search field has its row to itself now, so this is narrower than a
+// desktop window: three chips must still wrap to a second line, as they did
+// beside the New / Columns / Views buttons at 1100, on every platform.
+const _surface = Size(600, 700);
 
 void main() {
   late AppDatabase db;
@@ -46,6 +50,7 @@ void main() {
     bool wide = true,
     Size surface = _surface,
     double? maxExtent,
+    Widget? subtitle,
   }) async {
     tester.view.physicalSize = surface;
     tester.view.devicePixelRatio = 1;
@@ -71,6 +76,7 @@ void main() {
                       available: surface.height,
                     ),
                 titleKey: 'clients',
+                subtitle: subtitle,
                 newRoute: '/clients/new',
                 newLabelKey: 'new_client',
                 sortOptions: const [],
@@ -118,23 +124,32 @@ void main() {
     await tester.pump();
   }
 
-  headerTest('with nothing wrapped it is the shared band, on every platform', (
-    tester,
-  ) async {
+  headerTest('with nothing wrapped it is the title row over one search row, '
+      'on every platform', (tester) async {
     final vm = newHarnessVm(db);
     await pumpHeader(tester, vm: vm, selecting: ValueNotifier(false));
 
-    expect(tester.getSize(header()).height, InSizes.headerBand);
-    expect(tester.getTopLeft(find.byKey(_bodyKey)).dy, InSizes.headerBand);
-    // The box is exactly the header row, with the band's 12 px either side.
+    final floor = EntityListAppBar.minExtentFor(wide: true);
+    expect(floor, InSizes.headerBand + 8 + InSizes.headerRow);
+    expect(tester.getSize(header()).height, floor);
+    expect(tester.getTopLeft(find.byKey(_bodyKey)).dy, floor);
+    // The title row leads, the field has the row below to itself.
+    final title = tester.getRect(find.text('Clients'));
     final box = tester.getRect(field());
-    expect(box.top, 12);
+    expect(title.bottom, lessThan(box.top));
+    expect(box.top, 12 + InSizes.headerRow + 8);
     expect(box.height, InSizes.headerRow);
+    // Columns / Views / New sit on the title row, not beside the field.
+    expect(tester.getRect(columns()).bottom, lessThan(box.top));
+    expect(
+      tester.getRect(find.widgetWithText(FilledButton, 'New Client')).bottom,
+      lessThan(box.top),
+    );
 
     // One chip still fits one line — it used to overrun the box on touch,
     // where its ✕ was padded to 40 px square.
     await seed(tester, vm, {'a'});
-    expect(tester.getSize(header()).height, InSizes.headerBand);
+    expect(tester.getSize(header()).height, floor);
     final chip = tester.getRect(find.byType(FilterTokenChip));
     final boxNow = tester.getRect(field());
     expect(chip.top, greaterThanOrEqualTo(boxNow.top));
@@ -154,7 +169,7 @@ void main() {
     final bar = tester.getRect(header());
     final box = tester.getRect(field());
     final input = tester.getRect(find.byType(TextField));
-    expect(bar.height, greaterThan(InSizes.headerBand));
+    expect(bar.height, greaterThan(EntityListAppBar.minExtentFor(wide: true)));
     expect(tester.getTopLeft(find.byKey(_bodyKey)).dy, bar.bottom);
     // Everything the box holds is inside the box, and the box inside the bar.
     for (final e in find.byType(FilterTokenChip).evaluate()) {
@@ -262,17 +277,18 @@ void main() {
     tester,
   ) async {
     final vm = newHarnessVm(db);
-    // Room for the band and no more.
+    // Room for the title row and one search row, no more.
+    final floor = EntityListAppBar.minExtentFor(wide: true);
     await pumpHeader(
       tester,
       vm: vm,
       selecting: ValueNotifier(false),
-      maxExtent: InSizes.headerBand,
+      maxExtent: floor,
     );
     await seed(tester, vm, {'a', 'b', 'c'});
 
     final bar = tester.getRect(header());
-    expect(bar.height, InSizes.headerBand);
+    expect(bar.height, floor);
     expect(tester.getTopLeft(find.byKey(_bodyKey)).dy, bar.bottom);
     // Nothing is painted outside the box: every chip that can be hit is
     // inside it. (The old header left them over the list.)
@@ -282,6 +298,46 @@ void main() {
       final chip = tester.getRect(find.byWidget(e.widget));
       expect(chip.top, lessThan(box.bottom));
     }
+    expect(tester.takeException(), isNull);
+  });
+
+  headerTest('the subtitle line sits under the title, wide and narrow, and '
+      'costs the wide header no height', (tester) async {
+    const line = OutstandingLineText(
+      key: Key('subtitle'),
+      label: 'Outstanding',
+      amounts: [r'$10.00', '€5.00'],
+    );
+    final vm = newHarnessVm(db);
+    await pumpHeader(
+      tester,
+      vm: vm,
+      selecting: ValueNotifier(false),
+      subtitle: line,
+    );
+    final title = tester.getRect(find.text('Clients'));
+    final sub = tester.getRect(find.byKey(const Key('subtitle')));
+    expect(sub.top, greaterThanOrEqualTo(title.bottom));
+    expect(sub.bottom, lessThanOrEqualTo(tester.getRect(field()).top));
+    expect(
+      tester.getSize(header()).height,
+      EntityListAppBar.minExtentFor(wide: true),
+    );
+    await tester.pump(const Duration(seconds: 1));
+
+    final narrowVm = newHarnessVm(db);
+    await pumpHeader(
+      tester,
+      vm: narrowVm,
+      selecting: ValueNotifier(false),
+      wide: false,
+      surface: const Size(620, 800),
+      subtitle: line,
+    );
+    final narrowTitle = tester.getRect(find.text('Clients'));
+    final narrowSub = tester.getRect(find.byKey(const Key('subtitle')));
+    expect(narrowSub.top, greaterThanOrEqualTo(narrowTitle.bottom));
+    expect(narrowSub.bottom, lessThanOrEqualTo(tester.getRect(field()).top));
     expect(tester.takeException(), isNull);
   });
 }

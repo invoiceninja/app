@@ -45,6 +45,8 @@ class ClientListScreen extends StatelessWidget {
       newRoute: '/clients/new',
       newLabelKey: 'new_client',
       embedded: embedded,
+      // The company-wide figure, so never over a list narrowed to one group.
+      showOutstandingTotals: gid == null,
       // Stage a draft pre-assigned to this group (route query is dropped on
       // the cross-branch jump; the create screen reads the staged draft).
       embeddedNewOverride: gid == null

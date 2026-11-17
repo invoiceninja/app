@@ -1899,7 +1899,6 @@
   "due_on_date_label": "ຄົບກຳນົດ :date",
   "valid_until_date_label": "ໃຊ້ໄດ້ຮອດ :date",
   "add_deposit": "ເພີ່ມເງິນມັດຈຳ",
-  "settings_group_billing": "ການອອກໃບບິນ",
-  "settings_group_products_and_work": "ສິນຄ້າ ແລະ ວຽກ",
-  "settings_group_app_and_data": "ແອັບ ແລະ ຂໍ້ມູນ"
+  "net_received": "ຮັບສຸດທິ",
+  "paid_on_date_label": "ຈ່າຍແລ້ວ :date"
 }

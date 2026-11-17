@@ -1856,7 +1856,6 @@
   "due_on_date_label": "Esedékes: :date",
   "valid_until_date_label": "Érvényes eddig: :date",
   "add_deposit": "Előleg hozzáadása",
-  "settings_group_billing": "Számlázás",
-  "settings_group_products_and_work": "Termékek és munka",
-  "settings_group_app_and_data": "Alkalmazás és adatok"
+  "net_received": "Nettó bevétel",
+  "paid_on_date_label": "Fizetve: :date"
 }

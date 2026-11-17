@@ -107,15 +107,15 @@ String? settingsDocsUrlForTitle(String titleKey) {
   return null;
 }
 
-/// The topic groups of the settings nav, in display order — each names its
-/// header's localization key. Replaced the old Basic / Advanced split, which
-/// said nothing about where a setting lives (D6 of the settings pass).
+/// The two halves of the settings nav, in display order — each names its
+/// header's localization key. They mirror the React app's settings sidebar
+/// (`basic` / `advanced` in `src/components/layouts/common/hooks.ts`):
+/// the same pages under the same heading, in the same order, so a user moving
+/// between the two clients finds a page where they left it. A five-topic
+/// split (Company / Billing / …) was tried and reverted for that reason.
 enum SettingsGroup {
-  company('company'),
-  billing('settings_group_billing'),
-  documents('documents'),
-  productsAndWork('settings_group_products_and_work'),
-  appAndData('settings_group_app_and_data');
+  basic('basic_settings'),
+  advanced('advanced_settings');
 
   const SettingsGroup(this.labelKey);
 
@@ -155,7 +155,7 @@ class SettingsSectionDef {
   final IconData icon;
   final String route;
 
-  /// The topic group the settings nav lists this section under, in
+  /// The half of the settings nav this section is listed under, in
   /// [kSettingsSections] order.
   final SettingsGroup group;
 
@@ -190,13 +190,14 @@ class SettingsSectionDef {
 }
 
 const kSettingsSections = <SettingsSectionDef>[
-  // Company
+  // Basic Settings: React's `basic` list in its order, then the two pages
+  // only this app has (Device Settings, Keyboard Shortcuts).
   SettingsSectionDef(
     slug: 'company_details',
     titleKey: 'company_details',
     icon: Icons.business_outlined,
     route: '/settings/company_details',
-    group: SettingsGroup.company,
+    group: SettingsGroup.basic,
     clientEditable: false,
     docsPath: 'user-guide/basic-settings#company_details',
   ),
@@ -205,7 +206,7 @@ const kSettingsSections = <SettingsSectionDef>[
     titleKey: 'user_details',
     icon: Icons.person_outline,
     route: '/settings/user_details',
-    group: SettingsGroup.company,
+    group: SettingsGroup.basic,
     clientEditable: false,
     docsPath: 'user-guide/basic-settings#user_details',
   ),
@@ -214,45 +215,15 @@ const kSettingsSections = <SettingsSectionDef>[
     titleKey: 'localization',
     icon: Icons.language_outlined,
     route: '/settings/localization',
-    group: SettingsGroup.company,
+    group: SettingsGroup.basic,
     docsPath: 'user-guide/basic-settings#localization',
   ),
-  // Slug intentionally diverges from titleKey: the route is `users` but the
-  // user-facing label is "User Management".
-  SettingsSectionDef(
-    slug: 'users',
-    titleKey: 'user_management',
-    icon: Icons.supervised_user_circle_outlined,
-    route: '/settings/users',
-    group: SettingsGroup.company,
-    clientEditable: false,
-    docsPath: 'user-guide/advanced-settings#user_management',
-  ),
-  SettingsSectionDef(
-    slug: 'account_management',
-    titleKey: 'account_management',
-    icon: Icons.manage_accounts_outlined,
-    route: '/settings/account_management',
-    group: SettingsGroup.company,
-    clientEditable: false,
-    docsPath: 'user-guide/basic-settings#account_management',
-  ),
-  SettingsSectionDef(
-    slug: 'group_settings',
-    titleKey: 'group_settings',
-    icon: Icons.group_work_outlined,
-    route: '/settings/group_settings',
-    group: SettingsGroup.company,
-    clientEditable: false,
-    docsPath: 'user-guide/advanced-settings#group_settings',
-  ),
-  // Billing
   SettingsSectionDef(
     slug: 'online_payments',
     titleKey: 'payment_settings',
     icon: Icons.payments_outlined,
     route: '/settings/online_payments',
-    group: SettingsGroup.billing,
+    group: SettingsGroup.basic,
     docsPath: 'user-guide/gateways',
   ),
   SettingsSectionDef(
@@ -260,95 +231,15 @@ const kSettingsSections = <SettingsSectionDef>[
     titleKey: 'tax_settings',
     icon: Icons.percent_outlined,
     route: '/settings/tax_settings',
-    group: SettingsGroup.billing,
+    group: SettingsGroup.basic,
     docsPath: 'user-guide/taxes',
   ),
-  SettingsSectionDef(
-    slug: 'payment_links',
-    titleKey: 'payment_links',
-    icon: Icons.link_outlined,
-    route: '/settings/payment_links',
-    group: SettingsGroup.billing,
-    clientEditable: false,
-  ),
-  SettingsSectionDef(
-    slug: 'bank_accounts',
-    titleKey: 'bank_accounts',
-    icon: Icons.account_balance_outlined,
-    route: '/settings/bank_accounts',
-    group: SettingsGroup.billing,
-    docsPath: 'user-guide/banking',
-  ),
-  SettingsSectionDef(
-    slug: 'e_invoice',
-    titleKey: 'e_invoicing',
-    icon: Icons.electric_bolt_outlined,
-    route: '/settings/e_invoice',
-    group: SettingsGroup.billing,
-    // Company level only (React #3286): the standard, PEPPOL registration
-    // and certificates are the company's, not a per-client override.
-    clientEditable: false,
-    docsPath: 'user-guide/einvoicing',
-  ),
-  // Documents
-  SettingsSectionDef(
-    slug: 'invoice_design',
-    titleKey: 'invoice_design',
-    icon: Icons.design_services_outlined,
-    route: '/settings/invoice_design',
-    group: SettingsGroup.documents,
-    docsPath: 'user-guide/advanced-settings#invoice_design',
-  ),
-  SettingsSectionDef(
-    slug: 'generated_numbers',
-    titleKey: 'generated_numbers',
-    icon: Icons.format_list_numbered,
-    route: '/settings/generated_numbers',
-    group: SettingsGroup.documents,
-    docsPath: 'user-guide/advanced-settings#generated_numbers',
-  ),
-  SettingsSectionDef(
-    slug: 'custom_fields',
-    titleKey: 'custom_fields',
-    icon: Icons.edit_note_outlined,
-    route: '/settings/custom_fields',
-    group: SettingsGroup.documents,
-    // Custom Fields are company-wide; hide the sidebar entry while the user
-    // is editing in client scope (the scope banner doesn't apply here).
-    clientEditable: false,
-    docsPath: 'user-guide/advanced-settings#custom_fields',
-  ),
-  SettingsSectionDef(
-    slug: 'templates_and_reminders',
-    titleKey: 'templates_and_reminders',
-    icon: Icons.notifications_outlined,
-    route: '/settings/templates_and_reminders',
-    group: SettingsGroup.documents,
-    docsPath: 'user-guide/advanced-settings#templates_and_reminders',
-  ),
-  SettingsSectionDef(
-    slug: 'email_settings',
-    titleKey: 'email_settings',
-    icon: Icons.mail_outline,
-    route: '/settings/email_settings',
-    group: SettingsGroup.documents,
-    docsPath: 'user-guide/advanced-settings#email_settings',
-  ),
-  SettingsSectionDef(
-    slug: 'client_portal',
-    titleKey: 'client_portal',
-    icon: Icons.web_outlined,
-    route: '/settings/client_portal',
-    group: SettingsGroup.documents,
-    docsPath: 'user-guide/client-portal',
-  ),
-  // Products & Work
   SettingsSectionDef(
     slug: 'product_settings',
     titleKey: 'product_settings',
     icon: Icons.inventory_2_outlined,
     route: '/settings/product_settings',
-    group: SettingsGroup.productsAndWork,
+    group: SettingsGroup.basic,
     // Product settings are all top-level `company.*` fields with no per-client
     // override (the screen uses `SettingsCompanyScopedHost`). Company-only,
     // like Company Details — matches the React app.
@@ -360,16 +251,29 @@ const kSettingsSections = <SettingsSectionDef>[
     titleKey: 'task_settings',
     icon: Icons.task_alt_outlined,
     route: '/settings/task_settings',
-    group: SettingsGroup.productsAndWork,
+    group: SettingsGroup.basic,
     enabledBy: [EnabledModule.tasks],
     docsPath: 'user-guide/basic-settings#task_settings',
+  ),
+  // Tags span tasks + projects; company-level + admin-managed (the server
+  // gates create/update to admins). The screen's toggle switches entity type.
+  SettingsSectionDef(
+    slug: 'tags',
+    titleKey: 'tags',
+    icon: Icons.local_offer_outlined,
+    route: '/settings/tags',
+    group: SettingsGroup.basic,
+    enabledBy: [EnabledModule.tasks, EnabledModule.projects],
+    clientEditable: false,
+    adminOnly: true,
+    docsPath: 'user-guide/basic-settings#tag_settings',
   ),
   SettingsSectionDef(
     slug: 'expense_settings',
     titleKey: 'expense_settings',
     icon: Icons.receipt_long_outlined,
     route: '/settings/expense_settings',
-    group: SettingsGroup.productsAndWork,
+    group: SettingsGroup.basic,
     enabledBy: [EnabledModule.expenses],
     // Company-only (like Product Settings): all fields are top-level `company.*`
     // and the one `settings.*` key (default_expense_payment_type_id) is written
@@ -383,57 +287,26 @@ const kSettingsSections = <SettingsSectionDef>[
     titleKey: 'workflow_settings',
     icon: Icons.account_tree_outlined,
     route: '/settings/workflow_settings',
-    group: SettingsGroup.productsAndWork,
+    group: SettingsGroup.basic,
     // Invoices + Quotes tabs — keep the section while either applies.
     enabledBy: [EnabledModule.invoices, EnabledModule.quotes],
     docsPath: 'user-guide/advanced-settings#workflow_settings',
   ),
   SettingsSectionDef(
-    slug: 'schedules',
-    titleKey: 'schedules',
-    icon: Icons.schedule_outlined,
-    route: '/settings/schedules',
-    group: SettingsGroup.productsAndWork,
+    slug: 'account_management',
+    titleKey: 'account_management',
+    icon: Icons.manage_accounts_outlined,
+    route: '/settings/account_management',
+    group: SettingsGroup.basic,
     clientEditable: false,
-    docsPath: 'advanced-topics/schedules',
-  ),
-  // Tags span tasks + projects; company-level + admin-managed (the server
-  // gates create/update to admins). The screen's toggle switches entity type.
-  SettingsSectionDef(
-    slug: 'tags',
-    titleKey: 'tags',
-    icon: Icons.local_offer_outlined,
-    route: '/settings/tags',
-    group: SettingsGroup.productsAndWork,
-    enabledBy: [EnabledModule.tasks, EnabledModule.projects],
-    clientEditable: false,
-    adminOnly: true,
-    docsPath: 'user-guide/basic-settings#tag_settings',
-  ),
-  // App & Data
-  SettingsSectionDef(
-    slug: 'device_settings',
-    titleKey: 'device_settings',
-    icon: Icons.devices_outlined,
-    route: '/settings/device_settings',
-    group: SettingsGroup.appAndData,
-    clientEditable: false,
-    docsPath: 'user-guide/basic-settings#device_settings',
-  ),
-  SettingsSectionDef(
-    slug: 'keyboard_shortcuts',
-    titleKey: 'keyboard_shortcuts',
-    icon: Icons.keyboard_outlined,
-    route: '/settings/keyboard_shortcuts',
-    group: SettingsGroup.appAndData,
-    clientEditable: false,
+    docsPath: 'user-guide/basic-settings#account_management',
   ),
   SettingsSectionDef(
     slug: 'backup_restore',
     titleKey: 'backup_restore',
     icon: Icons.backup_outlined,
     route: '/settings/backup_restore',
-    group: SettingsGroup.appAndData,
+    group: SettingsGroup.basic,
     clientEditable: false,
     docsPath: 'advanced-topics/import-and-export#backup-function',
   ),
@@ -442,16 +315,141 @@ const kSettingsSections = <SettingsSectionDef>[
     titleKey: 'import_export',
     icon: Icons.import_export_outlined,
     route: '/settings/import_export',
-    group: SettingsGroup.appAndData,
+    group: SettingsGroup.basic,
     clientEditable: false,
     docsPath: 'advanced-topics/import-and-export#import-data',
+  ),
+  SettingsSectionDef(
+    slug: 'device_settings',
+    titleKey: 'device_settings',
+    icon: Icons.devices_outlined,
+    route: '/settings/device_settings',
+    group: SettingsGroup.basic,
+    clientEditable: false,
+    docsPath: 'user-guide/basic-settings#device_settings',
+  ),
+  SettingsSectionDef(
+    slug: 'keyboard_shortcuts',
+    titleKey: 'keyboard_shortcuts',
+    icon: Icons.keyboard_outlined,
+    route: '/settings/keyboard_shortcuts',
+    group: SettingsGroup.basic,
+    clientEditable: false,
+  ),
+  // Advanced Settings — React's `advanced` list, in its order.
+  SettingsSectionDef(
+    slug: 'invoice_design',
+    titleKey: 'invoice_design',
+    icon: Icons.design_services_outlined,
+    route: '/settings/invoice_design',
+    group: SettingsGroup.advanced,
+    docsPath: 'user-guide/advanced-settings#invoice_design',
+  ),
+  SettingsSectionDef(
+    slug: 'custom_fields',
+    titleKey: 'custom_fields',
+    icon: Icons.edit_note_outlined,
+    route: '/settings/custom_fields',
+    group: SettingsGroup.advanced,
+    // Custom Fields are company-wide; hide the sidebar entry while the user
+    // is editing in client scope (the scope banner doesn't apply here).
+    clientEditable: false,
+    docsPath: 'user-guide/advanced-settings#custom_fields',
+  ),
+  SettingsSectionDef(
+    slug: 'generated_numbers',
+    titleKey: 'generated_numbers',
+    icon: Icons.format_list_numbered,
+    route: '/settings/generated_numbers',
+    group: SettingsGroup.advanced,
+    docsPath: 'user-guide/advanced-settings#generated_numbers',
+  ),
+  SettingsSectionDef(
+    slug: 'client_portal',
+    titleKey: 'client_portal',
+    icon: Icons.web_outlined,
+    route: '/settings/client_portal',
+    group: SettingsGroup.advanced,
+    docsPath: 'user-guide/client-portal',
+  ),
+  SettingsSectionDef(
+    slug: 'e_invoice',
+    titleKey: 'e_invoicing',
+    icon: Icons.electric_bolt_outlined,
+    route: '/settings/e_invoice',
+    group: SettingsGroup.advanced,
+    // Company level only (React #3286): the standard, PEPPOL registration
+    // and certificates are the company's, not a per-client override.
+    clientEditable: false,
+    docsPath: 'user-guide/einvoicing',
+  ),
+  SettingsSectionDef(
+    slug: 'email_settings',
+    titleKey: 'email_settings',
+    icon: Icons.mail_outline,
+    route: '/settings/email_settings',
+    group: SettingsGroup.advanced,
+    docsPath: 'user-guide/advanced-settings#email_settings',
+  ),
+  SettingsSectionDef(
+    slug: 'templates_and_reminders',
+    titleKey: 'templates_and_reminders',
+    icon: Icons.notifications_outlined,
+    route: '/settings/templates_and_reminders',
+    group: SettingsGroup.advanced,
+    docsPath: 'user-guide/advanced-settings#templates_and_reminders',
+  ),
+  SettingsSectionDef(
+    slug: 'bank_accounts',
+    titleKey: 'bank_accounts',
+    icon: Icons.account_balance_outlined,
+    route: '/settings/bank_accounts',
+    group: SettingsGroup.advanced,
+    docsPath: 'user-guide/banking',
+  ),
+  SettingsSectionDef(
+    slug: 'group_settings',
+    titleKey: 'group_settings',
+    icon: Icons.group_work_outlined,
+    route: '/settings/group_settings',
+    group: SettingsGroup.advanced,
+    clientEditable: false,
+    docsPath: 'user-guide/advanced-settings#group_settings',
+  ),
+  SettingsSectionDef(
+    slug: 'payment_links',
+    titleKey: 'payment_links',
+    icon: Icons.link_outlined,
+    route: '/settings/payment_links',
+    group: SettingsGroup.advanced,
+    clientEditable: false,
+  ),
+  SettingsSectionDef(
+    slug: 'schedules',
+    titleKey: 'schedules',
+    icon: Icons.schedule_outlined,
+    route: '/settings/schedules',
+    group: SettingsGroup.advanced,
+    clientEditable: false,
+    docsPath: 'advanced-topics/schedules',
+  ),
+  // Slug intentionally diverges from titleKey: the route is `users` but the
+  // user-facing label is "User Management".
+  SettingsSectionDef(
+    slug: 'users',
+    titleKey: 'user_management',
+    icon: Icons.supervised_user_circle_outlined,
+    route: '/settings/users',
+    group: SettingsGroup.advanced,
+    clientEditable: false,
+    docsPath: 'user-guide/advanced-settings#user_management',
   ),
   SettingsSectionDef(
     slug: 'system_logs',
     titleKey: 'system_logs',
     icon: Icons.terminal_outlined,
     route: '/settings/system_logs',
-    group: SettingsGroup.appAndData,
+    group: SettingsGroup.advanced,
     clientEditable: false,
     adminOnly: true,
   ),

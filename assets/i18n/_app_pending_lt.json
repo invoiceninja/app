@@ -1856,7 +1856,6 @@
   "due_on_date_label": "Terminas :date",
   "valid_until_date_label": "Galioja iki :date",
   "add_deposit": "Pridėti avansą",
-  "settings_group_billing": "Atsiskaitymai",
-  "settings_group_products_and_work": "Prekės ir darbas",
-  "settings_group_app_and_data": "Programa ir duomenys"
+  "net_received": "Grynosios įplaukos",
+  "paid_on_date_label": "Apmokėta :date"
 }

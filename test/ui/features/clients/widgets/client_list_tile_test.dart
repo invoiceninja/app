@@ -416,6 +416,18 @@ void main() {
       expect(style?.fontWeight, FontWeight.w400);
     });
 
+    testWidgets('a balance owed is semibold ink, never the overdue red', (
+      tester,
+    ) async {
+      // The desktop Balance column's emphasis (`client_columns.dart`): a
+      // balance is not late, so red claimed something the row cannot know.
+      await pumpMoney(tester, moneyClient(balance: '1200.00'));
+
+      final style = tester.widget<Text>(find.text(r'$1,200.00')).style;
+      expect(style?.color, InTheme.light.ink);
+      expect(style?.fontWeight, FontWeight.w600);
+    });
+
     testWidgets('renders nothing while the formatter is still resolving', (
       tester,
     ) async {

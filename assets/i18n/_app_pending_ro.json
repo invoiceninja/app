@@ -1889,7 +1889,6 @@
   "due_on_date_label": "Scadent :date",
   "valid_until_date_label": "Valabil până la :date",
   "add_deposit": "Adaugă avans",
-  "settings_group_billing": "Facturare",
-  "settings_group_products_and_work": "Produse și muncă",
-  "settings_group_app_and_data": "Aplicație și date"
+  "net_received": "Net încasat",
+  "paid_on_date_label": "Plătită :date"
 }

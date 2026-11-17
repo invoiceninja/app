@@ -1899,7 +1899,6 @@
   "due_on_date_label": "Vervalt :date",
   "valid_until_date_label": "Geldig tot :date",
   "add_deposit": "Aanbetaling toevoegen",
-  "settings_group_billing": "Facturering",
-  "settings_group_products_and_work": "Producten en werk",
-  "settings_group_app_and_data": "App en gegevens"
+  "net_received": "Netto ontvangen",
+  "paid_on_date_label": "Betaald :date"
 }

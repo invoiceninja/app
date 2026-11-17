@@ -364,7 +364,7 @@ void main() {
     expect(kinds, isNot(contains(ClientAction.newPayment)));
   });
 
-  testWidgets('Call needs both the preference and a number to dial', (
+  testWidgets('Call needs a number to dial, not the tap-to-call preference', (
     tester,
   ) async {
     final withPhone = _client(balance: '100', phone: '+1 555 0100');
@@ -374,8 +374,8 @@ void main() {
     );
     expect(
       await quickKinds(tester, client: withPhone),
-      isNot(contains(ClientAction.call)),
-      reason: 'tap to call is off',
+      contains(ClientAction.call),
+      reason: 'the record\'s Call is an explicit verb — tap to call is off',
     );
     expect(
       await quickKinds(

@@ -8,6 +8,7 @@ import 'package:admin/data/models/value/date.dart';
 import 'package:admin/domain/entity_type.dart';
 import 'package:admin/domain/quick_create.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/core/list/entity_create_fab.dart';
 import 'package:admin/ui/core/adaptive.dart';
 import 'package:admin/ui/core/utils/calendar_week_start.dart';
 import 'package:admin/ui/core/utils/fab_clearance.dart';
@@ -228,10 +229,9 @@ class _TaskWeeklyScreenState extends State<TaskWeeklyScreen> {
               ? null
               : const AppDrawer(),
           floatingActionButton: _mayCreateTask
-              ? FloatingActionButton(
-                  tooltip: context.tr('new_task'),
+              ? EntityCreateFab(
+                  labelKey: 'new_task',
                   onPressed: () => goToCreateRoute(context, '/tasks/new'),
-                  child: const Icon(Icons.add),
                 )
               : null,
           body: ChangeNotifierProvider<TaskWeeklyViewModel>.value(

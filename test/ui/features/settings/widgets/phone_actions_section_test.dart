@@ -30,12 +30,13 @@ void main() {
 
   setUp(() => services = PhoneActionsTestServices());
 
-  testWidgets('the guards are inert until tap-to-call is on', (tester) async {
+  testWidgets('the guards stay editable with tap-to-call off', (tester) async {
+    // The record screen's Call action dials with tap-to-call off (its
+    // default), and the guards apply to it, so they must stay reachable.
     await services.phoneActions.setTapToCall(false);
+    await services.phoneActions.setWarnOutsideBusinessHours(true);
     await pump(tester);
 
-    // Greyed rather than hidden: a row that vanishes reads as a bug, and the
-    // guards' state is worth seeing before switching the master on.
     for (final label in const [
       'Confirm before calling',
       'Warn outside business hours',
@@ -49,11 +50,11 @@ void main() {
               ),
             )
             .onChanged,
-        isNull,
-        reason: '$label should be disabled',
+        isNotNull,
+        reason: '$label should be enabled',
       );
     }
-    expect(find.byType(InTimeField), findsNothing);
+    expect(find.byType(InTimeField), findsNWidgets(2));
   });
 
   testWidgets('the hours pair appears only while the warning is on', (

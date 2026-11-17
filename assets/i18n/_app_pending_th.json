@@ -1899,7 +1899,6 @@
   "due_on_date_label": "ครบกำหนด :date",
   "valid_until_date_label": "ใช้ได้ถึง :date",
   "add_deposit": "เพิ่มเงินมัดจำ",
-  "settings_group_billing": "การเรียกเก็บเงิน",
-  "settings_group_products_and_work": "สินค้าและงาน",
-  "settings_group_app_and_data": "แอปและข้อมูล"
+  "net_received": "รับสุทธิ",
+  "paid_on_date_label": "ชำระแล้ว :date"
 }

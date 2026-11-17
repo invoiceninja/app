@@ -14,6 +14,7 @@ import 'package:admin/ui/features/dashboard/widgets/dashboard_density.dart';
 import 'package:admin/ui/features/dashboard/widgets/card_shell.dart';
 import 'package:admin/ui/features/dashboard/widgets/dashboard_panel_grid.dart';
 import 'package:admin/ui/features/dashboard/widgets/list_card.dart';
+import 'package:admin/ui/core/widgets/initials_avatar.dart';
 import 'package:admin/utils/formatting.dart';
 
 /// Rows the card shows.
@@ -278,12 +279,13 @@ class DashboardActivityRow extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: avatar,
-            height: avatar,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
-            child: Icon(render.icon, size: dense ? 12 : 15, color: fg),
+          _ActorAvatar(
+            activity: activity,
+            icon: render.icon,
+            background: bg,
+            foreground: fg,
+            size: avatar,
+            dense: dense,
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -343,6 +345,81 @@ class DashboardActivityRow extends StatelessWidget {
       label: '${render.title}, $meta',
       onTap: tap,
       child: ExcludeSemantics(child: tappable),
+    );
+  }
+}
+
+/// Who did it, at a glance: the acting user's initials (`InitialsAvatar`,
+/// seeded on the user's id so they wear the same tint as everywhere else),
+/// with the activity's tone icon as a small badge on its bottom-end corner —
+/// the verb's colour is kept, the face leads.
+///
+/// A row with no user — a contact viewing an invoice, a system run, an
+/// activity the server sent without a `:user` — keeps the tone circle alone:
+/// there is nobody to draw, and a "?" tile would claim a person.
+class _ActorAvatar extends StatelessWidget {
+  const _ActorAvatar({
+    required this.activity,
+    required this.icon,
+    required this.background,
+    required this.foreground,
+    required this.size,
+    required this.dense,
+  });
+
+  final DashboardActivity activity;
+  final IconData icon;
+  final Color background;
+  final Color foreground;
+  final double size;
+  final bool dense;
+
+  @override
+  Widget build(BuildContext context) {
+    final userId = activity.userId ?? '';
+    final initials = initialsFor(activity.labels['user']?.trim() ?? '');
+    if (userId.isEmpty || initials == null) {
+      return Container(
+        width: size,
+        height: size,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(color: background, shape: BoxShape.circle),
+        child: Icon(icon, size: dense ? 12 : 15, color: foreground),
+      );
+    }
+    final badge = dense ? 12.0 : 15.0;
+    final tokens = context.inTheme;
+    return SizedBox(
+      width: size,
+      height: size,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          InitialsAvatar(
+            seed: userId,
+            label: initials,
+            size: size,
+            radius: InRadii.r2,
+          ),
+          // Overhangs the corner by a few pixels, ringed in the card's
+          // surface so it reads as sitting on the avatar, not inside it.
+          PositionedDirectional(
+            end: -4,
+            bottom: -4,
+            child: Container(
+              width: badge,
+              height: badge,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: background,
+                shape: BoxShape.circle,
+                border: Border.all(color: tokens.surface, width: 1.5),
+              ),
+              child: Icon(icon, size: badge * 0.6, color: foreground),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

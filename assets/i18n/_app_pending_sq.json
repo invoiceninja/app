@@ -1899,7 +1899,6 @@
   "due_on_date_label": "Afati :date",
   "valid_until_date_label": "E vlefshme deri më :date",
   "add_deposit": "Shto parapagim",
-  "settings_group_billing": "Faturimi",
-  "settings_group_products_and_work": "Produktet dhe puna",
-  "settings_group_app_and_data": "Aplikacioni dhe të dhënat"
+  "net_received": "Neto e arkëtuar",
+  "paid_on_date_label": "Paguar :date"
 }

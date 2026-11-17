@@ -74,7 +74,7 @@ stored layout keep the id) and never leaves no columns at all. Pinned by
 
 ### Money columns end-aligned, emphasis per column
 
-Every money column declares `align: ColumnAlign.end`, and its header follows the column's `align` (`_HeaderCell`, sort arrow on the start side), so a figure's last digit and its label end at one x down the table; `CellSlot` and the header both resolve `AlignmentDirectional`, so RTL mirrors them. The figures line up because `moneyTextStyle` sets tabular figures — in Inter Tight since Nov 2026, not JetBrains Mono (`lib/app/design_tokens.dart`).
+Every money column declares `align: ColumnAlign.end`, and its header follows the column's `align` (`_HeaderCell`, sort arrow on the start side), so a figure's last digit and its label end at one x down the table; `CellSlot` and the header both resolve `AlignmentDirectional`, so RTL mirrors them. The figures line up because `moneyTextStyle` is JetBrains Mono with tabular figures, falling back to Inter Tight for the currency signs the mono face lacks (`lib/app/design_tokens.dart`).
 
 Emphasis belongs to the column, never to `cellMoney`: the Clients **Balance** cell (`clientBalanceCell`) draws a balance above zero at weight 600, keeps `cellMoney`'s dimmed dash for a zero, and leaves a negative (a credit) plain. A **Last Login** that never happened is the labelled-slot em dash, never "Never". `test/domain/columns/list_emphasis_cells_test.dart` pins all three.
 
@@ -89,6 +89,18 @@ Emphasis belongs to the column, never to `cellMoney`: the Clients **Balance** ce
 ### A standalone table has no card
 
 **A standalone list's wide table sits on the page with no card border or fill, at both densities, inside `entityListTableInset` (24 px each side, a small top gap, none below)** — the header's rule and the rows' hairlines are its only edges, as in the list designs. A local transparency `Material` (clipped) is still the rows' ink host. Because the rows now sit on `bg`, the row hover is a translucent `ink` wash (`_rowHoverColor`): the old opaque `surfaceAlt` is lighter than the light themes' `bg` and vanished. An embedded list keeps its card (`_embeddedListCard`), which lines it up with the record's other cards.
+
+### A list's title row
+
+**Every standalone wide list leads with a title row — the entity's plural name at the app's one title size (`AppBarTheme.titleTextStyle`, 18 px semibold) on the start side, Columns / Views / New at the end — and the search field has the row below to itself** (`EntityListTitleRow`, built by `EntityListAppBar._buildWide`). No row count: the status strip counts. An embedded list has none (its record is the title), and a narrow list keeps its `AppBar`, which already titles the screen. The order at the end is Columns, Views, New, then any `extraAppBarActions` — last, so the Tasks view toggle sits where `buildTasksViewAppBar` puts it on the four custom views, at the same height, and a view switch never moves it; that header's title takes the same text style.
+
+- **It costs one row, and only one.** The header's floor is `EntityListAppBar.minExtentFor(wide: true)` = 12 + 45 + 8 + 45 + 12 = **122 px** (it was the 69 px `InSizes.headerBand`), no padding added beyond the 8 px between the rows. The sidebar's company row no longer lines up with the header's bottom edge — nothing draws a rule there to line up.
+- **Multi-select swaps only the search row** for the selection chrome, so the title stays put and the rows under the pointer still do not move.
+- **The outstanding line is Clients and Invoices only** (`showOutstandingTotals`, never over a list narrowed to one group, client or project): "Outstanding $22,924.00 · £6,091.00" under the title on wide, and on a narrow list between the `AppBar` and the search field. It is the server's per-currency outstanding figure — `DashboardRepository.watchOutstanding(includeDrafts: false)`, the dashboard's own cache row, refreshed on open when older than five minutes — never a sum of the rows the device happens to hold. `outstandingByCurrency` drops the `999` converted aggregate (printing it beside its parts would count everything twice), leads with the company currency and keeps the server's order after it; each amount goes through `Formatter.money(currencyId:)` and, in a right-to-left layout, a left-to-right isolate; the line is one `Text.rich` that ellipsises as a whole, so a tight title row never overflows. **Unknown is not zero**: nothing cached, the formatter still resolving, or a user without `view_dashboard` (the server refuses them the endpoint, `ShowChartRequest`) draws nothing, and so does nothing outstanding. Drafts are left out whatever the dashboard's own switch says: a draft is not owed. Pinned in `test/domain/outstanding_by_currency_test.dart` and `entity_list_app_bar_test.dart`.
+
+### A narrow list's create button says what it makes
+
+**A narrow list's floating create button is an extended FAB — "+ New Client" — through `EntityCreateFab`**, on every list that floats one: the entity lists and the Daily / Weekly / Calendar task views (the kanban board still has none). It is 56 px tall like the bare `+` it replaced, so `fabScrollClearance` is unchanged; `fab_clearance_wiring_test.dart` now looks for `EntityCreateFab(`.
 
 ## List status tabs
 

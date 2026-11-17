@@ -573,7 +573,7 @@ Panels are ordered and hidden per user — `DashboardKind.panelKinds` is the reg
 
 Tapping a phone number opens the dialer (invoiceninja/flutter#109), behind a device-local preference blob (`DevicePrefKeys.phoneActions`). → `docs/tap-to-call.md`
 
-- **The `tapToCall` default is `Env.isTouchPrimary`, not `true`** → `docs/tap-to-call.md`
+- **`tapToCall` defaults off everywhere; the record's Call ignores it** → `docs/tap-to-call.md`
 - **`tel:` / `sms:` deliberately bypass `isSafeWebUrl`.** → `docs/tap-to-call.md`
 - **`cleanPhoneNumber` is where a wrong number comes from.** → `docs/tap-to-call.md`
 - **Every phone surface listens via `PhoneActionsScope`.** → `docs/tap-to-call.md`

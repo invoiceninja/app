@@ -470,6 +470,7 @@ Future<void> pickAndCallPhone(
   VoidCallback? onViewParty,
   String viewPartyLabelKey = 'view_client',
   CallLogTarget? logTarget,
+  bool explicitAction = false,
 }) async {
   if (candidates.isEmpty) return;
   var picked = candidates.first;
@@ -498,6 +499,7 @@ Future<void> pickAndCallPhone(
         : picked.label,
     clientId: clientId,
     logTarget: logTarget,
+    explicitAction: explicitAction,
   );
 }
 

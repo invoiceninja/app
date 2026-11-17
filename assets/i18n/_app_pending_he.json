@@ -1817,7 +1817,6 @@
   "due_on_date_label": "לתשלום עד :date",
   "valid_until_date_label": "בתוקף עד :date",
   "add_deposit": "הוספת מקדמה",
-  "settings_group_billing": "חיוב",
-  "settings_group_products_and_work": "מוצרים ועבודה",
-  "settings_group_app_and_data": "אפליקציה ונתונים"
+  "net_received": "נטו שהתקבל",
+  "paid_on_date_label": "שולמה :date"
 }

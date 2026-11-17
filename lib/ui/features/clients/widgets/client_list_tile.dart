@@ -135,9 +135,11 @@ class _ClientListTileState extends State<ClientListTile> {
     final tokens = context.inTheme;
     final displayName = _displayName(context, w.client);
     final state = _stateFor(w.client);
-    // `outstandingPositive` drives styling only — a *negative* balance is a
-    // credit, not an overdue debt, so it renders in plain ink rather than the
-    // bold `overdue` red.
+    // `outstandingPositive` drives styling only: a balance owed renders in
+    // semibold ink — the desktop Balance column's emphasis
+    // (`client_columns.dart`) — and a *negative* balance, a credit, in plain
+    // ink. Never the `overdue` red: a balance is not late, and the phone row
+    // has no way to tell whether any of it is.
     final outstandingPositive = w.client.balance > Decimal.zero;
     // `zeroIsNull` is what hides an empty money line (invoiceninja/flutter#112):
     // it blanks exactly zero while formatting a negative normally, so a client
@@ -241,8 +243,8 @@ class _ClientListTileState extends State<ClientListTile> {
     final w = widget;
     final outstandingLine = _money(
       formattedOutstanding,
-      bold: outstandingPositive,
-      color: outstandingPositive ? tokens.overdue : tokens.ink,
+      weight: outstandingPositive ? FontWeight.w600 : FontWeight.w400,
+      color: tokens.ink,
     );
     // Labelled, unlike the balance above it: with no balance the paid figure
     // is the only line, sits in the top slot, and an unlabelled amount there
@@ -441,7 +443,7 @@ class _ClientListTileState extends State<ClientListTile> {
   Widget? _money(
     String text, {
     Color? color,
-    bool bold = false,
+    FontWeight weight = FontWeight.w400,
     double fontSize = 13,
   }) {
     if (text.isEmpty) return null;
@@ -452,7 +454,7 @@ class _ClientListTileState extends State<ClientListTile> {
       // Tabular figures align decimal columns row-to-row.
       style: moneyTextStyle(
         fontSize: fontSize,
-        fontWeight: bold ? FontWeight.w500 : FontWeight.w400,
+        fontWeight: weight,
         color: color,
         height: 1.2,
       ),

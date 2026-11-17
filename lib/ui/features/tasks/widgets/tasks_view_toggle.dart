@@ -84,9 +84,11 @@ PreferredSizeWidget buildTasksViewAppBar(
             expand: true,
             child: Row(
               children: [
+                // The app's one title size, as the Tasks list's own title row
+                // (`EntityListTitleRow`) draws the same word.
                 Text(
                   context.tr('tasks'),
-                  style: Theme.of(context).textTheme.titleLarge,
+                  style: Theme.of(context).appBarTheme.titleTextStyle,
                 ),
                 const Spacer(),
                 if (filterAction != null) ...[

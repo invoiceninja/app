@@ -1819,7 +1819,6 @@
   "due_on_date_label": "Erääntyy :date",
   "valid_until_date_label": "Voimassa :date asti",
   "add_deposit": "Lisää ennakkomaksu",
-  "settings_group_billing": "Laskutus",
-  "settings_group_products_and_work": "Tuotteet ja työ",
-  "settings_group_app_and_data": "Sovellus ja tiedot"
+  "net_received": "Nettotulot",
+  "paid_on_date_label": "Maksettu :date"
 }

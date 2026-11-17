@@ -153,7 +153,9 @@ void main() {
 
     await tester.tap(find.text('Create "Widget"'));
     await _settle(tester);
-    expect(find.widgetWithText(TextField, 'Price'), findsNothing);
+    // The sale price is offered beside the cost (beta feedback); left blank
+    // it stays zero.
+    expect(find.widgetWithText(TextField, 'Price'), findsOneWidget);
 
     await tester.enterText(find.widgetWithText(TextField, 'Cost'), '7.50');
     await tester.tap(find.text('Save'));

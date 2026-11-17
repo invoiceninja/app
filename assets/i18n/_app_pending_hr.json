@@ -1818,7 +1818,6 @@
   "due_on_date_label": "Dospijeće :date",
   "valid_until_date_label": "Vrijedi do :date",
   "add_deposit": "Dodaj predujam",
-  "settings_group_billing": "Naplata",
-  "settings_group_products_and_work": "Proizvodi i rad",
-  "settings_group_app_and_data": "Aplikacija i podaci"
+  "net_received": "Neto primljeno",
+  "paid_on_date_label": "Plaćeno :date"
 }

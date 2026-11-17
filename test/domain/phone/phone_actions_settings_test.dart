@@ -90,22 +90,11 @@ void main() {
   group('deviceDefaults', () {
     tearDown(() => debugDefaultTargetPlatformOverride = null);
 
-    test('tap-to-call is on where the primary pointer is a finger', () {
-      debugDefaultTargetPlatformOverride = TargetPlatform.android;
-      expect(PhoneActionsSettings.deviceDefaults().tapToCall, isTrue);
-      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
-      expect(PhoneActionsSettings.deviceDefaults().tapToCall, isTrue);
-    });
-
-    test('tap-to-call is off on desktop, where there may be no dialer', () {
-      // The app can't ask whether a `tel:` handler exists (`canLaunchUrl` is
-      // banned), so on by default would mean a number that stops selecting as
-      // text and reports "Couldn't open the link" for a user who never asked.
-      for (final platform in const [
-        TargetPlatform.linux,
-        TargetPlatform.windows,
-        TargetPlatform.macOS,
-      ]) {
+    test('tap-to-call is off on every platform', () {
+      // Off since Nov 2026, phones included: a number that dials on a tap
+      // stops selecting as text and puts a call one mis-tap away. The record
+      // screen's Call action dials whatever this says.
+      for (final platform in TargetPlatform.values) {
         debugDefaultTargetPlatformOverride = platform;
         expect(
           PhoneActionsSettings.deviceDefaults().tapToCall,
@@ -113,6 +102,14 @@ void main() {
           reason: '$platform should default off',
         );
       }
+    });
+
+    test('a blob with no tapToCall key gets the same default', () {
+      debugDefaultTargetPlatformOverride = TargetPlatform.android;
+      expect(
+        PhoneActionsSettings.fromJson({'confirmBeforeCall': true}).tapToCall,
+        isFalse,
+      );
     });
 
     test('the guards keep their defaults regardless of platform', () {

@@ -11,8 +11,8 @@ import 'package:admin/ui/features/settings/state/settings_reveal_controller.dart
 
 /// The line under a hit: "Company Details › Address" for a field on a tab,
 /// the section alone for a field on a single-page section (or one every tab
-/// carries), and the section's topic group (Billing, Documents…) for a section
-/// row.
+/// carries), and the section's half of the nav (Basic / Advanced Settings)
+/// for a section row.
 String settingsHitSubtitle(SettingsSearchHit hit, Localization l10n) {
   final section = l10n.lookup(hit.section.titleKey);
   switch (hit.kind) {

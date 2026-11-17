@@ -262,6 +262,30 @@ void main() {
       }
     });
 
+    testWidgets('an inactive tab with a zero count is faded but still '
+        'tappable; the list strip does not fade', (tester) async {
+      Color? colorOf(String label) =>
+          tester.widget<Text>(find.text(label)).style?.color;
+      final tokens = InTheme.light;
+
+      await tester.pumpWidget(host(wrap: true));
+      await tester.pumpAndSettle();
+      expect(colorOf('Overdue'), tokens.ink3, reason: 'count 0, inactive');
+      expect(colorOf('Draft'), tokens.ink2, reason: 'count 3');
+      await tester.tap(find.text('Overdue'));
+      expect(tapped?.listModeId, 'overdue');
+
+      // Active at zero keeps the active ink.
+      await tester.pumpWidget(host(wrap: true, selectedIndex: 3));
+      await tester.pumpAndSettle();
+      expect(colorOf('Overdue'), tokens.ink);
+
+      // The list strip's neutral badge already says zero.
+      await tester.pumpWidget(host());
+      await tester.pumpAndSettle();
+      expect(colorOf('Overdue'), tokens.ink2);
+    });
+
     testWidgets('selection is a fill, not the strip underline', (tester) async {
       // On the first run of a wrapped strip a 2 px bottom border floats
       // mid-surface and reads as a stray rule, so selection moves to the
