@@ -8,6 +8,7 @@ import 'package:admin/data/db/dao/_payload_search.dart';
 
 import 'package:admin/data/db/app_database.dart';
 import 'package:admin/data/db/dao/base_entity_dao.dart';
+import 'package:admin/data/db/dao/list_totals_query.dart';
 import 'package:admin/data/models/domain/purchase_order_status.dart';
 import 'package:admin/domain/sidebar_badge_modes.dart';
 import 'package:admin/data/db/dao/entity_query_helpers.dart';
@@ -99,6 +100,20 @@ class PurchaseOrderDao
     ),
     _ => null,
   };
+
+  /// Open purchase orders (docs/entity-lists.md § A money list's totals line):
+  /// the balance of sent and accepted orders, in the vendor's currency, else
+  /// the company's — never `purchase_orders.currency_id`, which the server's
+  /// `VendorHtmlEngine`, React and this app all ignore.
+  @override
+  ListTotalsQuery? listTotalsQuery(String companyId) => ListTotalsQuery(
+    where: purchaseOrders.statusId.isIn([
+      PurchaseOrderStatus.sent.wireId,
+      PurchaseOrderStatus.accepted.wireId,
+    ]),
+    amount: purchaseOrders.balance,
+    vendorId: purchaseOrders.vendorId,
+  );
 
   Stream<List<PurchaseOrderRow>> watchPage({
     required String companyId,

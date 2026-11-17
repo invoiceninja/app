@@ -10,6 +10,9 @@ import 'package:admin/data/models/api/contact_api_model.dart';
 import 'package:admin/data/models/domain/company.dart';
 import 'package:admin/data/models/domain/contact.dart';
 import 'package:admin/ui/core/widgets/detail_info_row.dart';
+import 'package:admin/ui/core/widgets/phone_number_value.dart';
+import 'package:admin/ui/core/widgets/party_contact_row.dart';
+import 'package:admin/ui/core/widgets/copyable_value.dart';
 import 'package:admin/ui/core/widgets/link_text.dart';
 import 'package:admin/ui/features/clients/widgets/detail/client_detail_contacts_card.dart';
 import 'package:admin/ui/features/dashboard/widgets/card_shell.dart';
@@ -91,7 +94,12 @@ void main() {
       contact(id: 'ct$i', firstName: 'Person', lastName: '$i'),
   ];
 
-  Future<void> pump(WidgetTester tester, List<Contact> contacts) async {
+  Future<void> pump(
+    WidgetTester tester,
+    List<Contact> contacts, {
+    String countryId = '',
+    VoidCallback? onAdd,
+  }) async {
     await tester.binding.setSurfaceSize(const Size(500, 900));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(
@@ -107,6 +115,8 @@ void main() {
                 contacts: contacts,
                 clientHash: 'hash',
                 clientId: 'c1',
+                countryId: countryId,
+                onAdd: onAdd,
               ),
             ),
           ),
@@ -322,7 +332,7 @@ void main() {
     await tester.pump();
     expect(find.text('Person 5'), findsOneWidget);
 
-    await tester.tap(find.text('Less'));
+    await tester.tap(find.text('Show less'));
     await tester.pump();
     expect(find.text('Person 5'), findsNothing);
     expect(find.textContaining('more'), findsOneWidget);
@@ -538,5 +548,154 @@ void main() {
       reason: 'the sheet lists every real contact',
     );
     expect(find.text('(no name)'), findsNothing, reason: 'card or sheet');
+  });
+
+  // ─────────── the redesigned card: header, time, Add, phones ───────────
+
+  /// The header's count, as `PartyContactsCard` draws it.
+  Finder headerCount(String n) => find.descendant(
+    of: find.byType(DashboardCardShell),
+    matching: find.text(n),
+  );
+
+  testWidgets('the header counts the contacts worth showing — never the '
+      'blank or the deleted one', (tester) async {
+    final deleted = Contact.fromApi(
+      const ContactApi(id: 'gone', firstName: 'Gone', isDeleted: true),
+    );
+    await pump(tester, [blank(), deleted, ...people(2)]);
+    expect(headerCount('2'), findsOneWidget);
+    expect(headerCount('4'), findsNothing);
+    expect(headerCount('3'), findsNothing);
+
+    // One contact worth showing: "1" beside one row says nothing.
+    await pump(tester, [blank(), deleted, ...people(1)]);
+    expect(headerCount('1'), findsNothing);
+  });
+
+  testWidgets('the local time is said once, in the header, never per row', (
+    tester,
+  ) async {
+    await pump(tester, [
+      for (var i = 1; i <= 3; i++)
+        contact(id: 'ct$i', firstName: 'Person', lastName: '$i'),
+    ]);
+    await tester.pump();
+    expect(find.byType(ContactLocalTime), findsOneWidget);
+    expect(find.textContaining(' local'), findsOneWidget);
+    // Not inside any row.
+    expect(
+      find.descendant(
+        of: find.byType(PartyContactRow),
+        matching: find.byType(ContactLocalTime),
+      ),
+      findsNothing,
+    );
+  });
+
+  testWidgets('the header time tells a screen reader where it is', (
+    tester,
+  ) async {
+    final handle = tester.ensureSemantics();
+    await pump(tester, [contact()]);
+    await tester.pump();
+    final label = tester.getSemantics(find.textContaining(' local')).label;
+    // `contact_local_time`: ":time in :timezone".
+    expect(label, contains(' in Test/Zone'));
+    expect(label, isNot(contains('local')));
+    handle.dispose();
+  });
+
+  testWidgets('"+ Add" shows only when the profile hands the card onAdd', (
+    tester,
+  ) async {
+    await pump(tester, [contact()]);
+    expect(find.text('Add'), findsNothing);
+
+    var added = 0;
+    await pump(tester, [contact()], onAdd: () => added++);
+    expect(find.text('Add'), findsOneWidget);
+    // 44 px on touch, the `flutter test` default.
+    expect(
+      tester.getSize(find.widgetWithText(TextButton, 'Add')).height,
+      greaterThanOrEqualTo(44),
+    );
+    await tester.tap(find.text('Add'));
+    expect(added, 1);
+  });
+
+  testWidgets('a number is shown nationally in the client\'s country, '
+      'internationally from another', (tester) async {
+    await services.phoneActions.setTapToCall(false);
+    await pump(tester, [
+      contact(id: 'us', phone: '412.612.9667'),
+      contact(id: 'uk', firstName: 'Ann', phone: '+44 20 7946 0958'),
+      contact(id: 'ext', firstName: 'Ext', phone: '412 612 9667 x 22'),
+    ], countryId: '840');
+    expect(find.text('(412) 612-9667'), findsOneWidget);
+    expect(find.text('+44 20 7946 0958'), findsOneWidget);
+    // An extension keeps the stored text (garbage too: phone_display_test).
+    expect(find.text('412 612 9667 x 22'), findsOneWidget);
+  });
+
+  testWidgets('a reformatted number still copies and dials as stored', (
+    tester,
+  ) async {
+    final copied = <String>[];
+    final messenger = tester.binding.defaultBinaryMessenger;
+    messenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
+      if (call.method == 'Clipboard.setData') {
+        copied.add((call.arguments as Map)['text'] as String);
+      }
+      return null;
+    });
+    addTearDown(
+      () => messenger.setMockMethodCallHandler(SystemChannels.platform, null),
+    );
+    await services.phoneActions.setTapToCall(false);
+    await pump(tester, [contact(phone: '412.612.9667')], countryId: '840');
+    // On touch a tap on an undialable-by-preference number copies it.
+    await tester.tap(find.text('(412) 612-9667'));
+    await tester.pump();
+    expect(copied, ['412.612.9667']);
+    // The copy's toast.
+    await tester.pump(const Duration(seconds: 7));
+
+    // And the Call action's target is the stored text, untouched.
+    await services.phoneActions.setTapToCall(true);
+    await tester.pump();
+    final link = tester.widget<LinkText>(find.byType(LinkText));
+    expect(link.label, '(412) 612-9667');
+    expect(
+      find.descendant(
+        of: find.byType(CopyableValue),
+        matching: find.byType(LinkText),
+      ),
+      findsOneWidget,
+    );
+    final value = tester.widget<CopyableValue>(
+      find.ancestor(
+        of: find.byType(LinkText),
+        matching: find.byType(CopyableValue),
+      ),
+    );
+    expect(value.value, '412.612.9667');
+  });
+
+  testWidgets('"Show N more" is a full-width footer', (tester) async {
+    tester.view.physicalSize = const Size(1200, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    await pump(tester, people(5));
+    final card = tester.getRect(find.byType(DashboardCardShell));
+    final footer = tester.getRect(
+      find.ancestor(
+        of: find.text('Show 2 more'),
+        matching: find.byType(TextButton),
+      ),
+    );
+    // Inside the 1 px border, edge to edge.
+    expect(footer.width, closeTo(card.width - 2, 0.5));
+    expect(footer.height, greaterThanOrEqualTo(44));
   });
 }

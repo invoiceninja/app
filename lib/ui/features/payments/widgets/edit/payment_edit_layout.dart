@@ -852,26 +852,29 @@ class PaymentEmailReceiptSwitch extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tokens = context.inTheme;
-    return Material(
-      color: tokens.surface,
-      shape: RoundedRectangleBorder(
-        side: BorderSide(color: tokens.border),
+    // The shared card, with the tile's own padding standing in for the
+    // card's; clipped so the tile's hover and splash keep the corners.
+    return DashboardCardShell(
+      padding: EdgeInsets.zero,
+      child: ClipRRect(
         borderRadius: BorderRadius.circular(InRadii.r3),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: SwitchListTile(
-        contentPadding: EdgeInsetsDirectional.symmetric(
-          horizontal: InSpacing.lg(context),
+        child: SwitchListTile(
+          contentPadding: EdgeInsetsDirectional.symmetric(
+            horizontal: InSpacing.lg(context),
+          ),
+          title: Text(context.tr('email_receipt')),
+          value: vm.sendEmail,
+          onChanged: (v) => _onChanged(context, v),
         ),
-        title: Text(context.tr('email_receipt')),
-        value: vm.sendEmail,
-        onChanged: (v) => _onChanged(context, v),
       ),
     );
   }
 }
 
+/// One of the form's cards: the shared edit-form card
+/// ([DashboardCardShell]), the one every other edit screen's fields sit in.
+/// It used to be a hand-drawn twin with its own title size, padding and no
+/// shadow.
 class _Section extends StatelessWidget {
   const _Section({required this.title, required this.children});
   final String title;
@@ -879,33 +882,12 @@ class _Section extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tokens = context.inTheme;
-    // A local Material, not a coloured Container: the switches in these cards
-    // are ListTiles, which paint hover and splash on the nearest Material —
-    // under a Container's fill they were hidden, and debug builds asserted.
-    return Material(
-      color: tokens.surface,
-      shape: RoundedRectangleBorder(
-        side: BorderSide(color: tokens.border),
-        borderRadius: BorderRadius.circular(InRadii.r3),
-      ),
-      child: Padding(
-        padding: EdgeInsets.all(InSpacing.lg(context)),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              title,
-              style: TextStyle(
-                color: tokens.ink,
-                fontWeight: FontWeight.w600,
-                fontSize: 16,
-              ),
-            ),
-            const SizedBox(height: 12),
-            ...children,
-          ],
-        ),
+    return DashboardCardShell(
+      title: title,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: children,
       ),
     );
   }

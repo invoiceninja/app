@@ -39,6 +39,7 @@ import 'package:admin/ui/features/settings/views/advanced/custom_fields/custom_f
 import 'package:admin/ui/features/settings/views/advanced/e_invoice/e_invoice_screen.dart';
 import 'package:admin/ui/features/settings/views/advanced/email_settings_screen.dart';
 import 'package:admin/ui/features/settings/views/advanced/generated_numbers/generated_numbers_shell.dart';
+import 'package:admin/ui/features/group_settings/group_settings_detail_screen.dart';
 import 'package:admin/ui/features/settings/views/advanced/group_settings_edit_screen.dart';
 import 'package:admin/ui/features/settings/views/advanced/group_settings_screen.dart';
 import 'package:admin/ui/features/settings/views/advanced/payment_terms_edit_screen.dart';
@@ -567,11 +568,19 @@ final List<RouteBase> settingsRoutes = [
     builder: (_, _) => const GroupSettingsScreen(),
     routes: [
       _leaf('new', () => const GroupSettingsEditScreen()),
+      // The record screen (Overview / Clients / Documents) and, under it,
+      // the name form — so a save from the form pops back onto the record.
       _settingsRoute(
         path: ':id',
         builder: (_, state) =>
-            GroupSettingsEditScreen(existingId: state.pathParameters['id']),
-        routes: [_editAlias()],
+            GroupSettingsDetailScreen(id: state.pathParameters['id']!),
+        routes: [
+          _settingsRoute(
+            path: 'edit',
+            builder: (_, state) =>
+                GroupSettingsEditScreen(existingId: state.pathParameters['id']),
+          ),
+        ],
       ),
     ],
   ),

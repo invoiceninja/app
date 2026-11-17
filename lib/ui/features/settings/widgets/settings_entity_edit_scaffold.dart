@@ -42,7 +42,8 @@ final Logger _log = Logger('SettingsEntityEditScaffold');
 ///    and retry once before declaring `not_found`.
 /// 2. `build` — render the standard AppBar (overflow + Save) and wrap the
 ///    [bodyBuilder] in `FormSaveScope` + `SettingsFormShell`.
-/// 3. Save — call `vm.save()`; on success `pop` to [backRoute].
+/// 3. Save — call `vm.save()`; on success `pop` to [backRoute], or hand a
+///    create to [onCreated] when the record has a screen to land on.
 class SettingsEntityEditScaffold<T, VM extends GenericEditViewModel<T>>
     extends StatefulWidget {
   const SettingsEntityEditScaffold({
@@ -69,6 +70,7 @@ class SettingsEntityEditScaffold<T, VM extends GenericEditViewModel<T>>
     this.titleBuilder,
     this.actionsBuilder,
     this.savedActionBuilder,
+    this.onCreated,
     required this.isArchivedOf,
     required this.isDeletedOf,
   }) : assert(
@@ -167,6 +169,14 @@ class SettingsEntityEditScaffold<T, VM extends GenericEditViewModel<T>>
   /// leaves the toast plain.
   final NotifyAction? Function(BuildContext context, VM vm, T saved)?
   savedActionBuilder;
+
+  /// Where a **create** goes once it saved, in place of leaving for
+  /// [backRoute] — a record with a screen of its own lands on it (a new group
+  /// opens on its Overview). Handed the saved record, whose id is still the
+  /// `tmp_` one: resolve it through the repository's `resolveId` for a create
+  /// that already synced, and let the record's watch follow the remap for one
+  /// that has not. Null leaves as before.
+  final FutureOr<void> Function(BuildContext context, T saved)? onCreated;
 
   /// Lifecycle accessors on `T`. The scaffold uses them to decide which
   /// overflow-menu items to show. Wired by callers as
@@ -542,6 +552,11 @@ class _SettingsEntityEditScaffoldState<T, VM extends GenericEditViewModel<T>>
         ),
         action: widget.savedActionBuilder?.call(context, vm, saved),
       );
+      return;
+    }
+    final onCreated = widget.onCreated;
+    if (onCreated != null && widget.existingId == null) {
+      await onCreated(context, saved);
       return;
     }
     _leave();

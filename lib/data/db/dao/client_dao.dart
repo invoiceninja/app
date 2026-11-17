@@ -71,6 +71,28 @@ class ClientDao extends BaseEntityDao<$ClientsTable, ClientRow>
       );
   }
 
+  /// Ids of [companyId]'s clients with at least one active, past-due invoice —
+  /// the Overdue tab's own predicate, as a set, so a list can draw those
+  /// clients' balances red (docs/entity-lists.md § A client's balance is red
+  /// only when it is late). Reads the invoices Drift holds, like the tab.
+  Stream<Set<String>> watchOverdueClientIds({required String companyId}) {
+    final q = _overdueInvoiceClientIds(companyId);
+    final invoices = attachedDatabase.invoices;
+    return q
+        .watch()
+        .map(
+          (rows) => {
+            for (final r in rows)
+              if (r.read(invoices.clientId) case final id? when id.isNotEmpty)
+                id,
+          },
+        )
+        .distinct(_sameIds);
+  }
+
+  static bool _sameIds(Set<String> a, Set<String> b) =>
+      a.length == b.length && a.containsAll(b);
+
   /// Fill `contact_search` on this company's rows stored before v16 — see
   /// [fillContactSearchColumn].
   Future<int> fillContactSearch({required String companyId}) =>

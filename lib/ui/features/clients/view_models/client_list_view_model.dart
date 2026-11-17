@@ -287,6 +287,24 @@ class ClientListViewModel extends GenericListViewModel<Client> {
         );
       },
     ),
+    // Assign Group (React's and v1's `assign_group`): the prep dialog
+    // supplies the group id. Same per-row shape as `bulk_update`.
+    BulkAction<Client>(
+      id: 'assign_group',
+      labelKey: 'assign_group',
+      eligible: (c) => !isDeleted(c),
+      applyArg: (id, arg) async {
+        final client =
+            loadedItemById(id) ??
+            await repo.watch(companyId: companyId, id: id).first;
+        if (client == null) throw StateError('No local client $id');
+        await repo.assignGroup(
+          companyId: companyId,
+          client: client,
+          groupId: arg as String,
+        );
+      },
+    ),
   ];
 
   /// Convenience wrappers for the multiselect AppBar — the same calls

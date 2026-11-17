@@ -148,6 +148,14 @@ class TransactionListScreen extends StatelessWidget {
           pluralSuccessKey: 'restored_transactions',
           nothingKey: 'nothing_to_restore',
         ),
+        EntityListBulkAction(
+          actionId: 'delete',
+          icon: Icons.delete_outline,
+          tooltipKey: 'delete',
+          singleSuccessKey: 'deleted_transaction',
+          pluralSuccessKey: 'deleted_transactions',
+          nothingKey: 'nothing_to_delete',
+        ),
         // Convert is intentionally NOT a bulk action — it creates
         // server-side payments / expenses and always needs a confirm
         // dialog (see TransactionActions._confirmConvert). Users

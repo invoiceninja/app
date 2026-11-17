@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/theme.dart';
 import 'package:admin/domain/contact_email_mode.dart';
+import 'package:admin/ui/core/edit/add_contact_request.dart';
 import 'package:admin/ui/core/widgets/contact_edit_rows.dart';
 import 'package:admin/ui/core/widgets/toast_controller.dart';
 
@@ -159,5 +160,37 @@ void main() {
         isFalse,
       );
     });
+  });
+
+  testWidgets('a revealed contact is scrolled into view once laid out', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(400, 300));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final contacts = [
+      for (var i = 0; i < 12; i++) _row('c$i', 'Person $i', primary: i == 0),
+    ];
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildInTheme(InTheme.light),
+        localizationsDelegates: kTestLocalizationsDelegates,
+        supportedLocales: kTestSupportedLocales,
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: ContactEditRows(
+              contacts: contacts,
+              reveal: ContactReveal(11),
+              fieldsBuilder: (_, _) => const [],
+              onMakePrimary: (_) {},
+              onDelete: (_) => null,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final row = tester.getRect(find.text('Person 11'));
+    expect(row.top, greaterThanOrEqualTo(0));
+    expect(row.bottom, lessThanOrEqualTo(300));
   });
 }

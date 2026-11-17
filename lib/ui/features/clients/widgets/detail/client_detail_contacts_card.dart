@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 
@@ -10,18 +12,22 @@ import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/detail/portal_link_action.dart';
 import 'package:admin/ui/core/adaptive.dart';
 import 'package:admin/ui/core/detail/custom_field_detail_rows.dart';
+import 'package:admin/ui/core/detail/profile_card_width.dart';
 import 'package:admin/ui/core/utils/mail_actions.dart';
 import 'package:admin/ui/core/utils/phone_actions.dart';
 import 'package:admin/ui/core/widgets/detail_info_row.dart';
 import 'package:admin/ui/core/widgets/party_contact_row.dart';
 import 'package:admin/ui/core/widgets/phone_number_value.dart';
 import 'package:admin/ui/features/clients/widgets/client_portal.dart';
-import 'package:admin/ui/features/dashboard/widgets/card_shell.dart';
 
-/// "Contacts" card on the client detail screen. Shows the first 3 contacts
-/// inline. Extra contacts surface via "+N more":
+/// "Contacts" card on the client detail screen (`PartyContactsCard`). Shows
+/// the first 3 contacts inline. Extra contacts surface via "Show N more":
 ///   - ≥[Breakpoints.wide] screen width (tablet/desktop): expands inline within the same card.
 ///   - below: opens a bottom sheet listing every contact.
+///
+/// The header counts the contacts worth showing, gives the client's local
+/// time once (all its contacts share its timezone), and offers "+ Add" when
+/// [onAdd] is set.
 ///
 /// Hides entirely when no contact has a name, email or phone. `contacts` is
 /// never empty in practice — the API enforces at least one contact per client,
@@ -43,10 +49,20 @@ class ClientDetailContactsCard extends StatefulWidget {
     required this.clientHash,
     required this.clientId,
     this.company,
+    this.countryId = '',
+    this.onAdd,
   });
 
   /// For contact custom-field labels; null draws none.
   final Company? company;
+
+  /// The client's `country_id`: the country a contact's number with no `+`
+  /// is read in for display. Empty reads it in the company's.
+  final String countryId;
+
+  /// Opens the client's editor on a new contact (`AddContactRequest`). Null
+  /// hides "+ Add" — the user may not edit this client, or it is deleted.
+  final VoidCallback? onAdd;
 
   final List<Contact> contacts;
 
@@ -142,6 +158,7 @@ Future<void> showClientContactsSheet(
   required String clientHash,
   required String clientId,
   Company? company,
+  String countryId = '',
 }) {
   // Re-provided rather than inherited: the sheet is a route on the ROOT
   // navigator, which may sit above whatever `Provider<Services>` the caller
@@ -175,35 +192,42 @@ Future<void> showClientContactsSheet(
                 children: [
                   Padding(
                     padding: const EdgeInsets.only(bottom: InSpacing.sm),
-                    child: Text(
-                      sheetContext.tr('contacts'),
-                      style: Theme.of(sheetContext).textTheme.titleMedium
-                          ?.copyWith(
-                            color: tokens.ink,
-                            fontWeight: FontWeight.w600,
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            sheetContext.tr('contacts'),
+                            style: Theme.of(sheetContext).textTheme.titleMedium
+                                ?.copyWith(
+                                  color: tokens.ink,
+                                  fontWeight: FontWeight.w600,
+                                ),
                           ),
+                        ),
+                        // The card's header clock, here too: the rows carry
+                        // none of their own.
+                        ContactLocalTime.header(clientId: clientId),
+                      ],
                     ),
                   ),
                   Flexible(
                     child: SingleChildScrollView(
-                      child: DetailRowStack(
-                        children:
-                            visibleClientContacts(contacts, company: company)
-                                .map(
-                                  (c) => ClientContactRow(
-                                    c,
-                                    clientHash,
-                                    clientId,
-                                    company: company,
-                                    labelPrimary:
-                                        visibleClientContacts(
-                                          contacts,
-                                          company: company,
-                                        ).length >=
-                                        2,
-                                  ),
-                                )
-                                .toList(),
+                      // The sheet's width, capped at 560, for the avatars'
+                      // fit (`PartyContactRow.showAvatars`).
+                      child: ProfileCardWidthScope(
+                        width: min(MediaQuery.sizeOf(sheetContext).width, 560),
+                        child: Builder(
+                          builder: (context) => _ClientContactRows(
+                            contacts: visibleClientContacts(
+                              contacts,
+                              company: company,
+                            ),
+                            clientHash: clientHash,
+                            clientId: clientId,
+                            countryId: countryId,
+                            company: company,
+                          ),
+                        ),
                       ),
                     ),
                   ),
@@ -233,64 +257,33 @@ class _ClientDetailContactsCardState extends State<ClientDetailContactsCard> {
     final showAll = _expanded || all.length <= _inlineLimit;
     final visible = showAll ? all : all.take(_inlineLimit).toList();
     final hiddenCount = all.length - visible.length;
-    // "Primary" only says something beside another contact.
-    final labelPrimary = all.length >= 2;
-    final avatars = PartyContactRow.railAvatars(
-      context,
-      emails: all.map((c) => c.email),
-    );
 
-    return DashboardCardShell(
-      title: context.tr('contacts'),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          DetailRowStack(
-            children: visible
-                .map(
-                  (c) => ClientContactRow(
-                    c,
-                    widget.clientHash,
-                    widget.clientId,
-                    company: widget.company,
-                    labelPrimary: labelPrimary,
-                    avatar: avatars,
-                  ),
-                )
-                .toList(),
-          ),
-          if (hiddenCount > 0)
-            Align(
-              alignment: AlignmentDirectional.centerStart,
-              child: TextButton.icon(
-                onPressed: () {
-                  if (wide) {
-                    setState(() => _expanded = true);
-                  } else {
-                    _openSheet(context);
-                  }
-                },
-                icon: const Icon(Icons.unfold_more, size: 16),
-                label: Text(
-                  context.tr('plus_n_more', {'count': '$hiddenCount'}),
-                ),
-              ),
-            )
-          // An inline expansion has to be undoable: a client with thirty
-          // contacts otherwise stays thirty rows tall until the screen is
-          // rebuilt.
-          else if (_expanded && all.length > _inlineLimit)
-            Align(
-              alignment: AlignmentDirectional.centerStart,
-              child: TextButton.icon(
-                onPressed: () => setState(() => _expanded = false),
-                icon: const Icon(Icons.unfold_less, size: 16),
-                label: Text(context.tr('less')),
-              ),
-            ),
-        ],
+    return PartyContactsCard(
+      count: all.length,
+      localTime: ContactLocalTime.header(clientId: widget.clientId),
+      onAdd: widget.onAdd,
+      rows: _ClientContactRows.rowsFor(
+        context,
+        all: all,
+        shown: visible,
+        clientHash: widget.clientHash,
+        clientId: widget.clientId,
+        countryId: widget.countryId,
+        company: widget.company,
       ),
+      hiddenCount: hiddenCount,
+      // An inline expansion has to be undoable: a client with thirty
+      // contacts otherwise stays thirty rows tall until the screen is
+      // rebuilt.
+      expanded: _expanded && all.length > _inlineLimit,
+      onShowMore: () {
+        if (wide) {
+          setState(() => _expanded = true);
+        } else {
+          _openSheet(context);
+        }
+      },
+      onShowLess: () => setState(() => _expanded = false),
     );
   }
 
@@ -300,6 +293,70 @@ class _ClientDetailContactsCardState extends State<ClientDetailContactsCard> {
     clientHash: widget.clientHash,
     clientId: widget.clientId,
     company: widget.company,
+    countryId: widget.countryId,
+  );
+}
+
+/// The rows of a client's contacts, as the card and the sheet draw them —
+/// one decision for the Primary label, the avatars and the phone region.
+class _ClientContactRows extends StatelessWidget {
+  const _ClientContactRows({
+    required this.contacts,
+    required this.clientHash,
+    required this.clientId,
+    required this.countryId,
+    required this.company,
+  });
+
+  final List<Contact> contacts;
+  final String clientHash;
+  final String clientId;
+  final String countryId;
+  final Company? company;
+
+  /// [shown] of [all], as rows. [all] decides what is the same for every row:
+  /// the Primary label only says something beside another contact, and the
+  /// avatars are on every row or none (`PartyContactRow.showAvatars`).
+  static List<Widget> rowsFor(
+    BuildContext context, {
+    required List<Contact> all,
+    required List<Contact> shown,
+    required String clientHash,
+    required String clientId,
+    required String countryId,
+    required Company? company,
+  }) {
+    final labelPrimary = all.length >= 2;
+    final avatars = PartyContactRow.showAvatars(
+      context,
+      emails: all.map((c) => c.email),
+    );
+    final region = phoneDisplayRegion(context, countryId: countryId);
+    return [
+      for (final c in shown)
+        ClientContactRow(
+          c,
+          clientHash,
+          clientId,
+          company: company,
+          labelPrimary: labelPrimary,
+          avatar: avatars,
+          phoneRegion: region,
+        ),
+    ];
+  }
+
+  @override
+  Widget build(BuildContext context) => DetailRowStack(
+    children: _ClientContactRows.rowsFor(
+      context,
+      all: contacts,
+      shown: contacts,
+      clientHash: clientHash,
+      clientId: clientId,
+      countryId: countryId,
+      company: company,
+    ),
   );
 }
 
@@ -323,9 +380,13 @@ class ClientContactRow extends StatelessWidget {
     this.company,
     this.labelPrimary = false,
     this.avatar = false,
+    this.phoneRegion,
   });
 
   final Contact contact;
+
+  /// The country the number is read in for display (`phoneDisplayRegion`).
+  final String? phoneRegion;
   final String clientHash;
   final String clientId;
 
@@ -334,7 +395,7 @@ class ClientContactRow extends StatelessWidget {
   final bool labelPrimary;
 
   /// Lead with an initials avatar seeded on the contact's id
-  /// (`PartyContactRow.railAvatars` decides, for the whole card).
+  /// (`PartyContactRow.showAvatars` decides, for the whole card).
   final bool avatar;
 
   /// For contact custom-field labels; null draws none.
@@ -371,6 +432,7 @@ class ClientContactRow extends StatelessWidget {
       phone: contact.phone,
       isPrimary: labelPrimary && contact.isPrimary,
       avatarSeed: avatar ? _avatarSeed(contact) : null,
+      phoneRegion: phoneRegion,
       phoneSubject: subject,
       clientId: clientId,
       logTarget: logTarget,

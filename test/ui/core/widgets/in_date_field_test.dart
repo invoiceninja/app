@@ -195,4 +195,176 @@ void main() {
       });
     }
   });
+
+  // A trailing action (the invoice due date's payment terms) goes where the
+  // field has room for it: inside beside the calendar when the whole hint
+  // fits with both icons; else on the label's line (Comfortable) or in the
+  // calendar's place (Compact) — decided by measured width.
+  group('trailing action', () {
+    const actionKey = ValueKey('action');
+    final slots = <InDateFieldActionSlot>[];
+
+    Future<void> pumpAt(
+      WidgetTester tester, {
+      required double width,
+      TextDirection direction = TextDirection.ltr,
+      InTheme tokens = InTheme.light,
+      double textScale = 1,
+    }) async {
+      slots.clear();
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildInTheme(tokens),
+          localizationsDelegates: kTestLocalizationsDelegates,
+          supportedLocales: kTestSupportedLocales,
+          home: Directionality(
+            textDirection: direction,
+            child: Builder(
+              builder: (context) => MediaQuery(
+                data: MediaQuery.of(
+                  context,
+                ).copyWith(textScaler: TextScaler.linear(textScale)),
+                child: Scaffold(
+                  body: Align(
+                    alignment: AlignmentDirectional.topStart,
+                    child: SizedBox(
+                      width: width,
+                      child: InDateField(
+                        value: null,
+                        formatter: _formatter,
+                        onChanged: (_) {},
+                        labelText: 'Due Date',
+                        clearable: true,
+                        trailingAction: (context, slot) {
+                          slots.add(slot);
+                          return IconButton(
+                            key: actionKey,
+                            iconSize: 16,
+                            icon: const Icon(Icons.event_repeat_outlined),
+                            tooltip: 'Payment Terms',
+                            onPressed: () {},
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    Finder inBox(Finder f) =>
+        find.descendant(of: find.byType(InputDecorator), matching: f);
+
+    testWidgets('wide: inside the field, before the calendar', (tester) async {
+      await pumpAt(tester, width: 360);
+      expect(slots.last.placement, InDateFieldActionPlacement.inField);
+      expect(inBox(find.byKey(actionKey)), findsOneWidget);
+      expect(inBox(find.byIcon(Icons.date_range)), findsOneWidget);
+    });
+
+    for (final (name, direction, tokens, scale) in [
+      ('', TextDirection.ltr, InTheme.light, 1.0),
+      (', RTL', TextDirection.rtl, InTheme.light, 1.0),
+      (', dark', TextDirection.ltr, InTheme.dark, 1.0),
+      (', 2x text', TextDirection.ltr, InTheme.light, 2.0),
+      (', RTL dark 2x text', TextDirection.rtl, InTheme.dark, 2.0),
+    ]) {
+      testWidgets('narrow$name: on the label line, one icon in the field', (
+        tester,
+      ) async {
+        await pumpAt(
+          tester,
+          width: 165,
+          direction: direction,
+          tokens: tokens,
+          textScale: scale,
+        );
+        expect(tester.takeException(), isNull, reason: 'no overflow');
+        expect(slots.last.placement, InDateFieldActionPlacement.labelLine);
+        expect(inBox(find.byType(IconButton)), findsOneWidget);
+        expect(inBox(find.byIcon(Icons.date_range)), findsOneWidget);
+        final box = tester.getRect(find.byType(InputDecorator));
+        final action = tester.getRect(find.byKey(actionKey));
+        final icon = tester.getRect(find.byIcon(Icons.event_repeat_outlined));
+        final label = tester.getRect(
+          find.byWidgetPredicate(
+            (w) =>
+                w is RichText &&
+                w.maxLines == 1 &&
+                w.text.toPlainText() == 'Due Date',
+          ),
+        );
+        // At the label line's end edge, its icon on the label's line, the
+        // label kept clear of it.
+        final rtl = direction == TextDirection.rtl;
+        expect(rtl ? action.left : action.right, rtl ? box.left : box.right);
+        expect(icon.bottom, lessThanOrEqualTo(box.top));
+        expect(icon.center.dy, moreOrLessEquals(label.center.dy, epsilon: 4));
+        expect(
+          rtl ? label.left : label.right,
+          rtl
+              ? greaterThanOrEqualTo(action.right)
+              : lessThanOrEqualTo(action.left),
+        );
+      });
+    }
+
+    // Compact (pinned through the real scope in
+    // billing_doc_edit_mobile_details_test) and a label-less field share it:
+    // no label line to move to.
+    testWidgets('narrow with no label line: in the calendar\'s place, with '
+        'the picker handed to it', (tester) async {
+      slots.clear();
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildInTheme(InTheme.light),
+          localizationsDelegates: kTestLocalizationsDelegates,
+          supportedLocales: kTestSupportedLocales,
+          home: Scaffold(
+            body: Align(
+              alignment: AlignmentDirectional.topStart,
+              child: SizedBox(
+                width: 140,
+                child: InDateField(
+                  value: null,
+                  formatter: _formatter,
+                  onChanged: (_) {},
+                  trailingAction: (context, slot) {
+                    slots.add(slot);
+                    return IconButton(
+                      key: actionKey,
+                      icon: const Icon(Icons.date_range),
+                      onPressed: slot.openPicker,
+                    );
+                  },
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(slots.last.placement, InDateFieldActionPlacement.replacesCalendar);
+      expect(slots.last.openPicker, isNotNull);
+      expect(inBox(find.byType(IconButton)), findsOneWidget);
+      expect(inBox(find.byKey(actionKey)), findsOneWidget);
+    });
+
+    testWidgets('a field with no action is unchanged', (tester) async {
+      await _pump(tester, formatter: _formatter, value: null);
+      expect(
+        find.descendant(
+          of: find.byType(InDateField),
+          matching: find.byType(LayoutBuilder),
+        ),
+        findsNothing,
+      );
+      expect(inBox(find.byType(IconButton)), findsOneWidget);
+    });
+  });
 }

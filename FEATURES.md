@@ -197,6 +197,7 @@ the honest default.
 | Client — purge (hard delete, admin only) | ✅ | ✅ | ✅ | ✅ | |
 | Client — bulk archive / restore / delete | ✅ | ✅ | ✅ | ✅ | |
 | Client — bulk update (mass-edit fields) | ✅ | ✅ | ✅ |  | |
+| Client — bulk assign group (a group is required — the single-client dialog keeps "(none)") | ✅ | ✅ | ✅ | | docs/bulk-actions.md |
 | Client — Check VAT (VIES lookup of the saved VAT number; EU clients; sets Valid VAT number) | ✅ | ❌ | ✅ | | Hosted, or self-hosted ≥ 5.13.45; React on its develop branch (ui#3415), unreleased |
 | Client — Check PEPPOL delivery (can an e-invoice reach this client; hosted, PEPPOL company) | ✅ | ❌ | ✅ | | React on its develop branch (ui#3415), unreleased |
 | Client — import (CSV / JSON) | ✅ | 🟡 | ✅ | ✅ | |
@@ -247,6 +248,7 @@ the honest default.
 | Invoice — mark partial payment | ✅ | ✅ | ✅ | ✅ | |
 | Invoice — refund / credit application | ✅ | ✅ | ✅ | ✅ | |
 | Invoice — cancel | ✅ | ✅ | ✅ | ✅ | |
+| Invoice — bulk cancel from the list (sent / partial only, never paid or unsaved) | ✅ | ✅ | ✅ | | docs/bulk-actions.md |
 | Invoice — rectify (reversal / correction) | ✅ | ❌ | ✅ | ✅ | |
 | Invoice — email to client | ✅ | ✅ | ✅ | ✅ | |
 | Invoice — schedule email (delayed send) | ✅ | ❌ | ✅ | ✅ | |
@@ -293,6 +295,7 @@ the honest default.
 | Quote — mark sent | ✅ | ✅ | ✅ | ✅ | |
 | Quote — cancel (Sent only, irreversible; hosted, or a self-hosted server ≥ 5.13.44 — 5.13.43 rejects it) | ✅ | — | ✅ | | |
 | Quote — bulk cancel from the list (skips non-Sent / expired; hosted, or self-hosted ≥ 5.13.44) | ✅ | — | ✅ | | |
+| Quote — bulk convert to project (skips quotes already on a project; projects module on) | ✅ | ✅ | ✅ | | docs/bulk-actions.md |
 | Quote — email to client | ✅ | ✅ | ✅ | ✅ | |
 | Quote — past its valid-until date: Mark Sent / Email not offered, and a past date can't be saved | ❌ | — | ✅ | | The server rejects all three (5.13.44); React offers them and shows the error |
 | Quote — schedule email | ✅ | ❌ | ✅ | ✅ | |
@@ -340,6 +343,7 @@ the honest default.
 | Credit — documents / attachments | ✅ | ✅ | ✅ | ✅ | |
 | Credit — archive / restore / delete | ✅ | ✅ | ✅ | ✅ | |
 | Credit — bulk actions | ✅ | ✅ | ✅ | ✅ | |
+| Credit — bulk mark paid (negative credits only) | ❌ | ✅ | ✅ | | docs/bulk-actions.md |
 | Credit — custom fields | ✅ | ✅ | ✅ | ✅ | |
 | Credit — list columns for public / private notes, project, vendor, assigned user | ✅ | ✅ | ✅ | | |
 | Credit — tags (attach via picker, list `tag_ids` filter + column, detail chips) | ✅ | — | ✅ | | |
@@ -404,6 +408,7 @@ the honest default.
 | Payment — archive / restore / delete | ✅ | ✅ | ✅ | ✅ | |
 | Payment — delete hidden when it is applied to a deleted invoice (the server refuses it) | ✅ | — | ✅ | | |
 | Payment — bulk actions | ✅ | ✅ | ✅ | ✅ | |
+| Payment — bulk email receipt | ✅ | ✅ | ✅ | | docs/bulk-actions.md |
 | Payment — import (CSV) | ✅ | 🟡 | ✅ | ✅ | |
 | Payment — custom fields | ✅ | ✅ | ✅ | ✅ | |
 | Payment — list column for private notes | ✅ | ✅ | ✅ | | |
@@ -603,6 +608,7 @@ the honest default.
 | Expense — clone | ✅ | ✅ | ✅ | ✅ | |
 | Expense — clone to recurring expense | ✅ | ✅ | ✅ | ✅ | |
 | Expense — categorize | ✅ | ✅ | ✅ | ✅ | |
+| Expense — bulk change category (works offline; a category is required, as on the server) | ✅ | ❌ | ✅ | | Beta feedback; one `bulk_categorize` outbox row per expense (docs/bulk-actions.md) |
 | Expense — link to vendor | ✅ | ✅ | ✅ | ✅ | |
 | Expense — link to project / client | ✅ | ✅ | ✅ | ✅ | |
 | Expense — create a vendor / client / category inline from its picker, auto-selected (also on recurring expenses and bank transaction → Create Expense) | ✅ | ✅ | ✅ | | v1 created a vendor or category from the typed name and opened the full client screen; v2 does the first two the same way (an exact name is selected, an archived one's name refused) and opens the New Client dialog (`docs/pickers.md`) |
@@ -667,7 +673,7 @@ the honest default.
 | Bank transaction — link existing expense | ✅ | ✅ | ✅ | ✅ | |
 | Bank transaction — transaction rules (auto-match) | ✅ | ✅ | ✅ | ✅ | |
 | Bank transaction — bulk archive / restore / delete | ✅ | ✅ | ✅ | ✅ | |
-| Bank transaction — bulk convert / unlink | ✅ | ✅ | ✅ | ✅ | |
+| Bank transaction — bulk convert / unlink | ✅ | ✅ | 🟡 | ✅ | Unlink is bulk; convert is one row at a time by design (it creates payments / expenses and confirms each) |
 | Bank account — read-only detail with embedded transactions | ✅ | ✅ | ✅ | ✅ | |
 | Bank transaction — tags (attach via picker, list `tag_ids` filter + column, detail chips) | ✅ | — | ✅ | | |
 | Bank transaction — empty state adapts to whether a bank feed is linked, with a connect CTA | — | — | ✅ | ✅ | |
@@ -685,6 +691,7 @@ the honest default.
 | Product — clone | ✅ | ✅ | ✅ | ✅ | |
 | Product — new invoice / quote / purchase order (prefills product) | ✅ | ✅ | ✅ | | |
 | Product — set tax category | ✅ | ✅ | ✅ | | |
+| Product — bulk set tax category | ❌ | ✅ | ✅ | | docs/bulk-actions.md |
 | Product — documents / attachments | ✅ | ✅ | ✅ | ✅ | |
 | Product — tax category | ✅ | ✅ | ✅ | ✅ | |
 | Product — stock / inventory tracking | ✅ | 🟡 | ✅ | ✅ | |
@@ -1009,6 +1016,7 @@ Field-level breakdown of every option under each settings panel. Source of truth
 | Use Available Payments | ✅ | ✅ | ✅ | ✅ | |
 | Use Available Credits | ✅ | ✅ | ✅ | ✅ | |
 | Configure Gateways (link) | ✅ | ✅ | ✅ | ✅ | |
+| Payment setup card (gateways + payment types, with status) | — | — | ✅ | | |
 | Admin Initiated Payments | ✅ | ✅ | ✅ | ✅ | |
 | Client Initiated Payments | ✅ | ✅ | ✅ | ✅ | |
 | Minimum Payment Amount | ✅ | ✅ | ✅ | ✅ | |
@@ -1603,6 +1611,9 @@ Field-level breakdown of every option under each advanced settings panel. Source
 | Group-level cascading settings override | ✅ | ✅ | ✅ | ✅ | |
 | Group → Clients tab (members + New client shortcut) | ✅ | ✅ | ✅ | | |
 | Group documents (upload / manage) | ✅ | ✅ | ✅ | | |
+| Group record screen — a new group lands on it, Overview tab first (offline under its `tmp_` id; React lands on the edit form) | ❌ | ✅ | ✅ | | |
+| Group Overview lists every overridden setting by page, with its label and value, or says it overrides none (v1: a fixed subset of fields) | ❌ | 🟡 | ✅ | | |
+| Group → Configure Settings enters group scope (banner, narrowed settings list, override checkboxes) | ✅ | ✅ | ✅ | | |
 
 ### Payment Links
 
@@ -1613,6 +1624,7 @@ Field-level breakdown of every option under each advanced settings panel. Source
 | Subscription pricing / frequency | ✅ | ✅ | ✅ | ✅ | |
 | Edit / cancel subscription | ✅ | ✅ | ✅ | ✅ | |
 | Clone payment link | ❌ | ❌ | ✅ | | |
+| Payment link — bulk archive / restore / delete | ✅ | ✅ | ✅ | | |
 | Configurable checkout flow (Steps) | ✅ | — | ✅ | ✅ | |
 | Webhook configuration (URL + headers) | ✅ | ✅ | ✅ | ✅ | |
 
@@ -1673,6 +1685,7 @@ Field-level breakdown of every option under each advanced settings panel. Source
 | Create / edit expense category (Name) | ✅ | ✅ | ✅ | ✅ | |
 | Expense category color | ✅ | ✅ | ✅ | ✅ | |
 | Expense category archive / restore / delete / purge | ✅ | ✅ | ✅ | ✅ | |
+| Expense category — bulk delete | ✅ | ✅ | ✅ | | |
 
 ### System Logs
 
@@ -1705,6 +1718,7 @@ Field-level breakdown of every option under each advanced settings panel. Source
 | Duplicate-gateway warning on add | ✅ | ❌ | ✅ | ✅ | |
 | Gateway disconnect / deactivate (Stripe Connect: hosted admins with a connected account; `/api/v1/stripe/disconnect` — the old unprefixed path 404'd) | ✅ | ✅ | ✅ | | |
 | Gateway archive / restore | ✅ | ✅ | ✅ | ✅ | |
+| Gateway — bulk delete | ✅ | ✅ | ✅ | | |
 | Gateway purge | ✅ | ✅ | ✅ | ✅ | |
 | Import customers from gateway | ✅ | ✅ | ✅ | ✅ | |
 | Verify customers at gateway | ✅ | ✅ | ✅ | ✅ | |
@@ -1792,6 +1806,7 @@ Field-level breakdown of every option under each advanced settings panel. Source
 | List columns — record metadata on every entity (state, created, archived, deleted, documents, created-by, assigned user) | ✅ | ✅ | ✅ | | |
 | List filter — checkbox multi-select for status / state | — | — | ✅ | ✅ | Lifecycle set is never empty (#126): clearing it returns to Active, so archived / deleted are opt-in; a key at its default renders no chip |
 | List status tabs — one-tap strip above 14 lists (All + per-status live counts), device-toggleable | ❌ | ❌ | ✅ | | Clients → Outstanding narrows the fetch exactly (`balance=gt:0`); Overdue hydrates the invoices its cross-entity predicate reads (#119) |
+| List totals line — per-currency figure on every money list (Outstanding / Open / Credit Balance / Unapplied / Active / Uninvoiced), phone under the title, desktop at the end of the status-strip row; client balance red only when an invoice is overdue | — | — | ✅ | | Server `charts/entity_totals` where present, else a Drift sum that under-reports until a Sync; Clients / Invoices keep `totals_v2` (`docs/entity-lists.md` § A money list's totals line) |
 | List filter — client country/industry/size/classification/vat/group/assigned/custom + number/id_number (exact) | ✅ | ✅ | ✅ | ✅ | v5 filter PR (number/id_number exact-match) + denormalized cols |
 | List filter — expense project / vendor | ✅ | ✅ | ✅ | ✅ | v5 `project_ids`/`vendor_ids` |
 | List filter — canonical `date_range` (`column,start,end`) | — | — | ✅ | ✅ | legacy 2-part still parsed |

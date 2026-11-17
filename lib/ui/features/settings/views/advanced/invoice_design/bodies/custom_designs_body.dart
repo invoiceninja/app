@@ -20,6 +20,7 @@ import 'package:admin/ui/features/settings/views/settings_shell.dart'
 import 'package:admin/ui/features/settings/views/advanced/invoice_design/wysiwyg/wysiwyg_design_screen.dart';
 import 'package:admin/ui/features/settings/views/advanced/invoice_design/wysiwyg/wysiwyg_design_view_model.dart';
 import 'package:admin/ui/features/settings/widgets/plan_gate_banner.dart';
+import 'package:admin/ui/features/settings/widgets/settings_form_shell.dart';
 
 /// Custom Designs tab body — second tab on the Invoice Design shell
 /// (`/settings/invoice_design/custom_designs`).
@@ -40,11 +41,16 @@ class CustomDesignsBody extends StatelessWidget {
   Widget build(BuildContext context) => const _BodyImpl();
 }
 
-/// Top-bar action injected above the Custom Designs tab's content by the
-/// cascade shell (see `TabbedSettingsTab.topBarLeading`). Lives outside
-/// `CustomDesignsBody` so the shell can render it alongside "Show Preview"
-/// instead of stacking it below — and on its own where the preview sits
-/// beside the list and there is no such button.
+/// Only an admin may add a design (`StoreDesignRequest`), so no one else
+/// gets the button — not even as an upgrade CTA they couldn't act on.
+bool _mayAddDesign(BuildContext context) {
+  final me = context.read<Services>().auth.session.value?.currentCompany;
+  return me != null && (me.isAdmin || me.isOwner);
+}
+
+/// The Custom Designs tab's page-level action. The body draws it on its
+/// intro row (`SettingsFormShell(actions:)`), where the shell's "Show
+/// Preview" joins it — one row, never a bar of its own above the list.
 class CustomDesignsNewDesignButton extends StatelessWidget {
   const CustomDesignsNewDesignButton({super.key});
 
@@ -56,12 +62,7 @@ class CustomDesignsNewDesignButton extends StatelessWidget {
     // import) at their single entry point.
     final session = context.read<Services>().auth.session.value;
     final isPro = session?.hasProAccess ?? false;
-    // Only an admin may add a design (`StoreDesignRequest`), so no one else
-    // gets the button — not even as an upgrade CTA they couldn't act on.
-    final me = session?.currentCompany;
-    if (me == null || !(me.isAdmin || me.isOwner)) {
-      return const SizedBox.shrink();
-    }
+    if (!_mayAddDesign(context)) return const SizedBox.shrink();
     return FilledButton.icon(
       style: FilledButton.styleFrom(minimumSize: const Size(64, 40)),
       onPressed: isPro
@@ -281,28 +282,28 @@ class _DesignsListView extends StatelessWidget {
     final canEdit =
         context.read<Services>().auth.session.value?.hasProAccess ?? false;
 
-    return ListView(
-      padding: EdgeInsets.symmetric(
-        horizontal: InSpacing.lg(context),
-        vertical: InSpacing.md(context),
-      ),
-      // "+ New design" used to live here; it's been hoisted into the
-      // shell's top bar via `TabbedSettingsTab.topBarLeading`
-      // (see `CustomDesignsNewDesignButton` + `invoice_design_shell.dart`)
-      // so it sits on the same horizontal line as "Show preview"
-      // instead of stacking below it. The shell draws that bar at every
-      // width, including the one with no "Show preview" in it.
-      children: [
-        const PlanGateBanner(style: PlanGateStyle.inset),
-        if (custom.isNotEmpty) ...[
-          for (final r in custom) _DesignTile(row: r, canEdit: canEdit),
-          SizedBox(height: InSpacing.lg(context)),
-        ],
-        _SectionHeader(label: context.tr('built_in')),
-        for (final r in builtIn) _DesignTile(row: r, canEdit: canEdit),
-        SizedBox(height: InSpacing.lg(context)),
-        _ArchivedDesigns(canEdit: canEdit),
+    // "+ New design" rides the intro row, where the shell's "Show preview"
+    // joins it (`SettingsPageActions`) — at every width, including the one
+    // with the preview beside the list and no such button.
+    return SettingsFormShell(
+      actions: [
+        if (_mayAddDesign(context)) const CustomDesignsNewDesignButton(),
       ],
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const PlanGateBanner(style: PlanGateStyle.inset),
+          if (custom.isNotEmpty) ...[
+            for (final r in custom) _DesignTile(row: r, canEdit: canEdit),
+            SizedBox(height: InSpacing.lg(context)),
+          ],
+          _SectionHeader(label: context.tr('built_in')),
+          for (final r in builtIn) _DesignTile(row: r, canEdit: canEdit),
+          SizedBox(height: InSpacing.lg(context)),
+          _ArchivedDesigns(canEdit: canEdit),
+        ],
+      ),
     );
   }
 }

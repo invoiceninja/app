@@ -1,6 +1,7 @@
 import 'package:admin/data/db/app_database.dart';
 import 'package:admin/data/models/api/client_api_model.dart';
 import 'package:admin/data/models/domain/client.dart';
+import 'package:admin/data/models/domain/contact.dart';
 import 'package:admin/data/repositories/client_repository.dart';
 import 'package:admin/data/services/clients_api.dart';
 import 'package:admin/data/services/device_contacts_service.dart';
@@ -289,10 +290,19 @@ void main() {
           companyId: 'co',
           existing: existing,
         );
+        expect(vm.contactToReveal, isNull);
         vm.addContact();
         expect(vm.draft.contacts, hasLength(2));
         expect(vm.draft.contacts[0].isPrimary, isTrue);
         expect(vm.draft.contacts[1].isPrimary, isFalse);
+        // The record screen's "+ Add" lands here: the new, blank contact is
+        // the one the Contacts card scrolls to.
+        expect(vm.draft.contacts[1].isBlank, isTrue);
+        final first = vm.contactToReveal;
+        expect(first?.index, 1);
+        vm.addContact();
+        expect(vm.contactToReveal?.index, 2);
+        expect(identical(vm.contactToReveal, first), isFalse);
         vm.dispose();
       },
     );

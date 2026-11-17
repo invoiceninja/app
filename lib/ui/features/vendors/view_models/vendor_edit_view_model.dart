@@ -2,6 +2,7 @@ import 'package:admin/data/models/domain/vendor.dart';
 import 'package:admin/data/models/domain/vendor_contact.dart';
 import 'package:admin/data/repositories/_repository_helpers.dart';
 import 'package:admin/data/repositories/vendor_repository.dart';
+import 'package:admin/ui/core/edit/add_contact_request.dart';
 import 'package:admin/ui/core/edit/generic_edit_view_model.dart';
 import 'package:admin/data/repositories/document_bearing_repository.dart';
 
@@ -134,8 +135,13 @@ class VendorEditViewModel extends GenericEditViewModel<Vendor> {
     final contacts = [...draft.contacts];
     final isFirst = contacts.isEmpty;
     contacts.add(_emptyContact().copyWith(isPrimary: isFirst));
+    contactToReveal = ContactReveal(contacts.length - 1);
     updateDraft(draft.copyWith(contacts: contacts));
   }
+
+  /// The contact [addContact] last appended, for the Contacts card to bring
+  /// into view (`ContactEditRows.reveal`). Null until one is added.
+  ContactReveal? contactToReveal;
 
   /// Remove the contact at [index]. If that contact was primary, the new
   /// first contact gets promoted so the entity always carries one primary.

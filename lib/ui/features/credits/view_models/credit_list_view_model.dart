@@ -1,3 +1,5 @@
+import 'package:decimal/decimal.dart';
+
 import 'package:admin/data/db/dao/credit_dao.dart';
 import 'package:admin/data/models/domain/credit.dart';
 import 'package:admin/data/repositories/credit_repository.dart';
@@ -128,6 +130,21 @@ class CreditListViewModel extends GenericListViewModel<Credit>
       labelKey: 'mark_sent',
       eligible: (c) => c.isDraft && !isDeleted(c),
       apply: (id) => repo.markSent(companyId: companyId, id: id),
+    ),
+    BulkAction<Credit>(
+      // v1's multiselect Mark Paid; hard to reverse, and the single-record
+      // twin prompts too.
+      confirm: true,
+      id: 'mark_paid',
+      labelKey: 'mark_paid',
+      // Mirrors `credit_actions.dart` canMarkPaid — only a negative credit
+      // (money owed back) can be "paid" — and its tmpGate.
+      eligible: (c) =>
+          c.amount < Decimal.zero &&
+          (c.isDraft || c.isSent || c.isPartial) &&
+          !c.id.startsWith('tmp_') &&
+          !isDeleted(c),
+      apply: (id) => repo.markPaid(companyId: companyId, id: id),
     ),
     BulkAction<Credit>(
       id: 'email',

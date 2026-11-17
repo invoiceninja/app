@@ -237,6 +237,12 @@ class BaseEntitySyncDispatcher<TItem, TInner> implements SyncDispatcher {
       // Wired via `bulkUpdateHandler` in `customActions` on the Client, Task,
       // Expense and Recurring Invoice dispatchers.
       case MutationKind.bulkUpdate:
+      // Expense-only — wired via `bulkActionHandler` in `customActions` on
+      // the Expense dispatcher.
+      case MutationKind.bulkCategorize:
+      // Client-only / Product-only — `bulkActionHandler` on those dispatchers.
+      case MutationKind.assignGroup:
+      case MutationKind.setTaxId:
       // Client-only — wired via `customActions` on the Client dispatcher.
       case MutationKind.merge:
       case MutationKind.locationCreate:

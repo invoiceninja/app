@@ -579,29 +579,32 @@ class _SendTimeRow extends StatelessWidget {
       items.add(
         DropdownMenuItem(
           value: hour,
-          child: Text(_formatHour(hour, military: military)),
+          child: Text(formatSendTimeHour(hour, military: military)),
         ),
       );
     }
     return items;
   }
+}
 
-  static String _formatHour(int hour, {required bool military}) {
-    if (military) {
-      final padded = hour.toString().padLeft(2, '0');
-      // entity_send_time 24 = end-of-day midnight; show 00:00, not 24:00.
-      return hour == 24 ? '00:00' : '$padded:00';
-    }
-    final h12 = hour == 24
-        ? 12
-        : hour == 12
-        ? 12
-        : hour > 12
-        ? hour - 12
-        : hour;
-    final suffix = (hour >= 12 && hour < 24) ? 'PM' : 'AM';
-    return '$h12:00 $suffix';
+/// An `entity_send_time` hour (1–24, where 24 is midnight) as the Send Time
+/// picker shows it — `09:00` or `9:00 AM` per the 24-hour preference. Shared
+/// with the group Overview, which lists the same value.
+String formatSendTimeHour(int hour, {required bool military}) {
+  if (military) {
+    final padded = hour.toString().padLeft(2, '0');
+    // entity_send_time 24 = end-of-day midnight; show 00:00, not 24:00.
+    return hour == 24 ? '00:00' : '$padded:00';
   }
+  final h12 = hour == 24
+      ? 12
+      : hour == 12
+      ? 12
+      : hour > 12
+      ? hour - 12
+      : hour;
+  final suffix = (hour >= 12 && hour < 24) ? 'PM' : 'AM';
+  return '$h12:00 $suffix';
 }
 
 /// Live validation chip for the `email_style_custom` textarea — flips

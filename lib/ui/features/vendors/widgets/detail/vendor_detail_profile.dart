@@ -1,9 +1,14 @@
 import 'package:material_ui/material_ui.dart';
+import 'package:provider/provider.dart';
+
+import 'package:admin/app/router.dart';
+import 'package:admin/app/services.dart';
 
 import 'package:admin/data/models/domain/company.dart';
 import 'package:admin/data/models/domain/vendor.dart';
 import 'package:admin/data/models/domain/vendor_contact.dart';
 import 'package:admin/ui/core/adaptive.dart';
+import 'package:admin/ui/core/edit/add_contact_request.dart';
 import 'package:admin/ui/core/detail/record_profile_layout.dart';
 import 'package:admin/ui/features/vendors/widgets/detail/vendor_detail_address_card.dart';
 import 'package:admin/ui/features/vendors/widgets/detail/vendor_detail_contacts_card.dart';
@@ -59,7 +64,7 @@ class VendorDetailProfile extends StatelessWidget {
     final hasAddress = VendorDetailAddressCard.hasContent(vendor);
     final hasNotes = VendorDetailNotesCard.hasContent(vendor);
     final lead = <Widget>[
-      if (contacts.isNotEmpty) _contacts(contacts),
+      if (contacts.isNotEmpty) _contacts(context, contacts),
       if (hasDetails)
         VendorDetailDetailsCard(
           vendor: vendor,
@@ -75,9 +80,33 @@ class VendorDetailProfile extends StatelessWidget {
     return RecordProfileLayout(lead: lead, tail: tail);
   }
 
-  Widget _contacts(List<VendorContact> contacts) => VendorDetailContactsCard(
-    contacts: contacts,
-    vendorId: vendor.id,
-    company: company,
-  );
+  Widget _contacts(BuildContext context, List<VendorContact> contacts) =>
+      VendorDetailContactsCard(
+        contacts: contacts,
+        vendorId: vendor.id,
+        countryId: vendor.countryId,
+        company: company,
+        onAdd: _canAddContact(context)
+            ? () => goEntityEdit(
+                context,
+                '/vendors',
+                vendor.id,
+                extra: const AddContactRequest(),
+              )
+            : null,
+      );
+
+  /// Whether the Contacts card offers "+ Add": the user may edit this vendor
+  /// (the server's rule, `AuthSession.canEditRecord`) and it is not deleted —
+  /// a deleted record is read-only.
+  bool _canAddContact(BuildContext context) {
+    if (vendor.isDeleted) return false;
+    return context.read<Services>().auth.session.value?.canEditRecord(
+          'vendor',
+          createdBy: vendor.userId,
+          assignedTo: vendor.assignedUserId,
+          recordId: vendor.id,
+        ) ??
+        false;
+  }
 }

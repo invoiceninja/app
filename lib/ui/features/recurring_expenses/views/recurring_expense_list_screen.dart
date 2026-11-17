@@ -40,6 +40,8 @@ class RecurringExpenseListScreen extends StatelessWidget {
       titleKey: 'recurring_expenses',
       newRoute: '/recurring_expenses/new',
       newLabelKey: 'new_recurring_expense',
+      // The company-wide figure, so never over a scoped list.
+      showListTotals: vid == null,
       embeddedNewOverride: vid == null
           ? null
           : (ctx) => goEntityCreateFullWidth(

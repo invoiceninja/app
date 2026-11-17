@@ -8,6 +8,7 @@ import 'package:admin/app/version.dart';
 import 'package:admin/data/db/dao/quote_dao.dart';
 import 'package:admin/data/models/domain/billing/billing_doc_fields.dart';
 import 'package:admin/data/models/domain/quote.dart';
+import 'package:admin/domain/entity_type.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/list/entity_list_screen_scaffold.dart';
 import 'package:admin/ui/core/list/entity_sort_filter_sheet.dart';
@@ -54,6 +55,8 @@ class QuoteListScreen extends StatelessWidget {
       titleKey: 'quotes',
       newRoute: '/quotes/new',
       newLabelKey: 'new_quote',
+      // The company-wide figure, so never over a scoped list.
+      showListTotals: cid == null && pid == null,
       embeddedNewOverride: pid != null
           ? ((ctx) => goEntityCreateFullWidth(
               ctx,
@@ -192,6 +195,24 @@ class QuoteListScreen extends StatelessWidget {
           singleSuccessKey: 'converted_quote',
           pluralSuccessKey: 'converted_quotes',
           nothingKey: 'nothing_to_update',
+        ),
+        EntityListBulkAction(
+          actionId: 'convert_to_project',
+          icon: Icons.work_outline,
+          tooltipKey: 'convert_to_project',
+          singleSuccessKey: 'converted_to_project',
+          pluralSuccessKey: 'converted_quotes',
+          nothingKey: 'nothing_to_update',
+          // Only where projects exist, as on the single quote.
+          isAvailable: (context) =>
+              context
+                  .read<Services>()
+                  .auth
+                  .session
+                  .value
+                  ?.currentCompany
+                  ?.moduleEnabled(EntityType.project) ??
+              false,
         ),
         EntityListBulkAction(
           actionId: 'cancel',

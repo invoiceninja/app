@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:material_ui/material_ui.dart';
 
 import 'package:admin/app/design_tokens.dart';
@@ -119,14 +121,56 @@ class InDateField extends StatefulWidget {
   /// marker (`ReceiptFieldMarker`), say.
   final Widget? helper;
 
-  /// A small action drawn inside the field, before the calendar button — the
-  /// billing due date's payment-terms menu. Sized like the calendar button
-  /// (28 px) so the field keeps its height; not drawn on a [dense] field.
-  final Widget? trailingAction;
+  /// A small action on the field — the invoice due date's payment-terms menu
+  /// — built for the place the field has room for (an [InDateFieldActionSlot]).
+  /// Not drawn on a [dense] field.
+  ///
+  /// Where the field is wide enough for its whole hint or value plus every
+  /// icon, the action sits inside it before the calendar button, sized like
+  /// that button (28 px) so the field keeps its height. Narrower — decided by
+  /// the field's measured width, never by platform — the field holds one icon:
+  /// with the label above (Comfortable) the action moves to the end of the
+  /// label's line ([LabeledField.trailing]); with the label inside (Compact)
+  /// it takes the calendar button's place and must offer the picker itself
+  /// ([InDateFieldActionSlot.openPicker]). Two icons in a phone's half-width
+  /// field cut the hint to "e.g. 31/Ja…" (Hillel, 2026-11-17).
+  final InDateFieldActionBuilder? trailingAction;
 
   @override
   State<InDateField> createState() => _InDateFieldState();
 }
+
+/// Where an [InDateField.trailingAction] is drawn.
+enum InDateFieldActionPlacement {
+  /// Inside the field, before the calendar button: there is room for both.
+  inField,
+
+  /// At the end of the label's line above the field ([LabeledField.trailing]).
+  labelLine,
+
+  /// Inside the field in the calendar button's place: the action is now the
+  /// field's only icon, so it offers the picker too.
+  replacesCalendar,
+}
+
+/// What an [InDateField.trailingAction] is built for.
+@immutable
+class InDateFieldActionSlot {
+  const InDateFieldActionSlot({required this.placement, this.openPicker});
+
+  final InDateFieldActionPlacement placement;
+
+  /// Opens the field's calendar picker; null while the field is disabled.
+  /// An action at [InDateFieldActionPlacement.replacesCalendar] must offer it.
+  final VoidCallback? openPicker;
+}
+
+/// Builds an [InDateField.trailingAction] for its [InDateFieldActionSlot].
+typedef InDateFieldActionBuilder =
+    Widget Function(BuildContext context, InDateFieldActionSlot slot);
+
+/// The width a suffix icon button takes inside the field.
+const double _kSuffixButton = 28;
 
 class _InDateFieldState extends State<InDateField> {
   late final TextEditingController _controller;
@@ -268,8 +312,53 @@ class _InDateFieldState extends State<InDateField> {
     borderSide: BorderSide(color: context.inTheme.border),
   );
 
+  /// Where [InDateField.trailingAction] goes in a field [width] wide: inside
+  /// it only while the longer of the hint and the value still fits beside
+  /// every icon (the clear button counted whenever the field is clearable,
+  /// so picking a date never moves the action).
+  InDateFieldActionPlacement _placementFor(BuildContext context, double width) {
+    if (!width.isFinite) return InDateFieldActionPlacement.inField;
+    final style = Theme.of(
+      context,
+    ).textTheme.bodyMedium?.copyWith(fontSize: 14);
+    final scaler = MediaQuery.textScalerOf(context);
+    double measure(String text) {
+      final painter = TextPainter(
+        text: TextSpan(text: text, style: style),
+        textScaler: scaler,
+        textDirection: Directionality.of(context),
+        maxLines: 1,
+      )..layout();
+      final w = painter.width;
+      painter.dispose();
+      return w;
+    }
+
+    final text = math.max(measure(_hint(context)), measure(_controller.text));
+    final icons = _kSuffixButton * (widget.clearable ? 3 : 2);
+    // Start padding, the text, a little air, the icons and the border.
+    final needed = InSpacing.md(context) + text + InSpacing.sm + icons + 2;
+    if (needed <= width) return InDateFieldActionPlacement.inField;
+    return LabeledField.above(context) && (widget.labelText ?? '').isNotEmpty
+        ? InDateFieldActionPlacement.labelLine
+        : InDateFieldActionPlacement.replacesCalendar;
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (widget.dense || widget.trailingAction == null) {
+      return _buildField(context, null);
+    }
+    return LayoutBuilder(
+      builder: (context, constraints) =>
+          _buildField(context, _placementFor(context, constraints.maxWidth)),
+    );
+  }
+
+  Widget _buildField(
+    BuildContext context,
+    InDateFieldActionPlacement? placement,
+  ) {
     final suffixChildren = <Widget>[];
     if (widget.clearable &&
         !widget.dense &&
@@ -306,11 +395,37 @@ class _InDateFieldState extends State<InDateField> {
       tooltip: context.tr('select_date'),
       onPressed: widget.enabled ? _openPicker : null,
     );
-    final action = widget.trailingAction;
-    if (!dense && action != null && widget.enabled) suffixChildren.add(action);
-    if (!dense) suffixChildren.add(calendar);
+    final builder = widget.trailingAction;
+    Widget? action(InDateFieldActionPlacement placement) =>
+        builder == null || !widget.enabled
+        ? null
+        : builder(
+            context,
+            InDateFieldActionSlot(
+              placement: placement,
+              openPicker: _openPicker,
+            ),
+          );
+    if (!dense) {
+      switch (placement) {
+        case InDateFieldActionPlacement.inField:
+          suffixChildren
+            ..addAll([?action(InDateFieldActionPlacement.inField)])
+            ..add(calendar);
+        case InDateFieldActionPlacement.replacesCalendar:
+          suffixChildren.add(
+            action(InDateFieldActionPlacement.replacesCalendar) ?? calendar,
+          );
+        case InDateFieldActionPlacement.labelLine:
+        case null:
+          suffixChildren.add(calendar);
+      }
+    }
     final field = LabeledField(
       label: widget.labelText,
+      trailing: placement == InDateFieldActionPlacement.labelLine
+          ? action(InDateFieldActionPlacement.labelLine)
+          : null,
       child: TextField(
         controller: _controller,
         focusNode: _focusNode,

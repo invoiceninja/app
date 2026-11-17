@@ -436,6 +436,31 @@ Tests: `settings_form_shell_reveal_test.dart` (side layout, reveal, heading leve
 
 `SettingsFormShell(subtitle:)` draws the page's purpose as the first line of the scrolling body — never in the AppBar, which has no room on a phone. It speaks for the company, so the shell hides it at the client and group scopes. Only the most-visited pages carry one, each an app-local `*_subtitle` key, on their first tab: Company Details, Localization, Online Payments (the combined wide body and the narrow first tab), Tax Settings, Invoice Design and Email Settings. Templates & Reminders has no `SettingsFormShell` of its own to carry one.
 
+The subtitle shares its row with the page's actions — § A page's intro and its actions share one row.
+
+## A page's intro and its actions share one row
+
+Under the tab strip a settings page spends at most ONE row before its first card: the intro sentence (`subtitle:`) at the start, the page-level buttons at the end. Never a button alone on a row with the sentence on the next — that was Invoice Design's "Show Preview" bar over "The designs your documents print with…", and Company Details' "Preview a document" under its intro.
+
+- **`SettingsFormShell(actions:)` is the slot**, drawn by `SettingsPageIntro` (`widgets/settings_page_intro.dart`). The sentence takes the width the actions leave and wraps; the actions are centred on its *first* line — on a phone too (a 390 px phone keeps the one row, the sentence wrapping in ~220 px beside Preview). Only when the sentence's column would drop under 140 px (2x text on a 320 px phone) do the actions drop under it, end-aligned — a custom two-child render object, because a `Row` cannot move them and a `Wrap` cannot let the sentence wrap beside them. No overflow at 320 px or 2x text.
+- **A shell's page-wide action reaches the tab bodies through `SettingsPageActions`**, an inherited scope each `SettingsFormShell` reads and appends to its own actions, then clears beneath itself so a nested shell doesn't repeat them. `CascadeSidePaneLayout` hands Invoice Design's Show Preview / Preview down this way; only while the preview pane is shown in the tablet band (no tab body on screen) does Hide Preview get a bar above the pane. `TabbedSettingsTab.topBarLeading` is gone: Custom Designs passes "New design" as its own `actions:`, and now renders through `SettingsFormShell` like every other tab.
+- **The intro is hidden at group / client scope, the actions are not** — a page with actions and no sentence draws them at the end of the same row.
+- **An action that belongs to one card goes in that card's header (`FormSection(trailing:)`), not on a row above it**: Templates & Reminders' Preview sits in the Template card (it previews the template picked right there); a gateway's Learn more sits in its Credentials card.
+- None of these buttons is a search label, so the reveal (§ A search hit reveals its field by label, not by anchor) is unaffected; the intro keeps its `settings-page-subtitle` key.
+
+Tests: `widgets/settings_page_intro_test.dart` (first-line alignment, RTL, stacking at 320 px / 2x, the scope), `widgets/cascade_side_pane_layout_test.dart` (390 px phone shares the row; 320 px at 2x stacks).
+
+## Payment Settings opens with a setup card of two navigation rows
+
+`PaymentSetupCard` (`views/basic/online_payments/payment_setup_card.dart`) is the first card on the General tab: **Payment Gateways** and **Payment Types**, each a `SettingsNavRow` (`widgets/settings_nav_row.dart`) — a 36 px `accentSoft` icon square, the title over a one-line `ink2` status, an optional `LtrText` count, a chevron; a 56 px `minHeight`; an inset `InRadii.r2` `surfaceAlt` hover tile on a local transparent `Material`; one merged button for a screen reader (title, status, count).
+
+- **The gateways row is the page's no-gateway warning.** With no active gateway it is titled Add Payment Gateway, reads `no_gateway_connected`, turns its square amber (`warningSoft` / `warning`) and goes to `kAddGatewayRoute`; so this page carries no `NoGatewayWarning` and no second Add target. Until Drift first answers it shows the title over a blank line of the same height — never the warning.
+- **Everything is local**: active gateways from `companyGateways.watchPage` (stream made once per company, outside `build`), names via `resolveDisplayName` in the scope's `resolveGatewayOrder` order; types as the statics catalog minus `parseHiddenPaymentTypes` of the *live draft*, so hiding one shows at once. No catalog → no status.
+- **At group / client scope only the gateways row shows**, titled `gateway_display_order` (the same route renders the reorder screen there), with `no_gateways_for_reorder_subtitle` when empty and never the warning.
+- **Search keys follow the rendered labels**: `company_gateways` and `add_gateway` replaced `configure_gateways` in `kOnlinePaymentsGeneralSearchKeys`.
+
+Tests: `widgets/settings_nav_row_test.dart`, `views/basic/payment_setup_card_test.dart`.
+
 ## Example placeholders only on fields with a format
 
 A settings field gets an example placeholder through `exampleHint` (`e.g. https://example.com`) only when its value has a shape worth showing — today Company Details' Website and Email. Never on a cascade field showing an inherited value, and not on VAT / ID numbers, whose shape depends on the country.
@@ -524,3 +549,25 @@ The Restore card offers exactly the server's two options (`app/Jobs/Company/Comp
 ## Custom field placement — single home
 
 All custom-field **definitions** live under `Settings > Custom Fields` (`lib/ui/features/settings/views/advanced/custom_fields/`) — the only surface where the per-entity (`user1`–`user4`, `client1`–`client4`, etc.) definitions are configured. Deviation from React (which also exposes a Custom Fields tab on Settings > User Details): the Flutter app drops that tab to keep every definition in one place. Per-user custom *values* (the four `user1…user4` inputs the React Details tab surfaces) also live alongside the generic custom-field rendering used elsewhere — not via a duplicate path on the profile screen.
+
+## A new group lands on its record screen, Overview first
+
+A group has a record screen (`GroupSettingsDetailScreen`, `lib/ui/features/group_settings/`) at `/settings/group_settings/:id`, on the record layout (`docs/detail-screen-layout.md`): its name, the Configure Settings tile, a standing card of its clients (a server total, blank until known) and the number of settings it overrides, above Overview / Clients / Documents. The name — the only field on the group itself — is edited at `…/:id/edit`, whose save pops back onto the record.
+
+- **Saving a new group goes to that screen, not back to the list** (`SettingsEntityEditScaffold.onCreated`). Before this the create went back to the list and the user had to find the group again to configure it — and the `:id` route was the edit form, whose Overview tab was a `ListView` inside the tabs' shrink-wrapped `Column`, an unbounded viewport that rendered blank.
+- **The route takes the id the save leaves behind.** Online the create has usually drained by the time `save()` returns, so `repo.resolveId(saved.id)` gives the server id; offline it gives the `tmp_` id and the record's row watch (`BaseEntityRepository.watch`) follows `id_remap` when the create syncs — the Clients tab is keyed on the record's id so it rebuilds with the server id.
+- **Overview is the landing tab** — index 0, and settings-hosted screens have no `MasterDetailNavScope` tab memory to outrank it.
+- Test: `test/ui/features/group_settings/group_settings_screens_test.dart` (online and offline).
+
+## A group's Overview lists exactly the settings its checkboxes tick
+
+The Overview (`GroupSettingsOverview`) lists every setting the group sets instead of inheriting, grouped under the settings page it lives on (`kSettingsSections` order, then Other), each with that page's Configure button.
+
+- **Which keys:** `overriddenSettingKeys` reads `group.settings` through `CompanySettingsApi.fromJsonLenient(...).toJson()` and keeps the non-null entries — the same path `GroupSettingsDraftViewModel.isOverridden` takes, so a key the typed model does not know (no page can tick it) is not listed, and an explicit `false` or blank is.
+- **Labels:** `kSettingOverrideSpecs` maps each wire key to the label its page draws and its section; the email templates, reminder rules and number patterns are composed (`First Reminder · Subject`, `Recurring Invoice · Number Pattern`). `group_setting_overrides_test` fails when a page binds an `apiKey` the map lacks, and when any model key would fall back to a worded key — a raw key never renders.
+- **Values** (`settingOverrideValueText`) are formatted as the page shows them: currency `USD — US Dollar`, language / country / timezone by name, a date format as its worked example, payment types through `paymentTypeLabel`, designs and gateways by name, payment terms by the term's name or `30 Days`, coded choices through their translation, markup as one line of text. A credential is masked; custom CSS / JS and structured blobs read `Custom`; a lookup that cannot be answered reads `Unknown`, never the id.
+- **None overridden** says so plainly (`group_overrides_none`) with the Configure Settings button.
+
+## Configure Settings on a group is the client's Settings action at group scope
+
+`configureGroupSettings` sets `SettingsLevel.group` with the group's id and name and goes to Localization (or the section a Configure button names) — exactly what `ClientAction.settings` does for a client, so the settings list narrows, the scope banner reads "Group Settings: name", and every field carries its override checkbox. It is the record's quick-action tile and the Overview's buttons. An unsynced group cannot enter the scope (`requireSynced`; the tile and buttons are disabled and the not-synced banner says why): the pages at group scope ask the server about the group by id (the live PDF preview, the gateway order). Saving there writes `group.settings` through the outbox, and the Overview, watching the row, shows the change on return.

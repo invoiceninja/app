@@ -183,6 +183,23 @@ class InvoiceListViewModel extends GenericListViewModel<Invoice>
       apply: (id) => repo.autoBill(companyId: companyId, id: id),
     ),
     BulkAction<Invoice>(
+      // Hard to reverse over a whole selection (React's and v1's bulk
+      // cancel) — the single-record twin prompts too.
+      confirm: true,
+      id: 'cancel',
+      labelKey: 'cancel_invoice',
+      // Mirrors `invoice_actions.dart` canCancel (sent or partial, never
+      // paid — the server's cancel has no paid guard) and its tmpGate.
+      eligible: (i) =>
+          i.isSent &&
+          !i.isPaid &&
+          !i.isCancelled &&
+          !i.isReversed &&
+          !i.id.startsWith('tmp_') &&
+          !i.isDeleted,
+      apply: (id) => repo.cancel(companyId: companyId, id: id),
+    ),
+    BulkAction<Invoice>(
       id: 'email',
       labelKey: 'email',
       eligible: (i) => !i.isDeleted,

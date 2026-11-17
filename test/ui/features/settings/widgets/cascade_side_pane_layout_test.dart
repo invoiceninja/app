@@ -4,24 +4,18 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/theme.dart';
 import 'package:admin/ui/features/settings/widgets/cascade_tabbed_settings_shell.dart';
-import 'package:admin/ui/features/settings/widgets/tabbed_settings_shell.dart';
+import 'package:admin/ui/features/settings/widgets/settings_form_shell.dart';
 
 import '../../../../_localization_helper.dart';
 
-/// A tab's `topBarLeading` is its primary action — Custom Designs' "+ New
-/// Design" is the only way to create one. It rides in the preview bar, and the
-/// side-by-side layout has no preview button, so it once had no bar either:
-/// the button vanished on exactly the widest windows.
+/// The preview button is a page-level action: it rides each tab's intro row
+/// (`SettingsPageActions` → `SettingsFormShell`), beside the tab's intro
+/// sentence and its own action — never a bar of its own above the tabs, which
+/// spent a whole row on one button and pushed the intro onto the next
+/// (`docs/settings-screens.md` § A page's intro and its actions share one
+/// row).
 
-const _tabs = <TabbedSettingsTab>[
-  TabbedSettingsTab(slug: '', labelKey: 'general_settings', body: Text('A')),
-  TabbedSettingsTab(
-    slug: 'b',
-    labelKey: 'custom_designs',
-    body: Text('B'),
-    topBarLeading: Text('LEAD'),
-  ),
-];
+const _intro = 'What your documents print.';
 
 class _Host extends StatefulWidget {
   const _Host({required this.initialIndex});
@@ -34,7 +28,7 @@ class _Host extends StatefulWidget {
 
 class _HostState extends State<_Host> with SingleTickerProviderStateMixin {
   late final TabController controller = TabController(
-    length: _tabs.length,
+    length: 2,
     vsync: this,
     initialIndex: widget.initialIndex,
   );
@@ -52,13 +46,26 @@ class _HostState extends State<_Host> with SingleTickerProviderStateMixin {
     return CascadeSidePaneLayout(
       tabBarView: TabBarView(
         controller: controller,
-        children: [for (final tab in _tabs) tab.body],
+        children: [
+          SettingsFormShell(
+            subtitle: _intro,
+            sections: const [SizedBox(height: 40, child: Text('A'))],
+          ),
+          SettingsFormShell(
+            actions: [
+              FilledButton(
+                style: FilledButton.styleFrom(minimumSize: const Size(64, 40)),
+                onPressed: () {},
+                child: const Text('LEAD'),
+              ),
+            ],
+            sections: const [SizedBox(height: 40, child: Text('B'))],
+          ),
+        ],
       ),
       sidePane: const Text('PANE'),
       previewShown: previewShown,
       fullScreenBuilder: (_) => const SizedBox.shrink(),
-      tabController: controller,
-      tabs: _tabs,
     );
   }
 }
@@ -67,6 +74,7 @@ Future<void> _pump(
   WidgetTester tester, {
   required double width,
   required int tab,
+  double textScale = 1,
 }) async {
   // The layout keys off its own constraints, so the surface is the width.
   tester.view.physicalSize = Size(width, 800);
@@ -77,27 +85,96 @@ Future<void> _pump(
       theme: buildInTheme(InTheme.light),
       localizationsDelegates: kTestLocalizationsDelegates,
       supportedLocales: kTestSupportedLocales,
+      builder: (context, child) => MediaQuery(
+        data: MediaQuery.of(
+          context,
+        ).copyWith(textScaler: TextScaler.linear(textScale)),
+        child: child!,
+      ),
       home: Scaffold(body: _Host(initialIndex: tab)),
     ),
   );
   await tester.pumpAndSettle();
 }
 
+Finder get _intro$ => find.byKey(const ValueKey('settings-page-subtitle'));
+
 void main() {
-  testWidgets('side by side → the tab action is drawn above the tab content', (
+  testWidgets('tablet band → Show Preview shares the intro row, and the '
+      'first card follows it directly', (tester) async {
+    await _pump(tester, width: 800, tab: 0);
+
+    final button = find.widgetWithText(OutlinedButton, 'Show Preview');
+    expect(button, findsOneWidget);
+    expect(_intro$, findsOneWidget);
+    // One row: the button is level with the intro's (only) line, at the end.
+    expect(
+      tester.getCenter(_intro$).dy,
+      moreOrLessEquals(tester.getCenter(button).dy, epsilon: 2),
+    );
+    expect(
+      tester.getTopLeft(button).dx,
+      greaterThan(tester.getTopRight(_intro$).dx),
+    );
+    // Nothing between the row and the card.
+    expect(
+      tester.getTopLeft(find.text('A')).dy,
+      greaterThan(tester.getBottomLeft(button).dy),
+    );
+    expect(
+      tester.getTopLeft(find.text('A')).dy - tester.getBottomLeft(button).dy,
+      lessThanOrEqualTo(InSpacing.xl),
+    );
+    // The pane is behind the toggle here.
+    expect(find.text('PANE'), findsNothing);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('tablet band → a tab\'s own action sits beside Show Preview', (
+    tester,
+  ) async {
+    await _pump(tester, width: 800, tab: 1);
+
+    final preview = find.widgetWithText(OutlinedButton, 'Show Preview');
+    expect(find.text('LEAD'), findsOneWidget);
+    expect(preview, findsOneWidget);
+    expect(
+      tester.getCenter(find.text('LEAD')).dy,
+      moreOrLessEquals(tester.getCenter(preview).dy),
+    );
+
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('tablet band → shown, Hide Preview stays above the pane', (
+    tester,
+  ) async {
+    await _pump(tester, width: 800, tab: 0);
+
+    await tester.tap(find.text('Show Preview'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('PANE'), findsOneWidget);
+    expect(find.text('Hide Preview'), findsOneWidget);
+    expect(_intro$, findsNothing);
+
+    await tester.tap(find.text('Hide Preview'));
+    await tester.pumpAndSettle();
+    expect(find.text('PANE'), findsNothing);
+    expect(_intro$, findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('side by side → no preview button, the tab action still shows', (
     tester,
   ) async {
     await _pump(tester, width: 1200, tab: 1);
 
     expect(find.text('LEAD'), findsOneWidget);
-    expect(find.text('B'), findsOneWidget);
-    // Both columns at once, so nothing to toggle.
     expect(find.text('PANE'), findsOneWidget);
     expect(find.byType(OutlinedButton), findsNothing);
-    expect(
-      tester.getTopLeft(find.text('LEAD')).dy,
-      lessThan(tester.getTopLeft(find.text('B')).dy),
-    );
     expect(
       tester.getTopLeft(find.text('LEAD')).dx,
       lessThan(tester.getTopLeft(find.text('PANE')).dx),
@@ -106,51 +183,53 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
-  testWidgets('side by side → a tab with no action gets no strip, and '
-      'switching to one that has it does not remount the tab view', (
+  testWidgets('phone 390 at 1x → the intro and Preview share the top row', (
     tester,
   ) async {
-    await _pump(tester, width: 1200, tab: 0);
+    await _pump(tester, width: 390, tab: 0);
 
-    expect(find.text('LEAD'), findsNothing);
+    expect(tester.takeException(), isNull);
+    final button = find.widgetWithText(OutlinedButton, 'Preview');
+    expect(button, findsOneWidget);
+    // Same row: level with the intro's first line, at the end, and the
+    // first card right under the row.
     expect(
-      tester.getTopLeft(find.text('A')).dy,
-      tester.getTopLeft(find.byType(CascadeSidePaneLayout)).dy,
+      tester.getCenter(button).dy,
+      moreOrLessEquals(tester.getTopLeft(_intro$).dy + 10, epsilon: 2),
     );
-
-    final before = tester.element(find.byType(TabBarView));
-    tester.state<_HostState>(find.byType(_Host)).controller.animateTo(1);
-    await tester.pumpAndSettle();
-
-    expect(find.text('LEAD'), findsOneWidget);
-    expect(identical(tester.element(find.byType(TabBarView)), before), isTrue);
+    expect(
+      tester.getTopLeft(button).dx,
+      greaterThan(tester.getTopRight(_intro$).dx),
+    );
+    expect(tester.getTopRight(button).dx, lessThanOrEqualTo(390));
 
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
-  testWidgets('tablet band → the action shares the row with Show Preview', (
-    tester,
-  ) async {
-    await _pump(tester, width: 800, tab: 1);
+  testWidgets('phone 320 at 2x → the intro column would be unreadable, so '
+      'Preview drops under it; nothing overflows', (tester) async {
+    await _pump(tester, width: 320, tab: 0, textScale: 2);
 
-    expect(find.text('LEAD'), findsOneWidget);
-    expect(find.byIcon(Icons.visibility_outlined), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    final button = find.widgetWithText(OutlinedButton, 'Preview');
+    expect(button, findsOneWidget);
     expect(
-      tester.getCenter(find.text('LEAD')).dy,
-      moreOrLessEquals(tester.getCenter(find.byType(OutlinedButton)).dy),
+      tester.getTopLeft(button).dy,
+      greaterThanOrEqualTo(tester.getBottomLeft(_intro$).dy),
     );
-    // The pane is behind the toggle here.
-    expect(find.text('PANE'), findsNothing);
+    expect(tester.getTopRight(button).dx, lessThanOrEqualTo(320));
 
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
-  testWidgets('phone → the action shares the row with Preview', (tester) async {
-    await _pump(tester, width: 500, tab: 1);
+  testWidgets('phone 320 at 1x → nothing overflows', (tester) async {
+    await _pump(tester, width: 320, tab: 0);
 
-    expect(find.text('LEAD'), findsOneWidget);
-    expect(find.byIcon(Icons.visibility_outlined), findsOneWidget);
-    expect(find.text('PANE'), findsNothing);
+    expect(tester.takeException(), isNull);
+    expect(
+      tester.getTopRight(find.widgetWithText(OutlinedButton, 'Preview')).dx,
+      lessThanOrEqualTo(320),
+    );
 
     await tester.pumpWidget(const SizedBox.shrink());
   });

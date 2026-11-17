@@ -555,12 +555,7 @@ class DashboardRepository {
   );
 
   /// Whether [e] is a server saying it has no such route.
-  static bool _isMissingRoute(ApiException e) {
-    if (e is NotFoundException) return true;
-    if (e is PermissionDeniedException) return false;
-    return e is ServerException &&
-        (e.statusCode == 404 || e.statusCode == 405 || e.statusCode == 400);
-  }
+  static bool _isMissingRoute(ApiException e) => isMissingRouteError(e);
 
   Future<void> refreshChart(String companyId, DashboardFilter filter) =>
       _refresh(

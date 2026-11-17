@@ -286,11 +286,17 @@ class MoneyCellText extends StatelessWidget {
     required this.text,
     required this.isZero,
     this.strong = false,
+    this.overdue = false,
     super.key,
   });
 
   final String text;
   final bool isZero;
+
+  /// The `overdue` red — a client balance with a past-due invoice behind it
+  /// (`clientBalanceCell`). Set by a column's `cellBuilder`, never by
+  /// [cellMoney].
+  final bool overdue;
 
   /// Weight 600 — a column's one figure that asks for attention (the Clients
   /// list's balance owed). Set by a column's `cellBuilder`, never by
@@ -308,7 +314,11 @@ class MoneyCellText extends StatelessWidget {
         fontSize: 13,
         height: 1.2,
         fontWeight: strong && !isZero ? FontWeight.w600 : null,
-        color: isZero ? tokens.ink3 : tokens.ink,
+        color: isZero
+            ? tokens.ink3
+            : overdue
+            ? tokens.overdue
+            : tokens.ink,
       ),
     );
   }

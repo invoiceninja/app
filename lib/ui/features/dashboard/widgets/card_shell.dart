@@ -21,6 +21,7 @@ class DashboardCardShell extends StatelessWidget {
     this.onHeaderTap,
     this.bodyFills = false,
     this.showBody = true,
+    this.trailingSpansBand = false,
     required this.child,
   }) : assert(
          onHeaderTap == null || title != null || trailing != null,
@@ -99,6 +100,12 @@ class DashboardCardShell extends StatelessWidget {
   /// nothing and read as an empty card.
   final bool showBody;
 
+  /// [trailing] is a touch-size control (a 44 px "+ Add"): the band's
+  /// vertical padding moves onto the title, as it does for a dashboard
+  /// panel's menu, so the control sits inside the band instead of adding its
+  /// height on top of the padding.
+  final bool trailingSpansBand;
+
   final Widget child;
 
   @override
@@ -167,6 +174,7 @@ class DashboardCardShell extends StatelessWidget {
   Widget _header(BuildContext context, ThemeData theme, InTheme tokens) {
     final dense = _dense(context);
     final menu = DashboardPanelMenuScope.maybeOf(context);
+    final inBand = menu != null || trailingSpansBand;
     final top = dense ? InSpacing.md(context) : InSpacing.lg(context);
     final bottom = dense ? InSpacing.sm : InSpacing.md(context);
     // With a panel menu the band's vertical padding moves from the row onto
@@ -185,16 +193,16 @@ class DashboardCardShell extends StatelessWidget {
     final row = Padding(
       padding: EdgeInsetsDirectional.fromSTEB(
         InSpacing.lg(context),
-        menu == null ? top : 0,
+        inBand ? 0 : top,
         // The button's own slack stands in for part of the end inset.
-        menu == null ? InSpacing.lg(context) : InSpacing.lg(context) - 6,
-        menu == null ? bottom : 0,
+        inBand ? InSpacing.lg(context) - 6 : InSpacing.lg(context),
+        inBand ? 0 : bottom,
       ),
       child: Row(
         children: [
           if (titleText != null)
             Expanded(
-              child: menu == null
+              child: !inBand
                   ? titleText
                   : Padding(
                       padding: EdgeInsets.only(top: top, bottom: bottom),

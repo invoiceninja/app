@@ -11,6 +11,7 @@ import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/detail/portal_link_action.dart';
 import 'package:admin/ui/core/adaptive.dart';
 import 'package:admin/ui/core/detail/custom_field_detail_rows.dart';
+import 'package:admin/ui/core/detail/profile_card_width.dart';
 import 'package:admin/ui/core/utils/external_url.dart';
 import 'package:admin/ui/core/widgets/detail_info_row.dart';
 import 'package:admin/ui/core/widgets/party_contact_row.dart';
@@ -23,7 +24,6 @@ import 'package:admin/ui/features/billing_shared/billing_doc_type.dart';
 import 'package:admin/ui/features/billing_shared/detail/billing_doc_notes.dart';
 import 'package:admin/ui/features/dashboard/widgets/card_shell.dart';
 import 'package:admin/utils/formatting.dart';
-import 'package:admin/ui/core/widgets/ltr_value.dart';
 
 /// A billing document's reference fields — who it went to, its details, the
 /// note its owner left themselves. Always shown, between the comments card and
@@ -98,9 +98,11 @@ class BillingDocProfile extends StatelessWidget {
     final hasNotes = BillingDocPrivateNotesCard.hasContent(doc);
     final gap = SizedBox(height: InSpacing.md(context));
 
+    final contactsCard = recipients.isEmpty
+        ? null
+        : BillingDocContactsCard(type: type, recipients: recipients);
     final lead = <Widget>[
-      if (recipients.isNotEmpty)
-        BillingDocContactsCard(type: type, recipients: recipients),
+      ?contactsCard,
       if (hasDetails)
         BillingDocDetailsCard(
           type: type,
@@ -116,6 +118,23 @@ class BillingDocProfile extends StatelessWidget {
         final inRow =
             constraints.maxWidth >= Breakpoints.entityFormMultiColumn &&
             lead.length > 1;
+        // The Contacts card is told its width (`ProfileCardWidthScope`) —
+        // the one thing a card in the levelled row cannot measure itself.
+        final sized = [
+          for (final card in lead)
+            identical(card, contactsCard)
+                ? ProfileCardWidthScope(
+                    width: inRow
+                        ? ProfileCardWidthScope.share(
+                            constraints.maxWidth,
+                            lead.length,
+                            InSpacing.md(context),
+                          )
+                        : constraints.maxWidth,
+                    child: card,
+                  )
+                : card,
+        ];
         final rows = <Widget>[
           if (inRow)
             // `IntrinsicHeight` so the two cards end on one line. Legal here
@@ -125,15 +144,15 @@ class BillingDocProfile extends StatelessWidget {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  for (var i = 0; i < lead.length; i++) ...[
+                  for (var i = 0; i < sized.length; i++) ...[
                     if (i > 0) SizedBox(width: InSpacing.md(context)),
-                    Expanded(child: lead[i]),
+                    Expanded(child: sized[i]),
                   ],
                 ],
               ),
             )
           else
-            ...lead,
+            ...sized,
           ...tail,
         ];
         return Column(
@@ -285,60 +304,34 @@ class _BillingDocContactsCardState extends State<BillingDocContactsCard> {
     // carrying the same "Sent" pill was the tallest thing on the screen and
     // said one thing. A lone recipient keeps their own pill.
     final shared = _sharedState(all);
-    return DashboardCardShell(
-      title: context.tr('contacts'),
-      trailing: shared == null
-          ? null
-          : Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                LtrText(
-                  '${all.length}',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: context.inTheme.ink2,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(width: InSpacing.sm),
-                ?_RecipientRow.statePill(context, shared),
-              ],
-            ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          DetailRowStack(
-            children: [
-              for (final r in visible)
-                _RecipientRow(
-                  type: widget.type,
-                  recipient: r,
-                  showState: shared == null,
-                ),
-            ],
+    final sharedPill = shared == null
+        ? null
+        : _RecipientRow.statePill(context, shared);
+    final avatars = PartyContactRow.showAvatars(
+      context,
+      emails: all.map((r) => r.email),
+    );
+    // No local time (the rows have no number to call) and no "+ Add": a
+    // document's recipients are edited on the document, its contacts on the
+    // party.
+    return PartyContactsCard(
+      count: all.length,
+      extraTrailing: [?sharedPill],
+      rows: [
+        for (final r in visible)
+          _RecipientRow(
+            type: widget.type,
+            recipient: r,
+            showState: shared == null,
+            avatar: avatars,
           ),
-          if (hidden > 0)
-            Align(
-              alignment: AlignmentDirectional.centerStart,
-              child: TextButton.icon(
-                onPressed: () => setState(() => _expanded = true),
-                icon: const Icon(Icons.unfold_more, size: 16),
-                label: Text(context.tr('plus_n_more', {'count': '$hidden'})),
-              ),
-            )
-          // An expansion has to be undoable, or the card stays its full
-          // length until the screen is rebuilt.
-          else if (_expanded && all.length > _inlineLimit)
-            Align(
-              alignment: AlignmentDirectional.centerStart,
-              child: TextButton.icon(
-                onPressed: () => setState(() => _expanded = false),
-                icon: const Icon(Icons.unfold_less, size: 16),
-                label: Text(context.tr('less')),
-              ),
-            ),
-        ],
-      ),
+      ],
+      hiddenCount: hidden,
+      // An expansion has to be undoable, or the card stays its full length
+      // until the screen is rebuilt.
+      expanded: _expanded && all.length > _inlineLimit,
+      onShowMore: () => setState(() => _expanded = true),
+      onShowLess: () => setState(() => _expanded = false),
     );
   }
 }
@@ -367,10 +360,15 @@ class _RecipientRow extends StatelessWidget {
     required this.type,
     required this.recipient,
     this.showState = true,
+    this.avatar = false,
   });
 
   final BillingDocType type;
   final BillingDocRecipient recipient;
+
+  /// Lead with an initials avatar seeded on the contact's id
+  /// (`PartyContactRow.showAvatars` decides, for the whole card).
+  final bool avatar;
 
   /// False when the card's title already says it for every row.
   final bool showState;
@@ -381,10 +379,14 @@ class _RecipientRow extends StatelessWidget {
     final hasLink = link.isNotEmpty;
     final vendor = type.party == BillingDocParty.vendor;
     final pill = showState ? statePill(context, recipient.invitation) : null;
+    final contactId = invitationContactId(recipient.invitation);
     return PartyContactRow(
       name: recipient.name,
       email: recipient.email,
       phone: '',
+      avatarSeed: !avatar
+          ? null
+          : (contactId.isNotEmpty ? contactId : recipient.email),
       pills: [?pill],
       actions: [
         PartyContactAction(

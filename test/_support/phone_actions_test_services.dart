@@ -15,6 +15,7 @@ import 'package:admin/data/models/value/company_format_settings.dart';
 import 'package:admin/data/models/value/datetime_format.dart';
 import 'package:admin/data/models/domain/client.dart';
 import 'package:admin/data/models/domain/vendor.dart';
+import 'package:admin/data/models/value/country.dart';
 import 'package:admin/data/models/value/timezone.dart';
 import 'package:admin/data/repositories/auth_repository.dart';
 import 'package:admin/data/repositories/client_repository.dart';
@@ -58,6 +59,7 @@ class PhoneActionsTestServices implements Services {
     this._zone,
     this._clients,
     this._vendors,
+    this._session,
   );
 
   /// [timezone] defaults to [kTestForeignTimezone] so `ContactLocalTime`
@@ -87,6 +89,7 @@ class PhoneActionsTestServices implements Services {
     bool clientHydratesOnEnsureLoaded = false,
     bool clientWatchError = false,
     bool tapToCall = true,
+    AuthSession? session,
   }) {
     final db = AppDatabase(NativeDatabase.memory());
     addTearDown(db.close);
@@ -117,8 +120,13 @@ class PhoneActionsTestServices implements Services {
               watchError: clientWatchError,
             ),
       vendor == null ? null : _Vendors(vendor),
+      session,
     );
   }
+
+  /// Replaces the default session (company `co`, empty roster, so no
+  /// permissions) — for a test of something gated on the user's rights.
+  final AuthSession? _session;
 
   @override
   final PhoneActionsController phoneActions;
@@ -140,7 +148,7 @@ class PhoneActionsTestServices implements Services {
   int get clientEnsureLoadedCalls => _clients?.ensureLoadedCalls ?? 0;
 
   @override
-  late final AuthRepository auth = _Auth();
+  late final AuthRepository auth = _Auth(_session);
   @override
   late final SettingsRepository settings = _Settings(_zone);
   @override
@@ -247,6 +255,30 @@ final Formatter testFormatter = Formatter(
   dateFormats: const {'X': DatetimeFormat(id: 'X', format: 'd/MMM/yyyy')},
 );
 
+/// The countries [PhoneActionsTestServices]'s statics know.
+const Map<String, Country> kTestPhoneCountries = {
+  '840': Country(
+    id: '840',
+    name: 'United States',
+    iso2: 'US',
+    iso3: 'USA',
+    swapCurrencySymbol: false,
+    thousandSeparator: ',',
+    decimalSeparator: '.',
+    swapPostalCode: false,
+  ),
+  '826': Country(
+    id: '826',
+    name: 'United Kingdom',
+    iso2: 'GB',
+    iso3: 'GBR',
+    swapCurrencySymbol: false,
+    thousandSeparator: ',',
+    decimalSeparator: '.',
+    swapPostalCode: false,
+  ),
+};
+
 /// Wraps [child] in the minimal `Provider<Services>` above.
 Widget withPhoneActionsServices(
   Widget child, {
@@ -282,16 +314,20 @@ class _Auth implements AuthRepository {
   /// and it fails in the wrong direction: `PartyCallButton` resolves its
   /// company through `session.value`, so it would render `SizedBox.shrink()`
   /// and let a `findsNothing` pass vacuously instead of throwing.
+  _Auth([AuthSession? session])
+    : session = ValueNotifier<AuthSession?>(
+        session ??
+            const AuthSession(
+              baseUrl: 'https://example.test',
+              isHosted: false,
+              accountId: 'acct',
+              companies: [],
+              currentCompanyId: 'co',
+            ),
+      );
+
   @override
-  final ValueListenable<AuthSession?> session = ValueNotifier<AuthSession?>(
-    const AuthSession(
-      baseUrl: 'https://example.test',
-      isHosted: false,
-      accountId: 'acct',
-      companies: [],
-      currentCompanyId: 'co',
-    ),
-  );
+  final ValueListenable<AuthSession?> session;
 
   @override
   String? get currentCompanyId => session.value?.currentCompanyId;
@@ -323,6 +359,11 @@ class _Statics implements StaticsRepository {
   @override
   Timezone? timezone(String id) =>
       (zone != null && zone!.id == id) ? zone : null;
+
+  /// The United States and the United Kingdom, by the server's ids — what
+  /// `phoneDisplayRegion` reads a party's `country_id` through.
+  @override
+  Country? country(String id) => kTestPhoneCountries[id];
 
   @override
   dynamic noSuchMethod(Invocation invocation) => throw UnimplementedError();

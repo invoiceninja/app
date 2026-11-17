@@ -16,6 +16,7 @@ import 'package:admin/ui/features/billing_shared/edit/billing_doc_edit_layout.da
 import 'package:admin/ui/features/billing_shared/edit/billing_edit_field_decoration.dart';
 import 'package:admin/ui/features/billing_shared/edit/e_invoice_fields_tab.dart';
 import 'package:admin/ui/features/billing_shared/pdf/billing_doc_draft_preview.dart';
+import 'package:admin/ui/features/dashboard/widgets/card_shell.dart';
 import 'package:admin/ui/features/recurring_invoices/view_models/recurring_invoice_edit_view_model.dart';
 
 /// The recurring-invoice edit body: [BillingDocEditLayout] as a recurring
@@ -174,42 +175,47 @@ class _ScheduleTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final fmt = context.read<Services>().formatterIfReady(vm.companyId);
+    // In the same card as the Details and Settings tabs beside it — the
+    // fields sat bare on the page here, the one tab of the strip that did.
     return SingleChildScrollView(
       padding: EdgeInsets.all(InSpacing.lg(context)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          LabeledField(
-            label: context.tr('frequency'),
-            child: DropdownButtonFormField<String>(
-              initialValue: vm.draft.frequencyId.isEmpty
-                  ? null
-                  : vm.draft.frequencyId,
-              decoration: InputDecoration(labelText: context.tr('frequency')),
-              items: _frequencyItems(context),
-              onChanged: (v) => vm.setFrequencyId(v ?? ''),
+      child: DashboardCardShell(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            LabeledField(
+              label: context.tr('frequency'),
+              child: DropdownButtonFormField<String>(
+                initialValue: vm.draft.frequencyId.isEmpty
+                    ? null
+                    : vm.draft.frequencyId,
+                decoration: InputDecoration(labelText: context.tr('frequency')),
+                items: _frequencyItems(context),
+                onChanged: (v) => vm.setFrequencyId(v ?? ''),
+              ),
             ),
-          ),
-          SizedBox(height: InSpacing.md(context)),
-          InDateField(
-            value: vm.draft.nextSendDate?.toDateTime(),
-            formatter: fmt,
-            onChanged: (d) {
-              if (d == null) {
-                vm.setNextSendDate(null);
-              } else {
-                vm.setNextSendDate(Date(d.year, d.month, d.day));
-              }
-            },
-            labelText: context.tr('next_send_date'),
-            clearable: true,
-          ),
-          if (vm.draft.nextSendDate != null) _NextSendPreview(vm: vm),
-          SizedBox(height: InSpacing.md(context)),
-          _RemainingCyclesField(vm: vm),
-          SizedBox(height: InSpacing.md(context)),
-          _DueDateDaysField(vm: vm),
-        ],
+            SizedBox(height: InSpacing.md(context)),
+            InDateField(
+              value: vm.draft.nextSendDate?.toDateTime(),
+              formatter: fmt,
+              onChanged: (d) {
+                if (d == null) {
+                  vm.setNextSendDate(null);
+                } else {
+                  vm.setNextSendDate(Date(d.year, d.month, d.day));
+                }
+              },
+              labelText: context.tr('next_send_date'),
+              clearable: true,
+            ),
+            if (vm.draft.nextSendDate != null) _NextSendPreview(vm: vm),
+            SizedBox(height: InSpacing.md(context)),
+            _RemainingCyclesField(vm: vm),
+            SizedBox(height: InSpacing.md(context)),
+            _DueDateDaysField(vm: vm),
+          ],
+        ),
       ),
     );
   }

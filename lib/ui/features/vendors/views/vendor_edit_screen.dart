@@ -18,7 +18,12 @@ import 'package:admin/ui/features/vendors/widgets/vendor_actions.dart';
 /// contributes the per-entity wiring: how to fetch the existing row, how
 /// to build the VM, the title, and the form body.
 class VendorEditScreen extends StatelessWidget {
-  const VendorEditScreen({this.existingId, this.cloneFrom, super.key});
+  const VendorEditScreen({
+    this.existingId,
+    this.cloneFrom,
+    this.addContact = false,
+    super.key,
+  });
 
   final String? existingId;
 
@@ -28,6 +33,10 @@ class VendorEditScreen extends StatelessWidget {
   /// caller before navigating.
   final Vendor? cloneFrom;
 
+  /// Open an existing vendor on a new blank contact, scrolled into view — the
+  /// record screen's Contacts card "+ Add" (`AddContactRequest`).
+  final bool addContact;
+
   @override
   Widget build(BuildContext context) {
     return EntityEditScreenScaffold<Vendor, VendorEditViewModel>(
@@ -35,15 +44,20 @@ class VendorEditScreen extends StatelessWidget {
       entityTypeName: 'vendor',
       fetchExisting: (ctx, services, companyId, id) =>
           services.vendors.watch(companyId: companyId, id: id).first,
-      buildVm: (ctx, services, companyId, existing) => VendorEditViewModel(
-        repo: services.vendors,
-        companyId: companyId,
-        nameRequiredMessage: ctx.tr('please_enter_a_name'),
-        existing: existing,
-        cloneFrom: cloneFrom,
-        sync: services.sync,
-        connectivity: services.connectivity,
-      ),
+      buildVm: (ctx, services, companyId, existing) {
+        final vm = VendorEditViewModel(
+          repo: services.vendors,
+          companyId: companyId,
+          nameRequiredMessage: ctx.tr('please_enter_a_name'),
+          existing: existing,
+          cloneFrom: cloneFrom,
+          sync: services.sync,
+          connectivity: services.connectivity,
+        );
+        // Once per view model, which the scaffold builds once per screen.
+        if (addContact && existing != null) vm.addContact();
+        return vm;
+      },
       titleWhileLoading: (ctx) =>
           existingId == null ? ctx.tr('new_vendor') : ctx.tr('edit'),
       titleBuilder: (ctx, vm) {

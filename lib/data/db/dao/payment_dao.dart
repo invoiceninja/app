@@ -7,6 +7,7 @@ import 'package:admin/data/db/dao/_payload_search.dart';
 import 'package:admin/data/db/app_database.dart';
 import 'package:admin/data/db/dao/billing_extra_filters.dart';
 import 'package:admin/data/db/dao/base_entity_dao.dart';
+import 'package:admin/data/db/dao/list_totals_query.dart';
 import 'package:admin/data/db/dao/entity_query_helpers.dart';
 import 'package:admin/data/db/tables/payments_table.dart';
 import 'package:admin/data/models/value/payment_type.dart';
@@ -119,6 +120,32 @@ class PaymentDao extends BaseEntityDao<$PaymentsTable, PaymentRow>
   /// JSON extract), optional status set, optional has-unapplied-funds chip
   /// (filters to rows where `applied < amount` — Decimal comparison via
   /// CAST). Sort field is one of [PaymentFieldIds].
+  /// Money received but not applied (docs/entity-lists.md § A money list's
+  /// totals line): `amount − applied` of completed and partially refunded
+  /// payments, where that is above zero — the row's own `unapplied`. Never
+  /// less `refunded`: a refund does not lower `applied` (the server's
+  /// `PaymentAppliedValidAmount`). In the payment's own currency, else its
+  /// client's; an archived or deleted client's payments are left out. The
+  /// `REAL` comparison — the Unapplied tab's — only narrows the rows read;
+  /// the figure itself is summed in `Decimal`.
+  @override
+  ListTotalsQuery? listTotalsQuery(String companyId) => ListTotalsQuery(
+    where:
+        payments.statusId.isIn([
+          kPaymentStatusCompleted,
+          kPaymentStatusPartiallyRefunded,
+        ]) &
+        payments.amount.cast<double>().isBiggerThan(
+          payments.applied.cast<double>(),
+        ) &
+        clientActiveFilter(clientId: payments.clientId, companyId: companyId),
+    amount: payments.amount,
+    less: [payments.applied],
+    positiveOnly: true,
+    currency: payments.currencyId,
+    clientId: payments.clientId,
+  );
+
   Stream<List<PaymentRow>> watchPage({
     required String companyId,
     required int offset,

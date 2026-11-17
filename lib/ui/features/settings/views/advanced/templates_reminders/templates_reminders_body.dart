@@ -249,6 +249,12 @@ class _TemplatesRemindersBodyState extends State<TemplatesRemindersBody> {
 
     final pickerCard = FormSection(
       title: context.tr('template'),
+      // Without the side-by-side preview, the way to it sits in this card's
+      // header — the template it previews is picked right below — instead of
+      // costing a row of its own above the page.
+      trailing: showInlinePreview
+          ? null
+          : _ShowPreviewButton(controller: _preview),
       children: [
         _TemplatePicker(
           options: options,
@@ -341,29 +347,16 @@ class _TemplatesRemindersBodyState extends State<TemplatesRemindersBody> {
       );
     }
 
-    // Preview rides above the scroll area rather than sitting at the foot of
-    // it, so it is reachable without scrolling the whole template past — and
-    // so it matches Invoice Design's pinned preview bar, which is the same
-    // affordance one screen over (invoiceninja/flutter#83; this supersedes the
-    // in-body ordering fix from #77).
-    return Column(
-      children: [
-        _ShowPreviewButton(controller: _preview),
-        Expanded(
-          child: SingleChildScrollView(
-            padding: EdgeInsets.fromLTRB(
-              InSpacing.lg(context),
-              0,
-              InSpacing.lg(context),
-              InSpacing.lg(context),
-            ),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 720),
-              child: body,
-            ),
-          ),
-        ),
-      ],
+    // Preview sits in the Template card's header, the first thing on the page,
+    // so it is reachable without scrolling the whole template past
+    // (invoiceninja/flutter#83, which superseded the in-body ordering fix from
+    // #77) — and it no longer spends a row of its own above the content.
+    return SingleChildScrollView(
+      padding: EdgeInsets.all(InSpacing.lg(context)),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 720),
+        child: body,
+      ),
     );
   }
 }
@@ -487,22 +480,11 @@ class _ShowPreviewButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.fromLTRB(
-        InSpacing.lg(context),
-        InSpacing.md(context),
-        InSpacing.lg(context),
-        InSpacing.md(context),
-      ),
-      child: Align(
-        alignment: AlignmentDirectional.centerEnd,
-        child: OutlinedButton.icon(
-          icon: const Icon(Icons.visibility_outlined, size: 18),
-          label: Text(context.tr('preview')),
-          style: OutlinedButton.styleFrom(minimumSize: const Size(64, 40)),
-          onPressed: () => showTemplatePreviewScreen(context, controller),
-        ),
-      ),
+    return OutlinedButton.icon(
+      icon: const Icon(Icons.visibility_outlined, size: 18),
+      label: Text(context.tr('preview')),
+      style: OutlinedButton.styleFrom(minimumSize: const Size(64, 40)),
+      onPressed: () => showTemplatePreviewScreen(context, controller),
     );
   }
 }

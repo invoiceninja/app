@@ -19,7 +19,12 @@ import 'package:admin/ui/features/clients/widgets/edit/client_edit_layout.dart';
 /// fetch the existing row, how to build the VM, the title, and the form
 /// body.
 class ClientEditScreen extends StatelessWidget {
-  const ClientEditScreen({this.existingId, this.cloneFrom, super.key});
+  const ClientEditScreen({
+    this.existingId,
+    this.cloneFrom,
+    this.addContact = false,
+    super.key,
+  });
 
   final String? existingId;
 
@@ -28,6 +33,10 @@ class ClientEditScreen extends StatelessWidget {
   /// tab → "New client" stages a draft pre-assigned to that group.
   final Client? cloneFrom;
 
+  /// Open an existing client on a new blank contact, scrolled into view — the
+  /// record screen's Contacts card "+ Add" (`AddContactRequest`).
+  final bool addContact;
+
   @override
   Widget build(BuildContext context) {
     return EntityEditScreenScaffold<Client, ClientEditViewModel>(
@@ -35,23 +44,26 @@ class ClientEditScreen extends StatelessWidget {
       entityTypeName: 'client',
       fetchExisting: (ctx, services, companyId, id) =>
           services.clients.watch(companyId: companyId, id: id).first,
-      buildVm: (ctx, services, companyId, existing) => ClientEditViewModel(
-        repo: services.clients,
-        companyId: companyId,
-        existing: existing,
-        cloneFrom:
-            cloneFrom ??
-            (existing == null
-                ? services.takeCreateDraft<Client>('/clients')
-                : null),
-        useCommaAsDecimalPlace:
-            services
-                .formatterIfReady(companyId)
-                ?.settings
-                .useCommaAsDecimalPlace ??
-            false,
-        sync: services.sync,
-        connectivity: services.connectivity,
+      buildVm: (ctx, services, companyId, existing) => _withRequestedContact(
+        ClientEditViewModel(
+          repo: services.clients,
+          companyId: companyId,
+          existing: existing,
+          cloneFrom:
+              cloneFrom ??
+              (existing == null
+                  ? services.takeCreateDraft<Client>('/clients')
+                  : null),
+          useCommaAsDecimalPlace:
+              services
+                  .formatterIfReady(companyId)
+                  ?.settings
+                  .useCommaAsDecimalPlace ??
+              false,
+          sync: services.sync,
+          connectivity: services.connectivity,
+        ),
+        existing,
       ),
       titleWhileLoading: (ctx) =>
           existingId == null ? ctx.tr('new_client') : ctx.tr('edit'),
@@ -110,5 +122,15 @@ class ClientEditScreen extends StatelessWidget {
         savedId: saved.id,
       ),
     );
+  }
+
+  /// [vm], with the blank contact [addContact] asked for. Once per view
+  /// model, which the scaffold builds once per screen.
+  ClientEditViewModel _withRequestedContact(
+    ClientEditViewModel vm,
+    Client? existing,
+  ) {
+    if (addContact && existing != null) vm.addContact();
+    return vm;
   }
 }

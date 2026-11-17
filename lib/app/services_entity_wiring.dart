@@ -644,6 +644,14 @@ List<DocumentParentSlice> _documentParentSlices(
       // column across the selection (fired per-id; the repo already applied
       // the optimistic local patch).
       MutationKind.bulkUpdate: clientBulkUpdateHandler(clientsApi, clientRepo),
+      // POST /clients/bulk action:assign_group — the list's Assign Group.
+      MutationKind.assignGroup: bulkActionHandler<ClientItemApi, ClientApi>(
+        clientsApi,
+        (item) => item.data,
+        clientRepo.clearLocalDirty,
+        action: 'assign_group',
+        extraKeys: const ['group_settings_id'],
+      ),
       // POST /designs/set/default settings_level=client — the client-scope
       // "Update all records" design retro-apply (shared factory; group uses
       // the same handler).
@@ -706,16 +714,26 @@ List<DocumentParentSlice> _documentParentSlices(
     type: EntityType.product,
     api: productsApi,
     repo: productRepo,
-    customActions: documentMutationHandlers<ProductApi>(
-      documentsApi: reg.ctx.documentsApi,
-      mirror: reg.documents,
-      parentType: EntityType.product,
-      onUploaded: reg.ctx.onDocumentUploaded,
-      resolveSource: reg.ctx.resolveDocumentSource,
-      upload: productsApi.uploadDocument,
-      applyChanged: productRepo.applyDocumentChanged,
-      applyDeleted: productRepo.applyDocumentDeleted,
-    ),
+    customActions: {
+      ...documentMutationHandlers<ProductApi>(
+        documentsApi: reg.ctx.documentsApi,
+        mirror: reg.documents,
+        parentType: EntityType.product,
+        onUploaded: reg.ctx.onDocumentUploaded,
+        resolveSource: reg.ctx.resolveDocumentSource,
+        upload: productsApi.uploadDocument,
+        applyChanged: productRepo.applyDocumentChanged,
+        applyDeleted: productRepo.applyDocumentDeleted,
+      ),
+      // POST /products/bulk action:set_tax_id — the list's Set Tax Category.
+      MutationKind.setTaxId: bulkActionHandler<ProductItemApi, ProductApi>(
+        productsApi,
+        (item) => item.data,
+        productRepo.clearLocalDirty,
+        action: 'set_tax_id',
+        extraKeys: const ['tax_id'],
+      ),
+    },
   );
 
   return (productsApi, productRepo);
@@ -916,6 +934,16 @@ List<DocumentParentSlice> _documentParentSlices(
         (item) => item.data,
         expenseRepo.clearLocalDirty,
       ),
+      // POST /expenses/bulk action:bulk_categorize — the list's Change
+      // Category. The server echoes the rows like bulk_update does.
+      MutationKind.bulkCategorize:
+          bulkActionHandler<ExpenseItemApi, ExpenseApi>(
+            expensesApi,
+            (item) => item.data,
+            expenseRepo.clearLocalDirty,
+            action: 'bulk_categorize',
+            extraKeys: const ['category_id'],
+          ),
       ...documentMutationHandlers<ExpenseApi>(
         documentsApi: reg.ctx.documentsApi,
         mirror: reg.documents,
@@ -2469,15 +2497,36 @@ CustomMutationHandler<TInner> bulkUpdateHandler<TItem, TInner>(
   TInner Function(TItem item) dataOf,
   Future<void> Function({required String companyId, required String id})
   clearLocalDirty,
-) => ({required row, required payload}) async {
+) => bulkActionHandler<TItem, TInner>(
+  api,
+  dataOf,
+  clearLocalDirty,
+  action: 'bulk_update',
+  extraKeys: const ['column', 'new_value'],
+);
+
+/// `POST /<entity>/bulk {action, ids:[id], ...extra}` for a bulk action that
+/// writes a field of the record and echoes the rows back — `bulk_update`
+/// ([bulkUpdateHandler]), expense `bulk_categorize`, client `assign_group`
+/// and product `set_tax_id` (docs/bulk-actions.md). The repo
+/// wrote the new value locally (`is_dirty=true`); [extraKeys] are copied from
+/// the outbox payload into the request body. An echo is upserted by the
+/// dispatcher (clearing the dirty flag); a null echo — the row is gone or
+/// filtered server-side — clears the flag directly, so the optimistic value
+/// can't stay frozen against every later refresh.
+CustomMutationHandler<TInner> bulkActionHandler<TItem, TInner>(
+  BaseEntityApi<dynamic, TItem> api,
+  TInner Function(TItem item) dataOf,
+  Future<void> Function({required String companyId, required String id})
+  clearLocalDirty, {
+  required String action,
+  required List<String> extraKeys,
+}) => ({required row, required payload}) async {
   final item = await api.bulkActionOne(
     id: payload['id'] as String,
-    action: 'bulk_update',
+    action: action,
     idempotencyKey: row.idempotencyKey,
-    extra: {
-      'column': payload['column'] as String,
-      'new_value': payload['new_value'] as String,
-    },
+    extra: {for (final k in extraKeys) k: payload[k] as String},
   );
   if (item == null) {
     await clearLocalDirty(companyId: row.companyId, id: row.entityId);

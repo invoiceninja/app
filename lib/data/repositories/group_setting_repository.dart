@@ -12,6 +12,7 @@ import 'package:admin/data/models/domain/group_setting.dart';
 import 'package:admin/data/repositories/_repository_helpers.dart';
 import 'package:admin/data/repositories/base_entity_repository.dart';
 import 'package:admin/data/repositories/embedded_documents_owner.dart';
+import 'package:admin/data/repositories/ensure_loaded_outcome.dart';
 import 'package:admin/data/repositories/document_bearing_repository.dart';
 import 'package:admin/data/services/group_settings_api.dart';
 import 'package:admin/data/services/upload_source.dart';
@@ -181,6 +182,25 @@ class GroupSettingRepository
       ),
     );
   }
+
+  /// Hydrate one group by id when the record screen opens on a group the
+  /// local table lacks (a deep link, a restored route on a fresh cache).
+  /// Groups ride the `/login` bundle, so this is usually a cache hit. See
+  /// [ensureLoadedTemplate].
+  Future<EnsureLoadedOutcome> ensureLoaded({
+    required String companyId,
+    required String id,
+  }) => ensureLoadedTemplate(
+    companyId: companyId,
+    id: id,
+    fetch: (id) async => (await api.get(id)).data,
+    idOf: (a) => a.id,
+    toCompanion: (a) => _apiToCompanion(a, companyId),
+    upsert: (byId) => db.groupSettingDao.upsertAllPreservingDirty(
+      companyId: companyId,
+      byId: byId,
+    ),
+  );
 
   /// Create a new group offline. Returns the group with its tmp id.
   Future<SaveResult<GroupSetting>> create({

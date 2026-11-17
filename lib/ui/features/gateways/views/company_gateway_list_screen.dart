@@ -138,6 +138,14 @@ class CompanyGatewayListScreen extends StatelessWidget {
           pluralSuccessKey: 'restored_company_gateways',
           nothingKey: 'nothing_to_restore',
         ),
+        EntityListBulkAction(
+          actionId: 'delete',
+          icon: Icons.delete_outline,
+          tooltipKey: 'delete',
+          singleSuccessKey: 'deleted_company_gateway',
+          pluralSuccessKey: 'deleted_company_gateways',
+          nothingKey: 'nothing_to_delete',
+        ),
       ],
     );
   }

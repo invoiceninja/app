@@ -2,6 +2,7 @@ import 'package:decimal/decimal.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 
+import 'package:admin/ui/features/dashboard/widgets/card_shell.dart';
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/data/models/domain/credit.dart';
@@ -883,6 +884,8 @@ class _NarrowEditor extends StatelessWidget {
   }
 }
 
+/// The shared edit-form card ([DashboardCardShell]) — see the payment edit
+/// layout's own `_Section`.
 class _Section extends StatelessWidget {
   const _Section({required this.title, required this.children});
   final String title;
@@ -890,28 +893,12 @@ class _Section extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tokens = context.inTheme;
-    return Container(
-      decoration: BoxDecoration(
-        color: tokens.surface,
-        border: Border.all(color: tokens.border),
-        borderRadius: BorderRadius.circular(InRadii.r3),
-      ),
-      padding: EdgeInsets.all(InSpacing.lg(context)),
+    return DashboardCardShell(
+      title: title,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            title,
-            style: TextStyle(
-              color: tokens.ink,
-              fontWeight: FontWeight.w600,
-              fontSize: 16,
-            ),
-          ),
-          const SizedBox(height: 12),
-          ...children,
-        ],
+        mainAxisSize: MainAxisSize.min,
+        children: children,
       ),
     );
   }

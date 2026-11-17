@@ -12,6 +12,7 @@ import 'package:admin/ui/features/settings/view_models/settings_draft_view_model
 import 'package:admin/ui/features/settings/widgets/cascade_draft_resolver.dart';
 import 'package:admin/ui/features/settings/widgets/cascade_settings_scaffold.dart';
 import 'package:admin/ui/features/settings/widgets/settings_company_scoped_host.dart';
+import 'package:admin/ui/features/settings/widgets/settings_page_intro.dart';
 import 'package:admin/ui/features/settings/widgets/settings_page_scaffold.dart';
 import 'package:admin/ui/features/settings/widgets/tabbed_settings_shell.dart';
 import 'package:admin/ui/core/utils/router_state.dart';
@@ -96,8 +97,7 @@ class CascadeTabbedSettingsShell extends StatefulWidget {
   ///     opens the fullscreen route built by [sidePaneFullScreenBuilder].
   /// All three modes key off the body's own `LayoutBuilder` width — never the
   /// window — so a sidebar-narrowed detail pane can't strand the preview. The
-  /// active tab's [TabbedSettingsTab.topBarLeading] sits above the tab content
-  /// in every one of them.
+  /// preview button rides each tab's intro row ([SettingsPageActions]).
   /// Null (the default) preserves the original full-width `TabBarView`
   /// behavior — all existing callers are unaffected.
   final Widget? sidePane;
@@ -277,8 +277,6 @@ class _CascadeTabbedSettingsShellState extends State<CascadeTabbedSettingsShell>
             sidePane: widget.sidePane!,
             previewShown: _previewShown,
             fullScreenBuilder: widget.sidePaneFullScreenBuilder,
-            tabController: _tabController,
-            tabs: widget.tabs,
           )
         : tabBarView;
     if (widget.banner == null) return content;
@@ -300,10 +298,12 @@ class _CascadeTabbedSettingsShellState extends State<CascadeTabbedSettingsShell>
 ///   * `< Breakpoints.wide`: tab content + a "Preview" button that opens the
 ///     fullscreen-dialog pane (phone fallback).
 ///
-/// The active tab's [TabbedSettingsTab.topBarLeading] is drawn above the tab
-/// content in **all three** modes. The side-by-side one has no preview button
-/// and so had no bar, which is how Custom Designs lost its "+ New Design" on
-/// exactly the widest layout.
+/// The preview button is not a bar of its own above the tabs: it is handed
+/// down through [SettingsPageActions], and each tab's `SettingsFormShell`
+/// draws it on the row it shares with that tab's intro sentence (and any
+/// action of the tab's own, Custom Designs' "New design"). Only while the
+/// pane is shown in the tablet band — when no tab body is on screen to carry
+/// it — does the "Hide preview" button sit in a bar above the pane.
 @visibleForTesting
 class CascadeSidePaneLayout extends StatelessWidget {
   const CascadeSidePaneLayout({
@@ -312,24 +312,12 @@ class CascadeSidePaneLayout extends StatelessWidget {
     required this.sidePane,
     required this.previewShown,
     required this.fullScreenBuilder,
-    required this.tabController,
-    required this.tabs,
   });
 
   final Widget tabBarView;
   final Widget sidePane;
   final ValueNotifier<bool> previewShown;
   final Widget Function(BuildContext context)? fullScreenBuilder;
-  final TabController tabController;
-  final List<TabbedSettingsTab> tabs;
-
-  /// The active tab's `topBarLeading`. Call it inside an [AnimatedBuilder] on
-  /// [tabController] so the bar refreshes when the user switches tabs.
-  Widget? _currentLeading() {
-    final i = tabController.index;
-    if (i < 0 || i >= tabs.length) return null;
-    return tabs[i].topBarLeading;
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -344,28 +332,7 @@ class CascadeSidePaneLayout extends StatelessWidget {
           return Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // No preview button here, but the tab's own action still
-                    // needs its slot. Always a child, collapsing to nothing
-                    // for a tab without one: the tab view below then keeps
-                    // its place in the tree, so a tab switch — which flips
-                    // the index as the slide *starts* — can't remount it.
-                    AnimatedBuilder(
-                      animation: tabController,
-                      builder: (context, _) {
-                        final leading = _currentLeading();
-                        return leading == null
-                            ? const SizedBox.shrink()
-                            : _TabTopBar(leading: leading);
-                      },
-                    ),
-                    Expanded(child: tabBarView),
-                  ],
-                ),
-              ),
+              Expanded(child: tabBarView),
               VerticalDivider(width: 1, color: tokens.border),
               Expanded(child: sidePane),
             ],
@@ -375,23 +342,30 @@ class CascadeSidePaneLayout extends StatelessWidget {
           return ValueListenableBuilder<bool>(
             valueListenable: previewShown,
             builder: (context, shown, _) {
-              return Column(
-                children: [
-                  AnimatedBuilder(
-                    animation: tabController,
-                    builder: (context, _) => _PreviewBarButton(
-                      icon: shown
-                          ? Icons.visibility_off_outlined
-                          : Icons.visibility_outlined,
-                      label: shown
-                          ? context.tr('hide_preview')
-                          : context.tr('show_preview'),
-                      onPressed: () => previewShown.value = !shown,
-                      leading: _currentLeading(),
+              if (shown) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _PreviewBar(
+                      button: _PreviewButton(
+                        icon: Icons.visibility_off_outlined,
+                        label: context.tr('hide_preview'),
+                        onPressed: () => previewShown.value = false,
+                      ),
                     ),
+                    Expanded(child: sidePane),
+                  ],
+                );
+              }
+              return SettingsPageActions(
+                actions: [
+                  _PreviewButton(
+                    icon: Icons.visibility_outlined,
+                    label: context.tr('show_preview'),
+                    onPressed: () => previewShown.value = true,
                   ),
-                  Expanded(child: shown ? sidePane : tabBarView),
                 ],
+                child: tabBarView,
               );
             },
           );
@@ -400,83 +374,62 @@ class CascadeSidePaneLayout extends StatelessWidget {
         // `context` here is inside `SettingsPageScaffold`'s provider scope, so
         // `fullScreenBuilder` can `read` the cascade host / level.
         final builder = fullScreenBuilder;
-        return Column(
-          children: [
-            if (builder != null)
-              AnimatedBuilder(
-                animation: tabController,
-                builder: (context, _) => _PreviewBarButton(
-                  icon: Icons.visibility_outlined,
-                  label: context.tr('preview'),
-                  onPressed: () =>
-                      showCascadeFullScreenPreview(context, builder),
-                  leading: _currentLeading(),
-                ),
-              ),
-            Expanded(child: tabBarView),
+        if (builder == null) return tabBarView;
+        return SettingsPageActions(
+          actions: [
+            _PreviewButton(
+              icon: Icons.visibility_outlined,
+              label: context.tr('preview'),
+              onPressed: () => showCascadeFullScreenPreview(context, builder),
+            ),
           ],
+          child: tabBarView,
         );
       },
     );
   }
 }
 
-/// The bar above the tab content: the active tab's own action on the left
-/// ([TabbedSettingsTab.topBarLeading] — Custom Designs' "+ New Design") and,
-/// where the layout has one, the preview button on the right. Every branch of
-/// [CascadeSidePaneLayout] draws it, so a tab's action can't go missing at
-/// one width.
-class _TabTopBar extends StatelessWidget {
-  const _TabTopBar({this.leading, this.trailing});
+/// The bar above the shown preview pane in the tablet band, holding the
+/// "Hide preview" toggle at the end. The pane replaces every tab body there,
+/// so there is no intro row to carry the button.
+class _PreviewBar extends StatelessWidget {
+  const _PreviewBar({required this.button});
 
-  final Widget? leading;
-  final Widget? trailing;
+  final Widget button;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.fromLTRB(
-        InSpacing.lg(context),
-        InSpacing.md(context),
-        InSpacing.lg(context),
-        InSpacing.md(context),
+      padding: EdgeInsets.symmetric(
+        horizontal: InSpacing.lg(context),
+        vertical: InSpacing.md(context),
       ),
-      child: Row(
-        children: [
-          if (leading != null) leading!,
-          const Spacer(),
-          if (trailing != null) trailing!,
-        ],
-      ),
+      child: Align(alignment: AlignmentDirectional.centerEnd, child: button),
     );
   }
 }
 
-/// [_TabTopBar] with the preview toggle / open button on the right. Shared by
-/// the tablet (toggle) and phone (open-modal) branches of
-/// [CascadeSidePaneLayout].
-class _PreviewBarButton extends StatelessWidget {
-  const _PreviewBarButton({
+/// The preview toggle / open button, wherever it is drawn.
+class _PreviewButton extends StatelessWidget {
+  const _PreviewButton({
     required this.icon,
     required this.label,
     required this.onPressed,
-    this.leading,
   });
 
   final IconData icon;
   final String label;
   final VoidCallback onPressed;
-  final Widget? leading;
 
   @override
   Widget build(BuildContext context) {
-    final previewBtn = OutlinedButton.icon(
+    return OutlinedButton.icon(
       style: OutlinedButton.styleFrom(minimumSize: const Size(64, 40)),
       icon: Icon(icon, size: 18),
       label: Text(label),
       onPressed: onPressed,
     );
-    return _TabTopBar(leading: leading, trailing: previewBtn);
   }
 }
 

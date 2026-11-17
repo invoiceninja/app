@@ -525,17 +525,18 @@ class _ChartSeries {
   final List<double> values;
 }
 
-/// The plot: one smooth line per series, a point at the centre of each slot.
+/// The plot: one smooth line per series, a point per slot, the lead series
+/// shaded.
 ///
-/// **A point sits at its slot's centre, and an empty slot sits on the
-/// baseline.** The line chart this replaced (before the bars of Nov 2026) drew
+/// **Every slot has a point, and an empty slot sits on the baseline.** The line chart this replaced (before the bars of Nov 2026) drew
 /// sparse daily points joined corner to corner, so a lone payment read as a
 /// slope across its neighbours — a triangle of money on days that had none.
 /// Here every slot has a point (zero-filled by `buildChartAxis`), the curve
 /// cannot overshoot (`preventCurveOverShooting`), and only a point with a
-/// value gets a dot, so a single payment is a peak in its own day. The x range runs half a slot
-/// past each end (`minX: -0.5`), so the first and last points are not jammed
-/// against the axes and the spacing of the points is the spacing of time.
+/// value gets a dot, so a single payment is a peak in its own day. The lines
+/// run edge to edge (`minX: 0`, `maxX: n - 1`), as the 5.1 chart's did; only
+/// a lone slot keeps half a slot each side so it is not drawn on the frame.
+/// The lead series gets 5.1's soft gradient fill (`belowBarData`).
 ///
 /// A [StatefulWidget] for two reasons.
 ///
@@ -843,7 +844,7 @@ class _CashFlowLineChartState extends State<_CashFlowLineChart> {
 
     final touched = _touched;
     final lines = <LineChartBarData>[
-      for (final s in series)
+      for (final (i, s) in series.indexed)
         LineChartBarData(
           spots: [
             for (var i = 0; i < buckets.length; i++)
@@ -860,6 +861,22 @@ class _CashFlowLineChartState extends State<_CashFlowLineChart> {
           isStrokeCapRound: true,
           isStrokeJoinRound: true,
           dotData: FlDotData(checkToShowDot: _hasValue, getDotPainter: _dot),
+          // The lead series is shaded down to the axis, as the 5.1 chart was
+          // (Hillel preferred it); one fill only, so overlapping areas never
+          // muddy each other.
+          belowBarData: i == 0
+              ? BarAreaData(
+                  show: true,
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      s.color.withValues(alpha: 0.18),
+                      s.color.withValues(alpha: 0),
+                    ],
+                  ),
+                )
+              : BarAreaData(show: false),
           showingIndicators: touched == null ? const [] : [touched],
         ),
     ];
@@ -867,9 +884,11 @@ class _CashFlowLineChartState extends State<_CashFlowLineChart> {
     return LineChart(
       LineChartData(
         lineBarsData: lines,
-        // Half a slot past each end: every point sits at its slot's centre.
-        minX: -0.5,
-        maxX: n - 0.5,
+        // Edge to edge, as the 5.1 chart was: the first slot's point sits on
+        // the axis start and the last on its end. A lone slot keeps a half
+        // slot each side so it is not drawn on the frame.
+        minX: n == 1 ? -0.5 : 0,
+        maxX: n == 1 ? 0.5 : n - 1.0,
         minY: 0,
         maxY: scale.max,
         showingTooltipIndicators: touched == null || lines.isEmpty

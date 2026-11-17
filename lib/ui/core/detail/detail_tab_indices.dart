@@ -55,4 +55,7 @@ abstract final class DetailTabIds {
   static const String schedule = 'schedule';
   static const String analytics = 'analytics';
   static const String settings = 'settings';
+
+  /// A group's clients (`GroupSettingsDetailScreen`).
+  static const String clients = 'clients';
 }

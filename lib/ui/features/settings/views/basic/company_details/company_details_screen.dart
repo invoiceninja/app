@@ -74,8 +74,9 @@ class CompanyDetailsScreen extends StatelessWidget {
 
     return SettingsFormShell(
       subtitle: context.tr('company_details_subtitle'),
+      // On the intro row, at its end — not a row of its own under it.
+      actions: const [_PreviewDocumentLink()],
       sections: [
-        const _PreviewDocumentLink(),
         FormSection(
           title: context.tr('identification'),
           children: [
@@ -288,14 +289,11 @@ class _PreviewDocumentLink extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Align(
-      alignment: AlignmentDirectional.centerStart,
-      child: TextButton.icon(
-        style: TextButton.styleFrom(minimumSize: const Size(64, 40)),
-        icon: const Icon(Icons.visibility_outlined, size: 18),
-        label: Text(context.tr('preview_a_document')),
-        onPressed: () => _open(context),
-      ),
+    return TextButton.icon(
+      style: TextButton.styleFrom(minimumSize: const Size(64, 40)),
+      icon: const Icon(Icons.visibility_outlined, size: 18),
+      label: Text(context.tr('preview_a_document')),
+      onPressed: () => _open(context),
     );
   }
 

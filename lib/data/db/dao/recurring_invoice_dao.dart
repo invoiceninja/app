@@ -6,6 +6,7 @@ import 'package:admin/data/db/dao/_payload_search.dart';
 
 import 'package:admin/data/db/app_database.dart';
 import 'package:admin/data/db/dao/base_entity_dao.dart';
+import 'package:admin/data/db/dao/list_totals_query.dart';
 import 'package:admin/data/models/domain/recurring_invoice_status.dart';
 import 'package:admin/domain/sidebar_badge_modes.dart';
 import 'package:admin/data/db/dao/entity_query_helpers.dart';
@@ -107,6 +108,23 @@ class RecurringInvoiceDao
     // does, which is why the mode is offered there and not here.
     _ => null,
   };
+
+  /// What the active schedules bill per cycle (docs/entity-lists.md § A money
+  /// list's totals line): the amount of active recurring invoices, in the
+  /// client's currency; an archived or deleted client's are left out.
+  @override
+  ListTotalsQuery? listTotalsQuery(String companyId) => ListTotalsQuery(
+    where:
+        recurringInvoices.statusId.equals(
+          RecurringInvoiceStatus.active.wireId,
+        ) &
+        clientActiveFilter(
+          clientId: recurringInvoices.clientId,
+          companyId: companyId,
+        ),
+    amount: recurringInvoices.amount,
+    clientId: recurringInvoices.clientId,
+  );
 
   Stream<List<RecurringInvoiceRow>> watchPage({
     required String companyId,

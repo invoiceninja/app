@@ -14,9 +14,11 @@ import 'package:admin/ui/features/clients/view_models/client_list_view_model.dar
 import 'package:admin/ui/features/clients/widgets/client_actions.dart';
 import 'package:admin/domain/bulk_update_columns.dart';
 import 'package:admin/ui/features/bulk_update/bulk_update_dialog.dart';
+import 'package:admin/ui/features/clients/widgets/bulk_assign_group_dialog.dart';
 import 'package:admin/ui/features/clients/widgets/client_list_column_headers.dart';
 import 'package:admin/ui/features/clients/widgets/client_list_empty_state.dart';
 import 'package:admin/ui/features/clients/widgets/client_list_tile.dart';
+import 'package:admin/ui/features/clients/widgets/overdue_clients_scope.dart';
 import 'package:admin/ui/features/clients/widgets/client_token_search_field.dart';
 
 /// Clients list screen — pure config + per-entity widgets. The screen-level
@@ -40,131 +42,149 @@ class ClientListScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final gid = groupSettingsId;
-    return EntityListScreenScaffold<Client, ClientListViewModel>(
-      titleKey: 'clients',
-      newRoute: '/clients/new',
-      newLabelKey: 'new_client',
-      embedded: embedded,
-      // The company-wide figure, so never over a list narrowed to one group.
-      showOutstandingTotals: gid == null,
-      // Stage a draft pre-assigned to this group (route query is dropped on
-      // the cross-branch jump; the create screen reads the staged draft).
-      embeddedNewOverride: gid == null
-          ? null
-          : (ctx) => goEntityCreateFullWidth(
-              ctx,
-              '/clients',
-              extra: emptyClient(groupSettingsId: gid),
-            ),
-      // Money columns — let the scaffold wire `FormatterHostMixin` so the
-      // tile renders the per-client currency cascade.
-      wantsFormatter: true,
-      buildVm: (services, companyId) => ClientListViewModel(
-        repo: services.clients,
-        // Feeds the `overdue` status tab's cross-entity predicate (#119) —
-        // see `ClientListViewModel._hydrateOverdueInvoices`. Dropping this
-        // line silently reverts that tab to reading its stale local cache,
-        // so `status_tab_wiring_test` pins it.
-        invoices: services.invoices,
-        navStateDao: services.db.navStateDao,
-        userSettings: services.userSettings,
-        savedViews: services.savedViews,
-        companyId: companyId,
-        groupSettingsId: groupSettingsId,
+    // Which balances are late, for the Balance cell and the phone row's
+    // amount (docs/entity-lists.md § A client's balance is red only when it is
+    // late).
+    return OverdueClientsHost(
+      child: EntityListScreenScaffold<Client, ClientListViewModel>(
+        titleKey: 'clients',
+        newRoute: '/clients/new',
+        newLabelKey: 'new_client',
+        embedded: embedded,
+        // The company-wide figure, so never over a list narrowed to one group.
+        showListTotals: gid == null,
+        // Stage a draft pre-assigned to this group (route query is dropped on
+        // the cross-branch jump; the create screen reads the staged draft).
+        embeddedNewOverride: gid == null
+            ? null
+            : (ctx) => goEntityCreateFullWidth(
+                ctx,
+                '/clients',
+                extra: emptyClient(groupSettingsId: gid),
+              ),
+        // Money columns — let the scaffold wire `FormatterHostMixin` so the
+        // tile renders the per-client currency cascade.
+        wantsFormatter: true,
+        buildVm: (services, companyId) => ClientListViewModel(
+          repo: services.clients,
+          // Feeds the `overdue` status tab's cross-entity predicate (#119) —
+          // see `ClientListViewModel._hydrateOverdueInvoices`. Dropping this
+          // line silently reverts that tab to reading its stale local cache,
+          // so `status_tab_wiring_test` pins it.
+          invoices: services.invoices,
+          navStateDao: services.db.navStateDao,
+          userSettings: services.userSettings,
+          savedViews: services.savedViews,
+          companyId: companyId,
+          groupSettingsId: groupSettingsId,
+        ),
+        sortOptions: (context) => [
+          SortOption(id: ClientFieldIds.name, label: context.tr('name')),
+          SortOption(id: ClientFieldIds.number, label: context.tr('number')),
+          SortOption(id: ClientFieldIds.balance, label: context.tr('balance')),
+          SortOption(
+            id: ClientFieldIds.updatedAt,
+            label: context.tr('last_updated'),
+          ),
+          SortOption(
+            id: ClientFieldIds.createdAt,
+            label: context.tr('created'),
+          ),
+        ],
+        searchFieldBuilder: (context, vm, wide) =>
+            ClientTokenSearchField(vm: vm, wide: wide),
+        // Filter-aware empty copy ("no clients yet" vs "no clients match
+        // these filters") — wrapper has the branch logic inside.
+        emptyStateBuilder: (context, vm) => ClientListEmptyState(vm: vm),
+        // Typedef wrapper; equivalent to `EntityListColumnHeaders<Client>`.
+        wideColumnHeadersBuilder: (context, vm) =>
+            ClientListColumnHeaders(vm: vm),
+        tileBuilder: (context, vm, client, index, options) {
+          final isUrlSelected = options.selectedId == client.id;
+          return ClientListTile(
+            client: client,
+            formatter: options.formatter,
+            wide: options.wide,
+            editable: options.editable,
+            columns: options.wide ? vm.columns : const <ClientColumn>[],
+            hideBottomDivider: options.bottomDividerHidden,
+            selecting: options.selecting,
+            selected: vm.isSelected(client.id) || isUrlSelected,
+            urlSelected: isUrlSelected,
+            onTap: options.selecting
+                ? () => vm.toggleSelected(client.id)
+                : isUrlSelected
+                ? () => MasterDetailNavScope.requestClose(
+                    context,
+                    basePath: '/clients',
+                  )
+                : () => goEntityRecord(context, vm.entityType, client.id),
+            onLongPress: () => vm.toggleSelected(client.id),
+            // Desktop entry point: hover reveals a checkbox in the leading
+            // slot, click here enters multi-select. Same handler as
+            // long-press (touch entry).
+            onSelectTap: () => vm.toggleSelected(client.id),
+            // Always *to* the record, unlike `onTap` above — this feeds the call
+            // picker's "View client" footer, which exists for exactly the case
+            // where none of the offered numbers is the one the user wanted.
+            onViewRecord: () =>
+                goEntityRecord(context, vm.entityType, client.id),
+            onAction: options.selecting
+                ? null
+                : (action) => ClientActions.dispatch(
+                    context,
+                    context.read<Services>(),
+                    vm.companyId,
+                    client,
+                    action,
+                  ),
+          );
+        },
+        bulkActions: const [
+          EntityListBulkAction(
+            actionId: 'archive',
+            icon: Icons.archive_outlined,
+            tooltipKey: 'archive',
+            singleSuccessKey: 'archived_client',
+            pluralSuccessKey: 'archived_clients',
+            nothingKey: 'nothing_to_archive',
+          ),
+          EntityListBulkAction(
+            actionId: 'restore',
+            icon: Icons.unarchive_outlined,
+            tooltipKey: 'restore',
+            singleSuccessKey: 'restored_client',
+            pluralSuccessKey: 'restored_clients',
+            nothingKey: 'nothing_to_restore',
+          ),
+          EntityListBulkAction(
+            actionId: 'delete',
+            icon: Icons.delete_outline,
+            tooltipKey: 'delete',
+            singleSuccessKey: 'deleted_client',
+            pluralSuccessKey: 'deleted_clients',
+            nothingKey: 'nothing_to_delete',
+          ),
+          EntityListBulkAction(
+            actionId: 'bulk_update',
+            icon: Icons.edit_outlined,
+            tooltipKey: 'bulk_update',
+            singleSuccessKey: 'updated_client',
+            pluralSuccessKey: 'updated_clients',
+            nothingKey: 'nothing_to_update',
+            prepare: _showClientBulkUpdate,
+          ),
+          EntityListBulkAction(
+            actionId: 'assign_group',
+            icon: Icons.group_outlined,
+            tooltipKey: 'assign_group',
+            singleSuccessKey: 'updated_client',
+            pluralSuccessKey: 'updated_clients',
+            nothingKey: 'nothing_to_update',
+            prepare: showBulkAssignGroupDialog,
+          ),
+        ],
       ),
-      sortOptions: (context) => [
-        SortOption(id: ClientFieldIds.name, label: context.tr('name')),
-        SortOption(id: ClientFieldIds.number, label: context.tr('number')),
-        SortOption(id: ClientFieldIds.balance, label: context.tr('balance')),
-        SortOption(
-          id: ClientFieldIds.updatedAt,
-          label: context.tr('last_updated'),
-        ),
-        SortOption(id: ClientFieldIds.createdAt, label: context.tr('created')),
-      ],
-      searchFieldBuilder: (context, vm, wide) =>
-          ClientTokenSearchField(vm: vm, wide: wide),
-      // Filter-aware empty copy ("no clients yet" vs "no clients match
-      // these filters") — wrapper has the branch logic inside.
-      emptyStateBuilder: (context, vm) => ClientListEmptyState(vm: vm),
-      // Typedef wrapper; equivalent to `EntityListColumnHeaders<Client>`.
-      wideColumnHeadersBuilder: (context, vm) =>
-          ClientListColumnHeaders(vm: vm),
-      tileBuilder: (context, vm, client, index, options) {
-        final isUrlSelected = options.selectedId == client.id;
-        return ClientListTile(
-          client: client,
-          formatter: options.formatter,
-          wide: options.wide,
-          editable: options.editable,
-          columns: options.wide ? vm.columns : const <ClientColumn>[],
-          hideBottomDivider: options.bottomDividerHidden,
-          selecting: options.selecting,
-          selected: vm.isSelected(client.id) || isUrlSelected,
-          urlSelected: isUrlSelected,
-          onTap: options.selecting
-              ? () => vm.toggleSelected(client.id)
-              : isUrlSelected
-              ? () => MasterDetailNavScope.requestClose(
-                  context,
-                  basePath: '/clients',
-                )
-              : () => goEntityRecord(context, vm.entityType, client.id),
-          onLongPress: () => vm.toggleSelected(client.id),
-          // Desktop entry point: hover reveals a checkbox in the leading
-          // slot, click here enters multi-select. Same handler as
-          // long-press (touch entry).
-          onSelectTap: () => vm.toggleSelected(client.id),
-          // Always *to* the record, unlike `onTap` above — this feeds the call
-          // picker's "View client" footer, which exists for exactly the case
-          // where none of the offered numbers is the one the user wanted.
-          onViewRecord: () => goEntityRecord(context, vm.entityType, client.id),
-          onAction: options.selecting
-              ? null
-              : (action) => ClientActions.dispatch(
-                  context,
-                  context.read<Services>(),
-                  vm.companyId,
-                  client,
-                  action,
-                ),
-        );
-      },
-      bulkActions: const [
-        EntityListBulkAction(
-          actionId: 'archive',
-          icon: Icons.archive_outlined,
-          tooltipKey: 'archive',
-          singleSuccessKey: 'archived_client',
-          pluralSuccessKey: 'archived_clients',
-          nothingKey: 'nothing_to_archive',
-        ),
-        EntityListBulkAction(
-          actionId: 'restore',
-          icon: Icons.unarchive_outlined,
-          tooltipKey: 'restore',
-          singleSuccessKey: 'restored_client',
-          pluralSuccessKey: 'restored_clients',
-          nothingKey: 'nothing_to_restore',
-        ),
-        EntityListBulkAction(
-          actionId: 'delete',
-          icon: Icons.delete_outline,
-          tooltipKey: 'delete',
-          singleSuccessKey: 'deleted_client',
-          pluralSuccessKey: 'deleted_clients',
-          nothingKey: 'nothing_to_delete',
-        ),
-        EntityListBulkAction(
-          actionId: 'bulk_update',
-          icon: Icons.edit_outlined,
-          tooltipKey: 'bulk_update',
-          singleSuccessKey: 'updated_client',
-          pluralSuccessKey: 'updated_clients',
-          nothingKey: 'nothing_to_update',
-          prepare: _showClientBulkUpdate,
-        ),
-      ],
     );
   }
 }

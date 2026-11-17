@@ -43,6 +43,8 @@ class CreditListScreen extends StatelessWidget {
       titleKey: 'credits',
       newRoute: '/credits/new',
       newLabelKey: 'new_credit',
+      // The company-wide figure, so never over a scoped list.
+      showListTotals: cid == null,
       embeddedNewOverride: cid == null
           ? null
           : (ctx) => goEntityCreateFullWidth(
@@ -160,6 +162,14 @@ class CreditListScreen extends StatelessWidget {
           singleSuccessKey: 'marked_sent_credit',
           pluralSuccessKey: 'marked_sent_credits',
           nothingKey: 'nothing_to_send',
+        ),
+        const EntityListBulkAction(
+          actionId: 'mark_paid',
+          icon: Icons.payments_outlined,
+          tooltipKey: 'mark_paid',
+          singleSuccessKey: 'marked_credit_as_paid',
+          pluralSuccessKey: 'marked_credits_as_paid',
+          nothingKey: 'nothing_to_update',
         ),
         EntityListBulkAction(
           actionId: 'email',

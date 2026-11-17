@@ -18,6 +18,7 @@ import 'package:admin/ui/core/widgets/leading_select_slot.dart';
 import 'package:admin/ui/core/widgets/party_call_button.dart';
 import 'package:admin/ui/core/widgets/status_pill.dart';
 import 'package:admin/ui/features/clients/widgets/client_actions.dart';
+import 'package:admin/ui/features/clients/widgets/overdue_clients_scope.dart';
 import 'package:admin/utils/bidi.dart';
 import 'package:admin/utils/formatting.dart';
 import 'package:admin/ui/core/widgets/ltr_value.dart';
@@ -138,9 +139,13 @@ class _ClientListTileState extends State<ClientListTile> {
     // `outstandingPositive` drives styling only: a balance owed renders in
     // semibold ink — the desktop Balance column's emphasis
     // (`client_columns.dart`) — and a *negative* balance, a credit, in plain
-    // ink. Never the `overdue` red: a balance is not late, and the phone row
-    // has no way to tell whether any of it is.
+    // ink. The `overdue` red only when the client has a past-due invoice, the
+    // Overdue tab's own predicate (`OverdueClientsScope`): a balance is not
+    // late by itself.
     final outstandingPositive = w.client.balance > Decimal.zero;
+    final overdue =
+        outstandingPositive &&
+        OverdueClientsScope.isOverdue(context, w.client.id);
     // `zeroIsNull` is what hides an empty money line (invoiceninja/flutter#112):
     // it blanks exactly zero while formatting a negative normally, so a client
     // in credit renders and one with no activity renders nothing. One predicate
@@ -175,6 +180,7 @@ class _ClientListTileState extends State<ClientListTile> {
               formattedOutstanding: formattedOutstanding,
               formattedPaid: formattedPaid,
               outstandingPositive: outstandingPositive,
+              overdue: overdue,
               callButton: _callButton(displayName),
             ),
     );
@@ -239,13 +245,14 @@ class _ClientListTileState extends State<ClientListTile> {
     required String formattedOutstanding,
     required String formattedPaid,
     required bool outstandingPositive,
+    required bool overdue,
     required Widget? callButton,
   }) {
     final w = widget;
     final outstandingLine = _money(
       formattedOutstanding,
       weight: outstandingPositive ? FontWeight.w600 : FontWeight.w400,
-      color: tokens.ink,
+      color: overdue ? tokens.overdue : tokens.ink,
     );
     // Labelled, unlike the balance above it: with no balance the paid figure
     // is the only line, sits in the top slot, and an unlabelled amount there

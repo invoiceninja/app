@@ -12,7 +12,6 @@ import 'package:admin/ui/core/list/entity_list_screen_scaffold.dart';
 import 'package:admin/ui/core/list/entity_sort_filter_sheet.dart';
 import 'package:admin/ui/core/list/master_detail_layout.dart';
 import 'package:admin/ui/features/billing_shared/email/recipient_email_fix.dart';
-import 'package:admin/ui/features/invoices/widgets/detail/run_template_dialog.dart';
 import 'package:admin/ui/features/recurring_invoices/view_models/recurring_invoice_edit_view_model.dart';
 import 'package:admin/ui/features/recurring_invoices/view_models/recurring_invoice_list_view_model.dart';
 import 'package:admin/ui/features/recurring_invoices/widgets/increase_prices_dialog.dart';
@@ -46,6 +45,8 @@ class RecurringInvoiceListScreen extends StatelessWidget {
       titleKey: 'recurring_invoices',
       newRoute: '/recurring_invoices/new',
       newLabelKey: 'new_recurring_invoice',
+      // The company-wide figure, so never over a scoped list.
+      showListTotals: cid == null,
       embeddedNewOverride: cid == null
           ? null
           : (ctx) => goEntityCreateFullWidth(
@@ -211,15 +212,9 @@ class RecurringInvoiceListScreen extends StatelessWidget {
           pluralSuccessKey: 'stopped_recurring_invoices',
           nothingKey: 'nothing_to_stop',
         ),
-        EntityListBulkAction(
-          actionId: 'run_template',
-          icon: Icons.dashboard_customize_outlined,
-          tooltipKey: 'run_template',
-          singleSuccessKey: 'ran_template_recurring_invoice',
-          pluralSuccessKey: 'ran_template_recurring_invoices',
-          nothingKey: 'nothing_to_update',
-          prepare: showRunTemplateDialog,
-        ),
+        // No Run Template: `BulkRecurringInvoiceRequest` has no `template`
+        // action, so every row 422'd into a dead outbox entry — the same
+        // reason the single-record action was removed (BACKEND.md).
         const EntityListBulkAction(
           actionId: 'update_prices',
           icon: Icons.refresh_outlined,

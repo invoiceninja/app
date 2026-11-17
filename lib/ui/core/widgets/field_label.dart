@@ -1,6 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 
 import 'package:admin/app/design_tokens.dart';
+import 'package:admin/app/env.dart';
 import 'package:admin/ui/core/list/list_density_scope.dart';
 
 /// A form field with its label on a line of its own above it — how the app
@@ -39,6 +40,7 @@ class LabeledField extends StatelessWidget {
     required this.child,
     this.fills = false,
     this.padded,
+    this.trailing,
   });
 
   final String? label;
@@ -58,6 +60,21 @@ class LabeledField extends StatelessWidget {
   /// `FormFieldPair` put their labels 4 px apart. Null decides by type: true
   /// for the raw Material fields.
   final bool? padded;
+
+  /// A small icon button at the end of the label's line — an action on the
+  /// field that the field's own box has no room for (the narrow invoice due
+  /// date's payment terms, `InDateField`). Drawn only with the label above
+  /// (Comfortable); ignored under Compact, where there is no label line.
+  ///
+  /// It costs the line no height, so a field beside this one keeps its box
+  /// level. The button is laid over the line in a square of the platform's
+  /// target size (44 px on touch, 28 with a pointer), from the top of the
+  /// field's own space, so on touch the square reaches a few pixels into the
+  /// top of the box below it; its icon — expected to be 16 px — is centred on
+  /// the label's line, at the end edge, through an [IconButtonTheme] the
+  /// button inherits (so it must not set its own `alignment`). The label is
+  /// kept clear of the square. Null leaves the field exactly as it was.
+  final Widget? trailing;
 
   bool get _padded =>
       padded ??
@@ -163,13 +180,18 @@ class LabeledField extends StatelessWidget {
           ? roomy
           : Semantics(label: label, child: roomy),
     );
-    return _pad(
+    final trailing = this.trailing;
+    final target = Env.isTouchPrimary ? InSizes.touchTarget : 28.0;
+    final column = _pad(
       Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: fills ? MainAxisSize.max : MainAxisSize.min,
         children: [
           Padding(
-            padding: const EdgeInsetsDirectional.only(bottom: kLabelGap),
+            padding: EdgeInsetsDirectional.only(
+              bottom: kLabelGap,
+              end: trailing == null ? 0 : target,
+            ),
             // The field itself still carries the name for a screen reader.
             // `RichText`, not `Text`: the decoration's own label is still a
             // `Text` in the tree, and a second one would double every match.
@@ -186,6 +208,47 @@ class LabeledField extends StatelessWidget {
         ],
       ),
     );
+    if (trailing == null) return column;
+    return Stack(
+      children: [
+        column,
+        PositionedDirectional(
+          top: 0,
+          end: 0,
+          width: target,
+          height: target,
+          child: IconButtonTheme(
+            data: IconButtonThemeData(
+              style: ButtonStyle(
+                alignment: AlignmentDirectional(
+                  1,
+                  _iconOffset(context, label, target),
+                ),
+                padding: const WidgetStatePropertyAll(EdgeInsets.zero),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+            ),
+            child: trailing,
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// The vertical alignment that puts a 16 px icon's centre on the label's
+  /// line, inside a [target]-sized square starting at the top of the
+  /// field's space (its 8 px pad included).
+  double _iconOffset(BuildContext context, String label, double target) {
+    final painter = TextPainter(
+      text: TextSpan(text: label, style: textStyle(context)),
+      textScaler: MediaQuery.textScalerOf(context),
+      textDirection: Directionality.of(context),
+      maxLines: 1,
+    )..layout();
+    final centre = (_padded ? kFieldVerticalGap : 0) + painter.height / 2;
+    painter.dispose();
+    const icon = 16.0;
+    return ((centre - target / 2) / ((target - icon) / 2)).clamp(-1.0, 1.0);
   }
 
   Widget _pad(Widget w) => _padded

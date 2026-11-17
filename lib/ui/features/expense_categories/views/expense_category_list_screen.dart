@@ -110,6 +110,14 @@ class ExpenseCategoryListScreen extends StatelessWidget {
           pluralSuccessKey: 'restored_expense_categories',
           nothingKey: 'nothing_to_restore',
         ),
+        EntityListBulkAction(
+          actionId: 'delete',
+          icon: Icons.delete_outline,
+          tooltipKey: 'delete',
+          singleSuccessKey: 'deleted_expense_category',
+          pluralSuccessKey: 'deleted_expense_categories',
+          nothingKey: 'nothing_to_delete',
+        ),
       ],
     );
   }

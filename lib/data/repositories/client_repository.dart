@@ -177,6 +177,11 @@ class ClientRepository extends BaseEntityRepository<Client, ClientApi>
     currentUserId: currentUserId,
   );
 
+  /// Ids of the clients with an active, past-due invoice in Drift — the
+  /// Overdue tab's predicate — whose balance the Clients list draws red.
+  Stream<Set<String>> watchOverdueClientIds({required String companyId}) =>
+      db.clientDao.watchOverdueClientIds(companyId: companyId);
+
   /// Cheap `(id, displayName)` stream for active clients — used by the
   /// shared `ClientFilterKey` (suggestion menu + chip display name) on
   /// every list screen that filters by client (invoices, quotes, credits,
@@ -549,6 +554,38 @@ class ClientRepository extends BaseEntityRepository<Client, ClientApi>
         entityId: client.id,
         kind: MutationKind.bulkUpdate,
         payload: {'id': client.id, 'column': column, 'new_value': newValue},
+      );
+    });
+  }
+
+  /// Put [client] in group [groupId] — the list's Assign Group bulk action
+  /// (`POST /clients/bulk action:assign_group`), fired once per selected
+  /// client like [bulkUpdate]: the patched row lands dirty so the change shows
+  /// at once and offline, then one `assignGroup` row per client. The server
+  /// requires a real group (`required_if:action,assign_group` + `exists`),
+  /// so an empty id is refused here rather than dead-lettered on drain.
+  Future<void> assignGroup({
+    required String companyId,
+    required Client client,
+    required String groupId,
+  }) async {
+    if (groupId.isEmpty) {
+      throw ArgumentError.value(groupId, 'groupId', 'must not be empty');
+    }
+    await db.transaction(() async {
+      final id = await resolveId(client.id);
+      await db.clientDao.upsert(
+        _domainToCompanion(
+          client.copyWith(id: id, groupSettingsId: groupId),
+          companyId,
+          isDirty: true,
+        ),
+      );
+      await enqueueMutation(
+        companyId: companyId,
+        entityId: id,
+        kind: MutationKind.assignGroup,
+        payload: {'id': id, 'group_settings_id': groupId},
       );
     });
   }

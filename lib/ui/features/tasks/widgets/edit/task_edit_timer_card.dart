@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:material_ui/material_ui.dart';
 
+import 'package:admin/ui/features/dashboard/widgets/card_shell.dart';
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/data/models/domain/time_entry.dart';
 import 'package:admin/domain/tasks/task_schedule.dart';
@@ -111,12 +112,8 @@ class _TaskEditTimerCardState extends State<TaskEditTimerCard> {
       allowBillable: widget.allowBillable,
       running: running != null,
     );
-    return Container(
-      decoration: BoxDecoration(
-        color: tokens.surface,
-        border: Border.all(color: tokens.border),
-        borderRadius: BorderRadius.circular(InRadii.r3),
-      ),
+    // The shared edit-form card, padded all round.
+    return DashboardCardShell(
       padding: EdgeInsets.all(InSpacing.lg(context)),
       child: LayoutBuilder(
         builder: (context, constraints) {

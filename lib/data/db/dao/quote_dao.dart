@@ -7,6 +7,7 @@ import 'package:admin/data/db/dao/_payload_search.dart';
 import 'package:admin/data/db/app_database.dart';
 import 'package:admin/data/db/dao/billing_extra_filters.dart';
 import 'package:admin/data/db/dao/base_entity_dao.dart';
+import 'package:admin/data/db/dao/list_totals_query.dart';
 import 'package:admin/data/db/dao/entity_query_helpers.dart';
 import 'package:admin/data/db/tables/quotes_table.dart';
 import 'package:admin/data/models/value/date.dart';
@@ -111,6 +112,30 @@ class QuoteDao extends BaseEntityDao<$QuotesTable, QuoteRow>
     ),
     _ => null,
   };
+
+  /// Open quotes (docs/entity-lists.md § A money list's totals line): sent or
+  /// approved, not converted to an invoice, and not expired — `due_date`
+  /// empty or today or later, approved quotes included (the server's
+  /// `charts/entity_totals` rule). Summed by amount in the client's currency;
+  /// an archived or deleted client's quotes are left out
+  /// (`without_deleted_clients`). The expiry reads today's date once, like the
+  /// Sent tab, so a list left open past midnight keeps yesterday's.
+  @override
+  ListTotalsQuery? listTotalsQuery(String companyId) => ListTotalsQuery(
+    where:
+        quotes.statusId.isIn(const ['2', '3']) &
+        quotes.invoiceId.equals('') &
+        _notExpired(Date.today().toIso()) &
+        clientActiveFilter(clientId: quotes.clientId, companyId: companyId),
+    amount: quotes.amount,
+    clientId: quotes.clientId,
+  );
+
+  /// `due_date` empty or on / after [asOf] — the `sent` tab's own expiry test.
+  static Expression<bool> _notExpired(String asOf) {
+    const dueNN = CustomExpression<String>("NULLIF(due_date, '')");
+    return dueNN.isNull() | dueNN.isBiggerOrEqualValue(asOf);
+  }
 
   Stream<List<QuoteRow>> watchPage({
     required String companyId,

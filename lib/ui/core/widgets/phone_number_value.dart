@@ -12,7 +12,9 @@ import 'package:admin/ui/core/utils/phone_actions.dart';
 import 'package:admin/ui/core/widgets/copyable_value.dart';
 import 'package:admin/ui/core/widgets/detail_info_row.dart';
 import 'package:admin/ui/core/widgets/link_text.dart';
+import 'package:admin/ui/core/widgets/ltr_value.dart';
 import 'package:admin/utils/formatting.dart';
+import 'package:admin/utils/phone_display.dart';
 
 /// Compact button style shared by the contact-row actions (Call / Message /
 /// View portal / Copy link) on the client and vendor detail cards.
@@ -113,9 +115,30 @@ class PhoneDetailRow extends StatelessWidget {
   );
 }
 
+/// The ISO 3166 code a phone number is read against for display
+/// ([formatPhoneForDisplay]): the party's country when [countryId] names
+/// one, else the company's. Null when neither is known — a number with no
+/// `+` is then shown as typed.
+String? phoneDisplayRegion(BuildContext context, {String countryId = ''}) {
+  final services = context.read<Services>();
+  var id = countryId;
+  if (id.isEmpty) {
+    final companyId = services.auth.currentCompanyId;
+    if (companyId == null) return null;
+    id = services.formatterIfReady(companyId)?.settings.countryId ?? '';
+  }
+  if (id.isEmpty) return null;
+  final iso = services.statics.country(id)?.iso2 ?? '';
+  return iso.isEmpty ? null : iso;
+}
+
 /// A phone number inside a contact card: dials on tap when enabled, still
 /// copyable either way, with the callee's local time beside it when that
-/// differs from this device's.
+/// differs from this device's ([showLocalTime]).
+///
+/// **Shown reformatted, used as stored.** The text on screen is
+/// [formatPhoneForDisplay] of [phone] against [regionIso]; the dial, the
+/// message and the copy all take [phone] itself.
 class PhoneNumberValue extends StatelessWidget {
   const PhoneNumberValue({
     super.key,
@@ -124,12 +147,23 @@ class PhoneNumberValue extends StatelessWidget {
     this.subject,
     this.clientId,
     this.logTarget,
+    this.regionIso,
+    this.showLocalTime = true,
   });
 
   final String phone;
   final TextStyle? style;
   final String? subject;
   final String? clientId;
+
+  /// The country a number with no `+` is read in, for display — the party's
+  /// (`phoneDisplayRegion`). Null reads it in the company's.
+  final String? regionIso;
+
+  /// The callee's clock after the number. Off in the record screen's
+  /// Contacts cards, which say it once in their header instead — every
+  /// contact of a client shares the client's timezone.
+  final bool showLocalTime;
 
   /// Record a completed call can be logged against (invoiceninja/flutter#120).
   /// Null = don't offer to log — a team member's own number, say, which has no
@@ -141,6 +175,10 @@ class PhoneNumberValue extends StatelessWidget {
     builder: (context) {
       final tokens = context.inTheme;
       final dialable = canDialPhone(context, phone);
+      final shown = formatPhoneForDisplay(
+        phone,
+        regionIso: regionIso ?? phoneDisplayRegion(context),
+      );
       // Hoisted so the `Semantics` below can re-declare the same action: its
       // `excludeSemantics` drops the child's own tap node along with the text.
       void dial() => callPhoneNumber(
@@ -157,20 +195,20 @@ class PhoneNumberValue extends StatelessWidget {
           // A client's own number and its contacts' numbers sit on one
           // screen and used to be two different blues.
           ? LinkText(
-              label: phone,
+              label: shown,
               style: style,
               color: tokens.accentInk,
               underlineAtRest: linkNeedsAtRestCue,
               onTap: dial,
             )
-          : Text(phone, style: style);
+          : LtrText(shown, style: style);
       if (dialable) {
         // `LinkText` emits no semantics of its own and takes no tooltip, so a
         // screen reader would otherwise announce a bare number with no hint
         // that it is actionable.
         display = Semantics(
           button: true,
-          label: '${context.tr('call')} $phone',
+          label: '${context.tr('call')} $shown',
           // Re-declared because `excludeSemantics` below drops the
           // descendant's own `SemanticsAction.tap` along with its text node,
           // leaving a button nothing could activate.
@@ -190,14 +228,16 @@ class PhoneNumberValue extends StatelessWidget {
         enableTapToCopy: !dialable,
         enableLongPressToCopy: dialable,
         fillWidth: false,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Flexible(child: display),
-            ContactLocalTime(clientId: clientId),
-          ],
-        ),
+        child: showLocalTime
+            ? Row(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Flexible(child: display),
+                  ContactLocalTime(clientId: clientId),
+                ],
+              )
+            : display,
       );
     },
   );
@@ -256,10 +296,18 @@ List<Widget> phoneActionButtons(
 /// A one-minute ticker keeps a screen left open from displaying a stale clock;
 /// the check inside [callPhoneNumber] is recomputed at tap time regardless, so
 /// this is presentation only.
+///
+/// [ContactLocalTime.header] is the Contacts card's form: "5:38 AM local",
+/// said once for the whole card, with the timezone in a pointer tooltip and
+/// in what a screen reader hears (`contact_local_time`).
 class ContactLocalTime extends StatefulWidget {
-  const ContactLocalTime({super.key, this.clientId});
+  const ContactLocalTime({super.key, this.clientId}) : header = false;
+
+  /// The Contacts card header's form — see the class doc.
+  const ContactLocalTime.header({super.key, this.clientId}) : header = true;
 
   final String? clientId;
+  final bool header;
 
   @override
   State<ContactLocalTime> createState() => _ContactLocalTimeState();
@@ -344,26 +392,45 @@ class _ContactLocalTimeState extends State<ContactLocalTime> {
     final companyId = services.auth.currentCompanyId;
     final local = contactClock(zone).local;
     final theme = Theme.of(context);
+    final time = formatTimeOfDay(
+      local.hour,
+      local.minute,
+      military:
+          (companyId == null
+              ? null
+              : services
+                    .formatterIfReady(companyId)
+                    ?.settings
+                    .enableMilitaryTime) ??
+          false,
+    );
+    final style = theme.textTheme.bodySmall?.copyWith(
+      color: context.inTheme.ink3,
+      fontSize: widget.header ? 12 : 11.5,
+    );
+    if (widget.header) {
+      final zoneName = zone.name.isEmpty ? zone.location : zone.name;
+      Widget text = Text(
+        context.tr('local_time_short', {'time': time}),
+        style: style,
+        maxLines: 1,
+      );
+      // No tooltip on touch: there is no hover to show it.
+      if (!Env.isTouchPrimary) {
+        text = Tooltip(message: zoneName, child: text);
+      }
+      return Semantics(
+        label: context.tr('contact_local_time', {
+          'time': time,
+          'timezone': zoneName,
+        }),
+        excludeSemantics: true,
+        child: text,
+      );
+    }
     return Padding(
       padding: const EdgeInsetsDirectional.only(start: InSpacing.sm),
-      child: Text(
-        formatTimeOfDay(
-          local.hour,
-          local.minute,
-          military:
-              (companyId == null
-                  ? null
-                  : services
-                        .formatterIfReady(companyId)
-                        ?.settings
-                        .enableMilitaryTime) ??
-              false,
-        ),
-        style: theme.textTheme.bodySmall?.copyWith(
-          color: context.inTheme.ink3,
-          fontSize: 11.5,
-        ),
-      ),
+      child: Text(time, style: style),
     );
   }
 }

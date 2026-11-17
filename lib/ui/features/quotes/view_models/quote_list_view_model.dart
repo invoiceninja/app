@@ -186,6 +186,22 @@ class QuoteListViewModel extends GenericListViewModel<Quote> {
       apply: (id) => repo.convertToInvoice(companyId: companyId, id: id),
     ),
     BulkAction<Quote>(
+      // Creates a project per quote — the single-record twin prompts too.
+      confirm: true,
+      id: 'convert_to_project',
+      labelKey: 'convert_to_project',
+      // Mirrors `quote_actions.dart` (canConvertToProject, no project yet,
+      // and its tmpGate: a quote still being created has no server id to
+      // convert from).
+      eligible: (q) =>
+          !q.isConverted &&
+          !q.isCancelled &&
+          q.projectId.isEmpty &&
+          !q.id.startsWith('tmp_') &&
+          !isDeleted(q),
+      apply: (id) => repo.convertToProject(companyId: companyId, id: id),
+    ),
+    BulkAction<Quote>(
       // Irreversible server-side (a quote cancel can't be undone, unlike an
       // invoice's). Eligibility mirrors the single-quote gate in
       // `quote_actions.dart`: `BulkActionQuoteRequest` 422s the whole request

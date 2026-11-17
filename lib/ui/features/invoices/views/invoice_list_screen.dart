@@ -66,7 +66,7 @@ class InvoiceListScreen extends StatelessWidget {
       newLabelKey: 'new_invoice',
       // The company-wide figure, so never over a list narrowed to one client
       // or project.
-      showOutstandingTotals: cid == null && pid == null,
+      showListTotals: cid == null && pid == null,
       embeddedNewOverride: pid != null
           ? ((ctx) => goEntityCreateFullWidth(
               ctx,
@@ -218,6 +218,14 @@ class InvoiceListScreen extends StatelessWidget {
           singleSuccessKey: 'auto_billed_invoice',
           pluralSuccessKey: 'auto_billed_invoices',
           nothingKey: 'nothing_to_update',
+        ),
+        const EntityListBulkAction(
+          actionId: 'cancel',
+          icon: Icons.cancel_outlined,
+          tooltipKey: 'cancel_invoice',
+          singleSuccessKey: 'cancelled_invoice',
+          pluralSuccessKey: 'cancelled_invoices',
+          nothingKey: 'nothing_to_cancel',
         ),
         EntityListBulkAction(
           actionId: 'email',

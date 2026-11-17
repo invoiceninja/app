@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import 'package:admin/ui/features/dashboard/widgets/card_shell.dart';
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/data/models/domain/payment.dart';
@@ -153,13 +154,28 @@ class _PaymentRefundScreenState extends State<PaymentRefundScreen> {
         children: [
           _header(context, p),
           SizedBox(height: InSpacing.lg(context)),
-          _modeToggle(context, p),
+          // The fields sit in the shared edit-form card, like every edit
+          // screen's — they used to sit bare on the page between two cards.
+          DashboardCardShell(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _modeToggle(context, p),
+                SizedBox(height: InSpacing.lg(context)),
+                if (!_fullRefund) ...[
+                  _customEditor(context, p),
+                  SizedBox(height: InSpacing.md(context)),
+                ],
+                _dateField(context),
+              ],
+            ),
+          ),
           SizedBox(height: InSpacing.lg(context)),
-          if (!_fullRefund) _customEditor(context, p),
-          if (!_fullRefund) SizedBox(height: InSpacing.lg(context)),
-          _dateField(context),
-          SizedBox(height: InSpacing.lg(context)),
-          _options(context, p),
+          DashboardCardShell(
+            padding: const EdgeInsets.symmetric(vertical: InSpacing.xs),
+            child: _options(context, p),
+          ),
           SizedBox(height: InSpacing.lg(context)),
           if (!_fullRefund)
             Row(
@@ -207,13 +223,8 @@ class _PaymentRefundScreenState extends State<PaymentRefundScreen> {
 
   Widget _header(BuildContext context, Payment p) {
     final tokens = context.inTheme;
-    return Container(
+    return DashboardCardShell(
       padding: EdgeInsets.all(InSpacing.lg(context)),
-      decoration: BoxDecoration(
-        color: tokens.surface,
-        border: Border.all(color: tokens.border),
-        borderRadius: BorderRadius.circular(InRadii.r3),
-      ),
       child: Row(
         children: [
           Expanded(
@@ -323,58 +334,51 @@ class _PaymentRefundScreenState extends State<PaymentRefundScreen> {
         style: TextStyle(color: tokens.ink3),
       );
     }
-    return Container(
-      decoration: BoxDecoration(
-        color: tokens.surface,
-        border: Border.all(color: tokens.border),
-        borderRadius: BorderRadius.circular(InRadii.r3),
-      ),
-      padding: EdgeInsets.all(InSpacing.lg(context)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          for (final pa in paymentables) ...[
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    '${context.tr('invoice')} '
-                    '${_invoiceLabel(numbers, pa.invoiceId)}',
-                  ),
+    // Rows of the card the screen puts it in — never a card of its own.
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (final pa in paymentables) ...[
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '${context.tr('invoice')} '
+                  '${_invoiceLabel(numbers, pa.invoiceId)}',
                 ),
-                SizedBox(
-                  width: 140,
-                  child: LabeledField(
-                    label: context.tr('amount'),
-                    child: TextFormField(
-                      initialValue: decimalInputText(
-                        _allocations[pa.invoiceId] ?? Decimal.zero,
-                      ),
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
-                      decoration: InputDecoration(
-                        labelText: context.tr('amount'),
-                      ),
-                      onChanged: (v) {
-                        setState(() {
-                          _allocations[pa.invoiceId] =
-                              parseDecimal(
-                                v,
-                                useCommaAsDecimalPlace: _useComma,
-                              ) ??
-                              Decimal.zero;
-                        });
-                      },
+              ),
+              SizedBox(
+                width: 140,
+                child: LabeledField(
+                  label: context.tr('amount'),
+                  child: TextFormField(
+                    initialValue: decimalInputText(
+                      _allocations[pa.invoiceId] ?? Decimal.zero,
                     ),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    decoration: InputDecoration(
+                      labelText: context.tr('amount'),
+                    ),
+                    onChanged: (v) {
+                      setState(() {
+                        _allocations[pa.invoiceId] =
+                            parseDecimal(
+                              v,
+                              useCommaAsDecimalPlace: _useComma,
+                            ) ??
+                            Decimal.zero;
+                      });
+                    },
                   ),
                 ),
-              ],
-            ),
-            const SizedBox(height: 8),
-          ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
         ],
-      ),
+      ],
     );
   }
 
@@ -397,11 +401,17 @@ class _PaymentRefundScreenState extends State<PaymentRefundScreen> {
     return Column(
       children: [
         SwitchListTile(
+          contentPadding: EdgeInsetsDirectional.symmetric(
+            horizontal: InSpacing.lg(context),
+          ),
           title: Text(context.tr('send_email')),
           value: _sendEmail,
           onChanged: (v) => setState(() => _sendEmail = v),
         ),
         SwitchListTile(
+          contentPadding: EdgeInsetsDirectional.symmetric(
+            horizontal: InSpacing.lg(context),
+          ),
           title: Text(context.tr('gateway_refund')),
           subtitle: _supportsGatewayRefund
               ? null

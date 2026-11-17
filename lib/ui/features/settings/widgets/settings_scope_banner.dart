@@ -38,7 +38,13 @@ class SettingsScopeBanner extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(Icons.person_outline, size: 18, color: tokens.ink),
+          Icon(
+            controller.isGroup
+                ? Icons.group_work_outlined
+                : Icons.person_outline,
+            size: 18,
+            color: tokens.ink,
+          ),
           const SizedBox(width: InSpacing.sm),
           Expanded(
             child: Text(

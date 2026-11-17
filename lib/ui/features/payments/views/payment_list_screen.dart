@@ -34,6 +34,8 @@ class PaymentListScreen extends StatelessWidget {
       titleKey: 'payments',
       newRoute: '/payments/new',
       newLabelKey: 'new_payment',
+      // The company-wide figure, so never over a scoped list.
+      showListTotals: cid == null,
       embeddedNewOverride: cid == null
           ? null
           : (ctx) {
@@ -127,6 +129,14 @@ class PaymentListScreen extends StatelessWidget {
           singleSuccessKey: 'deleted_payment',
           pluralSuccessKey: 'deleted_payments',
           nothingKey: 'nothing_to_delete',
+        ),
+        EntityListBulkAction(
+          actionId: 'email',
+          icon: Icons.mail_outline,
+          tooltipKey: 'send_email',
+          singleSuccessKey: 'emailed_payment',
+          pluralSuccessKey: 'emailed_payments',
+          nothingKey: 'nothing_to_email',
         ),
       ],
     );

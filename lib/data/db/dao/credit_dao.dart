@@ -7,6 +7,7 @@ import 'package:admin/data/db/dao/_payload_search.dart';
 import 'package:admin/data/db/app_database.dart';
 import 'package:admin/data/db/dao/billing_extra_filters.dart';
 import 'package:admin/data/db/dao/base_entity_dao.dart';
+import 'package:admin/data/db/dao/list_totals_query.dart';
 import 'package:admin/domain/sidebar_badge_modes.dart';
 import 'package:admin/data/db/dao/entity_query_helpers.dart';
 import 'package:admin/data/db/tables/credits_table.dart';
@@ -99,6 +100,21 @@ class CreditDao extends BaseEntityDao<$CreditsTable, CreditRow>
     ),
     _ => null,
   };
+
+  /// Credit still to apply (docs/entity-lists.md § A money list's totals
+  /// line): the balance of sent and partially applied credits, in the client's
+  /// currency; an archived or deleted client's credits are left out.
+  @override
+  ListTotalsQuery? listTotalsQuery(String companyId) => ListTotalsQuery(
+    where:
+        credits.statusId.isIn([
+          CreditStatus.sent.wireId,
+          CreditStatus.partial.wireId,
+        ]) &
+        clientActiveFilter(clientId: credits.clientId, companyId: companyId),
+    amount: credits.balance,
+    clientId: credits.clientId,
+  );
 
   Stream<List<CreditRow>> watchPage({
     required String companyId,

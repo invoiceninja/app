@@ -84,6 +84,7 @@ class _ContactList extends StatelessWidget {
   Widget build(BuildContext context) {
     final contacts = vm.draft.contacts;
     return ContactEditRows(
+      reveal: vm.contactToReveal,
       contacts: [
         for (final c in contacts)
           ContactRowData(

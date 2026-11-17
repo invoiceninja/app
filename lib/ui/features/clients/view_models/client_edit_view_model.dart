@@ -6,6 +6,7 @@ import 'package:admin/data/repositories/_repository_helpers.dart';
 import 'package:admin/data/repositories/client_repository.dart';
 import 'package:admin/data/services/device_contacts_service.dart';
 import 'package:admin/domain/contact_email_mode.dart';
+import 'package:admin/ui/core/edit/add_contact_request.dart';
 import 'package:admin/ui/core/edit/generic_edit_view_model.dart';
 import 'package:admin/utils/formatting.dart';
 import 'package:admin/data/repositories/document_bearing_repository.dart';
@@ -263,8 +264,13 @@ class ClientEditViewModel extends GenericEditViewModel<Client> {
     final contacts = [...draft.contacts];
     final isFirst = contacts.isEmpty;
     contacts.add(_emptyContact().copyWith(isPrimary: isFirst));
+    contactToReveal = ContactReveal(contacts.length - 1);
     updateDraft(draft.copyWith(contacts: contacts));
   }
+
+  /// The contact [addContact] last appended, for the Contacts card to bring
+  /// into view (`ContactEditRows.reveal`). Null until one is added.
+  ContactReveal? contactToReveal;
 
   /// Remove the contact at [index] and return it, for the Undo toast's
   /// [restoreContact]. If that contact was the primary and any others remain,

@@ -1,8 +1,10 @@
+import 'package:decimal/decimal.dart';
 import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart' show protected, visibleForTesting;
 
 import 'package:admin/data/db/app_database.dart';
 import 'package:admin/data/db/dao/_search_fold.dart';
+import 'package:admin/data/db/dao/list_totals_query.dart';
 import 'package:admin/data/db/company_scoped_dao.dart';
 import 'package:admin/domain/sidebar_badge_modes.dart';
 
@@ -156,6 +158,34 @@ abstract class BaseEntityDao<TableT extends Table, RowT>
     // and `distinct` keeps its state per subscription); a cache in front of it
     // must replay too — see `CachedStream`.
     return q.map((row) => row.read(count) ?? 0).watchSingle().distinct();
+  }
+
+  // -- List totals line ----------------------------------------------------
+
+  /// What this entity's list totals line sums when the server can't say
+  /// (docs/entity-lists.md § A money list's totals line), or null for a list
+  /// that has no line. The query is ANDed onto [badgeBaseFilter], so archived
+  /// and deleted rows never count.
+  @protected
+  @visibleForTesting
+  ListTotalsQuery? listTotalsQuery(String companyId) => null;
+
+  /// Live per-currency sum behind the list's totals line, over the rows this
+  /// device holds — `''` keys the company's currency. Null when the entity
+  /// has no line. Under-reports on a large account until a Sync, like the
+  /// sidebar counters.
+  Stream<Map<String, Decimal>>? watchListTotals({required String companyId}) {
+    final query = listTotalsQuery(companyId);
+    if (query == null) return null;
+    final currency = listTotalsCurrencyExpression(
+      attachedDatabase,
+      table,
+      query,
+    );
+    final q = selectOnly(table)
+      ..addColumns([query.amount, ...query.less, currency])
+      ..where(badgeBaseFilter(companyId) & query.where);
+    return q.watch().map((rows) => sumListTotalsRows(rows, query, currency));
   }
 
   /// The list-filter form of [badgeModePredicate]: the SAME expression

@@ -10,14 +10,18 @@ import 'package:admin/ui/core/detail/portal_link_action.dart';
 import 'package:admin/ui/core/detail/custom_field_detail_rows.dart';
 import 'package:admin/ui/core/utils/mail_actions.dart';
 import 'package:admin/ui/core/utils/phone_actions.dart';
-import 'package:admin/ui/core/widgets/detail_info_row.dart';
 import 'package:admin/ui/core/widgets/party_contact_row.dart';
 import 'package:admin/ui/core/widgets/phone_number_value.dart';
-import 'package:admin/ui/features/dashboard/widgets/card_shell.dart';
 import 'package:admin/ui/features/vendors/widgets/vendor_portal.dart';
 
-/// "Contacts" card on the vendor record screen: every contact worth showing,
-/// the first three inline and the rest behind "+N more".
+/// "Contacts" card on the vendor record screen (`PartyContactsCard`): every
+/// contact worth showing, the first three inline and the rest behind "Show N
+/// more".
+///
+/// **No local time.** A vendor has no settings cascade of its own, so the
+/// only timezone there is to show is the company's — the user's own clock,
+/// which a contact row used to print beside every number as though it were
+/// the vendor's.
 ///
 /// Hides entirely when no contact has anything to show. `contacts` is never
 /// empty in practice — the server keeps one all-blank contact on a vendor the
@@ -25,7 +29,8 @@ import 'package:admin/ui/features/vendors/widgets/vendor_portal.dart';
 /// [VendorContactIdentity.isBlank] per row, not `contacts.isEmpty`
 /// (invoiceninja/flutter#115).
 ///
-/// "+N more" expands **inline at every width**, and "Less" puts it back. The
+/// "Show N more" expands **inline at every width**, and "Show less" puts it
+/// back. The
 /// client's card opens a sheet on a narrow layout instead; one path is enough
 /// here, and in a stacked column there is nothing beside the card for a taller
 /// one to push out of line.
@@ -39,7 +44,17 @@ class VendorDetailContactsCard extends StatefulWidget {
     required this.contacts,
     required this.vendorId,
     this.company,
+    this.countryId = '',
+    this.onAdd,
   });
+
+  /// The vendor's `country_id`: the country a contact's number with no `+`
+  /// is read in for display. Empty reads it in the company's.
+  final String countryId;
+
+  /// Opens the vendor's editor on a new contact (`AddContactRequest`). Null
+  /// hides "+ Add" — the user may not edit this vendor, or it is deleted.
+  final VoidCallback? onAdd;
 
   final List<VendorContact> contacts;
 
@@ -122,53 +137,32 @@ class _VendorDetailContactsCardState extends State<VendorDetailContactsCard> {
     final hiddenCount = all.length - visible.length;
     // "Primary" only says something beside another contact.
     final labelPrimary = all.length >= 2;
-    final avatars = PartyContactRow.railAvatars(
+    final avatars = PartyContactRow.showAvatars(
       context,
       emails: all.map((c) => c.email),
     );
+    final region = phoneDisplayRegion(context, countryId: widget.countryId);
 
-    return DashboardCardShell(
-      title: context.tr('contacts'),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          DetailRowStack(
-            children: [
-              for (final c in visible)
-                VendorContactRow(
-                  c,
-                  widget.vendorId,
-                  company: widget.company,
-                  labelPrimary: labelPrimary,
-                  avatar: avatars,
-                ),
-            ],
+    return PartyContactsCard(
+      count: all.length,
+      onAdd: widget.onAdd,
+      rows: [
+        for (final c in visible)
+          VendorContactRow(
+            c,
+            widget.vendorId,
+            company: widget.company,
+            labelPrimary: labelPrimary,
+            avatar: avatars,
+            phoneRegion: region,
           ),
-          if (hiddenCount > 0)
-            Align(
-              alignment: AlignmentDirectional.centerStart,
-              child: TextButton.icon(
-                onPressed: () => setState(() => _expanded = true),
-                icon: const Icon(Icons.unfold_more, size: 16),
-                label: Text(
-                  context.tr('plus_n_more', {'count': '$hiddenCount'}),
-                ),
-              ),
-            )
-          // An expansion has to be undoable: a vendor with thirty contacts
-          // otherwise stays thirty rows tall until the screen is rebuilt.
-          else if (_expanded && all.length > _inlineLimit)
-            Align(
-              alignment: AlignmentDirectional.centerStart,
-              child: TextButton.icon(
-                onPressed: () => setState(() => _expanded = false),
-                icon: const Icon(Icons.unfold_less, size: 16),
-                label: Text(context.tr('less')),
-              ),
-            ),
-        ],
-      ),
+      ],
+      hiddenCount: hiddenCount,
+      // An expansion has to be undoable: a vendor with thirty contacts
+      // otherwise stays thirty rows tall until the screen is rebuilt.
+      expanded: _expanded && all.length > _inlineLimit,
+      onShowMore: () => setState(() => _expanded = true),
+      onShowLess: () => setState(() => _expanded = false),
     );
   }
 }
@@ -192,9 +186,13 @@ class VendorContactRow extends StatelessWidget {
     this.company,
     this.labelPrimary = false,
     this.avatar = false,
+    this.phoneRegion,
   });
 
   final VendorContact contact;
+
+  /// The country the number is read in for display (`phoneDisplayRegion`).
+  final String? phoneRegion;
   final String vendorId;
 
   /// Mark the primary contact "Primary" — true only where the vendor has two
@@ -202,7 +200,7 @@ class VendorContactRow extends StatelessWidget {
   final bool labelPrimary;
 
   /// Lead with an initials avatar seeded on the contact's id
-  /// (`PartyContactRow.railAvatars` decides, for the whole card).
+  /// (`PartyContactRow.showAvatars` decides, for the whole card).
   final bool avatar;
 
   /// For contact custom-field labels; null draws none.
@@ -238,9 +236,11 @@ class VendorContactRow extends StatelessWidget {
           : (contact.id.isNotEmpty
                 ? contact.id
                 : '${contact.email}|${contact.firstName} ${contact.lastName}'),
+      phoneRegion: phoneRegion,
       phoneSubject: subject,
       // No `clientId`: a vendor has no settings cascade of its own, so the
-      // out-of-hours check falls back to the company's timezone.
+      // out-of-hours check falls back to the company's timezone — and the
+      // card shows no local time at all.
       logTarget: logTarget,
       pills: [
         // Its own key, not `cc_only`, which the German, French and Dutch

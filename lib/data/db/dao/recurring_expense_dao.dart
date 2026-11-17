@@ -6,6 +6,7 @@ import 'package:admin/data/db/dao/_payload_search.dart';
 
 import 'package:admin/data/db/app_database.dart';
 import 'package:admin/data/db/dao/base_entity_dao.dart';
+import 'package:admin/data/db/dao/list_totals_query.dart';
 import 'package:admin/data/db/dao/entity_query_helpers.dart';
 import 'package:admin/data/db/tables/recurring_expenses_table.dart';
 import 'package:admin/domain/entity_state.dart';
@@ -92,6 +93,19 @@ class RecurringExpenseDao
   /// (the 5 [kRecurringExpenseStatus*] values, or `null` for "all"). The
   /// status SQL fragments mirror admin-portal `expense_model.dart:817-854`
   /// — no computed column, just a tiny SQL switch.
+  /// What the active schedules cost per cycle (docs/entity-lists.md § A money
+  /// list's totals line): the amount of active recurring expenses — the Active
+  /// and Pending tabs together, so never one whose cycles have run out — in
+  /// the expense's own currency.
+  @override
+  ListTotalsQuery? listTotalsQuery(String companyId) => ListTotalsQuery(
+    where:
+        recurringExpenses.statusId.equals(kRecurringExpenseStatusActive) &
+        recurringExpenses.remainingCycles.equals(0).not(),
+    amount: recurringExpenses.amount,
+    currency: recurringExpenses.currencyId,
+  );
+
   Stream<List<RecurringExpenseRow>> watchPage({
     required String companyId,
     required int offset,

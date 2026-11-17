@@ -9,6 +9,7 @@ import 'package:admin/domain/columns/column_factories.dart';
 import 'package:admin/domain/columns/column_definition.dart';
 import 'package:admin/domain/columns/custom_field_columns.dart';
 import 'package:admin/domain/columns/ids/client_column_ids.dart';
+import 'package:admin/ui/features/clients/widgets/overdue_clients_scope.dart';
 import 'package:admin/utils/notes_html.dart';
 
 // `kColumnFlexMinWidth` moved to `lib/ui/core/list/entity_list_constants.dart`
@@ -297,10 +298,13 @@ Contact? _primary(List<Contact> contacts) {
 }
 
 /// The Clients list's Balance cell: what a client owes is the figure the list
-/// is scanned for, so a balance above zero is drawn at weight 600. A zero keeps
-/// [cellMoney]'s dimmed dash, and a negative balance (a credit) stays plain —
-/// it is not money owed. Formatting is still [cellMoney]'s; only the weight is
-/// added here, so no other money column changes.
+/// is scanned for, so a balance above zero is drawn at weight 600 — and in the
+/// `overdue` red when the client has a past-due invoice ([OverdueClientsScope],
+/// the Overdue tab's predicate; docs/entity-lists.md § A client's balance is
+/// red only when it is late). A zero keeps [cellMoney]'s dimmed dash, and a
+/// negative balance (a credit) stays plain — it is not money owed. Formatting
+/// is still [cellMoney]'s; only the weight and ink are added here, so no other
+/// money column changes.
 Widget clientBalanceCell(Client c, BuildContext context) {
   final cell = cellMoney(
     c.balance,
@@ -309,5 +313,10 @@ Widget clientBalanceCell(Client c, BuildContext context) {
     clientCurrencyId: c.currencyId,
   );
   if (c.balance <= Decimal.zero || cell is! MoneyCellText) return cell;
-  return MoneyCellText(text: cell.text, isZero: false, strong: true);
+  return MoneyCellText(
+    text: cell.text,
+    isZero: false,
+    strong: true,
+    overdue: OverdueClientsScope.isOverdue(context, c.id),
+  );
 }

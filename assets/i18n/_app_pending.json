@@ -266,6 +266,9 @@
   "connected_to": "Connected to",
   "contact_available_after_sync": "Available once this client syncs",
   "contact_local_time": ":time in :timezone",
+  "local_time_short": ":time local",
+  "show_n_more": "Show :count more",
+  "show_less": "Show less",
   "contact_with_index": "Contact :index",
   "contacts_sync_label_name": "Grouped under the :label label",
   "contacts_sync_never_run": "Not synced yet",
@@ -544,6 +547,8 @@
   "gross_amount": "Gross amount",
   "group_counter": "Group Counter",
   "group_name_taken": "A group with this name already exists",
+  "group_overrides_none": "This group uses the company settings.",
+  "group_overrides_none_help": "Configure settings to give the clients in this group their own currency, language, payment terms, invoice design and more.",
   "header_background": "Header background",
   "header_borders": "Header borders",
   "header_color": "Header color",
@@ -2196,5 +2201,10 @@
   "valid_until_date_label": "Valid until :date",
   "add_deposit": "Add deposit",
   "net_received": "Net received",
-  "paid_on_date_label": "Paid :date"
+  "paid_on_date_label": "Paid :date",
+  "change_category": "Change Category",
+  "updated_products": "Successfully updated :count products",
+  "emailed_payments": "Successfully emailed :count payments",
+  "deleted_payment_links": "Successfully deleted :count payment links",
+  "deleted_transactions": "Successfully deleted :count transactions"
 }

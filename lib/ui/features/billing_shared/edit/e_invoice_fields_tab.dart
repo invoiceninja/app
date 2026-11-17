@@ -6,7 +6,25 @@ import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/adaptive.dart';
 import 'package:admin/ui/core/widgets/in_date_field.dart';
 import 'package:admin/utils/formatting.dart';
+import 'package:admin/ui/features/dashboard/widgets/card_shell.dart';
 import 'package:admin/ui/features/billing_shared/view_models/billing_doc_edit_view_model.dart';
+
+/// Marks an [EInvoiceFieldsTab] that is a narrow editor's own tab, so its
+/// fields go in the shared card like every other tab body's
+/// (docs/form-fields.md § An edit screen's fields sit in the shared card).
+/// The wide editor shows the same body as a sub-tab inside its notes card,
+/// where a second card would be a card in a card — so it is not marked
+/// there. `BillingDocEditLayout` wraps the narrow tab; the documents' own
+/// wrappers build the tab body unchanged.
+class EInvoiceTabInCard extends InheritedWidget {
+  const EInvoiceTabInCard({super.key, required super.child});
+
+  static bool of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<EInvoiceTabInCard>() != null;
+
+  @override
+  bool updateShouldNotify(EInvoiceTabInCard oldWidget) => false;
+}
 
 /// Which billing-doc type owns this tab. Drives the small per-entity
 /// branches: only credits show the billing-reference [leading] card, and
@@ -158,114 +176,132 @@ class EInvoiceFieldsTab<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tokens = context.inTheme;
-    final docType = documentType;
+    final fields = _fields(context);
     return ListView(
       // On a wide editor this sits in the fixed-height notes card on a page
       // that scrolls; a primary list would claim every drag even when the
       // form fits (docs/rich-text-editing.md, the `primary: false` heading).
       primary: false,
       padding: EdgeInsets.all(InSpacing.lg(context)),
-      children: [
-        if (docType != null && docType.isNotEmpty)
-          Container(
-            margin: EdgeInsets.only(bottom: InSpacing.md(context)),
-            padding: EdgeInsets.all(InSpacing.md(context)),
-            decoration: BoxDecoration(
-              border: Border.all(color: tokens.border),
-              borderRadius: BorderRadius.circular(InRadii.r2),
-              color: tokens.surface,
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.qr_code_2_outlined, size: 18, color: tokens.ink3),
-                const SizedBox(width: 8),
-                Text(
-                  context.tr('document_type'),
-                  style: TextStyle(color: tokens.ink3, fontSize: 12),
+      children: EInvoiceTabInCard.of(context)
+          ? [
+              DashboardCardShell(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  mainAxisSize: MainAxisSize.min,
+                  children: fields,
                 ),
-                const SizedBox(width: 8),
-                Text(
-                  docType,
-                  style: TextStyle(
-                    color: tokens.ink,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        if (leading != null) ...[
-          leading!,
-          SizedBox(height: InSpacing.lg(context)),
-        ],
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final period = _readPeriod();
-            final start = InDateField(
-              value: period.start?.toDateTime(),
-              formatter: formatter,
-              onChanged: (d) => _commitPeriod(
-                d == null ? null : Date(d.year, d.month, d.day),
-                _readPeriod().end,
               ),
-              labelText: context.tr('invoice_period_start'),
-              clearable: true,
-            );
-            final end = InDateField(
-              value: period.end?.toDateTime(),
-              formatter: formatter,
-              onChanged: (d) => _commitPeriod(
-                _readPeriod().start,
-                d == null ? null : Date(d.year, d.month, d.day),
-              ),
-              labelText: context.tr('invoice_period_end'),
-              clearable: true,
-            );
-            if (Breakpoints.isWide(constraints)) {
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(child: start),
-                  SizedBox(width: InSpacing.md(context)),
-                  Expanded(child: end),
-                ],
-              );
-            }
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                start,
-                SizedBox(height: InSpacing.md(context)),
-                end,
-              ],
-            );
-          },
-        ),
-        SizedBox(height: InSpacing.md(context)),
-        InDateField(
-          value:
-              (_readPathDate(_deliveryPath) ??
-                      _readFlatDate('actual_delivery_date'))
-                  ?.toDateTime(),
-          formatter: formatter,
-          onChanged: (d) {
-            vm.setEInvoicePath(
-              _deliveryPath,
-              d == null ? null : Date(d.year, d.month, d.day).toIso(),
-            );
-            // Migrate away from the dead flat key older builds wrote.
-            vm.setEInvoiceField('actual_delivery_date', null);
-          },
-          labelText: context.tr('actual_delivery_date'),
-          clearable: true,
-        ),
-        SizedBox(height: InSpacing.lg(context)),
-        Text(
-          context.tr('einvoice_help'),
-          style: TextStyle(color: tokens.ink3, fontSize: 12),
-        ),
-      ],
+            ]
+          : fields,
     );
+  }
+
+  List<Widget> _fields(BuildContext context) {
+    final tokens = context.inTheme;
+    final docType = documentType;
+    // In the card the document-type read-out takes the field fill, not a
+    // second white box with a border.
+    final inCard = EInvoiceTabInCard.of(context);
+    return [
+      if (docType != null && docType.isNotEmpty)
+        Container(
+          margin: EdgeInsets.only(bottom: InSpacing.md(context)),
+          padding: EdgeInsets.all(InSpacing.md(context)),
+          decoration: BoxDecoration(
+            border: Border.all(color: tokens.border),
+            borderRadius: BorderRadius.circular(InRadii.r2),
+            color: inCard ? tokens.surfaceAlt : tokens.surface,
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.qr_code_2_outlined, size: 18, color: tokens.ink3),
+              const SizedBox(width: 8),
+              Text(
+                context.tr('document_type'),
+                style: TextStyle(color: tokens.ink3, fontSize: 12),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                docType,
+                style: TextStyle(
+                  color: tokens.ink,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      if (leading != null) ...[
+        leading!,
+        SizedBox(height: InSpacing.lg(context)),
+      ],
+      LayoutBuilder(
+        builder: (context, constraints) {
+          final period = _readPeriod();
+          final start = InDateField(
+            value: period.start?.toDateTime(),
+            formatter: formatter,
+            onChanged: (d) => _commitPeriod(
+              d == null ? null : Date(d.year, d.month, d.day),
+              _readPeriod().end,
+            ),
+            labelText: context.tr('invoice_period_start'),
+            clearable: true,
+          );
+          final end = InDateField(
+            value: period.end?.toDateTime(),
+            formatter: formatter,
+            onChanged: (d) => _commitPeriod(
+              _readPeriod().start,
+              d == null ? null : Date(d.year, d.month, d.day),
+            ),
+            labelText: context.tr('invoice_period_end'),
+            clearable: true,
+          );
+          if (Breakpoints.isWide(constraints)) {
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(child: start),
+                SizedBox(width: InSpacing.md(context)),
+                Expanded(child: end),
+              ],
+            );
+          }
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              start,
+              SizedBox(height: InSpacing.md(context)),
+              end,
+            ],
+          );
+        },
+      ),
+      SizedBox(height: InSpacing.md(context)),
+      InDateField(
+        value:
+            (_readPathDate(_deliveryPath) ??
+                    _readFlatDate('actual_delivery_date'))
+                ?.toDateTime(),
+        formatter: formatter,
+        onChanged: (d) {
+          vm.setEInvoicePath(
+            _deliveryPath,
+            d == null ? null : Date(d.year, d.month, d.day).toIso(),
+          );
+          // Migrate away from the dead flat key older builds wrote.
+          vm.setEInvoiceField('actual_delivery_date', null);
+        },
+        labelText: context.tr('actual_delivery_date'),
+        clearable: true,
+      ),
+      SizedBox(height: InSpacing.lg(context)),
+      Text(
+        context.tr('einvoice_help'),
+        style: TextStyle(color: tokens.ink3, fontSize: 12),
+      ),
+    ];
   }
 }

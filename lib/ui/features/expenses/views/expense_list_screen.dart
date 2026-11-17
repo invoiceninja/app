@@ -14,6 +14,7 @@ import 'package:admin/ui/core/list/entity_sort_filter_sheet.dart';
 import 'package:admin/ui/core/list/master_detail_layout.dart';
 import 'package:admin/ui/features/expenses/view_models/expense_edit_view_model.dart';
 import 'package:admin/ui/features/expenses/view_models/expense_list_view_model.dart';
+import 'package:admin/ui/features/expenses/widgets/change_category_dialog.dart';
 import 'package:admin/ui/features/expenses/widgets/expense_actions.dart';
 import 'package:admin/ui/features/expenses/widgets/expense_list_empty_state.dart';
 import 'package:admin/ui/features/expenses/widgets/expense_list_tile.dart';
@@ -57,6 +58,8 @@ class ExpenseListScreen extends StatelessWidget {
       titleKey: 'expenses',
       newRoute: '/expenses/new',
       newLabelKey: 'new_expense',
+      // The company-wide figure, so never over a scoped list.
+      showListTotals: cid == null && vid == null && pid == null,
       embeddedNewOverride: pid != null
           ? ((ctx) => goEntityCreateFullWidth(
               ctx,
@@ -177,6 +180,15 @@ class ExpenseListScreen extends StatelessWidget {
               showBulkUpdateDialog(context, entity: kBulkUpdateExpense),
           isAvailable: (context) =>
               bulkUpdateOffered(context.read<Services>(), kBulkUpdateExpense),
+        ),
+        EntityListBulkAction(
+          actionId: 'bulk_categorize',
+          icon: Icons.category_outlined,
+          tooltipKey: 'change_category',
+          singleSuccessKey: 'updated_expense',
+          pluralSuccessKey: 'updated_expenses',
+          nothingKey: 'nothing_to_update',
+          prepare: showChangeCategoryDialog,
         ),
         // One invoice from the whole selection (React #3382) — only where an
         // invoice could be created at all.

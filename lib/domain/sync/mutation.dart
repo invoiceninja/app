@@ -145,6 +145,24 @@ enum MutationKind {
   /// `customActions`.
   bulkUpdate,
 
+  /// `POST /expenses/bulk` with `action: bulk_categorize` — set one expense
+  /// category on the selected expenses (the list's Change Category). Payload
+  /// carries `id` + `category_id`; one row per expense, like [bulkUpdate].
+  /// The server echoes the rows (`listResponse` of `ids`). Expense-only;
+  /// routed via `customActions`.
+  bulkCategorize,
+
+  /// `POST /clients/bulk` with `action: assign_group` — put the selected
+  /// clients in one group. Payload `id` + `group_settings_id` (required by
+  /// the server, so never blank). Echoes the rows. Client-only; routed via
+  /// `customActions`.
+  assignGroup,
+
+  /// `POST /products/bulk` with `action: set_tax_id` — set one tax category
+  /// (`tax_id` 1–9) on the selected products. Payload `id` + `tax_id`.
+  /// Echoes the rows. Product-only; routed via `customActions`.
+  setTaxId,
+
   /// `POST /api/v1/designs/set/default` — retroactively apply a document
   /// design to existing records at company / group / client scope. Payload:
   /// `{design_id, entity, settings_level, client_id? | group_settings_id?}`.
@@ -346,6 +364,9 @@ enum MutationKind {
     'update_prices' => MutationKind.updatePrices,
     'increase_prices' => MutationKind.increasePrices,
     'bulk_update' => MutationKind.bulkUpdate,
+    'bulk_categorize' => MutationKind.bulkCategorize,
+    'assign_group' => MutationKind.assignGroup,
+    'set_tax_id' => MutationKind.setTaxId,
     'set_default_design' => MutationKind.setDefaultDesign,
     'approve' => MutationKind.approve,
     'convert_to_invoice' => MutationKind.convertToInvoice,
@@ -406,6 +427,9 @@ enum MutationKind {
     MutationKind.updatePrices => 'update_prices',
     MutationKind.increasePrices => 'increase_prices',
     MutationKind.bulkUpdate => 'bulk_update',
+    MutationKind.bulkCategorize => 'bulk_categorize',
+    MutationKind.assignGroup => 'assign_group',
+    MutationKind.setTaxId => 'set_tax_id',
     MutationKind.setDefaultDesign => 'set_default_design',
     MutationKind.approve => 'approve',
     MutationKind.convertToInvoice => 'convert_to_invoice',
@@ -510,6 +534,9 @@ enum MutationKind {
     MutationKind.runTemplate ||
     MutationKind.updatePrices ||
     MutationKind.bulkUpdate ||
+    MutationKind.bulkCategorize ||
+    MutationKind.assignGroup ||
+    MutationKind.setTaxId ||
     MutationKind.setDefaultDesign ||
     MutationKind.uploadEInvoiceCertificate ||
     MutationKind.peppolUpdate ||

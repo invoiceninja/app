@@ -8,6 +8,7 @@ import 'package:admin/app/design_tokens.dart';
 import 'package:admin/ui/features/settings/state/settings_level_controller.dart';
 import 'package:admin/ui/features/settings/state/settings_reveal_controller.dart';
 import 'package:admin/ui/features/settings/widgets/form_section.dart';
+import 'package:admin/ui/features/settings/widgets/settings_page_intro.dart';
 
 /// How long a page keeps looking for a requested field. Tab bodies and their
 /// view models arrive a few frames after the route does.
@@ -48,6 +49,15 @@ const double kSettingsSideLayoutMaxWidth = 1000;
 /// scrolling body (never the AppBar, which has no room on a phone). It speaks
 /// for the company, so it is hidden at the client and group scopes.
 ///
+/// [actions] are the page's own page-level buttons (Company Details' Preview
+/// a document, Custom Designs' New design). They share ONE row with the
+/// subtitle ([SettingsPageIntro]) — the subtitle at the start, the actions at
+/// the end — followed by any a shell hands down through
+/// [SettingsPageActions] (Invoice Design's Show Preview). A page-level button
+/// never gets a row of its own above the intro sentence, nor the sentence one
+/// below it: `docs/settings-screens.md` § A page's intro and its actions
+/// share one row.
+///
 /// It is also where a settings search hit lands: every page under
 /// `/settings` renders through here, so this is the one place that can
 /// scroll to and flash the field a hit named, without an anchor on each of
@@ -61,6 +71,7 @@ class SettingsFormShell extends StatefulWidget {
     this.sections,
     this.maxWidth = 720,
     this.subtitle,
+    this.actions = const <Widget>[],
   }) : assert(
          child != null || sections != null,
          'Provide either child or sections',
@@ -76,6 +87,10 @@ class SettingsFormShell extends StatefulWidget {
 
   /// The page's purpose in one line — see the class doc. Company scope only.
   final String? subtitle;
+
+  /// Page-level buttons drawn at the end of the intro row — see the class
+  /// doc. Shown at every scope, with or without the subtitle.
+  final List<Widget> actions;
 
   @override
   State<SettingsFormShell> createState() => _SettingsFormShellState();
@@ -298,18 +313,17 @@ class _SettingsFormShellState extends State<SettingsFormShell>
         subtitle != null &&
         subtitle.isNotEmpty &&
         (level == null || level.isCompany);
-    final body = showSubtitle
+    final actions = [...widget.actions, ...SettingsPageActions.of(context)];
+    final hasIntro = showSubtitle || actions.isNotEmpty;
+    final body = hasIntro
         ? Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Padding(
                 padding: EdgeInsets.only(bottom: InSpacing.lg(context)),
-                child: Text(
-                  subtitle,
-                  key: const ValueKey('settings-page-subtitle'),
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodyMedium?.copyWith(color: tokens.ink2),
+                child: SettingsPageIntro(
+                  text: showSubtitle ? subtitle : null,
+                  actions: actions,
                 ),
               ),
               sections,
@@ -325,46 +339,51 @@ class _SettingsFormShellState extends State<SettingsFormShell>
     // and therefore unlaid.
     return FocusTraversalGroup(
       policy: WidgetOrderTraversalPolicy(),
-      child: ListView(
-        padding: const EdgeInsets.all(InSpacing.xl),
-        children: [
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final side = constraints.maxWidth >= kSettingsSideLayoutMinWidth;
-              // Start-aligned, not centred (D5 of the settings pass): the
-              // column lines up with the tab strip's first label and the
-              // page title above it, and a wide pane's spare width falls
-              // after the form instead of splitting into two gutters.
-              return Align(
-                alignment: AlignmentDirectional.topStart,
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(
-                    maxWidth: side
-                        ? kSettingsSideLayoutMaxWidth
-                        : widget.maxWidth,
+      // Consumed above: a shell nested in this body draws none of them again.
+      child: SettingsPageActions(
+        actions: const <Widget>[],
+        child: ListView(
+          padding: const EdgeInsets.all(InSpacing.xl),
+          children: [
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final side =
+                    constraints.maxWidth >= kSettingsSideLayoutMinWidth;
+                // Start-aligned, not centred (D5 of the settings pass): the
+                // column lines up with the tab strip's first label and the
+                // page title above it, and a wide pane's spare width falls
+                // after the form instead of splitting into two gutters.
+                return Align(
+                  alignment: AlignmentDirectional.topStart,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: side
+                          ? kSettingsSideLayoutMaxWidth
+                          : widget.maxWidth,
+                    ),
+                    // Inside the scroll view, so the flash scrolls with the
+                    // field.
+                    child: CustomPaint(
+                      key: _paintKey,
+                      foregroundPainter: _target == null
+                          ? null
+                          : _RevealFlashPainter(
+                              target: _target!,
+                              paintKey: _paintKey,
+                              progress: _flash,
+                              accent: tokens.accent,
+                            ),
+                      // Always mounted, only flipped: wrapping the body only
+                      // in side mode would re-inflate the whole form (and its
+                      // typed-in fields) whenever a resize crossed the line.
+                      child: FormSectionSideLayout(enabled: side, child: body),
+                    ),
                   ),
-                  // Inside the scroll view, so the flash scrolls with the
-                  // field.
-                  child: CustomPaint(
-                    key: _paintKey,
-                    foregroundPainter: _target == null
-                        ? null
-                        : _RevealFlashPainter(
-                            target: _target!,
-                            paintKey: _paintKey,
-                            progress: _flash,
-                            accent: tokens.accent,
-                          ),
-                    // Always mounted, only flipped: wrapping the body only
-                    // in side mode would re-inflate the whole form (and its
-                    // typed-in fields) whenever a resize crossed the line.
-                    child: FormSectionSideLayout(enabled: side, child: body),
-                  ),
-                ),
-              );
-            },
-          ),
-        ],
+                );
+              },
+            ),
+          ],
+        ),
       ),
     );
   }

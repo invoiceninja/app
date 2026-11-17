@@ -81,6 +81,7 @@ import 'package:admin/data/repositories/company_repository.dart';
 import 'package:admin/data/repositories/company_sync_dispatcher.dart';
 import 'package:admin/data/repositories/credit_repository.dart';
 import 'package:admin/data/repositories/dashboard_repository.dart';
+import 'package:admin/data/repositories/list_totals_repository.dart';
 import 'package:admin/data/repositories/design_repository.dart';
 import 'package:admin/data/repositories/document_repository.dart';
 import 'package:admin/data/repositories/embedded_documents_owner.dart';
@@ -130,6 +131,7 @@ import 'package:admin/data/services/biometric_service.dart';
 import 'package:admin/data/services/companies_api.dart';
 import 'package:admin/data/services/connectivity_watcher.dart';
 import 'package:admin/data/services/dashboard_api.dart';
+import 'package:admin/data/services/entity_totals_api.dart';
 import 'package:admin/data/services/home_widget_bridge.dart';
 import 'package:admin/data/services/device_contacts_service.dart';
 import 'package:admin/data/services/device_contacts_service_factory.dart';
@@ -1031,6 +1033,18 @@ class Services implements SidebarBadgeContext {
             ?.currencyId,
     rasterizePdf: rasterizeReceiptPdf,
   );
+
+  /// The per-currency totals line on every money list (docs/entity-lists.md
+  /// § A money list's totals line): the dashboard's outstanding row for
+  /// Clients and Invoices, `charts/entity_totals` — or a Drift sum where the
+  /// server lacks it — for the rest. `late` so it shares [dashboard] and
+  /// [apiClient] without a constructor parameter; its session memory is
+  /// dropped in `onSessionReset`.
+  late final ListTotalsRepository listTotals = ListTotalsRepository(
+    db: db,
+    api: EntityTotalsApi(apiClient),
+    dashboard: dashboard,
+  )..activeCompanyId = () => auth.credentials.value?.companyId;
 
   /// What a file shared into the app from another one does: open New Expense
   /// with it attached (invoiceninja/flutter#173). Fed by `AppShareIntake`;
@@ -2097,6 +2111,8 @@ class Services implements SidebarBadgeContext {
       services.clearStagedCreateDraft();
       // How many records the last user could see is not the next user's.
       services.relatedTabCounts.clear();
+      // Which server lacks `charts/entity_totals` is the last session's.
+      services.listTotals.resetSessionState();
     };
     // The calendar connection lives on `company_user.settings`, i.e. per
     // (user, company) — so it is stale after a company switch too, not just

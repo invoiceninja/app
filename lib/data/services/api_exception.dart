@@ -269,3 +269,17 @@ bool isTransientError(Object error) {
   if (error is! ApiException) return true;
   return false;
 }
+
+/// Whether [error] is the server saying it has no such route — an endpoint
+/// newer than the server. Invoice Ninja answers a missing route with 404
+/// (`"Route does not exist"`), and 400 / 405 on some stacks. A permission
+/// denial is not one, though some arrive as a 401 subclass of
+/// [ServerException].
+bool isMissingRouteError(Object error) {
+  if (error is NotFoundException) return true;
+  if (error is PermissionDeniedException) return false;
+  return error is ServerException &&
+      (error.statusCode == 404 ||
+          error.statusCode == 405 ||
+          error.statusCode == 400);
+}

@@ -173,6 +173,14 @@ class PaymentLinkListScreen extends StatelessWidget {
           pluralSuccessKey: 'restored_payment_links',
           nothingKey: 'nothing_to_restore',
         ),
+        EntityListBulkAction(
+          actionId: 'delete',
+          icon: Icons.delete_outline,
+          tooltipKey: 'delete',
+          singleSuccessKey: 'deleted_payment_link',
+          pluralSuccessKey: 'deleted_payment_links',
+          nothingKey: 'nothing_to_delete',
+        ),
       ],
     );
   }

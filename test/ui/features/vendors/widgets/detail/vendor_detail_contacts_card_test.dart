@@ -9,6 +9,7 @@ import 'package:admin/data/models/api/vendor_api_model.dart';
 import 'package:admin/data/models/domain/vendor_contact.dart';
 import 'package:admin/ui/core/widgets/detail_info_row.dart';
 import 'package:admin/ui/core/widgets/party_contact_row.dart';
+import 'package:admin/ui/core/widgets/phone_number_value.dart';
 import 'package:admin/ui/features/dashboard/widgets/card_shell.dart';
 import 'package:admin/ui/features/vendors/widgets/detail/vendor_detail_contacts_card.dart';
 
@@ -62,7 +63,12 @@ void main() {
     String email = 'dq9GHaI6Dncm0Zd@example.com',
   }) => contact(email: email, isPrimary: true);
 
-  Future<void> pump(WidgetTester tester, List<VendorContact> contacts) async {
+  Future<void> pump(
+    WidgetTester tester,
+    List<VendorContact> contacts, {
+    String countryId = '',
+    VoidCallback? onAdd,
+  }) async {
     await tester.binding.setSurfaceSize(const Size(500, 1400));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(
@@ -77,6 +83,8 @@ void main() {
               child: VendorDetailContactsCard(
                 contacts: contacts,
                 vendorId: 'v1',
+                countryId: countryId,
+                onAdd: onAdd,
               ),
             ),
           ),
@@ -306,18 +314,18 @@ void main() {
 
     expect(find.text('Contact 3'), findsOneWidget);
     expect(find.text('Contact 4'), findsNothing);
-    expect(find.text('+2 more'), findsOneWidget);
+    expect(find.text('Show 2 more'), findsOneWidget);
 
-    await tester.tap(find.text('+2 more'));
+    await tester.tap(find.text('Show 2 more'));
     await tester.pump();
     expect(find.text('Contact 5'), findsOneWidget);
-    expect(find.text('+2 more'), findsNothing);
+    expect(find.text('Show 2 more'), findsNothing);
 
     // An expansion has to be undoable.
-    await tester.tap(find.text('Less'));
+    await tester.tap(find.text('Show less'));
     await tester.pump();
     expect(find.text('Contact 4'), findsNothing);
-    expect(find.text('+2 more'), findsOneWidget);
+    expect(find.text('Show 2 more'), findsOneWidget);
   });
 
   testWidgets('three contacts need no "more"', (tester) async {
@@ -327,7 +335,7 @@ void main() {
 
     expect(find.text('Contact 3'), findsOneWidget);
     expect(find.textContaining('more'), findsNothing);
-    expect(find.text('Less'), findsNothing);
+    expect(find.text('Show less'), findsNothing);
   });
 
   testWidgets('"+N more" counts only contacts that would draw a row', (
@@ -340,6 +348,60 @@ void main() {
       contact(id: 'b2'),
     ]);
 
-    expect(find.text('+1 more'), findsOneWidget);
+    expect(find.text('Show 1 more'), findsOneWidget);
+  });
+
+  // ─────────── the redesigned card ───────────
+
+  testWidgets('no local time on a vendor — it has no timezone of its own', (
+    tester,
+  ) async {
+    // A foreign company zone: the clock a vendor row used to print as though
+    // it were the vendor's.
+    await pump(tester, [
+      contact(id: 'a', firstName: 'Ann', phone: '+1 415 555 2671'),
+      contact(id: 'b', firstName: 'Bo', phone: '+1 415 555 2672'),
+    ]);
+    await tester.pump();
+    expect(find.byType(ContactLocalTime), findsNothing);
+    expect(find.textContaining(' local'), findsNothing);
+  });
+
+  testWidgets('the header counts visible contacts, from two', (tester) async {
+    await pump(tester, [
+      blank(),
+      contact(id: 'gone', firstName: 'Gone', isDeleted: true),
+      contact(id: 'a', firstName: 'Ann'),
+      contact(id: 'b', firstName: 'Bo'),
+    ]);
+    expect(
+      find.descendant(
+        of: find.byType(DashboardCardShell),
+        matching: find.text('2'),
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('"+ Add" only with onAdd', (tester) async {
+    await pump(tester, [contact(firstName: 'Ann')]);
+    expect(find.text('Add'), findsNothing);
+    var added = 0;
+    await pump(tester, [contact(firstName: 'Ann')], onAdd: () => added++);
+    await tester.tap(find.text('Add'));
+    expect(added, 1);
+  });
+
+  testWidgets('a vendor\'s country reads its contacts\' numbers', (
+    tester,
+  ) async {
+    await pump(tester, [
+      contact(firstName: 'Ann', phone: '020 7946 0958'),
+    ], countryId: '826');
+    expect(find.text('020 7946 0958'), findsOneWidget);
+    await pump(tester, [
+      contact(firstName: 'Ann', phone: '+442079460958'),
+    ], countryId: '840');
+    expect(find.text('+44 20 7946 0958'), findsOneWidget);
   });
 }

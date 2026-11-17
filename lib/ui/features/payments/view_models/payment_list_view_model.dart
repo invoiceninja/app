@@ -148,13 +148,24 @@ class PaymentListViewModel extends GenericListViewModel<Payment> {
   Future<void> refreshAll() => repo.refreshAll(companyId: companyId);
 
   @override
-  Iterable<BulkAction<Payment>> get bulkActions => standardCrudBulkActions(
-    isArchived: isArchived,
-    isDeleted: isDeleted,
-    archive: (id) => repo.archive(companyId: companyId, id: id),
-    restore: (id) => repo.restore(companyId: companyId, id: id),
-    delete: (id) => repo.delete(companyId: companyId, id: id),
-    // Server: `deleted_invoices_exist` — see `Payment.hasDeletedInvoice`.
-    canDelete: (p) => !p.hasDeletedInvoice,
-  );
+  Iterable<BulkAction<Payment>> get bulkActions => [
+    ...standardCrudBulkActions(
+      isArchived: isArchived,
+      isDeleted: isDeleted,
+      archive: (id) => repo.archive(companyId: companyId, id: id),
+      restore: (id) => repo.restore(companyId: companyId, id: id),
+      delete: (id) => repo.delete(companyId: companyId, id: id),
+      // Server: `deleted_invoices_exist` — see `Payment.hasDeletedInvoice`.
+      canDelete: (p) => !p.hasDeletedInvoice,
+    ),
+    BulkAction<Payment>(
+      // Email the receipt (React's and v1's bulk `email`). Outward-facing —
+      // the single-record Send Email prompts too.
+      confirm: true,
+      id: 'email',
+      labelKey: 'send_email',
+      eligible: (p) => !isDeleted(p),
+      apply: (id) => repo.emailReceipt(companyId: companyId, paymentId: id),
+    ),
+  ];
 }

@@ -1,13 +1,11 @@
 import 'package:material_ui/material_ui.dart';
-import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
-import 'package:admin/app/design_tokens.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/features/settings/state/settings_level_controller.dart';
 import 'package:admin/ui/features/settings/view_models/settings_draft_view_model.dart';
+import 'package:admin/ui/features/settings/views/basic/online_payments/payment_setup_card.dart';
 import 'package:admin/ui/features/settings/widgets/form_section.dart';
-import 'package:admin/ui/features/settings/widgets/no_gateway_warning.dart';
 import 'package:admin/ui/features/settings/widgets/overridable_dropdown_field.dart';
 import 'package:admin/ui/features/settings/widgets/overridable_number_field.dart';
 import 'package:admin/ui/features/settings/widgets/overridable_switch_field.dart';
@@ -20,7 +18,8 @@ const kOnlinePaymentsGeneralSearchKeys = <String>[
   'auto_bill_on',
   'use_available_payments',
   'use_available_credits',
-  'configure_gateways',
+  'company_gateways',
+  'add_gateway',
   'payment_types',
   'admin_initiated_payments',
   'client_initiated_payments',
@@ -57,10 +56,10 @@ class OnlinePaymentsGeneralBody extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Gateways are the company's, so a group or client scope has no
-        // gateway of its own to be missing.
-        if (isCompanyScope)
-          const NoGatewayWarning(messageKey: 'no_gateway_connected'),
+        // Gateways and payment types first — how clients pay at all. With no
+        // gateway its row is the page's warning, so there is no separate
+        // banner (and no second "Add Payment Gateway" target).
+        const PaymentSetupCard(),
         // Untitled: "Settings" under the Online Payments page's own title and
         // the General tab said nothing a heading should.
         FormSection(
@@ -102,38 +101,6 @@ class OnlinePaymentsGeneralBody extends StatelessWidget {
               options: _alwaysOptionOff(context),
               onChanged: (v) =>
                   host.updateSettings((s) => s.copyWith(useCreditsPayment: v)),
-            ),
-            Wrap(
-              spacing: InSpacing.sm,
-              runSpacing: InSpacing.sm,
-              children: [
-                // The theme's minimum size is infinitely wide, which stacks
-                // a Wrap's buttons one per line; side by side needs a finite
-                // one (CLAUDE.md § Design system (v2)).
-                OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: const Size(64, 40),
-                  ),
-                  onPressed: () => context.go('/settings/company_gateways'),
-                  icon: const Icon(
-                    Icons.account_balance_wallet_outlined,
-                    size: 18,
-                  ),
-                  label: Text(context.tr('configure_gateways')),
-                ),
-                // Which types the pickers offer and what they are called is
-                // the company's, with no per-group or per-client value.
-                if (isCompanyScope)
-                  OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                      minimumSize: const Size(64, 40),
-                    ),
-                    onPressed: () =>
-                        context.go('/settings/online_payments/payment_types'),
-                    icon: const Icon(Icons.credit_card_outlined, size: 18),
-                    label: Text(context.tr('payment_types')),
-                  ),
-              ],
             ),
             OverridableSwitchField(
               label: context.tr('client_initiated_payments'),

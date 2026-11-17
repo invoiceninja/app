@@ -4,6 +4,7 @@ import 'package:decimal/decimal.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 
+import 'package:admin/ui/features/dashboard/widgets/card_shell.dart';
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/data/models/domain/invoice.dart';
@@ -265,136 +266,128 @@ class _PaymentApplyInvoicesSectionState
         vm.draft.amount > Decimal.zero &&
         targets.any((t) => !t.isDraft);
 
-    return Material(
-      color: tokens.surface,
-      shape: RoundedRectangleBorder(
-        side: BorderSide(color: tokens.border),
-        borderRadius: BorderRadius.circular(InRadii.r3),
-      ),
-      child: Padding(
-        padding: EdgeInsets.all(InSpacing.lg(context)),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final columns = constraints.maxWidth >= _kTableColumnsMinWidth;
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // The title and Auto-apply share a line where there is room;
-                // in the slide-over panel the button drops below the title.
-                Wrap(
-                  alignment: WrapAlignment.spaceBetween,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  spacing: InSpacing.sm,
-                  children: [
-                    Semantics(
-                      header: true,
-                      headingLevel: 2,
-                      child: Text(
-                        context.tr('apply_to_invoices'),
-                        style: TextStyle(
-                          color: tokens.ink,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 16,
-                        ),
+    // The shared edit-form card, padded all round: the title row carries
+    // the Auto-apply button, so it is drawn here rather than as the card's
+    // own header.
+    return DashboardCardShell(
+      padding: EdgeInsets.all(InSpacing.lg(context)),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final columns = constraints.maxWidth >= _kTableColumnsMinWidth;
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // The title and Auto-apply share a line where there is room;
+              // in the slide-over panel the button drops below the title.
+              Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: InSpacing.sm,
+                children: [
+                  Semantics(
+                    header: true,
+                    headingLevel: 2,
+                    child: Text(
+                      context.tr('apply_to_invoices'),
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        color: tokens.ink,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
-                    if (_complete || _oldestLoaded)
-                      TextButton.icon(
-                        style: TextButton.styleFrom(
-                          minimumSize: const Size(64, 40),
-                        ),
-                        icon: const Icon(
-                          Icons.auto_fix_high_outlined,
-                          size: 18,
-                        ),
-                        label: Text(context.tr('auto_apply_oldest')),
-                        onPressed: canAutoApply
-                            ? () => _autoApply(targets)
-                            : null,
+                  ),
+                  if (_complete || _oldestLoaded)
+                    TextButton.icon(
+                      style: TextButton.styleFrom(
+                        minimumSize: const Size(64, 40),
                       ),
-                  ],
+                      icon: const Icon(Icons.auto_fix_high_outlined, size: 18),
+                      label: Text(context.tr('auto_apply_oldest')),
+                      onPressed: canAutoApply
+                          ? () => _autoApply(targets)
+                          : null,
+                    ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              if (showFilter) ...[
+                TextField(
+                  controller: _filter,
+                  autocorrect: false,
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (_) =>
+                      FormSaveScope.maybeOf(context)?.trySubmit(),
+                  decoration: InputDecoration(
+                    hintText: context.tr('filter'),
+                    prefixIcon: const Icon(Icons.search, size: 20),
+                    isDense: true,
+                  ),
                 ),
-                const SizedBox(height: 12),
-                if (showFilter) ...[
-                  TextField(
-                    controller: _filter,
-                    autocorrect: false,
-                    textInputAction: TextInputAction.done,
-                    onSubmitted: (_) =>
-                        FormSaveScope.maybeOf(context)?.trySubmit(),
-                    decoration: InputDecoration(
-                      hintText: context.tr('filter'),
-                      prefixIcon: const Icon(Icons.search, size: 20),
-                      isDense: true,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                ],
-                if (incomplete) ...[
-                  Text(
-                    context.tr('payment_apply_more_not_shown'),
-                    style: TextStyle(color: tokens.ink3, fontSize: 12),
-                  ),
-                  const SizedBox(height: 8),
-                ],
-                if (invoices.isEmpty && missing.isEmpty)
-                  Text(
-                    context.tr(loading ? 'loading' : 'no_open_invoices'),
-                    style: TextStyle(color: tokens.ink3),
-                  )
-                else ...[
-                  _HeaderRow(
+                const SizedBox(height: 8),
+              ],
+              if (incomplete) ...[
+                Text(
+                  context.tr('payment_apply_more_not_shown'),
+                  style: TextStyle(color: tokens.ink3, fontSize: 12),
+                ),
+                const SizedBox(height: 8),
+              ],
+              if (invoices.isEmpty && missing.isEmpty)
+                Text(
+                  context.tr(loading ? 'loading' : 'no_open_invoices'),
+                  style: TextStyle(color: tokens.ink3),
+                )
+              else ...[
+                _HeaderRow(
+                  columns: columns,
+                  value: _selectAllState(visible, allocations),
+                  onChanged: visible.isEmpty
+                      ? null
+                      : () => _toggleAll(visible, targets),
+                ),
+                Divider(height: 1, color: tokens.border),
+                for (final i in visible)
+                  _InvoiceRow(
+                    key: ValueKey('payment_apply_${i.id}'),
+                    invoice: i,
                     columns: columns,
-                    value: _selectAllState(visible, allocations),
-                    onChanged: visible.isEmpty
-                        ? null
-                        : () => _toggleAll(visible, targets),
+                    applied: allocations[i.id],
+                    enabled: allocations.containsKey(i.id) || _roomLeft,
+                    formatter: widget.formatter,
+                    currencyId: widget.currencyId,
+                    useCommaAsDecimalPlace:
+                        widget.formatter?.settings.useCommaAsDecimalPlace ??
+                        false,
+                    onToggle: (on) => _toggle(i.id, on, targets),
+                    onAmount: (amount) => _setAmount(i.id, amount),
                   ),
-                  Divider(height: 1, color: tokens.border),
-                  for (final i in visible)
-                    _InvoiceRow(
-                      key: ValueKey('payment_apply_${i.id}'),
-                      invoice: i,
+                for (final id in missing)
+                  StreamBuilder<Invoice?>(
+                    key: ValueKey('payment_apply_missing_$id'),
+                    stream: _missing.putIfAbsent(
+                      id,
+                      () => _services.invoices.watchByRealId(
+                        companyId: vm.companyId,
+                        id: id,
+                      ),
+                    ),
+                    builder: (context, snap) => _InvoiceRow(
+                      invoice: snap.data,
                       columns: columns,
-                      applied: allocations[i.id],
-                      enabled: allocations.containsKey(i.id) || _roomLeft,
+                      applied: allocations[id],
+                      enabled: true,
                       formatter: widget.formatter,
                       currencyId: widget.currencyId,
                       useCommaAsDecimalPlace:
                           widget.formatter?.settings.useCommaAsDecimalPlace ??
                           false,
-                      onToggle: (on) => _toggle(i.id, on, targets),
-                      onAmount: (amount) => _setAmount(i.id, amount),
+                      onToggle: (on) => _toggle(id, on, targets),
+                      onAmount: (amount) => _setAmount(id, amount),
                     ),
-                  for (final id in missing)
-                    StreamBuilder<Invoice?>(
-                      key: ValueKey('payment_apply_missing_$id'),
-                      stream: _missing.putIfAbsent(
-                        id,
-                        () => _services.invoices.watchByRealId(
-                          companyId: vm.companyId,
-                          id: id,
-                        ),
-                      ),
-                      builder: (context, snap) => _InvoiceRow(
-                        invoice: snap.data,
-                        columns: columns,
-                        applied: allocations[id],
-                        enabled: true,
-                        formatter: widget.formatter,
-                        currencyId: widget.currencyId,
-                        useCommaAsDecimalPlace:
-                            widget.formatter?.settings.useCommaAsDecimalPlace ??
-                            false,
-                        onToggle: (on) => _toggle(id, on, targets),
-                        onAmount: (amount) => _setAmount(id, amount),
-                      ),
-                    ),
-                ],
+                  ),
               ],
-            );
-          },
-        ),
+            ],
+          );
+        },
       ),
     );
   }

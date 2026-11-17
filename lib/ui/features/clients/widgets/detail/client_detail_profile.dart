@@ -1,12 +1,18 @@
 import 'package:flutter/foundation.dart';
 import 'package:material_ui/material_ui.dart';
 
+import 'package:provider/provider.dart';
+
 import 'package:admin/app/design_tokens.dart';
+import 'package:admin/app/router.dart';
+import 'package:admin/app/services.dart';
 import 'package:admin/data/models/domain/client.dart';
 import 'package:admin/data/models/domain/company.dart';
 import 'package:admin/data/models/domain/contact.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/adaptive.dart';
+import 'package:admin/ui/core/detail/profile_card_width.dart';
+import 'package:admin/ui/core/edit/add_contact_request.dart';
 import 'package:admin/ui/core/widgets/detail_row_columns.dart';
 import 'package:admin/ui/features/clients/widgets/detail/client_detail_address_card.dart';
 import 'package:admin/ui/features/clients/widgets/detail/client_detail_contacts_card.dart';
@@ -62,7 +68,16 @@ class ClientDetailProfile extends StatelessWidget {
       contacts: s.contacts,
       clientHash: client.clientHash,
       clientId: client.id,
+      countryId: client.countryId,
       company: company,
+      onAdd: _canAddContact(context)
+          ? () => goEntityEdit(
+              context,
+              '/clients',
+              client.id,
+              extra: const AddContactRequest(),
+            )
+          : null,
     );
     Widget details() => ClientDetailDetailsCard(
       client: client,
@@ -115,7 +130,17 @@ class ClientDetailProfile extends StatelessWidget {
             (hasAddress ? 1 : 0);
         final inRow = wide && leadCount > 1;
         final lead = <Widget>[
-          if (s.contacts.isNotEmpty) contacts(),
+          if (s.contacts.isNotEmpty)
+            ProfileCardWidthScope(
+              width: inRow
+                  ? ProfileCardWidthScope.share(
+                      constraints.maxWidth,
+                      leadCount,
+                      InSpacing.md(context),
+                    )
+                  : constraints.maxWidth,
+              child: contacts(),
+            ),
           if (s.details) details(),
           if (hasAddress) addresses(fill: inRow),
         ];
@@ -151,6 +176,20 @@ class ClientDetailProfile extends StatelessWidget {
         );
       },
     );
+  }
+
+  /// Whether the Contacts card offers "+ Add": the user may edit this client
+  /// (the server's rule, `AuthSession.canEditRecord`) and it is not deleted —
+  /// a deleted record is read-only.
+  bool _canAddContact(BuildContext context) {
+    if (client.isDeleted) return false;
+    return context.read<Services>().auth.session.value?.canEditRecord(
+          'client',
+          createdBy: client.userId,
+          assignedTo: client.assignedUserId,
+          recordId: client.id,
+        ) ??
+        false;
   }
 }
 

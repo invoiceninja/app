@@ -4532,6 +4532,23 @@ void main() {
       expect(disp.clearedDirty, ['c2']);
     });
 
+    test('so does a dead bulk column write (bulk_update / bulk_categorize) — '
+        'the value the server refused must not stay on screen', () async {
+      for (final (id, kind) in [
+        ('c6', MutationKind.bulkUpdate),
+        ('c7', MutationKind.bulkCategorize),
+      ]) {
+        final disp = _DirtySpyDispatcher()
+          ..queueThrow(const ValidationException('nope', {}));
+        final engine = makeEngine(disp);
+        await enqueueClient(entityId: id, kind: kind, idempotencyKey: id);
+
+        await engine.drainOnce(companyId: 'co');
+
+        expect(disp.clearedDirty, [id], reason: kind.wireName);
+      }
+    });
+
     test('a dead UPDATE does NOT — that dirty row is the user\'s unsaved edit '
         'and the edit screen re-opens onto it with a Retry', () async {
       final disp = _DirtySpyDispatcher()

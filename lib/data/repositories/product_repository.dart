@@ -496,6 +496,36 @@ class ProductRepository extends BaseEntityRepository<Product, ProductApi>
     );
   }
 
+  /// Set tax category [taxId] (`'1'`–`'9'`) on [product] — the list's Set
+  /// Tax Category bulk action (`POST /products/bulk action:set_tax_id`), one
+  /// `setTaxId` row per product. The patched row lands dirty so the change
+  /// shows at once and offline; the echo clears it.
+  Future<void> setTaxCategory({
+    required String companyId,
+    required Product product,
+    required String taxId,
+  }) async {
+    if (taxId.isEmpty) {
+      throw ArgumentError.value(taxId, 'taxId', 'must not be empty');
+    }
+    await db.transaction(() async {
+      final id = await resolveId(product.id);
+      await db.productDao.upsert(
+        _domainToCompanion(
+          product.copyWith(id: id, taxId: taxId),
+          companyId,
+          isDirty: true,
+        ),
+      );
+      await enqueueMutation(
+        companyId: companyId,
+        entityId: id,
+        kind: MutationKind.setTaxId,
+        payload: {'id': id, 'tax_id': taxId},
+      );
+    });
+  }
+
   ProductsCompanion _domainToCompanion(
     Product p,
     String companyId, {

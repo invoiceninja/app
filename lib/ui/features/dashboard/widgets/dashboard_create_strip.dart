@@ -287,27 +287,37 @@ class _SplitCreateButton extends StatelessWidget {
         ),
         child: Tooltip(
           message: context.tr('more'),
-          child: const Icon(Icons.keyboard_arrow_down, size: 18),
+          // The seam: the filled button's own ink, faint, so the two halves
+          // read as one control with two targets. It is drawn inside this
+          // half at half its rendered height — a free-standing divider at
+          // the nominal height stood taller than the buttons, which the
+          // desktop's compact visual density draws 8 px shorter.
+          child: SizedBox.expand(
+            child: Stack(
+              children: [
+                Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: FractionallySizedBox(
+                    heightFactor: 0.5,
+                    child: SizedBox(
+                      width: 1,
+                      child: ColoredBox(
+                        color: Color.alphaBlend(
+                          scheme.onPrimary.withValues(alpha: 0.35),
+                          scheme.primary,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const Center(child: Icon(Icons.keyboard_arrow_down, size: 18)),
+              ],
+            ),
+          ),
         ),
       ),
     );
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        main,
-        // The seam: the filled button's own ink, faint, so the two halves
-        // read as one control with two targets.
-        Container(
-          width: 1,
-          height: height,
-          color: Color.alphaBlend(
-            scheme.onPrimary.withValues(alpha: 0.35),
-            scheme.primary,
-          ),
-        ),
-        menu,
-      ],
-    );
+    return Row(mainAxisSize: MainAxisSize.min, children: [main, menu]);
   }
 }
 

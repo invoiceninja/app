@@ -27,10 +27,10 @@ Plus two non-negotiables carried from admin-portal:
 
 | When you're doing… | Look at |
 |---|---|
-| Adding an entity, or one with no create screen (the Documents list) | § Adding a new entity · `docs/adding-an-entity.md` · `docs/documents-list.md` |
+| Adding an entity, or the Documents list (no create screen) | § Adding a new entity · `docs/adding-an-entity.md` · `docs/documents-list.md` |
 | A settings screen, or anything in the visual invoice designer | § Settings screens · `docs/settings-screens.md` · § Visual invoice designer · `docs/invoice-designer.md` |
-| A form field: Enter-to-save, keyboard type, autofill, capitalization, a negative amount on touch | § Forms · `docs/form-fields.md` · `test/lint/field_input_types_test.dart` |
-| A picker: won't close on touch / Android back, a dead empty box, a Client / Vendor that locks once saved, the assignee roster | `docs/pickers.md` · `docs/popup-dismissal.md` · `lib/ui/core/widgets/entity_picker_field.dart` |
+| A form field: Enter-to-save, keyboard, autofill, a negative amount on touch | § Forms · `docs/form-fields.md` · `test/lint/field_input_types_test.dart` |
+| A picker: won't close on touch / back, a dead empty box, a locked Client / Vendor, assignees | `docs/pickers.md` · `docs/popup-dismissal.md` · `lib/ui/core/widgets/entity_picker_field.dart` |
 | An overflow / `MenuAnchor` menu: which icon, or Android back not closing it | § Design system (v2) · `docs/popup-dismissal.md` |
 | Money, dates, parsing, or invoice / quote / credit totals math | § Strict rules · § Forms · `docs/sync.md` (rounding scale) · `tool/totals_oracle.php` |
 | Buttons that stack or stretch, spacing tokens, a blank or tall toast | § Design system (v2) · `docs/buttons-and-spacing.md` · `docs/toast-messages.md` |
@@ -45,19 +45,19 @@ Plus two non-negotiables carried from admin-portal:
 | A report, its date field, grouping, or chart | § Reports · `docs/reports.md` |
 | A dashboard panel, hiding empty ones, the `+` create sheet | § Dashboard panels · `docs/dashboard-panels.md` · `lib/domain/quick_create.dart` |
 | Tasks: a layout view, the kanban board, a booked-but-not-started task | § Tasks layout view · `docs/tasks-views.md` · `docs/task-scheduling.md` |
-| Content that doesn't fit its pane: a filter bar, a tab strip, a Tasks header, a FAB over a list | `docs/pane-width-and-overflow.md` · `lib/ui/core/utils/fab_clearance.dart` |
-| A billing-doc edit screen (invoice / quote / credit / PO / recurring), or its History tab | `lib/ui/features/billing_shared/edit/billing_doc_edit_layout.dart` · `BillingDocType` · § Document version history |
-| A list row: its one tap target, a zero vs a dash, a screen-reader action, pull-to-refresh | `docs/row-actions-and-values.md` · `docs/pull-to-refresh.md` · `lib/ui/core/list/cell_slot.dart` |
+| Content too wide for its pane: filter bar, tab strip, Tasks header, FAB over a list | `docs/pane-width-and-overflow.md` · `lib/ui/core/utils/fab_clearance.dart` |
+| A billing-doc edit screen, or its History tab | `lib/ui/features/billing_shared/edit/billing_doc_edit_layout.dart` · `BillingDocType` · § Document version history |
+| A list row: one tap target, zero vs dash, screen-reader action, pull-to-refresh | `docs/row-actions-and-values.md` · `docs/pull-to-refresh.md` · `lib/ui/core/list/cell_slot.dart` |
 | A record screen's layout, comments, activity rows, a `Viewed` pill | § Detail screens · `docs/detail-screen-layout.md` · `docs/comments-and-activity.md` |
-| A contact reading `(no name)`, invitations, the Email History tab | `docs/contacts-and-invitations.md` |
+| A contact reading `(no name)`, invitations, Email History | `docs/contacts-and-invitations.md` |
 | Localization / Transifex, a string showing `&#39;` or a raw `:placeholder` | § Localization · `docs/translated-string-rendering.md` |
 | Email-template `$variables` as chips | `docs/template-variables.md` |
 | A markdown / notes / terms field, edited or read-only | § Rich text editing · `docs/rich-text-editing.md` |
-| Cross-checking admin-portal / React / the server, or probing the demo API | § Reference points · `docs/probing-the-demo-api.md` |
+| Cross-checking admin-portal / React / the server, probing the demo API | § Reference points · `docs/probing-the-demo-api.md` |
 | A self-hosted server's TLS certificate the device refuses | `docs/trusting-a-self-hosted-certificate.md` |
 | Setup: entitlements, dev login, Google Sign-In IDs, app icons | `docs/setup.md` |
-| Release builds, Sentry DSN, iOS archive, F-Droid, store deploys | `docs/setup.md` § Release builds with Sentry · `docs/fdroid.md` · `docs/store-deployment-setup.md` |
-| Writing release notes, the What's New dialog, or the first-run Welcome / setup wizard | § Release Notes · `docs/release-notes.md` · `docs/whats-new-dialog.md` · `docs/first-run-welcome.md` |
+| Release builds, Sentry DSN, iOS archive, F-Droid, stores | `docs/setup.md` § Release builds with Sentry · `docs/fdroid.md` · `docs/store-deployment-setup.md` |
+| Release notes, What's New, the first-run Welcome / setup | § Release Notes · `docs/release-notes.md` · `docs/whats-new-dialog.md` · `docs/first-run-welcome.md` |
 | CI workflows, perf benchmarks, integration tests | `.github/workflows/_test.yaml` · `docs/performance-tracking.md` · `docs/integration-tests.md` |
 | Server-side filter gaps / required API changes | `BACKEND.md` |
 | A runtime error or a stale outbox row | § Diagnostics log · `docs/diagnostics.md` |
@@ -65,7 +65,7 @@ Plus two non-negotiables carried from admin-portal:
 | Deep links, App Links, a file shared into the app | § Deep links · `docs/deep-links.md` · `APP_LINKS.md` · `docs/sharing-files-into-the-app.md` |
 | Running on the web | § Web · `docs/web-platform-differences.md` |
 | Tap-to-call / SMS on a phone number | `docs/tap-to-call.md` |
-| Tap-target sizes, row heights, list density, a keyboard covering a field | `docs/touch-targets.md` · `docs/list-density.md` · `docs/sidebar-and-shell.md` |
+| Tap targets, row heights, list density, a keyboard over a field | `docs/touch-targets.md` · `docs/list-density.md` · `docs/sidebar-and-shell.md` |
 | An open upstream (Flutter / pub) bug workaround | `docs/upstream-workarounds.md` |
 | What's built vs what's left | `FEATURES.md` |
 | Anything not listed here | `docs/README.md` § Symptom index (the full table) · one line per doc above it |
@@ -233,6 +233,7 @@ When styling a page: read `design_tokens.dart`, reuse `InTheme`, prefer `Theme.o
 - **A one-shot reveal outlives its consumer, and the row scrolls itself.** → `docs/comments-and-activity.md`
 - **The `activity_type_id` → tone map is the server's catalog, not a guess — and the bundled template is the test.** → `docs/comments-and-activity.md`
 
+- **A money list's totals line reads `ListTotalsRepository` (server first, a Drift sum where the server lacks the route), never on an embedded or scoped list, never a zero.** → `docs/entity-lists.md`
 - **The `/activity` timeline charts only the loaded window, and each count leaves out its own filter (the bars the date range, the chips the categories).** → `docs/activity-timeline.md`
 - **The activity cache row is shared with the dashboard card, so a fetch merges into it (never a gap, the fetch owns its span) — never replace it; Load more pages back with the feed's `before` cursor where the server honours it, else grows the window to `kActivityWindowMax`.** → `docs/activity-timeline.md`
 
@@ -314,6 +315,9 @@ Email-template `$variables` render as chips wherever a template is edited (Templ
 - **A markdown field reports both edges of "is this dirty", and the false one is what an edit that round-trips needs.** → `docs/template-variables.md`
 - **A field action is a labelled `FieldActionButton` outside the field — Insert variable above-right, Reset below-right — never a bare glyph in the suffix.** → `docs/template-variables.md`
 - **A `defaultValue` that lands late is adopted only when the document is pristine and no editor is mounted over it.** → `docs/template-variables.md`
+
+- **A phone number is reformatted for display only (`formatPhoneForDisplay`); dial, SMS and copy keep the stored text, and any doubt shows it verbatim.** → `docs/tap-to-call.md`
+- **A list bulk action queues one outbox row per selected record, and one that sets a field writes it locally first.** → `docs/bulk-actions.md`
 
 ### Two-choice fields → radio, not dropdown
 
@@ -659,7 +663,7 @@ The block designer (`invoice_design/wysiwyg/`) is a picture of what the server p
 
 ## Widget previews
 
-The four design-system widgets (`EmptyState`, `ErrorView`, `StatusPill`, `LinkText`) carry `@Preview` annotations through `appPreviewTheme()` (`widget_preview_support.dart`); run `flutter widget-preview start`. Add previews to design-system widgets only — feature screens need `Services`.
+`@Preview` goes on design-system widgets only, through `appPreviewTheme()` (`flutter widget-preview start`); feature screens need `Services`.
 
 ## Integration tests
 
@@ -696,7 +700,7 @@ invoiceninja://app/clients/Wpmbk5ezJn?company=Xrtq1oa8Aq     <- fallback, still 
 
 ## Desktop window state
 
-Each desktop runner persists window size, position, and fullscreen across launches via the host OS's native preference store — one short native function per platform, no Dart/Flutter package. **N/A on web** (the browser owns the window chrome). The shared three-step contract and per-platform implementations (macOS + Windows done; Linux when added) are in `docs/desktop-window-state.md`.
+- **Window size, position and fullscreen persist through one short native function per runner, never a Dart package; none on web.** → `docs/desktop-window-state.md`
 
 ## Web
 

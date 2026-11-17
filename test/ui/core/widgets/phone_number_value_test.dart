@@ -154,7 +154,7 @@ void main() {
         tester
             .getSemantics(find.byType(LinkText))
             .label
-            .contains('+1 415 555 2671'),
+            .contains('+1 415-555-2671'),
         isTrue,
       );
     });
@@ -167,7 +167,41 @@ void main() {
       await tester.pump();
 
       expect(find.byType(LinkText), findsNothing);
-      expect(find.text('+1 415 555 2671'), findsOneWidget);
+      // Shown reformatted (docs/tap-to-call.md § A phone number is
+      // reformatted for display only); copied as stored, below.
+      expect(find.text('+1 415-555-2671'), findsOneWidget);
+    });
+
+    testWidgets('a region reads a national number in its country', (
+      tester,
+    ) async {
+      await phoneActions.setTapToCall(true);
+      await phoneActions.setWarnOutsideBusinessHours(false);
+      await tester.pumpWidget(
+        Provider<Services>.value(
+          value: services,
+          child: MaterialApp(
+            theme: buildInTheme(InTheme.light),
+            localizationsDelegates: kTestLocalizationsDelegates,
+            supportedLocales: kTestSupportedLocales,
+            home: const Scaffold(
+              body: PhoneNumberValue(
+                phone: '4155552671',
+                regionIso: 'US',
+                showLocalTime: false,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(find.text('(415) 555-2671'), findsOneWidget);
+      expect(find.byType(ContactLocalTime), findsNothing);
+      await tester.tap(find.byType(LinkText));
+      await tester.pumpAndSettle();
+      // Dialled from the stored digits.
+      expect(launcher.launched.single, startsWith('tel:'));
+      expect(launcher.launched.single, contains('4155552671'));
     });
 
     testWidgets('a number with nothing to dial never becomes a link', (

@@ -1,6 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 
+import 'package:admin/ui/features/dashboard/widgets/card_shell.dart';
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/data/models/domain/company.dart';
@@ -173,12 +174,10 @@ class TaskEditTimesSection extends StatelessWidget {
             company?.settings.showTaskItemDescription ?? true;
         final tokens = context.inTheme;
         final entries = vm.draft.timeLog.reversed.toList(growable: false);
-        final log = Container(
-          decoration: BoxDecoration(
-            color: tokens.surface,
-            border: Border.all(color: tokens.border),
-            borderRadius: BorderRadius.circular(InRadii.r3),
-          ),
+        // The shared edit-form card; the table and rows bring their own
+        // padding.
+        final log = DashboardCardShell(
+          padding: EdgeInsets.zero,
           child: LayoutBuilder(
             builder: (context, constraints) {
               // Gate the desktop table on its real minimum width, not the

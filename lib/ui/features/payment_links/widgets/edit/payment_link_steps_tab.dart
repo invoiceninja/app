@@ -27,8 +27,13 @@ class _PaymentLinkStepsTabState extends State<PaymentLinkStepsTab> {
   void initState() {
     super.initState();
     // Lazy-load the catalog the first time the tab is shown — small JSON
-    // payload, but no point firing it on edit-screen mount.
-    widget.vm.loadSteps();
+    // payload, but no point firing it on edit-screen mount. After the
+    // frame: `loadSteps` notifies synchronously, and on a phone this tab is
+    // first built mid-build by the `TabBarView`, where a notify marks the
+    // screen's `ListenableBuilder` dirty during build and asserts.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) widget.vm.loadSteps();
+    });
   }
 
   @override
@@ -121,7 +126,10 @@ class _StepPickers extends StatelessWidget {
             ? const <DropdownMenuItem<String>>[]
             : [
                 for (final s in authOptions)
-                  DropdownMenuItem(value: s.id, child: Text(s.label)),
+                  DropdownMenuItem(
+                    value: s.id,
+                    child: Text(stepLabel(context, s)),
+                  ),
               ],
         onChanged: (id) {
           if (id != null) vm.addStep(id);
@@ -135,7 +143,7 @@ class _StepPickers extends StatelessWidget {
         decoration: InputDecoration(labelText: context.tr('other_steps')),
         items: [
           for (final s in otherOptions)
-            DropdownMenuItem(value: s.id, child: Text(s.label)),
+            DropdownMenuItem(value: s.id, child: Text(stepLabel(context, s))),
         ],
         onChanged: (id) {
           if (id != null) vm.addStep(id);
@@ -198,7 +206,7 @@ class _StepList extends StatelessWidget {
           key: ValueKey(id),
           index: index,
           id: id,
-          label: step?.label ?? id,
+          label: step == null ? context.tr(id) : stepLabel(context, step),
           missingDependency: missingDep,
           onRemove: () => vm.removeStep(index),
         );
@@ -274,3 +282,10 @@ class _StepRow extends StatelessWidget {
     );
   }
 }
+
+/// A step's display name. `GET /subscriptions/steps` sends only each step's
+/// `id` and `dependencies` — no label — so the name is the translation of the
+/// id (`cart` → "Cart", `auth.login-or-register` → "Login or Register"), as
+/// React shows it. A label the server does send wins.
+String stepLabel(BuildContext context, PaymentLinkStep step) =>
+    step.label.isNotEmpty ? step.label : context.tr(step.id);

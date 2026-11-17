@@ -158,10 +158,10 @@ void main() {
       );
       expect(find.byType(PartyContactRow), findsNWidgets(3));
       expect(find.text('Person 4'), findsNothing);
-      await tester.tap(find.text('+2 more'));
+      await tester.tap(find.text('Show 2 more'));
       await tester.pump();
       expect(find.byType(PartyContactRow), findsNWidgets(5));
-      await tester.tap(find.text('Less'));
+      await tester.tap(find.text('Show less'));
       await tester.pump();
       expect(find.byType(PartyContactRow), findsNWidgets(3));
     });
@@ -226,6 +226,25 @@ void main() {
       expect(inRows, findsNWidgets(2));
       expect(find.text('Sent'), findsOneWidget);
       expect(find.text('Viewed'), findsOneWidget);
+    });
+
+    testWidgets('a row\'s pill sits on its name line; the card offers no Add '
+        'and no clock', (tester) async {
+      await pumpCard(
+        tester,
+        const Invitation(
+          link: kPortalLink,
+          sentDate: '2000-01-02',
+          viewedDate: '2000-01-03',
+        ),
+      );
+      final name = tester.getRect(find.text('Jane Doe'));
+      final pill = tester.getRect(find.text('Viewed'));
+      final email = tester.getRect(find.text('jane@acme.example.com'));
+      expect((name.center.dy - pill.center.dy).abs(), lessThan(4));
+      expect(email.top, greaterThanOrEqualTo(name.bottom));
+      expect(find.text('Add'), findsNothing);
+      expect(find.textContaining(' local'), findsNothing);
     });
 
     testWidgets('no link yet, no link buttons', (tester) async {

@@ -13,7 +13,7 @@ import 'package:admin/app/theme.dart';
 import 'package:admin/data/db/app_database.dart';
 import 'package:admin/ui/core/list/entity_list_app_bar.dart';
 import 'package:admin/ui/core/list/generic_list_view_model.dart';
-import 'package:admin/ui/core/list/list_outstanding_line.dart';
+import 'package:admin/ui/core/list/list_totals_line.dart';
 import 'package:admin/ui/core/list/search/filter_suggestion_menu.dart';
 import 'package:admin/ui/core/list/search/filter_token_chip.dart';
 import 'package:admin/ui/core/list/search/token_search_field.dart';
@@ -320,7 +320,7 @@ void main() {
 
   headerTest('the outstanding line draws under the narrow title, and a wide '
       'header has no line at all', (tester) async {
-    const line = OutstandingLineText(
+    const line = TotalsLineText(
       key: Key('subtitle'),
       label: 'Outstanding',
       amounts: [r'$10.00', '€5.00'],

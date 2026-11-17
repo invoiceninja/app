@@ -29,7 +29,6 @@ import 'package:admin/ui/features/billing_shared/billing_edit_totals.dart';
 import 'package:admin/ui/features/billing_shared/contacts/billing_doc_contacts_section.dart';
 import 'package:admin/ui/features/billing_shared/detail/billing_doc_standing.dart';
 import 'package:admin/ui/features/billing_shared/edit/billing_doc_client_picker.dart';
-import 'package:admin/ui/features/billing_shared/edit/billing_doc_details_row.dart';
 import 'package:admin/ui/features/billing_shared/edit/billing_doc_date_order.dart';
 import 'package:admin/ui/features/billing_shared/edit/billing_doc_edit_desktop_shell.dart';
 import 'package:admin/ui/features/billing_shared/edit/billing_doc_edit_fab.dart';
@@ -40,7 +39,9 @@ import 'package:admin/ui/features/billing_shared/edit/billing_doc_settings_tab.d
 import 'package:admin/ui/features/billing_shared/edit/billing_doc_vendor_picker.dart';
 import 'package:admin/ui/features/billing_shared/edit/billing_edit_field_decoration.dart';
 import 'package:admin/ui/features/billing_shared/edit/billing_tax_surcharge_section.dart';
+import 'package:admin/ui/features/billing_shared/edit/e_invoice_fields_tab.dart';
 import 'package:admin/ui/features/billing_shared/edit/e_invoice_tab_gate.dart';
+import 'package:admin/ui/features/billing_shared/edit/field_with_side_control.dart';
 import 'package:admin/ui/features/billing_shared/edit/open_line_item_request.dart';
 import 'package:admin/ui/features/billing_shared/edit/save_default_helper.dart';
 import 'package:admin/ui/features/billing_shared/items/billing_doc_items_tabs.dart';
@@ -448,7 +449,9 @@ class _BillingDocEditLayoutState<T extends BillingDocFields>
     ),
     _Tab.eInvoice => BillingDocEditTab(
       label: context.tr('e_invoice'),
-      body: widget.slots.eInvoiceTab!(context),
+      // Its own tab here, so its fields go in the shared card; on the wide
+      // layout the same body is a sub-tab of the notes card, bare.
+      body: EInvoiceTabInCard(child: widget.slots.eInvoiceTab!(context)),
     ),
   };
 
@@ -526,7 +529,6 @@ class _BillingDocEditLayoutState<T extends BillingDocFields>
       totalsCard: FormSection(
         title: null,
         spacing: 0,
-        elevated: false,
         children: [
           _Totals<T>(
             type: _type,
@@ -703,9 +705,11 @@ Widget _customFields(
 ///
 /// Every field is one 44 px box under a label above it, the same height in
 /// every card, so the n-th fields of the three cards share a top. The cards
-/// share a height ([BillingDocDetailsRow]). Below the 1024 px body that
-/// builds this panel the editor is the tabbed layout, whose Details tab
-/// stacks the same fields.
+/// share a top and keep their own heights, as in 5.1.30: the dates and
+/// number cards end after their last field rather than stretching to the
+/// party card's contact list ("make each of the 3 panels shorter as
+/// before", 2026-11-17). Below the 1024 px body that builds this panel the
+/// editor is the tabbed layout, whose Details tab stacks the same fields.
 class _DetailsPanelDesktop<T extends BillingDocFields> extends StatefulWidget {
   const _DetailsPanelDesktop({
     required this.type,
@@ -769,9 +773,16 @@ class _DetailsPanelDesktopState<T extends BillingDocFields>
     // Always three across: this panel is built only from a 1024 px body
     // (below it the editor is the tabbed layout), so each card has at least
     // ~320 px — room for the discount and its switch side by side.
-    return BillingDocDetailsRow(
-      gap: InSpacing.lg(context),
-      children: [party, dates, number],
+    final gap = SizedBox(width: InSpacing.lg(context));
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(child: party),
+        gap,
+        Expanded(child: dates),
+        gap,
+        Expanded(child: number),
+      ],
     );
   }
 
@@ -781,7 +792,6 @@ class _DetailsPanelDesktopState<T extends BillingDocFields>
     key: key,
     title: null,
     spacing: 0,
-    elevated: false,
     children: [
       Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -935,11 +945,12 @@ Widget _withPaymentTerms(
     errorText: dueDate.errorText,
     helperText: dueDate.helperText,
     helper: dueDate.helper,
-    trailingAction: BillingDocPaymentTermsButton(
+    trailingAction: (context, slot) => BillingDocPaymentTermsButton(
       companyId: vm.companyId,
       date: vm.draft.date,
       formatter: fmt,
       onPicked: vm.setDueDate,
+      slot: slot,
     ),
   );
 }
@@ -1096,9 +1107,18 @@ class _PartyContactsState<T extends BillingDocFields>
           ],
         );
       }
+      // The narrow Contacts tab: in the shared card, inside the page gutter,
+      // like the Details tab (docs/form-fields.md § An edit screen's fields
+      // sit in the shared card). The rows pad themselves and paint their own
+      // hover, so the card adds only a little above and below them.
       return ListView(
-        padding: EdgeInsets.symmetric(vertical: InSpacing.lg(context)),
-        children: [list],
+        padding: EdgeInsets.all(InSpacing.lg(context)),
+        children: [
+          DashboardCardShell(
+            padding: const EdgeInsets.symmetric(vertical: InSpacing.sm),
+            child: list,
+          ),
+        ],
       );
     }
 
@@ -1147,17 +1167,13 @@ class _DiscountRow<T extends BillingDocFields> extends StatelessWidget {
   Widget build(BuildContext context) {
     final client = type.party == BillingDocParty.client;
     final fmt = context.read<Services>().formatterIfReady(vm.companyId);
-    // On touch the segments keep the 44 px target; with a pointer they have
-    // no floor of their own, so the field decides the height.
     final touch = Env.isTouchPrimary;
-    final segmentMin = touch
-        ? const Size(InSizes.touchTarget, InSizes.touchTarget)
-        : Size.zero;
-    // The label sits above the pair, and the pair shares one height: the
-    // toggle is stretched to whatever the field measures (which depends on
-    // platform density and text size), so the two read as one control. With
-    // the label over the field alone, centring left the toggle half a label
-    // too high and its own height a few pixels off the field's.
+    // The label sits above the pair, and the switch is exactly the field's
+    // box: same top, same height, whatever the platform density, the list
+    // density and the text scale make that (36–54 px). `FieldWithSideControl`
+    // measures the field and the segments are sized to it — a
+    // `SegmentedButton` cannot be stretched to a height (it paints its
+    // segments at their intrinsic one), which left a gap under the `$`.
     //
     // `padded: true`: `LabeledField` adds the 8 px above and below only for a
     // bare Material field it recognises, and this child is the row — so the
@@ -1166,66 +1182,70 @@ class _DiscountRow<T extends BillingDocFields> extends StatelessWidget {
     return LabeledField(
       label: context.tr('discount'),
       padded: true,
-      child: IntrinsicHeight(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(
-              child: TextField(
-                controller: controller,
-                decoration: desktop
-                    ? billingFieldDecoration(
-                        context,
-                        label: context.tr('discount'),
-                      )
-                    : InputDecoration(labelText: context.tr('discount')),
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
+      child: FieldWithSideControl(
+        field: TextField(
+          controller: controller,
+          decoration: desktop
+              ? billingFieldDecoration(context, label: context.tr('discount'))
+              : InputDecoration(labelText: context.tr('discount')),
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          onChanged: (v) =>
+              vm.setDiscount(v, isAmount: vm.draft.isAmountDiscount),
+          textInputAction: TextInputAction.done,
+          onSubmitted: _saveOnEnter(context),
+        ),
+        control: (context, height) => PartyCurrencyBuilder(
+          clientId: client ? vm.draft.clientId : null,
+          vendorId: client ? null : vm.draft.vendorId,
+          builder: (context, currencyId) {
+            final symbol = fmt?.currencySymbolFor(currencyId: currencyId) ?? '';
+            // The label carries the height: a `SegmentedButton` hands its
+            // segments only padding and density from `style` (never
+            // `minimumSize` / `fixedSize`), and a segment is at least 40 px
+            // plus the density's offset — so the vertical density is at its
+            // minimum (a 24 px floor) and each label is the field's height.
+            Widget sized(Widget label) => height == null
+                ? label
+                : SizedBox(
+                    height: height,
+                    child: Center(child: label),
+                  );
+            return SegmentedButton<bool>(
+              showSelectedIcon: false,
+              style: SegmentedButton.styleFrom(
+                visualDensity: VisualDensity(
+                  horizontal: touch ? 0 : -2,
+                  vertical: VisualDensity.minimumDensity,
                 ),
-                onChanged: (v) =>
-                    vm.setDiscount(v, isAmount: vm.draft.isAmountDiscount),
-                textInputAction: TextInputAction.done,
-                onSubmitted: _saveOnEnter(context),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                padding: EdgeInsets.symmetric(
+                  horizontal: InSpacing.md(context),
+                ),
               ),
-            ),
-            SizedBox(width: InSpacing.sm),
-            PartyCurrencyBuilder(
-              clientId: client ? vm.draft.clientId : null,
-              vendorId: client ? null : vm.draft.vendorId,
-              builder: (context, currencyId) {
-                final symbol =
-                    fmt?.currencySymbolFor(currencyId: currencyId) ?? '';
-                return SegmentedButton<bool>(
-                  showSelectedIcon: false,
-                  style: SegmentedButton.styleFrom(
-                    minimumSize: segmentMin,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    visualDensity: touch
-                        ? VisualDensity.standard
-                        : VisualDensity.compact,
+              segments: [
+                ButtonSegment(
+                  value: false,
+                  tooltip: context.tr('percent'),
+                  label: sized(
+                    Text('%', semanticsLabel: context.tr('percent')),
                   ),
-                  segments: [
-                    ButtonSegment(
-                      value: false,
-                      tooltip: context.tr('percent'),
-                      label: Text('%', semanticsLabel: context.tr('percent')),
-                    ),
-                    ButtonSegment(
-                      value: true,
-                      tooltip: context.tr('amount'),
-                      // No symbol until the statics load: the word stands in.
-                      label: symbol.isEmpty
-                          ? Text(context.tr('amount'))
-                          : Text(symbol, semanticsLabel: context.tr('amount')),
-                    ),
-                  ],
-                  selected: {vm.draft.isAmountDiscount},
-                  onSelectionChanged: (s) =>
-                      vm.setDiscount(controller.text, isAmount: s.first),
-                );
-              },
-            ),
-          ],
+                ),
+                ButtonSegment(
+                  value: true,
+                  tooltip: context.tr('amount'),
+                  // No symbol until the statics load: the word stands in.
+                  label: sized(
+                    symbol.isEmpty
+                        ? Text(context.tr('amount'))
+                        : Text(symbol, semanticsLabel: context.tr('amount')),
+                  ),
+                ),
+              ],
+              selected: {vm.draft.isAmountDiscount},
+              onSelectionChanged: (s) =>
+                  vm.setDiscount(controller.text, isAmount: s.first),
+            );
+          },
         ),
       ),
     );
@@ -1491,7 +1511,6 @@ class _NotesTabsCardDesktopState<T extends BillingDocFields>
     return FormSection(
       title: null,
       spacing: 0,
-      elevated: false,
       children: [
         TabBar(
           controller: _ctl,
@@ -1601,7 +1620,6 @@ class _PdfPaneDesktop<T extends BillingDocFields> extends StatelessWidget {
     return FormSection(
       title: null,
       spacing: 0,
-      elevated: false,
       children: [
         SizedBox(
           height: BillingDocEditDesktopShell.fullWidthPdfHeight(context),
@@ -2008,41 +2026,52 @@ class _NotesTab<T extends BillingDocFields> extends StatelessWidget {
       child: ListView(
         padding: EdgeInsets.all(InSpacing.lg(context)),
         children: [
-          MarkdownNotesField(
-            registerBeforeSaveHook: vm.addFlushHook,
-            label: context.tr('public_notes'),
-            value: vm.draft.publicNotes,
-            onChanged: vm.setPublicNotes,
-          ),
-          SizedBox(height: InSpacing.lg(context)),
-          MarkdownNotesField(
-            registerBeforeSaveHook: vm.addFlushHook,
-            label: context.tr('private_notes'),
-            value: vm.draft.privateNotes,
-            onChanged: vm.setPrivateNotes,
-          ),
-          SizedBox(height: InSpacing.lg(context)),
-          MarkdownNotesField(
-            registerBeforeSaveHook: vm.addFlushHook,
-            label: context.tr('terms'),
-            value: vm.draft.terms,
-            onChanged: vm.setTerms,
-            defaultValue: _cascadeText(vm, type.termsCascadeKey),
-            onSaveAsDefault: _saveAsDefault(context, type, vm, terms: true),
-          ),
-          SizedBox(height: InSpacing.lg(context)),
-          MarkdownNotesField(
-            registerBeforeSaveHook: vm.addFlushHook,
-            label: context.tr('footer'),
-            value: vm.draft.footer,
-            onChanged: vm.setFooter,
-            defaultValue: _cascadeText(vm, type.footerCascadeKey),
-            onSaveAsDefault: _saveAsDefault(context, type, vm, terms: false),
+          // One shared card around the four editors, like the Details tab's.
+          DashboardCardShell(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: _notesFields(context),
+            ),
           ),
         ],
       ),
     );
   }
+
+  List<Widget> _notesFields(BuildContext context) => [
+    MarkdownNotesField(
+      registerBeforeSaveHook: vm.addFlushHook,
+      label: context.tr('public_notes'),
+      value: vm.draft.publicNotes,
+      onChanged: vm.setPublicNotes,
+    ),
+    SizedBox(height: InSpacing.lg(context)),
+    MarkdownNotesField(
+      registerBeforeSaveHook: vm.addFlushHook,
+      label: context.tr('private_notes'),
+      value: vm.draft.privateNotes,
+      onChanged: vm.setPrivateNotes,
+    ),
+    SizedBox(height: InSpacing.lg(context)),
+    MarkdownNotesField(
+      registerBeforeSaveHook: vm.addFlushHook,
+      label: context.tr('terms'),
+      value: vm.draft.terms,
+      onChanged: vm.setTerms,
+      defaultValue: _cascadeText(vm, type.termsCascadeKey),
+      onSaveAsDefault: _saveAsDefault(context, type, vm, terms: true),
+    ),
+    SizedBox(height: InSpacing.lg(context)),
+    MarkdownNotesField(
+      registerBeforeSaveHook: vm.addFlushHook,
+      label: context.tr('footer'),
+      value: vm.draft.footer,
+      onChanged: vm.setFooter,
+      defaultValue: _cascadeText(vm, type.footerCascadeKey),
+      onSaveAsDefault: _saveAsDefault(context, type, vm, terms: false),
+    ),
+  ];
 }
 
 class _PdfTab<T extends BillingDocFields> extends StatelessWidget {

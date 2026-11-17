@@ -178,16 +178,6 @@ class RecurringInvoiceListViewModel
       apply: (id) => repo.stop(companyId: companyId, id: id),
     ),
     BulkAction<RecurringInvoice>(
-      id: 'run_template',
-      labelKey: 'run_template',
-      eligible: (r) => !isDeleted(r),
-      applyArg: (id, arg) => repo.runTemplate(
-        companyId: companyId,
-        id: id,
-        templateId: arg as String,
-      ),
-    ),
-    BulkAction<RecurringInvoice>(
       id: 'update_prices',
       labelKey: 'update_prices',
       eligible: (r) => !isDeleted(r),

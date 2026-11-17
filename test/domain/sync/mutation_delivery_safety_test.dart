@@ -69,6 +69,9 @@ void main() {
     MutationKind.runTemplate: idempotent, // PDF render only, never send_email
     MutationKind.updatePrices: idempotent,
     MutationKind.bulkUpdate: idempotent,
+    MutationKind.bulkCategorize: idempotent, // an absolute value
+    MutationKind.assignGroup: idempotent, // an absolute value
+    MutationKind.setTaxId: idempotent, // an absolute value
     MutationKind.setDefaultDesign: idempotent,
     MutationKind.uploadEInvoiceCertificate: idempotent,
     MutationKind.peppolUpdate: idempotent,

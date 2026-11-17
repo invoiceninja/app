@@ -191,7 +191,7 @@ void main() {
 
     final data = chartData(tester);
     for (final line in data.lineBarsData) {
-      // One point per slot, at the slot's centre: half a slot past each end.
+      // One point per slot; the lines run edge to edge.
       expect(line.spots.map((s) => s.x), [0, 1, 2]);
       // Smooth, but the curve may not overshoot — no dip below the baseline
       // or hump of money on a day that had none.
@@ -204,9 +204,16 @@ void main() {
       expect(dot(line.spots.last, line), isFalse);
       expect(dot(line.spots.first, line), isTrue);
     }
-    expect(data.minX, -0.5);
-    expect(data.maxX, 2.5);
+    expect(data.minX, 0);
+    expect(data.maxX, 2);
     expect(data.minY, 0);
+    // The lead series is shaded down to the axis, as in 5.1; the others are
+    // not, so overlapping fills never muddy each other.
+    expect(data.lineBarsData.first.belowBarData.show, isTrue);
+    expect(data.lineBarsData.first.belowBarData.gradient, isNotNull);
+    for (final line in data.lineBarsData.skip(1)) {
+      expect(line.belowBarData.show, isFalse);
+    }
   });
 
   group('Net received', () {

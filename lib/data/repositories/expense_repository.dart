@@ -336,6 +336,37 @@ class ExpenseRepository extends BaseEntityRepository<Expense, ExpenseApi>
     });
   }
 
+  /// Set [categoryId] on [expense] — the list's Change Category bulk action
+  /// (`POST /expenses/bulk action:bulk_categorize`), fired once per selected
+  /// expense like [bulkUpdate]: the patched row lands in Drift dirty so the
+  /// change shows at once and offline, then one `bulkCategorize` outbox row
+  /// per expense keeps every per-record rule (an `unconfirmed` row holds back
+  /// that record's later edits; a discard clears that record's dirty flag).
+  /// The server needs a real category (`ExpenseRepository::categorize` takes
+  /// an `int`), so an empty id is refused here rather than 500ing on drain.
+  Future<void> bulkCategorize({
+    required String companyId,
+    required Expense expense,
+    required String categoryId,
+  }) async {
+    if (categoryId.isEmpty) {
+      throw ArgumentError.value(categoryId, 'categoryId', 'must not be empty');
+    }
+    await db.transaction(() async {
+      final resolvedId = await resolveId(expense.id);
+      final patched = expense.copyWith(id: resolvedId, categoryId: categoryId);
+      await db.expenseDao.upsert(
+        _domainToCompanion(patched, companyId, isDirty: true),
+      );
+      await enqueueMutation(
+        companyId: companyId,
+        entityId: resolvedId,
+        kind: MutationKind.bulkCategorize,
+        payload: {'id': resolvedId, 'category_id': categoryId},
+      );
+    });
+  }
+
   /// Apply a design / email template to this expense. Mirrors
   /// `InvoiceRepository.runTemplate`.
   Future<void> runTemplate({

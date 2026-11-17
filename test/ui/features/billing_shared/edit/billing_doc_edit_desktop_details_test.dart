@@ -1,14 +1,19 @@
 // The wide billing editor's details: three cards across the top — the party,
-// the dates, the number — equal in width and height, and every field box at
-// one height so the n-th field of each card shares a top with its
-// neighbours'. The discount used to sit 8 px above the partial beside it
-// (Hillel, 2026-11-17: "keep 3 panels at the top, partial and deposit aren't
-// aligned").
+// the dates, the number — equal in width, sharing a top, each at its own
+// height (as 5.1.30 drew them), and every field box at one height so the
+// n-th field of each card shares a top with its neighbours'. The discount
+// used to sit 8 px above the partial beside it, and its % / $ switch painted
+// 8 px short of the box (Hillel, 2026-11-17: "keep 3 panels at the top,
+// partial and deposit aren't aligned", "there's a gap under the $ symbol",
+// "make each of the 3 panels shorter as before").
 
+import 'package:flutter/foundation.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:admin/app/design_tokens.dart';
+import 'package:admin/app/theme.dart';
+import 'package:admin/ui/core/list/list_density_scope.dart';
 import 'package:admin/ui/features/billing_shared/view_models/billing_doc_edit_view_model.dart';
 import 'package:admin/ui/features/invoices/view_models/invoice_edit_view_model.dart';
 
@@ -27,6 +32,9 @@ void main() {
     BillingDoc doc, {
     double width = 1440,
     void Function(GenericBillingDocEditViewModel<Object?> vm)? seed,
+    InTheme? tokens,
+    bool compactList = false,
+    double textScale = 1,
   }) async {
     setWindow(tester, width);
     final fixture = await buildFixture(
@@ -37,7 +45,23 @@ void main() {
     final mounted = buildLayout(doc, fixture.services, showPdfTab: true);
     addTearDown(mounted.vm.dispose);
     seed?.call(mounted.vm);
-    await tester.pumpWidget(wrapWithShell(fixture.services, mounted.layout));
+    await fixture.services.listDensity.setCompact(compactList);
+    // The app's own theme (its segmented-button and field themes), under the
+    // list density and text scale the field heights depend on.
+    final Widget layout = tokens == null
+        ? mounted.layout
+        : ListDensityScope(
+            controller: fixture.services.listDensity,
+            child: Builder(
+              builder: (context) => MediaQuery(
+                data: MediaQuery.of(
+                  context,
+                ).copyWith(textScaler: TextScaler.linear(textScale)),
+                child: Theme(data: buildInTheme(tokens), child: mounted.layout),
+              ),
+            ),
+          );
+    await tester.pumpWidget(wrapWithShell(fixture.services, layout));
     await settle(tester);
     return fixture;
   }
@@ -57,16 +81,23 @@ void main() {
   const timeout = Timeout(Duration(seconds: 60));
 
   for (final doc in BillingDoc.values) {
-    testWidgets('${doc.name}: three cards across the top, one height', (
-      tester,
-    ) async {
+    testWidgets('${doc.name}: three cards across the top, each its own '
+        'height', (tester) async {
       final fixture = await mount(tester, doc);
       final rects = [for (final k in _cards) tester.getRect(find.byKey(k))];
       for (final r in rects.skip(1)) {
         expect(r.top, rects.first.top, reason: 'the cards share a top');
-        expect(r.height, rects.first.height, reason: 'and a height');
         expect(r.width, moreOrLessEquals(rects.first.width, epsilon: 0.01));
       }
+      // Natural heights: each field card ends the same distance under its
+      // own last field — nothing stretches it to a neighbour's height.
+      double tail(int i) {
+        final last = labelsIn(tester, _cards[i]).last;
+        return rects[i].bottom - box(tester, last).bottom;
+      }
+
+      expect(tail(1), tail(2));
+      expect(tail(1), lessThan(64));
       // Start to end, never overlapping.
       expect(rects[0].right, lessThan(rects[1].left));
       expect(rects[1].right, lessThan(rects[2].left));
@@ -134,14 +165,63 @@ void main() {
         expect(r.top, first.top, reason: '$label level with ${row.first}');
       }
     }
-    // The % / amount switch sits beside the discount box, at its height.
-    final toggle = tester.getRect(find.byType(SegmentedButton<bool>));
-    final discount = box(tester, 'Discount');
-    expect(toggle.top, discount.top);
-    expect(toggle.height, discount.height);
-    expect(toggle.left, greaterThan(discount.right));
     await unmount(tester, fixture);
   }, timeout: timeout);
+
+  // The % / $ switch is the discount box's exact height, top and bottom.
+  // Measured on what is PAINTED — the segments — not the SegmentedButton's
+  // own box: under `IntrinsicHeight` + stretch the button's box was 44 px
+  // while its segments painted 32 (macOS, compact density), the gap under
+  // the `$`. The field itself is 36–54 px across these cases.
+  for (final platform in [TargetPlatform.macOS, TargetPlatform.android]) {
+    for (final (name, tokens) in [
+      ('light', InTheme.light),
+      ('dark', InTheme.dark),
+    ]) {
+      for (final compactList in [false, true]) {
+        for (final textScale in [1.0, 1.5]) {
+          testWidgets('${platform.name} $name, '
+              '${compactList ? 'Compact' : 'Comfortable'} list density, '
+              'text x$textScale: the switch fills the discount box', (
+            tester,
+          ) async {
+            debugDefaultTargetPlatformOverride = platform;
+            addTearDown(() => debugDefaultTargetPlatformOverride = null);
+            final fixture = await mount(
+              tester,
+              BillingDoc.invoice,
+              tokens: tokens,
+              compactList: compactList,
+              textScale: textScale,
+            );
+            final discount = box(tester, 'Discount');
+            expect(
+              discount.top,
+              box(tester, 'Partial/Deposit').top,
+              reason: 'level with the partial',
+            );
+            final toggle = find.byType(SegmentedButton<bool>);
+            final segments = find.descendant(
+              of: toggle,
+              matching: find.byType(TextButton),
+            );
+            expect(segments, findsNWidgets(2));
+            for (final r in [
+              tester.getRect(toggle),
+              for (final e in segments.evaluate())
+                tester.getRect(find.byWidget(e.widget)),
+            ]) {
+              expect(r.top, discount.top, reason: 'top');
+              expect(r.bottom, discount.bottom, reason: 'bottom');
+            }
+            expect(tester.getRect(toggle).left, greaterThan(discount.right));
+            await unmount(tester, fixture);
+            debugDefaultTargetPlatformOverride = null;
+          }, timeout: timeout);
+        }
+      }
+    }
+  }
 
   testWidgets('a partial adds its due date under it, in the dates card', (
     tester,
@@ -157,11 +237,17 @@ void main() {
       'Partial/Deposit',
       'Partial Due Date',
     ]);
-    // The cards still end on one line.
-    final heights = {
-      for (final k in _cards) tester.getRect(find.byKey(k)).height,
-    };
-    expect(heights, hasLength(1));
+    // The dates card grew by the new field; the number card did not — it
+    // still ends just under the discount, as far below it as the dates card
+    // ends below its own last field.
+    final dates = tester.getRect(find.byKey(_cards[1]));
+    final number = tester.getRect(find.byKey(_cards[2]));
+    expect(dates.top, number.top);
+    expect(dates.height, greaterThan(number.height));
+    expect(
+      number.bottom - box(tester, 'Discount').bottom,
+      dates.bottom - box(tester, 'Partial Due Date').bottom,
+    );
     await unmount(tester, fixture);
   }, timeout: timeout);
 }

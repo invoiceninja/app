@@ -2,7 +2,6 @@ import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/data/models/value/gateway.dart';
 import 'package:admin/l10n/localization.dart';
@@ -42,39 +41,37 @@ class _GatewayConfigFormState extends State<GatewayConfigForm> {
     final fields = widget.gateway.parsedFields;
     final values = widget.vm.draft.parsedConfig;
     final siteUrl = widget.gateway.siteUrl;
+    // In the Credentials card's header, where the keys it explains are —
+    // not a row of its own above the card. siteUrl is server-supplied
+    // (gateway catalog from /refresh): reject anything that isn't
+    // http/https before launching so a hostile catalog can't push
+    // javascript:/file:/intent: URIs.
+    final learnMore = isSafeWebUrl(siteUrl)
+        ? TextButton.icon(
+            style: TextButton.styleFrom(minimumSize: const Size(64, 40)),
+            onPressed: () => launchUrl(
+              Uri.parse(siteUrl),
+              mode: LaunchMode.externalApplication,
+            ),
+            icon: const Icon(Icons.open_in_new, size: 18),
+            label: Text(context.tr('learn_more')),
+          )
+        : null;
     return SettingsFormShell(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
-          // siteUrl is server-supplied (gateway catalog from /refresh).
-          // Reject anything that isn't http/https before launching so a
-          // hostile catalog can't push javascript:/file:/intent: URIs.
-          if (isSafeWebUrl(siteUrl)) ...[
-            Align(
-              alignment: AlignmentDirectional.centerStart,
-              child: OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(
-                  minimumSize: const Size(64, 40),
-                ),
-                onPressed: () => launchUrl(
-                  Uri.parse(siteUrl),
-                  mode: LaunchMode.externalApplication,
-                ),
-                icon: const Icon(Icons.open_in_new, size: 18),
-                label: Text(context.tr('learn_more')),
-              ),
-            ),
-            SizedBox(height: InSpacing.lg(context)),
-          ],
           if (fields.isEmpty)
             FormSection(
               title: context.tr('credentials'),
+              trailing: learnMore,
               children: [Text(context.tr('no_payment_types_enabled'))],
             )
           else
             FormSection(
               title: context.tr('credentials'),
+              trailing: learnMore,
               children: [
                 for (final entry in fields.entries)
                   _fieldWidget(entry.key, entry.value, values[entry.key]),

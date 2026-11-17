@@ -77,8 +77,8 @@ class EntityListAppBar<T> extends StatelessWidget
   static double minExtentFor({required bool wide}) =>
       wide ? InSizes.headerBand : kToolbarHeight + kNarrowSearchRowHeight;
 
-  /// A line under the narrow title — the outstanding totals on Clients and
-  /// Invoices (`ListOutstandingLine`). Null on every other list, and ignored
+  /// A line under the narrow title — a money list's totals
+  /// (`ListTotalsLine`). Null on every other list, and ignored
   /// by the wide header, which has no title. It draws nothing while its
   /// figure is unknown, so it may well take no height.
   final Widget? subtitle;
@@ -236,7 +236,7 @@ class EntityListAppBar<T> extends StatelessWidget
               _narrowSelectionToolbar(context),
             ],
           ),
-          // The outstanding line (Clients and Invoices), under the title and
+          // A money list's totals line, under the title and
           // above the search field. Draws nothing while its figure is unknown.
           if (subtitle != null)
             Padding(

@@ -167,6 +167,24 @@ class ExpenseListViewModel extends GenericListViewModel<Expense> {
         );
       },
     ),
+    // Change Category (React's `bulk_categorize`): the prep dialog supplies
+    // the category id. Same per-row shape and eligibility as `bulk_update`.
+    BulkAction<Expense>(
+      id: 'bulk_categorize',
+      labelKey: 'change_category',
+      eligible: (e) => !isDeleted(e),
+      applyArg: (id, arg) async {
+        final expense =
+            loadedItemById(id) ??
+            await repo.watch(companyId: companyId, id: id).first;
+        if (expense == null) throw StateError('No local expense $id');
+        await repo.bulkCategorize(
+          companyId: companyId,
+          expense: expense,
+          categoryId: arg as String,
+        );
+      },
+    ),
     // Selection-level (React #3382): the list screen's `onSelection` builds
     // one invoice from the whole selection; `eligible` drives the
     // empty-selection guard and the count handed to it.

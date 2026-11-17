@@ -16,6 +16,7 @@ import 'package:admin/ui/features/products/widgets/product_actions.dart';
 import 'package:admin/ui/features/products/widgets/product_group_by_button.dart';
 import 'package:admin/ui/features/products/widgets/product_list_tile.dart';
 import 'package:admin/ui/features/products/widgets/product_token_search_field.dart';
+import 'package:admin/ui/features/products/widgets/tax_category_dialog.dart';
 
 /// Products list screen — pure config + per-entity widgets. Mirrors
 /// [ClientListScreen]; the screen-level chrome lives in
@@ -166,7 +167,22 @@ class ProductListScreen extends StatelessWidget {
           pluralSuccessKey: 'deleted_products',
           nothingKey: 'nothing_to_delete',
         ),
+        EntityListBulkAction(
+          actionId: 'set_tax_category',
+          icon: Icons.percent,
+          tooltipKey: 'set_tax_category',
+          singleSuccessKey: 'updated_product',
+          pluralSuccessKey: 'updated_products',
+          nothingKey: 'nothing_to_update',
+          prepare: _showBulkTaxCategory,
+        ),
       ],
     );
   }
 }
+
+/// Top-level (not a closure) so it stays a const tear-off in `bulkActions`.
+/// No current value to default to across a selection, so it starts on the
+/// first category, as the single-product dialog does for an unset one.
+Future<String?> _showBulkTaxCategory(BuildContext context) =>
+    showTaxCategoryDialog(context, current: '');

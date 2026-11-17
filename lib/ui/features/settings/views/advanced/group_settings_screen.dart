@@ -16,9 +16,9 @@ import 'package:admin/ui/features/settings/widgets/settings_entity_list_scaffold
 const kGroupSettingsSearchKeys = <String>['groups', 'name'];
 
 /// `/settings/group_settings` — list every group with a leading "New group"
-/// affordance. Tapping a row opens the edit screen. A "Show archived" toggle
-/// surfaces archived groups so they stay restorable (the edit overflow can
-/// archive them).
+/// affordance. Tapping a row opens the group's record screen
+/// (`GroupSettingsDetailScreen`). A "Show archived" toggle surfaces archived
+/// groups so they stay restorable.
 class GroupSettingsScreen extends StatelessWidget {
   const GroupSettingsScreen({super.key});
 
@@ -63,8 +63,8 @@ class _GroupRow extends StatelessWidget {
   const _GroupRow({required this.group, super.key}) : _isArchived = false;
 
   /// Variant rendered inside the "Archived" section — swaps the trailing
-  /// chevron for a muted "Archived" pill. Tapping still opens the edit
-  /// screen, where the overflow menu offers Restore.
+  /// chevron for a muted "Archived" pill. Tapping still opens the record
+  /// screen, whose state banner offers Restore.
   const _GroupRow.archived({required this.group, super.key})
     : _isArchived = true;
 

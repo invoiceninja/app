@@ -6,6 +6,7 @@ import 'package:admin/data/db/dao/_payload_search.dart';
 
 import 'package:admin/data/db/app_database.dart';
 import 'package:admin/data/db/dao/base_entity_dao.dart';
+import 'package:admin/data/db/dao/list_totals_query.dart';
 import 'package:admin/data/db/dao/billing_extra_filters.dart';
 import 'package:admin/data/db/dao/entity_query_helpers.dart';
 import 'package:admin/data/db/tables/expenses_table.dart';
@@ -102,6 +103,20 @@ class ExpenseDao extends BaseEntityDao<$ExpensesTable, ExpenseRow>
   /// Windowed list watch. Filters: state (active/archived/deleted), free-text
   /// search across number + public_notes + private_notes (via payload JSON
   /// extract). Sort field is one of [ExpenseFieldIds].
+  /// Expenses waiting to be billed (docs/entity-lists.md § A money list's
+  /// totals line): marked to be invoiced and on no invoice yet — the Pending
+  /// tab's predicate — summed by amount in the expense's own currency. An
+  /// archived or deleted client's expenses are left out; one with no client
+  /// is kept.
+  @override
+  ListTotalsQuery? listTotalsQuery(String companyId) => ListTotalsQuery(
+    where:
+        expenseClientStatusFilter(expenses, 'pending')! &
+        clientActiveFilter(clientId: expenses.clientId, companyId: companyId),
+    amount: expenses.amount,
+    currency: expenses.currencyId,
+  );
+
   Stream<List<ExpenseRow>> watchPage({
     required String companyId,
     required int offset,

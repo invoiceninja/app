@@ -13,8 +13,8 @@ import 'package:flutter/foundation.dart';
 enum SettingsLevel {
   company,
 
-  /// Reserved for group-scope cascade — wire when group editing ships. The
-  /// override widgets already accept this value; no surface in the UI yet.
+  /// A group's settings — entered from the group's record screen
+  /// (Configure Settings, `configureGroupSettings`).
   group,
 
   client,
@@ -24,9 +24,9 @@ enum SettingsLevel {
 /// id of the entity being edited (null at company level). Provided at the
 /// settings shell root via `provider` so any settings page can read it.
 ///
-/// Today the company and client paths are reachable from the UI (sidebar
-/// scope switch); the group path exists so the override widgets compile
-/// and will render correctly when group editing surfaces a selector.
+/// The client level is entered from a client's Settings action, the group
+/// level from a group's Configure Settings; both go through [setLevel] and
+/// leave through the scope banner's close (or a company switch / sign-out).
 class SettingsLevelController extends ChangeNotifier {
   SettingsLevel _level = SettingsLevel.company;
   String? _targetId;

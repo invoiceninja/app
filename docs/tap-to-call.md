@@ -423,6 +423,15 @@ chrome can be sized on frame 1, and is allowed to be stale). Nothing moves when 
 appears a frame late, so a stale answer would buy nothing here. A one-minute ticker, armed only
 while something is actually shown, keeps a screen left open from displaying a stale clock.
 
+**On the record screen's Contacts cards the clock is said once, in the header**
+(`ContactLocalTime.header`, "5:38 AM local"), never per row: every contact of a client shares the
+client's timezone, so a card of six numbers printed the same time six times. Those rows pass
+`PhoneNumberValue(showLocalTime: false)`. **Vendor cards show no clock at all** — a vendor has no
+settings cascade, so the rows were printing the company's own time beside a vendor's number, which
+is the user's clock, not the callee's. The out-of-hours warning at the tap is unchanged
+(`docs/contacts-and-invitations.md` § The header counts visible contacts and says the client's
+local time once).
+
 `resolveContactTimezone` dedupes **in-flight** resolutions per `companyId/clientId`: a contacts card
 mounts one of these per contact in a single frame and they all share a client, so a client with
 eight contacts would otherwise run nine identical cascade walks, each a companies read plus a
@@ -638,3 +647,7 @@ logout wipe to avoid offering a note against a workspace the user has left.
 ## Email is the sibling action, and it is not a link either
 
 The client record screen's Call tile and its contact rows share one entry point, `pickAndCallPhone` (`lib/ui/core/widgets/party_call_button.dart`), extracted from the list-row call button so a tile, a row and a header button all get the same picker, confirm prompt, out-of-hours warning and call log. Email mirrors it: `pickAndComposeEmail` → `composeEmail` (`lib/ui/core/utils/mail_actions.dart`) launches `mailto:` and, like `tel:`, deliberately does not go through `isSafeWebUrl`. What stands in for that check is `cleanEmailAddress` — one address, no `?`, `,`, `;`, `%`, whitespace, double quotes or angle brackets — because the address is user data and `mailto:a@b.c?bcc=…` is how a stored value would add recipients. An `&` in the local part is accepted (`r&d@acme.com` is a real address) and sent as `%26`. A failed launch copies the address and says so; on **web**, where the launcher reports success whatever happens, the address is copied as well as launched. The manifest carries `mailto` in `<queries>` as belt-and-braces, pinned by `android_url_queries_test`. The address itself stays plain copyable text on the row — see `docs/detail-screen-layout.md` § Every value is an action.
+
+## A phone number is reformatted for display only
+
+**`PhoneNumberValue` shows `formatPhoneForDisplay(phone, regionIso:)` (`lib/utils/phone_display.dart`, `phone_numbers_parser`) and keeps the stored text for everything else — the dial and the SMS go through `telUri` / `cleanPhoneNumber`, and the copy writes `phone`, exactly as before.** The region is the party's `country_id` (client or vendor) resolved to ISO 3166 through statics, else the company's (`phoneDisplayRegion`). A valid number in that country is written nationally — with its national prefix, which the library's own national format leaves off, so `_national` applies the country's `nationalPrefixFormattingRule` (`020 7946 0958`, `(02) 9876 5432`; this is why the file imports the library's format-rule models from `src/`, the only place those types live) — and any other valid number internationally (`+44 20 7946 0958`). **The stored text comes back verbatim whenever there is doubt:** anything but digits and `+ ( ) . - /` and spaces (an extension, `x 22`, `ext.`, a `,` / `;` pause, `#`, letters), a parse failure, an invalid number, and a number with no `+` when there is no region to read it in. The semantics label reads the displayed form. Other `PhoneNumberValue` call sites (a user's own number on the user screen) get the company's country as the region; `PhoneDetailRow` (a client's or vendor's own phone in its Details card) is not reformatted yet. The package is pure Dart (MIT, every platform), so the F-Droid build takes it unchanged; its entry is in `tools/foss/pubspec.lock` (`tools/prepare_foss.sh --update-lock`). Pinned by `test/utils/phone_display_test.dart` and the card tests.

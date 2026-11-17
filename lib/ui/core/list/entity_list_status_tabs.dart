@@ -6,6 +6,7 @@ import 'package:admin/app/env.dart';
 import 'package:admin/domain/list_status_tabs.dart';
 import 'package:admin/domain/sidebar_badge_modes.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/core/widgets/trailing_if_room.dart';
 import 'package:admin/ui/features/shell/widgets/sidebar_badge.dart';
 
 /// What the list scaffold should do with the status strip this frame.
@@ -107,6 +108,7 @@ class EntityListStatusTabs extends StatefulWidget {
     this.enabled = true,
     this.wrap = false,
     this.dense = false,
+    this.trailing,
     super.key,
   });
 
@@ -170,6 +172,13 @@ class EntityListStatusTabs extends StatefulWidget {
   /// widget and is out of the density's scope, never picks it up. The touch
   /// floor still applies.
   final bool dense;
+
+  /// Shown at the end of the strip's row only while it fits after the tabs
+  /// ([TrailingIfRoom]) — a wide list's totals line (docs/entity-lists.md
+  /// § A money list's totals line). It never pushes or squeezes a tab: when
+  /// the tabs need the row, it is simply not drawn. Ignored by the [wrap]
+  /// layout. Brings its own end padding.
+  final Widget? trailing;
 
   @override
   State<EntityListStatusTabs> createState() => _EntityListStatusTabsState();
@@ -335,63 +344,65 @@ class _EntityListStatusTabsState extends State<EntityListStatusTabs> {
           // `ScrollController` listener: `applyContentDimensions` only schedules
           // a `ScrollMetricsNotification`. Without this the strip keeps whichever
           // fades the previous width called for.
-          NotificationListener<ScrollMetricsNotification>(
-            onNotification: (_) {
-              if (mounted) setState(() {});
-              return false;
-            },
-            child: Stack(
-              children: [
-                SingleChildScrollView(
-                  controller: _scroll,
-                  scrollDirection: Axis.horizontal,
-                  padding: widget.contentPadding,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: _buttons(tokens),
-                  ),
-                ),
-                // Fades hinting that more tabs scroll off-screen, GATED on the
-                // scroll position — the same shape `EntityDetailTabs` uses.
-                // Unconditional, the trailing one veils the last tab's own count
-                // badge as soon as the strip reaches its end: the scroller has no
-                // trailing `contentPadding`, and the badge is the tab's last child
-                // behind only `InSpacing.md` (8 px on a phone), so it sits inside
-                // the 24 px gradient. Reachable by flicking the strip, and by a
-                // `badge_mode` restored from `nav_state` naming the last tab —
-                // `_revealSelection` clamps to `maxScrollExtent` and parks it
-                // flush against that edge. The leading fade was missing outright,
-                // so a scrolled strip gave no hint that "All" was off-screen.
-                Positioned.fill(
-                  child: IgnorePointer(
-                    child: AnimatedBuilder(
-                      animation: _scroll,
-                      builder: (context, _) {
-                        // `hasContentDimensions`, not just `hasClients`: the
-                        // position attaches on the first build but its extents
-                        // only exist after layout, and reading one early throws a
-                        // null check straight out of
-                        // `ScrollPosition.minScrollExtent`.
-                        final p =
-                            _scroll.hasClients &&
-                                _scroll.position.hasContentDimensions
-                            ? _scroll.position
-                            : null;
-                        final atStart =
-                            p == null || p.pixels <= p.minScrollExtent;
-                        final atEnd =
-                            p == null || p.pixels >= p.maxScrollExtent;
-                        return Stack(
-                          children: [
-                            if (!atStart) _edgeFade(tokens, leading: true),
-                            if (!atEnd) _edgeFade(tokens, leading: false),
-                          ],
-                        );
-                      },
+          _withTrailing(
+            NotificationListener<ScrollMetricsNotification>(
+              onNotification: (_) {
+                if (mounted) setState(() {});
+                return false;
+              },
+              child: Stack(
+                children: [
+                  SingleChildScrollView(
+                    controller: _scroll,
+                    scrollDirection: Axis.horizontal,
+                    padding: widget.contentPadding,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: _buttons(tokens),
                     ),
                   ),
-                ),
-              ],
+                  // Fades hinting that more tabs scroll off-screen, GATED on the
+                  // scroll position — the same shape `EntityDetailTabs` uses.
+                  // Unconditional, the trailing one veils the last tab's own count
+                  // badge as soon as the strip reaches its end: the scroller has no
+                  // trailing `contentPadding`, and the badge is the tab's last child
+                  // behind only `InSpacing.md` (8 px on a phone), so it sits inside
+                  // the 24 px gradient. Reachable by flicking the strip, and by a
+                  // `badge_mode` restored from `nav_state` naming the last tab —
+                  // `_revealSelection` clamps to `maxScrollExtent` and parks it
+                  // flush against that edge. The leading fade was missing outright,
+                  // so a scrolled strip gave no hint that "All" was off-screen.
+                  Positioned.fill(
+                    child: IgnorePointer(
+                      child: AnimatedBuilder(
+                        animation: _scroll,
+                        builder: (context, _) {
+                          // `hasContentDimensions`, not just `hasClients`: the
+                          // position attaches on the first build but its extents
+                          // only exist after layout, and reading one early throws a
+                          // null check straight out of
+                          // `ScrollPosition.minScrollExtent`.
+                          final p =
+                              _scroll.hasClients &&
+                                  _scroll.position.hasContentDimensions
+                              ? _scroll.position
+                              : null;
+                          final atStart =
+                              p == null || p.pixels <= p.minScrollExtent;
+                          final atEnd =
+                              p == null || p.pixels >= p.maxScrollExtent;
+                          return Stack(
+                            children: [
+                              if (!atStart) _edgeFade(tokens, leading: true),
+                              if (!atEnd) _edgeFade(tokens, leading: false),
+                            ],
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
           Divider(height: 1, thickness: 1, color: tokens.border),
@@ -399,6 +410,13 @@ class _EntityListStatusTabsState extends State<EntityListStatusTabs> {
       ),
     );
   }
+
+  /// The tabs, with [EntityListStatusTabs.trailing] after them while it fits.
+  /// Always the one [TrailingIfRoom], a null trailing included: the tabs'
+  /// scroller must keep its place in the tree, or a line arriving would
+  /// remount it while the old one still holds the scroll controller.
+  Widget _withTrailing(Widget tabs) =>
+      TrailingIfRoom(lead: tabs, trailing: widget.trailing);
 
   /// A gradient hinting that more tabs lie beyond one edge.
   ///

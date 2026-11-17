@@ -47,6 +47,8 @@ class PurchaseOrderListScreen extends StatelessWidget {
       titleKey: 'purchase_orders',
       newRoute: '/purchase_orders/new',
       newLabelKey: 'new_purchase_order',
+      // The company-wide figure, so never over a scoped list.
+      showListTotals: vid == null,
       embeddedNewOverride: vid == null
           ? null
           : (ctx) => goEntityCreateFullWidth(

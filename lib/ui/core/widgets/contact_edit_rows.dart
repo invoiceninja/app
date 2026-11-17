@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:material_ui/material_ui.dart';
 
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/domain/contact_email_mode.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/core/edit/add_contact_request.dart';
 import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/initials_avatar.dart';
 import 'package:admin/ui/core/widgets/ltr_value.dart';
@@ -53,9 +56,14 @@ class ContactEditRows extends StatefulWidget {
     required this.fieldsBuilder,
     required this.onMakePrimary,
     required this.onDelete,
+    this.reveal,
   });
 
   final List<ContactRowData> contacts;
+
+  /// Scroll this row into view once it is laid out — on mount, and whenever
+  /// a new [ContactReveal] arrives.
+  final ContactReveal? reveal;
 
   /// The open row's fields, for the contact at an index. The row adds its own
   /// header above and its Make primary / Remove buttons below.
@@ -77,6 +85,47 @@ class _ContactEditRowsState extends State<ContactEditRows> {
   /// they have closed the open row themselves.
   String? _openKey;
   bool _chosen = false;
+
+  /// One key per row, so [ContactEditRows.reveal] can find the row's context.
+  /// Global rather than the `ValueKey` they replace, with the same identity —
+  /// a row's key follows its contact either way.
+  final Map<String, GlobalKey> _rowKeys = {};
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.reveal != null) _revealAfterLayout();
+  }
+
+  @override
+  void didUpdateWidget(covariant ContactEditRows oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.reveal != null && !identical(widget.reveal, oldWidget.reveal)) {
+      _revealAfterLayout();
+    }
+  }
+
+  void _revealAfterLayout() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final index = widget.reveal?.index;
+      final contacts = widget.contacts;
+      if (!mounted || index == null || index < 0 || index >= contacts.length) {
+        return;
+      }
+      final target =
+          _rowKeys[contactRowKey(contacts[index].id, index)]?.currentContext;
+      if (target == null) return;
+      unawaited(
+        Scrollable.ensureVisible(
+          target,
+          // Near the top, so the open row's fields read down from it.
+          alignment: 0.1,
+          duration: InMotion.of(target)(InMotion.base),
+          curve: InMotion.move,
+        ),
+      );
+    });
+  }
 
   bool _isOpen(int i) {
     final contacts = widget.contacts;
@@ -122,7 +171,10 @@ class _ContactEditRowsState extends State<ContactEditRows> {
         for (var i = 0; i < contacts.length; i++) ...[
           if (i > 0) Divider(height: 1, thickness: 1, color: tokens.border),
           _ContactRow(
-            key: ValueKey(contactRowKey(contacts[i].id, i)),
+            key: _rowKeys.putIfAbsent(
+              contactRowKey(contacts[i].id, i),
+              GlobalKey.new,
+            ),
             index: i,
             contact: contacts[i],
             open: _isOpen(i),

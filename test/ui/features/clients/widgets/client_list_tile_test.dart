@@ -13,7 +13,9 @@ import 'package:admin/data/models/value/company_format_settings.dart';
 import 'package:admin/data/models/value/currency.dart';
 import 'package:admin/data/models/value/datetime_format.dart';
 import 'package:admin/domain/columns/client_columns.dart';
+import 'package:admin/domain/columns/column_cells.dart';
 import 'package:admin/ui/features/clients/widgets/client_list_tile.dart';
+import 'package:admin/ui/features/clients/widgets/overdue_clients_scope.dart';
 import 'package:admin/utils/formatting.dart';
 
 import '../../../../_responsive_helper.dart';
@@ -330,18 +332,22 @@ void main() {
       bool wide = false,
       List<ClientColumn> columns = const <ClientColumn>[],
       double width = 390,
+      Set<String> overdue = const {},
     }) => pumpAt(
       tester,
       width,
       Provider<Services>.value(
         value: services,
-        child: ClientListTile(
-          client: c,
-          formatter: withFormatter ? formatter : null,
-          wide: wide,
-          columns: columns,
-          onAction: (_) {},
-          onTap: () {},
+        child: OverdueClientsScope(
+          clientIds: overdue,
+          child: ClientListTile(
+            client: c,
+            formatter: withFormatter ? formatter : null,
+            wide: wide,
+            columns: columns,
+            onAction: (_) {},
+            onTap: () {},
+          ),
         ),
       ),
     );
@@ -416,17 +422,63 @@ void main() {
       expect(style?.fontWeight, FontWeight.w400);
     });
 
-    testWidgets('a balance owed is semibold ink, never the overdue red', (
+    testWidgets('a balance owed with nothing late is semibold ink, not red', (
       tester,
     ) async {
       // The desktop Balance column's emphasis (`client_columns.dart`): a
-      // balance is not late, so red claimed something the row cannot know.
-      await pumpMoney(tester, moneyClient(balance: '1200.00'));
+      // balance is not late by itself.
+      await pumpMoney(
+        tester,
+        moneyClient(balance: '1200.00'),
+        overdue: const {'someone-else'},
+      );
 
       final style = tester.widget<Text>(find.text(r'$1,200.00')).style;
       expect(style?.color, InTheme.light.ink);
       expect(style?.fontWeight, FontWeight.w600);
     });
+
+    testWidgets('a balance with an overdue invoice behind it is red — the '
+        'Overdue tab\'s predicate (OverdueClientsScope)', (tester) async {
+      await pumpMoney(
+        tester,
+        moneyClient(balance: '1200.00'),
+        overdue: const {'c1'},
+      );
+
+      final style = tester.widget<Text>(find.text(r'$1,200.00')).style;
+      expect(style?.color, InTheme.light.overdue);
+      expect(style?.fontWeight, FontWeight.w600);
+    });
+
+    testWidgets(
+      'the wide Balance cell is red exactly when the client is late',
+      (tester) async {
+        final balance = [clientColumnsById[ClientFieldIds.balance]!];
+        for (final (late, ink) in [
+          (false, InTheme.light.ink),
+          (true, InTheme.light.overdue),
+        ]) {
+          await pumpMoney(
+            tester,
+            moneyClient(balance: '1200.00'),
+            wide: true,
+            width: 1200,
+            columns: balance,
+            overdue: late ? const {'c1'} : const {},
+          );
+          final cell = tester.widget<MoneyCellText>(find.byType(MoneyCellText));
+          expect(cell.overdue, late);
+          final text = tester.widget<Text>(
+            find.descendant(
+              of: find.byType(MoneyCellText),
+              matching: find.byType(Text),
+            ),
+          );
+          expect(text.style?.color, ink, reason: 'late: $late');
+        }
+      },
+    );
 
     testWidgets('renders nothing while the formatter is still resolving', (
       tester,

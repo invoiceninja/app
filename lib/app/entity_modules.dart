@@ -13,8 +13,10 @@ import 'package:admin/domain/sidebar_badge_modes.dart';
 import 'package:admin/domain/sync/mutation.dart';
 import 'package:admin/domain/sync/sync_dispatcher.dart';
 import 'package:admin/domain/tasks/tasks_view_mode.dart';
+import 'package:admin/ui/core/edit/add_contact_request.dart';
 import 'package:admin/ui/core/list/deep_link_filter_intent.dart';
 import 'package:admin/ui/features/bank_accounts/views/bank_account_detail_screen.dart';
+import 'package:admin/ui/features/group_settings/group_settings_detail_screen.dart';
 import 'package:admin/ui/features/clients/views/client_detail_screen.dart';
 import 'package:admin/ui/features/clients/views/client_edit_screen.dart';
 import 'package:admin/ui/features/clients/views/client_list_screen.dart';
@@ -189,8 +191,11 @@ final kWiredEntityModules = <EntityModuleSpec>[
     createBuilder: (context, state) => const ClientEditScreen(),
     detailBuilder: (context, state) =>
         ClientDetailScreen(id: state.pathParameters['id']!),
-    editBuilder: (context, state) =>
-        ClientEditScreen(existingId: state.pathParameters['id']),
+    editBuilder: (context, state) => ClientEditScreen(
+      existingId: state.pathParameters['id'],
+      // The record screen's Contacts card "+ Add".
+      addContact: AddContactRequest.of(state.extra),
+    ),
     extraChildRoutes: [
       GoRoute(
         path: 'statement',
@@ -310,6 +315,12 @@ final kWiredEntityModules = <EntityModuleSpec>[
       MutationKind.delete,
       MutationKind.documentDelete,
     },
+    // Registers no route (no branch — the settings router owns
+    // `/settings/group_settings/:id`); declared so `entityRecordPath`, and
+    // with it the shared link, points at the record screen, not the editor.
+    // See the bank-account entry below.
+    detailBuilder: (context, state) =>
+        GroupSettingsDetailScreen(id: state.pathParameters['id']!),
   ),
   // DI: wireEntity<TaskStatusItemApi, TaskStatusApi>(...) in lib/app/services.dart.
   EntityModuleSpec(
@@ -418,8 +429,11 @@ final kWiredEntityModules = <EntityModuleSpec>[
     ),
     detailBuilder: (context, state) =>
         VendorDetailScreen(id: state.pathParameters['id']!),
-    editBuilder: (context, state) =>
-        VendorEditScreen(existingId: state.pathParameters['id']),
+    editBuilder: (context, state) => VendorEditScreen(
+      existingId: state.pathParameters['id'],
+      // The record screen's Contacts card "+ Add".
+      addContact: AddContactRequest.of(state.extra),
+    ),
     badgeStream: (ctx, companyId, modeId) =>
         ctx.watchEntityCount(EntityType.vendor, companyId, modeId: modeId),
     badgeModes: kVendorBadgeModes,

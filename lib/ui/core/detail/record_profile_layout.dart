@@ -2,6 +2,7 @@ import 'package:material_ui/material_ui.dart';
 
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/ui/core/adaptive.dart';
+import 'package:admin/ui/core/detail/profile_card_width.dart';
 import 'package:admin/ui/core/widgets/detail_row_columns.dart';
 
 /// How many lead cards share one row before another row starts. Three equal
@@ -47,17 +48,33 @@ class RecordProfileLayout extends StatelessWidget {
     final gap = SizedBox(height: InSpacing.md(context));
     return LayoutBuilder(
       builder: (context, constraints) {
-        final wide = constraints.maxWidth >= Breakpoints.entityFormMultiColumn;
+        final width = constraints.maxWidth;
+        final wide = width >= Breakpoints.entityFormMultiColumn;
+        // Each card is told its width (`ProfileCardWidthScope`) — the one
+        // thing a card in a levelled row cannot measure for itself.
+        Widget sized(Widget card, double w) =>
+            ProfileCardWidthScope(width: w, child: card);
         final rows = <Widget>[
           if (!wide)
-            ...lead
+            for (final card in lead) sized(card, width)
           else if (lead.length == 1)
             // Nothing to share the row with: it takes the width, and is told
             // it may run its rows in two columns so it does not become one
             // column of values against a window of blank card.
-            DetailRowColumnsScope(columns: 2, child: lead.single)
+            DetailRowColumnsScope(columns: 2, child: sized(lead.single, width))
           else
-            for (final cards in _balanced(lead)) _row(context, cards),
+            for (final cards in _balanced(lead))
+              _row(context, [
+                for (final card in cards)
+                  sized(
+                    card,
+                    ProfileCardWidthScope.share(
+                      width,
+                      cards.length,
+                      InSpacing.md(context),
+                    ),
+                  ),
+              ]),
           ...tail,
         ];
         return Column(

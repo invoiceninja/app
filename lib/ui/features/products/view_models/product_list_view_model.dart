@@ -382,13 +382,33 @@ class ProductListViewModel extends GenericListViewModel<Product> {
   Future<void> refreshAll() => repo.refreshAll(companyId: companyId);
 
   @override
-  Iterable<BulkAction<Product>> get bulkActions => standardCrudBulkActions(
-    isArchived: isArchived,
-    isDeleted: isDeleted,
-    archive: (id) => repo.archive(companyId: companyId, id: id),
-    restore: (id) => repo.restore(companyId: companyId, id: id),
-    delete: (id) => repo.delete(companyId: companyId, id: id),
-  );
+  Iterable<BulkAction<Product>> get bulkActions => [
+    ...standardCrudBulkActions(
+      isArchived: isArchived,
+      isDeleted: isDeleted,
+      archive: (id) => repo.archive(companyId: companyId, id: id),
+      restore: (id) => repo.restore(companyId: companyId, id: id),
+      delete: (id) => repo.delete(companyId: companyId, id: id),
+    ),
+    // Set Tax Category (v1's multiselect `set_tax_id`): the prep dialog
+    // supplies the category id ('1'–'9').
+    BulkAction<Product>(
+      id: 'set_tax_category',
+      labelKey: 'set_tax_category',
+      eligible: (p) => !isDeleted(p),
+      applyArg: (id, arg) async {
+        final product =
+            loadedItemById(id) ??
+            await repo.watch(companyId: companyId, id: id).first;
+        if (product == null) throw StateError('No local product $id');
+        await repo.setTaxCategory(
+          companyId: companyId,
+          product: product,
+          taxId: arg as String,
+        );
+      },
+    ),
+  ];
 
   // ── Grouping ────────────────────────────────────────────────────────
 

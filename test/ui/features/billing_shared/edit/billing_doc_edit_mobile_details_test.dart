@@ -11,6 +11,9 @@ import 'package:admin/data/models/domain/billing/line_item.dart';
 import 'package:admin/data/models/domain/invoice.dart';
 import 'package:admin/data/models/domain/payment_term.dart';
 import 'package:admin/data/models/value/date.dart';
+import 'package:admin/app/design_tokens.dart';
+import 'package:admin/app/theme.dart';
+import 'package:admin/ui/core/list/list_density_scope.dart';
 import 'package:admin/ui/features/billing_shared/edit/billing_doc_payment_terms_button.dart';
 import 'package:admin/ui/features/billing_shared/view_models/billing_doc_edit_view_model.dart';
 import 'package:admin/ui/features/invoices/view_models/invoice_edit_view_model.dart';
@@ -26,6 +29,8 @@ void main() {
     double width = 390,
     List<PaymentTermApi> terms = const [],
     void Function(GenericBillingDocEditViewModel<Object?> vm)? seed,
+    bool compactList = false,
+    Widget Function(Widget layout)? wrap,
   }) async {
     setWindow(tester, width);
     final fixture = await buildFixture(
@@ -46,7 +51,12 @@ void main() {
     );
     addTearDown(mounted.vm.dispose);
     seed?.call(mounted.vm);
-    await tester.pumpWidget(wrapWithShell(fixture.services, mounted.layout));
+    await fixture.services.listDensity.setCompact(compactList);
+    final layout = ListDensityScope(
+      controller: fixture.services.listDensity,
+      child: wrap?.call(mounted.layout) ?? mounted.layout,
+    );
+    await tester.pumpWidget(wrapWithShell(fixture.services, layout));
     await settle(tester);
     return (fixture: fixture, vm: mounted.vm);
   }
@@ -163,6 +173,143 @@ void main() {
       expect((m.vm.draft as Invoice).dueDate, Date(2026, 3, 31));
       await unmount(tester, m.fixture);
     }, timeout: timeout);
+
+    /// The due date's outlined box, and the icon buttons inside it.
+    Finder dueBox() => find.byWidgetPredicate(
+      (w) => w is InputDecorator && w.decoration.labelText == 'Due Date',
+    );
+    Finder inBox(IconData icon) => find.descendant(
+      of: dueBox(),
+      matching: find.widgetWithIcon(IconButton, icon),
+    );
+    final termsButton = find.widgetWithIcon(
+      IconButton,
+      Icons.event_repeat_outlined,
+    );
+
+    testWidgets('narrow: one icon in the field, the terms on the label line', (
+      tester,
+    ) async {
+      final m = await mount(tester, BillingDoc.invoice, terms: terms);
+      expect(
+        find.descendant(of: dueBox(), matching: find.byType(IconButton)),
+        findsOneWidget,
+        reason: 'only the calendar inside the field',
+      );
+      expect(inBox(Icons.date_range), findsOneWidget);
+      expect(termsButton, findsOneWidget);
+      final box = tester.getRect(dueBox());
+      final button = tester.getRect(termsButton);
+      final label = tester.getRect(
+        find.byWidgetPredicate(
+          (w) =>
+              w is RichText &&
+              w.maxLines == 1 &&
+              w.text.toPlainText() == 'Due Date',
+        ),
+      );
+      // At the end of the label's line, its icon centred on the label.
+      expect(button.right, box.right);
+      final icon = tester.getRect(
+        find.descendant(
+          of: termsButton,
+          matching: find.byIcon(Icons.event_repeat_outlined),
+        ),
+      );
+      expect(icon.center.dy, moreOrLessEquals(label.center.dy, epsilon: 3));
+      expect(icon.bottom, lessThanOrEqualTo(box.top));
+      // The touch square (44 px under `flutter test`'s Android).
+      expect(button.size, const Size.square(InSizes.touchTarget));
+      // No extra row: the due date's box stays level with the date's.
+      final dateBox = tester.getRect(
+        find.byWidgetPredicate(
+          (w) =>
+              w is InputDecorator && w.decoration.labelText == 'Invoice Date',
+        ),
+      );
+      expect(box.top, dateBox.top);
+      // The whole hint shows.
+      expect(tester.getSize(dueBox()).width, greaterThan(0));
+      await unmount(tester, m.fixture);
+    }, timeout: timeout);
+
+    testWidgets('wide: both icons in the field', (tester) async {
+      final m = await mount(
+        tester,
+        BillingDoc.invoice,
+        terms: terms,
+        width: 1440,
+      );
+      expect(inBox(Icons.event_repeat_outlined), findsOneWidget);
+      expect(inBox(Icons.date_range), findsOneWidget);
+      await unmount(tester, m.fixture);
+    }, timeout: timeout);
+
+    testWidgets('narrow at Compact: the calendar is a menu of the picker '
+        'and the terms', (tester) async {
+      final m = await mount(
+        tester,
+        BillingDoc.invoice,
+        terms: terms,
+        compactList: true,
+        seed: (vm) => (vm as InvoiceEditViewModel).setDate(Date(2026, 3, 1)),
+      );
+      expect(
+        find.descendant(of: dueBox(), matching: find.byType(IconButton)),
+        findsOneWidget,
+      );
+      expect(termsButton, findsNothing);
+      await tester.tap(inBox(Icons.date_range));
+      await settle(tester);
+      expect(find.text('Select date'), findsWidgets);
+      await tester.tap(find.text('Net 30'));
+      await settle(tester);
+      expect((m.vm.draft as Invoice).dueDate, Date(2026, 3, 31));
+      await unmount(tester, m.fixture);
+    }, timeout: timeout);
+
+    // 2x text is pinned on the field alone (in_date_field_test): mounted
+    // whole, the editor's Settings tab overflows at 2x in its scope banner,
+    // which is not this field.
+    for (final (name, rtl, dark, scale) in [
+      ('RTL', true, false, 1.0),
+      ('dark', false, true, 1.0),
+      ('RTL dark', true, true, 1.0),
+    ]) {
+      testWidgets('narrow, $name: the terms at the label line\'s end', (
+        tester,
+      ) async {
+        final m = await mount(
+          tester,
+          BillingDoc.invoice,
+          terms: terms,
+          wrap: (layout) => Directionality(
+            textDirection: rtl ? TextDirection.rtl : TextDirection.ltr,
+            child: Builder(
+              builder: (context) => MediaQuery(
+                data: MediaQuery.of(
+                  context,
+                ).copyWith(textScaler: TextScaler.linear(scale)),
+                child: Theme(
+                  data: buildInTheme(dark ? InTheme.dark : InTheme.light),
+                  child: layout,
+                ),
+              ),
+            ),
+          ),
+        );
+        expect(tester.takeException(), isNull);
+        expect(
+          find.descendant(of: dueBox(), matching: find.byType(IconButton)),
+          findsOneWidget,
+        );
+        final box = tester.getRect(dueBox());
+        final button = tester.getRect(termsButton);
+        expect(rtl ? button.left : button.right, rtl ? box.left : box.right);
+        expect(button.top, lessThan(box.top));
+        await unmount(tester, m.fixture);
+      }, timeout: timeout);
+    }
 
     testWidgets('invoice with no terms: no button', (tester) async {
       final m = await mount(tester, BillingDoc.invoice);

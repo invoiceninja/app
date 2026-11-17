@@ -21,6 +21,7 @@ import 'package:admin/data/db/app_database.dart' show CompanyRow;
 import 'package:admin/domain/entity_registry.dart' show EntityHandlers;
 import 'package:admin/domain/entity_state.dart';
 import 'package:admin/domain/list_status_tabs.dart';
+import 'package:admin/domain/list_totals.dart';
 import 'package:admin/domain/permissions.dart';
 import 'package:admin/domain/quick_create.dart';
 import 'package:admin/l10n/localization.dart';
@@ -37,7 +38,7 @@ import 'package:admin/ui/core/list/entity_list_selection_row.dart';
 import 'package:admin/ui/core/list/entity_list_result_scope.dart';
 import 'package:admin/ui/core/list/entity_create_fab.dart';
 import 'package:admin/ui/core/list/entity_list_app_bar.dart';
-import 'package:admin/ui/core/list/list_outstanding_line.dart';
+import 'package:admin/ui/core/list/list_totals_line.dart';
 import 'package:admin/ui/core/list/entity_list_top_row.dart';
 import 'package:admin/ui/core/list/entity_list_column_headers.dart';
 import 'package:admin/ui/core/list/entity_list_constants.dart';
@@ -325,16 +326,17 @@ class EntityListScreenScaffold<T, VM extends GenericListViewModel<T>>
     this.embeddedNewOverride,
     this.embeddedOffersNew = true,
     this.selectionShortcuts,
-    this.showOutstandingTotals = false,
+    this.showListTotals = false,
   });
 
-  /// Draw the server's per-currency outstanding totals under the narrow
-  /// list's title (`ListOutstandingLine`) — on Clients and Invoices only, the
-  /// two lists whose rows are what is owed. Standalone narrow only: never on
-  /// an embedded list, and never on a wide one, whose header is the single
-  /// toolbar row with no title (docs/entity-lists.md § A wide list's header
-  /// is one toolbar row).
-  final bool showOutstandingTotals;
+  /// Draw the list's per-currency totals line (`ListTotalsLine`) — on the
+  /// money lists [kListTotals] names, and only over the company-wide list: a
+  /// screen scoped to one client, vendor, group or project passes false, the
+  /// figure being company-wide. Under the title on a narrow list; at the end
+  /// of the status strip's row on a wide one, while it fits after the tabs;
+  /// never on an embedded list (docs/entity-lists.md § A money list's totals
+  /// line).
+  final bool showListTotals;
 
   /// Localization key for the narrow-mode AppBar title (e.g. `clients`).
   final String titleKey;
@@ -1597,18 +1599,10 @@ class _EntityListScreenScaffoldState<T, VM extends GenericListViewModel<T>>
                     widget.extraAppBarActions?.call(context, _vm, wide) ??
                     const <Widget>[],
                 canCreate: widget.canCreate,
-                // Narrow only: the wide header has no title to sit under.
-                subtitle: widget.showOutstandingTotals && !wide
-                    ? ListOutstandingLine(
-                        // Keyed like the search field: a company switch gets a
-                        // fresh watch rather than the old company's stream.
-                        key: ValueKey(_companyId),
-                        companyId: _companyId,
-                        formatter: formatter,
-                        // A phone's line holds three currencies at 12.
-                        fontSize: 12,
-                      )
-                    : null,
+                // Narrow only: the wide header has no title to sit under, so
+                // the wide line rides the status strip's row instead.
+                // A phone's line holds three currencies at 12.
+                subtitle: wide ? null : _totalsLine(fontSize: 12),
               ),
               body: () {
                 final body = _bodyWithBanner(
@@ -1767,6 +1761,32 @@ class _EntityListScreenScaffoldState<T, VM extends GenericListViewModel<T>>
     });
   }
 
+  /// The list's per-currency totals line, or null where it has none: an
+  /// embedded list, a scoped one ([EntityListScreenScaffold.showListTotals]),
+  /// or an entity [kListTotals] does not name.
+  Widget? _totalsLine({double fontSize = 13}) {
+    if (widget.embedded || !widget.showListTotals) return null;
+    final spec = kListTotals[_vm.entityType];
+    if (spec == null) return null;
+    return ListTotalsLine(
+      // Keyed like the search field: a company switch gets a fresh watch
+      // rather than the old company's stream.
+      key: ValueKey('totals:$_companyId'),
+      source: _services.listTotals,
+      entityType: _vm.entityType,
+      companyId: _companyId,
+      formatter: formatter,
+      // The server refuses `totals_v2` to a user without `view_dashboard`.
+      enabled:
+          spec.origin != ListTotalsOrigin.dashboardOutstanding ||
+          (_services.auth.session.value?.currentCompany?.can(
+                'view_dashboard',
+              ) ??
+              false),
+      fontSize: fontSize,
+    );
+  }
+
   /// The cached company watch, rebuilt only when the active company changes.
   Stream<CompanyRow?> _companyWatchStream() {
     if (_companyWatchFor != _companyId || _companyWatch == null) {
@@ -1823,6 +1843,18 @@ class _EntityListScreenScaffoldState<T, VM extends GenericListViewModel<T>>
         return Opacity(
           opacity: selecting ? 0.4 : 1,
           child: EntityListStatusTabs(
+            // A wide list's totals line, in the room after the tabs — dropped,
+            // never squeezed, when the tabs need the row. 24 at the end, as
+            // the first tab is at the start.
+            trailing: wide
+                ? switch (_totalsLine()) {
+                    final line? => Padding(
+                      padding: const EdgeInsetsDirectional.only(end: 24),
+                      child: line,
+                    ),
+                    null => null,
+                  }
+                : null,
             // 24 on wide lines the first tab up with the table below it.
             contentPadding: EdgeInsetsDirectional.only(
               start: wide ? 24 : InSpacing.sm,
