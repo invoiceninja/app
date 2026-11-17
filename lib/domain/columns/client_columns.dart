@@ -1,3 +1,6 @@
+import 'package:decimal/decimal.dart';
+import 'package:material_ui/material_ui.dart';
+
 import 'package:admin/app/router.dart';
 import 'package:admin/data/models/domain/client.dart';
 import 'package:admin/data/models/domain/contact.dart';
@@ -64,12 +67,7 @@ final List<ClientColumn> kAllClientColumns = <ClientColumn>[
     labelKey: 'balance',
     width: 120,
     align: ColumnAlign.end,
-    cellBuilder: (c, context) => cellMoney(
-      c.balance,
-      context,
-      cents: true,
-      clientCurrencyId: c.currencyId,
-    ),
+    cellBuilder: clientBalanceCell,
     valueBuilder: (c) => cellMoneyValue(c.balance),
   ),
   ClientColumn(
@@ -296,4 +294,20 @@ Contact? _primary(List<Contact> contacts) {
     if (ct.isPrimary) return ct;
   }
   return contacts.first;
+}
+
+/// The Clients list's Balance cell: what a client owes is the figure the list
+/// is scanned for, so a balance above zero is drawn at weight 600. A zero keeps
+/// [cellMoney]'s dimmed dash, and a negative balance (a credit) stays plain —
+/// it is not money owed. Formatting is still [cellMoney]'s; only the weight is
+/// added here, so no other money column changes.
+Widget clientBalanceCell(Client c, BuildContext context) {
+  final cell = cellMoney(
+    c.balance,
+    context,
+    cents: true,
+    clientCurrencyId: c.currencyId,
+  );
+  if (c.balance <= Decimal.zero || cell is! MoneyCellText) return cell;
+  return MoneyCellText(text: cell.text, isZero: false, strong: true);
 }

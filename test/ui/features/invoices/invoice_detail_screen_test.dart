@@ -192,8 +192,12 @@ void main() {
       expect(_tiles(tester), ['Mark Sent', 'Email', 'PDF', 'Mark Paid']);
       // A draft has been sent to nobody who could be late.
       expect(find.byType(BillingDocDueLine), findsNothing);
-      // The balance is the answer even at zero — printed, never dashed.
-      expect(_inStanding(r'$0.00'), findsOneWidget);
+      // A draft owes nothing yet — the server keeps its balance at 0 — so
+      // its amount leads, never "Balance Due $0.00" (one lead rule,
+      // `billingDocLeadsWithBalance`).
+      expect(_inStanding(r'$3,720.00'), findsOneWidget);
+      expect(_inStanding(r'$0.00'), findsNothing);
+      expect(_inStanding('Balance Due'), findsNothing);
       expect(find.text('—'), findsNothing);
       // Not sent to anyone, so neither contact carries a delivery pill.
       expect(find.text('Sent'), findsNothing);
@@ -255,11 +259,14 @@ void main() {
   });
 
   _screenTest(
-    'paid: no payment tile, the zero balance is printed, nothing is due',
+    'paid: no payment tile, the amount leads once, nothing is due',
     docJson(status: '4', balance: '0', paid: '3720.00', due: '2000-02-01'),
     (tester, screen) async {
       expect(_tiles(tester), ['Email', 'PDF', 'Download', 'Refund']);
-      expect(_inStanding(r'$0.00'), findsOneWidget);
+      // The balance is closed, so the amount leads — and Paid to Date, equal
+      // to it, is not printed beside it as a second $3,720.00.
+      expect(_inStanding(r'$3,720.00'), findsOneWidget);
+      expect(_inStanding('Paid to Date'), findsNothing);
       expect(find.byType(BillingDocDueLine), findsNothing);
     },
   );

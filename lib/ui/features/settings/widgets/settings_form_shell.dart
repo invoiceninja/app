@@ -5,7 +5,9 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import 'package:admin/app/design_tokens.dart';
+import 'package:admin/ui/features/settings/state/settings_level_controller.dart';
 import 'package:admin/ui/features/settings/state/settings_reveal_controller.dart';
+import 'package:admin/ui/features/settings/widgets/form_section.dart';
 
 /// How long a page keeps looking for a requested field. Tab bodies and their
 /// view models arrive a few frames after the route does.
@@ -19,11 +21,32 @@ const _kFlashDuration = Duration(milliseconds: 1600);
 /// label stops before anything taller, which would be the card around it.
 const _kMaxRowHeight = 160.0;
 
+/// The content width (inside the shell's padding) at which [FormSection]s go
+/// side by side. Below it the 200 px title column would take the width a
+/// `FormFieldPair` needs (600 px) out of a 720 px card — measured at 1366 and
+/// 1280, where the settings pane is too narrow for both.
+const double kSettingsSideLayoutMinWidth = 960;
+
+/// The cap in side-by-side mode: the 200 px column, a 40 px gap and a card
+/// of at least 720.
+const double kSettingsSideLayoutMaxWidth = 1000;
+
 /// Centered, scrolling, max-width-constrained body for any settings page.
 /// Pass [sections] for the standard "list of [FormSection] cards" layout
 /// (covers ~every settings page) — the shell wraps them in a stretched
 /// [Column] for you. Pass [child] for the rare custom body that isn't a
 /// section list.
+///
+/// At a content width of [kSettingsSideLayoutMinWidth] or more the cap rises
+/// to [kSettingsSideLayoutMaxWidth] and every [FormSection] below lays out
+/// side by side (a [FormSectionSideLayout]); narrower, it is the one stacked
+/// column capped at [maxWidth]. Either way the column sits at the start of
+/// the pane, never centred — level with the tab strip above it
+/// (`SettingsTabStrip`).
+///
+/// [subtitle] is the page's one-line purpose, drawn as the first line of the
+/// scrolling body (never the AppBar, which has no room on a phone). It speaks
+/// for the company, so it is hidden at the client and group scopes.
 ///
 /// It is also where a settings search hit lands: every page under
 /// `/settings` renders through here, so this is the one place that can
@@ -37,6 +60,7 @@ class SettingsFormShell extends StatefulWidget {
     this.child,
     this.sections,
     this.maxWidth = 720,
+    this.subtitle,
   }) : assert(
          child != null || sections != null,
          'Provide either child or sections',
@@ -49,6 +73,9 @@ class SettingsFormShell extends StatefulWidget {
   final Widget? child;
   final List<Widget>? sections;
   final double maxWidth;
+
+  /// The page's purpose in one line — see the class doc. Company scope only.
+  final String? subtitle;
 
   @override
   State<SettingsFormShell> createState() => _SettingsFormShellState();
@@ -257,13 +284,38 @@ class _SettingsFormShellState extends State<SettingsFormShell>
 
   @override
   Widget build(BuildContext context) {
-    final body = widget.sections != null
+    final sections = widget.sections != null
         ? Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: widget.sections!,
           )
         : widget.child!;
     final tokens = context.inTheme;
+    // Nullable: a widget test may pump a page with no level controller.
+    final level = context.watch<SettingsLevelController?>();
+    final subtitle = widget.subtitle?.trim();
+    final showSubtitle =
+        subtitle != null &&
+        subtitle.isNotEmpty &&
+        (level == null || level.isCompany);
+    final body = showSubtitle
+        ? Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: EdgeInsets.only(bottom: InSpacing.lg(context)),
+                child: Text(
+                  subtitle,
+                  key: const ValueKey('settings-page-subtitle'),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodyMedium?.copyWith(color: tokens.ink2),
+                ),
+              ),
+              sections,
+            ],
+          )
+        : sections;
     // Widget-order (not geometry) Tab traversal for every settings page.
     // Settings forms are laid out in source order, so reading-order and
     // widget-order Tab sequence are visually identical here — but widget
@@ -276,23 +328,41 @@ class _SettingsFormShellState extends State<SettingsFormShell>
       child: ListView(
         padding: const EdgeInsets.all(InSpacing.xl),
         children: [
-          Center(
-            child: ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: widget.maxWidth),
-              // Inside the scroll view, so the flash scrolls with the field.
-              child: CustomPaint(
-                key: _paintKey,
-                foregroundPainter: _target == null
-                    ? null
-                    : _RevealFlashPainter(
-                        target: _target!,
-                        paintKey: _paintKey,
-                        progress: _flash,
-                        accent: tokens.accent,
-                      ),
-                child: body,
-              ),
-            ),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final side = constraints.maxWidth >= kSettingsSideLayoutMinWidth;
+              // Start-aligned, not centred (D5 of the settings pass): the
+              // column lines up with the tab strip's first label and the
+              // page title above it, and a wide pane's spare width falls
+              // after the form instead of splitting into two gutters.
+              return Align(
+                alignment: AlignmentDirectional.topStart,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: side
+                        ? kSettingsSideLayoutMaxWidth
+                        : widget.maxWidth,
+                  ),
+                  // Inside the scroll view, so the flash scrolls with the
+                  // field.
+                  child: CustomPaint(
+                    key: _paintKey,
+                    foregroundPainter: _target == null
+                        ? null
+                        : _RevealFlashPainter(
+                            target: _target!,
+                            paintKey: _paintKey,
+                            progress: _flash,
+                            accent: tokens.accent,
+                          ),
+                    // Always mounted, only flipped: wrapping the body only
+                    // in side mode would re-inflate the whole form (and its
+                    // typed-in fields) whenever a resize crossed the line.
+                    child: FormSectionSideLayout(enabled: side, child: body),
+                  ),
+                ),
+              );
+            },
           ),
         ],
       ),

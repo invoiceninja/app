@@ -33,6 +33,7 @@ import 'package:admin/data/repositories/auth_repository.dart';
 import 'package:admin/data/repositories/user_repository.dart';
 import 'package:admin/domain/entity_state.dart';
 import 'package:admin/ui/features/settings/state/settings_level_controller.dart';
+import 'package:admin/ui/core/widgets/initials_avatar.dart';
 import 'package:admin/ui/features/settings/views/advanced/user_management_screen.dart';
 import 'package:admin/data/prefs/device_prefs_store.dart';
 
@@ -218,6 +219,54 @@ void main() {
     expect(find.text('Olivia Owner'), findsOneWidget);
     expect(find.text('Sam Self'), findsOneWidget);
     expect(find.text('Riley Staff'), findsOneWidget);
+  });
+
+  testWidgets('each row has the shared initials badge, seeded on the id', (
+    tester,
+  ) async {
+    await pump(tester);
+
+    final avatars = tester
+        .widgetList<InitialsAvatar>(find.byType(InitialsAvatar))
+        .toList();
+    expect(avatars.map((a) => a.seed), ['u_owner', 'u_self', 'u_staff']);
+    expect(avatars.map((a) => a.label), ['OO', 'SS', 'RS']);
+    expect(find.byType(CircleAvatar), findsNothing);
+  });
+
+  testWidgets('a one-badge row keeps its role under the email, as the rest '
+      'do', (tester) async {
+    // Verified, so the owner's and Riley's rows carry exactly one badge —
+    // the case that used to put it in `trailing` on a wide pane.
+    wire([
+      owner.copyWith(emailVerifiedAt: 1787472002),
+      self,
+      staff.copyWith(emailVerifiedAt: 1787472002),
+    ]);
+    await tester.binding.setSurfaceSize(const Size(1200, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await pump(tester);
+
+    for (final email in ['u_owner@example.com', 'u_staff@example.com']) {
+      final row = find.ancestor(
+        of: find.text(email),
+        matching: find.byType(ListTile),
+      );
+      final role = find.descendant(
+        of: row,
+        matching: find.textContaining(RegExp('Owner|Administrator')),
+      );
+      expect(
+        tester.getTopLeft(role.last).dy,
+        greaterThan(tester.getTopLeft(find.text(email)).dy),
+        reason: '$email: the role badge left the line under the email',
+      );
+      expect(
+        tester.getTopLeft(role.last).dx,
+        lessThan(600),
+        reason: '$email: the role badge went to the trailing edge',
+      );
+    }
   });
 
   testWidgets('your own row is badged Current User, and only yours', (

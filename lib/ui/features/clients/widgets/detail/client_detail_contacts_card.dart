@@ -72,7 +72,7 @@ class ClientDetailContactsCard extends StatefulWidget {
 }
 
 /// The contacts worth rendering. A blank one has nothing to show but
-/// `(no name)`, a primary star, and portal buttons for a link the server mints
+/// `(no name)`, a Primary label, and portal buttons for a link the server mints
 /// for it regardless — the portal stays reachable from `ClientAction.clientPortal`.
 /// A deleted one is not this client's contact any more.
 ///
@@ -195,6 +195,12 @@ Future<void> showClientContactsSheet(
                                     clientHash,
                                     clientId,
                                     company: company,
+                                    labelPrimary:
+                                        visibleClientContacts(
+                                          contacts,
+                                          company: company,
+                                        ).length >=
+                                        2,
                                   ),
                                 )
                                 .toList(),
@@ -227,6 +233,12 @@ class _ClientDetailContactsCardState extends State<ClientDetailContactsCard> {
     final showAll = _expanded || all.length <= _inlineLimit;
     final visible = showAll ? all : all.take(_inlineLimit).toList();
     final hiddenCount = all.length - visible.length;
+    // "Primary" only says something beside another contact.
+    final labelPrimary = all.length >= 2;
+    final avatars = PartyContactRow.railAvatars(
+      context,
+      emails: all.map((c) => c.email),
+    );
 
     return DashboardCardShell(
       title: context.tr('contacts'),
@@ -242,6 +254,8 @@ class _ClientDetailContactsCardState extends State<ClientDetailContactsCard> {
                     widget.clientHash,
                     widget.clientId,
                     company: widget.company,
+                    labelPrimary: labelPrimary,
+                    avatar: avatars,
                   ),
                 )
                 .toList(),
@@ -307,11 +321,21 @@ class ClientContactRow extends StatelessWidget {
     this.clientId, {
     super.key,
     this.company,
+    this.labelPrimary = false,
+    this.avatar = false,
   });
 
   final Contact contact;
   final String clientHash;
   final String clientId;
+
+  /// Mark the primary contact "Primary" — true only where the client has two
+  /// or more contacts worth showing (`PartyContactRow.isPrimary`).
+  final bool labelPrimary;
+
+  /// Lead with an initials avatar seeded on the contact's id
+  /// (`PartyContactRow.railAvatars` decides, for the whole card).
+  final bool avatar;
 
   /// For contact custom-field labels; null draws none.
   final Company? company;
@@ -345,7 +369,8 @@ class ClientContactRow extends StatelessWidget {
       name: '${contact.firstName} ${contact.lastName}'.trim(),
       email: contact.email,
       phone: contact.phone,
-      isPrimary: contact.isPrimary,
+      isPrimary: labelPrimary && contact.isPrimary,
+      avatarSeed: avatar ? _avatarSeed(contact) : null,
       phoneSubject: subject,
       clientId: clientId,
       logTarget: logTarget,
@@ -442,6 +467,12 @@ class ClientContactRow extends StatelessWidget {
     ];
   }
 }
+
+/// The contact's id; an unsaved one (no id yet) falls back to its address,
+/// so the colour is still the contact's own rather than one shared by all.
+String _avatarSeed(Contact contact) => contact.id.isNotEmpty
+    ? contact.id
+    : '${contact.email}|${contact.firstName} ${contact.lastName}';
 
 /// Who the confirmation prompt names when this contact is called. Falls back
 /// through name → email → the client-level "blank contact" label, so the

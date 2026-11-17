@@ -2010,11 +2010,12 @@ _wireRecurringInvoice(_EntityWiring reg) {
   return (recurringInvoicesApi, recurringInvoiceRepo);
 }
 
-/// Document-bearing, password-gated delete/purge/documentDelete. Two
-/// payment-only customActions handle the non-CRUD endpoints:
+/// Document-bearing, password-gated delete/purge/documentDelete. Three
+/// payment customActions handle the non-CRUD endpoints:
 ///   * refundPayment → POST /payments/refund with body {id, date, invoices}
 ///     and `?email_receipt=…[&gateway_refund=true]`
 ///   * applyPayment  → PUT /payments/{id} with body {invoices: [...]}
+///   * emailEntity   → POST /payments/bulk {action: 'email', ids: [id]}
 (PaymentsApi api, PaymentRepository repo) _wirePayment(_EntityWiring reg) {
   final paymentsApi = PaymentsApi(reg.ctx.apiClient);
   final paymentRepo = PaymentRepository(
@@ -2051,6 +2052,17 @@ _wireRecurringInvoice(_EntityWiring reg) {
           allocations: allocations,
           idempotencyKey: row.idempotencyKey,
         );
+      },
+      // Send the receipt (`PaymentRepository.emailReceipt`). The bulk route,
+      // because a PUT's `?email_receipt=true` is ignored on an existing
+      // payment.
+      MutationKind.emailEntity: ({required row, required payload}) async {
+        final response = await paymentsApi.bulkActionOne(
+          id: payload['id'] as String,
+          action: 'email',
+          idempotencyKey: row.idempotencyKey,
+        );
+        return response?.data;
       },
       ...addCommentHandlers<PaymentApi>(
         reg.ctx.activitiesApi,

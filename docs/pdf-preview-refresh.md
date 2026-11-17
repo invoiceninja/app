@@ -22,7 +22,7 @@ The five `/…/:id/pdf` route screens and the email screen's PDF tab had the sam
 | Means | a different document (a history version, the live one) | newer content of the same document |
 | Fetch | at once | after `autoRefreshDebounce` (600 ms) |
 | While loading | translucent scrim over the last good PDF | the last good PDF stays usable; a 2 px progress bar appears after 300 ms |
-| On error | drops the PDF and shows `ErrorView` | keeps the PDF, shows "This preview doesn't include your latest changes" with Retry, and turns off Print and Share |
+| On error | drops the PDF and shows `ErrorView` | keeps the PDF, shows "This preview doesn't include your latest changes" with Retry, and disables Print, Share and Download (disabled, not hidden: a button that came and went could change the bar's height) |
 
 If both seams change in one rebuild, `revision` wins. Going back from a version to the live document changes both.
 
@@ -66,4 +66,4 @@ The view used to pass `(_) => bytes` from `build()`, so a new callback was creat
 
 `_build` is now created only where `_bytes` is assigned. The page images are replaced in place (`raster.dart`), so the scroll position survives a refresh, and an unrelated rebuild no longer resets the zoom.
 
-**The slots around the preview come and go *after* it in the `Stack`**: the notice row, the progress bar and the scrim. `PdfPreview` stays child 0 and is never remounted. A notice placed *above* the preview would have resized it and forced every page to render again.
+**Nothing that comes and goes may resize the preview.** The toolbar sits above it and is there whenever a PDF is: the Invoice / Delivery Note choice, the stale notice (one line, its icon alone below 200 px with the sentence in its tooltip), and Print, Share, Download and Maximize — `PdfPreview(useActions: false)`, the package's bottom bar off, and no zoom control. A notice in a slot of its own above the preview would have resized it and forced every page to render again; inside the toolbar it changes nothing ("the stale notice never resizes the preview" in `billing_doc_pdf_view_test.dart`). The progress bar and the scrim come and go *after* the preview in its `Stack`, and cover only the preview: the toolbar's choice stays usable while the other document loads, and its Print, Share and Download are disabled until it has.

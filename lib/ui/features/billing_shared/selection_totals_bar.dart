@@ -11,18 +11,19 @@ import 'package:admin/domain/billing/selection_totals.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/utils/formatting.dart';
 
-/// What the selected rows of an invoice, quote or recurring-invoice list come
-/// to — Amount, Net Amount and (invoices) Balance, one line per currency.
+/// What the selected rows of a billing-document list come to — Amount, Net
+/// Amount and (invoices, credits) Balance, one line per currency.
 ///
 /// React totals the current page in a table footer. These lists load as you
 /// scroll, so there is no page to total, and a sum of "whatever has loaded"
 /// changes as you scroll; the selection is a set the user chose, so its total
 /// is exact. Shown under the list while rows are selected.
 ///
-/// Each row is in its client's currency (client → group → company), which
-/// only resolves asynchronously, so the bar subscribes once per distinct
-/// client — the cascade `PartyCurrencyBuilder` uses per row — and shows its
-/// figures once every client has answered.
+/// Each row is in its party's currency — a client's (client → group →
+/// company), or a purchase order's vendor's (vendor → company) — which only
+/// resolves asynchronously, so the bar subscribes once per distinct party —
+/// the cascade `PartyCurrencyBuilder` uses per row — and shows its figures once
+/// every party has answered.
 class SelectionTotalsBar extends StatefulWidget {
   const SelectionTotalsBar({
     super.key,
@@ -55,28 +56,39 @@ class _SelectionTotalsBarState extends State<SelectionTotalsBar> {
     _subscribe();
   }
 
-  /// Follow exactly the clients the selection names: a client that leaves it
+  /// Follow exactly the parties the selection names: a party that leaves it
   /// stops being watched, one that joins starts.
   void _subscribe() {
     final services = context.read<Services>();
-    final wanted = {for (final r in widget.rows) r.clientId};
-    for (final id in _subscriptions.keys.toList()) {
-      if (wanted.contains(id)) continue;
-      _subscriptions.remove(id)!.cancel();
-      _currencies.remove(id);
+    final wanted = {for (final r in widget.rows) r.partyKey};
+    for (final key in _subscriptions.keys.toList()) {
+      if (wanted.contains(key)) continue;
+      _subscriptions.remove(key)!.cancel();
+      _currencies.remove(key);
     }
-    for (final id in wanted) {
-      if (_subscriptions.containsKey(id)) continue;
-      _subscriptions[id] =
-          watchEffectiveClientCurrency(
-            clients: services.clients,
-            groups: services.groupSettings,
-            companyId: widget.companyId,
-            clientId: id,
-          ).listen((currencyId) {
-            if (!mounted) return;
-            setState(() => _currencies[id] = currencyId);
-          });
+    for (final key in wanted) {
+      if (_subscriptions.containsKey(key)) continue;
+      final Stream<String> currency;
+      if (key.startsWith(kVendorPartyPrefix)) {
+        // A vendor names its currency or inherits the company's (`''`).
+        currency = services.vendors
+            .watch(
+              companyId: widget.companyId,
+              id: key.substring(kVendorPartyPrefix.length),
+            )
+            .map((v) => v?.currencyId ?? '');
+      } else {
+        currency = watchEffectiveClientCurrency(
+          clients: services.clients,
+          groups: services.groupSettings,
+          companyId: widget.companyId,
+          clientId: key,
+        );
+      }
+      _subscriptions[key] = currency.listen((currencyId) {
+        if (!mounted) return;
+        setState(() => _currencies[key] = currencyId);
+      });
     }
   }
 
@@ -95,8 +107,8 @@ class _SelectionTotalsBarState extends State<SelectionTotalsBar> {
     // `''` is "the company's": named, so that two rows in the company currency
     // — one inheriting it, one naming it — land on one line.
     final companyCurrency = f?.settings.currencyId ?? '';
-    final totals = selectionTotals(widget.rows, (clientId) {
-      final c = _currencies[clientId];
+    final totals = selectionTotals(widget.rows, (partyKey) {
+      final c = _currencies[partyKey];
       if (c == null) return null;
       return c.isEmpty ? companyCurrency : c;
     });

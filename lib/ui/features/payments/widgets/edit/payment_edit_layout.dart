@@ -28,18 +28,22 @@ import 'package:admin/ui/features/payments/view_models/payment_edit_view_model.d
 import 'package:admin/ui/core/widgets/formatter_host_mixin.dart';
 import 'package:admin/ui/features/payments/widgets/edit/payment_allocations_footer.dart';
 import 'package:admin/ui/features/payments/widgets/edit/payment_allocations_section.dart';
+import 'package:admin/ui/features/payments/widgets/edit/payment_apply_invoices.dart';
 import 'package:admin/ui/features/payments/widgets/edit/payment_invoice_picker.dart';
 import 'package:admin/ui/features/payments/widgets/payment_type_picker_field.dart';
 import 'package:admin/utils/formatting.dart';
 import 'package:admin/ui/core/edit/create_form_documents.dart';
+import 'package:admin/ui/features/billing_shared/email/recipient_email_fix.dart';
 
 /// Edit + create form body for a Payment. Two-column on wide widths
 /// (Expanded main + 360 px sidebar @ 1000 px), single centered column (≤820 px)
-/// on narrow —
-/// mirrors `ExpenseEditLayout`. Main column: Identity (client + number +
-/// date + amount + currency) plus the create-only allocations. Sidebar:
-/// Payment metadata (type + transaction reference), Currency conversion,
-/// Notes, Custom fields, and the email-receipt toggle.
+/// on narrow — and narrow is what it usually gets: the editor opens in a
+/// 440–560 px slide-over panel. Main column: Received from (client, or an
+/// invoice while no client is chosen), Details (amount | currency, date |
+/// type, number | transaction reference), the create-only Apply to invoices
+/// table + credits + Applied / Unapplied, Tags, and the create-only Email
+/// receipt switch. Sidebar: Currency conversion, Notes, Documents, Custom
+/// fields. docs/payment-edit.md has the rules.
 ///
 /// Client / Currency / Payment Type use [SearchableDropdownField] per
 /// CLAUDE.md § Forms — long-list bindings the user shouldn't have to
@@ -149,19 +153,12 @@ class _PaymentEditLayoutState extends State<PaymentEditLayout>
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
-        _IdentitySection(
+        _ReceivedFromSection(vm: vm, formatter: formatter),
+        SizedBox(height: InSpacing.lg(context)),
+        _DetailsSection(
           vm: vm,
           useCommaAsDecimalPlace: _useComma,
           formatter: formatter,
-        ),
-        SizedBox(height: InSpacing.lg(context)),
-        DashboardCardShell(
-          title: context.tr('tags'),
-          child: EntityTagsField(
-            entityType: 'payment',
-            selectedIds: vm.draft.tagIds,
-            onChanged: vm.setTagIds,
-          ),
         ),
         if (vm.isCreate) ...[
           SizedBox(height: InSpacing.lg(context)),
@@ -171,30 +168,26 @@ class _PaymentEditLayoutState extends State<PaymentEditLayout>
               final currencyId = vm.draft.currencyId.isNotEmpty
                   ? vm.draft.currencyId
                   : (snap.data ?? '');
+              final hasClient = vm.draft.clientId.isNotEmpty;
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  PaymentAllocationsSection(
-                    kind: AllocationKind.invoice,
-                    paymentables: vm.draft.paymentables,
-                    clientId: vm.draft.clientId,
-                    // NOT `vm.draft.amount` — see `autoFillCap`. That value
-                    // auto-syncs to the allocation total, so passing it raw
-                    // made the headroom zero the moment the first invoice was
-                    // picked and every later pick auto-filled 0.00.
-                    paymentAmount: vm.autoFillCap,
-                    onChanged: vm.replacePaymentables,
-                    onOpenAmounts: vm.noteInvoiceOpenAmounts,
-                    formatter: formatter,
-                    currencyId: currencyId,
-                  ),
-                  SizedBox(height: InSpacing.lg(context)),
-                  _CreditsSectionGate(
-                    vm: vm,
-                    formatter: formatter,
-                    currencyId: currencyId,
-                  ),
-                  SizedBox(height: InSpacing.md(context)),
+                  // Until a client is chosen the Received from card's invoice
+                  // picker is the way in; then its open invoices, ticked.
+                  if (hasClient) ...[
+                    PaymentApplyInvoicesSection(
+                      vm: vm,
+                      formatter: formatter,
+                      currencyId: currencyId,
+                    ),
+                    SizedBox(height: InSpacing.lg(context)),
+                    _CreditsSectionGate(
+                      vm: vm,
+                      formatter: formatter,
+                      currencyId: currencyId,
+                    ),
+                    SizedBox(height: InSpacing.md(context)),
+                  ],
                   PaymentAllocationsFooter(
                     vm: vm,
                     formatter: formatter,
@@ -205,6 +198,21 @@ class _PaymentEditLayoutState extends State<PaymentEditLayout>
             },
           ),
         ],
+        SizedBox(height: InSpacing.lg(context)),
+        DashboardCardShell(
+          title: context.tr('tags'),
+          child: EntityTagsField(
+            entityType: 'payment',
+            selectedIds: vm.draft.tagIds,
+            onChanged: vm.setTagIds,
+          ),
+        ),
+        // A new payment's receipt goes with the create; an existing one's is
+        // the action bar's Send Email (see `PaymentActions.editScreenItemsFor`).
+        if (vm.isCreate) ...[
+          SizedBox(height: InSpacing.lg(context)),
+          PaymentEmailReceiptSwitch(vm: vm),
+        ],
       ],
     );
   }
@@ -214,8 +222,6 @@ class _PaymentEditLayoutState extends State<PaymentEditLayout>
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
-        _PaymentMetaSection(vm: vm),
-        SizedBox(height: InSpacing.lg(context)),
         PaymentCurrencyConversionSection(vm: vm, formatter: formatter),
         SizedBox(height: InSpacing.lg(context)),
         _NotesSection(vm: vm),
@@ -225,15 +231,41 @@ class _PaymentEditLayoutState extends State<PaymentEditLayout>
         ],
         SizedBox(height: InSpacing.lg(context)),
         _CustomFieldsSection(vm: vm, formatter: formatter),
-        SizedBox(height: InSpacing.lg(context)),
-        _emailReceiptToggle(context, vm),
       ],
     );
   }
 }
 
-class _IdentitySection extends StatelessWidget {
-  const _IdentitySection({
+/// Who paid: the Client, and — on a new payment with none chosen yet — the
+/// invoice picker beneath it, which fills the client from the invoice
+/// (React's "client *or* invoice"). Once a client is chosen the Apply to
+/// invoices table takes over: it lists that client's invoices with the
+/// picked one ticked.
+class _ReceivedFromSection extends StatelessWidget {
+  const _ReceivedFromSection({required this.vm, required this.formatter});
+  final PaymentEditViewModel vm;
+  final Formatter? formatter;
+
+  @override
+  Widget build(BuildContext context) {
+    return _Section(
+      title: context.tr('received_from'),
+      children: [
+        _ClientPicker(vm: vm),
+        if (vm.isCreate && vm.draft.clientId.isEmpty) ...[
+          const _OrDivider(),
+          PaymentInvoicePicker(vm: vm, formatter: formatter),
+        ],
+      ],
+    );
+  }
+}
+
+/// The payment itself, two fields to a row so it fits the slide-over panel
+/// the editor opens in: Amount | Currency, Date | Type, Number | Transaction
+/// reference.
+class _DetailsSection extends StatelessWidget {
+  const _DetailsSection({
     required this.vm,
     required this.useCommaAsDecimalPlace,
     required this.formatter,
@@ -247,34 +279,6 @@ class _IdentitySection extends StatelessWidget {
     return _Section(
       title: context.tr('details'),
       children: [
-        _ClientPicker(vm: vm),
-        if (vm.isCreate &&
-            vm.draft.paymentables.where((p) => p.invoiceId.isNotEmpty).length <=
-                1) ...[
-          const _OrDivider(),
-          PaymentInvoicePicker(vm: vm, formatter: formatter),
-        ],
-        const SizedBox(height: 12),
-        // Two to a row: the payment's number and date, then the amount and
-        // the currency it is in.
-        FormFieldPair(
-          left: LabeledField(
-            label: context.tr('number'),
-            child: TextFormField(
-              initialValue: vm.draft.number,
-              decoration: InputDecoration(labelText: context.tr('number')),
-              onChanged: vm.setNumber,
-              autocorrect: false,
-            ),
-          ),
-          right: InDateField(
-            labelText: context.tr('date'),
-            value: vm.draft.date?.toDateTime(),
-            formatter: formatter,
-            onChanged: (dt) =>
-                vm.setDate(dt == null ? null : Date(dt.year, dt.month, dt.day)),
-          ),
-        ),
         // Controller-based so the auto-sync from allocations
         // (`PaymentEditViewModel.replacePaymentables`) actually updates
         // the visible text. `TextFormField(initialValue: …)` only consumes
@@ -287,31 +291,36 @@ class _IdentitySection extends StatelessWidget {
           ),
           right: _CurrencyPicker(vm: vm),
         ),
-      ],
-    );
-  }
-}
-
-class _PaymentMetaSection extends StatelessWidget {
-  const _PaymentMetaSection({required this.vm});
-  final PaymentEditViewModel vm;
-
-  @override
-  Widget build(BuildContext context) {
-    return _Section(
-      title: context.tr('payment'),
-      children: [
-        _PaymentTypePicker(vm: vm),
-        const SizedBox(height: 12),
-        LabeledField(
-          label: context.tr('transaction_reference'),
-          child: TextFormField(
-            initialValue: vm.draft.transactionReference,
-            decoration: InputDecoration(
-              labelText: context.tr('transaction_reference'),
+        FormFieldPair(
+          left: InDateField(
+            labelText: context.tr('date'),
+            value: vm.draft.date?.toDateTime(),
+            formatter: formatter,
+            onChanged: (dt) =>
+                vm.setDate(dt == null ? null : Date(dt.year, dt.month, dt.day)),
+          ),
+          right: _PaymentTypePicker(vm: vm),
+        ),
+        FormFieldPair(
+          left: LabeledField(
+            label: context.tr('number'),
+            child: TextFormField(
+              initialValue: vm.draft.number,
+              decoration: InputDecoration(labelText: context.tr('number')),
+              onChanged: vm.setNumber,
+              autocorrect: false,
             ),
-            onChanged: vm.setTransactionReference,
-            autocorrect: false,
+          ),
+          right: LabeledField(
+            label: context.tr('transaction_reference'),
+            child: TextFormField(
+              initialValue: vm.draft.transactionReference,
+              decoration: InputDecoration(
+                labelText: context.tr('transaction_reference'),
+              ),
+              onChanged: vm.setTransactionReference,
+              autocorrect: false,
+            ),
           ),
         ),
       ],
@@ -332,7 +341,11 @@ class _NotesSection extends StatelessWidget {
           label: context.tr('private_notes'),
           child: TextFormField(
             initialValue: vm.draft.privateNotes,
-            decoration: InputDecoration(labelText: context.tr('private_notes')),
+            decoration: InputDecoration(
+              labelText: context.tr('private_notes'),
+              // Who reads it — the client never sees a payment's notes.
+              helperText: context.tr('private_notes_hint'),
+            ),
             maxLines: 4,
             onChanged: vm.setPrivateNotes,
           ),
@@ -809,12 +822,54 @@ class _ConvertedAmountFieldState extends State<_ConvertedAmountField> {
   }
 }
 
-Widget _emailReceiptToggle(BuildContext context, PaymentEditViewModel vm) {
-  return SwitchListTile(
-    title: Text(context.tr('send_email')),
-    value: vm.sendEmail,
-    onChanged: (v) => vm.sendEmail = v,
-  );
+/// A new payment's "Email payment receipt to the client" switch — the only
+/// way a receipt goes with the create (the action bar's Send Email is left
+/// off the new-payment form, or a switched-on receipt went twice). Seeded
+/// from `client_manual_payment_notification`
+/// (`seedPaymentReceiptDefault`).
+///
+/// Switching it on checks the client's primary contact has an address — the
+/// receipt goes nowhere otherwise (invoiceninja/ui#3400) — and offers to add
+/// one; declined, it stays off.
+class PaymentEmailReceiptSwitch extends StatelessWidget {
+  const PaymentEmailReceiptSwitch({super.key, required this.vm});
+  final PaymentEditViewModel vm;
+
+  Future<void> _onChanged(BuildContext context, bool on) async {
+    final clientId = vm.draft.clientId;
+    if (on && clientId.isNotEmpty) {
+      final ok = await ensureRecipientEmail(
+        context,
+        context.read<Services>(),
+        companyId: vm.companyId,
+        clientId: clientId,
+        invitations: null,
+      );
+      if (!ok || vm.isDisposed) return;
+    }
+    vm.sendEmail = on;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.inTheme;
+    return Material(
+      color: tokens.surface,
+      shape: RoundedRectangleBorder(
+        side: BorderSide(color: tokens.border),
+        borderRadius: BorderRadius.circular(InRadii.r3),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: SwitchListTile(
+        contentPadding: EdgeInsetsDirectional.symmetric(
+          horizontal: InSpacing.lg(context),
+        ),
+        title: Text(context.tr('email_receipt')),
+        value: vm.sendEmail,
+        onChanged: (v) => _onChanged(context, v),
+      ),
+    );
+  }
 }
 
 class _Section extends StatelessWidget {

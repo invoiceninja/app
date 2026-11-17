@@ -26,7 +26,12 @@ class MarkdownNotesField extends StatefulWidget {
     this.maxHeight,
     this.expand = false,
     this.defaultValue,
+    this.caption,
   });
+
+  /// One line under the label saying who reads the field ("Shown to the
+  /// client"). Drawn only with the label ([showLabel]).
+  final String? caption;
 
   /// What the server fills in when this field is saved blank — a new
   /// document's terms / footer from the settings cascade. Shown muted in the
@@ -148,16 +153,28 @@ class _MarkdownNotesFieldState extends State<MarkdownNotesField> {
     // When the host labels the section (e.g. a TabBar tab name) we drop the
     // redundant header label. The "Save as default" action, if any, now
     // surfaces *below* the editor — right-aligned on its own row.
+    final caption = widget.caption;
     final Widget? header = widget.showLabel
         ? Padding(
             padding: const EdgeInsets.only(bottom: 6),
-            child: Text(
-              widget.label,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: context.inTheme.ink,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  widget.label,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: context.inTheme.ink,
+                  ),
+                ),
+                if (caption != null && caption.isNotEmpty)
+                  Text(
+                    caption,
+                    style: TextStyle(fontSize: 12, color: context.inTheme.ink3),
+                  ),
+              ],
             ),
           )
         : null;

@@ -6,12 +6,15 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import 'package:admin/app/design_tokens.dart';
+import 'package:admin/app/env.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/data/models/domain/company.dart';
 import 'package:admin/data/models/domain/tax_rate.dart';
 import 'package:admin/data/models/value/parsing.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/edit/entity_edit_field.dart';
+import 'package:admin/ui/core/widgets/formatter_host_mixin.dart';
+import 'package:admin/ui/core/widgets/ltr_value.dart';
 import 'package:admin/ui/core/widgets/searchable_dropdown_field.dart';
 import 'package:admin/ui/features/clients/widgets/edit/client_edit_field_pair.dart';
 import 'package:admin/ui/features/dashboard/widgets/card_shell.dart';
@@ -37,6 +40,12 @@ typedef TaxSlotSetter = void Function(int slot, String value);
 /// The number of tiers tracks `company.settings.enabled_expense_tax_rates`
 /// (with an "Add tax" overflow up to 3); when it's 0 a hint links to Tax
 /// Settings instead of showing tax inputs (React parity).
+///
+/// Below the tax inputs the card states the result: the tax and the
+/// **Expense Total** (the gross — the amount plus tax, or the amount itself
+/// when it already includes tax), which admin-portal printed in the edit
+/// footer. The caller computes both from its draft (`taxAmountSum`,
+/// `grossAmount`) so the figures are the domain model's own math.
 class ExpenseTaxSection extends StatefulWidget {
   const ExpenseTaxSection({
     super.key,
@@ -44,12 +53,17 @@ class ExpenseTaxSection extends StatefulWidget {
     this.useCommaAsDecimalPlace = false,
     required this.amount,
     this.amountBeside,
+    this.amountTrailing,
+    this.wrapAmountFields,
     required this.amountError,
     required this.taxNames,
     required this.taxRates,
     required this.taxAmounts,
     required this.usesInclusiveTaxes,
     required this.calculateTaxByAmount,
+    required this.currencyId,
+    required this.taxTotal,
+    required this.total,
     required this.onAmountChanged,
     required this.onTaxNameChanged,
     required this.onTaxRateChanged,
@@ -73,6 +87,18 @@ class ExpenseTaxSection extends StatefulWidget {
   /// Sits beside the amount where the card has room: the expense's currency
   /// picker, since that is the currency the amount is in.
   final Widget? amountBeside;
+
+  /// Third on the amount's row, after [amountBeside]: the expense's date on
+  /// New / Edit Expense, so the two facts every receipt carries are entered
+  /// side by side. Recurring Expense passes none (it has no date).
+  final Widget? amountTrailing;
+
+  /// Wraps the amount field, and separately the tax inputs, in the caller's
+  /// receipt focus scope (`ReceiptFieldFocus`) — the amount and its taxes are
+  /// one field for a receipt read, while [amountBeside] and [amountTrailing]
+  /// keep scopes of their own, so typing a date never holds a read off the
+  /// amount. Null on Recurring Expense, which reads no receipts.
+  final Widget Function(Widget child)? wrapAmountFields;
   final String? amountError;
 
   /// Current tier values, length 3 (index 0 → slot 1).
@@ -82,6 +108,13 @@ class ExpenseTaxSection extends StatefulWidget {
 
   final bool usesInclusiveTaxes;
   final bool calculateTaxByAmount;
+
+  /// The expense's currency, for the summary below the taxes.
+  final String currencyId;
+
+  /// The summed tax across the tiers, and the gross amount (tax included).
+  final Decimal taxTotal;
+  final Decimal total;
 
   final ValueChanged<String> onAmountChanged;
   final TaxSlotSetter onTaxNameChanged;
@@ -100,7 +133,23 @@ class ExpenseTaxSection extends StatefulWidget {
   State<ExpenseTaxSection> createState() => _ExpenseTaxSectionState();
 }
 
-class _ExpenseTaxSectionState extends State<ExpenseTaxSection> {
+class _ExpenseTaxSectionState extends State<ExpenseTaxSection>
+    with FormatterHostMixin {
+  @override
+  void initState() {
+    super.initState();
+    loadFormatter(context.read<Services>(), widget.companyId);
+  }
+
+  @override
+  void didUpdateWidget(ExpenseTaxSection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.companyId != widget.companyId) {
+      clearFormatter();
+      loadFormatter(context.read<Services>(), widget.companyId);
+    }
+  }
+
   /// Tax tiers on screen: the larger of the company's enabled count and the
   /// draft's populated rows, plus any the user added via "Add tax". Grow-only
   /// and recomputed on every build — it used to be latched on the first
@@ -176,28 +225,172 @@ class _ExpenseTaxSectionState extends State<ExpenseTaxSection> {
           errorText: widget.amountError,
           helper: widget.amountHelper,
         );
+        Widget scoped(Widget child) =>
+            widget.wrapAmountFields?.call(child) ?? child;
+        final amount = scoped(amountField);
+        final beside = widget.amountBeside;
+        final trailing = widget.amountTrailing;
         return DashboardCardShell(
           title: context.tr('amount'),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (widget.amountBeside case final beside?)
-                ClientEditFieldPair(left: amountField, right: beside)
+              if (beside != null && trailing != null)
+                _AmountRow(children: [amount, beside, trailing])
+              else if (beside != null)
+                ClientEditFieldPair(left: amount, right: beside)
               else
-                amountField,
+                amount,
               if (visible == 0)
                 _TaxDisabledHint()
               else
-                _TaxArea(
-                  state: this,
-                  visible: visible,
-                  companyId: widget.companyId,
+                scoped(
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _TaxArea(
+                        state: this,
+                        visible: visible,
+                        companyId: widget.companyId,
+                      ),
+                      _TaxSummary(
+                        formatter: formatter,
+                        currencyId: widget.currencyId,
+                        usesInclusiveTaxes: widget.usesInclusiveTaxes,
+                        taxTotal: widget.taxTotal,
+                        total: widget.total,
+                      ),
+                    ],
+                  ),
                 ),
             ],
           ),
         );
       },
+    );
+  }
+}
+
+/// Amount, currency and date on one row where the card has room, stacked
+/// below [_threeUpWidth]. Measured on the card, not the window: in the
+/// two-column form the card is the main column's width.
+class _AmountRow extends StatelessWidget {
+  const _AmountRow({required this.children});
+
+  final List<Widget> children;
+
+  /// About 165 px a field: enough for an amount, a currency code and a date.
+  static const double _threeUpWidth = 520;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < _threeUpWidth) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: children,
+          );
+        }
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            for (var i = 0; i < children.length; i++) ...[
+              if (i > 0) SizedBox(width: InSpacing.md(context)),
+              Expanded(child: children[i]),
+            ],
+          ],
+        );
+      },
+    );
+  }
+}
+
+/// What the taxes add up to, under the tax inputs. Exclusive: Tax, then the
+/// Expense Total (amount + tax). Inclusive: Net Amount and Tax, then the
+/// Expense Total — which is the amount as typed, so the net is the figure the
+/// user can't otherwise see; the rows read as net + tax = total. Matches the
+/// detail screen's standing card (`ExpenseDetailStanding`).
+///
+/// An em dash while the company's formatter loads (it is almost always warm).
+class _TaxSummary extends StatelessWidget {
+  const _TaxSummary({
+    required this.formatter,
+    required this.currencyId,
+    required this.usesInclusiveTaxes,
+    required this.taxTotal,
+    required this.total,
+  });
+
+  final Formatter? formatter;
+  final String currencyId;
+  final bool usesInclusiveTaxes;
+  final Decimal taxTotal;
+  final Decimal total;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.inTheme;
+    String money(Decimal v) =>
+        formatter?.money(v, clientCurrencyId: currencyId) ?? '\u2014';
+    Widget line(String label, Decimal value, {bool strong = false}) {
+      final size = strong ? 15.0 : 13.0;
+      final weight = strong ? FontWeight.w600 : FontWeight.w400;
+      final color = strong ? tokens.ink : tokens.ink3;
+      // One screen-reader stop per row: "Tax, $20.00", never two stray nodes.
+      return MergeSemantics(
+        child: Padding(
+          padding: EdgeInsets.only(top: InSpacing.xs),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: size,
+                    fontWeight: weight,
+                    color: color,
+                  ),
+                ),
+              ),
+              LtrText(
+                money(value),
+                textAlign: TextAlign.end,
+                style: moneyTextStyle(
+                  fontSize: size,
+                  fontWeight: weight,
+                  color: color,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Padding(
+      padding: EdgeInsets.only(top: InSpacing.sm),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          border: Border(top: BorderSide(color: tokens.border)),
+        ),
+        child: Padding(
+          padding: EdgeInsets.only(top: InSpacing.xs),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (usesInclusiveTaxes)
+                line(context.tr('net_amount'), total - taxTotal),
+              line(context.tr('tax'), taxTotal),
+              line(context.tr('expense_total'), total, strong: true),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -218,9 +411,17 @@ class _TaxDisabledHint extends StatelessWidget {
               style: TextStyle(color: tokens.ink3, fontSize: 13),
             ),
           ),
+          // Names where it goes, in the accent, and a full 44 px target on
+          // touch — "Settings" alone read as this card's own settings.
           TextButton(
+            style: TextButton.styleFrom(
+              foregroundColor: tokens.accentInk,
+              minimumSize: Env.isTouchPrimary
+                  ? const Size(64, InSizes.touchTarget)
+                  : null,
+            ),
             onPressed: () => context.go('/settings/tax_settings'),
-            child: Text(context.tr('settings')),
+            child: Text(context.tr('tax_settings')),
           ),
         ],
       ),
@@ -305,7 +506,7 @@ class _TaxArea extends StatelessWidget {
           ),
         Padding(
           padding: EdgeInsets.only(top: InSpacing.sm),
-          child: SwitchListTile.adaptive(
+          child: SwitchListTile(
             contentPadding: EdgeInsets.zero,
             title: Text(context.tr('inclusive_taxes')),
             value: w.usesInclusiveTaxes,

@@ -10,7 +10,7 @@
 /// This file adds only the two things the catalog can't answer:
 ///
 ///  * **Order.** `kInvoiceBadgeModes` is ordered `total, overdue, unpaid,
-///    draft` — its convention is "the most actionable status right after
+///    draft, paid` — its convention is "the most actionable status right after
 ///    total", which as tabs would read All / Overdue / Unpaid / Draft, i.e. the
 ///    funnel backwards. Tabs run in lifecycle order instead.
 ///  * **[ListStatusTabSpec.serverFilters]** — the optional translation into
@@ -148,7 +148,7 @@ class ListStatusTabSpec {
 const Map<EntityType, List<ListStatusTabSpec>> kListStatusTabs = {
   // -- Server-narrowed ------------------------------------------------------
 
-  // `InvoiceFilters::status_id` is a plain `whereIn`, so draft/unpaid are
+  // `InvoiceFilters::status_id` is a plain `whereIn`, so draft/unpaid/paid are
   // exact. `overdue` is a superset: the server ORs `due_date` and
   // `partial_due_date` where `invoiceOverdueFilter` COALESCEs them.
   EntityType.invoice: [
@@ -173,6 +173,13 @@ const Map<EntityType, List<ListStatusTabSpec>> kListStatusTabs = {
       // practice exactly right — but it IS a superset, and pretending
       // otherwise is how the auto-chain gets switched off by accident.
       widened: true,
+    ),
+    // Last: the end of the lifecycle. `status_id = 4` both sides, so exact.
+    ListStatusTabSpec(
+      'paid',
+      serverFilters: {
+        'status_id': {'4'},
+      },
     ),
   ],
 

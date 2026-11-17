@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:admin/app/services.dart';
 
 import 'package:admin/app/design_tokens.dart';
+import 'package:admin/app/env.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/adaptive.dart';
 import 'package:admin/ui/core/list/entity_list_constants.dart';
@@ -183,9 +184,11 @@ class _FilterAction extends StatelessWidget {
 }
 
 /// AppBar trailing widget that switches between the five task views — list,
-/// daily, weekly, calendar (monthly), kanban. On wide screens renders an
-/// icon-only `SegmentedButton` (five text labels won't fit) with tooltips; on
-/// narrow falls back to a `PopupMenuButton` so the AppBar stays compact.
+/// daily, weekly, calendar (monthly), kanban. On a wide pane ([wide] is the
+/// host screen's `LayoutBuilder` read, never `MediaQuery`) it renders a
+/// `SegmentedButton` whose ACTIVE segment carries its label and the other four
+/// are icons with tooltips (five labels won't fit); on a narrow one it falls
+/// back to a `PopupMenuButton` so the AppBar stays compact.
 ///
 /// **The layout is a preference, not a place.** Tapping writes
 /// `Services.tasksView` and navigates to a bare `/tasks`; `TaskListScreen`
@@ -247,23 +250,11 @@ class TasksViewToggle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (wide) {
-      return SegmentedButton<TasksViewMode>(
-        segments: [
-          for (final m in TasksViewMode.values)
-            ButtonSegment(
-              value: m,
-              icon: Icon(_icon(m), size: 16),
-              tooltip: context.tr(_labelKey(m)),
-            ),
-        ],
-        selected: {active},
-        showSelectedIcon: false,
-        onSelectionChanged: (next) => _go(context, next.first),
-        style: ButtonStyle(
-          padding: WidgetStateProperty.all(
-            const EdgeInsets.symmetric(horizontal: 10),
-          ),
-        ),
+      return _ViewSegments(
+        active: active,
+        iconOf: _icon,
+        labelOf: (m) => context.tr(_labelKey(m)),
+        onSelected: (m) => _go(context, m),
       );
     }
     return PopupMenuButton<TasksViewMode>(
@@ -285,5 +276,83 @@ class TasksViewToggle extends StatelessWidget {
           ),
       ],
     );
+  }
+}
+
+/// The wide toggle: five segments in one rounded outline, the ACTIVE one
+/// labelled and filled, the other four icons with tooltips.
+///
+/// Not a `SegmentedButton`: that lays every segment out at the width of the
+/// widest, so one label made all five as wide as `Kanban` — ~500 px of AppBar
+/// for a control that used to be ~200. Here each segment is its own width.
+class _ViewSegments extends StatelessWidget {
+  const _ViewSegments({
+    required this.active,
+    required this.iconOf,
+    required this.labelOf,
+    required this.onSelected,
+  });
+
+  final TasksViewMode active;
+  final IconData Function(TasksViewMode) iconOf;
+  final String Function(TasksViewMode) labelOf;
+  final ValueChanged<TasksViewMode> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.inTheme;
+    final height = Env.isTouchPrimary ? InSizes.touchTarget : 36.0;
+    final modes = TasksViewMode.values;
+    return Container(
+      decoration: BoxDecoration(
+        border: Border.all(color: tokens.border),
+        borderRadius: BorderRadius.circular(InRadii.r2),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: IntrinsicHeight(
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (var i = 0; i < modes.length; i++) ...[
+              if (i > 0) VerticalDivider(width: 1, color: tokens.border),
+              _segment(context, modes[i], height),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _segment(BuildContext context, TasksViewMode m, double height) {
+    final tokens = context.inTheme;
+    final selected = m == active;
+    final label = labelOf(m);
+    final button = TextButton(
+      onPressed: () => onSelected(m),
+      style: TextButton.styleFrom(
+        backgroundColor: selected ? tokens.borderStrong : null,
+        foregroundColor: selected ? tokens.ink : tokens.ink2,
+        minimumSize: Size(height, height),
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        shape: const RoundedRectangleBorder(),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      ),
+      child: Semantics(
+        selected: selected,
+        label: label,
+        excludeSemantics: true,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(iconOf(m), size: 16),
+            if (selected) ...[
+              const SizedBox(width: 6),
+              Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
+            ],
+          ],
+        ),
+      ),
+    );
+    return selected ? button : Tooltip(message: label, child: button);
   }
 }

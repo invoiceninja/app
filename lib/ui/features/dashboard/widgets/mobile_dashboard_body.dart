@@ -230,8 +230,12 @@ class MobileDashboardBody extends StatelessWidget {
                 context,
                 vm: vm,
                 formatter: formatter,
-                pastDueCount: pastDueOn && vm.pastDue.data != null
-                    ? vm.attention().pastDueCount
+                // The band's buckets, so what this card calls past due is what
+                // the band above it calls past due.
+                attention: pastDueOn && vm.pastDue.data != null
+                    ? vm.attention(
+                        companyCurrencyId: formatter.settings.currencyId,
+                      )
                     : null,
                 onTap: onOutstandingTap,
                 valueFontSize: dashboardDense(context) ? 26 : 30,
@@ -287,6 +291,7 @@ class MobileDashboardBody extends StatelessWidget {
                 vm: vm,
                 formatter: formatter,
                 legendMayJoinHeader: false,
+                expensesOn: expensesOn,
               ),
             ),
             SizedBox(height: _sectionGap(context)),
@@ -305,6 +310,7 @@ class MobileDashboardBody extends StatelessWidget {
               onViewAll: onAllActivities,
               onRetry: () => vm.retry(DashboardKind.activities),
               onActivityTap: onActivityTap,
+              formatter: formatter,
             ),
           ),
         ],

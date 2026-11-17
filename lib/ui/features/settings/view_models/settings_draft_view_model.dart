@@ -141,6 +141,18 @@ abstract class SettingsDraftHost extends ChangeNotifier {
   /// unsaved-changes guard's Discard path.
   void reset();
 
+  /// An opaque copy of the in-progress edit, taken just before the toolbar's
+  /// Discard calls [reset] so its toast can offer Undo. Null when this host
+  /// cannot hand its edit back (the default) — Discard then toasts without
+  /// an Undo. Never a deep copy of anything mutable: the drafts are freezed
+  /// values, so the reference is the snapshot.
+  Object? draftSnapshot() => null;
+
+  /// Put back a [draftSnapshot] taken by this host and notify. Ignores a
+  /// snapshot of the wrong shape. The baseline is untouched, so a restored
+  /// edit reads dirty again against whatever has loaded since.
+  void restoreDraftSnapshot(Object snapshot) {}
+
   /// Persist the draft. Returns non-null on success (the saved entity,
   /// type is intentionally [Object] so different backings can return
   /// whatever they like) and null on failure — `runSettingsSave`

@@ -132,7 +132,7 @@ void main() {
 
     test('a hand-picked filter matching no tab selects nothing rather than '
         'lighting up All, which would claim no status filter is applied', () {
-      expect(decide(activeModeId: 'paid').selectedIndex, -1);
+      expect(decide(activeModeId: 'sent').selectedIndex, -1);
     });
   });
 

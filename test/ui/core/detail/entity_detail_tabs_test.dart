@@ -374,8 +374,9 @@ void main() {
       // The leading fade is gated on there being something to reveal that
       // way: an unconditional one veils the first tab's own label once the
       // strip is scrolled back to the start. The trailing edge carries the
-      // "all tabs" button instead of a fade, for exactly as long as the tabs
-      // run past the strip. Counted structurally — the fade is the only
+      // "all tabs" button for exactly as long as the tabs run past the strip,
+      // with a fade before it while a tab is cut off there — a label the
+      // button cut through read as truncated. Counted structurally — the fade is the only
       // gradient-filled container in the strip; a tab button's decoration is
       // a border.
       int fades() => fadeCount(tester);
@@ -389,12 +390,20 @@ void main() {
         scroll: false,
       );
       await tester.pumpAndSettle();
-      expect(fades(), 0, reason: 'at the start: nothing off the leading edge');
+      expect(
+        fades(),
+        1,
+        reason: 'at the start: nothing off the leading edge, one before ▾',
+      );
       expect(allTabsButton, findsOneWidget);
 
       controller.select(14);
       await tester.pumpAndSettle();
-      expect(fades(), 1, reason: 'at the end: leading only');
+      expect(
+        fades(),
+        1,
+        reason: 'at the end: leading only — the last tab is clear of ▾',
+      );
       expect(allTabsButton, findsOneWidget, reason: 'it still overflows');
 
       await pumpAt(

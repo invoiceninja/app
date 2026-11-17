@@ -59,8 +59,8 @@ class DashboardActivity {
 
   /// Display labels keyed by template token (`user`, `client`, `invoice`, …),
   /// populated from the `?reactv2` nested `{label, hashed_id}` objects. Empty
-  /// for the flat `ActivityTransformer` shape, where the formatter falls back
-  /// to the localized noun. Note the server emits an entry only for tokens the
+  /// for the flat `ActivityTransformer` shape, where the formatter writes an
+  /// em dash (`kActivityMissingValue`). Note the server emits an entry only for tokens the
   /// `activity_<N>` template actually contains, so a missing key means "this
   /// activity doesn't name that thing", not "the server didn't know it".
   final Map<String, String> labels;

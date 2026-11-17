@@ -3,6 +3,9 @@ import 'package:material_ui/material_ui.dart';
 
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/data/models/domain/billing/billing_doc_fields.dart';
+import 'package:admin/data/models/domain/credit.dart';
+import 'package:admin/data/models/domain/credit_status.dart';
+import 'package:admin/data/models/domain/invoice.dart';
 import 'package:admin/data/models/value/date.dart';
 import 'package:admin/domain/recurring_frequency.dart';
 import 'package:admin/l10n/localization.dart';
@@ -19,9 +22,9 @@ import 'package:admin/ui/core/utils/count_labels.dart';
 ///
 /// | Document | Figures | Only when non-zero | Line |
 /// |---|---|---|---|
-/// | Invoice | Amount, Balance Due | Paid to Date, Partial Due | due / past due |
+/// | Invoice | Balance Due while open, else Amount | Paid to Date, Partial Due | due / past due |
 /// | Quote | Amount | Partial Due | expires / expired |
-/// | Credit | Amount, Credit Remaining | Applied, Partial Due | — |
+/// | Credit | Credit Remaining while open, else Amount | Applied, Partial Due | — |
 /// | Recurring invoice | Amount, Next Send Date | — | frequency, cycles |
 /// | Purchase order | Amount | Balance, when it differs | — |
 ///
@@ -41,9 +44,31 @@ import 'package:admin/ui/core/utils/count_labels.dart';
 /// an invoice a month late: the status pill above already says Past Due, and
 /// the line below says by how much. One loud thing per card.
 ///
+/// **One lead rule** ([billingDocLeadsWithBalance]). The balance leads only
+/// while it is open: not zero, and the status does not say nothing is owed —
+/// a draft (never sent; the server keeps its balance at 0, so it led with
+/// `$0.00`), a cancelled or a reversed invoice. Otherwise the amount leads.
+/// A partial payment keeps the balance in front; an overpaid invoice (a
+/// negative balance) does too, since that is the figure to act on. What has
+/// been settled is not repeated when it equals the amount — a paid invoice
+/// shows its amount once, as the purchase order's balance rule does.
+///
 /// Amounts go through `PartyCurrencyBuilder` — client → group → company, or
 /// the vendor's own on a purchase order — so a group-inheriting client's
 /// invoice is not printed in the company's currency.
+/// Whether [doc]'s balance is open and so leads its standing card: not zero,
+/// and not a status that owes nothing whatever the balance column reads — a
+/// draft, a cancelled or a reversed invoice; a draft credit. Only an invoice
+/// and a credit have a balance figure at all ([BillingDocType.balanceLabelKey]).
+bool billingDocLeadsWithBalance(BillingDocFields doc) {
+  if (doc.balance == Decimal.zero) return false;
+  return switch (doc) {
+    final Invoice i => !(i.isDraft || i.isCancelled || i.isReversed),
+    final Credit c => c.statusId != CreditStatus.draft,
+    _ => true,
+  };
+}
+
 class BillingDocStanding extends StatelessWidget {
   const BillingDocStanding({
     super.key,
@@ -99,6 +124,8 @@ class BillingDocStanding extends StatelessWidget {
             : Decimal.zero;
         final nextSend = nextSendDate;
         final f = formatter;
+        final leadsWithBalance =
+            balanceKey != null && billingDocLeadsWithBalance(doc);
         // What has been settled of the whole — paid of an invoice, applied of
         // a credit. Only once something has been: like the secondary figures
         // it is drawn when it is not zero, so a draft carries no empty bar
@@ -116,12 +143,12 @@ class BillingDocStanding extends StatelessWidget {
           progressLabel: share == null || settled == null || settledKey == null
               ? null
               : '${context.tr(settledKey)}: ${money(settled)}',
-          // One figure leads: what is still open where the document has a
-          // balance (an invoice's balance due, a credit's remaining), else
-          // its amount. Two equal figures made the reader pick; the total
+          // One figure leads: what is still open while the document has an
+          // open balance (an invoice's balance due, a credit's remaining),
+          // else its amount. Two equal figures made the reader pick; the total
           // moves to the line of secondary figures beside what was paid.
           primary: [
-            if (balanceKey != null)
+            if (leadsWithBalance)
               figure(balanceKey, doc.balance)
             else
               figure('amount', doc.amount),
@@ -135,10 +162,13 @@ class BillingDocStanding extends StatelessWidget {
               ),
           ],
           secondary: [
-            if (balanceKey != null) figure('amount', doc.amount),
+            if (leadsWithBalance) figure('amount', doc.amount),
+            // Paid in full — or applied in full — is the amount again: the
+            // lead figure already says it.
             if (settledKey != null &&
                 settled != null &&
-                settled != Decimal.zero)
+                settled != Decimal.zero &&
+                settled != doc.amount)
               figure(settledKey, settled),
             if (partial != Decimal.zero) figure('partial_due', partial),
             // A purchase order's balance is its amount until something is

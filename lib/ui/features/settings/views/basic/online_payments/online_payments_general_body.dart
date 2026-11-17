@@ -7,9 +7,11 @@ import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/features/settings/state/settings_level_controller.dart';
 import 'package:admin/ui/features/settings/view_models/settings_draft_view_model.dart';
 import 'package:admin/ui/features/settings/widgets/form_section.dart';
+import 'package:admin/ui/features/settings/widgets/no_gateway_warning.dart';
 import 'package:admin/ui/features/settings/widgets/overridable_dropdown_field.dart';
 import 'package:admin/ui/features/settings/widgets/overridable_number_field.dart';
 import 'package:admin/ui/features/settings/widgets/overridable_switch_field.dart';
+import 'package:admin/ui/features/settings/widgets/segmented_choice_field.dart';
 
 /// Online Payments — General tab. Field labels surfaced by the in-app search.
 const kOnlinePaymentsGeneralSearchKeys = <String>[
@@ -55,8 +57,14 @@ class OnlinePaymentsGeneralBody extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
+        // Gateways are the company's, so a group or client scope has no
+        // gateway of its own to be missing.
+        if (isCompanyScope)
+          const NoGatewayWarning(messageKey: 'no_gateway_connected'),
+        // Untitled: "Settings" under the Online Payments page's own title and
+        // the General tab said nothing a heading should.
         FormSection(
-          title: context.tr('settings'),
+          title: null,
           children: [
             OverridableSwitchField(
               label: context.tr('auto_bill_standard_invoices'),
@@ -70,28 +78,28 @@ class OnlinePaymentsGeneralBody extends StatelessWidget {
               onChanged: (v) =>
                   host.updateSettings((s) => s.copyWith(autoBill: v)),
             ),
-            OverridableDropdownField<String>(
+            OverridableSegmentedField<String>(
               label: context.tr('auto_bill_on'),
               apiKey: 'auto_bill_date',
               value: host.settings.autoBillDate,
-              items: _autoBillDateOptions(context),
+              options: _autoBillDateOptions(context),
               onChanged: (v) =>
                   host.updateSettings((s) => s.copyWith(autoBillDate: v)),
             ),
-            OverridableDropdownField<String>(
+            OverridableSegmentedField<String>(
               label: context.tr('use_available_payments'),
               apiKey: 'use_unapplied_payment',
               value: host.settings.useUnappliedPayment,
-              items: _alwaysOptionOff(context),
+              options: _alwaysOptionOff(context),
               onChanged: (v) => host.updateSettings(
                 (s) => s.copyWith(useUnappliedPayment: v),
               ),
             ),
-            OverridableDropdownField<String>(
+            OverridableSegmentedField<String>(
               label: context.tr('use_available_credits'),
               apiKey: 'use_credits_payment',
               value: host.settings.useCreditsPayment,
-              items: _alwaysOptionOff(context),
+              options: _alwaysOptionOff(context),
               onChanged: (v) =>
                   host.updateSettings((s) => s.copyWith(useCreditsPayment: v)),
             ),
@@ -159,7 +167,7 @@ class OnlinePaymentsGeneralBody extends StatelessWidget {
         ),
         if (isCompanyScope)
           FormSection(
-            title: context.tr('payment_settings'),
+            title: null,
             children: [
               _CompanyToggleTile(
                 label: context.tr('admin_initiated_payments'),
@@ -190,21 +198,17 @@ class OnlinePaymentsGeneralBody extends StatelessWidget {
     DropdownMenuItem(value: 'off', child: Text(context.tr('off'))),
   ];
 
-  List<DropdownMenuItem<String>> _autoBillDateOptions(BuildContext context) => [
-    DropdownMenuItem(
-      value: 'on_send_date',
-      child: Text(context.tr('on_send_date')),
-    ),
-    DropdownMenuItem(
-      value: 'on_due_date',
-      child: Text(context.tr('on_due_date')),
-    ),
+  List<SegmentedChoice<String>> _autoBillDateOptions(BuildContext context) => [
+    (value: 'on_send_date', label: context.tr('on_send_date')),
+    (value: 'on_due_date', label: context.tr('on_due_date')),
   ];
 
-  List<DropdownMenuItem<String>> _alwaysOptionOff(BuildContext context) => [
-    DropdownMenuItem(value: 'always', child: Text(context.tr('always'))),
-    DropdownMenuItem(value: 'option', child: Text(context.tr('option'))),
-    DropdownMenuItem(value: 'off', child: Text(context.tr('off'))),
+  List<SegmentedChoice<String>> _alwaysOptionOff(BuildContext context) => [
+    (value: 'always', label: context.tr('always')),
+    // `show_option`: the bare "Option" read as a noun, not as "offer it to
+    // the client in the portal" (`use_credits_payment: option`).
+    (value: 'option', label: context.tr('show_option')),
+    (value: 'off', label: context.tr('off')),
   ];
 }
 

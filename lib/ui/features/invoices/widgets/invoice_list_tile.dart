@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/data/models/domain/invoice.dart';
+import 'package:admin/data/models/value/date.dart';
 import 'package:admin/domain/columns/column_definition.dart';
 import 'package:admin/ui/core/list/cell_slot.dart';
 import 'package:admin/ui/core/list/entity_actions_popup_button.dart';
@@ -14,7 +15,9 @@ import 'package:admin/ui/core/widgets/formatter_scope.dart';
 import 'package:admin/ui/core/widgets/party_money_cell.dart';
 import 'package:admin/ui/features/invoices/widgets/invoice_actions.dart';
 import 'package:admin/ui/features/invoices/widgets/invoice_status_pill.dart';
+import 'package:admin/ui/features/billing_shared/billing_row_subtitle.dart';
 import 'package:admin/ui/features/billing_shared/peppol_status_icon.dart';
+import 'package:admin/ui/features/dashboard/helpers/when_text.dart';
 import 'package:admin/ui/core/widgets/ltr_value.dart';
 
 /// Cached locale-only fallback for the narrow-tile amount when no
@@ -196,6 +199,9 @@ class _InvoiceListTileState extends State<InvoiceListTile> {
   Widget _identity(BuildContext context, InTheme tokens) {
     final i = widget.invoice;
     final ident = i.number.isEmpty ? '—' : '#${i.number}';
+    final due = i.partialDueDate ?? i.dueDate;
+    final today = Date.today();
+    final isLate = i.isPastDueOn(today);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -206,27 +212,40 @@ class _InvoiceListTileState extends State<InvoiceListTile> {
           overflow: TextOverflow.ellipsis,
           style: const TextStyle(fontWeight: FontWeight.w600),
         ),
-        if (i.clientId.isNotEmpty) ...[
+        if (i.clientId.isNotEmpty || due != null) ...[
           const SizedBox(height: 2),
-          // Deliberately NOT `link: true` — invoiceninja/flutter#128. A
-          // narrow row has exactly one destination; a nested `LinkText` is
-          // `HitTestBehavior.opaque`, so it stole every tap that landed on
-          // the name (including, in multi-select, the toggle) and there was
-          // no at-rest affordance on touch saying so. The client is reached
-          // from `⋮ → View client`, from the detail header's cued link, and
-          // from the wide table's labelled Client column. Pinned by
-          // `test/lint/no_list_tile_name_link_test.dart`.
-          //
-          // `ink2` + `w500`, not `ink3`: `linkOrText` used to supply the
-          // `w500`, and `ink3` at 12px is ~3.9:1 — below AA on the one field
-          // people scan this list for.
-          ClientNameLabel(
-            clientId: i.clientId,
-            style: TextStyle(
-              color: tokens.ink2,
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-            ),
+          // "Acme · Due 3 Nov 2026": the active due date (the partial's while
+          // one is set — the date `isPastDueOn` measures from), in the overdue
+          // ink exactly when the Past Due pill shows.
+          BillingRowSubtitle(
+            date: due,
+            dateLabelKey: 'due_on_date_label',
+            late: isLate,
+            lateText: isLate
+                ? lateText(context, today.differenceInDays(due!))
+                : null,
+            party: i.clientId.isEmpty
+                ? null
+                // Deliberately NOT `link: true` — invoiceninja/flutter#128. A
+                // narrow row has exactly one destination; a nested `LinkText`
+                // is `HitTestBehavior.opaque`, so it stole every tap that
+                // landed on the name (including, in multi-select, the toggle)
+                // and there was no at-rest affordance on touch saying so. The
+                // client is reached from `⋮ → View client`, from the detail
+                // header's cued link, and from the wide table's labelled Client
+                // column. Pinned by `test/lint/no_list_tile_name_link_test.dart`.
+                //
+                // `ink2` + `w500`, not `ink3`: `linkOrText` used to supply the
+                // `w500`, and `ink3` at 12px is ~3.9:1 — below AA on the one
+                // field people scan this list for.
+                : ClientNameLabel(
+                    clientId: i.clientId,
+                    style: TextStyle(
+                      color: tokens.ink2,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
           ),
         ],
       ],

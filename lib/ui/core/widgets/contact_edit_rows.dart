@@ -1,9 +1,12 @@
 import 'package:material_ui/material_ui.dart';
 
 import 'package:admin/app/design_tokens.dart';
+import 'package:admin/domain/contact_email_mode.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/initials_avatar.dart';
 import 'package:admin/ui/core/widgets/ltr_value.dart';
+import 'package:admin/ui/core/widgets/notify.dart';
 
 /// What the edit screens' contact list needs to know about one contact. A
 /// client's `Contact` and a vendor's `VendorContact` are separate models with
@@ -59,7 +62,11 @@ class ContactEditRows extends StatefulWidget {
   final List<Widget> Function(BuildContext context, int index) fieldsBuilder;
 
   final ValueChanged<int> onMakePrimary;
-  final ValueChanged<int> onDelete;
+
+  /// Removes the contact at an index and returns what puts it back, for the
+  /// toast's Undo (null: nothing was removed). Remove asks nothing first —
+  /// the Undo is the way back — and is never offered on the only contact.
+  final VoidCallback? Function(int index) onDelete;
 
   @override
   State<ContactEditRows> createState() => _ContactEditRowsState();
@@ -88,6 +95,21 @@ class _ContactEditRowsState extends State<ContactEditRows> {
     });
   }
 
+  void _delete(BuildContext context, int i) {
+    final contact = widget.contacts[i];
+    final name = _nameOf(contact);
+    final label = name.isNotEmpty
+        ? name
+        : contact.email.trim().isNotEmpty
+        ? contact.email.trim()
+        : context.tr('contact');
+    final message = context.tr('removed_contact_name', {'name': label});
+    final undoLabel = context.tr('undo');
+    final undo = widget.onDelete(i);
+    if (undo == null) return;
+    Notify.info(context, message, action: NotifyAction(undoLabel, undo));
+  }
+
   @override
   Widget build(BuildContext context) {
     final tokens = context.inTheme;
@@ -109,9 +131,12 @@ class _ContactEditRowsState extends State<ContactEditRows> {
                 ? null
                 : () => _toggle(i),
             canDelete: canDelete,
+            // One contact is necessarily the primary; the label only tells
+            // two or more apart.
+            showPrimaryLabel: contacts.length > 1,
             fieldsBuilder: widget.fieldsBuilder,
             onMakePrimary: () => widget.onMakePrimary(i),
-            onDelete: () => widget.onDelete(i),
+            onDelete: () => _delete(context, i),
           ),
         ],
       ],
@@ -127,6 +152,7 @@ class _ContactRow extends StatelessWidget {
     required this.open,
     required this.onToggle,
     required this.canDelete,
+    required this.showPrimaryLabel,
     required this.fieldsBuilder,
     required this.onMakePrimary,
     required this.onDelete,
@@ -141,6 +167,7 @@ class _ContactRow extends StatelessWidget {
   /// Opens or closes the row; null where it cannot be closed.
   final VoidCallback? onToggle;
   final bool canDelete;
+  final bool showPrimaryLabel;
   final List<Widget> Function(BuildContext context, int index) fieldsBuilder;
   final VoidCallback onMakePrimary;
   final VoidCallback onDelete;
@@ -149,10 +176,7 @@ class _ContactRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final tokens = context.inTheme;
     final theme = Theme.of(context);
-    final name = [
-      contact.firstName.trim(),
-      contact.lastName.trim(),
-    ].where((part) => part.isNotEmpty).join(' ');
+    final name = _nameOf(contact);
     final title = name.isNotEmpty
         ? name
         : contact.isPrimary
@@ -191,16 +215,9 @@ class _ContactRow extends StatelessWidget {
                           ),
                         ),
                       ),
-                      if (contact.isPrimary) ...[
-                        const SizedBox(width: InSpacing.xs),
-                        Tooltip(
-                          message: context.tr('primary_contact'),
-                          child: Icon(
-                            Icons.star,
-                            size: 16,
-                            color: tokens.accent,
-                          ),
-                        ),
+                      if (contact.isPrimary && showPrimaryLabel) ...[
+                        const SizedBox(width: InSpacing.sm),
+                        const PrimaryContactLabel(),
                       ],
                     ],
                   ),
@@ -236,7 +253,9 @@ class _ContactRow extends StatelessWidget {
           Semantics(
             button: true,
             expanded: open,
-            label: title,
+            label: contact.isPrimary && showPrimaryLabel
+                ? '$title, ${context.tr('primary')}'
+                : title,
             onTap: onToggle,
             child: InkWell(
               onTap: onToggle,
@@ -273,6 +292,131 @@ class _ContactRow extends StatelessWidget {
           const SizedBox(height: InSpacing.sm),
         ],
       ],
+    );
+  }
+}
+
+/// "First Last", trimmed, or `''`.
+String _nameOf(ContactRowData contact) => [
+  contact.firstName.trim(),
+  contact.lastName.trim(),
+].where((part) => part.isNotEmpty).join(' ');
+
+/// The word "Primary" in a small rounded rectangle beside the primary
+/// contact's name — words, not the star that read as a favourite. Never a
+/// pill (CLAUDE.md § Design system).
+class PrimaryContactLabel extends StatelessWidget {
+  const PrimaryContactLabel({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.inTheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+      decoration: BoxDecoration(
+        color: tokens.accentSoft,
+        borderRadius: BorderRadius.circular(InRadii.r1),
+      ),
+      child: Text(
+        context.tr('primary'),
+        maxLines: 1,
+        style: TextStyle(
+          color: tokens.accentInk,
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+}
+
+/// How a contact gets a document's email, as one choice of three — To, CC,
+/// None — where there were two switches ("Add to invoices", "CC only") that
+/// could be set against each other (`ContactEmailMode`).
+///
+/// CC is disabled on the primary contact: the server never stores the
+/// primary as CC-only.
+class ContactEmailModeField extends StatelessWidget {
+  const ContactEmailModeField({
+    super.key,
+    required this.value,
+    required this.isPrimary,
+    required this.onChanged,
+  });
+
+  final ContactEmailMode value;
+  final bool isPrimary;
+  final ValueChanged<ContactEmailMode> onChanged;
+
+  static String _labelKey(ContactEmailMode mode) => switch (mode) {
+    ContactEmailMode.to => 'to',
+    ContactEmailMode.cc => 'cc',
+    ContactEmailMode.none => 'none',
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.inTheme;
+    final theme = Theme.of(context);
+    final label = context.tr('email');
+    Widget option(ContactEmailMode mode) {
+      final enabled = !(mode == ContactEmailMode.cc && isPrimary);
+      final text = context.tr(_labelKey(mode));
+      final tile = MergeSemantics(
+        child: InkWell(
+          borderRadius: BorderRadius.circular(InRadii.r1),
+          onTap: enabled ? () => onChanged(mode) : null,
+          child: Padding(
+            padding: const EdgeInsetsDirectional.only(end: InSpacing.sm),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Radio<ContactEmailMode>(value: mode, enabled: enabled),
+                Text(
+                  text,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: enabled ? tokens.ink : tokens.ink3,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      if (enabled) return tile;
+      return Tooltip(
+        message: context.tr('primary_contact_not_cc'),
+        child: tile,
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: kFieldVerticalGap),
+      child: Semantics(
+        container: true,
+        label: label,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ExcludeSemantics(
+              child: Text(label, style: LabeledField.textStyle(context)),
+            ),
+            RadioGroup<ContactEmailMode>(
+              groupValue: value,
+              onChanged: (mode) {
+                if (mode != null) onChanged(mode);
+              },
+              child: Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  for (final mode in ContactEmailMode.values) option(mode),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

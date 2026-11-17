@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:material_ui/material_ui.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -10,6 +12,8 @@ import 'package:admin/app/services.dart';
 import 'package:admin/data/models/domain/task.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/features/tasks/widgets/running_duration_label.dart';
+import 'package:admin/ui/core/widgets/toast_controller.dart';
+import 'package:admin/ui/core/widgets/toast_host.dart';
 
 /// Persistent "running timer" surface that lets the user stop the active
 /// timer from anywhere — not just from the task edit screen.
@@ -30,7 +34,9 @@ import 'package:admin/ui/features/tasks/widgets/running_duration_label.dart';
 /// Tapping the stop icon → enqueues a save with `stop = now` on the
 /// running entry; no edit-screen detour required.
 ///
-/// The shell pins it at [runningTimerPillBottom].
+/// The shell's railed (wide) branch floats it at [runningTimerPillBottom];
+/// the narrow branch docks the same two modes under the content instead
+/// ([RunningTimerDock]).
 class RunningTimerPill extends StatefulWidget {
   const RunningTimerPill({super.key});
 
@@ -46,21 +52,33 @@ class RunningTimerPill extends StatefulWidget {
 /// and a 40 px gap.
 ///
 /// A screen shows that FAB when its own pane is narrower than
-/// [Breakpoints.wide]. The dashboard also shows one on any phone, including in
-/// landscape, where the window is wide enough for the shell's railed layout
+/// [Breakpoints.wide] — in the railed shell, the 600–832 px window band. The
+/// dashboard also shows one on any phone, including in landscape, where the
+/// window is wide enough for the shell's railed layout
 /// (invoiceninja/flutter#164). Anywhere else the corner is free, and the pill
-/// sits 16 from the bottom.
+/// sits 16 from the bottom. (Below [Breakpoints.wide] the shell docks the timer
+/// instead — [RunningTimerDock] — and this offset is not used.)
 ///
 /// [screenAlwaysHasFab] is the exception to that width rule: the Tasks daily /
 /// weekly / calendar views mount their FAB ungated on width **on purpose**
 /// (`tasksViewAlwaysShowsFab`), so on a desktop window this returned 16 while
 /// there really was a 56 px button underneath. The pill is the later `Stack`
 /// child, so it won the hit test: aiming at `+` hit stop/start instead.
+///
+/// [bottomBar] is the height of whatever the screen pins to its bottom edge —
+/// the billing editors' sticky totals, a list's selection bar — as published
+/// through `ToastBottomInset` ([ToastController.bottomInset]). It is added on
+/// top of either offset: a FAB floats above a `bottomNavigationBar`, and with
+/// no FAB the pill would otherwise sit on the bar's trailing figure (the
+/// invoice Total, on a desktop editor).
 double runningTimerPillBottom({
   required double paneWidth,
   required bool isPhone,
   bool screenAlwaysHasFab = false,
-}) => isPhone || screenAlwaysHasFab || paneWidth < Breakpoints.wide ? 112 : 16;
+  double bottomBar = 0,
+}) =>
+    (isPhone || screenAlwaysHasFab || paneWidth < Breakpoints.wide ? 112 : 16) +
+    bottomBar;
 
 class _RunningTimerPillState extends State<RunningTimerPill>
     with WidgetsBindingObserver {
@@ -156,27 +174,9 @@ class _Pill extends StatelessWidget {
   /// so without this concurrent timers would accrue invisibly.
   final int runningCount;
 
-  Future<void> _stop(BuildContext context) async {
-    final session = services.auth.session.value;
-    if (session == null) return;
-    // Centralized in the repo so the read-modify-write logic + outbox
-    // enqueue lives in one place (see TaskRepository.stopRunningTimer).
-    await services.tasks.stopRunningTimer(
-      companyId: session.currentCompanyId,
-      taskId: task.id,
-    );
-  }
+  Future<void> _stop(BuildContext context) => _stopTimer(services, task);
 
-  Future<void> _stopAll(BuildContext context) async {
-    final session = services.auth.session.value;
-    if (session == null) return;
-    // Every running timer in the company is in Drift, a teammate's too — so
-    // only the ones this user may edit; the server refuses the rest (401).
-    await services.tasks.stopAllRunning(
-      companyId: session.currentCompanyId,
-      only: (t) => TaskActions.canEditTask(session, t),
-    );
-  }
+  Future<void> _stopAll(BuildContext context) => _stopAllTimers(services);
 
   @override
   Widget build(BuildContext context) {
@@ -184,9 +184,7 @@ class _Pill extends StatelessWidget {
     // The newest running timer may be a teammate's: no Stop for a task this
     // user may not edit (`TaskActions.canTimeTask`).
     final canStop = TaskActions.canEditTask(services.auth.session.value, task);
-    final label = task.description.isEmpty
-        ? (task.number.isEmpty ? context.tr('running') : '#${task.number}')
-        : task.description;
+    final label = _runningLabel(context, task);
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -393,4 +391,442 @@ class _DueNowPillState extends State<_DueNowPill> {
       },
     );
   }
+}
+
+/// The running task's one-line name, shared by the pill and the dock.
+String _runningLabel(BuildContext context, Task task) =>
+    task.description.isEmpty
+    ? (task.number.isEmpty ? context.tr('running') : '#${task.number}')
+    : task.description;
+
+/// Stop [task]'s running entry. Centralized in the repo so the
+/// read-modify-write logic + outbox enqueue lives in one place (see
+/// `TaskRepository.stopRunningTimer`).
+Future<void> _stopTimer(Services services, Task task) async {
+  final session = services.auth.session.value;
+  if (session == null) return;
+  await services.tasks.stopRunningTimer(
+    companyId: session.currentCompanyId,
+    taskId: task.id,
+  );
+}
+
+/// Stop every running timer this user may edit. Every running timer in the
+/// company is in Drift, a teammate's too — the server refuses the rest (401).
+Future<void> _stopAllTimers(Services services) async {
+  final session = services.auth.session.value;
+  if (session == null) return;
+  await services.tasks.stopAllRunning(
+    companyId: session.currentCompanyId,
+    only: (t) => TaskActions.canEditTask(session, t),
+  );
+}
+
+/// The height of the docked timer bar, before the bottom safe inset it pays
+/// beneath itself. A floor (`minHeight`), never a fixed height: at a large
+/// text scale the row grows rather than slicing its descenders.
+const double kRunningTimerDockHeight = 48;
+
+/// The phone form of [RunningTimerPill]: the same two modes (a running timer;
+/// a booked block that is due now), docked as a full-width bar **under** the
+/// content instead of floating over it.
+///
+/// The floating pill hid a field or a row on most phone screens (it sat 112 px
+/// up, above the FAB's clearance, so no list or form paid for it). Docked, the
+/// bar is layout rather than overlay, so every screen above it is simply
+/// shorter — scrollables, FABs, the billing editors' sticky totals bar and the
+/// list selection bar all end above it with no per-screen code.
+///
+/// Wraps the content ([child]) because it has to change what the content sees:
+///
+/// * **It owns the bottom safe inset.** It is the last thing on the screen, so
+///   it paints into the gesture strip and pads its own row above it, and hands
+///   [child] a `MediaQuery` with the bottom padding removed — otherwise every
+///   `SafeArea`, `BoxScrollView` and FAB above it would pay the inset a second
+///   time. `CLAUDE.md` § Design system: one owner, and it is the last thing.
+/// * **It hides while the keyboard is up.** The screen's own `Scaffold`
+///   subtracts `viewInsets.bottom` from its box; with the bar still below it
+///   that box is already 48 px + inset short, so the field the keyboard is
+///   meant to reveal would land that far too high, and the bar would sit
+///   behind the keyboard anyway.
+/// * **It lifts the bottom toast above itself** through [ToastBottomInset]
+///   (the toast host already adds the safe inset, so only the bar's own row
+///   is reported).
+///
+/// [child] keeps its place in the tree in every state — the bar is a trailing
+/// sibling, and the `MediaQuery` around [child] is always mounted — so a timer
+/// starting or stopping never remounts the navigator under it.
+///
+/// Wide layouts keep the floating pill; the shell mounts this only in its
+/// narrow branch.
+class RunningTimerDock extends StatefulWidget {
+  const RunningTimerDock({required this.child, super.key});
+
+  final Widget child;
+
+  @override
+  State<RunningTimerDock> createState() => _RunningTimerDockState();
+}
+
+class _RunningTimerDockState extends State<RunningTimerDock>
+    with WidgetsBindingObserver {
+  late final Services _services = context.read<Services>();
+
+  /// The company whose streams are open; null when there is no session or the
+  /// user may not view tasks (the pill's permission gate).
+  String? _companyId;
+  StreamSubscription<Task?>? _runningSub;
+  StreamSubscription<int>? _countSub;
+  StreamSubscription<Task?>? _dueSub;
+  Task? _running;
+  int _runningCount = 1;
+  Task? _due;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _services.auth.session.addListener(_onSession);
+    _onSession();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _services.auth.session.removeListener(_onSession);
+    _cancelAll();
+    super.dispose();
+  }
+
+  /// "Due now" is decided against `DateTime.now()` when the booked rows emit,
+  /// and Drift only emits on a write — so re-open that one stream on resume,
+  /// the frame that matters to someone between jobs (as the pill does).
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed || !mounted) return;
+    _dueSub?.cancel();
+    _dueSub = null;
+    _syncDue();
+  }
+
+  void _cancelAll() {
+    _runningSub?.cancel();
+    _countSub?.cancel();
+    _dueSub?.cancel();
+    _runningSub = null;
+    _countSub = null;
+    _dueSub = null;
+  }
+
+  void _onSession() {
+    final session = _services.auth.session.value;
+    final company = session?.currentCompany;
+    final id = session != null && company != null && company.can('view_task')
+        ? session.currentCompanyId
+        : null;
+    if (id == _companyId) return;
+    _cancelAll();
+    _companyId = id;
+    _running = null;
+    _runningCount = 1;
+    _due = null;
+    if (id != null) {
+      _runningSub = _services.tasks
+          .watchRunning(companyId: id)
+          .listen(_onRunning);
+      _syncDue();
+    }
+    if (mounted) setState(() {});
+  }
+
+  void _onRunning(Task? task) {
+    final id = _companyId;
+    if (id == null) return;
+    final running = task != null && task.isRunning && task.timeLog.isNotEmpty
+        ? task
+        : null;
+    _running = running;
+    if (running != null) {
+      _countSub ??= _services.tasks
+          .watchRunningCount(companyId: id)
+          .listen((n) => setState(() => _runningCount = n));
+    } else {
+      _countSub?.cancel();
+      _countSub = null;
+      _runningCount = 1;
+    }
+    _syncDue();
+    setState(() {});
+  }
+
+  /// Due-now is only ever shown while nothing runs (claiming a booking is
+  /// what makes it running), so its stream — up to 50 decoded rows per
+  /// emission — is open only then.
+  void _syncDue() {
+    final id = _companyId;
+    if (id != null && _running == null) {
+      _dueSub ??= _services.tasks
+          .watchDueNow(companyId: id)
+          .listen((t) => setState(() => _due = t));
+    } else {
+      _dueSub?.cancel();
+      _dueSub = null;
+      _due = null;
+    }
+  }
+
+  RunningTimerDockSurface? _surface(BuildContext context) {
+    final session = _services.auth.session.value;
+    final running = _running;
+    if (running != null) {
+      final canStop = TaskActions.canEditTask(session, running);
+      return RunningTimerDockSurface.running(
+        label: _runningLabel(context, running),
+        start: running.timeLog.last.start!,
+        runningCount: _runningCount,
+        onOpen: () => context.go('/tasks/${running.id}/edit'),
+        onStop: canStop ? () => _stopTimer(_services, running) : null,
+        onStopAll: () => _stopAllTimers(_services),
+      );
+    }
+    final due = _due;
+    final companyId = _companyId;
+    if (due == null || companyId == null) return null;
+    return RunningTimerDockSurface.dueNow(
+      label: taskPrimaryLabel(due),
+      onOpen: () => context.go('/tasks/${due.id}/edit'),
+      onStart: TaskActions.canEditTask(session, due)
+          ? () => TaskActions.toggleTimer(context, _services, companyId, due)
+          : null,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) => RunningTimerDockLayout(
+    surface: _surface(context),
+    toasts: _services.toasts,
+    child: widget.child,
+  );
+}
+
+/// What the dock shows — resolved by [RunningTimerDock] from the task streams,
+/// and plain data so [RunningTimerDockLayout] can be pumped without
+/// `Services`.
+@immutable
+class RunningTimerDockSurface {
+  const RunningTimerDockSurface.running({
+    required this.label,
+    required DateTime this.start,
+    required this.onOpen,
+    this.runningCount = 1,
+    this.onStop,
+    this.onStopAll,
+  }) : dueNow = false,
+       onStart = null;
+
+  const RunningTimerDockSurface.dueNow({
+    required this.label,
+    required this.onOpen,
+    this.onStart,
+  }) : dueNow = true,
+       start = null,
+       runningCount = 0,
+       onStop = null,
+       onStopAll = null;
+
+  /// A booked block whose window is open, nothing running.
+  final bool dueNow;
+  final String label;
+
+  /// The running entry's start; null for [dueNow].
+  final DateTime? start;
+
+  /// Running timers in the company; > 1 adds "Stop all (N)".
+  final int runningCount;
+  final VoidCallback onOpen;
+
+  /// Null when this user may not edit the task — no Stop / Start then.
+  final VoidCallback? onStop;
+  final VoidCallback? onStopAll;
+  final VoidCallback? onStart;
+}
+
+/// The dock's layout: [child] above, the bar below it owning the bottom safe
+/// inset. See [RunningTimerDock] for the three rules it keeps.
+class RunningTimerDockLayout extends StatelessWidget {
+  const RunningTimerDockLayout({
+    required this.surface,
+    required this.child,
+    this.toasts,
+    super.key,
+  });
+
+  /// Null renders no bar, and [child] keeps the whole box and the inset.
+  final RunningTimerDockSurface? surface;
+  final ToastController? toasts;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final keyboardUp = MediaQuery.viewInsetsOf(context).bottom > 0;
+    final s = surface;
+    final docked = s != null && !keyboardUp;
+    return Column(
+      children: [
+        Expanded(
+          // Always mounted, so docking never changes [child]'s position in
+          // the tree; only whether the inset is handed down.
+          child: MediaQuery.removePadding(
+            context: context,
+            removeBottom: docked,
+            child: child,
+          ),
+        ),
+        if (docked) _DockBar(surface: s, toasts: toasts),
+      ],
+    );
+  }
+}
+
+class _DockBar extends StatelessWidget {
+  const _DockBar({required this.surface, required this.toasts});
+
+  final RunningTimerDockSurface surface;
+  final ToastController? toasts;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.inTheme;
+    final s = surface;
+    final fill = s.dueNow ? tokens.warningSoft : tokens.accentSoft;
+    final gutter = InSpacing.lg(context);
+    final bottomInset = MediaQuery.paddingOf(context).bottom;
+    // `Ink` idiom (CLAUDE.md): the fill rides on the `Material` itself, so the
+    // `InkWell` ripple shows over it. It paints into the gesture strip too —
+    // the bar is the last thing on screen, like a bottom navigation bar.
+    return Material(
+      color: fill,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          border: Border(top: BorderSide(color: tokens.border)),
+        ),
+        child: Padding(
+          padding: EdgeInsets.only(bottom: bottomInset),
+          child: ToastBottomInset(
+            controller: toasts,
+            child: InkWell(
+              onTap: s.onOpen,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(
+                  minHeight: kRunningTimerDockHeight,
+                ),
+                child: Padding(
+                  padding: EdgeInsetsDirectional.only(
+                    start: gutter,
+                    end: InSpacing.xs,
+                  ),
+                  child: Row(
+                    children: [
+                      if (s.dueNow)
+                        Text(
+                          context.tr('due_now'),
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: tokens.warning,
+                          ),
+                        )
+                      else
+                        RunningDurationLabel(
+                          start: s.start!,
+                          dotSize: 8,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: tokens.ink,
+                            fontFeatures: const [FontFeature.tabularFigures()],
+                          ),
+                        ),
+                      const SizedBox(width: InSpacing.sm),
+                      Expanded(
+                        child: Text(
+                          s.label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: 14, color: tokens.ink2),
+                        ),
+                      ),
+                      if (s.runningCount > 1 && s.onStopAll != null)
+                        TextButton(
+                          onPressed: s.onStopAll,
+                          style: TextButton.styleFrom(
+                            minimumSize: const Size(0, 44),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: InSpacing.sm,
+                            ),
+                            foregroundColor: tokens.ink2,
+                          ),
+                          child: Text(
+                            '${context.tr('stop_all')} (${s.runningCount})',
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      if (s.onStop != null)
+                        _DockIconButton(
+                          tooltip: context.tr('stop'),
+                          icon: Icons.stop_circle_outlined,
+                          color: tokens.ink,
+                          onPressed: s.onStop!,
+                        ),
+                      if (s.onStart != null)
+                        _DockIconButton(
+                          tooltip: context.tr('start'),
+                          icon: Icons.play_circle_outlined,
+                          color: tokens.warning,
+                          onPressed: s.onStart!,
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A 44 px target with no compact density — `VisualDensity.compact` would
+/// take 8 px off it (`docs/touch-targets.md`, trap 2) — and `shrinkWrap` so a
+/// touch platform's padded tap size does not grow its layout past the bar.
+class _DockIconButton extends StatelessWidget {
+  const _DockIconButton({
+    required this.tooltip,
+    required this.icon,
+    required this.color,
+    required this.onPressed,
+  });
+
+  final String tooltip;
+  final IconData icon;
+  final Color color;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) => IconButton(
+    tooltip: tooltip,
+    icon: Icon(icon, size: 24),
+    color: color,
+    onPressed: onPressed,
+    padding: EdgeInsets.zero,
+    constraints: const BoxConstraints.tightFor(
+      width: InSizes.touchTarget,
+      height: InSizes.touchTarget,
+    ),
+    style: const ButtonStyle(tapTargetSize: MaterialTapTargetSize.shrinkWrap),
+  );
 }

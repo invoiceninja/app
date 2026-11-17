@@ -356,25 +356,26 @@ class _Avatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final tint = avatarTintFor(context, seed);
     return Container(
       width: kDetailHeaderAvatarSize,
       height: kDetailHeaderAvatarSize,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: avatarTintFor(seed),
+        color: tint.background,
         borderRadius: BorderRadius.circular(InRadii.r2),
       ),
-      child: _content(),
+      child: _content(tint.ink),
     );
   }
 
-  Widget _content() {
+  Widget _content(Color ink) {
     final text = initials;
     if (text != null) {
       return Text(
         text,
-        style: const TextStyle(
-          color: Colors.white,
+        style: TextStyle(
+          color: ink,
           fontSize: 22,
           fontWeight: FontWeight.w600,
           letterSpacing: 0.4,
@@ -383,13 +384,13 @@ class _Avatar extends StatelessWidget {
       );
     }
     if (fallbackIcon != null) {
-      return Icon(fallbackIcon, color: Colors.white, size: 28);
+      return Icon(fallbackIcon, color: ink, size: 28);
     }
     // No usable initials and no entity icon — last-resort placeholder.
-    return const Text(
+    return Text(
       '?',
       style: TextStyle(
-        color: Colors.white,
+        color: ink,
         fontSize: 22,
         fontWeight: FontWeight.w600,
         height: 1,

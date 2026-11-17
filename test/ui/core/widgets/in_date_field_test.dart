@@ -120,7 +120,9 @@ void main() {
       tester,
     ) async {
       await _pump(tester, formatter: _formatter, value: null);
-      expect(_hintOf(tester), '31/Jan/2000');
+      // Worded as an example: a bare date in hint grey read as a value
+      // already set (a blank due date looked like one in the year 2000).
+      expect(_hintOf(tester), 'e.g. 31/Jan/2000');
       // The bug: `MMM` is an abbreviated month NAME, so showing the pattern
       // reads as a typo ("one too many M"). invoiceninja/flutter#127.
       expect(_hintOf(tester), isNot('d/MMM/yyyy'));
@@ -130,7 +132,7 @@ void main() {
       tester,
     ) async {
       await _pump(tester, value: null);
-      expect(_hintOf(tester), kDateFormatSampleIso);
+      expect(_hintOf(tester), 'e.g. $kDateFormatSampleIso');
       expect(_hintOf(tester), isNot('YYYY-MM-DD'));
     });
 
@@ -146,7 +148,7 @@ void main() {
         dateFormats: const {},
       );
       await _pump(tester, formatter: cold, value: null);
-      expect(_hintOf(tester), kDateFormatSampleIso);
+      expect(_hintOf(tester), 'e.g. $kDateFormatSampleIso');
     });
 
     testWidgets('an explicit hintText still wins', (tester) async {
@@ -183,10 +185,11 @@ void main() {
           value: null,
         );
         final hint = _hintOf(tester);
-        expect(hint, isNotNull);
-        expect(hint, isNot(entry.value), reason: 'rendered the raw pattern');
+        expect(hint, startsWith('e.g. '));
+        final example = hint!.substring('e.g. '.length);
+        expect(example, isNot(entry.value), reason: 'rendered the raw pattern');
         expect(
-          parseDateInput(hint!, activePattern: entry.value),
+          parseDateInput(example, activePattern: entry.value),
           DateTime.parse(kDateFormatSampleIso),
         );
       });

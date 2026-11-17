@@ -1,9 +1,11 @@
 import 'package:flutter/foundation.dart';
 
 import 'package:admin/data/models/domain/task.dart';
+import 'package:admin/utils/search_fold.dart';
 
 /// Client-side Project / Client / Assignee filtering shared by every task
-/// view (kanban, calendar, daily, weekly). Empty string = "no filter".
+/// view (kanban, calendar, daily, weekly), plus the board's search (see
+/// [supportsSearch]). Empty string = "no filter".
 ///
 /// Mixed onto a [ChangeNotifier]; the setters notify so a bound
 /// `TaskFilterBar` and the view rebuild together. Extracted verbatim from the
@@ -17,18 +19,39 @@ mixin TaskFiltersMixin on ChangeNotifier {
   String get clientId => _clientId;
   String get assignedUserId => _assignedUserId;
 
+  /// The typed search, as typed. Only a view that overrides [supportsSearch]
+  /// is ever handed one — the filter bar draws no search field for the others,
+  /// so their [matchesFilters] needs no names to match it against.
+  String _search = '';
+  String get search => _search;
+
+  /// [search]'s words, folded once per change rather than once per task.
+  List<String> _searchWords = const [];
+
+  /// Whether the typed search narrows anything (a blank or punctuation-only
+  /// one does not).
+  bool get searchActive => _searchWords.isNotEmpty;
+
+  /// Whether this view matches [search]. False here; the kanban board, the one
+  /// view with a search field (it has no list to search instead), says true
+  /// and applies [matchesSearch] itself, since only it holds the client and
+  /// project names a search has to see.
+  bool get supportsSearch => false;
+
   bool get filtersActive =>
       _projectId.isNotEmpty ||
       _clientId.isNotEmpty ||
-      _assignedUserId.isNotEmpty;
+      _assignedUserId.isNotEmpty ||
+      searchActive;
 
-  /// How many of the three dimensions are narrowing the view. Drives
-  /// `FilterIconButton`'s dot and its state-bearing tooltip; nothing renders
-  /// the number itself.
+  /// How many dimensions are narrowing the view (the search counts as one).
+  /// Drives `FilterIconButton`'s dot and its state-bearing tooltip; nothing
+  /// renders the number itself.
   int get activeFilterCount =>
       (_projectId.isEmpty ? 0 : 1) +
       (_clientId.isEmpty ? 0 : 1) +
-      (_assignedUserId.isEmpty ? 0 : 1);
+      (_assignedUserId.isEmpty ? 0 : 1) +
+      (searchActive ? 1 : 0);
 
   void setProjectFilter(String id) {
     if (_projectId == id) return;
@@ -48,11 +71,20 @@ mixin TaskFiltersMixin on ChangeNotifier {
     _notifyFilters();
   }
 
+  void setSearch(String text) {
+    if (_search == text) return;
+    _search = text;
+    _searchWords = foldedSearchWords(text);
+    _notifyFilters();
+  }
+
   void clearFilters() {
-    if (!filtersActive) return;
+    if (!filtersActive && _search.isEmpty) return;
     _projectId = '';
     _clientId = '';
     _assignedUserId = '';
+    _search = '';
+    _searchWords = const [];
     _notifyFilters();
   }
 
@@ -61,6 +93,21 @@ mixin TaskFiltersMixin on ChangeNotifier {
       (_projectId.isEmpty || t.projectId == _projectId) &&
       (_clientId.isEmpty || t.clientId == _clientId) &&
       (_assignedUserId.isEmpty || t.assignedUserId == _assignedUserId);
+
+  /// True when every word of [search] occurs in the task's description, its
+  /// number, or the [clientName] / [projectName] the caller resolved — each
+  /// word in any of them (`containsEveryWord`, the rule every list search
+  /// follows). True for a blank search.
+  bool matchesSearch(
+    Task t, {
+    String clientName = '',
+    String projectName = '',
+  }) => fieldsMatchEveryWord(_searchWords, [
+    t.description,
+    t.number,
+    clientName,
+    projectName,
+  ]);
 
   bool _filtersDisposed = false;
 

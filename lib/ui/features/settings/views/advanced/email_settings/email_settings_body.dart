@@ -17,6 +17,7 @@ import 'package:admin/ui/features/settings/widgets/overridable_dropdown_field.da
 import 'package:admin/ui/features/settings/widgets/overridable_markdown_field.dart';
 import 'package:admin/ui/features/settings/widgets/overridable_switch_field.dart';
 import 'package:admin/ui/features/settings/widgets/overridable_text_field.dart';
+import 'package:admin/ui/features/settings/widgets/segmented_choice_field.dart';
 import 'package:admin/ui/features/settings/widgets/settings_form_shell.dart';
 
 /// Field labels exposed by the in-app settings search for the Email Settings
@@ -94,6 +95,7 @@ class EmailSettingsBody extends StatelessWidget {
     final method = host.settings.emailSendingMethod ?? 'default';
 
     return SettingsFormShell(
+      subtitle: context.tr('email_settings_subtitle'),
       sections: [
         // ── Section 1 — Email Provider ────────────────────────────────────
         FormSection(
@@ -192,26 +194,18 @@ class EmailSettingsBody extends StatelessWidget {
               onChanged: (v) =>
                   host.updateSettings((s) => s.copyWith(emailStyle: v)),
             ),
-            OverridableDropdownField<String>(
+            OverridableSegmentedField<String>(
               label: context.tr('email_alignment'),
               apiKey: 'email_alignment',
               // Pass through null — admin-portal default was "no selection"
-              // until the user picked. Forcing 'center' here would silently
-              // mutate the field on the first unrelated save.
+              // until the user picked, and no segment is selected until then.
+              // Forcing 'center' here would silently mutate the field on the
+              // first unrelated save.
               value: host.settings.emailAlignment,
-              items: [
-                DropdownMenuItem(
-                  value: 'left',
-                  child: Text(context.tr('left')),
-                ),
-                DropdownMenuItem(
-                  value: 'center',
-                  child: Text(context.tr('center')),
-                ),
-                DropdownMenuItem(
-                  value: 'right',
-                  child: Text(context.tr('right')),
-                ),
+              options: [
+                (value: 'left', label: context.tr('left')),
+                (value: 'center', label: context.tr('center')),
+                (value: 'right', label: context.tr('right')),
               ],
               onChanged: (v) =>
                   host.updateSettings((s) => s.copyWith(emailAlignment: v)),

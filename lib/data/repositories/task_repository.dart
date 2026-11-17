@@ -518,15 +518,18 @@ class TaskRepository extends BaseEntityRepository<Task, TaskApi>
   /// [confirmClaim] is the caller's answer to
   /// [TaskStartResult.needsConfirmation]: without it, a booking on another day
   /// or one that has already passed writes **nothing**, so the bulk toolbar —
-  /// which cannot prompt — can never eat a booking. [claimStatusId] is applied
-  /// only when a booking is actually claimed, and is resolved by the caller
-  /// because `builtInTaskStatusKey` lives in `lib/ui` and `layering_test`
-  /// forbids reaching it from here.
+  /// which cannot prompt — can never eat a booking. [startStatusId] is applied
+  /// to any start this call writes, and [claimStatusId] only when a booking is
+  /// actually claimed; both are resolved by the caller because
+  /// `builtInTaskStatusKey` lives in `lib/ui` and `layering_test` forbids
+  /// reaching it from here. The bulk toolbar passes neither, so a bulk start
+  /// never moves a status.
   Future<TaskStartResult> startTimer({
     required String companyId,
     required String taskId,
     bool confirmClaim = false,
     String? claimStatusId,
+    String? startStatusId,
   }) async {
     final row = await db.taskDao
         .watchById(companyId: companyId, id: taskId)
@@ -558,7 +561,9 @@ class TaskRepository extends BaseEntityRepository<Task, TaskApi>
     if (needsConfirm && !confirmClaim) return TaskStartResult.needsConfirmation;
 
     var next = task.copyWith(timeLog: plan.entries);
-    if (plan.claimed != null &&
+    if (startStatusId != null && startStatusId.isNotEmpty) {
+      next = next.copyWith(statusId: startStatusId);
+    } else if (plan.claimed != null &&
         claimStatusId != null &&
         claimStatusId.isNotEmpty) {
       next = next.copyWith(statusId: claimStatusId);

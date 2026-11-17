@@ -70,7 +70,7 @@ class _RecurringExpenseEditScheduleSectionState
             clearable: true,
           ),
           SizedBox(height: InSpacing.sm),
-          SwitchListTile.adaptive(
+          SwitchListTile(
             contentPadding: EdgeInsets.zero,
             title: Text(context.tr('endless')),
             value: endless,

@@ -248,11 +248,16 @@ the old name recorded as an orphan, so the next open gets an empty store without
 needing IndexedDB's cooperation. This is the web mirror of `.broken.<ts>`, and
 it is why the user is never stuck.
 
-**3. Orphans are swept at the one moment deletion works** — once per page load,
-at the top of `openDatabaseExecutor()`, *before* anything has opened a store.
-A store abandoned on an earlier load has no live handle, so deleting it there
-succeeds. The sweep is gated on the orphan list being non-empty, so a normal
-boot spawns nothing and pays nothing.
+**3. Orphans are swept once per page load, off the boot path.** The first
+`openDatabaseExecutor()` snapshots the orphan list *before* anything has opened a
+store, so only stores abandoned on an earlier load are candidates: one this page
+opened is still held by drift's shared worker and would only time out. The
+deletes run after the first frame (`sweepAbandonedStores()`, started by
+`main.dart`, never awaited): a store the browser still holds costs a second a
+delete, and awaiting that in the open put up to 8 s on boot. The sweep is gated
+on the orphan list being non-empty, so a normal boot spawns nothing and pays
+nothing.
+`docs/migrations.md` § Abandoned web stores are swept after the first frame.
 
 The delete itself goes through `IndexedDbFileSystem.deleteDatabase`
 (`package:sqlite3/wasm.dart`), not drift's `probe.deleteDatabase`: the probe

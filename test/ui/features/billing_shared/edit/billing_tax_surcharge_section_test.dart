@@ -1,8 +1,10 @@
-// The document Taxes card on the billing edit screens. Its tier count used to
-// be latched on the FIRST build — which on a new document ran before the
-// company row arrived — so a company with document taxes enabled got zero
-// tiers and, with no surcharges, no card at all: and with it no inclusive-tax
-// switch, which lives nowhere else.
+// The document taxes on the billing edit screens (a card on the narrow
+// layout, inside the totals card on the wide one). A tier shows once the
+// document carries it or "+ Add tax" opens it, up to the company's
+// `enabled_tax_rates`. The section used to be latched on the FIRST build —
+// which on a new document ran before the company row arrived — so a company
+// with document taxes enabled got no card at all: and with it no
+// inclusive-tax switch, which lives nowhere else.
 
 import 'package:decimal/decimal.dart';
 import 'package:drift/drift.dart' show Value;
@@ -73,23 +75,66 @@ void main() {
   Finder inclusiveSwitch() =>
       find.widgetWithText(SwitchListTile, 'Inclusive Taxes');
 
-  testWidgets('shows the company\'s enabled tiers', (tester) async {
+  Finder addTax() => find.text('Add tax');
+
+  testWidgets('+ Add tax opens tiers up to the company\'s enabled count', (
+    tester,
+  ) async {
     final fixture = await fixtureWith(tester, enabledTaxRates: 2);
     await tester.pumpWidget(wrapWithShell(fixture.services, section()));
     await settle(tester);
-    expect(tiers(tester), 2);
+    expect(tiers(tester), 0, reason: 'no empty tier waits on the document');
     expect(inclusiveSwitch(), findsOneWidget);
+
+    await tester.tap(addTax());
+    await settle(tester);
+    expect(tiers(tester), 1);
+    await tester.tap(addTax());
+    await settle(tester);
+    expect(tiers(tester), 2);
+    expect(addTax(), findsNothing, reason: 'the company enables two');
     await unmount(tester, fixture);
   });
 
-  testWidgets('grows when the company answers after the first frame, and '
-      'never shrinks', (tester) async {
+  testWidgets('no + Add tax where the company enables no document tax', (
+    tester,
+  ) async {
     final fixture = await fixtureWith(tester, enabledItemTaxRates: 1);
     await tester.pumpWidget(wrapWithShell(fixture.services, section()));
     await settle(tester);
-    expect(tiers(tester), 0);
+    expect(addTax(), findsNothing);
+    expect(inclusiveSwitch(), findsOneWidget, reason: 'the lines are taxed');
+    await unmount(tester, fixture);
+  });
+
+  testWidgets('a tier the document carries shows without + Add tax', (
+    tester,
+  ) async {
+    final fixture = await fixtureWith(tester, enabledTaxRates: 1);
+    await tester.pumpWidget(
+      wrapWithShell(
+        fixture.services,
+        section(name1: 'VAT', rate1: Decimal.fromInt(20)),
+      ),
+    );
+    await settle(tester);
+    expect(tiers(tester), 1);
+    expect(addTax(), findsNothing);
+    await unmount(tester, fixture);
+  });
+
+  testWidgets('+ Add tax appears when the company answers after the first '
+      'frame, and an opened tier never shrinks', (tester) async {
+    final fixture = await fixtureWith(tester, enabledItemTaxRates: 1);
+    await tester.pumpWidget(wrapWithShell(fixture.services, section()));
+    await settle(tester);
+    expect(addTax(), findsNothing);
 
     await setRates(fixture, enabledTaxRates: 2, enabledItemTaxRates: 1);
+    await settle(tester);
+    await tester.tap(addTax());
+    await settle(tester);
+    await tester.tap(addTax());
     await settle(tester);
     expect(tiers(tester), 2);
 
@@ -159,6 +204,8 @@ void main() {
           section(onName1: (v) => name = v, onRate1: (v) => rate = v),
         ),
       );
+      await settle(tester);
+      await tester.tap(addTax());
       await settle(tester);
       expect(picker(), findsOneWidget);
       expect(tiers(tester), 0, reason: 'no freeform pair beside the picker');
@@ -249,6 +296,8 @@ void main() {
         wrapWithShell(fixture.services, section(comma: true)),
       );
       await settle(tester);
+      await tester.tap(addTax());
+      await settle(tester);
       await tester.tap(picker());
       await settle(tester);
       expect(find.text('NYS Sales Tax (8,75%)'), findsOneWidget);
@@ -259,7 +308,14 @@ void main() {
     // never the freeform pair, which used to flash on every open.
     testWidgets('no freeform pair before the rates answer', (tester) async {
       final fixture = await withRates(tester);
-      await tester.pumpWidget(wrapWithShell(fixture.services, section()));
+      // A tier the document carries, so one is on screen from the first
+      // frame — before the rates list answers.
+      await tester.pumpWidget(
+        wrapWithShell(
+          fixture.services,
+          section(name1: 'Old Tax', rate1: Decimal.parse('5')),
+        ),
+      );
       expect(find.byType(EntityEditField), findsNothing);
       await settle(tester);
       expect(picker(), findsOneWidget);

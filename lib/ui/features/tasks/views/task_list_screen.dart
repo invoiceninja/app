@@ -50,6 +50,7 @@ class TaskListScreen extends StatelessWidget {
     this.clientId,
     this.projectId,
     this.embedded = false,
+    this.offersNew = true,
     this.hasPane = false,
     this.hasListIntent = false,
   });
@@ -73,6 +74,11 @@ class TaskListScreen extends StatelessWidget {
 
   /// True when this list lives inside another screen's body.
   final bool embedded;
+
+  /// Embedded-only: `false` drops the toolbar New (and `N`) because the host
+  /// offers its own create control — the project Tasks tab's quick-add.
+  /// See `EntityListScreenScaffold.embeddedOffersNew`.
+  final bool offersNew;
 
   /// True when a master-detail pane is open over this list (`/tasks/:id`,
   /// `/tasks/:id/edit`, `/tasks/new`).
@@ -148,6 +154,7 @@ class TaskListScreen extends StatelessWidget {
       emptyIcon: Icons.task_outlined,
       emptyTitleKey: 'no_tasks',
       embedded: embedded,
+      embeddedOffersNew: offersNew,
       buildVm: (services, companyId) => TaskListViewModel(
         repo: services.tasks,
         companyId: companyId,

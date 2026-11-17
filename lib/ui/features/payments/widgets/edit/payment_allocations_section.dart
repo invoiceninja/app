@@ -16,7 +16,6 @@ import 'package:admin/ui/core/widgets/searchable_dropdown_field.dart';
 import 'package:admin/ui/features/payments/widgets/edit/open_amount.dart';
 import 'package:admin/ui/features/payments/widgets/edit/payment_allocation_card.dart';
 import 'package:admin/ui/features/payments/widgets/edit/payment_allocation_edit_dialog.dart';
-import 'package:admin/ui/features/payments/widgets/edit/payment_invoice_checklist.dart';
 import 'package:admin/utils/formatting.dart';
 
 /// Marker for which side of a payment a row allocates to. Mirrors the
@@ -483,24 +482,6 @@ class _WideEditor extends StatelessWidget {
         ),
       );
     }
-    if (kind == AllocationKind.invoice && targets.length > 1) {
-      widgets.add(
-        Padding(
-          padding: const EdgeInsets.only(top: 8),
-          child: Align(
-            alignment: AlignmentDirectional.centerStart,
-            child: _SelectInvoicesButton(
-              paymentables: paymentables,
-              targets: targets,
-              paymentAmount: paymentAmount,
-              onChanged: onChanged,
-              formatter: formatter,
-              currencyId: currencyId,
-            ),
-          ),
-        ),
-      );
-    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: widgets,
@@ -798,7 +779,6 @@ class _NarrowEditor extends StatelessWidget {
     final pickable = targets
         .where((t) => !selectedIds.contains(t.id))
         .toList(growable: false);
-    final showChecklist = kind == AllocationKind.invoice && targets.length > 1;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -820,7 +800,7 @@ class _NarrowEditor extends StatelessWidget {
             ),
             onRemove: () => _remove(_indexOfRow(paymentables, rowsForKind[i])),
           ),
-        if (pickable.isNotEmpty || showChecklist)
+        if (pickable.isNotEmpty)
           Padding(
             padding: const EdgeInsets.only(top: 4),
             child: Align(
@@ -843,15 +823,6 @@ class _NarrowEditor extends StatelessWidget {
                         ),
                       ),
                       onPressed: () => _openEditor(context, null, null),
-                    ),
-                  if (showChecklist)
-                    _SelectInvoicesButton(
-                      paymentables: paymentables,
-                      targets: targets,
-                      paymentAmount: paymentAmount,
-                      onChanged: onChanged,
-                      formatter: formatter,
-                      currencyId: currencyId,
                     ),
                 ],
               ),
@@ -909,68 +880,6 @@ class _NarrowEditor extends StatelessWidget {
   void _remove(int rowIndex) {
     final next = List<Paymentable>.from(paymentables)..removeAt(rowIndex);
     onChanged(next);
-  }
-}
-
-/// Opens the invoice checklist ([showInvoiceChecklistDialog]) and writes
-/// back what it returns. Offered beside the one-at-a-time pickers whenever
-/// the client has two or more open invoices — one is just the picker.
-class _SelectInvoicesButton extends StatelessWidget {
-  const _SelectInvoicesButton({
-    required this.paymentables,
-    required this.targets,
-    required this.paymentAmount,
-    required this.onChanged,
-    required this.formatter,
-    required this.currencyId,
-  });
-
-  final List<Paymentable> paymentables;
-  final List<AllocationTarget> targets;
-  final Decimal paymentAmount;
-  final ValueChanged<List<Paymentable>> onChanged;
-  final Formatter? formatter;
-  final String? currencyId;
-
-  Future<void> _open(BuildContext context) async {
-    final offered = {for (final t in targets) t.id};
-    final current = <String, Decimal>{
-      for (final p in paymentables)
-        if (offered.contains(p.invoiceId)) p.invoiceId: p.amount,
-    };
-    final picked = await showInvoiceChecklistDialog(
-      context,
-      targets: targets,
-      selected: current.keys.toSet(),
-      existingAmounts: current,
-      paymentAmount: paymentAmount,
-      otherAllocated: paymentables
-          .where(
-            (p) => p.invoiceId.isNotEmpty && !offered.contains(p.invoiceId),
-          )
-          .fold<Decimal>(Decimal.zero, (sum, p) => sum + p.amount),
-      formatter: formatter,
-      currencyId: currencyId,
-    );
-    if (picked == null) return;
-    onChanged(
-      applyInvoiceSelection(
-        paymentables: paymentables,
-        targets: targets,
-        selected: picked,
-        paymentAmount: paymentAmount,
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return OutlinedButton.icon(
-      style: OutlinedButton.styleFrom(minimumSize: const Size(64, 40)),
-      icon: const Icon(Icons.checklist),
-      label: Text(context.tr('select_invoices')),
-      onPressed: () => _open(context),
-    );
   }
 }
 

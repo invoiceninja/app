@@ -124,9 +124,10 @@ the honest default.
 | Act from a dashboard row — Remind (opens the next unsent reminder), Enter Payment, Call; the record is re-read first, so a row paid elsewhere says so | — | — | ✅ | | |
 | Activity feed (recent entity changes) | ✅ | ✅ | ✅ | ✅ | |
 | Global activity feed screen (day-grouped, filterable) | ❌ | 🟡 | ✅ | | |
-| Global activity feed — timeline of the loaded window (tap or drag a period to filter), date-range and category filters with counts, repeated events folded, filters as a side rail on wide panes, Load more (250 at a time; up to 2500 where the server pages the feed, else 1000) | — | — | ✅ | | Pages with the feed's `before` cursor where the server has it, else re-asks for a bigger window; past the cap the Activity report takes over (BACKEND.md § F3f) |
+| Global activity feed — timeline of the loaded window (tap or drag a period to filter), date-range (quick ranges or custom), category and record-type filters with counts, repeated events folded, filters as a side rail on wide panes, Load more (250 at a time; up to 2500 where the server pages the feed, else 1000) | — | — | ✅ | | Pages with the feed's `before` cursor where the server has it, else re-asks for a bigger window; past the cap the Activity report takes over (BACKEND.md § F3f) |
 | Dashboard date range filter | ✅ | ✅ | ✅ | ✅ | |
-| Chart Day/Week/Month grouping | ✅ | ✅ | ✅ | ✅ | v2 draws the nearest grouping the range can show (one month by month is a single line) and the control shows the one in effect |
+| Chart Day/Week/Month grouping | ✅ | ✅ | ✅ | ✅ | v2 draws the nearest grouping with 4 to 31 slots (one month by month is a single slot, a year by day 365 bars) and the control shows the one in effect |
+| Cash flow chart — grouped bars for Invoiced · Payments · Expenses, legend chips toggling each series, a tooltip naming a slot's dates and every value (hover, or tap on touch) | — | — | ✅ | | |
 | Configurable dashboard cards (Dashboard Fields) | ✅ | ✅ | ✅ | ✅ | |
 | Dashboard cards — task estimate / due / overdue metrics (6 server fields added 2026-08-31) | ✅ | — | ✅ | | React on its develop branch (ui#3356), unreleased |
 | Reorder + show/hide dashboard panels (synced across devices) | — | — | ✅ | ✅ | |
@@ -259,7 +260,7 @@ the honest default.
 | Invoice — email bounce indicator + reactivate | ✅ | ✅ | ✅ | | |
 | Invoice — list bounce status badge | 🟡 | ✅ | ✅ | | |
 | Invoice / credit — list PEPPOL sent / failed icon (`backup.guid`), hideable | ✅ | ❌ | ✅ | | React on its develop branch (ui#3410), unreleased. v2: beside the status pill in the table and the phone row; hidden from Device Settings → Appearance → Lists (PEPPOL companies only). Not a link — a row already has one destination |
-| Invoice / quote / recurring — list footer totals, incl. Net Amount | ✅ | ❌ | ✅ | | v2 totals the *selected* rows (Amount, Net Amount, and Balance on invoices) in a bar under the list, one line per currency — the lists load as you scroll, so there is no page to total. React totals the page and adds currencies together |
+| Invoice / quote / recurring — list footer totals, incl. Net Amount | ✅ | ❌ | ✅ | | v2 totals the *selected* rows (Amount, Net Amount, and Balance on invoices and credits) in a bar under the list, one line per currency — on credit and purchase-order lists too (a PO in its vendor's currency) — the lists load as you scroll, so there is no page to total. React totals the page and adds currencies together |
 | Invoice — guided step-by-step editor (Who → Items → Payment → Notes → Send) | ✅ | ❌ | ❌ | | React on its develop branch (ui#3288), unreleased; its default for users created since 2026-08-09 |
 | Invoice — activities | ✅ | ✅ | ✅ | ✅ | |
 | Invoice — payment schedule view | ✅ | ✅ | ✅ | ✅ | |
@@ -432,6 +433,8 @@ the honest default.
 | Project — analytics tab: forecast (finish date, days ahead/behind, velocity), burn-up (hours or money, every line switchable, due-date marker), money (margin, budget vs actual, billing progress), time (hours, health and its inputs, team and task distribution, velocity), expenses (by category, cumulative) | ✅ | ❌ | ✅ | | One scrolling tab (React develop folds its Money / Time / Expenses tabs into one). A figure over nothing reads as a dash, not the server's 0; a user who may not see money gets the forecast and the hours burn-up, from their own time (`docs/project-analytics.md`) |
 | Project — estimated vs. logged hours card, and the estimate as a dashed burn-up line | ✅ | ❌ | ✅ | | |
 | Project — quick-add a task from the Tasks card (Enter adds, keeps focus; first status, project's client + rate) | ✅ | ❌ | ✅ | | |
+| Project — start a timer on a new task from the quick-add (created running, In progress; replaces the Tasks list's New there) | — | — | ✅ | | |
+| Project — hours follow the device hours-format preference (decimal / H:MM); Details shows an inherited task rate with its source | — | — | ✅ | | |
 | Project — documents / attachments | ✅ | ✅ | ✅ | ✅ | |
 | Project — activities | ✅ | ✅ | ✅ | ✅ | |
 | Project — comments (add a comment, log a call) | ❌ | ❌ | ✅ | | The server accepts `projects` in `StoreNoteRequest`; React has no note action on a project, and v1's is commented out of `project_model.dart` |

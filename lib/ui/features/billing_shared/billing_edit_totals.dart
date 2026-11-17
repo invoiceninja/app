@@ -36,6 +36,12 @@ class BillingEditTotals extends StatefulWidget {
     this.clientId,
     this.vendorId,
     this.surchargeAmounts = const <Decimal>[],
+    this.paidToDate,
+    this.balanceIsOpen,
+    this.balanceLabelKey = 'balance',
+    this.paidToDateLabelKey = 'paid_to_date',
+    this.editor,
+    this.padded = true,
     this.dense = false,
     this.slim = false,
     this.bordered = true,
@@ -65,6 +71,25 @@ class BillingEditTotals extends StatefulWidget {
   /// Currency source for purchase orders. When non-empty it takes precedence
   /// over [clientId] (a PO carries no client).
   final String? vendorId;
+
+  /// What has been settled against the document — an invoice's paid to
+  /// date, a credit's applied amount. Null on a document with none; a row
+  /// only while it is not zero.
+  final Decimal? paidToDate;
+
+  /// Whether the live balance — the total being edited less [paidToDate] —
+  /// is open, so it is shown and, on the card, leads. The server recomputes
+  /// the stored balance on save; this is the figure the form adds up to now.
+  /// Null shows no balance at all.
+  final bool Function(Decimal balance)? balanceIsOpen;
+
+  /// See [TotalsWidget.balanceLabelKey] / [TotalsWidget.paidToDateLabelKey].
+  final String balanceLabelKey;
+  final String paidToDateLabelKey;
+
+  /// See [TotalsWidget.editor] / [TotalsWidget.padded].
+  final Widget? editor;
+  final bool padded;
 
   final bool dense;
   final bool slim;
@@ -177,8 +202,20 @@ class _BillingEditTotalsState extends State<BillingEditTotals> {
     int precision,
     List<TotalsSurcharge> surchargeRows,
   ) {
+    final totals = widget.totalsAt(precision);
+    final paid = widget.paidToDate;
+    final isOpen = widget.balanceIsOpen;
+    final balance = paid == null || isOpen == null ? null : totals.total - paid;
+    final open = balance != null && isOpen!(balance);
     return TotalsWidget(
-      totals: widget.totalsAt(precision),
+      totals: totals,
+      paidToDate: paid,
+      balance: open ? balance : null,
+      leadBalance: open,
+      balanceLabelKey: widget.balanceLabelKey,
+      paidToDateLabelKey: widget.paidToDateLabelKey,
+      editor: widget.editor,
+      padded: widget.padded,
       discount: widget.discount,
       discountIsAmount: widget.discountIsAmount,
       partial: widget.partial,

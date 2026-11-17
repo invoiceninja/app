@@ -11,14 +11,13 @@ import 'package:admin/ui/features/settings/state/settings_reveal_controller.dart
 
 /// The line under a hit: "Company Details › Address" for a field on a tab,
 /// the section alone for a field on a single-page section (or one every tab
-/// carries), and the settings group for a section row.
+/// carries), and the section's topic group (Billing, Documents…) for a section
+/// row.
 String settingsHitSubtitle(SettingsSearchHit hit, Localization l10n) {
   final section = l10n.lookup(hit.section.titleKey);
   switch (hit.kind) {
     case SettingsSearchHitKind.section:
-      return l10n.lookup(
-        hit.section.isBasic ? 'basic_settings' : 'advanced_settings',
-      );
+      return l10n.lookup(hit.section.group.labelKey);
     case SettingsSearchHitKind.tab:
       return section;
     case SettingsSearchHitKind.field:
@@ -81,7 +80,7 @@ void openSettingsSearchHit(BuildContext context, SettingsSearchHit hit) {
   if (hit.revealsField && l10n != null) {
     context.read<SettingsRevealController?>()?.reveal(
       route: hit.route,
-      label: l10n.lookup(hit.fieldKey),
+      label: l10n.lookup(hit.revealKey),
     );
   }
   context.go(hit.route);

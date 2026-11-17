@@ -1147,8 +1147,13 @@ class Formatter {
   /// statics haven't resolved one. For chrome that sits *beside* a number
   /// rather than formatting it — a money field's `prefixText`, say — where
   /// [money] would fight the user's own typing.
-  String get currencySymbol {
-    final currency = currencies[settings.currencyId];
+  String get currencySymbol => currencySymbolFor();
+
+  /// [currencySymbol] for a resolved [currencyId] (a document's party
+  /// currency), the company's when null or empty — the billing discount
+  /// toggle's `$` / `€` segment.
+  String currencySymbolFor({String? currencyId}) {
+    final currency = currencies[_resolveCurrencyId(currencyId: currencyId)];
     final symbol = currency?.symbol.trim() ?? '';
     return symbol.isNotEmpty ? symbol : (currency?.code ?? '');
   }
@@ -1276,6 +1281,17 @@ class Formatter {
     if (parsed == null) return '';
     final locale = settings.locale.isEmpty ? null : settings.locale;
     return DateFormat.MMMd(locale).format(parsed);
+  }
+
+  /// [value] (ISO) as its month word in the company's locale — `Nov` — or
+  /// with the year (`Nov 2026`) when [withYear]. For a chart's month ticks.
+  String dateMonth(String? value, {bool withYear = false}) {
+    final parsed = value == null ? null : DateTime.tryParse(value);
+    if (parsed == null) return '';
+    final locale = settings.locale.isEmpty ? null : settings.locale;
+    return (withYear ? DateFormat.yMMM(locale) : DateFormat.MMM(locale)).format(
+      parsed,
+    );
   }
 
   /// [value] (ISO) with the month as a word, in the company's locale —

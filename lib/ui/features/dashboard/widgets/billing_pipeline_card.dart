@@ -16,6 +16,8 @@ import 'package:admin/domain/sidebar_badge_modes.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/list/deep_link_filter_intent.dart';
 import 'package:admin/ui/core/list/entity_list_status_tabs.dart';
+import 'package:admin/ui/features/dashboard/helpers/converted_hint.dart';
+import 'package:admin/ui/features/dashboard/helpers/when_text.dart';
 import 'package:admin/ui/features/dashboard/view_models/billing_pipeline_view_model.dart';
 import 'package:admin/data/models/value/date.dart';
 import 'package:admin/ui/core/widgets/client_name_label.dart';
@@ -426,6 +428,8 @@ class _DashboardBillingPipelineCardState
     // On a status tab every row has that status, so a pill on each would
     // repeat the selected tab; `All` mixes them and needs it.
     final pills = tab?.isAll ?? true;
+    // The device's own day: "due in 3 days" is about the day the user is in.
+    final today = Date.today();
     return DashboardRecordRows(
       rows: [
         for (final row in rows)
@@ -435,6 +439,7 @@ class _DashboardBillingPipelineCardState
             formatter: widget.formatter,
             compact: widget.narrow,
             pill: pills,
+            today: today,
             onTap: () => _openRecord(row),
           ),
       ],
@@ -506,8 +511,9 @@ class _DashboardBillingPipelineCardState
   }
 }
 
-/// One document as a [DashboardRecordRow]: number · client, its status pill
-/// (on `All`) and date, and the amount in the client's currency.
+/// One document as a [DashboardRecordRow]: number, client, its date with how
+/// near its deadline is, its status pill (on `All`), and the amount in the
+/// client's currency with the company-currency estimate under a foreign one.
 class _PipelineRow extends StatelessWidget {
   const _PipelineRow({
     super.key,
@@ -515,6 +521,7 @@ class _PipelineRow extends StatelessWidget {
     required this.formatter,
     required this.compact,
     required this.pill,
+    required this.today,
     required this.onTap,
   });
 
@@ -522,6 +529,7 @@ class _PipelineRow extends StatelessWidget {
   final Formatter formatter;
   final bool compact;
   final bool pill;
+  final Date today;
   final VoidCallback onTap;
 
   @override
@@ -533,6 +541,11 @@ class _PipelineRow extends StatelessWidget {
       color: tokens.ink,
     );
     final date = row.date;
+    // Near or late only, and nothing on a closed document — `openDeadline` is
+    // null for a draft, a paid invoice or a quote no longer out.
+    final when = row.type == EntityType.invoice
+        ? invoiceRowWhen(due: row.openDeadline, today: today)
+        : quoteRowWhen(validUntil: row.openDeadline, today: today);
     return PartyCurrencyBuilder(
       clientId: row.clientId,
       builder: (context, currencyId) => DashboardRecordRow(
@@ -556,10 +569,20 @@ class _PipelineRow extends StatelessWidget {
                 hasBounce: row.hasBounce,
               ),
         lead: date is Date ? formatter.date(date.toIso()) : '',
+        subline: when == null ? null : rowWhenText(context, when),
+        sublineIsLate: when?.isLate ?? false,
         amount: formatter.money(
           row.amount as Decimal,
           clientCurrencyId: currencyId,
         ),
+        amountNote: compact
+            ? null
+            : approxInBaseCurrency(
+                formatter: formatter,
+                amount: row.amount as Decimal,
+                documentCurrencyId: currencyId,
+                exchangeRate: row.exchangeRate ?? Decimal.zero,
+              ),
         onTap: onTap,
         compact: compact,
       ),

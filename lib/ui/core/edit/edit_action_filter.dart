@@ -24,6 +24,11 @@ import 'package:admin/ui/core/detail/entity_detail_actions_row.dart';
 ///
 /// On an existing record (`isCreate == false`) the full set is kept (minus
 /// Edit), matching the detail screen.
+///
+/// **Every kept item is demoted** ([EntityActionItem.isPrimary] cleared): the
+/// edit screen draws one primary, Save. Passing the flag through drew a sent
+/// invoice's Enter Payment (or a task's Start) filled beside it — two accents
+/// competing for the same glance.
 List<EntityActionItem<A>> filterForEditScreen<A>(
   List<EntityActionItem<A>> items, {
   required bool isCreate,
@@ -34,6 +39,6 @@ List<EntityActionItem<A>> filterForEditScreen<A>(
       if (!item.isEdit &&
           !item.isNavigationOnly &&
           !(isCreate && isLifecycle(item.kind)))
-        item,
+        item.isPrimary ? item.copyWith(isPrimary: false) : item,
   ];
 }

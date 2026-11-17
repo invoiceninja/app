@@ -28,7 +28,23 @@ String? _target(DashboardActivity a) =>
 void main() {
   group('bucketSizeFor', () {
     test('widens with the window so the bar count stays readable', () {
-      expect(bucketSizeFor(const Duration(hours: 5)), TimelineBucketSize.hour);
+      expect(
+        bucketSizeFor(const Duration(hours: 5)),
+        TimelineBucketSize.quarterHour,
+      );
+      expect(
+        bucketSizeFor(const Duration(hours: 12)),
+        TimelineBucketSize.quarterHour,
+      );
+      expect(
+        bucketSizeFor(const Duration(hours: 13)),
+        TimelineBucketSize.halfHour,
+      );
+      expect(
+        bucketSizeFor(const Duration(hours: 24)),
+        TimelineBucketSize.halfHour,
+      );
+      expect(bucketSizeFor(const Duration(hours: 25)), TimelineBucketSize.hour);
       expect(bucketSizeFor(const Duration(days: 2)), TimelineBucketSize.hour);
       expect(bucketSizeFor(const Duration(days: 3)), TimelineBucketSize.day);
       expect(bucketSizeFor(const Duration(days: 62)), TimelineBucketSize.day);
@@ -108,6 +124,38 @@ void main() {
       ];
       final t = bucketize(rows, now: now, spanOf: rows);
       expect(t.buckets.fold<int>(0, (s, b) => s + b.count), 2);
+    });
+
+    test('a busy morning is cut into 15-minute bars', () {
+      final now = DateTime(2026, 6, 20, 12, 5);
+      final rows = [
+        _at(DateTime(2026, 6, 20, 9, 7), id: 'a'),
+        _at(DateTime(2026, 6, 20, 9, 14), id: 'b'),
+        _at(DateTime(2026, 6, 20, 9, 15), id: 'c'),
+        _at(DateTime(2026, 6, 20, 11, 59), id: 'd'),
+      ];
+      final t = bucketize(rows, now: now, spanOf: rows);
+      expect(t.size, TimelineBucketSize.quarterHour);
+      // 9:00 … 12:00 inclusive.
+      expect(t.buckets, hasLength(13));
+      expect(t.buckets.first.start, DateTime(2026, 6, 20, 9));
+      expect(t.buckets.first.end, DateTime(2026, 6, 20, 9, 15));
+      expect(t.buckets.first.count, 2);
+      expect(t.buckets[1].count, 1);
+      expect(t.buckets.last.start, DateTime(2026, 6, 20, 12));
+      expect(t.buckets.fold<int>(0, (s, b) => s + b.count), 4);
+      for (var i = 1; i < t.buckets.length; i++) {
+        expect(t.buckets[i].start, t.buckets[i - 1].end);
+      }
+    });
+
+    test('a day of activity is cut into 30-minute bars, never past 63', () {
+      final now = DateTime(2026, 6, 20, 12);
+      final rows = [_at(DateTime(2026, 6, 19, 12, 40), id: 'a')];
+      final t = bucketize(rows, now: now, spanOf: rows);
+      expect(t.size, TimelineBucketSize.halfHour);
+      expect(t.buckets.first.start, DateTime(2026, 6, 19, 12, 30));
+      expect(t.buckets.length, lessThanOrEqualTo(63));
     });
 
     test('an empty window has no bars', () {

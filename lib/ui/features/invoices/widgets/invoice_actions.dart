@@ -19,6 +19,7 @@ import 'package:admin/data/models/domain/invoice_status.dart';
 import 'package:admin/data/models/domain/payment.dart';
 import 'package:admin/data/models/value/date.dart';
 import 'package:admin/data/repositories/auth/auth_session.dart';
+import 'package:admin/domain/billing/invoice_email_template.dart';
 import 'package:admin/domain/billing/invoice_lock.dart';
 import 'package:admin/domain/entity_type.dart';
 import 'package:admin/domain/terminal/terminal_eligibility.dart';
@@ -649,7 +650,7 @@ class InvoiceActions {
       ),
       ?q.pick(InvoiceAction.markSent, context.tr('mark_sent')),
       ?q.pick(InvoiceAction.sendEmail, context.tr('email')),
-      ?q.pick(InvoiceAction.viewPdf, context.tr('pdf'), applies: !hasPdfPane),
+      ?q.pick(InvoiceAction.viewPdf, context.tr('pdf'), onScreen: hasPdfPane),
       ?q.pick(InvoiceAction.markPaid, context.tr('mark_paid')),
       ?q.pick(InvoiceAction.downloadPdf, context.tr('download')),
       ?q.pick(InvoiceAction.refund, context.tr('refund')),
@@ -894,7 +895,13 @@ class InvoiceActions {
         // Full-screen Send Email surface (form + live preview + PDF +
         // History). The screen owns both immediate-send and scheduled
         // dispatch; bulk multi-select still uses showBillingDocEmailSheet.
-        context.go('/invoices/${invoice.id}/email?view=full');
+        // It opens on the template the invoice's state calls for — the next
+        // unsent reminder once it is past due (`invoiceEmailTemplateFor`).
+        final template = invoiceEmailTemplateFor(invoice, today: Date.today());
+        context.go(
+          '/invoices/${invoice.id}/email?view=full'
+          '${template == kInvoiceInitialTemplate ? '' : '&template=$template'}',
+        );
 
       case InvoiceAction.markSent:
         if (tmpGate()) return;

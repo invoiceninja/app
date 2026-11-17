@@ -302,7 +302,7 @@ class _ActionRow extends StatelessWidget {
       ),
       trailing: Tooltip(
         message: context.tr(visible ? 'hide' : 'show'),
-        child: Switch.adaptive(value: visible, onChanged: (_) => onToggle()),
+        child: Switch(value: visible, onChanged: (_) => onToggle()),
       ),
     );
   }

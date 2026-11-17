@@ -28,6 +28,39 @@ String labelKeyForProvider(String wireValue) {
   }
 }
 
+/// User-facing label key for a `bank_account_type` wire value — Yodlee's
+/// account `CONTAINER` (`bank`, `creditCard`, `investment`, …; the API docs
+/// spell it `CREDITCARD`) or Nordigen's fixed `bank`. Case and separators are
+/// ignored. An unknown value comes back as itself, so `context.tr` renders
+/// it raw rather than nothing. Render via
+/// `context.tr(labelKeyForAccountType(t))`.
+String labelKeyForAccountType(String wireValue) {
+  switch (wireValue.toLowerCase().replaceAll(RegExp('[^a-z]'), '')) {
+    case 'bank':
+      return 'bank_id'; // "Bank"
+    case 'creditcard':
+      return 'credit_card';
+    case 'insurance':
+      return 'industry_Insurance';
+    case 'realestate':
+      return 'industry_Real Estate';
+    case 'investment':
+      return 'bank_account_type_investment';
+    case 'loan':
+      return 'bank_account_type_loan';
+    case 'reward':
+      return 'bank_account_type_reward';
+    case 'bill':
+      return 'bank_account_type_bill';
+    case 'otherassets':
+      return 'bank_account_type_other_assets';
+    case 'otherliabilities':
+      return 'bank_account_type_other_liabilities';
+    default:
+      return wireValue;
+  }
+}
+
 /// Domain `BankAccount` (wire entity: `bank_integration`). Settings-area
 /// entity reached via Settings → Bank Accounts. `isDirty` is local-only —
 /// `fromApi` defaults it to false and the repo overlays the Drift row's

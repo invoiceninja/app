@@ -1,5 +1,5 @@
 import 'package:material_ui/material_ui.dart';
-import 'package:intl/intl.dart';
+import 'package:admin/ui/features/projects/widgets/detail/project_hours_format.dart';
 
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/data/models/domain/project.dart';
@@ -117,14 +117,8 @@ class _ProjectListTileState extends State<ProjectListTile> {
 
   Widget _narrow(BuildContext context, InTheme tokens) {
     final w = widget;
-    final hoursFmt = NumberFormat.decimalPattern()
-      ..minimumFractionDigits = 0
-      ..maximumFractionDigits = 1;
-    final hoursText =
-        w.project.budgetedHours == 0 && w.project.currentHours == 0
-        ? null
-        : '${hoursFmt.format(w.project.currentHours)} h / '
-              '${hoursFmt.format(w.project.budgetedHours)} h';
+    final hasHours =
+        w.project.budgetedHours != 0 || w.project.currentHours != 0;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
@@ -132,12 +126,17 @@ class _ProjectListTileState extends State<ProjectListTile> {
         const SizedBox(width: 12),
         Expanded(child: _identity(context, tokens)),
         const SizedBox(width: 12),
-        if (hoursText != null)
-          Text(
-            hoursText,
-            style: TextStyle(
-              color: tokens.ink,
-              fontFeatures: const [FontFeature.tabularFigures()],
+        if (hasHours)
+          // The device's hours-format preference, like the record's figures.
+          ProjectHoursFormatBuilder(
+            builder: (context, hoursMinutes) => Text(
+              '${projectHoursText(w.project.currentHours, hoursMinutes: hoursMinutes)}'
+              ' / '
+              '${projectHoursText(w.project.budgetedHours, hoursMinutes: hoursMinutes)}',
+              style: TextStyle(
+                color: tokens.ink,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
             ),
           ),
         if (w.onAction != null && !w.selecting) ...[

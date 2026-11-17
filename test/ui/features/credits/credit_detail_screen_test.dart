@@ -88,10 +88,13 @@ void main() {
   );
 
   _screenTest(
-    'a used-up credit prints its zero and offers nothing to apply',
+    'a used-up credit leads with its amount and offers nothing to apply',
     docJson(status: '4', balance: '0', paid: '3720.00'),
     (tester, screen) async {
-      expect(_inStanding(r'$0.00'), findsOneWidget);
+      // Nothing remains, so the amount leads (one lead rule,
+      // `billingDocLeadsWithBalance`) — once: Applied equals it.
+      expect(_inStanding(r'$3,720.00'), findsOneWidget);
+      expect(_inStanding('Credit Remaining'), findsNothing);
       expect(_tiles(tester), isNot(contains('Apply')));
     },
   );

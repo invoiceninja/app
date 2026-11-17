@@ -119,6 +119,20 @@ void main() {
     return '$current vs $previous';
   }
 
+  String currentWindow(DashboardComparison c) =>
+      formatter.dateRange(c.currentStart.toIso(), c.currentEnd.toIso());
+  String previousWindow(DashboardComparison c) =>
+      formatter.dateRange(c.previousStart.toIso(), c.previousEnd.toIso());
+
+  Finder onButton(String text) => find.descendant(
+    of: find.byType(DateRangePickerButton),
+    matching: find.text(text),
+  );
+  Finder inCompare(String text) => find.descendant(
+    of: find.byType(DashboardCompareLabel),
+    matching: find.text(text),
+  );
+
   group('the date range', () {
     testWidgets('is a button that names the selected range', (tester) async {
       await vm.setDateRange(
@@ -142,6 +156,8 @@ void main() {
     // used to state them named only the window's last month. Both windows are
     // derived from the view model rather than hardcoded — a quarter boundary
     // depends on today, and CI runs in UTC while the dev machines do not.
+    // Wide, the days measured ride the range button and the days compared
+    // the dashed Compare label.
     testWidgets('a preset states the days measured and the days compared', (
       tester,
     ) async {
@@ -150,7 +166,12 @@ void main() {
       );
       await pumpBar(tester);
 
-      expect(find.text(windows(vm.comparison!, both: true)), findsOneWidget);
+      final c = vm.comparison!;
+      expect(onButton(currentWindow(c)), findsOneWidget);
+      expect(inCompare('Compare to'), findsOneWidget);
+      expect(inCompare(previousWindow(c)), findsOneWidget);
+      // The compact caption's sentence is not repeated beside them.
+      expect(find.textContaining(' vs '), findsNothing);
     });
 
     testWidgets('a custom range prints its dates once, on the button', (
@@ -165,12 +186,12 @@ void main() {
       await pumpBar(tester);
 
       // The eight days before it, and only those — the range itself is
-      // already on the button.
+      // already the button's label, so no second segment repeats it.
       final c = vm.comparison!;
       expect(c.previousStart, const Date(2026, 2, 25));
       expect(c.previousEnd, const Date(2026, 3, 4));
-      expect(find.text(windows(c, both: false)), findsOneWidget);
-      expect(find.text(windows(c, both: true)), findsNothing);
+      expect(inCompare(previousWindow(c)), findsOneWidget);
+      expect(onButton(currentWindow(c)), findsNothing);
     });
 
     // An in-progress custom range is summed only up to today
@@ -187,8 +208,8 @@ void main() {
 
       final c = vm.comparison!;
       expect(c.currentEnd, today, reason: 'the window runs to today');
-      expect(find.text(windows(c, both: true)), findsOneWidget);
-      expect(find.text(windows(c, both: false)), findsNothing);
+      expect(onButton(currentWindow(c)), findsOneWidget);
+      expect(inCompare(previousWindow(c)), findsOneWidget);
     });
 
     testWidgets('All Time has nothing to compare with, and says nothing', (
@@ -202,6 +223,74 @@ void main() {
       expect(vm.comparison, isNull);
       expect(find.text('All Time'), findsOneWidget);
       expect(find.textContaining('vs '), findsNothing);
+      expect(find.byType(DashboardCompareLabel), findsNothing);
+    });
+  });
+
+  // The design's "Compare to" box: a label shaped like the controls beside
+  // it, so it must not be mistaken for one. There is no compare picker.
+  group('the compare label', () {
+    testWidgets('is text to a screen reader, never a control', (tester) async {
+      final handle = tester.ensureSemantics();
+      await vm.setDateRange(
+        const DashboardPresetRange(DashboardDatePreset.lastQuarter),
+      );
+      await pumpBar(tester);
+
+      final label = find.byType(DashboardCompareLabel);
+      expect(
+        tester.getSemantics(label),
+        matchesSemantics(
+          label: 'Compare to\n${previousWindow(vm.comparison!)}',
+        ),
+      );
+      for (final type in [InkWell, GestureDetector, Focus, Tooltip]) {
+        expect(
+          find.descendant(of: label, matching: find.byType(type)),
+          findsNothing,
+          reason: 'no $type: it takes no tap, focus or hover',
+        );
+      }
+      handle.dispose();
+    });
+  });
+
+  group('wide arrangement', () {
+    testWidgets('range, compare, currency, then drafts at the trailing end', (
+      tester,
+    ) async {
+      await vm.setDateRange(
+        const DashboardPresetRange(DashboardDatePreset.lastQuarter),
+      );
+      repo.totals.add(totals({'1': 'USD', '3': 'EUR'}));
+      await pumpBar(tester, width: 1400);
+      await tester.pump(const Duration(milliseconds: 10));
+
+      final range = tester.getRect(find.byType(DateRangePickerButton));
+      final compare = tester.getRect(find.byType(DashboardCompareLabel));
+      final currency = tester.getRect(find.text('All currencies'));
+      final drafts = tester.getRect(find.byType(IncludeDraftsSwitch));
+      final bar = tester.getRect(find.byType(DashboardPeriodBar));
+      expect(range.right, lessThanOrEqualTo(compare.left));
+      expect(compare.right, lessThanOrEqualTo(currency.left));
+      // One line, the switch pushed to the end rather than after the rest.
+      expect((drafts.center.dy - range.center.dy).abs(), lessThan(4));
+      expect(drafts.right, closeTo(bar.right, 1));
+      expect(drafts.left - currency.right, greaterThan(100));
+    });
+
+    testWidgets('a narrow row drops the switch under the rest', (tester) async {
+      repo.totals.add(totals({'1': 'USD', '3': 'EUR'}));
+      await pumpBar(tester, width: 600);
+      await tester.pump(const Duration(milliseconds: 10));
+
+      expect(tester.takeException(), isNull);
+      expect(
+        tester.getRect(find.byType(IncludeDraftsSwitch)).top,
+        greaterThanOrEqualTo(
+          tester.getRect(find.byType(DateRangePickerButton)).bottom,
+        ),
+      );
     });
   });
 

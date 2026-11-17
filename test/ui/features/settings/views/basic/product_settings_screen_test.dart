@@ -190,14 +190,17 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('renders three cards and all 10 toggles; conditional fields '
+  testWidgets('renders three cards and 8 toggles; conditional fields '
       'hidden by default', (tester) async {
     await pumpScreen(tester, const Company(id: 'co-A'));
 
     // Three title-less grouping cards (Inventory / Display / Behavior).
     expect(find.byType(FormSection), findsNWidgets(3));
-    // Ten always-visible toggles.
-    expect(find.byType(SwitchListTile), findsNWidgets(10));
+    // Eight always-visible toggles — Stock Notifications waits for Track
+    // Inventory, Default Quantity for Show Product Quantity.
+    expect(find.byType(SwitchListTile), findsNWidgets(8));
+    expect(find.text('Stock Notifications'), findsNothing);
+    expect(find.text('Default Quantity'), findsNothing);
 
     // A representative label from each card renders.
     expect(find.text('Track Inventory'), findsOneWidget); // Inventory
@@ -216,9 +219,53 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
+  testWidgets('Track Inventory reveals Stock Notifications, and hiding it '
+      'keeps the value', (tester) async {
+    await pumpScreen(
+      tester,
+      const Company(id: 'co-A', stockNotification: true),
+    );
+    // The server ignores stock notifications unless inventory is tracked.
+    expect(find.text('Stock Notifications'), findsNothing);
+    expect(
+      find.widgetWithText(TextField, 'Notification Threshold'),
+      findsNothing,
+    );
+
+    await tester.tap(find.widgetWithText(SwitchListTile, 'Track Inventory'));
+    await tester.pumpAndSettle();
+    final stock = find.widgetWithText(SwitchListTile, 'Stock Notifications');
+    expect(stock, findsOneWidget);
+    expect(tester.widget<SwitchListTile>(stock).value, isTrue);
+    expect(
+      find.widgetWithText(TextField, 'Notification Threshold'),
+      findsOneWidget,
+    );
+
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  // Default Quantity decides nothing while the quantity column is hidden —
+  // every picked product lands at 1 then (`lineItemFromProduct`).
+  testWidgets('Show Product Quantity reveals Default Quantity, and hiding it '
+      'keeps the value', (tester) async {
+    await pumpScreen(tester, const Company(id: 'co-A', defaultQuantity: true));
+    expect(find.text('Default Quantity'), findsNothing);
+
+    await tester.tap(
+      find.widgetWithText(SwitchListTile, 'Show Product Quantity'),
+    );
+    await tester.pumpAndSettle();
+    final quantity = find.widgetWithText(SwitchListTile, 'Default Quantity');
+    expect(quantity, findsOneWidget);
+    expect(tester.widget<SwitchListTile>(quantity).value, isTrue);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
   testWidgets('toggling Stock Notifications reveals and hides the threshold '
       'field', (tester) async {
-    await pumpScreen(tester, const Company(id: 'co-A'));
+    await pumpScreen(tester, const Company(id: 'co-A', trackInventory: true));
     expect(
       find.widgetWithText(TextField, 'Notification Threshold'),
       findsNothing,
@@ -283,7 +330,12 @@ void main() {
     // Both conditional children visible so the full field set is laid out.
     await pumpScreen(
       tester,
-      const Company(id: 'co-A', stockNotification: true, convertProducts: true),
+      const Company(
+        id: 'co-A',
+        trackInventory: true,
+        stockNotification: true,
+        convertProducts: true,
+      ),
       width: 390,
     );
 

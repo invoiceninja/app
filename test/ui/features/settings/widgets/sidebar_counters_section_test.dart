@@ -55,8 +55,13 @@ void main() {
     expect(find.text('Sidebar counters'), findsOneWidget);
     expect(find.text('Invoices'), findsOneWidget);
     expect(find.text('Clients'), findsOneWidget);
-    // Every row starts on the default, so the whole card reads "Total".
-    expect(find.text('Total'), findsWidgets);
+    // Every row starts on its actionable default: Invoices on Overdue, and a
+    // row with nothing actionable to count (Clients) on None.
+    expect(_rowDropdownValue(tester, 'Invoices'), 'overdue');
+    expect(_rowDropdownValue(tester, 'Quotes'), 'expired');
+    expect(_rowDropdownValue(tester, 'Payments'), 'unapplied');
+    expect(_rowDropdownValue(tester, 'Clients'), kBadgeModeNone);
+    expect(find.text('Total'), findsNothing);
     await _disposeTree(tester);
   });
 
@@ -76,8 +81,9 @@ void main() {
       );
       await _pumpFrames(tester);
 
-      // No badge yet: an unchanged row is on Total, and Total has no invoices
-      // beyond the two seeded ones — so assert against the mode change instead.
+      // Out of the box the row is on Overdue — the preview already shows
+      // the live overdue count, in the danger tone the rail will use.
+      expect(_invoiceBadgeCount(tester), 2);
       final invoicesRow = find.ancestor(
         of: find.text('Invoices'),
         matching: find.byType(ListTile),
@@ -89,16 +95,28 @@ void main() {
         ),
       );
       await _pumpFrames(tester);
-      await tester.tap(find.text('Overdue').last);
+      await tester.tap(find.text('Draft').last);
       await _pumpFrames(tester);
 
       expect(
         fixture.services.sidebarBadgeModes.modeFor(EntityType.invoice),
-        'overdue',
+        'draft',
       );
+      // Neither seeded invoice is a draft: the badge collapses at zero.
+      expect(_invoiceBadgeCount(tester) ?? 0, 0);
 
-      // The preview badge now shows the live overdue count, in the danger tone
-      // the rail will use.
+      // And back to Overdue — the default — which clears the stored choice.
+      await tester.tap(
+        find.descendant(
+          of: invoicesRow,
+          matching: find.byType(DropdownButton<String>),
+        ),
+      );
+      await _pumpFrames(tester);
+      await tester.tap(find.text('Overdue').last);
+      await _pumpFrames(tester);
+      expect(fixture.services.sidebarBadgeModes.hasOverrides, isFalse);
+
       final badge = tester.widget<SidebarBadge>(
         find.descendant(
           of: find.ancestor(
@@ -130,7 +148,7 @@ void main() {
 
       await fixture.services.sidebarBadgeModes.set(
         EntityType.invoice,
-        'overdue',
+        'unpaid',
       );
       await _pumpFrames(tester);
       expect(_invoiceBadgeCount(tester), 1);
@@ -172,13 +190,21 @@ void main() {
     await _pumpFrames(tester);
     expect(find.text('Reset'), findsNothing);
 
-    await fixture.services.sidebarBadgeModes.set(EntityType.invoice, 'overdue');
+    // Total is a choice now, not the default.
+    await fixture.services.sidebarBadgeModes.set(
+      EntityType.invoice,
+      kBadgeModeTotal,
+    );
     await _pumpFrames(tester);
     expect(find.text('Reset'), findsOneWidget);
 
     await tester.tap(find.text('Reset'));
     await _pumpFrames(tester);
     expect(fixture.services.sidebarBadgeModes.hasOverrides, isFalse);
+    expect(
+      fixture.services.sidebarBadgeModes.modeFor(EntityType.invoice),
+      'overdue',
+    );
     expect(find.text('Reset'), findsNothing);
     await _disposeTree(tester);
   });
@@ -245,6 +271,19 @@ int? _invoiceBadgeCount(WidgetTester tester) {
   if (badges.evaluate().isEmpty) return null;
   return tester.widget<SidebarBadge>(badges).count;
 }
+
+/// The selected value of the counter dropdown on the row labelled [label].
+String? _rowDropdownValue(WidgetTester tester, String label) => tester
+    .widget<DropdownButton<String>>(
+      find.descendant(
+        of: find.ancestor(
+          of: find.text(label),
+          matching: find.byType(ListTile),
+        ),
+        matching: find.byType(DropdownButton<String>),
+      ),
+    )
+    .value;
 
 /// The stream object the Invoices row currently hands its `StreamBuilder`.
 /// Identity across rebuilds is what proves the stream is hoisted.

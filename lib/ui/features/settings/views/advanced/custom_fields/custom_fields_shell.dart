@@ -29,6 +29,7 @@ import 'package:admin/ui/features/settings/widgets/settings_company_scoped_host.
 import 'package:admin/ui/features/settings/widgets/settings_page_scaffold.dart';
 import 'package:admin/ui/features/settings/widgets/settings_screen_scaffold.dart';
 import 'package:admin/ui/core/utils/router_state.dart';
+import 'package:admin/ui/features/settings/widgets/settings_tab_strip.dart';
 
 /// Per-tab definition: URL slug, label key, module gate, and the body widget.
 /// `enabledBy == null` means the tab is always visible (Company, Clients,
@@ -388,17 +389,20 @@ class _LoadedShellState extends State<_LoadedShell>
     final isAdminOrOwner = (me?.isAdmin ?? false) || (me?.isOwner ?? false);
     final canEdit = (session?.hasProAccess ?? false) && isAdminOrOwner;
 
-    final tabBar = TabBar(
-      controller: _controller,
-      isScrollable: true,
-      tabAlignment: TabAlignment.center,
-      labelColor: tokens.ink,
-      unselectedLabelColor: tokens.ink3,
-      indicatorColor: tokens.accent,
-      indicatorWeight: 2,
-      tabs: [
-        for (final tab in widget.visible) Tab(text: context.tr(tab.labelKey)),
-      ],
+    final tabBar = SettingsTabStrip(
+      tabBar: TabBar(
+        controller: _controller,
+        isScrollable: true,
+        tabAlignment: TabAlignment.start,
+        padding: settingsTabBarPadding(),
+        labelColor: tokens.ink,
+        unselectedLabelColor: tokens.ink3,
+        indicatorColor: tokens.accent,
+        indicatorWeight: 2,
+        tabs: [
+          for (final tab in widget.visible) Tab(text: context.tr(tab.labelKey)),
+        ],
+      ),
     );
 
     Widget body = TabBarView(
@@ -482,6 +486,7 @@ class CustomFieldSlotsSection extends StatelessWidget {
   const CustomFieldSlotsSection({
     required this.prefix,
     required this.title,
+    this.description,
     super.key,
   });
 
@@ -491,11 +496,15 @@ class CustomFieldSlotsSection extends StatelessWidget {
   /// Already localized — see the note above.
   final String title;
 
+  /// Already localized, for the same reason as [title].
+  final String? description;
+
   @override
   Widget build(BuildContext context) {
     final access = customFieldsAccess(context);
     return FormSection(
       title: title,
+      description: description,
       children: [
         for (var i = 1; i <= 4; i++)
           CustomFieldRow<CustomFieldsViewModel>(

@@ -53,7 +53,7 @@ class BankAccountDetailProfile extends StatelessWidget {
       if (account.type.trim().isNotEmpty)
         DetailInfoRow(
           label: context.tr('account_type'),
-          value: account.type.trim(),
+          value: context.tr(labelKeyForAccountType(account.type.trim())),
           copyable: false,
         ),
       DetailInfoRow(

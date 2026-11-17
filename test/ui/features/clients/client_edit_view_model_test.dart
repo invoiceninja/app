@@ -4,6 +4,7 @@ import 'package:admin/data/models/domain/client.dart';
 import 'package:admin/data/repositories/client_repository.dart';
 import 'package:admin/data/services/clients_api.dart';
 import 'package:admin/data/services/device_contacts_service.dart';
+import 'package:admin/domain/contact_email_mode.dart';
 import 'package:admin/domain/sync/mutation.dart';
 import 'package:admin/ui/features/clients/view_models/client_edit_view_model.dart';
 import 'package:drift/native.dart';
@@ -682,6 +683,110 @@ void main() {
         vm.draft.settings?.containsKey('default_task_rate') ?? false,
         isFalse,
       );
+      vm.dispose();
+    });
+  });
+
+  group('contact email choice and remove / undo', () {
+    Client threeContacts() => Client.fromApi(
+      ClientApi.fromJson({
+        'id': 'c1',
+        'name': 'Acme',
+        'balance': '0',
+        'contacts': [
+          {
+            'id': 'a',
+            'first_name': 'Alice',
+            'is_primary': true,
+            'send_email': true,
+          },
+          {
+            'id': 'b',
+            'first_name': 'Bob',
+            'is_primary': false,
+            'send_email': false,
+            'cc_only': true,
+          },
+          {
+            'id': 'c',
+            'first_name': 'Carol',
+            'is_primary': false,
+            'send_email': true,
+          },
+        ],
+      }),
+    );
+
+    test('setContactEmailModeAt writes the server-consistent flag pair', () {
+      final vm = ClientEditViewModel(
+        repo: repo,
+        companyId: 'co',
+        existing: threeContacts(),
+      );
+      vm.setContactEmailModeAt(2, ContactEmailMode.cc);
+      expect(vm.draft.contacts[2].ccOnly, isTrue);
+      expect(vm.draft.contacts[2].sendEmail, isFalse);
+      vm.setContactEmailModeAt(2, ContactEmailMode.none);
+      expect(vm.draft.contacts[2].ccOnly, isFalse);
+      expect(vm.draft.contacts[2].sendEmail, isFalse);
+      vm.setContactEmailModeAt(2, ContactEmailMode.to);
+      expect(vm.draft.contacts[2].ccOnly, isFalse);
+      expect(vm.draft.contacts[2].sendEmail, isTrue);
+      vm.dispose();
+    });
+
+    test('CC is refused on the primary contact', () {
+      final vm = ClientEditViewModel(
+        repo: repo,
+        companyId: 'co',
+        existing: threeContacts(),
+      );
+      vm.setContactEmailModeAt(0, ContactEmailMode.cc);
+      expect(vm.draft.contacts[0].ccOnly, isFalse);
+      expect(vm.draft.contacts[0].sendEmail, isTrue);
+      vm.dispose();
+    });
+
+    test('a CC-only contact made primary moves to the To line', () {
+      final vm = ClientEditViewModel(
+        repo: repo,
+        companyId: 'co',
+        existing: threeContacts(),
+      );
+      vm.setContactPrimary(1);
+      final bob = vm.draft.contacts[1];
+      expect(bob.isPrimary, isTrue);
+      expect(bob.ccOnly, isFalse);
+      expect(bob.sendEmail, isTrue);
+      vm.dispose();
+    });
+
+    test('restoreContact puts a removed primary back, and primary', () {
+      final vm = ClientEditViewModel(
+        repo: repo,
+        companyId: 'co',
+        existing: threeContacts(),
+      );
+      final removed = vm.removeContact(0);
+      expect(removed?.id, 'a');
+      expect(vm.draft.contacts.map((c) => c.id), ['b', 'c']);
+      expect(vm.draft.contacts[0].isPrimary, isTrue);
+      vm.restoreContact(0, removed!);
+      expect(vm.draft.contacts.map((c) => c.id), ['a', 'b', 'c']);
+      expect(vm.draft.contacts.where((c) => c.isPrimary).map((c) => c.id), [
+        'a',
+      ]);
+      vm.dispose();
+    });
+
+    test('removeContact out of range removes nothing and returns null', () {
+      final vm = ClientEditViewModel(
+        repo: repo,
+        companyId: 'co',
+        existing: threeContacts(),
+      );
+      expect(vm.removeContact(7), isNull);
+      expect(vm.draft.contacts, hasLength(3));
       vm.dispose();
     });
   });

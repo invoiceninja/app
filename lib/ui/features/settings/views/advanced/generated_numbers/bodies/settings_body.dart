@@ -10,6 +10,7 @@ import 'package:admin/ui/features/settings/widgets/overridable_date_field.dart';
 import 'package:admin/ui/features/settings/widgets/overridable_dropdown_field.dart';
 import 'package:admin/ui/features/settings/widgets/overridable_switch_field.dart';
 import 'package:admin/ui/features/settings/widgets/overridable_text_field.dart';
+import 'package:admin/ui/features/settings/widgets/segmented_choice_field.dart';
 import 'package:admin/ui/features/settings/widgets/settings_form_shell.dart';
 import 'package:admin/utils/formatting.dart';
 
@@ -136,20 +137,14 @@ class _GeneratedNumbersSettingsBodyState
                 ),
               ),
             ),
-            OverridableDropdownField<String>(
+            OverridableSegmentedField<String>(
               label: context.tr('generate_number'),
               apiKey: 'counter_number_applied',
               // Display-only fallback to the server default (matches React).
               value: host.settings.counterNumberApplied ?? 'when_saved',
-              items: [
-                DropdownMenuItem(
-                  value: 'when_saved',
-                  child: Text(context.tr('when_saved')),
-                ),
-                DropdownMenuItem(
-                  value: 'when_sent',
-                  child: Text(context.tr('when_sent')),
-                ),
+              options: [
+                (value: 'when_saved', label: context.tr('when_saved')),
+                (value: 'when_sent', label: context.tr('when_sent')),
               ],
               onChanged: isVerifactu
                   ? null

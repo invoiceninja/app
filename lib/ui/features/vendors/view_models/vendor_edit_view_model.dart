@@ -139,13 +139,26 @@ class VendorEditViewModel extends GenericEditViewModel<Vendor> {
 
   /// Remove the contact at [index]. If that contact was primary, the new
   /// first contact gets promoted so the entity always carries one primary.
-  void removeContact(int index) {
-    if (index < 0 || index >= draft.contacts.length) return;
+  VendorContact? removeContact(int index) {
+    if (index < 0 || index >= draft.contacts.length) return null;
     final contacts = [...draft.contacts];
     final removed = contacts.removeAt(index);
     if (removed.isPrimary && contacts.isNotEmpty) {
       contacts[0] = contacts[0].copyWith(isPrimary: true);
     }
+    updateDraft(draft.copyWith(contacts: contacts));
+    return removed;
+  }
+
+  /// Put back a contact [removeContact] took out (the Undo on its toast), at
+  /// the [index] it had. A restored primary is primary again; the contact
+  /// promoted in its place steps back down.
+  void restoreContact(int index, VendorContact contact) {
+    final contacts = [
+      for (final c in draft.contacts)
+        contact.isPrimary ? c.copyWith(isPrimary: false) : c,
+    ];
+    contacts.insert(index.clamp(0, contacts.length), contact);
     updateDraft(draft.copyWith(contacts: contacts));
   }
 

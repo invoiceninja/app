@@ -7,6 +7,7 @@ import 'package:admin/app/services.dart';
 import 'package:admin/data/db/dao/credit_dao.dart';
 import 'package:admin/data/models/domain/billing/billing_doc_fields.dart';
 import 'package:admin/data/models/domain/credit.dart';
+import 'package:admin/domain/billing/selection_totals.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/list/entity_list_screen_scaffold.dart';
 import 'package:admin/ui/core/list/entity_sort_filter_sheet.dart';
@@ -15,6 +16,7 @@ import 'package:admin/ui/features/billing_shared/email/recipient_email_fix.dart'
 import 'package:admin/ui/features/billing_shared/actions/billing_doc_bulk_pdf.dart';
 import 'package:admin/ui/features/billing_shared/billing_doc_type.dart';
 import 'package:admin/ui/features/billing_shared/email/billing_doc_email_sheet.dart';
+import 'package:admin/ui/features/billing_shared/selection_totals_bar.dart';
 import 'package:admin/ui/features/credits/view_models/credit_edit_view_model.dart';
 import 'package:admin/ui/features/credits/view_models/credit_list_view_model.dart';
 import 'package:admin/ui/features/credits/widgets/credit_actions.dart';
@@ -76,6 +78,20 @@ class CreditListScreen extends StatelessWidget {
       searchFieldBuilder: (context, vm, wide) =>
           CreditTokenSearchField(vm: vm, wide: wide),
       emptyStateBuilder: (context, vm) => CreditListEmptyState(vm: vm),
+      selectionSummaryBuilder: (context, vm, formatter) => SelectionTotalsBar(
+        companyId: vm.companyId,
+        formatter: formatter,
+        rows: [
+          for (final c in vm.selectedItems)
+            SelectionTotalsRow(
+              clientId: c.clientId,
+              amount: c.amount,
+              taxes: c.taxAmount,
+              // What is left to apply.
+              balance: c.balance,
+            ),
+        ],
+      ),
       tileBuilder: (context, vm, credit, index, options) {
         final isUrlSelected = options.selectedId == credit.id;
         // The rows' PEPPOL sent / failed mark reads the company through this.

@@ -116,6 +116,9 @@ class _EntityTypeToggle extends StatelessWidget {
             initialValue: value,
             idOf: (t) => t,
             displayString: labelFor,
+            // Always one type: a cleared picker kept listing the old type's
+            // tags under a blank field.
+            clearable: false,
             onChanged: (t) {
               if (t != null) onChanged(t);
             },

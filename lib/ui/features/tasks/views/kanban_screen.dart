@@ -41,6 +41,7 @@ class _KanbanScreenState extends State<KanbanScreen> {
       statusRepo: _services.taskStatuses,
       companyId: _companyId,
       projectRepo: _services.projects,
+      clientRepo: _services.clients,
     );
     _services.auth.session.addListener(_onSessionChanged);
   }
@@ -56,6 +57,7 @@ class _KanbanScreenState extends State<KanbanScreen> {
         statusRepo: _services.taskStatuses,
         companyId: _companyId,
         projectRepo: _services.projects,
+        clientRepo: _services.clients,
       );
     });
     old.dispose();

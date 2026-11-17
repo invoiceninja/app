@@ -4,16 +4,21 @@ import 'package:provider/provider.dart';
 
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/env.dart';
+import 'package:admin/app/search_focus_registry.dart';
 import 'package:admin/app/services.dart';
+import 'package:admin/app/shortcuts/shortcut_catalog.dart';
 import 'package:admin/data/models/domain/dashboard/dashboard_activity.dart';
+import 'package:admin/data/models/value/date.dart';
 import 'package:admin/domain/activity/activity_timeline.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/adaptive.dart';
 import 'package:admin/ui/core/utils/calendar_week_start.dart';
+import 'package:admin/ui/core/utils/platform_modifier.dart';
 import 'package:admin/ui/core/widgets/app_selection_area.dart';
 import 'package:admin/ui/core/widgets/empty_state.dart';
 import 'package:admin/ui/core/widgets/error_view.dart';
 import 'package:admin/ui/core/widgets/filter_icon_button.dart';
+import 'package:admin/ui/core/widgets/key_cap.dart';
 import 'package:admin/ui/features/reports/helpers/report_access.dart';
 import 'package:admin/ui/features/activity/activity_deep_link.dart';
 import 'package:admin/ui/features/activity/view_models/activity_view_model.dart';
@@ -22,6 +27,9 @@ import 'package:admin/ui/features/activity/widgets/activity_filter_sheet.dart';
 import 'package:admin/ui/features/activity/widgets/activity_period_labels.dart';
 import 'package:admin/ui/features/activity/widgets/activity_timeline_chart.dart';
 import 'package:admin/ui/features/dashboard/helpers/activity_formatter.dart';
+import 'package:admin/ui/features/dashboard/widgets/activity_card.dart'
+    as card
+    show activityDayLabel;
 import 'package:admin/ui/features/dashboard/widgets/card_shell.dart';
 import 'package:admin/ui/features/dashboard/widgets/freshness.dart';
 import 'package:admin/ui/features/shell/widgets/app_drawer.dart';
@@ -41,14 +49,26 @@ const double kActivityBodyMaxWidth = 1200;
 /// already spends half its height on the app bar, search and chips.
 const double kActivityTimelineMinBodyHeight = 420;
 
+/// Pane width from which the search sits in the title row, beside refresh,
+/// rather than on a full-width row of its own under it.
+const double kActivitySearchInTitleMinWidth = 720;
+
+/// The search box's width in the title row.
+const double kActivityTitleSearchWidth = 340;
+
+/// Pane width from which the category chips sit under the chart — they
+/// redraw it — instead of in the filters.
+const double kActivityChipsUnderChartMinWidth = 600;
+
 /// The company-wide activity feed at `/activity` (invoiceninja/flutter#53).
 ///
 /// Reads the same Drift cache row as the dashboard's Activity card, so it
 /// paints from cache immediately and refreshing either surface updates both.
-/// Unlike the card it renders every row in the window, day-grouped on a
-/// vertical timeline, under a bar chart of the window that doubles as the
-/// date filter, and narrowable by date / category / user / type / text /
-/// comments-only. A wide pane shows the filters as a rail instead of a sheet.
+/// Unlike the card it renders every row in the window, day-grouped like the
+/// card with the time on each row, under a bar chart of the window that
+/// doubles as the date filter, and narrowable by date / category / user /
+/// source / record type / activity type / text. A wide pane shows the filters
+/// as a rail instead of a sheet.
 ///
 /// Owns the [Formatter] and the [ActivityViewModel] — both rebuilt on
 /// company-switch via the auth session listener (not via `build`, which would
@@ -66,11 +86,22 @@ class _ActivityScreenState extends State<ActivityScreen> {
   late String _companyId;
   Formatter? _formatter;
   final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocus = FocusNode(debugLabel: 'activity search');
+
+  /// Where `/` finds the search box. Stashed in `initState` so `dispose` can
+  /// release the claim without reading a detaching context.
+  SearchFocusRegistry? _searchRegistry;
+
+  /// Whether the body drew the category chips under the chart on its last
+  /// build — read when the filter button opens the sheet, so the sheet leaves
+  /// them out. A plain field: nothing rebuilds on it.
+  bool _chipsUnderChart = false;
 
   @override
   void initState() {
     super.initState();
     _services = context.read<Services>();
+    _searchRegistry = _services.searchFocus;
     _companyId = _services.auth.session.value?.currentCompanyId ?? '';
     _vm = _buildVm();
     _services.auth.session.addListener(_onSessionChanged);
@@ -112,6 +143,15 @@ class _ActivityScreenState extends State<ActivityScreen> {
     // every frame of a desktop window drag. `setTitleResolver` is written to be
     // cheap and phase-safe for exactly that reason; don't move work in here.
     _attachTitleResolver();
+    // `/` focuses this box while the screen is on stage. Claimed here, under
+    // the `TickerMode` gate, and released offstage — the same rule, for the
+    // same reason, as `TokenSearchField` (`SearchFocusRegistry`): go_router
+    // keeps every visited branch mounted.
+    if (TickerMode.valuesOf(context).enabled) {
+      _searchRegistry?.claim(_searchFocus);
+    } else {
+      _searchRegistry?.release(_searchFocus);
+    }
   }
 
   /// Wires the sentence renderer the VM's text filter matches against. Called
@@ -161,6 +201,8 @@ class _ActivityScreenState extends State<ActivityScreen> {
   @override
   void dispose() {
     _services.auth.session.removeListener(_onSessionChanged);
+    _searchRegistry?.release(_searchFocus);
+    _searchFocus.dispose();
     // Listener first: `_syncSearchField` writes to the controller below.
     _vm
       ..removeListener(_syncSearchField)
@@ -180,12 +222,19 @@ class _ActivityScreenState extends State<ActivityScreen> {
     // The pane, not the window: the sidebar takes part of a desktop window,
     // and the app bar's filter button has to agree with the body's rail.
     return LayoutBuilder(
-      builder: (context, c) =>
-          _scaffold(context, rail: c.maxWidth >= kActivityRailMinWidth),
+      builder: (context, c) => _scaffold(
+        context,
+        rail: c.maxWidth >= kActivityRailMinWidth,
+        searchInTitle: c.maxWidth >= kActivitySearchInTitleMinWidth,
+      ),
     );
   }
 
-  Widget _scaffold(BuildContext context, {required bool rail}) {
+  Widget _scaffold(
+    BuildContext context, {
+    required bool rail,
+    required bool searchInTitle,
+  }) {
     final globalNav = Breakpoints.isGlobalNavVisible(context);
     return Scaffold(
       drawer: globalNav ? null : const AppDrawer(),
@@ -194,6 +243,15 @@ class _ActivityScreenState extends State<ActivityScreen> {
         leading: globalNav ? null : const DrawerHamburger(),
         automaticallyImplyLeading: !globalNav,
         actions: [
+          // A wide pane has the room to keep the search in the title row,
+          // beside refresh, and to give the feed the row it took.
+          if (searchInTitle)
+            Center(
+              child: SizedBox(
+                width: kActivityTitleSearchWidth,
+                child: _searchField(context),
+              ),
+            ),
           ListenableBuilder(
             listenable: _vm,
             builder: (context, _) => IconButton(
@@ -214,48 +272,96 @@ class _ActivityScreenState extends State<ActivityScreen> {
                   vm: _vm,
                   companyId: _companyId,
                   formatter: _formatter,
+                  showCategories: !_chipsUnderChart,
                 ),
               ),
             ),
         ],
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(56),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-            child: _capped(
-              TextField(
-                controller: _searchController,
-                // Search queries are names and numbers, not prose — iOS
-                // autocorrecting "Acme" to "Acne" mid-search is the failure.
-                autocorrect: false,
-                enableSuggestions: false,
-                textInputAction: TextInputAction.search,
-                decoration: InputDecoration(
-                  isDense: true,
-                  prefixIcon: const Icon(Icons.search, size: 18),
-                  hintText: context.tr('search'),
-                  suffixIcon: ListenableBuilder(
-                    listenable: _searchController,
-                    builder: (context, _) => _searchController.text.isEmpty
-                        ? const SizedBox.shrink()
-                        : IconButton(
-                            icon: const Icon(Icons.close, size: 18),
-                            tooltip: context.tr('clear'),
-                            onPressed: () => _vm.setSearch(''),
-                          ),
-                  ),
+        bottom: searchInTitle
+            ? null
+            : PreferredSize(
+                preferredSize: const Size.fromHeight(56),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                  child: _capped(_searchField(context)),
                 ),
-                onChanged: _vm.setSearch,
               ),
-            ),
-          ),
-        ),
       ),
       body: ListenableBuilder(
         listenable: _vm,
         builder: (context, _) => _body(context, rail: rail),
       ),
     );
+  }
+
+  /// The search box: in the title row on a wide pane, a row of its own under
+  /// it otherwise. `/` focuses it ([SearchFocusRegistry]), and with a pointer
+  /// its empty, unfocused box shows that key as a cap.
+  Widget _searchField(BuildContext context) {
+    return ListenableBuilder(
+      listenable: Listenable.merge([_searchController, _searchFocus]),
+      builder: (context, _) {
+        final empty = _searchController.text.isEmpty;
+        final glyphs =
+            empty &&
+                !Env.isTouchPrimary &&
+                !_searchFocus.hasFocus &&
+                identical(_searchRegistry?.current, _searchFocus)
+            ? _focusSearchGlyphs(context)
+            : null;
+        return TextField(
+          controller: _searchController,
+          focusNode: _searchFocus,
+          // Search queries are names and numbers, not prose — iOS
+          // autocorrecting "Acme" to "Acne" mid-search is the failure.
+          autocorrect: false,
+          enableSuggestions: false,
+          textInputAction: TextInputAction.search,
+          decoration: InputDecoration(
+            isDense: true,
+            prefixIcon: const Icon(Icons.search, size: 18),
+            hintText: context.tr('search'),
+            suffixIcon: !empty
+                ? IconButton(
+                    icon: const Icon(Icons.close, size: 18),
+                    tooltip: context.tr('clear'),
+                    onPressed: () => _vm.setSearch(''),
+                  )
+                : (glyphs == null || glyphs.isEmpty
+                      ? null
+                      : Padding(
+                          padding: const EdgeInsetsDirectional.only(end: 8),
+                          child: IgnorePointer(
+                            child: KeyCapRow(
+                              keys: glyphs,
+                              dense: true,
+                              keyColor: context.inTheme.ink3,
+                            ),
+                          ),
+                        )),
+            suffixIconConstraints: const BoxConstraints(
+              minWidth: 0,
+              minHeight: 0,
+            ),
+          ),
+          onChanged: _vm.setSearch,
+        );
+      },
+    );
+  }
+
+  /// The glyphs of the shortcut that focuses the search (`/` unless rebound),
+  /// or null when it is unbound — as `TokenSearchField` reads them.
+  List<String>? _focusSearchGlyphs(BuildContext context) {
+    try {
+      return _services.keyboardShortcuts
+          .resolvedBinding(ShortcutActionIds.focusSearch)
+          ?.displayGlyphs(platformModifierLabel());
+    } catch (_) {
+      // A host with no shortcut controller (a preview, a bare test tree):
+      // the hint is decoration, never a reason to fail the field.
+      return null;
+    }
   }
 
   /// At most [kActivityBodyMaxWidth] wide, centred — the same shape as the
@@ -334,9 +440,17 @@ class _ActivityScreenState extends State<ActivityScreen> {
     final hasTimeline = _vm.timeline.buckets.isNotEmpty;
 
     if (rail) {
+      // A rail pane is past every width gate and never drops the chart.
+      _chipsUnderChart = hasTimeline;
       return Column(
         children: [
-          _capped(_HeaderStrip(vm: _vm, formatter: _formatter)),
+          _capped(
+            _HeaderStrip(
+              vm: _vm,
+              formatter: _formatter,
+              chipsUnderChart: _chipsUnderChart,
+            ),
+          ),
           Divider(height: 1, color: tokens.border),
           Expanded(
             child: _capped(
@@ -355,7 +469,10 @@ class _ActivityScreenState extends State<ActivityScreen> {
                               0,
                             ),
                             child: DashboardCardShell(
-                              child: _timeline(compact: false),
+                              child: _timelineWithChips(
+                                compact: false,
+                                chips: true,
+                              ),
                             ),
                           ),
                         Expanded(child: feed),
@@ -377,6 +494,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
                           companyId: _companyId,
                           formatter: _formatter,
                           inline: true,
+                          showCategories: !_chipsUnderChart,
                         ),
                       ),
                     ),
@@ -389,32 +507,66 @@ class _ActivityScreenState extends State<ActivityScreen> {
       );
     }
 
-    return Column(
-      children: [
-        _HeaderStrip(vm: _vm, formatter: _formatter),
-        Divider(height: 1, color: tokens.border),
-        Expanded(
-          child: LayoutBuilder(
-            builder: (context, c) => Column(
-              children: [
-                if (hasTimeline &&
-                    c.maxHeight >= kActivityTimelineMinBodyHeight) ...[
-                  Padding(
-                    padding: EdgeInsets.fromLTRB(
-                      InSpacing.lg(context),
-                      0,
-                      InSpacing.lg(context),
-                      InSpacing.sm,
-                    ),
-                    child: _timeline(compact: true),
-                  ),
-                  Divider(height: 1, color: tokens.border),
-                ],
-                Expanded(child: feed),
-              ],
+    return LayoutBuilder(
+      builder: (context, outer) {
+        final wideEnough = outer.maxWidth >= kActivityChipsUnderChartMinWidth;
+        return Column(
+          children: [
+            // The header strip is above the body's own `LayoutBuilder`, so it
+            // reads the decision that builder made — through the field.
+            _HeaderStrip(
+              vm: _vm,
+              formatter: _formatter,
+              chipsUnderChart: _chipsUnderChart,
             ),
-          ),
-        ),
+            Divider(height: 1, color: tokens.border),
+            Expanded(
+              child: LayoutBuilder(
+                builder: (context, c) {
+                  final showChart =
+                      hasTimeline &&
+                      c.maxHeight >= kActivityTimelineMinBodyHeight;
+                  _chipsUnderChart = showChart && wideEnough;
+                  return Column(
+                    children: [
+                      if (showChart) ...[
+                        Padding(
+                          padding: EdgeInsets.fromLTRB(
+                            InSpacing.lg(context),
+                            0,
+                            InSpacing.lg(context),
+                            InSpacing.sm,
+                          ),
+                          child: _timelineWithChips(
+                            compact: true,
+                            chips: _chipsUnderChart,
+                          ),
+                        ),
+                        Divider(height: 1, color: tokens.border),
+                      ],
+                      Expanded(child: feed),
+                    ],
+                  );
+                },
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  /// The chart, and on a pane wide enough the category chips under it — they
+  /// redraw its bars, so that is where they are read.
+  Widget _timelineWithChips({required bool compact, required bool chips}) {
+    if (!chips) return _timeline(compact: compact);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _timeline(compact: compact),
+        SizedBox(height: InSpacing.md(context)),
+        ActivityCategoryChips(vm: _vm, showLabel: false),
       ],
     );
   }
@@ -460,29 +612,20 @@ class _ActivityScreenState extends State<ActivityScreen> {
           );
         }
         final entry = entries[i];
-        // The spine starts on the first day's node and ends on the last
-        // entry, so it never pokes out above or below the feed.
-        final spine = i == 0
-            ? ActivityFeedSpine.start
-            : (i == entries.length - 1
-                  ? ActivityFeedSpine.end
-                  : ActivityFeedSpine.through);
         return switch (entry) {
           ActivityDayHeader() => _DayHeader(
             day: entry.day,
             count: entry.count,
             formatter: _formatter,
-            spine: spine,
+            first: i == 0,
           ),
           ActivityFeedItem() => _row(
             context,
             entry.activity,
-            spine,
             followUpEdits: entry.followUpEdits,
           ),
           ActivityRunToggle() => _RunToggle(
             entry: entry,
-            spine: spine,
             onPressed: () => _vm.toggleRun(entry.runId),
           ),
         };
@@ -492,55 +635,27 @@ class _ActivityScreenState extends State<ActivityScreen> {
 
   Widget _row(
     BuildContext context,
-    DashboardActivity a,
-    ActivityFeedSpine spine, {
+    DashboardActivity a, {
     int followUpEdits = 0,
   }) {
     final render = ActivityFormatter(context).format(a);
+    final formatter = _formatter;
     return ActivityFeedRow(
       render: render,
-      // The day header above already names the date.
+      // The day header above already names the date; the time is the row's
+      // own column (or the head of its meta line on a narrow pane). Until
+      // the company `Formatter` loads, the relative time stands in.
+      time: formatter == null ? null : activityTimeLabel(a, formatter),
       meta: activityAuditMeta(
         a,
         render: render,
-        formatter: _formatter,
+        formatter: formatter,
         showDate: false,
+        showTime: false,
         // The edits that followed within minutes are not rows of their own.
         note: followUpEdits > 0 ? context.tr('activity_also_updated') : null,
       ),
-      spine: spine,
       onTap: activityDeepLinkTarget(a) == null ? null : () => _onRowTap(a),
-    );
-  }
-}
-
-/// Where the spine crosses a header or toggle: the centre of the 28 px icon
-/// column the rows draw it through.
-const double _kSpineX = 14;
-
-/// Paints the timeline spine behind [child], through a node at [nodeY].
-class _Spine extends StatelessWidget {
-  const _Spine({required this.spine, required this.nodeY, required this.child});
-
-  final ActivityFeedSpine spine;
-  final double nodeY;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = context.inTheme.border;
-    return Stack(
-      children: [
-        PositionedDirectional(
-          start: _kSpineX - 1,
-          width: 2,
-          top: spine == ActivityFeedSpine.start ? nodeY : 0,
-          bottom: spine == ActivityFeedSpine.end ? null : 0,
-          height: spine == ActivityFeedSpine.end ? nodeY : null,
-          child: ColoredBox(color: color),
-        ),
-        child,
-      ],
     );
   }
 }
@@ -549,10 +664,18 @@ class _Spine extends StatelessWidget {
 /// filter chips. Renders no chips at all in the default (unfiltered) view so
 /// the screen carries no extra chrome for the common case.
 class _HeaderStrip extends StatelessWidget {
-  const _HeaderStrip({required this.vm, required this.formatter});
+  const _HeaderStrip({
+    required this.vm,
+    required this.formatter,
+    required this.chipsUnderChart,
+  });
 
   final ActivityViewModel vm;
   final Formatter? formatter;
+
+  /// The category chips are under the chart, lit — a second, removable chip
+  /// here would be the same state twice.
+  final bool chipsUnderChart;
 
   @override
   Widget build(BuildContext context) {
@@ -606,7 +729,7 @@ class _HeaderStrip extends StatelessWidget {
                     ),
                     onRemove: () => vm.setRange(null, null),
                   ),
-                if (f.categories.isNotEmpty)
+                if (f.categories.isNotEmpty && !chipsUnderChart)
                   _Chip(
                     label: _categoriesLabel(context, f.categories),
                     onRemove: vm.clearCategories,
@@ -627,6 +750,11 @@ class _HeaderStrip extends StatelessWidget {
                       f.lens == ActivityLens.calls ? 'calls' : 'comments',
                     ),
                     onRemove: () => vm.setLens(ActivityLens.all),
+                  ),
+                if (f.recordType case final t?)
+                  _Chip(
+                    label: context.tr(t.labelKey),
+                    onRemove: () => vm.setRecordType(null),
                   ),
                 if (f.lens == ActivityLens.all && f.typeIds.isNotEmpty)
                   _Chip(
@@ -681,62 +809,50 @@ class _Chip extends StatelessWidget {
   }
 }
 
-/// A day's node on the spine: a ringed dot in the icon column, then the date
-/// and how many events it holds, aligned with the row sentences below.
+/// A day's header, as the dashboard's activity card draws it — "Today",
+/// "Yesterday", then the company date (`activityDayLabel`) — with how many
+/// events the day holds, folded runs and absorbed edits included.
 class _DayHeader extends StatelessWidget {
   const _DayHeader({
     required this.day,
     required this.count,
     required this.formatter,
-    required this.spine,
+    required this.first,
   });
 
   final DateTime day;
   final int count;
   final Formatter? formatter;
-  final ActivityFeedSpine spine;
+  final bool first;
 
   @override
   Widget build(BuildContext context) {
     final tokens = context.inTheme;
-    final top = InSpacing.md(context);
-    const dot = 12.0;
-    return _Spine(
-      spine: spine,
-      nodeY: top + 8,
-      child: Padding(
-        padding: EdgeInsets.only(top: top, bottom: 2),
-        child: Row(
-          children: [
-            SizedBox(
-              width: _kSpineX * 2,
-              child: Center(
-                child: Container(
-                  width: dot,
-                  height: dot,
-                  decoration: BoxDecoration(
-                    color: tokens.borderStrong,
-                    shape: BoxShape.circle,
-                    // A ring of page colour, so the dot sits *on* the line
-                    // rather than merging into it.
-                    border: Border.all(color: tokens.bg, width: 2),
-                  ),
-                ),
-              ),
-            ),
-            SizedBox(width: InSpacing.md(context)),
-            Expanded(
-              child: Text(
-                '${dayHeaderLabel(context, day, formatter)} · '
-                '${activityEventCount(context, count)}',
+    return Padding(
+      padding: EdgeInsetsDirectional.only(
+        top: first ? InSpacing.sm : InSpacing.lg(context),
+        bottom: InSpacing.xs,
+      ),
+      child: Semantics(
+        header: true,
+        headingLevel: 2,
+        child: Text.rich(
+          TextSpan(
+            children: [
+              TextSpan(
+                text: dayHeaderLabel(context, day, formatter),
                 style: TextStyle(
-                  fontSize: 11,
                   fontWeight: FontWeight.w600,
-                  color: tokens.ink3,
+                  letterSpacing: 0.3,
+                  color: tokens.ink2,
                 ),
               ),
-            ),
-          ],
+              TextSpan(text: '  ${activityEventCount(context, count)}'),
+            ],
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(fontSize: 11, color: tokens.ink3),
         ),
       ),
     );
@@ -744,76 +860,75 @@ class _DayHeader extends StatelessWidget {
 }
 
 /// "+3 more" under a folded run, "Collapse" under an opened one — aligned
-/// with the sentences, on the spine.
+/// with the sentences.
 class _RunToggle extends StatelessWidget {
-  const _RunToggle({
-    required this.entry,
-    required this.spine,
-    required this.onPressed,
-  });
+  const _RunToggle({required this.entry, required this.onPressed});
 
   final ActivityRunToggle entry;
-  final ActivityFeedSpine spine;
   final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
     final height = Env.isTouchPrimary ? InSizes.touchTarget : 28.0;
-    return _Spine(
-      spine: spine,
-      nodeY: height / 2,
-      child: Padding(
-        padding: EdgeInsetsDirectional.only(
-          start: _kSpineX * 2 + InSpacing.md(context) - 8,
-        ),
-        child: Align(
-          alignment: AlignmentDirectional.centerStart,
-          child: TextButton.icon(
-            style: TextButton.styleFrom(
-              minimumSize: Size(0, height),
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            ),
-            onPressed: onPressed,
-            icon: Icon(
-              entry.expanded ? Icons.expand_less : Icons.expand_more,
-              size: 16,
-            ),
-            // Sized on the `Text`, never through `styleFrom(textStyle:)` —
-            // that replaces the theme's label style wholesale, font family
-            // included.
-            label: Text(
-              entry.expanded
-                  ? context.tr('collapse')
-                  : context.tr('plus_n_more', {'count': '${entry.hidden}'}),
-              style: const TextStyle(fontSize: 12),
+    return LayoutBuilder(
+      builder: (context, c) {
+        // Under the sentence: past the icon, and past the time column where
+        // the rows have one.
+        var start = 28 + InSpacing.md(context) - 8;
+        if (c.maxWidth >= kActivityRowInlineMinWidth) {
+          start += MediaQuery.textScalerOf(context).scale(64);
+        }
+        return Padding(
+          padding: EdgeInsetsDirectional.only(start: start),
+          child: Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: TextButton.icon(
+              style: TextButton.styleFrom(
+                minimumSize: Size(0, height),
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              onPressed: onPressed,
+              icon: Icon(
+                entry.expanded ? Icons.expand_less : Icons.expand_more,
+                size: 16,
+              ),
+              // Sized on the `Text`, never through `styleFrom(textStyle:)` —
+              // that replaces the theme's label style wholesale, font family
+              // included.
+              label: Text(
+                entry.expanded
+                    ? context.tr('collapse')
+                    : context.tr('plus_n_more', {'count': '${entry.hidden}'}),
+                style: const TextStyle(fontSize: 12),
+              ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
 
-/// `Today` / `Yesterday` / the company-formatted date. Compared in *local*
-/// calendar days — the same basis `localDayOf` groups on.
+/// `Today` / `Yesterday` / the company-formatted date — the dashboard card's
+/// `activityDayLabel`, counted in calendar days through `Date` so a DST
+/// change cannot make yesterday today. `day` is the local calendar day
+/// `localDayOf` grouped on. Before the company `Formatter` has loaded an
+/// older day reads as the locale's medium date.
 String dayHeaderLabel(
   BuildContext context,
   DateTime day,
   Formatter? formatter,
 ) {
-  final now = DateTime.now();
-  final today = DateTime(now.year, now.month, now.day);
-  final delta = today.difference(day).inDays;
+  final d = Date(day.year, day.month, day.day);
+  final today = Date.today();
+  if (formatter != null) {
+    return card.activityDayLabel(context, d, today, formatter);
+  }
+  final delta = today.differenceInDays(d);
   if (delta == 0) return context.tr('today');
   if (delta == 1) return context.tr('yesterday');
-  final iso =
-      '${day.year.toString().padLeft(4, '0')}-'
-      '${day.month.toString().padLeft(2, '0')}-'
-      '${day.day.toString().padLeft(2, '0')}';
-  // Date-only, so no timezone conversion is wanted here — `day` is already the
-  // local calendar day `localDayOf` grouped on.
-  return formatter?.date(iso) ?? iso;
+  return MaterialLocalizations.of(context).formatMediumDate(day);
 }
 
 /// Explains the feed's ceiling at the end of the list — shown only while the

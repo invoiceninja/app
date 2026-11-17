@@ -23,20 +23,49 @@ Decimal resolveTaskRate({
   Client? client,
   GroupSetting? group,
   Company? company,
+}) => resolveTaskRateWithSource(
+  task: task,
+  project: project,
+  client: client,
+  group: group,
+  company: company,
+).rate;
+
+/// The level of the task-rate cascade a resolved rate came from.
+/// [none] means nothing up the cascade sets one: the rate is the task's own,
+/// which is then zero.
+enum TaskRateSource { task, project, client, group, company, none }
+
+/// [resolveTaskRate] together with the level that answered — what the task
+/// edit form names under a blank Rate field ("From project"). One walk of the
+/// cascade, so the figure and its source can never disagree.
+({Decimal rate, TaskRateSource source}) resolveTaskRateWithSource({
+  required Task task,
+  Project? project,
+  Client? client,
+  GroupSetting? group,
+  Company? company,
 }) {
-  if (task.rate > Decimal.zero) return task.rate;
+  if (task.rate > Decimal.zero) {
+    return (rate: task.rate, source: TaskRateSource.task);
+  }
   if (project != null && project.taskRate > Decimal.zero) {
-    return project.taskRate;
+    return (rate: project.taskRate, source: TaskRateSource.project);
   }
   final clientRate = _settingsTaskRate(client?.settings);
-  if (clientRate != null) return clientRate;
+  if (clientRate != null) {
+    return (rate: clientRate, source: TaskRateSource.client);
+  }
   final groupRate = _settingsTaskRate(group?.settings);
-  if (groupRate != null) return groupRate;
+  if (groupRate != null) {
+    return (rate: groupRate, source: TaskRateSource.group);
+  }
   final companyRate = company?.settings.defaultTaskRate;
   if (companyRate != null && companyRate > 0) {
-    return Decimal.tryParse(companyRate.toString()) ?? task.rate;
+    final parsed = Decimal.tryParse(companyRate.toString());
+    if (parsed != null) return (rate: parsed, source: TaskRateSource.company);
   }
-  return task.rate;
+  return (rate: task.rate, source: TaskRateSource.none);
 }
 
 /// Read a strictly-positive `default_task_rate` out of a sparse settings map.

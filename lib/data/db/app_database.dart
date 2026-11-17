@@ -9,6 +9,7 @@ import 'package:admin/data/db/nav_state_prefs_carry.dart';
 import 'package:admin/data/db/open_failure.dart';
 import 'package:admin/data/db/salvage.dart';
 import 'package:admin/data/db/schema_repair.dart';
+import 'package:admin/data/db/store_corruption.dart';
 import 'package:admin/data/prefs/device_pref_keys.dart';
 
 import 'package:admin/data/db/dao/bank_account_dao.dart';
@@ -663,6 +664,16 @@ class AppDatabase extends _$AppDatabase {
 /// as the user moves around. Anything else that needs to react to a wipe has
 /// to be wired up first — don't assume these fields already did it.
 ///
+/// A store found corrupt only *after* it opened — a damaged table page the
+/// probe never reads — is marked by the [StoreCorruptionWatch] every opened
+/// database carries (`OpenedDatabase.corruption`). The next open reads that
+/// mark ([readCorruptMark]) and checks the store with `PRAGMA quick_check`: a
+/// store that passes keeps running and the mark is dropped; one that fails
+/// takes the same reset as a corrupt open, then the mark is cleared. When
+/// [corruptResetWaitsForOutbox] (web by default, where a reset carries
+/// nothing across) and the outbox still holds rows, the store is kept, marked,
+/// until they have synced.
+///
 /// [openExecutor] / [destroyStore] / [readQuarantined] override the platform
 /// seam and exist only
 /// so tests can drive the recovery contract: the real ones need
@@ -679,9 +690,27 @@ Future<OpenedDatabase> openAppDatabase({
   Future<bool> Function(QuarantinedStore store)? requeueQuarantined,
   int? transientRetries,
   Duration transientRetryDelay = const Duration(seconds: 2),
+  Future<bool> Function()? markCorrupt,
+  Future<bool> Function()? readCorruptMark,
+  Future<void> Function()? clearCorruptMark,
+  bool? corruptResetWaitsForOutbox,
 }) async {
   final openStore = openExecutor ?? openDatabaseExecutor;
   final destroy = destroyStore ?? destroyDatabaseStore;
+  // Like the salvage seams: a test that injects the store gets no platform
+  // mark (the real one needs `path_provider` or a browser) unless it injects
+  // the mark seams too.
+  final platformStore = openExecutor == null && destroyStore == null;
+  final watch = StoreCorruptionWatch(
+    mark: markCorrupt ?? (platformStore ? markStoreCorrupt : () async => false),
+  );
+  final readMark =
+      readCorruptMark ??
+      (platformStore ? storeMarkedCorrupt : () async => false);
+  final clearMark =
+      clearCorruptMark ?? (platformStore ? clearStoreCorruptMark : () async {});
+  final waitsForOutbox = corruptResetWaitsForOutbox ?? kIsWeb;
+  var hadCorruptMark = false;
   // A test that injects the store seams gets no salvage unless it injects a
   // reader too — the real one needs `path_provider` and the keychain.
   final readOld =
@@ -704,10 +733,14 @@ Future<OpenedDatabase> openAppDatabase({
     required bool wasReset,
   }) async {
     try {
+      final recovery = await _salvageInto(db, readOld, requeue);
+      watch.arm();
       return (
         db: db,
         wasReset: wasReset,
-        recovery: await _salvageInto(db, readOld, requeue),
+        recovery: recovery,
+        corruption: watch,
+        hadCorruptMark: hadCorruptMark,
       );
     } on DatabaseUnavailableException {
       await _closeQuietly(db);
@@ -716,7 +749,42 @@ Future<OpenedDatabase> openAppDatabase({
   }
 
   final retries = transientRetries ?? (kIsWeb ? 0 : 1);
-  Future<AppDatabase> openFresh() async => AppDatabase(await openStore());
+  Future<AppDatabase> openFresh() async =>
+      AppDatabase((await openStore()).interceptWith(watch));
+
+  // Whether [db] — open, schema intact — is the store to run on. False when
+  // an earlier launch marked it corrupt, `quick_check` agrees, and nothing
+  // unsynced is in the way: the caller resets it. A check that errors for
+  // any other reason (a lock, an I/O error) throws, to be classified like
+  // any other open failure — the store untouched.
+  Future<bool> keepDespiteMark(AppDatabase db) async {
+    final bool marked;
+    try {
+      marked = await readMark();
+    } catch (e, st) {
+      _log.warning('Reading the corrupt mark failed; ignoring it', e, st);
+      return true;
+    }
+    if (!marked) return true;
+    hadCorruptMark = true;
+    if (await _passesQuickCheck(db)) {
+      _log.warning(
+        'The local database was marked corrupt but passes quick_check; '
+        'keeping it and dropping the mark',
+      );
+      await clearMark();
+      return true;
+    }
+    if (!await corruptStoreMayReset(db, waitsForOutbox: waitsForOutbox)) {
+      _log.severe(
+        'The local database is corrupt, but its outbox holds changes a reset '
+        'here would lose; keeping it, marked, until they have synced',
+      );
+      return true;
+    }
+    _log.severe('The local database was marked corrupt; resetting local data');
+    return false;
+  }
 
   Future<OpenedDatabase> resetAndReopen() async {
     final destroyed = await destroy();
@@ -738,6 +806,13 @@ Future<OpenedDatabase> openAppDatabase({
             : 'the local database could not be cleared',
       );
     }
+    // The store any mark named is gone. Taken only now: a reset that failed
+    // above leaves it for the next open to try again.
+    try {
+      await clearMark();
+    } catch (e, st) {
+      _log.warning('Clearing the corrupt mark failed', e, st);
+    }
     return finish(db, wasReset: true);
   }
 
@@ -755,7 +830,11 @@ Future<OpenedDatabase> openAppDatabase({
       // like any other open failure. Only drift the repair cannot fix resets.
       // Awaited, so a salvage put off by [finish] reaches the
       // `on DatabaseUnavailableException` clause below instead of skipping it.
-      if (await _schemaIntact(db)) return await finish(db, wasReset: false);
+      if (await _schemaIntact(db)) {
+        if (await keepDespiteMark(db)) return await finish(db, wasReset: false);
+        await _closeQuietly(db);
+        break;
+      }
       // Drifted — a prior migration didn't fully land on this device. Bring
       // it to the declared shape in place when that costs nothing but cache;
       // reset only when it can't (a durable table missing a column that
@@ -764,7 +843,11 @@ Future<OpenedDatabase> openAppDatabase({
         final report = await repairSchema(db);
         if (await _schemaIntact(db)) {
           _log.warning('Local schema had drifted; repaired in place: $report');
-          return await finish(db, wasReset: false);
+          if (await keepDespiteMark(db)) {
+            return await finish(db, wasReset: false);
+          }
+          await _closeQuietly(db);
+          break;
         }
       } on SchemaUnrepairableException catch (e, st) {
         _log.severe('The drifted schema cannot be repaired in place', e, st);
@@ -824,11 +907,50 @@ Future<OpenedDatabase> openAppDatabase({
 
 /// What [openAppDatabase] hands back: the database, whether it had to be
 /// reset, and — when it was — what became of the user's local data.
+///
+/// [corruption] watches the open database for a corrupt page found later and
+/// marks the store for the next open; [hadCorruptMark] says this open found
+/// such a mark (and checked, and reset or kept, the store), so a boot that
+/// meets corruption again does not reload a second time.
 typedef OpenedDatabase = ({
   AppDatabase db,
   bool wasReset,
   LocalDataRecovery? recovery,
+  StoreCorruptionWatch corruption,
+  bool hadCorruptMark,
 });
+
+/// Whether a store found corrupt may be reset now. Always when the reset
+/// carries the outbox across (native's salvage); when it can't
+/// ([waitsForOutbox] — web, which has no salvage yet), only while the outbox
+/// holds nothing, so a damaged cache page never costs a change that can still
+/// sync. An outbox the corruption has reached can't sync either, so that
+/// resets too; any other error reading it is rethrown.
+Future<bool> corruptStoreMayReset(
+  AppDatabase db, {
+  required bool waitsForOutbox,
+}) async {
+  if (!waitsForOutbox) return true;
+  try {
+    return !await db.outboxDao.hasAnyRows();
+  } catch (e) {
+    if (classifyDbOpenFailure(e) == DbOpenFailureKind.corrupt) return true;
+    rethrow;
+  }
+}
+
+/// `PRAGMA quick_check` says the store is sound. A corrupt error from the
+/// check itself is a no; any other error is rethrown, for the open to
+/// classify.
+Future<bool> _passesQuickCheck(AppDatabase db) async {
+  try {
+    final rows = await db.customSelect('PRAGMA quick_check').get();
+    return rows.length == 1 && rows.single.data.values.first == 'ok';
+  } catch (e) {
+    if (classifyDbOpenFailure(e) == DbOpenFailureKind.corrupt) return false;
+    rethrow;
+  }
+}
 
 /// Carry the durable and anchor rows of the store a reset just quarantined
 /// into the fresh [db]. Null when the platform has no salvage (web, for now)

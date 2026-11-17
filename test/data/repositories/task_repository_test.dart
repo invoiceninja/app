@@ -280,6 +280,55 @@ void main() {
       },
     );
 
+    test('a start status is applied to a plain append too', () async {
+      // `TaskActions._beginTimer` passes it on every non-bulk start, so a
+      // plain Start on a Backlog task lands it on In progress.
+      final repo = makeRepo();
+      final created = await repo.create(
+        companyId: 'co',
+        draft: task(statusId: 'backlog-id'),
+      );
+
+      expect(
+        await repo.startTimer(
+          companyId: 'co',
+          taskId: created.entity.id,
+          startStatusId: 'in-progress-id',
+        ),
+        TaskStartResult.started,
+      );
+      final stored = await repo
+          .watch(companyId: 'co', id: created.entity.id)
+          .first;
+      expect(stored!.statusId, 'in-progress-id');
+      expect(stored.isRunning, isTrue);
+    });
+
+    test('a refused start moves no status', () async {
+      final repo = makeRepo();
+      final tomorrow = DateTime.now().add(const Duration(days: 1));
+      final created = await repo.create(
+        companyId: 'co',
+        draft: task(
+          statusId: 'backlog-id',
+          timeLog: [block(tomorrow, const Duration(hours: 2))],
+        ),
+      );
+
+      expect(
+        await repo.startTimer(
+          companyId: 'co',
+          taskId: created.entity.id,
+          startStatusId: 'in-progress-id',
+        ),
+        TaskStartResult.needsConfirmation,
+      );
+      final stored = await repo
+          .watch(companyId: 'co', id: created.entity.id)
+          .first;
+      expect(stored!.statusId, 'backlog-id');
+    });
+
     test('the is_running COLUMN and the payload can never disagree', () async {
       // The desync this whole sorting discipline exists to prevent: the column
       // is written from the in-memory list's `.last`, the payload from

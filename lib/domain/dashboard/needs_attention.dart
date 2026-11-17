@@ -4,6 +4,7 @@ import 'package:admin/data/models/domain/dashboard/dashboard_list_rows.dart';
 import 'package:admin/data/models/value/date.dart';
 import 'package:admin/data/services/dashboard_api.dart'
     show kDashboardListPageSize;
+import 'package:admin/domain/billing/invoice_email_template.dart';
 import 'package:admin/domain/clients/client_past_due.dart';
 
 /// How far ahead "due soon" and "expiring" look, in days, today included.
@@ -271,14 +272,10 @@ AttentionFact? attentionFact(DashboardInvoiceRow row) {
 }
 
 /// The reminder template a "Remind" on [row] should open on: the first of the
-/// three numbered reminders not yet sent, then the endless one.
+/// three numbered reminders not yet sent, then the endless one. The rule is
+/// [nextReminderTemplateAfter], shared with the invoice record's Email action.
 String nextInvoiceReminderTemplate(DashboardInvoiceRow row) =>
-    switch (row.remindersSent) {
-      <= 0 => 'reminder1',
-      1 => 'reminder2',
-      2 => 'reminder3',
-      _ => 'reminder_endless',
-    };
+    nextReminderTemplateAfter(row.remindersSent);
 
 /// The one reminder template quotes have.
 const String kQuoteReminderTemplate = 'quote_reminder1';

@@ -121,14 +121,14 @@ EdgeInsetsDirectional listRowPadding(
   return EdgeInsetsDirectional.fromSTEB(16, v, 16, v);
 }
 
-/// Inset around a standalone list's wide table card. Compact trims only the
-/// vertical 24 → 12: the horizontal 24 is what lines the card up with the
-/// header band's row, the status-tab strip's start and the frameless desktop
-/// title bar's nav arrows (docs/list-density.md).
-EdgeInsetsDirectional entityListCardInset({required bool compact}) {
-  final vertical = compact ? 12.0 : 24.0;
-  return EdgeInsetsDirectional.fromSTEB(24, vertical, 24, vertical);
-}
+/// Inset around a standalone list's wide table. The table sits on the page
+/// with no card around it (Nov 2026), so only a gutter is left: the horizontal
+/// 24 lines the table's edges up with the header band's row, the status-tab
+/// strip's start and the frameless desktop title bar's nav arrows; the top is
+/// a small gap under the strip's rule (4 at Compact), and the rows run to the
+/// bottom of the pane (docs/list-density.md).
+EdgeInsetsDirectional entityListTableInset({required bool compact}) =>
+    EdgeInsetsDirectional.fromSTEB(24, compact ? 4 : 8, 24, 0);
 
 /// The [entityListRowHeight] floor every entity-list row sits on.
 ///

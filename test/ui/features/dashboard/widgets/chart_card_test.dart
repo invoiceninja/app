@@ -1,6 +1,7 @@
 import 'package:decimal/decimal.dart';
 import 'package:drift/native.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -10,9 +11,11 @@ import 'package:admin/data/db/app_database.dart';
 import 'package:admin/data/models/domain/dashboard/dashboard_chart_series.dart';
 import 'package:admin/data/models/value/company_format_settings.dart';
 import 'package:admin/data/models/value/currency.dart';
+import 'package:admin/data/models/value/datetime_format.dart';
 import 'package:admin/data/repositories/dashboard_repository.dart';
 import 'package:admin/data/repositories/statics_repository.dart';
 import 'package:admin/data/services/statics_service.dart';
+import 'package:admin/ui/core/charts/chart_chrome.dart';
 import 'package:admin/ui/features/dashboard/view_models/dashboard_view_model.dart';
 import 'package:admin/ui/features/dashboard/widgets/chart_card.dart';
 import 'package:admin/ui/features/dashboard/widgets/delta_chip.dart';
@@ -21,8 +24,8 @@ import 'package:admin/utils/formatting.dart';
 import '../../../../_localization_helper.dart';
 import '../_fake_dashboard_repo.dart';
 
-/// #23 — the Revenue chart shows all four series by default, so the card has
-/// to render four curves and a tooltip that identifies each of them.
+/// The Cash flow chart: grouped bars for Invoiced, Payments and Expenses, a
+/// legend that toggles them, and a tooltip that names a slot's every value.
 void main() {
   late AppDatabase db;
   late FakeDashboardRepo repo;
@@ -132,41 +135,73 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
   }
 
-  testWidgets('renders one line per series — four by default', (tester) async {
+  BarChartData chartData(WidgetTester tester) =>
+      tester.widget<BarChart>(find.byType(BarChart)).data;
+
+  /// Each slot's bar heights, series by series.
+  List<List<double>> rods(WidgetTester tester) => [
+    for (final g in chartData(tester).barGroups)
+      [for (final r in g.barRods) r.toY],
+  ];
+
+  testWidgets('draws a group of bars per slot — three series by default', (
+    tester,
+  ) async {
     await pump(tester);
 
-    final chart = tester.widget<LineChart>(find.byType(LineChart));
-    expect(chart.data.lineBarsData.length, 4);
-    // Enum order, so the legend colours and the curves line up.
-    expect(chart.data.lineBarsData.map((b) => b.spots.map((s) => s.y).first), [
-      400.0,
-      300.0,
-      200.0,
-      100.0,
+    // Three days, three slots, each with Invoiced · Payments · Expenses in
+    // enum order, so the legend colours and the bars line up. The Unpaid
+    // series is gone: the server still sends it, the chart does not draw it.
+    expect(rods(tester), [
+      [400.0, 300.0, 100.0],
+      [410.0, 310.0, 110.0],
+      [0.0, 0.0, 0.0],
     ]);
-    // The legend labels every series, in the same order — it and the curves
-    // share `_labelFor` / `_colorFor`, so a fifth series can't reach one
-    // without the other. The third is "Unpaid", not "Outstanding": it is what
-    // invoices dated in this period still owe, and the figure above the chart
-    // that is called Outstanding is everything owed today.
-    for (final label in ['Invoices', 'Payments', 'Unpaid', 'Expenses']) {
+    for (final label in ['Invoiced', 'Payments', 'Expenses']) {
       expect(find.text(label), findsOneWidget, reason: '$label legend chip');
     }
-    expect(find.text('Outstanding'), findsNothing);
+    expect(find.text('Unpaid'), findsNothing);
+    expect(find.text('Invoices'), findsNothing);
   });
 
-  testWidgets('has no headline figure of its own', (tester) async {
+  testWidgets('an empty slot keeps its place', (tester) async {
     await pump(tester);
 
-    // It used to lead with the period's paid revenue — the Payments figure
-    // directly above it, again — under a caption that described that number
-    // and not the four lines beneath.
-    expect(find.text('Overview'), findsOneWidget);
-    expect(find.byType(DeltaChip), findsNothing);
-    expect(find.textContaining('paid invoices'), findsNothing);
+    final groups = chartData(tester).barGroups;
+    expect(groups.length, 3);
+    expect(chartData(tester).alignment, BarChartAlignment.spaceAround);
+    // Same bar width in the quiet slot as in the busy ones.
+    expect(
+      groups.last.barRods.map((r) => r.width).toSet(),
+      groups.first.barRods.map((r) => r.width).toSet(),
+    );
   });
 
-  testWidgets('a legend entry is a real toggle', (tester) async {
+  testWidgets('is "Cash flow", with no headline figure and no totals', (
+    tester,
+  ) async {
+    await pump(tester);
+
+    expect(find.text('Cash flow'), findsOneWidget);
+    expect(find.byType(DeltaChip), findsNothing);
+    // The legend names each series and nothing more — the figures above
+    // already state the sums.
+    for (final chip in tester.widgetList<ChartLegendToggle>(
+      find.byType(ChartLegendToggle),
+    )) {
+      expect(chip.chip, isTrue);
+      expect(chip.label, isNot(contains(RegExp(r'\d'))));
+    }
+    expect(
+      find.descendant(
+        of: find.byType(ChartLegendToggle),
+        matching: find.textContaining(r'$'),
+      ),
+      findsNothing,
+    );
+  });
+
+  testWidgets('a legend chip is a real toggle', (tester) async {
     await pump(tester);
 
     await tester.tap(find.text('Expenses'));
@@ -176,10 +211,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
 
     expect(vm.visibleChartSeries, isNot(contains(ChartSeriesId.expenses)));
-    expect(
-      tester.widget<LineChart>(find.byType(LineChart)).data.lineBarsData.length,
-      3,
-    );
+    expect(rods(tester).first, [400.0, 300.0]);
     // A screen reader hears a switch, not a bare label.
     final handle = tester.ensureSemantics();
     expect(
@@ -189,25 +221,125 @@ void main() {
     handle.dispose();
   });
 
+  testWidgets('the last series shown cannot be switched off', (tester) async {
+    vm
+      ..toggleChartSeries(ChartSeriesId.payments)
+      ..toggleChartSeries(ChartSeriesId.expenses);
+    await pump(tester);
+
+    await tester.tap(find.text('Invoiced'));
+    rebuild.value++;
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(vm.visibleChartSeries, {ChartSeriesId.invoices});
+    expect(rods(tester).first, [400.0]);
+  });
+
+  testWidgets('a legend chip is a 44 px target on touch', (tester) async {
+    await pump(tester);
+
+    // Tests run as Android: touch-primary.
+    for (final label in ['Invoiced', 'Payments', 'Expenses']) {
+      final chip = find.ancestor(
+        of: find.text(label),
+        matching: find.byType(ChartLegendToggle),
+      );
+      expect(tester.getSize(chip).height, greaterThanOrEqualTo(44));
+    }
+  });
+
+  group('expenses module', () {
+    Widget hostWith({required bool expensesOn}) => MaterialApp(
+      localizationsDelegates: kTestLocalizationsDelegates,
+      supportedLocales: kTestSupportedLocales,
+      theme: buildInTheme(InTheme.light),
+      home: Scaffold(
+        body: SizedBox(
+          width: 800,
+          child: ChartCard(
+            vm: vm,
+            formatter: Formatter(
+              settings: CompanyFormatSettings.fallback,
+              currencies: const {},
+              countries: const {},
+              dateFormats: const {},
+            ),
+            expensesOn: expensesOn,
+          ),
+        ),
+      ),
+    );
+
+    testWidgets('off, Expenses is neither drawn nor offered', (tester) async {
+      repo.chart.add(DashboardChartSeries.fromJson(seriesJson()));
+      await tester.pump(const Duration(milliseconds: 10));
+      await tester.pumpWidget(hostWith(expensesOn: false));
+      await tester.pump(const Duration(milliseconds: 400));
+
+      expect(find.text('Expenses'), findsNothing);
+      expect(rods(tester).first, [400.0, 300.0]);
+    });
+
+    // A selection the view model accepts (non-empty) can still draw nothing
+    // here: Expenses alone, then the module is switched off.
+    testWidgets('a selection with nothing to draw says why', (tester) async {
+      vm
+        ..toggleChartSeries(ChartSeriesId.invoices)
+        ..toggleChartSeries(ChartSeriesId.payments);
+      repo.chart.add(DashboardChartSeries.fromJson(seriesJson()));
+      await tester.pump(const Duration(milliseconds: 10));
+      await tester.pumpWidget(hostWith(expensesOn: false));
+      await tester.pump(const Duration(milliseconds: 400));
+
+      expect(find.byType(BarChart), findsNothing);
+      expect(find.text('No series selected.'), findsOneWidget);
+    });
+  });
+
   // The series colours mean the same thing wherever the app uses them, and
   // none is the user's own accent — a green or red accent collided with
-  // Payments or read as "overdue". Unpaid is amber: owed is not an alarm.
+  // Payments or read as "overdue".
   testWidgets('series use fixed tones, never the accent or the overdue red', (
     tester,
   ) async {
     await pump(tester);
 
-    final colors = tester
-        .widget<LineChart>(find.byType(LineChart))
-        .data
-        .lineBarsData
-        .map((b) => b.color)
-        .toList();
+    final colors = [
+      for (final r in chartData(tester).barGroups.first.barRods) r.color,
+    ];
     const t = InTheme.light;
-    // Blue, green, amber, grey — the status pills' own pairs.
-    expect(colors, [t.partial, t.paid, t.sent, t.ink3]);
+    expect(colors, [t.partial, t.paid, t.ink3]);
     expect(colors, isNot(contains(t.accent)));
     expect(colors, isNot(contains(t.overdue)));
+  });
+
+  testWidgets('gridlines are dashed, except the baseline', (tester) async {
+    await pump(tester);
+
+    final data = chartData(tester);
+    final grid = data.gridData;
+    final step = grid.horizontalInterval!;
+    expect(grid.drawVerticalLine, isFalse);
+    expect(grid.getDrawingHorizontalLine(step).dashArray, isNotNull);
+    // The floor is the solid bottom border; the top is a dashed extra line.
+    expect(data.borderData.show, isTrue);
+    expect(data.borderData.border.bottom.width, greaterThan(0));
+    expect(data.borderData.border.top.width, 0);
+    final top = data.extraLinesData.horizontalLines.single;
+    expect(top.y, data.maxY);
+    expect(top.dashArray, isNotNull);
+    // The top gridline is a round amount above the tallest bar (410).
+    expect(chartData(tester).maxY, greaterThanOrEqualTo(410));
+    expect(chartData(tester).maxY % step, 0);
+    // Amounts on the right, physically, in every locale; none on the left.
+    expect(
+      chartData(tester).titlesData.rightTitles.sideTitles.showTitles,
+      isTrue,
+    );
+    expect(
+      chartData(tester).titlesData.leftTitles.sideTitles.showTitles,
+      isFalse,
+    );
   });
 
   group('states', () {
@@ -217,7 +349,7 @@ void main() {
         await tester.pumpWidget(host());
         await tester.pump(const Duration(milliseconds: 10));
 
-        expect(find.byType(LineChart), findsNothing);
+        expect(find.byType(BarChart), findsNothing);
         expect(find.text('No data for this period.'), findsNothing);
       },
     );
@@ -251,7 +383,7 @@ void main() {
 
     // The positive control for the two `findsNothing` above: this is the
     // string, and only a loaded, empty series earns it.
-    expect(find.byType(LineChart), findsNothing);
+    expect(find.byType(BarChart), findsNothing);
     expect(find.text('No data for this period.'), findsOneWidget);
   });
 
@@ -259,10 +391,11 @@ void main() {
   // over one another. The axis labels as many as fit, in the company's own
   // date format, and never fewer than two.
   group('date labels', () {
-    Future<double> intervalAt(WidgetTester tester, double width) async {
+    Future<List<Rect>> labelsAt(WidgetTester tester, double width) async {
       tester.view.physicalSize = Size(width, 900);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
+      vm.setChartGrouping(ChartGrouping.day);
       repo.chart.add(
         DashboardChartSeries.fromJson({
           ...seriesJson(),
@@ -292,19 +425,42 @@ void main() {
         ),
       );
       await tester.pump(const Duration(milliseconds: 400));
-      final data = tester.widget<LineChart>(find.byType(LineChart)).data;
-      expect(data.lineBarsData.first.spots.length, greaterThanOrEqualTo(5));
-      return data.titlesData.bottomTitles.sideTitles.interval!;
+      expect(chartData(tester).barGroups.length, 30);
+      return [
+        for (final e
+            in find
+                .descendant(
+                  of: find.byType(BarChart),
+                  matching: find.textContaining(RegExp(r'^Apr \d+$')),
+                )
+                .evaluate())
+          tester.getRect(find.byWidget(e.widget)),
+      ];
     }
 
-    testWidgets('a wide plot labels every bucket', (tester) async {
-      expect(await intervalAt(tester, 1000), 1);
+    void expectApart(List<Rect> rects) {
+      rects.sort((a, b) => a.left.compareTo(b.left));
+      for (var i = 1; i < rects.length; i++) {
+        expect(
+          rects[i].left,
+          greaterThanOrEqualTo(rects[i - 1].right),
+          reason: 'labels $i-1 and $i overlap',
+        );
+      }
+    }
+
+    testWidgets('a wide plot labels more slots than a phone', (tester) async {
+      final wide = await labelsAt(tester, 1000);
+      expectApart(wide);
+      expect(wide.length, greaterThan(5));
     });
 
     testWidgets('a phone-width plot skips labels rather than overlap them', (
       tester,
     ) async {
-      expect(await intervalAt(tester, 320), greaterThan(1));
+      final phone = await labelsAt(tester, 390);
+      expectApart(phone);
+      expect(phone.length, inInclusiveRange(2, 5));
     });
   });
 
@@ -340,8 +496,7 @@ void main() {
       await tester.pumpWidget(host());
       await tester.pump(const Duration(milliseconds: 400));
 
-      final chart = tester.widget<LineChart>(find.byType(LineChart));
-      expect(chart.data.lineBarsData.first.spots.length, greaterThan(3));
+      expect(chartData(tester).barGroups.length, greaterThan(3));
       expect(selected(tester), {ChartGrouping.week});
       expect(enabled(tester)[ChartGrouping.month], isFalse);
       expect(enabled(tester)[ChartGrouping.day], isTrue);
@@ -363,7 +518,12 @@ void main() {
       await tester.pump(const Duration(milliseconds: 400));
 
       expect(selected(tester), {ChartGrouping.month});
-      expect(enabled(tester).values, everyElement(isTrue));
+      // A year by week is 53 slots and by day 365 — past the bar chart's cap.
+      expect(enabled(tester), {
+        ChartGrouping.day: false,
+        ChartGrouping.week: false,
+        ChartGrouping.month: true,
+      });
     });
   });
 
@@ -425,7 +585,7 @@ void main() {
     expect(tester.getSize(find.byType(ChartCard)).height, 520);
     // A 2.4 aspect ratio at this width would be under 320; filling, the plot
     // takes what the card has left.
-    expect(tester.getSize(find.byType(LineChart)).height, greaterThan(360));
+    expect(tester.getSize(find.byType(BarChart)).height, greaterThan(360));
   });
 
   testWidgets('fillHeight: beside a shorter card, the plot keeps its floor', (
@@ -472,57 +632,238 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(
-      tester.getSize(find.byType(LineChart)).height,
+      tester.getSize(find.byType(BarChart)).height,
       greaterThanOrEqualTo(kChartMinPlotHeight),
     );
   });
 
-  // Asserts the getTooltipItems *contract*, not the painted tooltip. Driving
-  // the real paint from a widget test was tried and abandoned: tests report
-  // defaultTargetPlatform == android, where fl_chart treats FlTapUpEvent as
-  // "not interested" and clears the tooltip (fl_touch_event.dart
-  // isInterestedForInteractions → line_chart.dart _handleBuiltInTouch), and a
-  // held pointer didn't produce a hit either — verified by truncating the
-  // returned list, which left the paint-path assertion green while this
-  // group's length check went red. An assertion that can't fail is worse than
-  // none, so it's gone; these checks do catch a wrong-length or wrong-colour
-  // list.
-  testWidgets('builds one tooltip row per series, each in its own colour', (
+  // Asserts the getTooltipItem *contract*, not the painted tooltip: fl_chart
+  // paints it on its canvas, where a finder cannot read it.
+  testWidgets('a slot\'s tooltip names its date and every series', (
     tester,
   ) async {
     await pump(tester);
 
-    final chart = find.byType(LineChart);
-    final data = tester.widget<LineChart>(chart).data;
-    final spots = [
-      for (var i = 0; i < data.lineBarsData.length; i++)
-        LineBarSpot(data.lineBarsData[i], i, data.lineBarsData[i].spots.first),
-    ];
-    final items = data.lineTouchData.touchTooltipData.getTooltipItems(spots);
-    expect(items.length, spots.length);
-    for (var i = 0; i < items.length; i++) {
-      expect(
-        items[i]!.textStyle.color,
-        data.lineBarsData[i].color,
-        reason: 'row $i must carry its own series colour',
-      );
-    }
-    // The first row leads with the bucket's date; every row names its series
-    // (fl_chart re-sorts the rows by value on every move, so a coloured dot
-    // was all that said which number was which) and carries its value on the
-    // high-contrast surface colour.
-    String flat(LineTooltipItem item) =>
+    final data = chartData(tester);
+    final group = data.barGroups.first;
+    String flat(BarTooltipItem item) =>
         item.children!.map((c) => c.toPlainText()).join();
-    expect(flat(items.first!), contains('2026-04-01'));
-    expect(flat(items.first!), contains('Invoices'));
-    expect(flat(items.first!), contains('400'));
-    expect(flat(items[1]!), contains('Payments'));
-    expect(flat(items[1]!), isNot(contains('2026-04-01')));
-    expect(flat(items.last!), contains('Expenses'));
+    // Whichever bar anchors it, the tooltip is the whole slot.
+    for (var j = 0; j < group.barRods.length; j++) {
+      final item = data.barTouchData.touchTooltipData.getTooltipItem(
+        group,
+        0,
+        group.barRods[j],
+        j,
+      )!;
+      final text = flat(item);
+      expect(text, startsWith('2026-04-01'));
+      expect(text, contains(r'Invoiced  $400.00'));
+      expect(text, contains(r'Payments  $300.00'));
+      expect(text, contains(r'Expenses  $100.00'));
+    }
+    // Each row's swatch carries its series' colour.
+    final swatches = data.barTouchData.touchTooltipData
+        .getTooltipItem(group, 0, group.barRods.first, 0)!
+        .children!
+        .where((c) => c.toPlainText() == '■ ')
+        .map((c) => c.style!.color)
+        .toList();
+    expect(swatches, [for (final r in group.barRods) r.color]);
   });
 
-  // `LineChart` is implicitly animated and restarts its tween whenever the new
-  // `LineChartData` is not equal to the old — and that equality includes every
+  testWidgets('a week slot\'s tooltip spans its first and last day', (
+    tester,
+  ) async {
+    vm.setChartGrouping(ChartGrouping.week);
+    repo.chart.add(
+      DashboardChartSeries.fromJson({
+        ...seriesJson(),
+        'start_date': '2026-04-01',
+        'end_date': '2026-04-30',
+      }),
+    );
+    await tester.pump(const Duration(milliseconds: 10));
+    await tester.pumpWidget(host());
+    await tester.pump(const Duration(milliseconds: 400));
+
+    final data = chartData(tester);
+    final group = data.barGroups.first;
+    final item = data.barTouchData.touchTooltipData.getTooltipItem(
+      group,
+      0,
+      group.barRods.first,
+      0,
+    )!;
+    // 2026-04-01 is a Wednesday; its week ends on Saturday the 4th.
+    expect(item.children!.first.toPlainText(), '2026-04-01 – 2026-04-04');
+  });
+
+  // Dates go through the company's `Formatter`: the ticks short, with the
+  // month as a word (a bare `11/12` reads as December to half the world), the
+  // tooltip in the company's own full format.
+  group('dates', () {
+    Future<BarChartData> pumpWith(
+      WidgetTester tester, {
+      required String start,
+      required String end,
+      required ChartGrouping grouping,
+    }) async {
+      tester.view.physicalSize = const Size(1000, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      vm.setChartGrouping(grouping);
+      repo.chart.add(
+        DashboardChartSeries.fromJson({
+          ...seriesJson(),
+          'start_date': start,
+          'end_date': end,
+        }),
+      );
+      await tester.pump(const Duration(milliseconds: 10));
+      await tester.pumpWidget(
+        MaterialApp(
+          localizationsDelegates: kTestLocalizationsDelegates,
+          supportedLocales: kTestSupportedLocales,
+          theme: buildInTheme(InTheme.light),
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: ChartCard(
+                vm: vm,
+                formatter: Formatter(
+                  settings: CompanyFormatSettings.fallback,
+                  currencies: const {},
+                  countries: const {},
+                  // The fallback settings' date format id.
+                  dateFormats: {
+                    CompanyFormatSettings.fallback.dateFormatId:
+                        const DatetimeFormat(id: 'x', format: 'dd/MM/yyyy'),
+                  },
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 400));
+      return chartData(tester);
+    }
+
+    Iterable<String> ticks(WidgetTester tester) => tester
+        .widgetList<Text>(
+          find.descendant(
+            of: find.byType(BarChart),
+            matching: find.byType(Text),
+          ),
+        )
+        .map((t) => t.data ?? '')
+        .where((t) => t.isNotEmpty && !t.contains(r'$'));
+
+    String tooltipDate(BarChartData data, int slot) => data
+        .barTouchData
+        .touchTooltipData
+        .getTooltipItem(
+          data.barGroups[slot],
+          slot,
+          data.barGroups[slot].barRods.first,
+          0,
+        )!
+        .children!
+        .first
+        .toPlainText();
+
+    testWidgets('a day: "Apr 1" on the axis, the company format in the '
+        'tooltip', (tester) async {
+      final data = await pumpWith(
+        tester,
+        start: '2026-04-01',
+        end: '2026-04-30',
+        grouping: ChartGrouping.day,
+      );
+      expect(ticks(tester), contains('Apr 1'));
+      expect(ticks(tester).where((t) => t.contains('2026')), isEmpty);
+      expect(tooltipDate(data, 0), '01/04/2026');
+    });
+
+    testWidgets('a week: its first day on the axis, both ends in the '
+        'tooltip', (tester) async {
+      final data = await pumpWith(
+        tester,
+        start: '2026-04-01',
+        end: '2026-04-30',
+        grouping: ChartGrouping.week,
+      );
+      expect(ticks(tester), contains('Apr 5'));
+      expect(tooltipDate(data, 1), '05/04/2026 – 11/04/2026');
+    });
+
+    testWidgets('a month: its name, with the year only across years', (
+      tester,
+    ) async {
+      await pumpWith(
+        tester,
+        start: '2026-01-01',
+        end: '2026-12-31',
+        grouping: ChartGrouping.month,
+      );
+      expect(ticks(tester), containsAll(['Jan', 'Dec']));
+
+      await pumpWith(
+        tester,
+        start: '2025-10-01',
+        end: '2026-03-31',
+        grouping: ChartGrouping.month,
+      );
+      expect(ticks(tester), containsAll(['Oct 2025', 'Mar 2026']));
+    });
+  });
+
+  int? openSlot(WidgetTester tester) {
+    final groups = chartData(tester).barGroups;
+    for (var i = 0; i < groups.length; i++) {
+      if (groups[i].showingTooltipIndicators.isNotEmpty) return i;
+    }
+    return null;
+  }
+
+  testWidgets('a mouse opens a slot\'s tooltip by hovering anywhere in it', (
+    tester,
+  ) async {
+    await pump(tester);
+    final box = tester.getRect(find.byType(BarChart));
+
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    addTearDown(mouse.removePointer);
+    await mouse.addPointer(location: Offset.zero);
+    // High above the middle slot's bars, in the slot's own column.
+    await mouse.moveTo(Offset(box.left + (box.width - 44) / 2, box.top + 8));
+    await tester.pump();
+    expect(openSlot(tester), 1);
+
+    await mouse.moveTo(Offset.zero);
+    await tester.pump();
+    expect(openSlot(tester), isNull);
+  });
+
+  testWidgets(
+    'a tap opens a slot\'s tooltip on touch, and a second closes it',
+    (tester) async {
+      await pump(tester);
+      final box = tester.getRect(find.byType(BarChart));
+      final middle = Offset(box.left + (box.width - 44) / 2, box.center.dy);
+
+      await tester.tapAt(middle);
+      await tester.pump();
+      expect(openSlot(tester), 1, reason: 'stays open after the finger lifts');
+
+      await tester.tapAt(middle);
+      await tester.pump();
+      expect(openSlot(tester), isNull);
+    },
+  );
+
+  // `BarChart` is implicitly animated and restarts its tween whenever the new
+  // `BarChartData` is not equal to the old — and that equality includes every
   // callback. The card rebuilds several times while the dashboard loads, so
   // callbacks minted in `build` meant a 250 ms tween per rebuild with nothing
   // different on screen.
@@ -543,12 +884,12 @@ void main() {
     testWidgets('does not restart the chart animation', (tester) async {
       await pump(tester);
       await firstUpdate(tester);
-      final before = tester.widget<LineChart>(find.byType(LineChart)).data;
+      final before = chartData(tester);
 
       rebuild.value++;
       await tester.pump();
 
-      final after = tester.widget<LineChart>(find.byType(LineChart)).data;
+      final after = chartData(tester);
       expect(after, isNot(same(before)), reason: 'the card did rebuild');
       expect(after, before, reason: 'and built equal chart data');
       expect(
@@ -571,10 +912,10 @@ void main() {
             height: 200,
             child: ValueListenableBuilder<int>(
               valueListenable: rebuild,
-              builder: (context, _, _) => LineChart(
-                LineChartData(
-                  lineBarsData: [
-                    LineChartBarData(spots: const [FlSpot(0, 1), FlSpot(1, 2)]),
+              builder: (context, _, _) => BarChart(
+                BarChartData(
+                  barGroups: [
+                    BarChartGroupData(x: 0, barRods: [BarChartRodData(toY: 1)]),
                   ],
                   gridData: FlGridData(
                     getDrawingHorizontalLine: (_) =>
@@ -604,10 +945,7 @@ void main() {
       rebuild.value++;
       await tester.pump();
 
-      expect(
-        tester.widget<LineChart>(find.byType(LineChart)).data.lineBarsData,
-        hasLength(3),
-      );
+      expect(rods(tester).first, hasLength(2));
       expect(tester.binding.transientCallbackCount, greaterThan(0));
       // Past the tween and the view model's 500 ms persist debounce.
       await tester.pump(const Duration(milliseconds: 600));

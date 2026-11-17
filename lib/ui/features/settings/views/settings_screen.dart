@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:material_ui/material_ui.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -18,11 +19,14 @@ import 'package:admin/ui/core/widgets/watch_builder.dart';
 import 'package:admin/ui/features/settings/settings_search_catalog.dart';
 import 'package:admin/ui/features/settings/state/settings_level_controller.dart';
 import 'package:admin/ui/features/settings/state/settings_search_controller.dart';
+import 'package:admin/ui/features/settings/view_models/settings_home_summary_view_model.dart';
 import 'package:admin/ui/features/settings/views/settings_shell.dart'
     show hideSettingsListSidebar;
 import 'package:admin/ui/features/settings/widgets/settings_search_result.dart';
 import 'package:admin/ui/features/settings/widgets/settings_two_pane_scope.dart';
 import 'package:admin/ui/features/shell/widgets/app_drawer.dart';
+import 'package:admin/ui/features/shell/widgets/company_avatar.dart';
+import 'package:admin/ui/features/shell/widgets/show_company_picker.dart';
 import 'package:admin/ui/core/utils/router_state.dart';
 
 // `PlanTier` (the tier surfaced on a locked sidebar row / search hit) now
@@ -37,7 +41,7 @@ import 'package:admin/ui/core/utils/router_state.dart';
 /// matching fields drawn from `kSettingsSearchCatalog`. **Where that
 /// affordance lives depends on who owns the state** — see [searchController].
 class SettingsListSidebar extends StatefulWidget {
-  const SettingsListSidebar({super.key, this.searchController});
+  const SettingsListSidebar({super.key, this.searchController, this.summary});
 
   /// Search state owned by the **host** — non-null only when that host also
   /// renders the trigger and the text field. Today that is [SettingsScreen],
@@ -51,6 +55,11 @@ class SettingsListSidebar extends StatefulWidget {
   /// controller is the ownership token, so there is exactly one trigger and
   /// exactly one field at any width.
   final SettingsSearchController? searchController;
+
+  /// The phone home's current values (R1) — passed only by [SettingsScreen].
+  /// The wide pane is a nav beside the page that shows the values itself, so
+  /// it never draws them, and neither do search hits.
+  final SettingsHomeSummaryViewModel? summary;
 
   @override
   State<SettingsListSidebar> createState() => _SettingsListSidebarState();
@@ -69,8 +78,20 @@ class _SettingsListSidebarState extends State<SettingsListSidebar> {
   @override
   void initState() {
     super.initState();
-    if (widget.searchController == null) _own = SettingsSearchController();
+    if (widget.searchController == null) {
+      // The wide pane's field is always on screen, so focusing it — a click,
+      // Tab, `/` — is what opens the search.
+      _own = SettingsSearchController()..focus.addListener(_onOwnFocus);
+      // And typing into it after Esc / ✕ closed it (focus never left).
+      _own!.query.addListener(_onOwnFocus);
+    }
     _search.onSubmit = _openSelected;
+  }
+
+  void _onOwnFocus() {
+    final own = _own;
+    if (own == null || own.isActive) return;
+    if (own.focus.hasFocus || own.query.text.isNotEmpty) own.open();
   }
 
   @override
@@ -108,6 +129,8 @@ class _SettingsListSidebarState extends State<SettingsListSidebar> {
     final own = _own;
     if (own != null) _searchFocus?.release(own.focus);
     if (_search.onSubmit == _openSelected) _search.onSubmit = null;
+    own?.focus.removeListener(_onOwnFocus);
+    own?.query.removeListener(_onOwnFocus);
     // Only what we created — the host disposes what it created, matching how
     // `TextField` treats a passed-in controller.
     own?.dispose();
@@ -116,52 +139,65 @@ class _SettingsListSidebarState extends State<SettingsListSidebar> {
 
   @override
   Widget build(BuildContext context) {
-    return ListenableBuilder(
-      listenable: _search,
+    final summary = widget.summary;
+    final body = ListenableBuilder(
+      // The summary only notifies when a value it reads changed (a stream
+      // answered), never per keystroke.
+      listenable: summary == null
+          ? _search
+          : Listenable.merge([_search, summary]),
       builder: (context, _) =>
-          _search.isActive ? _buildSearch(context) : _buildList(context),
+          _search.isActive ? _buildSearch(context) : _buildSectionList(context),
     );
-  }
-
-  Widget _buildList(BuildContext context) {
-    final list = _buildSectionList(context);
-    if (_hostOwned) return list;
-    // Self-owned (the wide pane): lift the trigger out of the scroll area so it
-    // stays reachable at any scroll position — issue #42 in the layout that has
-    // no AppBar to host it.
+    if (_hostOwned) return body;
+    // Self-owned (the wide pane): the field itself is pinned above the scroll
+    // area, always visible — a search box people can see is one they use, and
+    // pinned it stays reachable at any scroll position (issue #42 in the
+    // layout that has no AppBar to host it). It is built once, outside the
+    // builder that swaps the list for results, so typing never re-mounts it
+    // and focus stays put.
     //
     // The screen title rides along, `titleLarge` to match what M3's AppBar
     // gives the narrow layout — so both widths open on the same "Settings"
-    // heading above "Basic Settings", and this pane isn't the one layout that
-    // starts cold on a group header. A *group* label would not belong up here:
-    // the strip is pinned, so hoisting "Basic Settings" would leave it claiming
-    // Basic while the user has scrolled into Advanced. Both group headers stay
-    // inside the list, exactly as they render on narrow.
+    // heading above the first topic group, and this pane isn't the one layout
+    // that starts cold on a group header. A *group* label would not belong up
+    // here: the strip is pinned, so hoisting "Company" would leave it claiming
+    // Company while the user has scrolled into Billing. Every group header
+    // stays inside the list, exactly as they render on narrow.
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Padding(
-          padding: const EdgeInsetsDirectional.fromSTEB(16, 4, 4, 4),
+          padding: const EdgeInsetsDirectional.fromSTEB(16, 12, 16, 4),
+          child: Text(
+            context.tr('settings'),
+            style: Theme.of(context).appBarTheme.titleTextStyle,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsetsDirectional.fromSTEB(12, 4, 4, 8),
           child: Row(
             children: [
-              Expanded(
-                child: Text(
-                  context.tr('settings'),
-                  style: Theme.of(context).appBarTheme.titleTextStyle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.search),
-                tooltip: context.tr('search_settings'),
-                onPressed: _search.open,
+              Expanded(child: SettingsSearchField(controller: _search)),
+              ListenableBuilder(
+                listenable: _search,
+                // Close only while searching; the slot is kept so the field
+                // doesn't change width as the search opens.
+                builder: (context, _) => _search.isActive
+                    ? IconButton(
+                        icon: const Icon(Icons.close),
+                        tooltip: context.tr('cancel'),
+                        onPressed: _search.close,
+                      )
+                    : const SizedBox(width: 8),
               ),
             ],
           ),
         ),
         const Divider(height: 1),
-        Expanded(child: list),
+        Expanded(child: body),
       ],
     );
   }
@@ -187,21 +223,48 @@ class _SettingsListSidebarState extends State<SettingsListSidebar> {
             (!isCascade || s.clientEditable) &&
             s.isVisibleFor(modules) &&
             (!s.adminOnly || isAdminOrOwner);
-        final basic = kSettingsSections.where((s) => s.isBasic && inScope(s));
-        final advanced = kSettingsSections.where(
-          (s) => !s.isBasic && inScope(s),
-        );
+        // Topic groups (D6), each listing its sections in catalog order. A
+        // group whose every section is out of scope (client scope hides most
+        // of App & Data) draws no header at all.
+        final groups = [
+          for (final g in SettingsGroup.values)
+            (
+              group: g,
+              sections: [
+                for (final s in kSettingsSections)
+                  if (s.group == g && inScope(s)) s,
+              ],
+            ),
+        ].where((g) => g.sections.isNotEmpty).toList();
+        // Values only on the phone home, only at company scope: at client or
+        // group scope a row's value would be the company's, not the one the
+        // page opens on.
+        final summary = _hostOwned && settingsLevel.isCompany
+            ? widget.summary
+            : null;
         return ListView(
           children: [
+            // The narrow index only (the wide layout has the rail's switcher
+            // beside it): which company — and, scoped, which client or group
+            // — these settings belong to, and the way to another one. Not
+            // while searching: the results own the list then.
+            if (_hostOwned && !_search.isActive && me != null)
+              _CompanyCard(
+                companyId: me.id,
+                name: me.displayName,
+                logoUrl: me.logoUrl,
+                level: settingsLevel,
+              ),
             // No `trailing:` at either width — the trigger is pinned in the
             // chrome above (the AppBar on narrow, a strip on the wide pane).
             // An in-list copy would be a second trigger that scrolls away, and
             // that IS issue #42.
-            _GroupHeader(context.tr('basic_settings')),
-            for (final s in basic) _tile(context, s, activeSlug, session),
-            const Divider(height: 1),
-            _GroupHeader(context.tr('advanced_settings')),
-            for (final s in advanced) _tile(context, s, activeSlug, session),
+            for (final (i, g) in groups.indexed) ...[
+              if (i > 0) const Divider(height: 1),
+              _GroupHeader(context.tr(g.group.labelKey)),
+              for (final s in g.sections)
+                _tile(context, s, activeSlug, session, summary: summary),
+            ],
             const SizedBox(height: 32),
           ],
         );
@@ -235,28 +298,9 @@ class _SettingsListSidebarState extends State<SettingsListSidebar> {
         },
       ),
     );
-    // The host renders the field (pinned in its AppBar), so results are all
-    // that's left for the body.
-    if (_hostOwned) return results;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Padding(
-          padding: const EdgeInsetsDirectional.fromSTEB(16, 12, 4, 4),
-          child: Row(
-            children: [
-              Expanded(child: SettingsSearchField(controller: _search)),
-              IconButton(
-                icon: const Icon(Icons.close),
-                tooltip: context.tr('cancel'),
-                onPressed: _search.close,
-              ),
-            ],
-          ),
-        ),
-        Expanded(child: results),
-      ],
-    );
+    // Whoever owns the field (the host's AppBar, or this pane's pinned
+    // header) renders it, so results are all that's left for the body.
+    return results;
   }
 
   /// The rows for the current query, filtered to what this user can open.
@@ -408,11 +452,23 @@ class _SettingsListSidebarState extends State<SettingsListSidebar> {
     BuildContext context,
     SettingsSectionDef section,
     String? activeSlug,
-    AuthSession? session,
-  ) {
+    AuthSession? session, {
+    SettingsHomeSummaryViewModel? summary,
+  }) {
     final tokens = context.inTheme;
     final selected = section.slug == activeSlug;
     final gate = _gateLevelFor(section.slug, session);
+    // The plan-gate lock wins: a locked page's value is not one the user can
+    // act on.
+    final value = gate != null || summary == null
+        ? null
+        : summary.valueFor(
+            section.slug,
+            tr: context.tr,
+            session: session,
+            rtl: Directionality.of(context) == TextDirection.rtl,
+          );
+    final valueText = value?.text;
     return ListTile(
       // The size of the main sidebar's rows: 14 px, 20 px icons and, with a
       // pointer, a dense row. At 16 px in 56 px rows the settings list read
@@ -426,14 +482,24 @@ class _SettingsListSidebarState extends State<SettingsListSidebar> {
       ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
       leading: Icon(section.icon, size: 20),
       title: Text(context.tr(section.titleKey)),
-      trailing: gate == null
+      subtitle: valueText == null
           ? null
-          : Tooltip(
+          : Text(
+              valueText,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: tokens.ink3),
+            ),
+      trailing: gate != null
+          ? Tooltip(
               message: context.tr(
                 gate == PlanTier.enterprise ? 'enterprise_plan' : 'pro_plan',
               ),
               child: Icon(Icons.lock_outline, size: 16, color: tokens.ink3),
-            ),
+            )
+          : _SettingsHomeTrailing.maybe(value),
       selected: selected,
       selectedTileColor: tokens.accentSoft,
       // Drives both leading icon + title color when `selected` is true.
@@ -535,10 +601,15 @@ class SettingsSearchField extends StatelessWidget {
 /// rendered — but it remains the route's `builder` so the back-button on
 /// narrow lands on the list cleanly.
 ///
-/// Owns the search chrome: the trigger in the AppBar's `actions:` and the
-/// field in its 56 px `bottom:` strip — the same shape as
-/// `EntityListAppBar`'s narrow layout, a toolbar over a 56 px search row.
-/// Neither may live in the scrolling body — that was issue #42.
+/// Owns the search chrome: the field, always visible, in the AppBar's 56 px
+/// `bottom:` strip — the same shape as `EntityListAppBar`'s narrow layout, a
+/// toolbar over a 56 px search row — and the close button in `actions:` while
+/// a search is open. Neither may live in the scrolling body — that was issue
+/// #42. Focusing the field (a tap, `/`) or typing into it opens the search,
+/// exactly as on the wide pane.
+///
+/// Also owns the home's [SettingsHomeSummaryViewModel], keyed on the active
+/// company, so each row can show its current value.
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
 
@@ -550,9 +621,59 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final SettingsSearchController _search = SettingsSearchController();
   SearchFocusRegistry? _searchFocus;
 
+  ValueListenable<AuthSession?>? _session;
+  SettingsHomeSources? _sources;
+  SettingsHomeSummaryViewModel? _summary;
+
+  @override
+  void initState() {
+    super.initState();
+    // The field is always on screen, so focusing it is what opens the search
+    // — and typing into it after ✕ closed it.
+    _search.focus.addListener(_onFieldActivity);
+    _search.query.addListener(_onFieldActivity);
+  }
+
+  void _onFieldActivity() {
+    if (_search.isActive) return;
+    if (_search.focus.hasFocus || _search.query.text.isNotEmpty) {
+      _search.open();
+    }
+  }
+
+  void _closeSearch() {
+    _search.close();
+    // Drop the caret too: on a phone that is what puts the keyboard away.
+    _search.focus.unfocus();
+  }
+
+  /// One summary per company: a switch disposes the old one's streams.
+  void _syncSummary() {
+    final id = _session?.value?.currentCompanyId ?? '';
+    if (id == (_summary?.companyId ?? '')) return;
+    _summary?.dispose();
+    _summary = id.isEmpty
+        ? null
+        : SettingsHomeSummaryViewModel(companyId: id, sources: _sources!);
+  }
+
+  void _onSession() {
+    if (!mounted) return;
+    setState(_syncSummary);
+  }
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    if (_session == null) {
+      final services = context.read<Services>();
+      // A test supplies its own sources; production reads Services.
+      _sources =
+          Provider.of<SettingsHomeSources?>(context, listen: false) ??
+          SettingsHomeSources.of(services);
+      _session = services.auth.session..addListener(_onSession);
+      _syncSummary();
+    }
     // This screen owns the search chrome, so it answers `/`. On stage only:
     // a covered route (a section pushed over the index) and an inactive
     // branch both mute `TickerMode`, and a resize to two panes leaves this
@@ -572,7 +693,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   void dispose() {
+    _session?.removeListener(_onSession);
+    _summary?.dispose();
     _searchFocus?.release(_search.focus);
+    _search.focus.removeListener(_onFieldActivity);
+    _search.query.removeListener(_onFieldActivity);
     _search.dispose();
     super.dispose();
   }
@@ -605,7 +730,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         // and swipe, so it isn't worth an `onDrawerChanged` rebuild to chase.
         canPop: !(_search.isActive && !twoPane),
         onPopInvokedWithResult: (didPop, _) {
-          if (!didPop) _search.close();
+          if (!didPop) _closeSearch();
         },
         child: Scaffold(
           drawer: globalNav ? null : const AppDrawer(),
@@ -613,39 +738,169 @@ class _SettingsScreenState extends State<SettingsScreen> {
             title: Text(context.tr('settings')),
             leading: globalNav ? null : const DrawerHamburger(),
             automaticallyImplyLeading: !globalNav,
-            // The same shape as `EntityListAppBar`'s narrow chrome: the
-            // affordance in `actions:`, the field pinned in a 56 px row
-            // under the toolbar. No `preferredSize` to keep in sync — this is
-            // a real `AppBar`, so it derives `kToolbarHeight + 56` from
-            // `bottom` itself. Don't wrap it in a custom
-            // `PreferredSizeWidget` unless, like the list header, the row has
-            // to GROW: a settings search field is one line, always.
+            // The same shape as `EntityListAppBar`'s narrow chrome: the field
+            // pinned in a 56 px row under the toolbar — always, because a
+            // search box people can see is one they use (the wide pane's
+            // rule). No `preferredSize` to keep in sync — this is a real
+            // `AppBar`, so it derives `kToolbarHeight + 56` from `bottom`
+            // itself. Don't wrap it in a custom `PreferredSizeWidget` unless,
+            // like the list header, the row has to GROW: a settings search
+            // field is one line, always.
             actions: [
               if (_search.isActive)
                 IconButton(
                   icon: const Icon(Icons.close),
                   tooltip: context.tr('cancel'),
-                  onPressed: _search.close,
-                )
-              else
-                IconButton(
-                  icon: const Icon(Icons.search),
-                  tooltip: context.tr('search_settings'),
-                  onPressed: _search.open,
+                  onPressed: _closeSearch,
                 ),
             ],
-            bottom: _search.isActive
-                ? PreferredSize(
-                    preferredSize: const Size.fromHeight(56),
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                      child: SettingsSearchField(controller: _search),
-                    ),
-                  )
-                : null,
+            bottom: PreferredSize(
+              preferredSize: const Size.fromHeight(56),
+              child: Padding(
+                padding: const EdgeInsetsDirectional.fromSTEB(16, 0, 16, 8),
+                child: SettingsSearchField(controller: _search),
+              ),
+            ),
           ),
-          body: SettingsListSidebar(searchController: _search),
+          body: SettingsListSidebar(
+            searchController: _search,
+            summary: _summary,
+          ),
         ),
+      ),
+    );
+  }
+}
+
+/// The phone settings home's first row: the active company, opening the
+/// existing [showCompanyPicker] (whose "New company" row is the only one —
+/// this card adds none). At client / group scope its second line names that
+/// scope instead of offering the switch, so the user sees whose settings the
+/// list below will open.
+class _CompanyCard extends StatelessWidget {
+  const _CompanyCard({
+    required this.companyId,
+    required this.name,
+    required this.logoUrl,
+    required this.level,
+  });
+
+  final String companyId;
+  final String name;
+  final String? logoUrl;
+  final SettingsLevelController level;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.inTheme;
+    final theme = Theme.of(context);
+    final scoped = !level.isCompany;
+    final subtitle = scoped
+        ? '${context.tr(level.isGroup ? 'group_settings' : 'client_settings')}'
+              ': ${level.targetName ?? ''}'
+        : context.tr('switch_company');
+    final shape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(InRadii.r3),
+      side: BorderSide(color: tokens.border),
+    );
+    return Padding(
+      padding: const EdgeInsetsDirectional.fromSTEB(16, 12, 16, 0),
+      // `Ink` is banned: the surface is a local Material, the ripple on it.
+      child: Material(
+        key: const ValueKey('settings-company-card'),
+        color: tokens.surface,
+        shape: shape,
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          customBorder: shape,
+          onTap: () => unawaited(showCompanyPicker(context)),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: InSizes.touchTarget),
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                children: [
+                  CompanyAvatar(
+                    name: name,
+                    seed: companyId,
+                    size: 40,
+                    logoUrl: logoUrl,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            color: tokens.ink,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        Text(
+                          subtitle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: scoped ? tokens.accentInk : tokens.ink2,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(Icons.chevron_right, color: tokens.ink3),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The trailing half of a phone settings-home value: a neutral count, or a
+/// warning icon whose sentence is what a screen reader hears (and a long press
+/// shows). Text values ride in the tile's subtitle instead.
+class _SettingsHomeTrailing extends StatelessWidget {
+  const _SettingsHomeTrailing._(this.value);
+
+  final SettingsHomeValue value;
+
+  static Widget? maybe(SettingsHomeValue? value) =>
+      value == null || (value.count == null && value.warning == null)
+      ? null
+      : _SettingsHomeTrailing._(value);
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.inTheme;
+    final warning = value.warning;
+    if (warning != null) {
+      return Tooltip(
+        message: warning,
+        excludeFromSemantics: true,
+        child: Semantics(
+          label: warning,
+          child: ExcludeSemantics(
+            child: Icon(
+              Icons.warning_amber_rounded,
+              size: 20,
+              color: tokens.warning,
+            ),
+          ),
+        ),
+      );
+    }
+    return Text(
+      '${value.count}',
+      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+        color: tokens.ink3,
+        fontFeatures: const [FontFeature.tabularFigures()],
       ),
     );
   }

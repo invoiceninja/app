@@ -1,3 +1,5 @@
+import 'package:flutter/widgets.dart';
+
 import 'package:admin/app/color_hex.dart';
 import 'package:admin/app/router.dart';
 import 'package:admin/data/db/dao/project_dao.dart';
@@ -9,6 +11,7 @@ import 'package:admin/domain/columns/column_definition.dart';
 import 'package:admin/domain/columns/custom_field_columns.dart';
 import 'package:admin/ui/core/widgets/client_name_label.dart';
 import 'package:admin/ui/core/widgets/user_name_label.dart';
+import 'package:admin/ui/features/projects/widgets/detail/project_hours_format.dart';
 
 typedef ProjectColumn = ColumnDefinition<Project>;
 
@@ -82,9 +85,8 @@ final List<ProjectColumn> kAllProjectColumns = <ProjectColumn>[
     labelKey: 'budgeted_hours',
     width: 140,
     align: ColumnAlign.end,
-    cellBuilder: (p, _) => p.budgetedHours == 0
-        ? cellEmpty()
-        : cellText(_formatHours(p.budgetedHours)),
+    cellBuilder: (p, _) =>
+        p.budgetedHours == 0 ? cellEmpty() : _hoursCell(p.budgetedHours),
     valueBuilder: (p) =>
         p.budgetedHours == 0 ? null : p.budgetedHours.toString(),
   ),
@@ -93,9 +95,8 @@ final List<ProjectColumn> kAllProjectColumns = <ProjectColumn>[
     labelKey: 'current_hours',
     width: 140,
     align: ColumnAlign.end,
-    cellBuilder: (p, _) => p.currentHours == 0
-        ? cellEmpty()
-        : cellText(_formatHours(p.currentHours)),
+    cellBuilder: (p, _) =>
+        p.currentHours == 0 ? cellEmpty() : _hoursCell(p.currentHours),
     valueBuilder: (p) => p.currentHours == 0 ? null : p.currentHours.toString(),
   ),
   ProjectColumn(
@@ -204,9 +205,9 @@ final Map<String, ProjectColumn> projectColumnsById = {
   for (final c in kAllProjectColumns) c.id: c,
 };
 
-String _formatHours(double h) {
-  // Drop trailing .0 for whole-number hours; one decimal otherwise.
-  final asInt = h.truncate();
-  if (asInt.toDouble() == h) return '$asInt h';
-  return '${h.toStringAsFixed(1)} h';
-}
+/// An hours figure as the device's hours-format preference says — decimal
+/// (`12.5 h`) or `H:MM` — the spelling the project record uses.
+Widget _hoursCell(double h) => ProjectHoursFormatBuilder(
+  builder: (context, hoursMinutes) =>
+      cellText(projectHoursText(h, hoursMinutes: hoursMinutes)),
+);

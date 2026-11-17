@@ -1,3 +1,4 @@
+import 'package:decimal/decimal.dart';
 import 'package:flutter/widgets.dart';
 
 import 'package:admin/data/models/domain/dashboard/dashboard_totals.dart';
@@ -37,4 +38,40 @@ String? convertedToBaseCaption(
   final baseCode = formatter.currencies[baseId]?.code ?? '';
   if (baseCode.isEmpty) return null;
   return context.tr('converted_to_currency', {'currency': baseCode});
+}
+
+/// "≈ $1,231.00" — a foreign-currency document's [amount] in the company's
+/// currency, for the muted line under a table row's amount. Null when there is
+/// nothing honest to say.
+///
+/// Uses the document's **stored** `exchange_rate`, the rate the server's own
+/// "All currencies" totals divide by (`SUM(balance / exchange_rate)`,
+/// `ChartQueries`), so the row and the figures above it agree. Not today's
+/// rate: that would be a third number matching neither.
+///
+/// Null when:
+///   * the document is in the company currency ([documentCurrencyId] empty or
+///     unresolved means it is — `PartyCurrencyBuilder` answers null until the
+///     client's currency is known, and the amount itself is then formatted in
+///     the company currency);
+///   * [exchangeRate] is missing (zero or negative), or exactly 1 between two
+///     different currencies — the server's default for a rate that was never
+///     set, so dividing by it would print the foreign figure under a base
+///     symbol: a wrong number, which is worse than none;
+///   * [amount] is zero, where the line would say nothing.
+String? approxInBaseCurrency({
+  required Formatter formatter,
+  required Decimal amount,
+  required String? documentCurrencyId,
+  required Decimal exchangeRate,
+}) {
+  final baseId = formatter.settings.currencyId;
+  final docId = documentCurrencyId ?? '';
+  if (docId.isEmpty || docId == baseId) return null;
+  if (exchangeRate <= Decimal.zero || exchangeRate == Decimal.one) return null;
+  if (amount == Decimal.zero) return null;
+  final base = (amount / exchangeRate).toDecimal(scaleOnInfinitePrecision: 10);
+  final text = formatter.money(base, currencyId: baseId);
+  if (text.isEmpty) return null;
+  return '≈ $text';
 }

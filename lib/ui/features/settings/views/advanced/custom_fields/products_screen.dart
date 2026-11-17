@@ -25,6 +25,7 @@ class CustomFieldsProductsScreen extends StatelessWidget {
       CustomFieldSlotsSection(
         prefix: 'product',
         title: context.tr('product_field'),
+        description: context.tr('custom_product_fields_help'),
       ),
     ],
   );

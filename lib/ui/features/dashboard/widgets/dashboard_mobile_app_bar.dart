@@ -154,7 +154,7 @@ class DashboardMobileAppBar extends StatelessWidget
       actions: [
         IconButton(
           tooltip: context.tr('customize'),
-          icon: const Icon(Icons.dashboard_customize_outlined),
+          icon: const Icon(Icons.tune),
           onPressed: () => openManageDashboardCards(context, vm: vm),
         ),
       ],

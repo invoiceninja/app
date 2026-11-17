@@ -15,6 +15,7 @@ import 'package:admin/ui/features/settings/widgets/settings_company_scoped_host.
 import 'package:admin/ui/features/settings/widgets/settings_page_scaffold.dart';
 import 'package:admin/ui/features/settings/widgets/tabbed_settings_shell.dart';
 import 'package:admin/ui/core/utils/router_state.dart';
+import 'package:admin/ui/features/settings/widgets/settings_tab_strip.dart';
 
 /// Cascade-aware counterpart to [TabbedSettingsShell]. Use this for any
 /// settings page that:
@@ -243,18 +244,21 @@ class _CascadeTabbedSettingsShellState extends State<CascadeTabbedSettingsShell>
           viewModel: vm,
           extraActions: widget.extraActions,
           saveVisible: _saveVisible,
-          bottom: TabBar(
-            controller: _tabController,
-            isScrollable: true,
-            tabAlignment: TabAlignment.center,
-            labelColor: tokens.ink,
-            unselectedLabelColor: tokens.ink3,
-            indicatorColor: tokens.accent,
-            indicatorWeight: 2,
-            tabs: [
-              for (final tab in widget.tabs)
-                Tab(text: context.tr(tab.labelKey)),
-            ],
+          bottom: SettingsTabStrip(
+            tabBar: TabBar(
+              controller: _tabController,
+              isScrollable: true,
+              tabAlignment: TabAlignment.start,
+              padding: settingsTabBarPadding(),
+              labelColor: tokens.ink,
+              unselectedLabelColor: tokens.ink3,
+              indicatorColor: tokens.accent,
+              indicatorWeight: 2,
+              tabs: [
+                for (final tab in widget.tabs)
+                  Tab(text: context.tr(tab.labelKey)),
+              ],
+            ),
           ),
           body: _buildBody(context, hasSidePane),
         );

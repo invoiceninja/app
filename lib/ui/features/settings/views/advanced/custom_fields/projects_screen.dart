@@ -25,6 +25,7 @@ class CustomFieldsProjectsScreen extends StatelessWidget {
       CustomFieldSlotsSection(
         prefix: 'project',
         title: context.tr('project_field'),
+        description: context.tr('custom_project_fields_help'),
       ),
     ],
   );

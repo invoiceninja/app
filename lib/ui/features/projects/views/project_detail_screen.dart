@@ -31,6 +31,7 @@ import 'package:admin/ui/features/projects/widgets/detail/project_detail_header.
 import 'package:admin/ui/features/projects/widgets/detail/project_detail_profile.dart';
 import 'package:admin/ui/features/projects/widgets/detail/project_detail_standing.dart';
 import 'package:admin/ui/features/projects/widgets/detail/project_detail_tabs.dart';
+import 'package:admin/ui/features/projects/widgets/detail/project_hours_format.dart';
 import 'package:admin/ui/features/projects/widgets/project_actions.dart';
 
 /// The project record screen, on the record layout
@@ -232,7 +233,10 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
     // The scope tells the lists embedded in those tabs what they cannot know
     // from a project id alone: that this project is deleted (no New), or not
     // yet synced (New goes through the sync guard).
-    return EmbeddedListParentScope(
+    //
+    // Hours read as the device's hours-format preference says, decimal or
+    // `H:MM`, on every figure below — see `ProjectHoursFormat`.
+    final page = EmbeddedListParentScope(
       parentId: p.id,
       readOnly: p.isDeleted,
       intents: _record.listIntents,
@@ -254,6 +258,14 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
           lead: _top(context, p, related, notes, part: RecordColumnPart.lead),
           rail: _top(context, p, related, notes, part: RecordColumnPart.rail),
         ),
+      ),
+    );
+    return ValueListenableBuilder<String>(
+      valueListenable: _services.hoursFormat,
+      child: page,
+      builder: (context, _, page) => ProjectHoursFormat(
+        hoursMinutes: _services.hoursFormat.showsHoursMinutes,
+        child: page!,
       ),
     );
   }
@@ -349,6 +361,7 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
             ),
             profile: ProjectDetailProfile(
               project: p,
+              companyId: _companyId,
               company: company.data,
               tasks: tasks,
               formatter: formatter,

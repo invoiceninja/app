@@ -91,6 +91,13 @@ class UserDetailsViewModel extends DraftStreamHost<User> {
     _pendingPassword = null;
   }
 
+  /// No Undo for a discard that threw away a typed new password: the
+  /// snapshot holds the draft only, and keeping the secret around for a
+  /// toast's lifetime to put it back isn't worth it.
+  @override
+  Object? draftSnapshot() =>
+      _pendingPassword != null ? null : super.draftSnapshot();
+
   // -- Public user-specific surface ------------------------------------------
 
   /// Snapshot of the in-progress edit. Tab bodies bind to this directly.

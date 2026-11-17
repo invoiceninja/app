@@ -5,6 +5,7 @@ import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter/services.dart' show PlatformException;
 import 'package:admin/data/db/db_open_exception.dart';
+import 'package:admin/data/db/orphan_store_sweep.dart';
 import 'package:admin/data/db/salvage.dart';
 import 'package:admin/data/db/store_lock.dart';
 import 'package:admin/data/services/token_storage.dart' show kSecureStorage;
@@ -172,6 +173,58 @@ Future<bool> destroyDatabaseStoreAt(File file) async {
   await holdStoreLock(file.parent);
   await quarantineDatabaseFile(file);
   return true;
+}
+
+/// Marks the store found corrupt after it opened (`StoreCorruptionWatch`), so
+/// the next open checks it and resets it. Outside every snapshot pattern, so
+/// pruning and Device Settings → Data never see it.
+const _kCorruptMarkerName = '$_kDbFileName.corrupt';
+
+/// Mark the live store for repair at the next open. Returns whether the mark
+/// was written.
+Future<bool> markStoreCorrupt() async =>
+    markStoreCorruptIn((await _dbFile()).parent);
+
+/// [markStoreCorrupt] in [dir] — exposed for tests.
+Future<bool> markStoreCorruptIn(Directory dir) async {
+  try {
+    await File(
+      p.join(dir.path, _kCorruptMarkerName),
+    ).writeAsString(DateTime.now().toUtc().toIso8601String(), flush: true);
+    return true;
+  } catch (e) {
+    _log.warning('Could not mark the database in ${dir.path} corrupt: $e');
+    return false;
+  }
+}
+
+/// Whether the store was marked by [markStoreCorrupt]. An unreadable mark
+/// reads as none: a reset is never made on a guess.
+Future<bool> storeMarkedCorrupt() async =>
+    storeMarkedCorruptIn((await _dbFile()).parent);
+
+/// [storeMarkedCorrupt] in [dir] — exposed for tests.
+Future<bool> storeMarkedCorruptIn(Directory dir) async {
+  try {
+    return await File(p.join(dir.path, _kCorruptMarkerName)).exists();
+  } catch (e) {
+    _log.warning('Could not read the corrupt mark in ${dir.path}: $e');
+    return false;
+  }
+}
+
+/// Take the mark [markStoreCorrupt] left.
+Future<void> clearStoreCorruptMark() async =>
+    clearStoreCorruptMarkIn((await _dbFile()).parent);
+
+/// [clearStoreCorruptMark] in [dir] — exposed for tests.
+Future<void> clearStoreCorruptMarkIn(Directory dir) async {
+  try {
+    final mark = File(p.join(dir.path, _kCorruptMarkerName));
+    if (await mark.exists()) await mark.delete();
+  } catch (e) {
+    _log.warning('Could not clear the corrupt mark in ${dir.path}: $e');
+  }
 }
 
 /// Names the one snapshot whose durable tables have not been carried into the
@@ -627,3 +680,8 @@ Future<String> retainQuarantinedStore(String source) async {
     return source;
   }
 }
+
+/// Native half of the web's abandoned-generation sweep: a native reset renames
+/// its file to `<name>.broken.<ts>` and [pruneBrokenDbFiles] bounds those, so
+/// there is nothing to sweep.
+Future<OrphanSweepOutcome> sweepAbandonedStores() async => kNoOrphanSweep;

@@ -255,6 +255,7 @@ void main() {
         'draft',
         'unpaid',
         'overdue',
+        'paid',
       ]);
     });
 

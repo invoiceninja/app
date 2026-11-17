@@ -71,43 +71,82 @@ class _ExpenseEditPaymentSectionState extends State<ExpenseEditPaymentSection>
   Widget build(BuildContext context) {
     final vm = widget.vm;
     final paid = _isPaid;
-    // "Mark paid" is the card's header, its switch the header's control, and
-    // the fields it reveals sit in one row where the card has room: a title,
-    // a switch row and three stacked fields said the same thing taller.
+    // "Mark paid" heads the card with its switch beside it, the line under
+    // it saying what the switch does, on or off; the fields it reveals sit in
+    // one row where the card has room. Drawn in the body rather than the
+    // card's own header so the help line sits under the title, not a row
+    // below it, and the switch is read with both.
+    final tokens = context.inTheme;
+    final theme = Theme.of(context);
     return DashboardCardShell(
-      title: context.tr('mark_paid'),
-      trailing: Switch.adaptive(value: paid, onChanged: _onMarkPaidToggled),
-      showBody: paid,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final fields = <Widget>[
-            _PaymentDateField(vm: vm, formatter: formatter),
-            _PaymentTypePicker(vm: vm),
-            EntityEditField(
-              label: context.tr('transaction_reference'),
-              initial: vm.draft.transactionReference,
-              onChanged: vm.setTransactionReference,
-              errorText: vm.fieldErrorFor('transaction_reference'),
-              autocorrect: false,
-            ),
-          ];
-          if (constraints.maxWidth < 600) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              mainAxisSize: MainAxisSize.min,
-              children: fields,
-            );
-          }
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              for (var i = 0; i < fields.length; i++) ...[
-                if (i > 0) SizedBox(width: InSpacing.md(context)),
-                Expanded(child: fields[i]),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          MergeSemantics(
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        context.tr('mark_paid'),
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          color: tokens.ink,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      // Transifex's own help line (React shows the same one).
+                      Text(
+                        context.tr('mark_paid_help'),
+                        style: TextStyle(color: tokens.ink3, fontSize: 13),
+                      ),
+                    ],
+                  ),
+                ),
+                Switch(value: paid, onChanged: _onMarkPaidToggled),
               ],
-            ],
-          );
-        },
+            ),
+          ),
+          if (paid)
+            Padding(
+              padding: const EdgeInsets.only(top: InSpacing.sm),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final fields = <Widget>[
+                    _PaymentDateField(vm: vm, formatter: formatter),
+                    _PaymentTypePicker(vm: vm),
+                    EntityEditField(
+                      label: context.tr('transaction_reference'),
+                      initial: vm.draft.transactionReference,
+                      onChanged: vm.setTransactionReference,
+                      errorText: vm.fieldErrorFor('transaction_reference'),
+                      autocorrect: false,
+                    ),
+                  ];
+                  if (constraints.maxWidth < 600) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      mainAxisSize: MainAxisSize.min,
+                      children: fields,
+                    );
+                  }
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      for (var i = 0; i < fields.length; i++) ...[
+                        if (i > 0) SizedBox(width: InSpacing.md(context)),
+                        Expanded(child: fields[i]),
+                      ],
+                    ],
+                  );
+                },
+              ),
+            ),
+        ],
       ),
     );
   }

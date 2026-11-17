@@ -15,6 +15,7 @@ import 'package:admin/ui/features/payment_links/widgets/edit/payment_link_overvi
 import 'package:admin/ui/features/payment_links/widgets/edit/payment_link_settings_tab.dart';
 import 'package:admin/ui/features/payment_links/widgets/edit/payment_link_steps_tab.dart';
 import 'package:admin/ui/features/payment_links/widgets/edit/payment_link_webhook_tab.dart';
+import 'package:admin/ui/features/settings/widgets/settings_tab_strip.dart';
 
 /// Labels surfaced on the edit screen for the in-app settings search index.
 const kPaymentLinkEditSearchKeys = <String>[
@@ -147,20 +148,24 @@ class _PaymentLinkEditBodyState extends State<_PaymentLinkEditBody>
         final tokens = context.inTheme;
         return Column(
           children: [
-            TabBar(
-              controller: _tabController,
-              isScrollable: true,
-              tabAlignment: TabAlignment.center,
-              labelColor: tokens.ink,
-              unselectedLabelColor: tokens.ink3,
-              indicatorColor: tokens.accent,
-              indicatorWeight: 2,
-              tabs: [
-                Tab(text: context.tr('overview')),
-                Tab(text: context.tr('settings')),
-                Tab(text: context.tr('webhook')),
-                Tab(text: context.tr('steps')),
-              ],
+            SettingsTabStrip(
+              color: Theme.of(context).scaffoldBackgroundColor,
+              tabBar: TabBar(
+                controller: _tabController,
+                isScrollable: true,
+                tabAlignment: TabAlignment.start,
+                padding: settingsTabBarPadding(),
+                labelColor: tokens.ink,
+                unselectedLabelColor: tokens.ink3,
+                indicatorColor: tokens.accent,
+                indicatorWeight: 2,
+                tabs: [
+                  Tab(text: context.tr('overview')),
+                  Tab(text: context.tr('settings')),
+                  Tab(text: context.tr('webhook')),
+                  Tab(text: context.tr('steps')),
+                ],
+              ),
             ),
             Expanded(
               child: TabBarView(

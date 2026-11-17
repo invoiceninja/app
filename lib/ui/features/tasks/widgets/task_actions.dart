@@ -752,7 +752,8 @@ class TaskActions {
   }
 
   /// Begin work on [task] — the single write shared by the ⋮ menu's Start and
-  /// Resume items and by every inline one-tap toggle.
+  /// Resume items, every inline one-tap toggle, and the home-screen widget's
+  /// Start. Never the bulk toolbar, which goes straight to the repository.
   ///
   /// The decision belongs to `planTaskStart`, which the repository applies;
   /// this owns the three things only a widget can do: ask before overwriting a
@@ -787,21 +788,32 @@ class TaskActions {
     final beforeLog = task.timeLog;
     final beforeStatusId = task.statusId;
 
-    // Resolved only when a claim is on the table. The status move is the app's
-    // own plan→actual transition, never something a plain Start does, and
-    // skipping it keeps the common path free of a Drift query.
-    final couldClaim =
-        task.scheduleStateAt(DateTime.now()) != TaskScheduleState.none;
-    final claimStatusId = couldClaim
-        ? await _inProgressStatusId(context, services, companyId, task)
-        : null;
+    // Starting work on a task that has not been started — Backlog, Ready to
+    // do, or no status yet — moves it to In progress, on every start this
+    // path makes (it used to be a claimed booking only, so a plain Start left
+    // a ticking card in Backlog). Null whenever the status is anything else or
+    // one this app can't recognise; see [inProgressStatusId].
+    final inProgress = await _inProgressStatus(
+      context,
+      services,
+      companyId,
+      task,
+    );
+    final startStatusId = inProgress?.id;
+    final movedDetail = inProgress == null || !context.mounted
+        ? null
+        : context.tr('task_moved_to_status', {
+            'status': inProgress.name.trim().isEmpty
+                ? context.tr('no_name_fallback')
+                : inProgress.name,
+          });
 
     Future<TaskStartResult> start({bool confirmed = false}) =>
         services.tasks.startTimer(
           companyId: companyId,
           taskId: task.id,
           confirmClaim: confirmed,
-          claimStatusId: claimStatusId,
+          startStatusId: startStatusId,
         );
 
     var result = await start();
@@ -830,12 +842,17 @@ class TaskActions {
         // has just been invoiced), and silence there is the honest answer —
         // the surface it came from is about to rebuild with the truth.
         break;
-      case TaskStartResult.started:
+      case TaskStartResult.started when startStatusId == null:
         toasts?.success(startedMsg);
+      case TaskStartResult.started:
       case TaskStartResult.claimed:
+        // The same Undo either way: it puts back the log and the status, so a
+        // start that moved a card can be taken back as a whole.
         toasts?.success(
           startedMsg,
-          detail: claimedDetail,
+          detail: result == TaskStartResult.claimed
+              ? claimedDetail
+              : movedDetail,
           action: NotifyAction(
             undoLabel,
             () => unawaited(
@@ -906,7 +923,18 @@ class TaskActions {
   /// matches the server's seeded names against English and the active locale
   /// only, so a company created in a third language falls through here by
   /// design. Null also for the bulk toolbar, which passes no context at all.
-  static Future<String?> _inProgressStatusId(
+  ///
+  /// Public for the project's quick-add Start (`ProjectQuickAddTask`), which
+  /// hands it a task with no status yet — the "not started" case.
+  static Future<String?> inProgressStatusId(
+    BuildContext context,
+    Services services,
+    String companyId,
+    Task task,
+  ) async => (await _inProgressStatus(context, services, companyId, task))?.id;
+
+  /// [inProgressStatusId]'s status itself, for the start toast that names it.
+  static Future<TaskStatus?> _inProgressStatus(
     BuildContext context,
     Services services,
     String companyId,
@@ -929,7 +957,7 @@ class TaskActions {
       if (key != 'backlog' && key != 'ready_to_do') return null;
     }
     for (final s in statuses) {
-      if (keyOf(s.name) == 'in_progress') return s.id;
+      if (keyOf(s.name) == 'in_progress') return s;
     }
     return null;
   }

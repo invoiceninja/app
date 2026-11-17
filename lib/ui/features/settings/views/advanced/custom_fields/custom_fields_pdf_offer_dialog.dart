@@ -54,7 +54,7 @@ class _PdfOfferDialogState extends State<_PdfOfferDialog> {
             mainAxisSize: MainAxisSize.min,
             children: [
               for (final o in widget.offers)
-                SwitchListTile.adaptive(
+                SwitchListTile(
                   contentPadding: EdgeInsets.zero,
                   value: _on.contains(o.customKey),
                   title: Text(o.label),

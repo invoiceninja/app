@@ -17,6 +17,8 @@ import 'package:admin/ui/features/billing_shared/seed_billing_create_defaults.da
 import 'package:admin/ui/features/purchase_orders/view_models/purchase_order_edit_view_model.dart';
 import 'package:admin/ui/features/purchase_orders/widgets/edit/purchase_order_edit_layout.dart';
 import 'package:admin/ui/features/purchase_orders/widgets/purchase_order_actions.dart';
+import 'package:admin/ui/features/billing_shared/edit/billing_doc_edit_status.dart';
+import 'package:admin/ui/features/purchase_orders/widgets/purchase_order_status_pill.dart';
 
 class PurchaseOrderEditScreen extends StatelessWidget {
   const PurchaseOrderEditScreen({
@@ -99,6 +101,11 @@ class PurchaseOrderEditScreen extends StatelessWidget {
       },
       titleWhileLoading: (ctx) =>
           existingId == null ? ctx.tr('new_purchase_order') : ctx.tr('edit'),
+      // Title · status · Unsaved on a wide header.
+      titleTrailingBuilder: (ctx, vm) => billingDocEditStatus(
+        vm,
+        (saved) => PurchaseOrderStatusPill(statusId: saved.calculatedStatusId),
+      ),
       titleBuilder: (ctx, vm) => vm.isCreate
           ? ctx.tr('new_purchase_order')
           : (vm.draft.number.isNotEmpty

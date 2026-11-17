@@ -3,12 +3,12 @@ import 'package:material_ui/material_ui.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/data/repositories/auth_repository.dart';
 import 'package:admin/domain/entity_type.dart';
 import 'package:admin/domain/quick_create.dart';
 import 'package:admin/l10n/localization.dart';
-import 'package:admin/ui/core/widgets/empty_state.dart';
 import 'package:admin/ui/core/widgets/watch_builder.dart';
 import 'package:admin/ui/features/settings/widgets/form_section.dart';
 import 'package:admin/ui/features/settings/widgets/settings_form_shell.dart';
@@ -315,6 +315,15 @@ class _SettingsEntityListScaffoldState<T>
     );
   }
 
+  /// The list card's heading — none when it would only repeat the page's own
+  /// title ("Tax Rates" over a card of tax rates), which is every screen but
+  /// one. The archived card keeps its "Archived" heading: that one says
+  /// which rows are which.
+  String? _sectionTitle(BuildContext context) =>
+      widget.sectionTitleKey == widget.titleKey
+      ? null
+      : context.tr(widget.sectionTitleKey);
+
   Widget _buildBody(
     BuildContext context, {
     required List<T> active,
@@ -334,42 +343,38 @@ class _SettingsEntityListScaffoldState<T>
     // Emptiness is judged on what is *visible*, not what exists: with the
     // toggle off, a company whose only rows are archived still gets the
     // empty state (and, now, a Show archived button to go find them).
+    //
+    // The empty state is a compact block at the top of the settings column,
+    // where the first row will appear — not an `EmptyState` floating in the
+    // middle of a tall page, below the fold on a phone. Starters, when a
+    // screen has them, ARE the empty state: the hint, then one row per
+    // starting point, then the blank "+ New" row.
     if (active.isEmpty && (!_showArchived || archived.isEmpty)) {
       final starters = widget.starters;
       final showStarters = starters != null && starters.isNotEmpty && mayCreate;
-      final footer = widget.footer;
-      final Widget emptyBody;
-      // With starters or a footer the empty state sits in a card in the
-      // settings column, so whatever follows it scrolls with it.
-      if (showStarters || footer != null) {
-        emptyBody = SettingsFormShell(
-          sections: [
-            FormSection(
-              title: context.tr(widget.sectionTitleKey),
-              children: [
-                EmptyState(
+      final emptyBody = SettingsFormShell(
+        sections: [
+          FormSection(
+            title: _sectionTitle(context),
+            spacing: 0,
+            children: [
+              if (showStarters) ...[
+                _EmptyHint(text: context.tr(widget.emptyHintKey)),
+                _StarterRows(starters: starters),
+                const Divider(height: 1),
+                _NewRow(labelKey: widget.newLabelKey, onTap: newAction()),
+              ] else
+                _CompactEmptyState(
                   icon: widget.emptyIcon,
                   title: context.tr(widget.emptyTitleKey),
-                  subtitle: context.tr(widget.emptyHintKey),
+                  hint: context.tr(widget.emptyHintKey),
                   action: mayCreate ? newButton() : null,
                 ),
-                if (showStarters) ...[
-                  const SizedBox(height: 16),
-                  _StarterCards(starters: starters),
-                ],
-              ],
-            ),
-            ?footer,
-          ],
-        );
-      } else {
-        emptyBody = EmptyState(
-          icon: widget.emptyIcon,
-          title: context.tr(widget.emptyTitleKey),
-          subtitle: context.tr(widget.emptyHintKey),
-          action: mayCreate ? newButton() : null,
-        );
-      }
+            ],
+          ),
+          ?widget.footer,
+        ],
+      );
       return _withBanner(widget.banner, emptyBody);
     }
 
@@ -390,18 +395,13 @@ class _SettingsEntityListScaffoldState<T>
       SettingsFormShell(
         sections: [
           FormSection(
-            title: context.tr(widget.sectionTitleKey),
+            title: _sectionTitle(context),
             spacing: 0,
             children: [
               if (active.isNotEmpty) activeSection,
               if (mayCreate) ...[
                 const Divider(height: 1),
-                ListTile(
-                  leading: const Icon(Icons.add),
-                  title: Text(context.tr(widget.newLabelKey)),
-                  enabled: canCreate,
-                  onTap: canCreate ? () => context.go(widget.newRoute) : null,
-                ),
+                _NewRow(labelKey: widget.newLabelKey, onTap: newAction()),
               ],
             ],
           ),
@@ -460,81 +460,113 @@ class SettingsListStarter {
   final String route;
 }
 
-class _StarterCards extends StatelessWidget {
-  const _StarterCards({required this.starters});
+/// The "+ New …" row closing the list card — the same row whether the list
+/// is empty or not, so creating from blank is always in the same place.
+class _NewRow extends StatelessWidget {
+  const _NewRow({required this.labelKey, required this.onTap});
+
+  final String labelKey;
+
+  /// Null greys the row (a plan gate).
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      leading: const Icon(Icons.add),
+      title: Text(context.tr(labelKey)),
+      enabled: onTap != null,
+      onTap: onTap,
+    );
+  }
+}
+
+/// The one line of explanation over a starter list.
+class _EmptyHint extends StatelessWidget {
+  const _EmptyHint({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsetsDirectional.only(bottom: InSpacing.sm),
+      child: Text(
+        text,
+        style: Theme.of(
+          context,
+        ).textTheme.bodyMedium?.copyWith(color: context.inTheme.ink3),
+      ),
+    );
+  }
+}
+
+/// A list with nothing in it yet: icon, title, one line on what the rows are
+/// for and the create button, start-aligned at the top of the card.
+class _CompactEmptyState extends StatelessWidget {
+  const _CompactEmptyState({
+    required this.icon,
+    required this.title,
+    required this.hint,
+    required this.action,
+  });
+
+  final IconData icon;
+  final String title;
+  final String hint;
+  final Widget? action;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final tokens = context.inTheme;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: InSpacing.sm),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ExcludeSemantics(child: Icon(icon, size: 32, color: tokens.ink3)),
+          const SizedBox(height: InSpacing.sm),
+          Text(title, style: theme.textTheme.titleMedium),
+          const SizedBox(height: InSpacing.xs),
+          Text(
+            hint,
+            style: theme.textTheme.bodyMedium?.copyWith(color: tokens.ink3),
+          ),
+          if (action != null) ...[
+            SizedBox(height: InSpacing.lg(context)),
+            action!,
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Starting points as rows — icon, title, one-line description, chevron —
+/// each opening the create form with its defaults applied. Rows rather than
+/// cards so all of them fit on a phone's first screen.
+class _StarterRows extends StatelessWidget {
+  const _StarterRows({required this.starters});
 
   final List<SettingsListStarter> starters;
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isWide = constraints.maxWidth >= 560;
-        if (isWide) {
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              for (var i = 0; i < starters.length; i++) ...[
-                if (i > 0) const SizedBox(width: 12),
-                Expanded(child: _StarterCard(starter: starters[i])),
-              ],
-            ],
-          );
-        }
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            for (var i = 0; i < starters.length; i++) ...[
-              if (i > 0) const SizedBox(height: 12),
-              _StarterCard(starter: starters[i]),
-            ],
-          ],
-        );
-      },
-    );
-  }
-}
-
-class _StarterCard extends StatelessWidget {
-  const _StarterCard({required this.starter});
-
-  final SettingsListStarter starter;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Material(
-      color: theme.colorScheme.surfaceContainerHigh,
-      borderRadius: BorderRadius.circular(12),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: () => context.go(starter.route),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(starter.icon, size: 22, color: theme.colorScheme.primary),
-              const SizedBox(height: 10),
-              Text(
-                context.tr(starter.titleKey),
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                context.tr(starter.subtitleKey),
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
+    final tokens = context.inTheme;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (final starter in starters)
+          ListTile(
+            leading: Icon(starter.icon, color: tokens.accentInk),
+            title: Text(context.tr(starter.titleKey)),
+            subtitle: Text(context.tr(starter.subtitleKey)),
+            trailing: Icon(Icons.chevron_right, color: tokens.ink3),
+            onTap: () => context.go(starter.route),
           ),
-        ),
-      ),
+      ],
     );
   }
 }

@@ -15,12 +15,17 @@ import 'package:admin/ui/features/shell/widgets/app_drawer.dart';
 /// [AppDrawer] only at a nav root — see `build`) and a consistent [AppBar] that
 /// localizes its title via [titleKey]. Use [actions] and [bottom] to extend
 /// the AppBar (e.g. a Save button + TabBar on Company Details).
+///
+/// The action cluster is end-aligned and reads `[page actions…][?]`: a draft
+/// page's Save leads it (then Discard), and the "Learn more" help icon closes
+/// it, so the primary is never pushed inward by chrome that every page has.
 class SettingsScreenScaffold extends StatelessWidget {
   const SettingsScreenScaffold({
     super.key,
     required this.titleKey,
     required this.body,
     this.title,
+    this.titleTrailing,
     this.actions,
     this.bottom,
     this.leading,
@@ -31,6 +36,11 @@ class SettingsScreenScaffold extends StatelessWidget {
   /// Replaces the localized [titleKey] text in the AppBar — for an editor
   /// whose title *is* an editable name. [titleKey] still picks the docs link.
   final Widget? title;
+
+  /// Drawn right after the title on a wide pane only — the "Unsaved" label
+  /// of a draft page. A phone's bar has no room beside the title, and Save
+  /// (enabled only when dirty) is the cue there.
+  final Widget? titleTrailing;
   final Widget body;
   final List<Widget>? actions;
   final PreferredSizeWidget? bottom;
@@ -71,6 +81,37 @@ class SettingsScreenScaffold extends StatelessWidget {
         (showBack
             ? const BackButton()
             : (showHamburger ? const DrawerHamburger() : null));
+    final titleWidget = title ?? Text(context.tr(titleKey));
+    final trailing = titleTrailing;
+    // The pane, not the window: a settings page sits beside two sidebars.
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final showTrailing =
+            trailing != null && Breakpoints.isWide(constraints);
+        return _scaffold(
+          context,
+          title: showTrailing
+              ? Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Flexible(child: titleWidget),
+                    trailing,
+                  ],
+                )
+              : titleWidget,
+          resolvedLeading: resolvedLeading,
+          showHamburger: showHamburger,
+        );
+      },
+    );
+  }
+
+  Widget _scaffold(
+    BuildContext context, {
+    required Widget title,
+    required Widget? resolvedLeading,
+    required bool showHamburger,
+  }) {
     return Scaffold(
       // Dropped along with the hamburger: an attached drawer still opens on a
       // left-edge drag (`drawerEnableOpenDragGesture` defaults to true), which
@@ -79,10 +120,10 @@ class SettingsScreenScaffold extends StatelessWidget {
       // menu.
       drawer: showHamburger ? const AppDrawer() : null,
       appBar: AppBar(
-        title: title ?? Text(context.tr(titleKey)),
+        title: title,
         // A custom title is a control, and sits at the start on every
         // platform rather than centred as iOS and macOS would have it.
-        centerTitle: title == null ? null : false,
+        centerTitle: this.title == null ? null : false,
         leading: resolvedLeading,
         // Explicit rather than inferred. It was previously inert — `AppBar`
         // only consults it when `leading` is null, which the old code never
@@ -93,8 +134,10 @@ class SettingsScreenScaffold extends StatelessWidget {
         // leave without one.
         automaticallyImplyLeading: false,
         actions: [
+          ...?actions,
           // "Learn more" (invoiceninja/ui#3391): the section's page in the
-          // user guide, ahead of the page's own actions so Save stays last.
+          // user guide. Last, after the page's own actions, so Save leads the
+          // cluster — `[Save][Discard][?]`.
           if (settingsDocsUrlForTitle(titleKey) case final docsUrl?)
             IconButton(
               key: const ValueKey('settings_learn_more'),
@@ -102,7 +145,6 @@ class SettingsScreenScaffold extends StatelessWidget {
               icon: const Icon(Icons.help_outline),
               onPressed: () => unawaited(openExternalUrl(context, docsUrl)),
             ),
-          ...?actions,
         ],
         bottom: bottom,
       ),

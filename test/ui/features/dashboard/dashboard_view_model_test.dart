@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:admin/app/resync_controller.dart';
 import 'package:admin/data/db/app_database.dart';
+import 'package:admin/data/models/domain/dashboard/dashboard_aging.dart';
 import 'package:admin/data/models/domain/dashboard/dashboard_card_config.dart';
 import 'package:admin/data/models/domain/dashboard/dashboard_list_rows.dart';
 import 'package:admin/data/models/domain/dashboard/dashboard_totals.dart';
@@ -186,7 +187,6 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 20));
       writer
         ..toggleChartSeries(ChartSeriesId.payments)
-        ..toggleChartSeries(ChartSeriesId.outstanding)
         ..toggleChartSeries(ChartSeriesId.expenses);
       // Let the debounced _persist() flush to nav_state.
       await Future<void>.delayed(const Duration(milliseconds: 40));
@@ -228,6 +228,29 @@ void main() {
       expect(reader.visibleChartSeries, kDefaultChartSeries);
       reader.dispose();
     });
+
+    // The bar chart dropped the Unpaid series; a legend stored before that
+    // still names it.
+    test('a stored outstanding series is dropped', () async {
+      final reader = await readerFor({
+        'chartSeries': ['invoices', 'outstanding'],
+        'chartSeriesV': 2,
+      });
+      expect(reader.visibleChartSeries, {ChartSeriesId.invoices});
+      reader.dispose();
+    });
+
+    test(
+      'a stored outstanding-only legend falls back to the default',
+      () async {
+        final reader = await readerFor({
+          'chartSeries': ['outstanding'],
+          'chartSeriesV': 2,
+        });
+        expect(reader.visibleChartSeries, kDefaultChartSeries);
+        reader.dispose();
+      },
+    );
 
     test('an all-unknown series list falls back to the default', () async {
       final reader = await readerFor({
@@ -1191,14 +1214,71 @@ void main() {
       expect(vm.outstanding.hasError, isFalse);
     });
 
-    test('the figures listen to all three totals sections', () async {
+    test('the figures listen to the totals and the aging', () async {
       var hits = 0;
       vm.kpiListenable.addListener(() => hits++);
       repo.totals.add(totalsOf('1'));
       repo.totalsPrev.add(totalsOf('1'));
       repo.outstanding.add(totalsOf('1'));
+      repo.aging.add(DashboardAging.none);
       await settle();
-      expect(hits, 3);
+      expect(hits, 4);
+    });
+
+    group('aging', () {
+      test('is its own section, untouched by any filter', () async {
+        repo.aging.add(
+          DashboardAging.fromJson({
+            '999': {
+              'aging': {'total': '10', 'current_amount': '10'},
+            },
+          }),
+        );
+        await settle();
+        expect(vm.aging.valueState, ValueSectionState.ready);
+
+        await vm.setDateRange(
+          const DashboardPresetRange(DashboardDatePreset.lastMonth),
+        );
+        await vm.setIncludeDrafts(true);
+        expect(
+          vm.aging.data,
+          isNotNull,
+          reason: 'a snapshot, keyed by nothing',
+        );
+      });
+
+      test('a failure is filed on it and never fails the pass', () async {
+        repo.refreshAllErrors = {DashboardKind.aging: Exception('x')};
+        final clean = await vm.refresh();
+        expect(vm.aging.hasError, isTrue);
+        expect(vm.globalError, isNull, reason: 'no refresh toast');
+        expect(vm.lastRefreshed, isNotNull);
+        expect(clean, isTrue);
+
+        // The next clean pass clears it.
+        repo.refreshAllErrors = const {};
+        await vm.refresh();
+        expect(vm.aging.hasError, isFalse);
+      });
+
+      test(
+        'alongside another failure, the other is the one reported',
+        () async {
+          final boom = Exception('chart');
+          repo.refreshAllErrors = {
+            DashboardKind.aging: Exception('x'),
+            DashboardKind.chart: boom,
+          };
+          await vm.refresh();
+          expect(vm.globalError, same(boom));
+        },
+      );
+
+      test('retries on its own', () async {
+        await vm.retry(DashboardKind.aging);
+        expect(repo.refreshAgingCalls, 1);
+      });
     });
 
     test('the comparison is the like-for-like window', () {

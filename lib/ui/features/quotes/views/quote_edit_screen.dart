@@ -15,12 +15,15 @@ import 'package:admin/ui/core/edit/edit_action_filter.dart';
 import 'package:admin/ui/core/edit/entity_edit_screen_scaffold.dart';
 import 'package:admin/ui/core/list/master_detail_layout.dart';
 import 'package:admin/ui/features/billing_shared/billing_doc_type.dart';
+import 'package:admin/ui/features/billing_shared/edit/billing_doc_date_order.dart';
 import 'package:admin/ui/features/billing_shared/edit/open_line_item_request.dart';
 import 'package:admin/ui/features/billing_shared/seed_billing_create_defaults.dart';
 import 'package:admin/ui/features/billing_shared/seed_client_invitations.dart';
 import 'package:admin/ui/features/quotes/view_models/quote_edit_view_model.dart';
 import 'package:admin/ui/features/quotes/widgets/edit/quote_edit_layout.dart';
 import 'package:admin/ui/features/quotes/widgets/quote_actions.dart';
+import 'package:admin/ui/features/billing_shared/edit/billing_doc_edit_status.dart';
+import 'package:admin/ui/features/quotes/widgets/quote_status_pill.dart';
 
 class QuoteEditScreen extends StatelessWidget {
   const QuoteEditScreen({
@@ -78,6 +81,10 @@ class QuoteEditScreen extends StatelessWidget {
           clientRequiredMessage: ctx.tr('please_select_a_client'),
           crossClientLineItemsMessage: ctx.tr('cross_client_line_items'),
           partialInvalidMessage: ctx.tr('partial_value'),
+          dateOrderMessages: billingDateOrderMessages(
+            ctx,
+            BillingDocType.quote,
+          ),
           enforcesValidUntil: () => ServerFeatures.supports(
             services.serverVersion.value,
             ServerFeatures.quoteValidUntil,
@@ -148,6 +155,11 @@ class QuoteEditScreen extends StatelessWidget {
       },
       titleWhileLoading: (ctx) =>
           existingId == null ? ctx.tr('new_quote') : ctx.tr('edit'),
+      // Title · status · Unsaved on a wide header.
+      titleTrailingBuilder: (ctx, vm) => billingDocEditStatus(
+        vm,
+        (saved) => QuoteStatusPill(statusId: saved.calculatedStatusId),
+      ),
       titleBuilder: (ctx, vm) => vm.isCreate
           ? ctx.tr('new_quote')
           : (vm.draft.number.isNotEmpty

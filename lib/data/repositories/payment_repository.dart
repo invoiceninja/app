@@ -355,6 +355,27 @@ class PaymentRepository extends BaseEntityRepository<Payment, PaymentApi>
     return SaveResult(entity: payment, outboxRowId: rowId);
   }
 
+  /// Email the payment's receipt to the client — `POST /payments/bulk`
+  /// `{action: 'email', ids: [id]}`, the route React and v1 use.
+  ///
+  /// Never a re-save with `?email_receipt=true`: the server reads that flag
+  /// only while CREATING a payment (`PaymentRepository::applyPayment` gates it
+  /// on `! $is_existing_payment`), so on an existing one it sent nothing — the
+  /// Send Email action used to toast "Emailed" for a receipt that never went.
+  /// A payment still being created is fine: the row waits behind the create
+  /// and its temp id is rewritten when the create lands.
+  Future<void> emailReceipt({
+    required String companyId,
+    required String paymentId,
+  }) async {
+    await enqueueMutation(
+      companyId: companyId,
+      entityId: paymentId,
+      kind: MutationKind.emailEntity,
+      payload: <String, dynamic>{'id': paymentId},
+    );
+  }
+
   /// Refund a payment. Posts `POST /payments/refund` via the outbox.
   /// [invoices] entries shape: `{invoice_id, amount}` per row.
   Future<void> refund({

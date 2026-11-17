@@ -20,7 +20,10 @@ final _log = Logger('SidebarBadgeModeController');
 /// signed-in account's modules.
 ///
 /// Only non-default choices are stored, so a mode added in a later release
-/// needs no backfill. [prefs] is optional so unit tests can exercise the
+/// needs no backfill. The default is per entity ([defaultBadgeModeFor]):
+/// overdue invoices, expired quotes, unapplied payments, and no badge on any
+/// other row. Because [kBadgeModeTotal] is no longer the default, a user who
+/// picks it now has it stored like any other choice. [prefs] is optional so unit tests can exercise the
 /// resolution logic without a store.
 class SidebarBadgeModeController extends ChangeNotifier {
   SidebarBadgeModeController({DevicePrefsStore? prefs}) : _prefs = prefs {
@@ -32,21 +35,24 @@ class SidebarBadgeModeController extends ChangeNotifier {
   final DevicePrefsStore? _prefs;
 
   /// `EntityType.name` → chosen [SidebarBadgeMode.id]. An absent key means the
-  /// row is on [kBadgeModeTotal].
+  /// row is on its default ([defaultBadgeModeFor]).
   final Map<String, String> _modes = {};
 
-  /// The chosen mode id for [type], or [kBadgeModeTotal] when the user hasn't
-  /// picked one.
+  /// The chosen mode id for [type], or its default ([defaultBadgeModeFor])
+  /// when the user hasn't picked one.
   ///
   /// Pass [available] (the entity's [EntityHandlers.badgeModes], already
   /// filtered for the live company) to have a mode that is no longer offered —
   /// a stale id, or a stock mode after inventory tracking was switched off —
-  /// fall back to `total` rather than silently counting nothing.
+  /// fall back to the row's default rather than silently counting nothing
+  /// (and, should even that not be offered, to no badge).
   String modeFor(EntityType type, {List<SidebarBadgeMode>? available}) {
-    final stored = _modes[type.name] ?? kBadgeModeTotal;
+    final fallback = defaultBadgeModeFor(type);
+    final stored = _modes[type.name] ?? fallback;
     if (available == null) return stored;
-    final offered = available.any((m) => m.id == stored);
-    return offered ? stored : kBadgeModeTotal;
+    bool offered(String id) => available.any((m) => m.id == id);
+    if (offered(stored)) return stored;
+    return offered(fallback) ? fallback : kBadgeModeNone;
   }
 
   /// True when the user has picked something other than the default for
@@ -54,9 +60,9 @@ class SidebarBadgeModeController extends ChangeNotifier {
   bool get hasOverrides => _modes.isNotEmpty;
 
   Future<void> set(EntityType type, String modeId) async {
-    final current = _modes[type.name] ?? kBadgeModeTotal;
+    final current = _modes[type.name] ?? defaultBadgeModeFor(type);
     if (current == modeId) return;
-    if (modeId == kBadgeModeTotal) {
+    if (modeId == defaultBadgeModeFor(type)) {
       _modes.remove(type.name);
     } else {
       _modes[type.name] = modeId;
@@ -65,7 +71,7 @@ class SidebarBadgeModeController extends ChangeNotifier {
     await _persist();
   }
 
-  /// Put every row back on [kBadgeModeTotal].
+  /// Put every row back on its default ([defaultBadgeModeFor]).
   Future<void> resetAll() async {
     if (_modes.isEmpty) return;
     _modes.clear();
@@ -91,12 +97,15 @@ class SidebarBadgeModeController extends ChangeNotifier {
     try {
       final decoded = jsonDecode(jsonStr);
       if (decoded is! Map) return;
-      final knownTypes = {for (final t in EntityType.values) t.name};
+      final typesByName = {for (final t in EntityType.values) t.name: t};
       decoded.forEach((key, value) {
         if (key is! String || value is! String) return;
-        if (!knownTypes.contains(key)) return;
+        final type = typesByName[key];
+        if (type == null) return;
         if (!kSidebarBadgeModeIds.contains(value)) return;
-        if (value == kBadgeModeTotal) return;
+        // A stored value that is now the default is no override — Reset
+        // must not offer to undo it.
+        if (value == defaultBadgeModeFor(type)) return;
         _modes[key] = value;
       });
     } catch (e, st) {

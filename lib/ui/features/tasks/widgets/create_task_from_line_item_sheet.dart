@@ -28,6 +28,7 @@ import 'package:admin/ui/features/tasks/view_models/task_edit_view_model.dart'
     show emptyTask;
 import 'package:admin/ui/features/tasks/widgets/task_status_picker_field.dart';
 import 'package:admin/utils/formatting.dart';
+import 'package:admin/ui/core/widgets/example_hint.dart';
 
 /// "Create Task" from an invoice / quote line item — schedule the work a line
 /// describes onto a day, without leaving the document (invoiceninja/flutter#88).
@@ -600,7 +601,7 @@ class _CreateTaskFromLineItemSheetState
       onSubmitted: (_) => FormSaveScope.maybeOf(context)?.trySubmit(),
       decoration: InputDecoration(
         labelText: context.tr('duration'),
-        hintText: '1h 30m',
+        hintText: exampleHint(context, kDurationExample),
         // The same 15 → 120-minute presets the time-log table offers; scheduling
         // a service is exactly the "pick a round block" case they exist for.
         // Unlike that table this sheet also renders as a phone bottom sheet, so

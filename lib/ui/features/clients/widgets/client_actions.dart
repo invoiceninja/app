@@ -282,6 +282,9 @@ class ClientActions {
           icon: Icons.settings_outlined,
           label: context.tr('settings'),
           enabled: true,
+          // Occasional, and a bar button put it beside Edit on every client:
+          // it lives in the `⋮` / More menu, in this same place.
+          menuOnly: true,
           onTap: () => onTap(ClientAction.settings),
         ),
         EntityActionItem(

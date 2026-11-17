@@ -697,7 +697,7 @@ class _DebitCreateTabState extends State<_DebitCreateTab> {
             selectedClientId: _clientId,
             onSelected: (c) => setState(() => _clientId = c?.id ?? ''),
           ),
-        SwitchListTile.adaptive(
+        SwitchListTile(
           contentPadding: EdgeInsets.zero,
           title: Text(context.tr('should_be_invoiced')),
           value: _shouldBeInvoiced ?? false,

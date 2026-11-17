@@ -4,9 +4,18 @@ import 'package:admin/app/design_tokens.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/searchable_dropdown_field.dart';
 
-/// Generic multi-select for entity references — a row of removable chips
-/// plus a [SearchableDropdownField] underneath that adds the picked item to
-/// the selection. Works for any `T` (clients, vendors, projects, expense
+/// Generic multi-select for entity references — a [SearchableDropdownField]
+/// that adds the picked item to the selection, with the selection as a row of
+/// removable chips under it.
+///
+/// **One label.** The field's label is the picker's title ([labelKey]) and
+/// the "add" wording is its hint ([addHintKey]). It used to draw the title as
+/// a line of its own *and* label the field "Add Item", so every picker read
+/// as two labels over one empty box (the Activity filters, the Schedules
+/// report filters). As the field's own label the title follows the density
+/// rule every field does (above the box at Comfortable, inside under
+/// Compact) and is the field's screen-reader name.
+/// Works for any `T` (clients, vendors, projects, expense
 /// categories, …); the caller supplies the available list and the
 /// `idOf`/`displayString` projections.
 ///
@@ -26,7 +35,7 @@ class MultiEntityPicker<T extends Object> extends StatelessWidget {
     required this.idOf,
     required this.displayString,
     required this.onChanged,
-    this.addLabelKey = 'add_item',
+    this.addHintKey = 'add_item',
   });
 
   /// Localization key for the field title (e.g. `'clients'`).
@@ -45,8 +54,8 @@ class MultiEntityPicker<T extends Object> extends StatelessWidget {
   /// Fires with the new id list after an add / remove.
   final ValueChanged<List<String>> onChanged;
 
-  /// Localization key for the "add" dropdown label.
-  final String addLabelKey;
+  /// Localization key for the field's hint — what an empty field says to do.
+  final String addHintKey;
 
   void _add(String id) {
     if (id.isEmpty || selectedIds.contains(id)) return;
@@ -60,8 +69,6 @@ class MultiEntityPicker<T extends Object> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final tokens = context.inTheme;
     // O(n) lookup is fine — N ≤ a few hundred items.
     final byId = {for (final it in items) idOf(it): it};
     final available = items
@@ -70,12 +77,21 @@ class MultiEntityPicker<T extends Object> extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          context.tr(labelKey),
-          style: theme.textTheme.labelMedium?.copyWith(color: tokens.ink3),
+        SearchableDropdownField<T>(
+          label: context.tr(labelKey),
+          hintText: context.tr(addHintKey),
+          // Every option already picked is not "Loading…".
+          emptyHintKey: items.isEmpty ? null : 'no_records_found',
+          items: available,
+          initialValue: null,
+          displayString: displayString,
+          idOf: idOf,
+          onChanged: (it) {
+            if (it != null) _add(idOf(it));
+          },
         ),
-        SizedBox(height: InSpacing.sm),
         if (selectedIds.isNotEmpty) ...[
+          const SizedBox(height: InSpacing.xs),
           Wrap(
             spacing: InSpacing.sm,
             runSpacing: InSpacing.sm,
@@ -100,18 +116,7 @@ class MultiEntityPicker<T extends Object> extends StatelessWidget {
                 ),
             ],
           ),
-          SizedBox(height: InSpacing.md(context)),
         ],
-        SearchableDropdownField<T>(
-          label: context.tr(addLabelKey),
-          items: available,
-          initialValue: null,
-          displayString: displayString,
-          idOf: idOf,
-          onChanged: (it) {
-            if (it != null) _add(idOf(it));
-          },
-        ),
       ],
     );
   }

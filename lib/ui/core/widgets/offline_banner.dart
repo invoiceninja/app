@@ -19,18 +19,29 @@ import 'package:admin/l10n/localization.dart';
 /// `navigator.onLine` is the only signal on web and it reports offline on
 /// machines that are plainly loading the demo, where "your changes will sync"
 /// is the wrong thing to tell a visitor to shared sample data.
+///
+/// The demo strip is informational, not a warning: it is slimmer than the
+/// offline one, drawn in the accent (the info tokens), and the visitor can
+/// dismiss it — for the rest of the session only. The dismissal lives in
+/// memory ([demoBannerDismissed]) and is never persisted: the next launch, and
+/// so the next visitor to a shared demo, sees it again. The offline strip has
+/// no ✕: it reports a live condition that ends by itself.
 class OfflineBanner extends StatelessWidget {
   const OfflineBanner({super.key, this.isDemoBuild = Env.isDemoBuild});
 
   final bool isDemoBuild;
 
+  /// Whether the demo strip was dismissed in this process. In memory only.
+  static final ValueNotifier<bool> demoBannerDismissed = ValueNotifier(false);
+
   @override
   Widget build(BuildContext context) {
     if (isDemoBuild) {
-      return const _BannerStrip(
-        icon: Icons.science_outlined,
-        titleKey: 'demo_mode',
-        bodyKey: 'demo_mode_banner',
+      return ValueListenableBuilder<bool>(
+        valueListenable: demoBannerDismissed,
+        builder: (context, dismissed, _) => dismissed
+            ? const SizedBox.shrink()
+            : _DemoStrip(onDismiss: () => demoBannerDismissed.value = true),
       );
     }
     final services = context.read<Services>();
@@ -97,6 +108,77 @@ class _BannerStrip extends StatelessWidget {
                   context.tr(bodyKey),
                   style: TextStyle(color: tokens.ink2, fontSize: 13),
                   overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The demo build's strip — see [OfflineBanner]. One line, the info (accent)
+/// tokens, and a ✕ that hides it for the session.
+class _DemoStrip extends StatelessWidget {
+  const _DemoStrip({required this.onDismiss});
+
+  final VoidCallback onDismiss;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.inTheme;
+    final touch = Env.isTouchPrimary;
+    // Pointer: a 28 px ✕ sets a ~30 px strip. Touch keeps the 44 px target
+    // (CLAUDE.md § Design system — gated on the platform).
+    final buttonSize = touch ? InSizes.touchTarget : 28.0;
+    return Material(
+      color: tokens.accentSoft,
+      // The same inset handling as the offline strip.
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: EdgeInsetsDirectional.only(
+            start: InSpacing.lg(context),
+            end: InSpacing.xs,
+            top: 1,
+            bottom: 1,
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.science_outlined, size: 16, color: tokens.accentInk),
+              const SizedBox(width: InSpacing.sm),
+              Text(
+                context.tr('demo_mode'),
+                style: TextStyle(
+                  color: tokens.accentInk,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12,
+                ),
+              ),
+              const SizedBox(width: InSpacing.sm),
+              Expanded(
+                child: Text(
+                  context.tr('demo_mode_banner'),
+                  style: TextStyle(color: tokens.ink2, fontSize: 12),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              IconButton(
+                tooltip: context.tr('dismiss'),
+                onPressed: onDismiss,
+                icon: Icon(Icons.close, size: 16, color: tokens.ink2),
+                padding: EdgeInsets.zero,
+                // Standard, or the desktop theme's compact density takes 8 off
+                // the explicit size (docs/touch-targets.md, trap 2).
+                visualDensity: VisualDensity.standard,
+                constraints: BoxConstraints.tightFor(
+                  width: buttonSize,
+                  height: buttonSize,
+                ),
+                style: IconButton.styleFrom(
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
               ),
             ],

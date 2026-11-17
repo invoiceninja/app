@@ -47,14 +47,19 @@ ActivityTone toneForCategory(ActivityCategory c) => switch (c) {
 };
 
 /// How wide one timeline bar is.
-enum TimelineBucketSize { hour, day, week, month, year }
+enum TimelineBucketSize { quarterHour, halfHour, hour, day, week, month, year }
 
 /// The bucket width for a window spanning [span].
 ///
-/// The window is 250–1000 rows, which is an afternoon on a busy account and
+/// The window is 250–2500 rows, which is a morning on a busy account and
 /// years on a quiet one, so a fixed width is wrong at one end or the other.
-/// The thresholds keep the bar count at or under about 63, whatever the span.
+/// The thresholds keep the bar count at or under about 63, whatever the span:
+/// 15 minutes up to 12 hours (48 bars), 30 minutes up to a day (48), an hour
+/// up to two days (48). Hour bars over a busy morning drew three or four
+/// slabs with nothing to read between them.
 TimelineBucketSize bucketSizeFor(Duration span) {
+  if (span <= const Duration(hours: 12)) return TimelineBucketSize.quarterHour;
+  if (span <= const Duration(hours: 24)) return TimelineBucketSize.halfHour;
   if (span <= const Duration(days: 2)) return TimelineBucketSize.hour;
   if (span <= const Duration(days: 62)) return TimelineBucketSize.day;
   if (span <= const Duration(days: 366)) return TimelineBucketSize.week;
@@ -104,6 +109,10 @@ DateTime bucketStart(
   int firstDayOfWeek = DateTime.monday,
 }) {
   switch (size) {
+    case TimelineBucketSize.quarterHour:
+      return DateTime(t.year, t.month, t.day, t.hour, t.minute - t.minute % 15);
+    case TimelineBucketSize.halfHour:
+      return DateTime(t.year, t.month, t.day, t.hour, t.minute - t.minute % 30);
     case TimelineBucketSize.hour:
       return DateTime(t.year, t.month, t.day, t.hour);
     case TimelineBucketSize.day:
@@ -123,6 +132,20 @@ DateTime nextBucketStart(
   DateTime start,
   TimelineBucketSize size,
 ) => switch (size) {
+  TimelineBucketSize.quarterHour => DateTime(
+    start.year,
+    start.month,
+    start.day,
+    start.hour,
+    start.minute + 15,
+  ),
+  TimelineBucketSize.halfHour => DateTime(
+    start.year,
+    start.month,
+    start.day,
+    start.hour,
+    start.minute + 30,
+  ),
   TimelineBucketSize.hour => DateTime(
     start.year,
     start.month,

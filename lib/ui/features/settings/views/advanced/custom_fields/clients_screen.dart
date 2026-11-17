@@ -38,6 +38,7 @@ class CustomFieldsClientsScreen extends StatelessWidget {
         ),
         FormSection(
           title: context.tr('contact_field'),
+          description: context.tr('custom_contact_fields_help'),
           children: _rows(access, 'contact'),
         ),
         FormSection(

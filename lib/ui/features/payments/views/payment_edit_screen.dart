@@ -7,7 +7,6 @@ import 'package:admin/domain/payment_types.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/detail/entity_detail_actions_row.dart';
 import 'package:admin/ui/core/edit/after_save_create_action.dart';
-import 'package:admin/ui/core/edit/edit_action_filter.dart';
 import 'package:admin/ui/core/edit/entity_edit_screen_scaffold.dart';
 import 'package:admin/ui/core/list/master_detail_layout.dart';
 import 'package:admin/ui/features/payments/seed_payment_create_defaults.dart';
@@ -34,12 +33,6 @@ class PaymentEditScreen extends StatelessWidget {
       fetchExisting: (ctx, services, companyId, id) =>
           services.payments.watch(companyId: companyId, id: id).first,
       buildVm: (ctx, services, companyId, existing) {
-        // Default send-email starts false; the form's switch lets the user
-        // opt in. Honoring the company-wide
-        // `client_manual_payment_notification` setting as the default is a
-        // follow-up (the setting isn't lifted onto the auth session's
-        // `AuthCompany`, and reading it from the company repo here would
-        // be async — postponed until a single-shot accessor lands).
         // Capture `ctx` once so validation messages thrown from `performSave`
         // can be translated without dragging BuildContext through the VM
         // method signatures. Safe because the scaffold owns the ctx for
@@ -100,6 +93,21 @@ class PaymentEditScreen extends StatelessWidget {
             ),
           ),
         );
+        // The Email receipt switch starts where the settings cascade's
+        // `client_manual_payment_notification` says.
+        seedPaymentReceiptDefault(
+          settings: services.settings,
+          companyId: companyId,
+          vm: vm,
+        );
+        // Manual Overpayments decides whether money may be left unapplied.
+        if (vm.isCreate) {
+          services.company.get(companyId).then((c) {
+            if (c != null && !vm.isDisposed) {
+              vm.enableApplyingPayments = c.enableApplyingPayments;
+            }
+          }).ignore();
+        }
         return vm;
       },
       titleWhileLoading: (ctx) =>
@@ -137,10 +145,11 @@ class PaymentEditScreen extends StatelessWidget {
       actionsBuilder: (ctx, vm, onTap, saveButton) =>
           EntityOverflowActionBar<PaymentAction>(
             leading: saveButton,
-            items: filterForEditScreen(
-              PaymentActions.itemsFor(ctx, vm.draft, (a) => onTap(a)),
+            items: PaymentActions.editScreenItemsFor(
+              ctx,
+              vm.draft,
+              (a) => onTap(a),
               isCreate: vm.isCreate,
-              isLifecycle: PaymentActions.isLifecycle,
             ),
           ),
       onAfterSaveAction: (ctx, saved, a) {

@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import 'package:admin/app/design_tokens.dart';
+import 'package:admin/app/env.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/data/models/domain/billing/line_item.dart';
 import 'package:admin/data/models/domain/billing/line_item_custom_fields.dart';
@@ -1565,6 +1566,9 @@ class _Row extends StatefulWidget {
 class _RowStateW extends State<_Row> {
   bool _hovered = false;
 
+  /// The row's ⋮ holds keyboard focus — it shows while it does.
+  bool _menuFocused = false;
+
   // Re-expose widget fields as terse locals so the build body reads
   // without `widget.` prefix everywhere.
   int get index => widget.index;
@@ -1922,10 +1926,26 @@ class _RowStateW extends State<_Row> {
                 width: _kTrailingColWidth,
                 child: isGhost
                     ? const SizedBox.shrink()
-                    : AnimatedOpacity(
-                        duration: const Duration(milliseconds: 120),
-                        opacity: _hovered ? 1.0 : 0.0,
-                        child: ExcludeFocus(
+                    // Hover-revealed with a pointer; at rest on touch, which
+                    // has no hover to reveal it. A Tab stop on every platform
+                    // — it used to sit in `ExcludeFocus`, so the row's
+                    // actions (move, clone, remove) had no keyboard path at
+                    // all — and showing while it holds focus, so the stop
+                    // is never an invisible one.
+                    : Focus(
+                        canRequestFocus: false,
+                        skipTraversal: true,
+                        onFocusChange: (focused) {
+                          if (focused != _menuFocused) {
+                            setState(() => _menuFocused = focused);
+                          }
+                        },
+                        child: AnimatedOpacity(
+                          duration: InMotion.of(context)(InMotion.fast),
+                          opacity:
+                              _hovered || _menuFocused || Env.isTouchPrimary
+                              ? 1.0
+                              : 0.0,
                           child: _RowMenu(
                             onSelected: onMenuAction,
                             canMoveUp: index > 0,

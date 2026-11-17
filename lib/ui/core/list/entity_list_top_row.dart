@@ -106,7 +106,7 @@ class EntityListTopRow<T> extends StatelessWidget {
         // The token field carries every filter dimension. It fills the row
         // between the New button and the Columns button; `Expanded` still
         // keeps the Columns button glued to the row's trailing edge
-        // (24 px from the screen, flush with the table card below).
+        // (24 px from the screen, flush with the table below).
         Expanded(child: searchField),
         const SizedBox(width: 12),
         HeaderRowSlot(
@@ -181,11 +181,26 @@ class EntityListTopRow<T> extends StatelessWidget {
   }
 }
 
+/// The least width the search field keeps beside an embedded list's status
+/// segments; below it the segments are left out and the Status chip in the
+/// field is the way to filter by status.
+const double kEmbeddedSearchMinWidth = 280;
+
+/// What the toolbar sets aside for New and the gap before it when deciding
+/// whether the status segments fit — about "+ New" in the longer locales.
+const double kEmbeddedNewReserve = 132;
+
 /// Slim toolbar for an embedded related-entity list (a detail-screen tab):
-/// just the token search field + a compact "+ New" button — no Columns /
-/// Saved Views (matches the React client-detail layout). At every width the
-/// search field fills and the "+ New" button trails on the same row; the
-/// entity-specific label is moved to the button's tooltip to save space.
+/// the token search field, the status segments where they fit, and a compact
+/// "+ New" button — no Columns / Saved Views (matches the React client-detail
+/// layout). At every width the search field fills and the "+ New" button
+/// trails on the same row; the entity-specific label is moved to the button's
+/// tooltip to save space.
+///
+/// **New is outlined, not filled**: a record screen's quick-action strip
+/// already leads with the one accent-filled action, and a filled New under it
+/// in every tab was a second (`docs/detail-screen-layout.md` § One accent per
+/// screen).
 class EmbeddedListTopRow extends StatelessWidget {
   const EmbeddedListTopRow({
     required this.searchField,
@@ -196,8 +211,19 @@ class EmbeddedListTopRow extends StatelessWidget {
     this.showNew = true,
     this.onNewPressed,
     this.onSelect,
+    this.statusSegments,
+    this.statusSegmentsWidth = 0,
     super.key,
   });
+
+  /// The list's status segments (`EmbeddedStatusSegments`), placed after the
+  /// search field only when the field keeps [kEmbeddedSearchMinWidth] beside
+  /// [statusSegmentsWidth]. Null for a list with no status tabs.
+  final Widget? statusSegments;
+
+  /// [statusSegments]' width at rest, leading gap included
+  /// (`EmbeddedStatusSegments.naturalWidth`).
+  final double statusSegmentsWidth;
 
   /// Enters selection mode — the visible way in on a phone, where there is no
   /// hover checkbox and a row's long-press is undiscoverable, as the
@@ -230,22 +256,50 @@ class EmbeddedListTopRow extends StatelessWidget {
     final onNew = (!canCreate || create == null) ? null : () => create(context);
     final newButton = Tooltip(
       message: context.tr(newLabelKey ?? 'new'),
-      child: FilledButton.icon(
+      child: OutlinedButton.icon(
         onPressed: onNew,
         icon: const Icon(Icons.add, size: 18),
         label: Text(context.tr('new')),
-        style: FilledButton.styleFrom(
+        // `Size(0, 40)`: the theme's floor is infinitely wide, which a `Row`
+        // cannot lay out.
+        style: OutlinedButton.styleFrom(
           minimumSize: const Size(0, 40),
           padding: const EdgeInsets.symmetric(horizontal: 16),
         ),
       ),
     );
+    final hasNew = showNew && create != null;
+    final segments = statusSegments;
+    if (segments == null) return _row(context, newButton, hasNew, null);
+    // Measured against the toolbar's own width: the record pane, a phone and
+    // the lead column beside a rail all host this row.
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final reserve =
+            (hasNew ? kEmbeddedNewReserve : 0) + (onSelect != null ? 52 : 0);
+        final fits =
+            constraints.maxWidth - statusSegmentsWidth - reserve >=
+            kEmbeddedSearchMinWidth;
+        return _row(context, newButton, hasNew, fits ? segments : null);
+      },
+    );
+  }
+
+  Widget _row(
+    BuildContext context,
+    Widget newButton,
+    bool hasNew,
+    Widget? segments,
+  ) {
     // Top-aligned for the same reason as [EntityListTopRow]: the field can
     // wrap, and "New" stays level with its first line.
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(child: searchField),
+        // Carries its own leading gap, so a decision to draw nothing costs
+        // nothing here.
+        if (segments != null) HeaderRowSlot(child: segments),
         if (onSelect != null) ...[
           const SizedBox(width: 4),
           HeaderRowSlot(
@@ -256,7 +310,7 @@ class EmbeddedListTopRow extends StatelessWidget {
             ),
           ),
         ],
-        if (showNew && create != null) ...[
+        if (hasNew) ...[
           const SizedBox(width: 12),
           HeaderRowSlot(child: newButton),
         ],

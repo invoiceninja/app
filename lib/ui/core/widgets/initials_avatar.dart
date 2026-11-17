@@ -7,7 +7,8 @@ import 'package:admin/ui/core/widgets/avatar_tint.dart';
 ///
 /// The shared body behind every initials avatar in the app — Clients and
 /// Vendors list rows, and the assigned-user badge on Task rows. The tint comes
-/// from [avatarTintFor], so one seed always yields the same colour app-wide;
+/// from [avatarTintFor] — a soft background with the same hue's ink on it —
+/// so one seed always yields the same colour app-wide;
 /// seed on the entity **id**, never the display name, or a rename would change
 /// the colour.
 ///
@@ -41,18 +42,19 @@ class InitialsAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final tint = avatarTintFor(context, seed);
     return Container(
       width: size,
       height: size,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: avatarTintFor(seed),
+        color: tint.background,
         borderRadius: BorderRadius.circular(radius ?? InRadii.r1),
       ),
       child: Text(
         label,
         style: TextStyle(
-          color: Colors.white,
+          color: tint.ink,
           fontSize: fontSize ?? size * 0.40625,
           fontWeight: FontWeight.w600,
           letterSpacing: 0.3,
@@ -69,10 +71,16 @@ class InitialsAvatar extends StatelessWidget {
 ///
 /// Unicode-aware on purpose: `\P{L}` ("not a Letter") strips punctuation and
 /// digits without mangling Cyrillic / CJK / Arabic names into `?`.
+///
+/// A hyphen separates words too, so a double-barrelled name reads as two:
+/// "Brown-Mertz" → BM, "Jean-Luc Picard" → JP (first and last word, as
+/// ever). A name with no separator keeps its one letter.
 String? initialsFor(String name) {
   final nonLetter = RegExp(r'\P{L}', unicode: true);
   final words = name
-      .split(RegExp(r'\s+'))
+      // Whitespace, ASCII hyphen-minus, and the Unicode hyphen / non-breaking
+      // hyphen a pasted name can carry.
+      .split(RegExp(r'[\s\-\u2010\u2011]+'))
       .map((w) => w.replaceAll(nonLetter, ''))
       .where((w) => w.isNotEmpty)
       .toList();

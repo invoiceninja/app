@@ -18,6 +18,7 @@ import 'package:admin/ui/features/settings/widgets/settings_company_scoped_host.
 import 'package:admin/ui/features/settings/widgets/settings_form_shell.dart';
 import 'package:admin/ui/features/settings/widgets/settings_page_scaffold.dart';
 import 'package:admin/ui/core/utils/router_state.dart';
+import 'package:admin/ui/features/settings/widgets/settings_tab_strip.dart';
 
 /// URL slug → tab-index mapping for the three Online Payments tabs. Order
 /// matches the user-facing tab order (General, Defaults, Emails) and the
@@ -140,23 +141,27 @@ class _OnlinePaymentsShellState extends State<OnlinePaymentsShell>
           viewModel: vm,
           bottom: isWide
               ? null
-              : TabBar(
-                  controller: _tabController,
-                  isScrollable: true,
-                  tabAlignment: TabAlignment.center,
-                  labelColor: tokens.ink,
-                  unselectedLabelColor: tokens.ink3,
-                  indicatorColor: tokens.accent,
-                  indicatorWeight: 2,
-                  tabs: [
-                    Tab(text: context.tr('settings')),
-                    Tab(text: context.tr('defaults')),
-                    Tab(text: context.tr('emails')),
-                  ],
+              : SettingsTabStrip(
+                  tabBar: TabBar(
+                    controller: _tabController,
+                    isScrollable: true,
+                    tabAlignment: TabAlignment.start,
+                    padding: settingsTabBarPadding(),
+                    labelColor: tokens.ink,
+                    unselectedLabelColor: tokens.ink3,
+                    indicatorColor: tokens.accent,
+                    indicatorWeight: 2,
+                    tabs: [
+                      Tab(text: context.tr('settings')),
+                      Tab(text: context.tr('defaults')),
+                      Tab(text: context.tr('emails')),
+                    ],
+                  ),
                 ),
           body: isWide
-              ? const SettingsFormShell(
-                  sections: [
+              ? SettingsFormShell(
+                  subtitle: context.tr('online_payments_subtitle'),
+                  sections: const [
                     OnlinePaymentsGeneralBody(),
                     OnlinePaymentsDefaultsBody(),
                     OnlinePaymentsEmailsBody(),
@@ -171,6 +176,7 @@ class _OnlinePaymentsShellState extends State<OnlinePaymentsShell>
                   // short-circuiting on identity.
                   children: [
                     SettingsFormShell(
+                      subtitle: context.tr('online_payments_subtitle'),
                       sections: const [OnlinePaymentsGeneralBody()],
                     ),
                     SettingsFormShell(

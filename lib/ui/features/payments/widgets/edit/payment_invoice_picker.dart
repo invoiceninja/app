@@ -20,10 +20,10 @@ import 'package:admin/utils/formatting.dart';
 /// payable: the server takes a payment on one up to its amount and marks it
 /// sent (no email), as v1 and React both allow.
 ///
-/// It shows and controls the payment's single invoice, so it is drawn only
-/// while there is at most one: past that the allocations section below is
-/// where invoices are added and removed, and a picker showing one of several
-/// would be a lie about the rest.
+/// It is drawn only while no client is chosen: picking an invoice chooses
+/// its client, and from then on the Apply to invoices table
+/// (`payment_apply_invoices.dart`) lists that client's invoices with this one
+/// ticked.
 class PaymentInvoicePicker extends StatefulWidget {
   const PaymentInvoicePicker({
     super.key,

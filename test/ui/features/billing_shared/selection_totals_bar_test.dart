@@ -7,8 +7,11 @@ import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/app/theme.dart';
 import 'package:admin/data/models/api/client_api_model.dart';
+import 'package:admin/data/models/api/vendor_api_model.dart';
 import 'package:admin/data/models/domain/client.dart';
+import 'package:admin/data/models/domain/vendor.dart';
 import 'package:admin/data/repositories/client_repository.dart';
+import 'package:admin/data/repositories/vendor_repository.dart';
 import 'package:admin/data/repositories/group_setting_repository.dart';
 import 'package:admin/domain/billing/selection_totals.dart';
 import 'package:admin/ui/features/billing_shared/selection_totals_bar.dart';
@@ -39,15 +42,28 @@ class _FakeClients implements ClientRepository {
   dynamic noSuchMethod(Invocation invocation) => throw UnimplementedError();
 }
 
+class _FakeVendors implements VendorRepository {
+  _FakeVendors(this.byId);
+  final Map<String, Vendor> byId;
+  @override
+  Stream<Vendor?> watch({required String companyId, required String id}) =>
+      Stream<Vendor?>.value(byId[id]);
+  @override
+  dynamic noSuchMethod(Invocation invocation) => throw UnimplementedError();
+}
+
 class _FakeGroups implements GroupSettingRepository {
   @override
   dynamic noSuchMethod(Invocation invocation) => throw UnimplementedError();
 }
 
 class _FakeServices implements Services {
-  _FakeServices(this.clients);
+  _FakeServices(this.clients, [VendorRepository? vendors])
+    : vendors = vendors ?? _FakeVendors(const {});
   @override
   final ClientRepository clients;
+  @override
+  final VendorRepository vendors;
   @override
   final GroupSettingRepository groupSettings = _FakeGroups();
   @override
@@ -91,6 +107,23 @@ void main() {
       );
     });
 
+    test('a vendor id never collides with a client id', () {
+      // A purchase order totals in its vendor's currency; the same hashed id
+      // naming a client must not answer for it.
+      final keys = <String>[];
+      selectionTotals(
+        [
+          _row('x', '1'),
+          SelectionTotalsRow(vendorId: 'x', amount: _d('2'), taxes: _d('0')),
+        ],
+        (k) {
+          keys.add(k);
+          return '1';
+        },
+      );
+      expect(keys, ['x', '${kVendorPartyPrefix}x']);
+    });
+
     test('no balance when no row has one', () {
       expect(selectionTotals([_row('a', '9')], usd)!.single.balance, isNull);
     });
@@ -131,6 +164,49 @@ void main() {
     expect(find.text('Net Amount  100', findRichText: true), findsOneWidget);
     expect(find.text('Balance  110', findRichText: true), findsOneWidget);
     expect(find.text('Amount  40', findRichText: true), findsOneWidget);
+    expect(find.byType(Wrap), findsNWidgets(2));
+  });
+
+  testWidgets('purchase orders total in their vendor\'s currency, and a vendor '
+      'naming none is in the company\'s', (tester) async {
+    final services = _FakeServices(
+      _FakeClients(const {}),
+      _FakeVendors({
+        'eu': Vendor.fromApi(const VendorApi(id: 'eu', currencyId: '3')),
+        'home': Vendor.fromApi(const VendorApi(id: 'home')),
+      }),
+    );
+    await tester.pumpWidget(
+      Provider<Services>.value(
+        value: services,
+        child: MaterialApp(
+          theme: buildInTheme(InTheme.light),
+          localizationsDelegates: kTestLocalizationsDelegates,
+          supportedLocales: kTestSupportedLocales,
+          home: Scaffold(
+            body: SelectionTotalsBar(
+              companyId: 'co',
+              rows: [
+                SelectionTotalsRow(
+                  vendorId: 'eu',
+                  amount: _d('40'),
+                  taxes: _d('0'),
+                ),
+                SelectionTotalsRow(
+                  vendorId: 'home',
+                  amount: _d('7'),
+                  taxes: _d('0'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Amount  40', findRichText: true), findsOneWidget);
+    expect(find.text('Amount  7', findRichText: true), findsOneWidget);
     expect(find.byType(Wrap), findsNWidgets(2));
   });
 }

@@ -39,3 +39,14 @@ bool isSafeWebUrl(String? url) {
   if (uri.userInfo.isNotEmpty) return false;
   return true;
 }
+
+/// What a user typed into a website field, as a URL that is safe to open:
+/// `https://` is assumed when they typed no scheme (`acme.com`), and the
+/// result must pass [isSafeWebUrl]. Null when it cannot be opened — blank,
+/// another scheme, no host.
+String? openableWebsiteUrl(String raw) {
+  final trimmed = raw.trim();
+  if (trimmed.isEmpty) return null;
+  final url = trimmed.contains('://') ? trimmed : 'https://$trimmed';
+  return isSafeWebUrl(url) ? url : null;
+}

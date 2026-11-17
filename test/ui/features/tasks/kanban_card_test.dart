@@ -109,6 +109,45 @@ void main() {
     expect(find.byIcon(Icons.play_circle_outlined), findsOneWidget);
   });
 
+  // docs/touch-targets.md: the corner's Start/Stop is a finger's target on
+  // touch, like the card's ⋮ — it was 36 (and `VisualDensity.compact` on a
+  // 44 constraint draws 36 too).
+  testWidgets('the timer toggle is a 44 px target on touch', (tester) async {
+    await pumpCard(tester, task: _task(), moveTargets: const []);
+    final button = find.ancestor(
+      of: find.byIcon(Icons.play_circle_outlined),
+      matching: find.byType(IconButton),
+    );
+    final size = tester.getSize(button);
+    expect(size.width, greaterThanOrEqualTo(44));
+    expect(size.height, greaterThanOrEqualTo(44));
+  });
+
+  testWidgets('on touch the timer and the ⋮ do not share a pixel', (
+    tester,
+  ) async {
+    // Both are 44 under a finger and both sit on the card's end edge; an
+    // overlap hands the lower part of the ⋮ to the timer (it is hit first).
+    await pumpCard(tester, task: _task(), moveTargets: const []);
+    final timer = tester.getRect(
+      find.ancestor(
+        of: find.byIcon(Icons.play_circle_outlined),
+        matching: find.byType(IconButton),
+      ),
+    );
+    final menu = tester.getRect(find.byTooltip('Actions'));
+    expect(timer.overlaps(menu), isFalse, reason: '$timer vs $menu');
+  });
+
+  testWidgets('...and stays compact with a pointer', (tester) async {
+    await pumpCard(tester, task: _task());
+    final button = find.ancestor(
+      of: find.byIcon(Icons.play_circle_outlined),
+      matching: find.byType(IconButton),
+    );
+    expect(tester.getSize(button).height, lessThan(44));
+  }, variant: TargetPlatformVariant.only(TargetPlatform.macOS));
+
   testWidgets('drag-feedback ghost (showTimerButton:false) has no toggle', (
     tester,
   ) async {

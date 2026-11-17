@@ -17,7 +17,7 @@ import 'package:admin/l10n/localization.dart';
 ///
 /// Differences across the three call sites are minor:
 ///   * Info + Table → [trailing] is `IconButton(delete_outline)`.
-///   * Total → [trailing] is `Switch.adaptive` (items are hideable, not
+///   * Total → [trailing] is `Switch` (items are hideable, not
 ///     deletable).
 ///
 /// This widget owns the surrounding `Padding` + `Column` + the

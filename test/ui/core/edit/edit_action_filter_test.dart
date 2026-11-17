@@ -92,4 +92,33 @@ void main() {
     ).map((i) => i.kind);
     expect(kept, [_Action.enterPayment, _Action.sendEmail]);
   });
+
+  // The edit screen's one primary is Save; a promoted detail action (a sent
+  // invoice's Enter Payment) drew filled beside it.
+  test('every kept item is demoted — Save is the only primary', () {
+    var tapped = false;
+    final kept = filterForEditScreen(
+      [
+        EntityActionItem(
+          kind: _Action.enterPayment,
+          icon: Icons.circle,
+          label: 'enterPayment',
+          enabled: true,
+          isPrimary: true,
+          confirm: true,
+          onTap: () => tapped = true,
+        ),
+        _item(_Action.sendEmail),
+      ],
+      isCreate: false,
+      isLifecycle: _isLifecycle,
+    );
+    expect(kept.map((i) => i.kind), [_Action.enterPayment, _Action.sendEmail]);
+    expect(kept.any((i) => i.isPrimary), isFalse);
+    // Everything else rides along.
+    expect(kept.first.confirm, isTrue);
+    expect(kept.first.label, 'enterPayment');
+    kept.first.onTap!();
+    expect(tapped, isTrue);
+  });
 }

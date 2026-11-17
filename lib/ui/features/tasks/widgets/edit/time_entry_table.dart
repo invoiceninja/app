@@ -1,11 +1,14 @@
 import 'package:material_ui/material_ui.dart';
 
 import 'package:admin/app/design_tokens.dart';
+import 'package:admin/app/env.dart';
 import 'package:admin/data/models/domain/time_entry.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/in_date_field.dart';
 import 'package:admin/ui/core/widgets/in_time_field.dart';
 import 'package:admin/ui/features/tasks/view_models/task_edit_view_model.dart';
+import 'package:admin/ui/features/tasks/widgets/edit/time_entry_row.dart';
+import 'package:admin/ui/features/tasks/widgets/edit/time_log_empty_state.dart';
 import 'package:admin/ui/features/tasks/widgets/running_duration_label.dart';
 import 'package:admin/utils/formatting.dart';
 
@@ -56,7 +59,12 @@ class TimeEntryTable extends StatefulWidget {
   static const double _wTime = 132;
   static const double _wDuration = 140;
   static const double _wBillable = 96;
-  static const double _wDelete = 40;
+
+  /// The remove column: sized from the button it holds, so a touch device's
+  /// 44 px ✕ is never squeezed into a pointer-sized slot
+  /// (`docs/touch-targets.md` trap 5).
+  static double get _wDelete =>
+      Env.isTouchPrimary ? TimeEntryRemoveButton.extentFor(touch: true) : 40;
   static const double _gap = InSpacing.sm;
 
   @override
@@ -106,14 +114,17 @@ class _TimeEntryTableState extends State<TimeEntryTable> {
         ? 1
         : 0;
 
+    // No entries: no column headers heading nothing, the shared empty state
+    // instead. Returned from here rather than by the section swapping this
+    // table out, so the State survives and the first row added still gets
+    // its start cell focused (`_prevTimeLogLength` above).
+    if (entries.isEmpty) return TimeLogEmptyState(locked: widget.locked);
+
     final body = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _Headers(tokens: tokens, allowBillable: widget.allowBillable),
         Divider(height: 1, color: tokens.border),
-        // Empty-state text dropped on wide — with inline `+ Add row` the
-        // user just clicks the affordance below instead of reading a
-        // placeholder string.
         for (var i = 0; i < entries.length; i++)
           _EntryBlock(
             // The running entry (always timeLog.last) gets a STABLE key so a
@@ -220,7 +231,7 @@ class _Headers extends StatelessWidget {
             const SizedBox(width: TimeEntryTable._gap),
           ],
           // Delete column has no header label — the icon is self-evident.
-          const SizedBox(width: TimeEntryTable._wDelete),
+          SizedBox(width: TimeEntryTable._wDelete),
         ],
       ),
     );
@@ -724,12 +735,10 @@ class _DeleteCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return IconButton(
-      tooltip: context.tr('remove'),
-      icon: const Icon(Icons.close, size: 16),
-      onPressed: () => vm.removeEntry(actualIndex),
-      visualDensity: VisualDensity.compact,
-      constraints: const BoxConstraints(minWidth: 32, minHeight: 36),
+    return Center(
+      child: TimeEntryRemoveButton(
+        onPressed: () => vm.removeEntry(actualIndex),
+      ),
     );
   }
 }

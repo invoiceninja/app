@@ -8,11 +8,13 @@ import 'package:admin/data/models/domain/user.dart';
 import 'package:admin/data/models/value/dashboard_filter.dart';
 import 'package:admin/data/models/value/date.dart';
 import 'package:admin/data/static/activity_types_catalog.dart';
+import 'package:admin/domain/activity/activity_record_types.dart';
 import 'package:admin/domain/activity/activity_timeline.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/multi_entity_picker.dart';
 import 'package:admin/ui/core/widgets/searchable_dropdown_field.dart';
 import 'package:admin/ui/features/activity/view_models/activity_view_model.dart';
+import 'package:admin/ui/features/activity/widgets/activity_period_labels.dart';
 import 'package:admin/ui/features/dashboard/helpers/activity_formatter.dart';
 import 'package:admin/ui/features/dashboard/widgets/filters/date_range_picker_button.dart';
 import 'package:admin/utils/formatting.dart';
@@ -54,17 +56,22 @@ IconData activityCategoryIcon(ActivityCategory c) =>
 /// `openManageDashboardCards` uses, so the two read as one family. A pane wide
 /// enough for the side rail never opens this: the rail *is* the same panel.
 ///
+/// [showCategories] false leaves the category chips out, for a screen that
+/// draws them under its chart.
+///
 /// Mutations apply live against [vm]; there is no Save gate.
 Future<void> openActivityFilters(
   BuildContext context, {
   required ActivityViewModel vm,
   required String companyId,
   Formatter? formatter,
+  bool showCategories = true,
 }) {
   final body = ActivityFilterPanel(
     vm: vm,
     companyId: companyId,
     formatter: formatter,
+    showCategories: showCategories,
   );
   if (MediaQuery.sizeOf(context).width >= 600) {
     return showDialog<void>(
@@ -93,7 +100,8 @@ Future<void> openActivityFilters(
   );
 }
 
-/// The activity filters: date range, category, user, lens and type.
+/// The activity filters: date range, category, user, source (the lens),
+/// record type and activity type.
 ///
 /// One widget, two hosts — the sheet / dialog from [openActivityFilters], and
 /// (with [inline]) the side rail a wide `/activity` pane shows instead of a
@@ -106,12 +114,18 @@ class ActivityFilterPanel extends StatefulWidget {
     required this.companyId,
     this.formatter,
     this.inline = false,
+    this.showCategories = true,
   });
 
   final ActivityViewModel vm;
   final String companyId;
   final Formatter? formatter;
   final bool inline;
+
+  /// False where the screen draws the category chips under its chart (a pane
+  /// ≥ 600 px wide showing it): the chips redraw the bars, so that is where
+  /// they belong, and a second copy here would be two controls for one state.
+  final bool showCategories;
 
   @override
   State<ActivityFilterPanel> createState() => _ActivityFilterPanelState();
@@ -175,8 +189,10 @@ class _ActivityFilterPanelState extends State<ActivityFilterPanel> {
                     children: [
                       _DateRangeRow(vm: vm, formatter: widget.formatter),
                       SizedBox(height: InSpacing.lg(context)),
-                      _CategoryChips(vm: vm),
-                      SizedBox(height: InSpacing.lg(context)),
+                      if (widget.showCategories) ...[
+                        ActivityCategoryChips(vm: vm),
+                        SizedBox(height: InSpacing.lg(context)),
+                      ],
                       StreamBuilder<List<User>>(
                         stream: _users,
                         builder: (context, snap) {
@@ -201,12 +217,18 @@ class _ActivityFilterPanelState extends State<ActivityFilterPanel> {
                             initialValue: selected,
                             displayString: (u) => u.displayName,
                             idOf: (u) => u.id,
-                            emptyHintKey: 'no_records_found',
+                            // "No records" only once the roster has answered;
+                            // before that the field says it is loading.
+                            emptyHintKey: snap.hasData
+                                ? 'no_records_found'
+                                : null,
                             onChanged: (u) => vm.setUser(u?.id),
                           );
                         },
                       ),
                       SizedBox(height: InSpacing.lg(context)),
+                      _SectionLabel(context.tr('source')),
+                      const SizedBox(height: InSpacing.xs),
                       // The human-written lens subsumes the type filter, so
                       // it sits above it and visibly disables it — see
                       // `ActivityFilters.lens`. A `SegmentedButton`, never a
@@ -249,10 +271,9 @@ class _ActivityFilterPanelState extends State<ActivityFilterPanel> {
                           ),
                         ),
                       ),
-                      // A full field gap, not `sm`: at 8 px the Type picker's
-                      // label read as the caption of the lens control above
-                      // it, which has none.
-                      SizedBox(height: InSpacing.lg(context)),
+                      SizedBox(height: InSpacing.md(context)),
+                      _RecordTypePicker(vm: vm),
+                      SizedBox(height: InSpacing.md(context)),
                       AnimatedOpacity(
                         duration: const Duration(milliseconds: 150),
                         opacity: f.lens != ActivityLens.all ? 0.4 : 1,
@@ -313,13 +334,59 @@ class _ActivityFilterPanelState extends State<ActivityFilterPanel> {
   }
 }
 
-/// The range control: the dashboard's period picker (presets plus a custom
-/// calendar), so "Last 30 days" means the same thing on both screens.
+/// The quick ranges the date filter offers as a 2 × 2 grid of toggles.
+enum ActivityQuickRange {
+  today('today'),
+  last7('last_7_days'),
+  last30('last_30_days'),
+  allTime('all_time');
+
+  const ActivityQuickRange(this.labelKey);
+
+  final String labelKey;
+}
+
+/// The `[from, until)` [q] stands for on [today] (default: the device's), or
+/// null for All Time, which is how the filter says "no range". Whole local
+/// days, the same shape a calendar pick or a day bar writes; the "Last N
+/// days" ranges end today and resolve through the dashboard's presets, so
+/// "Last 30 days" means the same thing on both screens.
+(DateTime, DateTime)? activityQuickRange(ActivityQuickRange q, {Date? today}) {
+  final t = today ?? Date.today();
+  final (Date start, Date end) = switch (q) {
+    ActivityQuickRange.today => (t, t),
+    ActivityQuickRange.last7 => const DashboardPresetRange(
+      DashboardDatePreset.last7,
+    ).resolve(today: t),
+    ActivityQuickRange.last30 => const DashboardPresetRange(
+      DashboardDatePreset.last30,
+    ).resolve(today: t),
+    ActivityQuickRange.allTime => (t, t),
+  };
+  if (q == ActivityQuickRange.allTime) return null;
+  return (start.toDateTime(), end.addDays(1).toDateTime());
+}
+
+/// The quick range [f] holds exactly, or null for a custom one (a bar, a
+/// drag, a calendar pick, or a quick range picked on an earlier day — it is
+/// stored as the dates it covered then).
+ActivityQuickRange? activityQuickRangeOf(ActivityFilters f, {Date? today}) {
+  if (!f.hasRange) return ActivityQuickRange.allTime;
+  for (final q in ActivityQuickRange.values) {
+    final r = activityQuickRange(q, today: today);
+    if (r != null && r.$1 == f.from && r.$2 == f.until) return q;
+  }
+  return null;
+}
+
+/// The range control: four quick ranges as a 2 × 2 grid of toggles, and a
+/// calendar button for any other — the dashboard's period picker, presets
+/// and all. A range from a timeline bar or a drag lands here too: no toggle
+/// is lit, and the calendar button carries the dates with a ✕ to drop them.
 ///
-/// A preset is resolved to dates **when it is picked** and stored as a fixed
-/// range, the same shape a timeline bar writes — the filter has one
+/// A quick range is resolved to dates **when it is picked** and stored as a
+/// fixed range, the same shape a timeline bar writes — the filter has one
 /// representation, and its chip prints the dates it is actually applying.
-/// "All Time" is how the picker says "no range".
 class _DateRangeRow extends StatelessWidget {
   const _DateRangeRow({required this.vm, required this.formatter});
 
@@ -329,33 +396,95 @@ class _DateRangeRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final f = vm.filters;
-    final current = _currentRange(f);
+    final quick = activityQuickRangeOf(f);
+    final custom = f.hasRange && quick == null;
+    Widget toggle(ActivityQuickRange q) => Expanded(
+      child: _RangeToggle(
+        label: context.tr(q.labelKey),
+        selected: quick == q,
+        onPressed: () {
+          final r = activityQuickRange(q);
+          vm.setRange(r?.$1, r?.$2);
+        },
+      ),
+    );
+    final gap = SizedBox(width: InSpacing.sm, height: InSpacing.sm);
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
         _SectionLabel(context.tr('date_range')),
         const SizedBox(height: InSpacing.xs),
+        // `inMutuallyExclusiveGroup` on each toggle reads the four as one
+        // choice; the grid is two rows so the labels never squeeze.
+        Row(
+          children: [
+            toggle(ActivityQuickRange.today),
+            gap,
+            toggle(ActivityQuickRange.last7),
+          ],
+        ),
+        gap,
+        Row(
+          children: [
+            toggle(ActivityQuickRange.last30),
+            gap,
+            toggle(ActivityQuickRange.allTime),
+          ],
+        ),
+        gap,
         Row(
           children: [
             Flexible(
-              child: DateRangePickerButton(
-                current: current,
-                formatter: formatter,
-                onChange: (r) {
-                  if (r is DashboardPresetRange &&
-                      r.preset == DashboardDatePreset.allTime) {
-                    vm.setRange(null, null);
-                    return;
-                  }
-                  final (start, end) = r.resolve(
-                    firstMonthOfYear: formatter?.settings.firstMonthOfYear ?? 1,
-                  );
-                  vm.setRange(start.toDateTime(), end.addDays(1).toDateTime());
-                },
+              child: Builder(
+                // Its own context, so the popover anchors to this button.
+                builder: (anchor) => TextButton.icon(
+                  style: TextButton.styleFrom(
+                    minimumSize: Size(
+                      0,
+                      Env.isTouchPrimary ? InSizes.touchTarget : 36,
+                    ),
+                    foregroundColor: custom
+                        ? context.inTheme.ink
+                        : context.inTheme.ink2,
+                  ),
+                  icon: const Icon(Icons.calendar_today_outlined, size: 14),
+                  label: Text(
+                    custom
+                        ? activityRangeLabel(
+                            context,
+                            from: f.from,
+                            until: f.until,
+                            formatter: formatter,
+                          )
+                        : context.tr('custom_range'),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  onPressed: () => openDateRangePicker(
+                    anchor,
+                    current: _currentRange(f),
+                    formatter: formatter,
+                    onChange: (r) {
+                      if (r is DashboardPresetRange &&
+                          r.preset == DashboardDatePreset.allTime) {
+                        vm.setRange(null, null);
+                        return;
+                      }
+                      final (start, end) = r.resolve(
+                        firstMonthOfYear:
+                            formatter?.settings.firstMonthOfYear ?? 1,
+                      );
+                      vm.setRange(
+                        start.toDateTime(),
+                        end.addDays(1).toDateTime(),
+                      );
+                    },
+                  ),
+                ),
               ),
             ),
-            if (f.hasRange)
+            if (custom)
               IconButton(
                 icon: const Icon(Icons.close, size: 18),
                 tooltip: context.tr('clear'),
@@ -390,13 +519,111 @@ class _DateRangeRow extends StatelessWidget {
   }
 }
 
+/// One quick-range toggle: a rounded rectangle, filled when on.
+class _RangeToggle extends StatelessWidget {
+  const _RangeToggle({
+    required this.label,
+    required this.selected,
+    required this.onPressed,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.inTheme;
+    return Semantics(
+      selected: selected,
+      inMutuallyExclusiveGroup: true,
+      child: OutlinedButton(
+        style: OutlinedButton.styleFrom(
+          // In a `Row`: the theme's infinite minimum width would crash it
+          // (`docs/buttons-and-spacing.md`).
+          minimumSize: Size(64, Env.isTouchPrimary ? InSizes.touchTarget : 36),
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          foregroundColor: selected ? tokens.ink : tokens.ink2,
+          backgroundColor: selected ? tokens.surfaceAlt : null,
+          side: BorderSide(
+            color: selected ? tokens.borderStrong : tokens.border,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(InRadii.r2),
+          ),
+        ),
+        onPressed: onPressed,
+        child: Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Single-select record type, offering only the types the window holds under
+/// every other filter (`ActivityViewModel.recordTypeCounts`), each with its
+/// count — the facet rule, so no option can only empty the feed.
+class _RecordTypePicker extends StatelessWidget {
+  const _RecordTypePicker({required this.vm});
+
+  final ActivityViewModel vm;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.inTheme;
+    final counts = vm.recordTypeCounts;
+    final selected = vm.filters.recordType;
+    final options = [
+      for (final t in ActivityRecordType.values)
+        if ((counts[t] ?? 0) > 0 || t == selected) t,
+    ];
+    return SearchableDropdownField<ActivityRecordType>(
+      label: context.tr('record_type'),
+      // No type picked keeps every record.
+      hintText: context.tr('all_records'),
+      items: options,
+      initialValue: selected,
+      displayString: (t) => context.tr(t.labelKey),
+      idOf: (t) => t.name,
+      // Loading until the window has arrived; empty after that is real.
+      emptyHintKey: vm.section.data == null ? null : 'no_records_found',
+      optionTrailingBuilder: (context, t) => Text(
+        '${counts[t] ?? 0}',
+        style: TextStyle(
+          fontSize: 12,
+          color: tokens.ink3,
+          fontFeatures: const [FontFeature.tabularFigures()],
+        ),
+      ),
+      onChanged: vm.setRecordType,
+    );
+  }
+}
+
 /// One chip per category, each with what it would keep under the other
 /// filters (`ActivityViewModel.categoryCounts`). A zero chip that isn't
 /// already on is disabled — ticking it could only empty the feed.
-class _CategoryChips extends StatelessWidget {
-  const _CategoryChips({required this.vm});
+///
+/// In the filter panel, or (with [showLabel] false) under the `/activity`
+/// chart on a pane ≥ 600 px, where ticking one visibly redraws the bars.
+class ActivityCategoryChips extends StatelessWidget {
+  const ActivityCategoryChips({
+    super.key,
+    required this.vm,
+    this.showLabel = true,
+  });
 
   final ActivityViewModel vm;
+
+  /// The "Category" caption above the chips — dropped under the chart.
+  final bool showLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -407,8 +634,10 @@ class _CategoryChips extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        _SectionLabel(context.tr('category')),
-        const SizedBox(height: InSpacing.xs),
+        if (showLabel) ...[
+          _SectionLabel(context.tr('category')),
+          const SizedBox(height: InSpacing.xs),
+        ],
         Wrap(
           spacing: InSpacing.sm,
           runSpacing: InSpacing.xs,

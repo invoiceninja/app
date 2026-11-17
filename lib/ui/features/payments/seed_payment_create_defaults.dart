@@ -173,3 +173,59 @@ void seedPaymentCreateDefaults({
     resolve();
   });
 }
+
+/// Whether the settings cascade asks for a receipt on a manually entered
+/// payment (`client_manual_payment_notification`, Settings → Online Payments
+/// → Emails). The blob is raw JSON, so a string or a number arrives too; an
+/// absent value is no.
+bool manualPaymentReceiptDefault(Map<String, dynamic>? settings) {
+  final raw = settings?['client_manual_payment_notification'];
+  return raw == true || raw == 1 || raw == 'true' || raw == '1';
+}
+
+/// Seed a new payment's Email receipt switch from the settings cascade —
+/// the company's before a client is chosen, then the client's (its own, its
+/// group's, the company's), the setting the server itself would apply. React
+/// seeds the company's. Every seed goes through
+/// [PaymentEditViewModel.seedSendEmail], so none lands once the user flipped
+/// the switch or on an edit form.
+void seedPaymentReceiptDefault({
+  required SettingsRepository settings,
+  required String companyId,
+  required PaymentEditViewModel vm,
+}) {
+  if (!vm.isCreate) return;
+  var token = 0;
+
+  void resolve() {
+    final clientId = vm.draft.clientId.isEmpty ? null : vm.draft.clientId;
+    final request = ++token;
+    final guess = settings.resolvedIfReady(
+      companyId: companyId,
+      clientId: clientId,
+    );
+    if (guess != null) vm.seedSendEmail(manualPaymentReceiptDefault(guess));
+    unawaited(() async {
+      Map<String, dynamic>? resolved;
+      try {
+        resolved = await settings.resolved(
+          companyId: companyId,
+          clientId: clientId,
+        );
+      } catch (_) {
+        return;
+      }
+      if (request != token || vm.isDisposed) return;
+      vm.seedSendEmail(manualPaymentReceiptDefault(resolved));
+    }());
+  }
+
+  resolve();
+  var lastClientId = vm.draft.clientId;
+  vm.addListener(() {
+    final clientId = vm.draft.clientId;
+    if (clientId == lastClientId || vm.isDisposed) return;
+    lastClientId = clientId;
+    resolve();
+  });
+}

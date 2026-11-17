@@ -97,7 +97,7 @@ class BillingStatusTab {
 ///
 /// **Derived, not invented.** Filtered to each entity's participating ids this
 /// reproduces that entity's own `kListStatusTabs` order exactly — invoices read
-/// `draft, unpaid, overdue` and quotes read
+/// `draft, unpaid, overdue, paid` and quotes read
 /// `draft, sent, approved, rejected, cancelled, expired` — so a panel can never
 /// disagree with the list its View All lands on.
 /// `billing_status_tabs_test` pins that property in both directions.
@@ -116,6 +116,8 @@ const List<String> kBillingPipelineTabOrder = [
   'draft',
   'unpaid',
   'overdue',
+  // Invoice-only, last on the Invoices strip.
+  'paid',
   'sent',
   'approved',
   'rejected',

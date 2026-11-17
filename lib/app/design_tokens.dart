@@ -8,8 +8,9 @@ import 'package:admin/app/color_hex.dart';
 
 /// Bundled font families (declared in pubspec `fonts:`), referenced by name so
 /// they load from our own assets instead of fetching from fonts.gstatic.com.
-/// [kSansFontFamily] is the primary UI typeface; [kMonoFontFamily] is used for
-/// tabular numerals (amounts, line-item quantities, column cells).
+/// [kSansFontFamily] is the primary UI typeface, and with tabular figures it
+/// is also the money face ([moneyTextStyle]); [kMonoFontFamily] is for code,
+/// keys, ids and other values read character by character.
 const String kSansFontFamily = 'Inter Tight';
 const String kMonoFontFamily = 'JetBrains Mono';
 
@@ -26,11 +27,17 @@ const List<String> kScriptFallbackFonts = [
 ];
 
 /// Canonical text style for any standalone currency/amount display: the
-/// bundled [kMonoFontFamily] (JetBrains Mono) plus tabular figures so digits
-/// align across rows. Every money `Text` goes through this — pass the per-site
-/// size/weight/color; never re-inline the family, or it silently drifts back
-/// to the sans face. Money rendered inside prose/activity spans is the one
-/// exception (it stays in the body font).
+/// bundled [kSansFontFamily] (Inter Tight) with tabular figures, so digits
+/// take one width and align across rows while the amount still reads as text
+/// rather than code. Every money `Text` goes through this — pass the per-site
+/// size/weight/color; never re-inline the family or the feature, or the
+/// digits silently go proportional and a column of amounts stops lining up.
+/// Money rendered inside prose/activity spans is the one exception (it stays
+/// in the body font).
+///
+/// It was JetBrains Mono until Nov 2026: the mono face made every amount read
+/// as an identifier and set it wider. Inter Tight carries `tnum`, and the
+/// currency signs JetBrains Mono lacked (₪ ₹ ₺ ₩ ₱ ₦).
 TextStyle moneyTextStyle({
   double? fontSize,
   FontWeight? fontWeight,
@@ -38,10 +45,9 @@ TextStyle moneyTextStyle({
   double? height,
   double? letterSpacing,
 }) => TextStyle(
-  fontFamily: kMonoFontFamily,
-  // JetBrains Mono lacks ₪ ₹ ₺ ₩ ₱ ₦ and every non-Latin digit set; the sans
-  // face has the currency signs, the script fonts the digits.
-  fontFamilyFallback: const [kSansFontFamily, ...kScriptFallbackFonts],
+  fontFamily: kSansFontFamily,
+  // Non-Latin digit sets come from the script fonts.
+  fontFamilyFallback: kScriptFallbackFonts,
   fontFeatures: const [FontFeature.tabularFigures()],
   fontSize: fontSize,
   fontWeight: fontWeight,
@@ -239,6 +245,18 @@ class InTheme extends ThemeExtension<InTheme> {
   /// clear 3:1 on anything as dark as the three dark presets.
   List<Color> get series =>
       brightness == Brightness.dark ? _kSeriesDark : _kSeriesLight;
+
+  /// The initials-avatar colours, soft tint + ink pairs, in seed-index order
+  /// — see [InAvatarTint]. Index *n* is the same hue in light and dark, so an
+  /// entity keeps its identity colour across themes.
+  ///
+  /// A getter keyed on [brightness], like [series], so a new preset needs no
+  /// wiring. [avatarTintsFor] answers the same for a bare [Brightness].
+  List<InAvatarTint> get avatarTints => avatarTintsFor(brightness);
+
+  /// [avatarTints] for [brightness] — for a caller with no [InTheme] in scope.
+  static List<InAvatarTint> avatarTintsFor(Brightness brightness) =>
+      brightness == Brightness.dark ? _kAvatarTintsDark : _kAvatarTintsLight;
 
   /// The colour of whatever a chart folds together — "Other" — and of a
   /// series shown only for context (a previous period behind the current
@@ -957,24 +975,57 @@ class InMotion {
   Duration call(Duration d) => _enabled ? d : Duration.zero;
 }
 
-/// Stable tint palette for initials avatars (clients, companies, contacts).
-/// Brightness-independent — the same seed maps to the same colour in light
-/// and dark mode so a given entity reads as the same identity across themes.
-/// Pair with `avatarTintFor(seed)` in `lib/ui/core/widgets/avatar_tint.dart`.
-class InAvatarPalette {
-  InAvatarPalette._();
+/// One initials-avatar colour: a soft tinted [background] and the darker (in
+/// light) or lighter (in dark) [ink] of the same hue drawn on it.
+///
+/// Read through [InTheme.avatarTints] (via `avatarTintFor` in
+/// `lib/ui/core/widgets/avatar_tint.dart`) — never introduce a parallel
+/// palette in feature code.
+@immutable
+class InAvatarTint {
+  const InAvatarTint({required this.background, required this.ink});
 
-  static const List<Color> colors = <Color>[
-    Color(0xFF1F8A5B), // jade
-    Color(0xFF2A6FDB), // blue
-    Color(0xFFB07A1F), // amber
-    Color(0xFF7A3FB0), // purple
-    Color(0xFFC0392B), // red
-    Color(0xFF0E7C8C), // teal
-    Color(0xFF3F8B2F), // forest
-    Color(0xFFD04A7A), // magenta
-  ];
+  final Color background;
+  final Color ink;
 }
+
+/// The eight avatar hues as soft tint + ink pairs, light then dark.
+///
+/// **Index *n* is the same hue in both lists** (jade, blue, amber, purple,
+/// red, teal, forest, magenta) — `avatarTintFor` hashes a seed to an index, so
+/// an entity keeps its hue across themes; only the lightness moves. Each pair
+/// was derived from the old saturated swatch's hue (HLS lightness 0.88 /
+/// 0.25 light, 0.24 / 0.82 dark) and clears WCAG AA 4.5:1 with room to spare
+/// (5.4:1 at the weakest, teal light). The old white-on-swatch pairs did not:
+/// white on the amber `#B07A1F` was ~3.7:1. `avatar_tint_test` holds every
+/// pair to 4.5:1.
+const List<InAvatarTint> _kAvatarTintsLight = [
+  InAvatarTint(background: Color(0xFFCDF4E3), ink: Color(0xFF176845)), // jade
+  InAvatarTint(background: Color(0xFFCDDCF4), ink: Color(0xFF12366D)), // blue
+  InAvatarTint(background: Color(0xFFF4E5CD), ink: Color(0xFF6C4B13)), // amber
+  InAvatarTint(background: Color(0xFFE1D2EF), ink: Color(0xFF41225E)), // purple
+  InAvatarTint(background: Color(0xFFF4D1CD), ink: Color(0xFF681F17)), // red
+  InAvatarTint(background: Color(0xFFCDEFF4), ink: Color(0xFF0C6774)), // teal
+  InAvatarTint(background: Color(0xFFD7F0D1), ink: Color(0xFF2B5F20)), // forest
+  InAvatarTint(
+    background: Color(0xFFF2CEDB),
+    ink: Color(0xFF651A35),
+  ), // magenta
+];
+
+const List<InAvatarTint> _kAvatarTintsDark = [
+  InAvatarTint(background: Color(0xFF265440), ink: Color(0xFFB4EED5)), // jade
+  InAvatarTint(background: Color(0xFF233757), ink: Color(0xFFB0CAF2)), // blue
+  InAvatarTint(background: Color(0xFF574423), ink: Color(0xFFF1D9B1)), // amber
+  InAvatarTint(background: Color(0xFF3E2C4F), ink: Color(0xFFD2BBE7)), // purple
+  InAvatarTint(background: Color(0xFF542A26), ink: Color(0xFFEEB9B4)), // red
+  InAvatarTint(background: Color(0xFF225259), ink: Color(0xFFAFEBF4)), // teal
+  InAvatarTint(background: Color(0xFF314F2B), ink: Color(0xFFC2E8BA)), // forest
+  InAvatarTint(
+    background: Color(0xFF532837),
+    ink: Color(0xFFECB6C9),
+  ), // magenta
+];
 
 /// The two candidates [InTheme.onAccent] chooses between, and their
 /// pre-computed luminances.

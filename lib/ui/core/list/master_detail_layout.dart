@@ -1,15 +1,19 @@
 import 'package:material_ui/material_ui.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import 'package:admin/app/design_tokens.dart';
+import 'package:admin/app/env.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/adaptive.dart';
 import 'package:admin/ui/core/list/master_detail_nav_scope.dart';
 import 'package:admin/ui/core/utils/text_input_focus.dart';
 import 'package:admin/ui/core/widgets/hidden_shell_navigator.dart';
+import 'package:admin/ui/core/widgets/shortcut_tooltip.dart';
 import 'package:admin/ui/core/utils/router_state.dart';
 
 // Re-exported so existing `master_detail_layout.dart` imports of these two
@@ -705,12 +709,28 @@ class _PaneRoot extends StatelessWidget {
     // the desktop full-screen toggle is meaningless and the X is replaced by
     // a mobile-standard leading back arrow. On wide the pane floats as a
     // slide-over and keeps the trailing full-screen-toggle + X.
+    //
+    // Previous / next ride beside them for a record — never a create form,
+    // which is not a row — and only with a pointer: on touch a row is a tap
+    // away and the bar's width belongs to the record's own actions. They call
+    // the exact path `K` / `J` take, so they step, stop and wait for a page
+    // the same way.
+    final showSteps = !path.endsWith('/new') && !Env.isTouchPrimary;
     final Widget? actionsRow = isNarrow
         ? null
         : _PaneActionsRow(
             basePath: basePath,
             isFullScreen: isFullScreen,
             onClose: () => _close(context),
+            steps: showSteps
+                ? _PaneStepButtons(
+                    edges: navController.edges,
+                    onPrev: () =>
+                        _navigateRelative(context, navController.prevId()),
+                    onNext: () =>
+                        _navigateRelative(context, navController.nextId()),
+                  )
+                : null,
           );
     final Widget? leading = isNarrow
         ? IconButton(
@@ -797,11 +817,15 @@ class _PaneActionsRow extends StatelessWidget {
     required this.basePath,
     required this.isFullScreen,
     required this.onClose,
+    this.steps,
   });
 
   final String basePath;
   final bool isFullScreen;
   final VoidCallback onClose;
+
+  /// Previous / next, drawn before the full-screen toggle; null hides them.
+  final Widget? steps;
 
   @override
   Widget build(BuildContext context) {
@@ -814,6 +838,7 @@ class _PaneActionsRow extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
+            ?steps,
             IconButton(
               tooltip: isFullScreen
                   ? context.tr('exit_full_screen')
@@ -835,6 +860,103 @@ class _PaneActionsRow extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// The pane's previous / next buttons — `K` / `J` with a pointer.
+///
+/// Up and down chevrons, because the rows they step through are a vertical
+/// list: the arrows name a direction on screen, not a reading order, so they
+/// do not mirror in a right-to-left layout. Each is disabled exactly when its
+/// key would not move ([MasterDetailNavController.edges]): at the first row,
+/// at the last *loaded* row until the list's next page arrives, and on a
+/// record that is not in the list at all (a deep link, the palette).
+class _PaneStepButtons extends StatefulWidget {
+  const _PaneStepButtons({
+    required this.edges,
+    required this.onPrev,
+    required this.onNext,
+  });
+
+  final ValueListenable<({bool hasPrev, bool hasNext})> edges;
+  final VoidCallback onPrev;
+  final VoidCallback onNext;
+
+  @override
+  State<_PaneStepButtons> createState() => _PaneStepButtonsState();
+}
+
+class _PaneStepButtonsState extends State<_PaneStepButtons> {
+  bool _rebuildPending = false;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.edges.addListener(_onEdges);
+  }
+
+  @override
+  void didUpdateWidget(_PaneStepButtons oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.edges != widget.edges) {
+      oldWidget.edges.removeListener(_onEdges);
+      widget.edges.addListener(_onEdges);
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.edges.removeListener(_onEdges);
+    super.dispose();
+  }
+
+  // The list writes the edges from inside its own build, so a `setState` here
+  // would mark this widget dirty mid-build. Rebuild after the frame instead.
+  void _onEdges() {
+    if (_rebuildPending) return;
+    _rebuildPending = true;
+    SchedulerBinding.instance
+      ..addPostFrameCallback((_) {
+        _rebuildPending = false;
+        if (mounted) setState(() {});
+      })
+      ..ensureVisualUpdate();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final edges = widget.edges.value;
+    Widget step({
+      required String labelKey,
+      required String key,
+      required IconData icon,
+      required VoidCallback? onPressed,
+    }) => ShortcutTooltip(
+      label: context.tr(labelKey),
+      keys: [key],
+      child: IconButton(
+        icon: Icon(icon, size: 20),
+        onPressed: onPressed,
+        splashRadius: 18,
+      ),
+    );
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        step(
+          labelKey: 'previous_record',
+          key: 'K',
+          icon: Icons.keyboard_arrow_up,
+          onPressed: edges.hasPrev ? widget.onPrev : null,
+        ),
+        step(
+          labelKey: 'next_record',
+          key: 'J',
+          icon: Icons.keyboard_arrow_down,
+          onPressed: edges.hasNext ? widget.onNext : null,
+        ),
+      ],
     );
   }
 }
@@ -967,7 +1089,8 @@ class MasterDetailPaneScope extends InheritedWidget {
     required super.child,
   });
 
-  /// The full-screen toggle + X row that embedded scaffolds should place at
+  /// The previous / next (pointer only) + full-screen toggle + X row that
+  /// embedded scaffolds should place at
   /// the trailing end of their inline header. Supplied by `_PaneRoot` on wide
   /// viewports; null on narrow (where [paneLeading] carries the chrome).
   final Widget? paneActions;

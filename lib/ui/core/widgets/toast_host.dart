@@ -616,20 +616,34 @@ class _CountBadge extends StatelessWidget {
   }
 }
 
-/// Wraps actions pinned to the bottom of a full-screen surface (a checkout's
-/// pay button) so a bottom toast is lifted above them instead of covering
-/// them: it reports its own height to [ToastController.setBottomInset] after
-/// each frame, only while its route is the one on top, and gives it up when
-/// it goes. Does nothing where no [controller] is given.
+/// Wraps a bar or actions pinned to the bottom of a screen (a checkout's pay
+/// button, the billing editors' sticky totals, the list selection bar, the
+/// phone's running-timer dock) so what floats over the bottom of the screen
+/// is lifted above it instead of covering it: the narrow bottom toast, and on
+/// a wide layout the floating running-timer pill (the shell adds
+/// [ToastController.bottomInset] to `runningTimerPillBottom`).
+///
+/// It reports its own height to [ToastController.setBottomInset] after each
+/// frame, only while its route is the one on top **and** its subtree is not
+/// in a hidden navigation branch (`TickerMode` off — the shell keeps every
+/// branch's stack mounted, so an editor left open on another tab would
+/// otherwise go on lifting everything), and gives it up when it goes. Does
+/// nothing where no [controller] is given.
 class ToastBottomInset extends StatefulWidget {
   const ToastBottomInset({
     required this.controller,
     required this.child,
+    this.paysBottomPadding = false,
     super.key,
   });
 
   final ToastController? controller;
   final Widget child;
+
+  /// True when [child] pays the bottom safe inset itself (a `SafeArea` at
+  /// the bottom of a screen). The toast host already adds that inset, so it
+  /// is taken off the reported height rather than counted twice.
+  final bool paysBottomPadding;
 
   @override
   State<ToastBottomInset> createState() => _ToastBottomInsetState();
@@ -646,10 +660,17 @@ class _ToastBottomInsetState extends State<ToastBottomInset> {
       _scheduled = false;
       if (!mounted) return;
       final box = context.findRenderObject();
-      final current = ModalRoute.of(context)?.isCurrent ?? true;
+      final current =
+          (ModalRoute.of(context)?.isCurrent ?? true) &&
+          TickerMode.valuesOf(context).enabled;
+      final paid = widget.paysBottomPadding
+          ? MediaQuery.paddingOf(context).bottom
+          : 0.0;
       widget.controller?.setBottomInset(
         _owner,
-        current && box is RenderBox && box.hasSize ? box.size.height : null,
+        current && box is RenderBox && box.hasSize
+            ? box.size.height - paid
+            : null,
       );
     });
   }
@@ -670,8 +691,10 @@ class _ToastBottomInsetState extends State<ToastBottomInset> {
 
   @override
   Widget build(BuildContext context) {
-    // Depends on the route, so covering or uncovering it reports again.
+    // Depends on the route and the branch's ticker mode, so covering or
+    // uncovering it — or switching tabs — reports again.
     ModalRoute.of(context);
+    TickerMode.valuesOf(context);
     _report();
     return NotificationListener<SizeChangedLayoutNotification>(
       onNotification: (_) {

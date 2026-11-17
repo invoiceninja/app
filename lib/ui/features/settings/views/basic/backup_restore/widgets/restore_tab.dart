@@ -14,10 +14,9 @@ import 'package:admin/ui/core/widgets/file_drop_zone.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
 import 'package:admin/ui/features/settings/widgets/form_section.dart';
-import 'package:admin/ui/features/settings/widgets/settings_form_shell.dart';
 import 'package:admin/utils/formatting.dart';
 
-/// Search keys rendered by this tab.
+/// Search keys rendered by this card.
 const kRestoreTabSearchKeys = <String>[
   'restore',
   'import_settings',
@@ -25,17 +24,23 @@ const kRestoreTabSearchKeys = <String>[
   'company_backup_file',
 ];
 
-/// Restore tab body — chunked `.zip` upload to `/api/v1/import_json`. The
-/// server runs the restore asynchronously and emails the user when it
-/// finishes; the success toast here just confirms the upload was accepted.
-class RestoreTabBody extends StatefulWidget {
-  const RestoreTabBody({super.key});
+/// The Restore card of Settings → Backup | Restore — chunked `.zip` upload to
+/// `/api/v1/import_json`. The server runs the restore asynchronously and
+/// emails the user when it finishes; the success toast here just confirms the
+/// upload was accepted.
+///
+/// The two options are the server's only two (`CompanyImport`): Import
+/// settings overwrites the company's settings and logo, and Import data
+/// **deletes every record first** (`purgeCompanyData`) and then loads the
+/// backup's. There is no merge, so the card never offers or implies one.
+class RestoreSection extends StatefulWidget {
+  const RestoreSection({super.key});
 
   @override
-  State<RestoreTabBody> createState() => _RestoreTabBodyState();
+  State<RestoreSection> createState() => _RestoreSectionState();
 }
 
-class _RestoreTabBodyState extends State<RestoreTabBody> {
+class _RestoreSectionState extends State<RestoreSection> {
   UploadSource? _source;
   String _fileName = '';
   int _fileLength = 0;
@@ -112,7 +117,15 @@ class _RestoreTabBodyState extends State<RestoreTabBody> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(ctx.tr('restore')),
-        content: Text(ctx.tr('restore_confirm_message')),
+        // Import data purges every record before it loads the backup's, so
+        // the prompt says exactly that rather than "overwrite".
+        content: Text(
+          ctx.tr(
+            _importData
+                ? 'restore_replaces_data_confirm'
+                : 'restore_confirm_message',
+          ),
+        ),
         actions: [
           OutlinedButton(
             style: OutlinedButton.styleFrom(minimumSize: const Size(64, 40)),
@@ -216,94 +229,96 @@ class _RestoreTabBodyState extends State<RestoreTabBody> {
 
   @override
   Widget build(BuildContext context) {
-    return SettingsFormShell(
-      sections: [
-        FormSection(
-          title: context.tr('restore'),
-          children: [
-            if (_source == null)
-              FileDropZone(
-                allowedExtensions: const ['zip'],
-                enabled: !_busy,
-                idleLabelKey: 'company_backup_file',
-                onFiles: _onFiles,
-              )
-            else
-              Container(
-                padding: EdgeInsets.all(InSpacing.lg(context)),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(InRadii.r2),
-                  border: Border.all(color: context.inTheme.border),
-                ),
-                child: _PickedFileRow(
-                  name: _fileName,
-                  sizeText: formatByteSize(_fileLength),
-                  onClear: _busy
-                      ? null
-                      : () => setState(() {
-                          _source = null;
-                          _fileName = '';
-                          _fileLength = 0;
-                          _completedNeedsBanner = false;
-                        }),
-                ),
-              ),
-            SizedBox(height: InSpacing.lg(context)),
-            _ImportToggles(
-              importSettings: _importSettings,
-              importData: _importData,
-              onSettings: _busy
-                  ? null
-                  : (v) => setState(() => _importSettings = v),
-              onData: _busy ? null : (v) => setState(() => _importData = v),
+    return FormSection(
+      title: context.tr('restore'),
+      children: [
+        if (_source == null)
+          FileDropZone(
+            allowedExtensions: const ['zip'],
+            enabled: !_busy,
+            idleLabelKey: 'company_backup_file',
+            onFiles: _onFiles,
+          )
+        else
+          Container(
+            padding: EdgeInsets.all(InSpacing.lg(context)),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(InRadii.r2),
+              border: Border.all(color: context.inTheme.border),
             ),
-            if (_busy) ...[
-              SizedBox(height: InSpacing.lg(context)),
-              _UploadProgress(
-                sent: _sent,
-                total: _total,
-                stopping: _cancelRequested,
-                onCancel: () => setState(() => _cancelRequested = true),
-              ),
-            ] else if (_completedNeedsBanner) ...[
-              SizedBox(height: InSpacing.lg(context)),
-              _QueuedBanner(
-                onRestoreAnother: () => setState(() {
-                  _source = null;
-                  _fileName = '';
-                  _fileLength = 0;
-                  _completedNeedsBanner = false;
-                }),
-              ),
-            ] else ...[
-              SizedBox(height: InSpacing.lg(context)),
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  final narrow = constraints.maxWidth < 480;
-                  final button = FilledButton.icon(
-                    icon: const Icon(Icons.cloud_upload_outlined),
-                    label: Text(context.tr('restore')),
-                    style: FilledButton.styleFrom(
-                      minimumSize: const Size(120, 44),
-                      // Centers icon+label when the parent stretches the
-                      // button full-width on mobile; on desktop the button
-                      // wraps its content normally, so this is a no-op.
-                      alignment: Alignment.center,
-                    ),
-                    onPressed: _canRestore ? _confirmAndRestore : null,
-                  );
-                  if (narrow) {
-                    return SizedBox(width: double.infinity, child: button);
-                  }
-                  return Align(
-                    alignment: AlignmentDirectional.centerStart,
-                    child: button,
-                  );
-                },
-              ),
-            ],
-          ],
+            child: _PickedFileRow(
+              name: _fileName,
+              sizeText: formatByteSize(_fileLength),
+              onClear: _busy
+                  ? null
+                  : () => setState(() {
+                      _source = null;
+                      _fileName = '';
+                      _fileLength = 0;
+                      _completedNeedsBanner = false;
+                    }),
+            ),
+          ),
+        SizedBox(height: InSpacing.lg(context)),
+        _ImportToggles(
+          importSettings: _importSettings,
+          importData: _importData,
+          onSettings: _busy ? null : (v) => setState(() => _importSettings = v),
+          onData: _busy ? null : (v) => setState(() => _importData = v),
         ),
+        if (_busy) ...[
+          SizedBox(height: InSpacing.lg(context)),
+          _UploadProgress(
+            sent: _sent,
+            total: _total,
+            stopping: _cancelRequested,
+            onCancel: () => setState(() => _cancelRequested = true),
+          ),
+        ] else if (_completedNeedsBanner) ...[
+          SizedBox(height: InSpacing.lg(context)),
+          _QueuedBanner(
+            onRestoreAnother: () => setState(() {
+              _source = null;
+              _fileName = '';
+              _fileLength = 0;
+              _completedNeedsBanner = false;
+            }),
+          ),
+        ] else ...[
+          SizedBox(height: InSpacing.lg(context)),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final narrow = constraints.maxWidth < 480;
+              // Import Data purges every record before it loads the backup,
+              // so while it is on the button wears the destructive colours
+              // the confirmation dialog will — the cost is visible before
+              // the click, not only after it.
+              final colorScheme = Theme.of(context).colorScheme;
+              final destructive = _importData;
+              final button = FilledButton.icon(
+                icon: const Icon(Icons.cloud_upload_outlined),
+                label: Text(context.tr('restore')),
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size(120, 44),
+                  // Centers icon+label when the parent stretches the
+                  // button full-width on mobile; on desktop the button
+                  // wraps its content normally, so this is a no-op.
+                  alignment: Alignment.center,
+                  backgroundColor: destructive ? colorScheme.error : null,
+                  foregroundColor: destructive ? colorScheme.onError : null,
+                ),
+                onPressed: _canRestore ? _confirmAndRestore : null,
+              );
+              if (narrow) {
+                return SizedBox(width: double.infinity, child: button);
+              }
+              return Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: button,
+              );
+            },
+          ),
+        ],
       ],
     );
   }
@@ -368,7 +383,7 @@ class _ImportToggles extends StatelessWidget {
     final tokens = context.inTheme;
     return Column(
       children: [
-        SwitchListTile.adaptive(
+        SwitchListTile(
           contentPadding: EdgeInsets.zero,
           title: Text(context.tr('import_settings')),
           subtitle: Text(
@@ -378,11 +393,12 @@ class _ImportToggles extends StatelessWidget {
           value: importSettings,
           onChanged: onSettings,
         ),
-        SwitchListTile.adaptive(
+        SwitchListTile(
           contentPadding: EdgeInsets.zero,
           title: Text(context.tr('import_data')),
+          // Not a merge: the server deletes every record first.
           subtitle: Text(
-            context.tr('import_data_help'),
+            context.tr('import_data_replaces_help'),
             style: TextStyle(color: tokens.ink3),
           ),
           value: importData,

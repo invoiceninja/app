@@ -143,6 +143,30 @@ void main() {
     expect(form.draft.amount, Decimal.parse('14.23'));
   });
 
+  // The amount and its taxes are one field in two scopes (the date sits
+  // between them on the amount's row). Focus moving from the amount to a tax
+  // reports the new scope's gain before the old one's loss.
+  test(
+    'focus moving between two scopes of one field keeps it focused',
+    () async {
+      final scanner = _FakeScanner();
+      final form = vm(scanner, documents: [photo]);
+      form.noteReceiptFieldFocus(ReceiptFillField.amount, true); // amount
+      form.noteReceiptFieldFocus(ReceiptFillField.amount, true); // tax gains
+      form.noteReceiptFieldFocus(
+        ReceiptFillField.amount,
+        false,
+      ); // amount loses
+      final reading = form.readReceipt(photo);
+      await pumpEventQueue();
+      scanner.finish(read);
+      await reading;
+
+      expect(form.draft.amount, Decimal.zero, reason: 'still in the tax');
+      expect(form.draft.date, const Date(2026, 10, 14));
+    },
+  );
+
   test('a cancelled read, a Discard or a closed form drops the late '
       'result', () async {
     final scanner = _FakeScanner();

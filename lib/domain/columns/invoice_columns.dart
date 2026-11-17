@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:admin/app/router.dart';
 import 'package:admin/data/db/dao/invoice_dao.dart';
 import 'package:admin/data/models/domain/invoice.dart';
+import 'package:admin/data/models/value/date.dart';
 import 'package:admin/domain/columns/column_cells.dart';
 import 'package:admin/domain/columns/column_factories.dart';
 import 'package:admin/domain/columns/column_definition.dart';
@@ -14,6 +15,7 @@ import 'package:admin/ui/core/widgets/design_name_label.dart';
 import 'package:admin/ui/core/widgets/user_name_label.dart';
 import 'package:admin/ui/core/widgets/party_money_cell.dart';
 import 'package:admin/ui/features/billing_shared/peppol_status_icon.dart';
+import 'package:admin/ui/features/dashboard/helpers/when_text.dart';
 import 'package:admin/ui/features/invoices/widgets/invoice_status_pill.dart';
 import 'package:admin/ui/features/projects/widgets/project_name_label.dart';
 import 'package:admin/utils/notes_html.dart';
@@ -96,9 +98,7 @@ final List<InvoiceColumn> kAllInvoiceColumns = <InvoiceColumn>[
     id: InvoiceFieldIds.dueDate,
     labelKey: 'due_date',
     width: 120,
-    cellBuilder: (i, ctx) => i.dueDate == null
-        ? cellEmpty()
-        : cellDate(i.dueDate!.toDateTime(), ctx),
+    cellBuilder: invoiceDueDateCell,
     valueBuilder: (i) => i.dueDate?.toIso(),
   ),
   // Server-stamped when the document is emailed or marked sent.
@@ -151,9 +151,7 @@ final List<InvoiceColumn> kAllInvoiceColumns = <InvoiceColumn>[
     id: InvoiceFieldIds.partialDueDate,
     labelKey: 'partial_due_date',
     width: 130,
-    cellBuilder: (i, ctx) => i.partialDueDate == null
-        ? cellEmpty()
-        : cellDate(i.partialDueDate!.toDateTime(), ctx),
+    cellBuilder: (i, ctx) => _lateDateCell(i, i.partialDueDate, ctx),
     valueBuilder: (i) => i.partialDueDate?.toIso(),
   ),
   InvoiceColumn(
@@ -299,3 +297,28 @@ final List<InvoiceColumn> kAllInvoiceColumns = <InvoiceColumn>[
 final Map<String, InvoiceColumn> invoiceColumnsById = {
   for (final c in kAllInvoiceColumns) c.id: c,
 };
+
+/// The Due Date cell: the date, in the `overdue` ink while the invoice is past
+/// due, with "12 days late" in a tooltip (which screen readers also read).
+///
+/// "Past due" is [Invoice.isPastDueOn] — the predicate behind the Past Due pill
+/// and, in SQL, the Overdue tab (`invoiceOverdueFilter`) — so a partial due date
+/// that has passed makes the row late even while the full due date is ahead,
+/// and the days are counted from that partial date. The cell itself never says
+/// how late: relative text in a date column breaks the column's scan and its
+/// sort.
+Widget invoiceDueDateCell(Invoice i, BuildContext context) =>
+    _lateDateCell(i, i.dueDate, context);
+
+/// [date] (the due or the partial due date) as a date cell, marked late as
+/// [invoiceDueDateCell] says.
+Widget _lateDateCell(Invoice i, Date? date, BuildContext context) {
+  if (date == null) return cellEmpty();
+  final today = Date.today();
+  if (!i.isPastDueOn(today)) return cellDate(date.toDateTime(), context);
+  final from = i.partialDueDate ?? i.dueDate ?? date;
+  return Tooltip(
+    message: lateText(context, today.differenceInDays(from)),
+    child: cellDate(date.toDateTime(), context, overdue: true),
+  );
+}

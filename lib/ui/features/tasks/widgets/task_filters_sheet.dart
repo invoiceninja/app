@@ -5,6 +5,7 @@ import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/adaptive.dart';
 import 'package:admin/ui/features/tasks/view_models/task_filters_mixin.dart';
 import 'package:admin/ui/features/tasks/widgets/task_filter_bar.dart';
+import 'package:admin/ui/features/tasks/widgets/task_filter_controls.dart';
 
 /// Opens the task filter surface — a centered dialog on a wide window, a
 /// bottom sheet on a narrow one — holding the same three pickers
@@ -143,6 +144,12 @@ class _TaskFilterBody extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       mainAxisSize: MainAxisSize.min,
                       children: [
+                        // The board's search rides here too, so a narrow pane
+                        // that shows only chips can still set and see it.
+                        if (filters.supportsSearch) ...[
+                          TaskSearchField(filters: filters),
+                          SizedBox(height: InSpacing.lg(context)),
+                        ],
                         for (var i = 0; i < pickers.length; i++) ...[
                           if (i > 0) SizedBox(height: InSpacing.lg(context)),
                           pickers[i],

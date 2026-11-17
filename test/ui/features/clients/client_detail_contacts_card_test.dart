@@ -267,7 +267,9 @@ void main() {
     },
   );
 
-  testWidgets('the primary star and the exceptions are named', (tester) async {
+  testWidgets('the primary contact and the exceptions are named', (
+    tester,
+  ) async {
     final handle = tester.ensureSemantics();
     await pump(tester, [
       Contact.fromApi(
@@ -280,13 +282,36 @@ void main() {
           ccOnly: true,
         ),
       ),
+      Contact.fromApi(
+        const ContactApi(id: 'ct2', firstName: 'Sam', lastName: 'Lee'),
+      ),
     ]);
-    // A bare star says nothing to a screen reader; a bare red icon said
-    // nothing to anyone.
+    // A word, not a star: a star said nothing to a screen reader and little
+    // to anyone; a bare red icon said nothing to anyone.
+    expect(find.text('Primary'), findsOneWidget);
     expect(find.bySemanticsLabel('Primary Contact'), findsOneWidget);
+    expect(find.byIcon(Icons.star), findsNothing);
     expect(find.text('Unsubscribed'), findsOneWidget);
     expect(find.text('CC Only'), findsOneWidget);
     handle.dispose();
+  });
+
+  testWidgets('a lone contact is not labelled Primary — beside nobody the '
+      'word answers nothing', (tester) async {
+    await pump(tester, [
+      Contact.fromApi(
+        const ContactApi(
+          id: 'ct1',
+          firstName: 'Jane',
+          lastName: 'Smith',
+          isPrimary: true,
+        ),
+      ),
+      // The server's seeded blank contact is not a second contact.
+      Contact.fromApi(const ContactApi(id: 'ct0')),
+    ]);
+    expect(find.text('Jane Smith'), findsOneWidget);
+    expect(find.text('Primary'), findsNothing);
   });
 
   testWidgets('an expanded list can be collapsed again', (tester) async {

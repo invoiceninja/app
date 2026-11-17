@@ -190,6 +190,21 @@ abstract class DraftStreamHost<T> extends SettingsDraftHost {
   }
 
   @override
+  Object? draftSnapshot() {
+    final draft = _draft;
+    return draft == null ? null : _DraftSnapshot<T>(draft);
+  }
+
+  @override
+  void restoreDraftSnapshot(Object snapshot) {
+    if (_disposed || snapshot is! _DraftSnapshot<T>) return;
+    _draft = snapshot.draft;
+    _submitError = null;
+    _fieldErrors = const {};
+    notifyListeners();
+  }
+
+  @override
   Future<T?> save() async {
     final draft = _draft;
     if (draft == null || _isSaving) return null;
@@ -226,4 +241,11 @@ abstract class DraftStreamHost<T> extends SettingsDraftHost {
       if (!_disposed) notifyListeners();
     }
   }
+}
+
+/// What [DraftStreamHost.draftSnapshot] hands out — wrapped so a host can't
+/// be handed another host's draft of the same type by mistake.
+class _DraftSnapshot<T> {
+  const _DraftSnapshot(this.draft);
+  final T draft;
 }

@@ -242,8 +242,13 @@ void main() {
       expect(comments, lessThan(activity));
       expect(activity, lessThan(tasks));
 
-      // Rapid entry heads the Tasks tab, which is where the screen lands.
+      // Rapid entry heads the Tasks tab, which is where the screen lands —
+      // with Start beside it, and in place of the list's own New: one create
+      // control per toolbar, the full editor being the + Task tile.
       expect(find.byKey(const Key('project_quick_add_task')), findsOneWidget);
+      expect(find.byKey(const Key('project_quick_add_start')), findsOneWidget);
+      await screen.quiet();
+      expect(find.text('New'), findsNothing);
     },
   );
 
@@ -308,6 +313,8 @@ void main() {
       expect(find.text('+ Task'), findsOneWidget);
       // But rapid entry is for a project being worked on.
       expect(find.byKey(const Key('project_quick_add_task')), findsNothing);
+      // ...so the Tasks list keeps its own New.
+      await screen.untilFound(find.text('New'), "the Tasks list's New");
     },
   );
 

@@ -2,6 +2,7 @@ import 'package:material_ui/material_ui.dart';
 
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/core/widgets/example_hint.dart';
 import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/utils/formatting.dart';
 
@@ -38,6 +39,7 @@ class InDateField extends StatefulWidget {
     this.errorText,
     this.helperText,
     this.helper,
+    this.trailingAction,
   });
 
   /// The currently-set date (calendar date — any time-of-day is ignored
@@ -117,6 +119,11 @@ class InDateField extends StatefulWidget {
   /// marker (`ReceiptFieldMarker`), say.
   final Widget? helper;
 
+  /// A small action drawn inside the field, before the calendar button — the
+  /// billing due date's payment-terms menu. Sized like the calendar button
+  /// (28 px) so the field keeps its height; not drawn on a [dense] field.
+  final Widget? trailingAction;
+
   @override
   State<InDateField> createState() => _InDateFieldState();
 }
@@ -176,10 +183,18 @@ class _InDateFieldState extends State<InDateField> {
   /// invoiceninja/flutter#127 was — `dd/MMM/yyyy` (the server's default) read
   /// as a typo, since `MMM` is an abbreviated month name rather than a
   /// two-digit number. `Formatter.dateExample` renders it through the same
-  /// path as a committed value, so the hint always matches what the field
+  /// path as a committed value, so the example always matches what the field
   /// will show once the user picks a date.
-  String _hint() =>
-      widget.hintText ?? widget.formatter?.dateExample ?? kDateFormatSampleIso;
+  ///
+  /// Worded as an example ("e.g. 31 Jan 2000", `exampleHint`): a bare
+  /// date in hint grey read as a value already set — a blank due date looked
+  /// like one in the year 2000.
+  String _hint(BuildContext context) =>
+      widget.hintText ??
+      exampleHint(
+        context,
+        widget.formatter?.dateExample ?? kDateFormatSampleIso,
+      );
 
   String? _activePattern() {
     final f = widget.formatter;
@@ -291,6 +306,8 @@ class _InDateFieldState extends State<InDateField> {
       tooltip: context.tr('select_date'),
       onPressed: widget.enabled ? _openPicker : null,
     );
+    final action = widget.trailingAction;
+    if (!dense && action != null && widget.enabled) suffixChildren.add(action);
     if (!dense) suffixChildren.add(calendar);
     final field = LabeledField(
       label: widget.labelText,
@@ -304,8 +321,11 @@ class _InDateFieldState extends State<InDateField> {
         decoration: InputDecoration(
           isDense: true,
           labelText: widget.labelText,
-          hintText: _hint(),
+          hintText: _hint(context),
           errorText: widget.errorText,
+          // A half-width field (a date beside its due date) would cut a
+          // sentence-long error to its first words.
+          errorMaxLines: 3,
           helperText: widget.helper == null ? widget.helperText : null,
           helper: widget.helper,
           contentPadding: dense

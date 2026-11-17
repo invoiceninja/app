@@ -241,8 +241,10 @@ class _PurchaseOrderDetailScreenState extends State<PurchaseOrderDetailScreen>
         ),
         top: (context, hasPdfPane) =>
             _top(context, po, notes, companySnap.data, hasPdfPane: hasPdfPane),
-        tabs: (context, hasPdfPane, layout) => EntityDetailTabs(
-          initialIndex: 2,
+        tabs: (context, hasPdfPane, layout, landingTab) => EntityDetailTabs(
+          // Activity beside the PDF, else Overview — see
+          // `BillingDocRecordBody.tabs`.
+          initialIndex: landingTab,
           selectTab: _record.selectTab,
           onReveal: _record.page.revealTabs,
           layoutBuilder: layout,

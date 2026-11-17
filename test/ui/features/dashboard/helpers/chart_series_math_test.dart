@@ -13,263 +13,267 @@ DashboardChartPoint _p(String date, num total) => DashboardChartPoint(
   currency: '1',
 );
 
-/// Strictly increasing and de-duplicated by calendar day.
-void _expectSortedUnique(List<Date> buckets) {
-  for (var i = 1; i < buckets.length; i++) {
-    expect(
-      buckets[i - 1].compareTo(buckets[i]),
-      lessThan(0),
-      reason: 'buckets must be strictly increasing & unique: $buckets',
-    );
+/// Contiguous: each period starts the day after the last one ended, and the
+/// whole run spans exactly [start]..[end].
+void _expectContiguous(List<ChartPeriod> periods, Date start, Date end) {
+  expect(periods, isNotEmpty);
+  expect(periods.first.start, start);
+  expect(periods.last.end, end);
+  for (var i = 0; i < periods.length; i++) {
+    expect(periods[i].start.compareTo(periods[i].end), lessThanOrEqualTo(0));
+    if (i > 0) expect(periods[i].start, periods[i - 1].end.addDays(1));
   }
 }
 
+double _sum(List<double> lane) => lane.fold(0, (a, b) => a + b);
+
 void main() {
-  group('buildContinuousAxis — day', () {
-    test('zero-fills a contiguous daily axis between start and end', () {
-      final axis = buildContinuousAxis(
+  group('chartPeriods', () {
+    test('day: one period per day', () {
+      final p = chartPeriods(
+        const Date(2026, 1, 1),
+        const Date(2026, 1, 5),
+        ChartGrouping.day,
+      );
+      expect(p.length, 5);
+      expect(p.every((d) => d.isSingleDay), isTrue);
+      _expectContiguous(p, const Date(2026, 1, 1), const Date(2026, 1, 5));
+    });
+
+    // The line chart's web-client boundaries made the first slot the window's
+    // first day alone. As a bar that was a one-day spike beside week-wide
+    // bars; a period is a whole week, clipped only at the window's edges.
+    test('week: whole weeks, clipped at the window edges', () {
+      // 2026-04-01 is a Wednesday; weeks start on Sunday (0).
+      final p = chartPeriods(
+        const Date(2026, 4, 1),
+        const Date(2026, 4, 30),
+        ChartGrouping.week,
+      );
+      expect(p.first, const ChartPeriod(Date(2026, 4, 1), Date(2026, 4, 4)));
+      expect(p[1], const ChartPeriod(Date(2026, 4, 5), Date(2026, 4, 11)));
+      expect(p.last, const ChartPeriod(Date(2026, 4, 26), Date(2026, 4, 30)));
+      expect(p.length, 5);
+      _expectContiguous(p, const Date(2026, 4, 1), const Date(2026, 4, 30));
+    });
+
+    test('week honours the company first day of week', () {
+      final p = chartPeriods(
+        const Date(2026, 4, 1),
+        const Date(2026, 4, 30),
+        ChartGrouping.week,
+        firstDayOfWeek: 1, // Monday
+      );
+      expect(p.first.end, const Date(2026, 4, 5)); // a Sunday
+      expect(p[1].start, const Date(2026, 4, 6)); // a Monday
+    });
+
+    test('month: calendar months, partial at the ends', () {
+      final p = chartPeriods(
+        const Date(2026, 1, 15),
+        const Date(2026, 3, 20),
+        ChartGrouping.month,
+      );
+      expect(p, const [
+        ChartPeriod(Date(2026, 1, 15), Date(2026, 1, 31)),
+        ChartPeriod(Date(2026, 2, 1), Date(2026, 2, 28)),
+        ChartPeriod(Date(2026, 3, 1), Date(2026, 3, 20)),
+      ]);
+    });
+
+    test('an inverted window has no periods', () {
+      expect(
+        chartPeriods(
+          const Date(2026, 5, 1),
+          const Date(2026, 4, 1),
+          ChartGrouping.day,
+        ),
+        isEmpty,
+      );
+    });
+  });
+
+  group('buildChartAxis', () {
+    test('zero-fills the window: an empty slot keeps its place', () {
+      final axis = buildChartAxis(
         pointsBySeries: {
           ChartSeriesId.expenses: [_p('2026-01-03', 100)],
           ChartSeriesId.invoices: const [],
-          ChartSeriesId.payments: const [],
-          ChartSeriesId.outstanding: const [],
         },
         startDate: const Date(2026, 1, 1),
         endDate: const Date(2026, 1, 5),
         grouping: ChartGrouping.day,
       );
-
-      expect(axis.buckets, const [
-        Date(2026, 1, 1),
-        Date(2026, 1, 2),
-        Date(2026, 1, 3),
-        Date(2026, 1, 4),
-        Date(2026, 1, 5),
-      ]);
+      expect(axis.buckets.length, 5);
       expect(axis.values[ChartSeriesId.expenses], [0, 0, 100, 0, 0]);
       expect(axis.values[ChartSeriesId.invoices], [0, 0, 0, 0, 0]);
+      expect(axis.values[ChartSeriesId.payments], [0, 0, 0, 0, 0]);
     });
 
-    test('sums multiple points that fall on the same bucket', () {
-      final axis = buildContinuousAxis(
+    test('sums the points that fall in one period', () {
+      final axis = buildChartAxis(
         pointsBySeries: {
-          ChartSeriesId.expenses: [_p('2026-01-02', 40), _p('2026-01-02', 60)],
-        },
-        startDate: const Date(2026, 1, 1),
-        endDate: const Date(2026, 1, 3),
-        grouping: ChartGrouping.day,
-      );
-      expect(axis.values[ChartSeriesId.expenses], [0, 100, 0]);
-    });
-
-    test('a sparse-but-equal series is no longer flat across the axis', () {
-      final axis = buildContinuousAxis(
-        pointsBySeries: {
-          ChartSeriesId.expenses: [
-            _p('2026-01-01', 222),
-            _p('2026-01-15', 222),
-            _p('2026-01-31', 222),
+          ChartSeriesId.payments: [
+            _p('2026-04-01', 10), // the window's first day
+            _p('2026-04-03', 5), // same week
+            _p('2026-04-12', 7), // the third week (Apr 12–18)
           ],
         },
-        startDate: const Date(2026, 1, 1),
-        endDate: const Date(2026, 1, 31),
-        grouping: ChartGrouping.day,
+        startDate: const Date(2026, 4, 1),
+        endDate: const Date(2026, 4, 30),
+        grouping: ChartGrouping.week,
       );
-      final lane = axis.values[ChartSeriesId.expenses]!;
-      expect(lane.toSet().length, greaterThan(1));
-      expect(lane.where((v) => v == 222).length, 3);
-      expect(lane.where((v) => v == 0).length, 28);
+      final lane = axis.values[ChartSeriesId.payments]!;
+      expect(lane[0], 15, reason: 'the first day is part of its week');
+      expect(lane[2], 7);
+      expect(_sum(lane), 22);
     });
 
-    test('derives range from point dates when start/end are null', () {
-      final axis = buildContinuousAxis(
+    test('drops points outside the window and points with no date', () {
+      final axis = buildChartAxis(
         pointsBySeries: {
-          ChartSeriesId.payments: [_p('2026-03-10', 5), _p('2026-03-12', 7)],
+          ChartSeriesId.invoices: [
+            _p('2026-03-31', 999),
+            _p('2026-04-02', 3),
+            _p('not a date', 999),
+            _p('2026-05-01', 999),
+          ],
+        },
+        startDate: const Date(2026, 4, 1),
+        endDate: const Date(2026, 4, 7),
+        grouping: ChartGrouping.day,
+      );
+      expect(_sum(axis.values[ChartSeriesId.invoices]!), 3);
+    });
+
+    test('derives the window from the points when start/end are null', () {
+      final axis = buildChartAxis(
+        pointsBySeries: {
+          ChartSeriesId.payments: [_p('2026-03-10', 5), _p('2026-03-13', 7)],
         },
         startDate: null,
         endDate: null,
         grouping: ChartGrouping.day,
       );
-      expect(axis.buckets.first, const Date(2026, 3, 10));
-      expect(axis.buckets.last, const Date(2026, 3, 12));
-      expect(axis.values[ChartSeriesId.payments], [5, 0, 7]);
+      expect(axis.buckets.first.start, const Date(2026, 3, 10));
+      expect(axis.buckets.last.end, const Date(2026, 3, 13));
+      expect(axis.values[ChartSeriesId.payments], [5, 0, 0, 7]);
     });
 
     test('empty when there is nothing datable to plot', () {
-      final axis = buildContinuousAxis(
+      final axis = buildChartAxis(
         pointsBySeries: const {ChartSeriesId.invoices: []},
         startDate: null,
         endDate: null,
         grouping: ChartGrouping.day,
       );
       expect(axis.isEmpty, isTrue);
-      expect(axis.buckets, isEmpty);
     });
   });
 
-  group('buildContinuousAxis — month', () {
-    test('partial-month-aware boundaries (Jan 15 → Mar 20)', () {
-      final axis = buildContinuousAxis(
-        pointsBySeries: {
-          ChartSeriesId.expenses: [
-            _p('2026-01-15', 1), // exactly on start
-            _p('2026-02-10', 10), // mid-Feb → rolls into period-end bucket
-          ],
-        },
-        startDate: const Date(2026, 1, 15),
-        endDate: const Date(2026, 3, 20),
-        grouping: ChartGrouping.month,
-      );
-      expect(axis.buckets, const [
-        Date(2026, 1, 15),
-        Date(2026, 1, 31),
-        Date(2026, 2, 28),
-        Date(2026, 3, 20),
-      ]);
-      _expectSortedUnique(axis.buckets);
-      final lane = axis.values[ChartSeriesId.expenses]!;
-      // start-exact stays in bucket 0; a strictly-inside point rolls to the
-      // next boundary (period end) — React's getRecordIndex +1 rule.
-      expect(lane[0], 1);
-      expect(lane[2], 10);
-      expect(lane.reduce((a, b) => a + b), 11);
-    });
-
-    test('full calendar year → 13 month-end boundaries', () {
-      final axis = buildContinuousAxis(
-        pointsBySeries: {
-          ChartSeriesId.invoices: [_p('2026-06-15', 90)],
-        },
-        startDate: const Date(2026, 1, 1),
-        endDate: const Date(2026, 12, 31),
-        grouping: ChartGrouping.month,
-      );
-      expect(axis.buckets.length, 13);
-      expect(axis.buckets.first, const Date(2026, 1, 1));
-      expect(axis.buckets.last, const Date(2026, 12, 31));
-      _expectSortedUnique(axis.buckets);
-      // Total is preserved regardless of which June bucket it lands in.
-      expect(axis.values[ChartSeriesId.invoices]!.reduce((a, b) => a + b), 90);
-    });
-  });
-
-  group('buildContinuousAxis — week', () {
-    test('weekly boundaries span start..end and capture points', () {
-      final axis = buildContinuousAxis(
-        pointsBySeries: {
-          ChartSeriesId.payments: [
-            _p('2026-01-01', 10), // exactly on start
-            _p('2026-01-12', 7), // strictly inside the range
-          ],
-        },
-        startDate: const Date(2026, 1, 1),
-        endDate: const Date(2026, 1, 21),
-        grouping: ChartGrouping.week,
-      );
-      expect(axis.buckets.first, const Date(2026, 1, 1));
-      expect(axis.buckets.last, const Date(2026, 1, 21));
-      expect(axis.buckets.length, greaterThan(2));
-      _expectSortedUnique(axis.buckets);
-      final lane = axis.values[ChartSeriesId.payments]!;
-      // start-exact in bucket 0; both totals preserved across the axis.
-      expect(lane[0], 10);
-      expect(lane.reduce((a, b) => a + b), 17);
-    });
-  });
-
-  group('buildContinuousAxis — render safety ceiling', () {
-    test('a multi-year Day selection coarsens the rendered axis', () {
-      final axis = buildContinuousAxis(
-        pointsBySeries: {
-          ChartSeriesId.expenses: [_p('2023-06-15', 50)],
-        },
-        startDate: const Date(2020, 1, 1),
-        endDate: const Date(2026, 12, 31), // ~2557 days at Day granularity
-        grouping: ChartGrouping.day,
-      );
-      // Coarsened well below a raw daily axis, and bounded.
-      expect(axis.buckets.length, lessThanOrEqualTo(750));
-      expect(axis.buckets.length, lessThan(2557));
-      _expectSortedUnique(axis.buckets);
-      expect(axis.values[ChartSeriesId.expenses]!.reduce((a, b) => a + b), 50);
-    });
-  });
-
-  // The grouping the chart draws when the one asked for cannot show a shape.
-  // Opt-in: the boundary rules above are a port of the web client's and stay
-  // exactly as they are without the flag.
-  group('refineShortRanges', () {
+  // The grouping is a request: the chart draws the nearest one that has
+  // between four and [kChartMaxBuckets] slots.
+  group('the grouping that fits', () {
     Map<ChartSeriesId, List<DashboardChartPoint>> points() => {
       ChartSeriesId.invoices: [_p('2026-04-08', 100), _p('2026-04-22', 50)],
-      ChartSeriesId.payments: const [],
-      ChartSeriesId.outstanding: const [],
-      ChartSeriesId.expenses: const [],
     };
 
-    test('one month by month is two boundaries — a single straight line', () {
-      final axis = buildContinuousAxis(
+    test('one month by month is one slot — drawn by week, and says so', () {
+      final axis = buildChartAxis(
         pointsBySeries: points(),
         startDate: const Date(2026, 4, 1),
         endDate: const Date(2026, 4, 30),
         grouping: ChartGrouping.month,
       );
-
-      expect(axis.buckets.length, lessThan(4));
-      expect(axis.grouping, ChartGrouping.month);
-    });
-
-    test('with the flag it is drawn by week, and says so', () {
-      final axis = buildContinuousAxis(
-        pointsBySeries: points(),
-        startDate: const Date(2026, 4, 1),
-        endDate: const Date(2026, 4, 30),
-        grouping: ChartGrouping.month,
-        refineShortRanges: true,
-      );
-
       expect(axis.grouping, ChartGrouping.week);
       expect(axis.buckets.length, greaterThanOrEqualTo(4));
-      _expectSortedUnique(axis.buckets);
-      // Nothing is lost in the regrouping.
-      expect(axis.values[ChartSeriesId.invoices]!.reduce((a, b) => a + b), 150);
+      expect(_sum(axis.values[ChartSeriesId.invoices]!), 150);
     });
 
     test('a week by month goes all the way down to days', () {
-      final axis = buildContinuousAxis(
+      final axis = buildChartAxis(
         pointsBySeries: points(),
         startDate: const Date(2026, 4, 6),
         endDate: const Date(2026, 4, 12),
         grouping: ChartGrouping.month,
-        refineShortRanges: true,
       );
-
       expect(axis.grouping, ChartGrouping.day);
       expect(axis.buckets.length, 7);
     });
 
-    test('a range the grouping can draw is left alone', () {
-      final axis = buildContinuousAxis(
+    test('a year by month is left alone', () {
+      final axis = buildChartAxis(
         pointsBySeries: points(),
         startDate: const Date(2026, 1, 1),
         endDate: const Date(2026, 12, 31),
         grouping: ChartGrouping.month,
-        refineShortRanges: true,
       );
-
       expect(axis.grouping, ChartGrouping.month);
+      expect(axis.buckets.length, 12);
+    });
+
+    test('a year by day is too many bars — coarsened to months', () {
+      final axis = buildChartAxis(
+        pointsBySeries: points(),
+        startDate: const Date(2026, 1, 1),
+        endDate: const Date(2026, 12, 31),
+        grouping: ChartGrouping.day,
+      );
+      // 365 days and 53 weeks are both past the cap.
+      expect(axis.grouping, ChartGrouping.month);
+      expect(axis.buckets.length, lessThanOrEqualTo(kChartMaxBuckets));
+      expect(_sum(axis.values[ChartSeriesId.invoices]!), 150);
+    });
+
+    test('a quarter by day is drawn by week', () {
+      final axis = buildChartAxis(
+        pointsBySeries: points(),
+        startDate: const Date(2026, 4, 1),
+        endDate: const Date(2026, 6, 30),
+        grouping: ChartGrouping.day,
+      );
+      expect(axis.grouping, ChartGrouping.week);
+      expect(axis.buckets.length, lessThanOrEqualTo(kChartMaxBuckets));
+    });
+
+    test('a 31-day month by day fits exactly', () {
+      final axis = buildChartAxis(
+        pointsBySeries: points(),
+        startDate: const Date(2026, 5, 1),
+        endDate: const Date(2026, 5, 31),
+        grouping: ChartGrouping.day,
+      );
+      expect(axis.grouping, ChartGrouping.day);
+      expect(axis.buckets.length, 31);
     });
 
     test('a single day cannot be refined past days', () {
-      final axis = buildContinuousAxis(
+      final axis = buildChartAxis(
         pointsBySeries: points(),
         startDate: const Date(2026, 4, 8),
         endDate: const Date(2026, 4, 8),
         grouping: ChartGrouping.month,
-        refineShortRanges: true,
       );
-
       expect(axis.grouping, ChartGrouping.day);
-      expect(axis.isEmpty, isFalse);
+      expect(axis.buckets.length, 1);
+    });
+
+    // "All time" is a fifty-year window: six hundred months of bars, nearly
+    // all of them before the company existed.
+    test('too many months starts at the first month with data', () {
+      final axis = buildChartAxis(
+        pointsBySeries: {
+          ChartSeriesId.invoices: [_p('2025-03-14', 10), _p('2026-04-02', 5)],
+        },
+        startDate: const Date(1976, 1, 1),
+        endDate: const Date(2026, 4, 30),
+        grouping: ChartGrouping.month,
+      );
+      expect(axis.grouping, ChartGrouping.month);
+      expect(axis.buckets.first.start, const Date(2025, 3, 1));
+      expect(axis.buckets.last.end, const Date(2026, 4, 30));
+      expect(axis.buckets.length, 14);
+      expect(_sum(axis.values[ChartSeriesId.invoices]!), 15);
     });
   });
 
@@ -282,10 +286,11 @@ void main() {
       expect(chartGroupingFits(start, end, ChartGrouping.month), isFalse);
     });
 
-    test('fifty years fits months, not days', () {
-      const start = Date(2000, 1, 1);
-      const end = Date(2050, 1, 1);
+    test('a year fits months, not weeks or days', () {
+      const start = Date(2026, 1, 1);
+      const end = Date(2026, 12, 31);
       expect(chartGroupingFits(start, end, ChartGrouping.month), isTrue);
+      expect(chartGroupingFits(start, end, ChartGrouping.week), isFalse);
       expect(chartGroupingFits(start, end, ChartGrouping.day), isFalse);
     });
 
@@ -298,6 +303,32 @@ void main() {
         ),
         isFalse,
       );
+    });
+  });
+
+  group('chartValueScale', () {
+    test('a round step, and a top that is a step above the tallest bar', () {
+      final s = chartValueScale(15800);
+      expect(s.step, 5000);
+      expect(s.max, 20000);
+    });
+
+    test('at most four steps', () {
+      for (final raw in [1.0, 7.0, 99.0, 420.0, 4001.0, 123456.0, 9.9e6]) {
+        final s = chartValueScale(raw);
+        expect(s.max, greaterThanOrEqualTo(raw), reason: '$raw');
+        expect(s.max / s.step, lessThanOrEqualTo(4), reason: '$raw');
+      }
+    });
+
+    test('never a step under one unit of money', () {
+      final s = chartValueScale(0.4);
+      expect(s.step, 1);
+      expect(s.max, 1);
+    });
+
+    test('nothing to scale is a one-unit axis', () {
+      expect(chartValueScale(0), (step: 1.0, max: 1.0));
     });
   });
 }

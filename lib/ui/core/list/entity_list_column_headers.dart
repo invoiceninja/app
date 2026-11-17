@@ -1,7 +1,9 @@
 import 'package:material_ui/material_ui.dart';
 
 import 'package:admin/app/design_tokens.dart';
+import 'package:admin/app/env.dart';
 import 'package:admin/domain/columns/column_definition.dart';
+import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/list/entity_list_constants.dart';
 import 'package:admin/ui/core/list/generic_list_view_model.dart';
 import 'package:admin/ui/core/list/list_density_scope.dart';
@@ -140,10 +142,16 @@ class _HeaderCell<T> extends StatelessWidget {
   }
 }
 
-/// The wide-mode column header's leading slot. Empty by default; hovers on
-/// desktop reveal an empty select-all checkbox. While in multi-select the
-/// checkbox is always visible and reflects whether *every* visible row is
-/// selected — clicking it then toggles between "select all" and "clear".
+/// The wide-mode column header's leading slot: the select-all checkbox.
+///
+/// With a pointer it is always drawn (empty) while the list has rows — the
+/// one visible sign that rows can be ticked at all, since each row's own
+/// checkbox stays hover-revealed in its leading slot. On touch the slot stays
+/// empty until multi-select (a 32 px box is under the touch target, and a
+/// long-press or the toolbar's Select is the way in there). While in
+/// multi-select the checkbox is always visible and reflects whether *every*
+/// visible row is selected — clicking it then toggles between "select all"
+/// and "clear".
 class _HeaderSelectAllSlot<T> extends StatefulWidget {
   const _HeaderSelectAllSlot({required this.vm});
   final GenericListViewModel<T> vm;
@@ -177,13 +185,30 @@ class _HeaderSelectAllSlotState<T> extends State<_HeaderSelectAllSlot<T>> {
           vm.selectAllVisible();
         }
       };
-    } else if (_isHovered && vm.items.isNotEmpty) {
+    } else if ((_isHovered || !Env.isTouchPrimary) && vm.items.isNotEmpty) {
       child = const SelectionCheckbox(checked: false);
       onTap = vm.selectAllVisible;
     } else {
       child = const SizedBox.shrink();
     }
 
+    Widget slot = GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: SizedBox(
+        width: kColLeadingWidth,
+        height: kColLeadingWidth,
+        child: Center(child: child),
+      ),
+    );
+    if (onTap != null && !selecting) {
+      // A bare box at rest — say what it does.
+      slot = Tooltip(
+        message: context.tr('select_all_visible'),
+        waitDuration: const Duration(milliseconds: 500),
+        child: slot,
+      );
+    }
     return MouseRegion(
       onEnter: (_) {
         if (!_isHovered) setState(() => _isHovered = true);
@@ -192,15 +217,7 @@ class _HeaderSelectAllSlotState<T> extends State<_HeaderSelectAllSlot<T>> {
         if (_isHovered) setState(() => _isHovered = false);
       },
       cursor: onTap == null ? MouseCursor.defer : SystemMouseCursors.click,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onTap,
-        child: SizedBox(
-          width: kColLeadingWidth,
-          height: kColLeadingWidth,
-          child: Center(child: child),
-        ),
-      ),
+      child: slot,
     );
   }
 }

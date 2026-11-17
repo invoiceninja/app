@@ -56,6 +56,9 @@ StatusStripDecision decideStatusStrip({
 }) {
   // An embedded list is scoped to a parent record while the counts are
   // company-wide, so "Draft 47" on one client's Invoices tab would be a lie.
+  // It gets count-free segments in its toolbar instead
+  // ([EmbeddedStatusSegments]), decided by this same function with
+  // `embedded: false` — every other rule here applies to them unchanged.
   if (embedded) return const StatusStripDecision(StatusStripAction.hide);
 
   // An active tab always shows its strip, even with the setting off: a
@@ -570,6 +573,126 @@ class _StatusTabButton extends StatelessWidget {
                 ],
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The status tabs of a list embedded in a record's tab, as one-click
+/// segments in its toolbar — beside the search field, before New.
+///
+/// The same catalog as the strip above a standalone list (`listStatusTabsFor`)
+/// and the same state (`badge_mode`, `exclusiveStatusFilters`), with two
+/// differences that are the point:
+///
+///  * **No counts.** The strip's counts are company-wide, and "Draft 47" over
+///    one client's three invoices would be a lie — which is why an embedded
+///    list once had no status control but the Status chip.
+///  * **Only where the toolbar has room.** `EmbeddedListTopRow` places them
+///    when the search field keeps `kEmbeddedSearchMinWidth` beside them
+///    ([naturalWidth]); otherwise they are left out and the Status chip in the
+///    search field is the way to filter, as before.
+///
+/// A row of the dashboard strip's wrapped chips (an `accentSoft` fill for the
+/// selected one, no underline) in one bordered box. The border is a
+/// foreground decoration, and on touch the box has no padding, so the 44 px
+/// chips still fit the header row's slot.
+class EmbeddedStatusSegments extends StatelessWidget {
+  const EmbeddedStatusSegments({
+    required this.tabs,
+    required this.selectedIndex,
+    required this.onTap,
+    this.enabled = true,
+    super.key,
+  });
+
+  /// `All` first — build it with `listStatusTabsFor`.
+  final List<ResolvedStatusTab> tabs;
+
+  /// As [EntityListStatusTabs.selectedIndex]: -1 selects nothing.
+  final int selectedIndex;
+
+  final void Function(ResolvedStatusTab tab) onTap;
+
+  /// As [EntityListStatusTabs.enabled].
+  final bool enabled;
+
+  /// The gap before the box, which the segments carry themselves so a host
+  /// that ends up drawing nothing pays nothing for them.
+  static const double leadingGap = 12;
+
+  static const double _spacing = 2;
+  static double _boxPadding() => Env.isTouchPrimary ? 0 : 3;
+
+  /// The width the segments take at rest, measured: every label at its
+  /// selected (heavier) weight, so selecting one never pushes the row past
+  /// the width it was placed at.
+  static double naturalWidth(
+    BuildContext context,
+    List<ResolvedStatusTab> tabs,
+  ) {
+    if (tabs.isEmpty) return 0;
+    final painter = TextPainter(
+      textDirection: Directionality.of(context),
+      textScaler: MediaQuery.textScalerOf(context),
+      maxLines: 1,
+    );
+    var width = 0.0;
+    try {
+      for (final tab in tabs) {
+        painter
+          ..text = TextSpan(
+            text: context.tr(tab.labelKey),
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+          )
+          ..layout();
+        width += painter.width + 20;
+      }
+    } finally {
+      painter.dispose();
+    }
+    return leadingGap +
+        width +
+        _spacing * (tabs.length - 1) +
+        _boxPadding() * 2 +
+        // Rounding in the measured labels.
+        tabs.length;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.inTheme;
+    return Padding(
+      padding: const EdgeInsetsDirectional.only(start: leadingGap),
+      child: Material(
+        type: MaterialType.transparency,
+        child: Container(
+          padding: EdgeInsets.all(_boxPadding()),
+          decoration: BoxDecoration(
+            color: tokens.surface,
+            borderRadius: BorderRadius.circular(InRadii.r2),
+          ),
+          foregroundDecoration: BoxDecoration(
+            border: Border.all(color: tokens.border),
+            borderRadius: BorderRadius.circular(InRadii.r2),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (var i = 0; i < tabs.length; i++) ...[
+                if (i > 0) const SizedBox(width: _spacing),
+                _StatusTabButton(
+                  tab: tabs[i],
+                  active: i == selectedIndex,
+                  tokens: tokens,
+                  wrapped: true,
+                  countStream: null,
+                  onTap: enabled ? () => onTap(tabs[i]) : null,
+                ),
+              ],
+            ],
           ),
         ),
       ),

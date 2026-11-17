@@ -374,7 +374,7 @@ class _TotalItemRow extends StatelessWidget {
       onToggleExpanded: onToggleExpanded,
       // Total items are hideable, not deletable — the show switch takes
       // the trailing slot in place of Info/Table's delete icon.
-      trailing: Switch.adaptive(value: show, onChanged: onToggleShow),
+      trailing: Switch(value: show, onChanged: onToggleShow),
       expandedChild: _ExpandedTotalEditor(
         item: item,
         onItemChanged: onItemChanged,

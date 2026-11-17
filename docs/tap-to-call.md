@@ -224,8 +224,8 @@ edit. Two consequences were weighed and accepted:
   It does **not** pin that fixture at a handset width, for two reasons. `flutter test` substitutes a
   font whose every glyph is a full em square, so text measures far wider than it ever will on a
   device — a 10-character amount is 132.5 px under it against 80.5 px of the bundled JetBrains Mono
-  the money column actually uses (`moneyTextStyle` → `kMonoFontFamily`; the identity column is Inter
-  Tight, and neither is what the test process renders). And under that same substituted font a
+  the money column used when this was measured (`moneyTextStyle` is Inter Tight with tabular figures
+  since Nov 2026, which sets narrower still; neither is what the test process renders). And under that same substituted font a
   nine-figure balance overflows a 390 px row *without* the call button at all — 22 px at 1.0×, 53 px
   at 1.4× measured on the pre-#111 tile — so pinning it would assert a pre-existing limit rather
   than this change. The handset case uses an ordinary row instead.

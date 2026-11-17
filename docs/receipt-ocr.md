@@ -16,7 +16,12 @@ section and `receipt_read_banner.dart`.
 - **A field the user is in is left alone.** `InDateField` commits on blur, and a picker's typed
   query isn't in the draft until a pick — so a half-typed value equals the baseline and would be
   overwritten under the caret. `ReceiptFieldFocus` tells the view model which fields have focus
-  (`noteReceiptFieldFocus`); the whole Amount card counts as one.
+  (`noteReceiptFieldFocus`); the amount and its three tax slots count as one, while the
+  currency and the date — drawn on the amount's row — keep scopes of their own, so typing a date
+  never holds a read off the amount, nor the amount off the date. The amount and the taxes are
+  two `ReceiptFieldFocus` scopes for one field set (`ExpenseTaxSection.wrapAmountFields`), so the
+  view model counts scopes per field: focus moving between them reports the gain before the loss,
+  and a plain set forgot the field while the user was still in it.
 - **A late result never lands on a finished form.** Native OCR can't be cancelled, so every read
   carries a generation; Cancel, Discard (`reset`), removing the file and `dispose` bump it, and a
   stale result is dropped. A result arriving after a save started (a save counter captured when
@@ -52,7 +57,7 @@ section and `receipt_read_banner.dart`.
 - **Markers**: "From receipt" under each filled field, "From receipt — check" for a guess
   (a fallback total, a total with an empty tip line, an ambiguous date). A marker stays while the
   user is in the field and goes when they leave it changed — not on the first keystroke, which
-  would shift the form under a finger. The Amount card (amount and all three tax slots) counts as
+  would shift the form under a finger. The amount and all three tax slots count as
   one field. Markers and the strip go once the form can no longer take a receipt.
 
 Tests: `receipt_parser_test.dart`, `receipt_fill_test.dart`, `vendor_matcher_test.dart`,
@@ -73,6 +78,10 @@ Tests: `receipt_parser_test.dart`, `receipt_fill_test.dart`, `vendor_matcher_tes
   read; back after Undo. Sized from the row's own width: the file size gives way below 420 px,
   and below 340 px the button is an icon with a `read_receipt` tooltip.
 - **Never** on an existing expense (out of scope), and nowhere without an engine.
+- **Said up front**: where the form can read one (`canReadReceipt`), the Documents card opens
+  with one line — "We'll fill in the amount, date and tax from a receipt." (app-local
+  `receipt_fill_hint`) — because nothing else tells a user the photo they attach fills the form.
+  Not over the plan-gate banner, which takes no files; the title stays "Documents".
 
 The strip (`ReceiptReadBanner`, state `ReceiptBannerState`) sits in the edit scaffold's banner
 slot (`bannerBuilder`): reading (Cancel); filled (the values as the read left them, not the live

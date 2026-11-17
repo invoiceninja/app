@@ -2,6 +2,7 @@ import 'package:decimal/decimal.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:admin/ui/features/projects/widgets/detail/project_hours_format.dart';
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/data/models/domain/project/project_analytics.dart';
 import 'package:admin/data/models/value/date.dart';
@@ -34,7 +35,9 @@ class TimeSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final a = analytics;
-    String hours(double h) => analyticsHours(formatter, h);
+    final hoursMinutes = ProjectHoursFormat.of(context);
+    String hours(double h) =>
+        analyticsHours(formatter, h, hoursMinutes: hoursMinutes);
     final h = a.hours;
     final children = <Widget>[
       if (h != null && (h.loggedHours > 0 || h.budgetedHours > 0))
@@ -116,7 +119,11 @@ class _HoursBars extends StatelessWidget {
             for (final (label, value, :overrun) in lines)
               BarListItem(
                 label: label,
-                valueText: analyticsHours(formatter, value),
+                valueText: analyticsHours(
+                  formatter,
+                  value,
+                  hoursMinutes: ProjectHoursFormat.of(context),
+                ),
                 fraction: top <= 0 ? 0 : (value / top).clamp(0.0, 1.0),
                 color: overrun ? tokens.overdue : null,
               ),
@@ -310,6 +317,7 @@ class _Velocity extends StatelessWidget {
     final values = [for (final b in buckets) b.hours];
     final total = values.fold<double>(0, (s, v) => s + v);
     final title = context.tr(weekly ? 'weekly_velocity' : 'daily_velocity');
+    final hoursMinutes = ProjectHoursFormat.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -325,9 +333,11 @@ class _Velocity extends StatelessWidget {
           ],
           style: ReportTimeChartStyle.columns,
           axisText: (v) => analyticsHours(formatter, v),
-          valueText: (v) => analyticsHours(formatter, v),
+          valueText: (v) =>
+              analyticsHours(formatter, v, hoursMinutes: hoursMinutes),
           semanticsLabel:
-              '$title: ${analyticsHours(formatter, total)}, '
+              '$title: '
+              '${analyticsHours(formatter, total, hoursMinutes: hoursMinutes)}, '
               '${labels.first} – ${labels.last}',
           height: 200,
         ),

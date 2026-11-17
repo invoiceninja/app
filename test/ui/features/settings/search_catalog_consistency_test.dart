@@ -31,6 +31,7 @@ import 'package:admin/ui/features/settings/views/basic/company_details/documents
 import 'package:admin/ui/features/settings/views/basic/company_details/logo_screen.dart';
 import 'package:admin/ui/features/settings/views/basic/account_management/danger_zone_screen.dart';
 import 'package:admin/ui/features/settings/views/basic/account_management/integrations_screen.dart';
+import 'package:admin/ui/features/settings/views/basic/backup_restore/backup_restore_shell.dart';
 import 'package:admin/ui/features/settings/views/basic/backup_restore/widgets/backup_tab.dart';
 import 'package:admin/ui/features/settings/views/basic/backup_restore/widgets/restore_tab.dart';
 import 'package:admin/ui/features/settings/views/basic/expense_settings_screen.dart';
@@ -99,8 +100,7 @@ void main() {
             kAccountManagementIntegrationsSearchKeys,
         'account_management/integrations/quickbooks':
             kAccountManagementQuickbooksSearchKeys,
-        'backup_restore/': kBackupTabSearchKeys,
-        'backup_restore/restore': kRestoreTabSearchKeys,
+        'backup_restore/': kBackupRestoreSearchKeys,
         'invoice_design/': kInvoiceDesignGeneralSearchKeys,
         'generated_numbers/': kGeneratedNumbersSettingsSearchKeys,
         'tags/': kTagsSearchKeys,

@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import 'package:admin/data/models/domain/task.dart';
 import 'package:admin/data/models/domain/task_status.dart';
+import 'package:admin/data/repositories/client_repository.dart';
 import 'package:admin/data/repositories/project_repository.dart';
 import 'package:admin/data/repositories/task_repository.dart';
 import 'package:admin/data/repositories/task_status_repository.dart';
@@ -26,7 +27,16 @@ class KanbanViewModel extends ChangeNotifier with TaskFiltersMixin {
     required this.statusRepo,
     required this.companyId,
     this.projectRepo,
+    this.clientRepo,
   }) {
+    // Every cached name, archived included: a task on an archived client is
+    // still on the board, and still found by that client's name.
+    _clientNamesSub = clientRepo
+        ?.watchAllNames(companyId: companyId)
+        .listen((rows) => _onNames(clients: rows));
+    _projectNamesSub = projectRepo
+        ?.watchAllNames(companyId: companyId)
+        .listen((rows) => _onNames(projects: rows));
     _statusesSub = statusRepo
         .watchAll(companyId: companyId)
         .listen(_onStatuses);
@@ -49,9 +59,44 @@ class KanbanViewModel extends ChangeNotifier with TaskFiltersMixin {
   final TaskStatusRepository statusRepo;
   final String companyId;
 
-  /// Only [quickAdd] reads it, to give a task created under a project filter
-  /// that project's client and rate. Null leaves such a task on no project.
+  /// [quickAdd] reads it, to give a task created under a project filter that
+  /// project's client and rate (null leaves such a task on no project), and
+  /// the search matches a task by its project's name through it.
   final ProjectRepository? projectRepo;
+
+  /// The search matches a task by its client's name through it. Null (a test
+  /// that does not search) matches description and number only.
+  final ClientRepository? clientRepo;
+
+  StreamSubscription<List<({String id, String name})>>? _clientNamesSub;
+  StreamSubscription<List<({String id, String name})>>? _projectNamesSub;
+  Map<String, String> _clientNames = const {};
+  Map<String, String> _projectNames = const {};
+
+  void _onNames({
+    List<({String id, String name})>? clients,
+    List<({String id, String name})>? projects,
+  }) {
+    if (clients != null) _clientNames = {for (final r in clients) r.id: r.name};
+    if (projects != null) {
+      _projectNames = {for (final r in projects) r.id: r.name};
+    }
+    // A rename only matters to a search that is running.
+    if (searchActive && !_disposed) notifyListeners();
+  }
+
+  /// The board is the one task view with a search field: it has no list to
+  /// search instead, and a status board of a few hundred cards is exactly
+  /// where "the one for the Smith job" gets lost.
+  @override
+  bool get supportsSearch => true;
+
+  /// Tasks [quickAdd] created while a search was running. They stay on the
+  /// board until the search changes — a card typed into a column that then
+  /// vanished because its title does not match the search would read as a
+  /// failed create, the reason a quick-add takes the other filters too.
+  final Set<String> _addedUnderSearch = {};
+  String _searchAddedUnder = '';
 
   StreamSubscription<List<TaskStatus>>? _statusesSub;
   StreamSubscription<Map<String, List<Task>>>? _tasksSub;
@@ -139,7 +184,20 @@ class KanbanViewModel extends ChangeNotifier with TaskFiltersMixin {
   List<Task> tasksFor(String statusId) {
     final base = statusId == noStatusId ? _orphans() : _allFor(statusId);
     if (!filtersActive) return base;
-    return base.where(matchesFilters).toList(growable: false);
+    if (search != _searchAddedUnder) _addedUnderSearch.clear();
+    return base
+        .where(
+          (t) =>
+              matchesFilters(t) &&
+              (!searchActive ||
+                  _addedUnderSearch.contains(t.id) ||
+                  matchesSearch(
+                    t,
+                    clientName: _clientNames[t.clientId] ?? '',
+                    projectName: _projectNames[t.projectId] ?? '',
+                  )),
+        )
+        .toList(growable: false);
   }
 
   /// Tasks whose `status_id` names no column. They used to be on the board's
@@ -273,7 +331,15 @@ class KanbanViewModel extends ChangeNotifier with TaskFiltersMixin {
         );
       }
     }
-    await repo.create(companyId: companyId, draft: draft);
+    final created = await repo.create(companyId: companyId, draft: draft);
+    if (searchActive) {
+      if (search != _searchAddedUnder) {
+        _addedUnderSearch.clear();
+        _searchAddedUnder = search;
+      }
+      _addedUnderSearch.add(created.entity.id);
+      if (!_disposed) notifyListeners();
+    }
   }
 
   /// Persist a column-header drag (status reordering on kanban).
@@ -289,6 +355,8 @@ class KanbanViewModel extends ChangeNotifier with TaskFiltersMixin {
     _disposed = true;
     _statusesSub?.cancel();
     _tasksSub?.cancel();
+    _clientNamesSub?.cancel();
+    _projectNamesSub?.cancel();
     super.dispose();
   }
 }

@@ -6,10 +6,13 @@ import 'package:admin/ui/features/dashboard/widgets/dashboard_create_fab.dart';
 import 'package:admin/ui/features/dashboard/widgets/dashboard_create_strip.dart';
 import 'package:admin/ui/features/dashboard/widgets/dashboard_refresh_button.dart';
 import 'package:admin/ui/features/dashboard/widgets/freshness.dart';
+import 'package:admin/app/env.dart';
+import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/features/dashboard/widgets/manage_dashboard_cards_sheet.dart';
 
-/// Wide-layout top bar, fixed above the dashboard scroll: the company and how
-/// fresh the data is, the create buttons, then Refresh and Customize.
+/// Wide-layout top bar, fixed above the dashboard scroll: the company's name,
+/// with how fresh the data is and a small Refresh under it; the create
+/// buttons; and Customize, set apart at the trailing end.
 ///
 /// **The create buttons live here, not in the page**, so they are on screen
 /// however far the dashboard is scrolled — see [DashboardCreateStrip]. They
@@ -20,7 +23,15 @@ import 'package:admin/ui/features/dashboard/widgets/manage_dashboard_cards_sheet
 ///
 /// The freshness stamp rides the subtitle rather than the action cluster: it
 /// re-measures itself every 30 s, and a self-changing width among the actions
-/// could shift them while the user is reaching for one.
+/// could shift them while the user is reaching for one. Refresh rides with it,
+/// at the end of the line — it renews the stamp, and among the actions it was
+/// one more equal-weight button between the user and New Invoice.
+///
+/// **Customize is last, a quiet icon behind a rule**, not first as the design
+/// mock drew it: it is a rarely-used page setting, and the bar's priority
+/// layout (below) keeps a fixed trailing control on screen without splitting
+/// the measured create run in two. The primary create still ends that run, so
+/// it is the last thing before the rule.
 ///
 /// Mobile uses a standard `AppBar` instead — see `DashboardScreen` for the
 /// narrow path, which since flutter#51 is "narrow pane **or** phone".
@@ -70,11 +81,11 @@ class DashboardTopBar extends StatelessWidget {
         InSpacing.md(context),
       ),
       // Three things want this row, and when it is tight they are served in
-      // this order: Refresh and Customize (fixed — never pushed off), then the
+      // this order: Customize (fixed — never pushed off), then the
       // company's name (up to [_kTitleMaxWidth]), then the create buttons,
       // which take what is left and fold what does not fit into their own More
       // menu. A plain flex row cannot say that — it would share the squeeze
-      // between the name and the buttons in proportion — so the pair is laid
+      // between the name and the buttons in proportion — so Customize is laid
       // out first and the other two split the remainder by measurement.
       child: Row(
         children: [
@@ -112,13 +123,14 @@ class DashboardTopBar extends StatelessWidget {
               },
             ),
           ),
-          SizedBox(width: InSpacing.lg(context)),
-          DashboardRefreshButton(
-            isRefreshing: vm.isAnyRefreshing,
-            onRefresh: onRefresh,
-          ),
-          const SizedBox(width: InSpacing.sm),
-          DashboardCardsButton(vm: vm),
+          SizedBox(width: InSpacing.md(context)),
+          // Sets Customize apart from the creates: it changes the page, they
+          // make records. Nothing to set it apart from without them.
+          if (createOptions.isNotEmpty && onCreate != null) ...[
+            Container(width: 1, height: 20, color: tokens.border),
+            SizedBox(width: InSpacing.md(context)),
+          ],
+          DashboardCustomizeButton(vm: vm),
         ],
       ),
     );
@@ -129,27 +141,44 @@ class DashboardTopBar extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
+        // The app's one page-title size (`theme.dart`'s app bar: 18 px
+        // semibold), so the dashboard does not read as another app.
         Text(
           companyName,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: theme.textTheme.titleMedium?.copyWith(
+          style: theme.textTheme.titleLarge?.copyWith(
+            fontSize: 18,
             color: tokens.ink,
             fontWeight: FontWeight.w600,
           ),
         ),
-        FreshnessTicker(
-          builder: (context) => Text(
-            freshnessText(
-              context,
-              lastRefreshed: vm.lastRefreshed,
-              isRefreshing: vm.isAnyRefreshing,
-              cachedAt: vm.figuresFetchedAt,
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(
+              child: FreshnessTicker(
+                builder: (context) => Text(
+                  freshnessText(
+                    context,
+                    lastRefreshed: vm.lastRefreshed,
+                    isRefreshing: vm.isAnyRefreshing,
+                    cachedAt: vm.figuresFetchedAt,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: tokens.ink2,
+                  ),
+                ),
+              ),
             ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.bodySmall?.copyWith(color: tokens.ink2),
-          ),
+            const SizedBox(width: 2),
+            DashboardRefreshButton(
+              isRefreshing: vm.isAnyRefreshing,
+              onRefresh: onRefresh,
+            ),
+          ],
         ),
       ],
     );
@@ -158,10 +187,6 @@ class DashboardTopBar extends StatelessWidget {
 
 /// The widest the company name and freshness stamp may grow.
 const double _kTitleMaxWidth = 240;
-
-/// Below this the create buttons' slot cannot be relied on to hold a labelled
-/// button beside its More, and collapses to one `+` that opens them all.
-const double _kCreateSlotMinWidth = 200;
 
 /// The create buttons, right-aligned in whatever the title left.
 class _CreateSlot extends StatelessWidget {
@@ -179,7 +204,11 @@ class _CreateSlot extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        if (constraints.maxWidth < _kCreateSlotMinWidth) {
+        // Below this the slot cannot hold the primary beside its More, and
+        // collapses to one `+` that opens them all. Measured from the labels
+        // at the current text size, not a constant.
+        final floor = gap + dashboardCreateStripMinWidth(context, options);
+        if (constraints.maxWidth < floor) {
           return Align(
             alignment: AlignmentDirectional.centerEnd,
             heightFactor: 1,
@@ -201,6 +230,42 @@ class _CreateSlot extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+/// Customize: a quiet tune icon at the bar's trailing end that opens the cards
+/// and panels editor (`openManageDashboardCards`).
+///
+/// Icon-only and borderless: it is a page setting reached now and then, and a
+/// labelled, outlined button beside the creates gave it the same weight as
+/// making an invoice. The tooltip names it and is its screen-reader label.
+/// The same square as the create buttons, so the bar's controls share one
+/// centre line; on touch, the touch target.
+class DashboardCustomizeButton extends StatelessWidget {
+  const DashboardCustomizeButton({super.key, required this.vm});
+
+  final DashboardViewModel vm;
+
+  @override
+  Widget build(BuildContext context) {
+    final size = Env.isTouchPrimary ? InSizes.touchTarget : 36.0;
+    return IconButton(
+      tooltip: context.tr('customize'),
+      onPressed: () => openManageDashboardCards(context, vm: vm),
+      iconSize: 18,
+      padding: EdgeInsets.zero,
+      // `compact` (the desktop theme's) takes 8 px off explicit constraints.
+      visualDensity: VisualDensity.standard,
+      constraints: BoxConstraints.tightFor(width: size, height: size),
+      style: IconButton.styleFrom(
+        foregroundColor: context.inTheme.ink2,
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(InRadii.r2),
+        ),
+      ),
+      icon: const Icon(Icons.tune),
     );
   }
 }

@@ -21,7 +21,13 @@ class EntityQuickAction<A> {
     required this.shortLabel,
     this.applies = true,
     this.busy,
+    this.onScreen = false,
   });
+
+  /// What this action opens is already on screen — the PDF in the pane beside
+  /// a billing document. It gets no tile, and the header bar keeps it under
+  /// More rather than spreading it as a button (`QuickActionKinds.kinds`).
+  final bool onScreen;
 
   final EntityActionItem<A> item;
 
@@ -52,7 +58,7 @@ List<EntityQuickAction<A>> pickQuickActions<A>(
   required int max,
 }) => [
   for (final q in priority)
-    if (q.applies && q.item.isVisible) q,
+    if (q.applies && !q.onScreen && q.item.isVisible) q,
 ].take(max).toList(growable: false);
 
 /// Finds the item for [kind] anywhere in [items], including inside a group's
@@ -117,9 +123,13 @@ class EntityQuickActions<A> extends StatelessWidget {
         );
         // Tell the header which actions are tiles, so its bar leaves them
         // under More (`QuickActionKindsScope`).
-        QuickActionKindsScope.maybeOf(
-          context,
-        )?.publish({for (final a in picked) a.item.kind});
+        QuickActionKindsScope.maybeOf(context)?.publish(
+          {for (final a in picked) a.item.kind},
+          onScreen: {
+            for (final a in priority)
+              if (a.onScreen) a.item.kind,
+          },
+        );
         if (picked.isEmpty) return const SizedBox.shrink();
         return Padding(
           padding: EdgeInsets.only(bottom: InSpacing.lg(context)),

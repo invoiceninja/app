@@ -58,10 +58,23 @@ double dashboardRecordRowExtent({
   bool dense = false,
 }) {
   if (compact) return dense ? 52 : 60;
-  final single =
-      dashboardRowActionExtent(dense: dense) + 2 * _rowPadding(dense: dense);
-  return stacked ? single + _kStackedFirstLine : single;
+  final pad = 2 * _rowPadding(dense: dense);
+  final box = dashboardRowActionExtent(dense: dense) + pad;
+  if (stacked) return box + _kStackedFirstLine;
+  // Compact is one line a record, as on a phone: the second lines fold away
+  // (see [DashboardRecordRow]), and the row stays the button's box.
+  if (dense) return box;
+  // The wide form's cells are two lines (a date over "due in 3 days", an
+  // amount over its "≈ base"), and a row with a second line must be no taller
+  // than one without — so the floor holds two lines as well as the button.
+  final twoLines = _kTwoLines + pad;
+  return box > twoLines ? box : twoLines;
 }
+
+/// The wide form's two-line cell at the default text size: a first line over
+/// an 11 px one, each with a set line height ([_kMainHeight], [_kSubHeight])
+/// so the sum is known — the client's 13 px line is the tallest, ~32 px.
+const double _kTwoLines = 32;
 
 /// A single-line row's vertical padding: [_kRowPadding], or under Compact
 /// [kDenseRowPad] with a pointer and nothing on touch, where the 44 px action
@@ -102,6 +115,21 @@ double dashboardRowActionExtent({bool dense = false}) => Env.isTouchPrimary
 /// these rows sit inside grid rows that are laid out with `IntrinsicHeight`,
 /// where a `LayoutBuilder` cannot be used.
 ///
+/// The wide form is a table row, its columns lining up down the card and with
+/// the panel beside it:
+///
+/// ```
+/// 0042   Acme Ltd              Oct 2, 2026      [Sent]    £1,200.00
+///        for invoice 0011      12 days late               ≈ $1,512.00
+/// ```
+///
+/// The number is muted mono in a fixed column, so the client — what a reader
+/// scans for — starts at one x on every row. Each second line is optional:
+/// [clientNote], [subline] and [amountNote] are wide-only, and the phone keeps
+/// two lines in all (the [subline] joins the lead there; the notes drop).
+/// Under the Compact density the wide form is one line a record the same way
+/// — the [subline] after the date, no notes — so its rows keep their 32 px.
+///
 /// [stacked] is the form for a column of the needs-attention band on a wide
 /// screen:
 ///
@@ -130,6 +158,10 @@ class DashboardRecordRow extends StatefulWidget {
     this.leading,
     this.clientLabel,
     this.badge,
+    this.subline,
+    this.sublineIsLate = false,
+    this.clientNote,
+    this.amountNote,
   }) : assert(!(compact && stacked), 'compact and stacked are two forms');
 
   /// The record's number; a dash when it has none yet.
@@ -157,6 +189,24 @@ class DashboardRecordRow extends StatefulWidget {
 
   /// A second fact after [lead] — "viewed Oct 2".
   final String? fact;
+
+  /// How [lead]'s date stands relative to today — "due in 3 days", "12 days
+  /// late" (`rowWhenText`). Under the lead in the wide form, after it on a
+  /// phone. Null says nothing; the rules for when to say something are
+  /// `invoiceRowWhen` / `quoteRowWhen`.
+  final String? subline;
+
+  /// Draws [subline] in the overdue tone.
+  final bool sublineIsLate;
+
+  /// A muted line under the client — "for invoice 0011". Wide form only. A
+  /// widget, because what it names may resolve from Drift after the row
+  /// draws; it inherits the note's text style, so pass it none of its own.
+  final Widget? clientNote;
+
+  /// A muted line under the amount — "≈ $1,231.00" (`approxInBaseCurrency`).
+  /// Wide form only: a phone row has no room for a third figure.
+  final String? amountNote;
 
   /// The formatted amount.
   final String amount;
@@ -247,6 +297,199 @@ class _DashboardRecordRowState extends State<DashboardRecordRow> {
     );
   }
 
+  /// The wide form: a table row — see the class comment. [status] is the
+  /// badge, if any.
+  Widget _wide(
+    BuildContext context, {
+    required Widget? status,
+    required Widget money,
+    required List<Widget> actions,
+  }) {
+    final tokens = context.inTheme;
+    final theme = Theme.of(context);
+    final w = widget;
+    // Compact: one line a record — see the class comment.
+    final oneLine = dashboardDense(context);
+    final noteStyle = TextStyle(
+      fontSize: _kSubLine,
+      height: _kSubHeight,
+      color: tokens.ink3,
+    );
+
+    final number = LtrText(
+      w.number.isEmpty ? '—' : w.number,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      softWrap: false,
+      style: TextStyle(
+        fontFamily: kMonoFontFamily,
+        fontSize: 12,
+        color: tokens.ink3,
+      ),
+    );
+
+    final clientStyle = theme.textTheme.bodyMedium?.copyWith(
+      fontSize: 13,
+      height: _kMainHeight,
+      color: tokens.ink,
+      fontWeight: FontWeight.w500,
+    );
+    final clientLabel = w.clientLabel;
+    final Widget client = DefaultTextStyle.merge(
+      style: clientStyle,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      child: clientLabel ?? Text(w.client),
+    );
+    final clientNote = oneLine ? null : w.clientNote;
+    final Widget clientCell = clientNote == null
+        ? client
+        : Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              client,
+              const SizedBox(height: 1),
+              DefaultTextStyle.merge(
+                style: noteStyle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                child: clientNote,
+              ),
+            ],
+          );
+
+    final lead = Text.rich(
+      TextSpan(
+        children: [
+          TextSpan(
+            text: w.lead,
+            style: TextStyle(
+              color: w.leadIsLate ? tokens.overdue : tokens.ink2,
+              fontWeight: w.leadIsLate ? FontWeight.w600 : FontWeight.w400,
+            ),
+          ),
+          if (w.fact != null)
+            TextSpan(text: w.lead.isEmpty ? w.fact : ' · ${w.fact}'),
+          if (oneLine && w.subline != null && w.subline!.isNotEmpty)
+            TextSpan(
+              text: w.lead.isEmpty && w.fact == null
+                  ? w.subline
+                  : ' · ${w.subline}',
+              style: TextStyle(
+                color: w.sublineIsLate ? tokens.overdue : tokens.ink3,
+                fontWeight: w.sublineIsLate ? FontWeight.w600 : FontWeight.w400,
+              ),
+            ),
+        ],
+      ),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: TextStyle(
+        fontSize: _kMainLine,
+        height: _kMainHeight,
+        color: tokens.ink2,
+      ),
+    );
+    final subline = oneLine ? null : w.subline;
+    final Widget when = subline == null || subline.isEmpty
+        ? lead
+        : Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              lead,
+              const SizedBox(height: 1),
+              Text(
+                subline,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: _kSubLine,
+                  height: _kSubHeight,
+                  color: w.sublineIsLate ? tokens.overdue : tokens.ink3,
+                  fontWeight: w.sublineIsLate
+                      ? FontWeight.w600
+                      : FontWeight.w400,
+                ),
+              ),
+            ],
+          );
+
+    final amountNote = oneLine ? null : w.amountNote;
+    // A fixed column, end-aligned, so amounts line up down the card; a long
+    // one scales down rather than pushing the buttons.
+    final Widget amount = SizedBox(
+      width: _kAmountColumn,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: AlignmentDirectional.centerEnd,
+            child: money,
+          ),
+          if (amountNote != null && amountNote.isNotEmpty) ...[
+            const SizedBox(height: 1),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: AlignmentDirectional.centerEnd,
+              child: LtrText(
+                amountNote,
+                maxLines: 1,
+                softWrap: false,
+                style: moneyTextStyle(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w400,
+                  color: tokens.ink3,
+                  height: _kSubHeight,
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+
+    return Row(
+      children: [
+        SizedBox(width: _kNumberColumn, child: number),
+        const SizedBox(width: 10),
+        // Three parts client to two parts date. In a half-width card on a
+        // 1280 px laptop that leaves the date about 110 px — "due in 30 days"
+        // with a little to spare — and the rest to the client's name.
+        Expanded(flex: 3, child: clientCell),
+        const SizedBox(width: 12),
+        Expanded(flex: 2, child: when),
+        // The status is a fixed column of its own between the date and the
+        // amount: sized by its word, a "Past Due" pill took width from the
+        // client and the date, so neither started at one x down the card.
+        if (status != null) ...[
+          const SizedBox(width: InSpacing.sm),
+          SizedBox(
+            width: _kStatusColumn,
+            child: Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: AlignmentDirectional.centerStart,
+                child: status,
+              ),
+            ),
+          ),
+        ],
+        const SizedBox(width: 12),
+        amount,
+        if (actions.isNotEmpty) const SizedBox(width: 12),
+        for (var i = 0; i < actions.length; i++) ...[
+          if (i > 0) const SizedBox(width: 2),
+          actions[i],
+        ],
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final tokens = context.inTheme;
@@ -308,6 +551,18 @@ class _DashboardRecordRowState extends State<DashboardRecordRow> {
           ),
           if (w.fact != null)
             TextSpan(text: w.lead.isEmpty ? w.fact : ' · ${w.fact}'),
+          // The wide form draws the subline on a line of its own; the phone
+          // and the stacked column carry it on the lead's.
+          if (w.subline != null && w.subline!.isNotEmpty)
+            TextSpan(
+              text: w.lead.isEmpty && w.fact == null
+                  ? w.subline
+                  : ' · ${w.subline}',
+              style: TextStyle(
+                color: w.sublineIsLate ? tokens.overdue : tokens.ink2,
+                fontWeight: w.sublineIsLate ? FontWeight.w600 : FontWeight.w500,
+              ),
+            ),
         ],
       ),
       maxLines: 1,
@@ -389,35 +644,7 @@ class _DashboardRecordRowState extends State<DashboardRecordRow> {
               ...actionWidgets,
             ],
           )
-        : Row(
-            children: [
-              // Three parts identity to two parts status. In a half-width
-              // card on a 1280 px laptop that leaves the status about 118 px —
-              // "Expired 04/Oct/2026" with nothing to spare — and everything
-              // else to the client's name, which is what was being cut.
-              Expanded(flex: 3, child: identity),
-              const SizedBox(width: 12),
-              // A pill ahead of the lead needs an equal share, or at 1,000 px
-              // "Partial/Deposit" left the date as "2…".
-              Expanded(flex: w.badge == null ? 2 : 3, child: status),
-              const SizedBox(width: 12),
-              // A fixed column, right-aligned, so amounts line up down the
-              // card; a long one scales down rather than pushing the buttons.
-              SizedBox(
-                width: 100,
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: AlignmentDirectional.centerEnd,
-                  child: money,
-                ),
-              ),
-              if (actionWidgets.isNotEmpty) const SizedBox(width: 12),
-              for (var i = 0; i < actionWidgets.length; i++) ...[
-                if (i > 0) const SizedBox(width: 2),
-                actionWidgets[i],
-              ],
-            ],
-          );
+        : _wide(context, status: badge, money: money, actions: actionWidgets);
 
     return InkWell(
       onTap: w.onTap,
@@ -442,6 +669,23 @@ class _DashboardRecordRowState extends State<DashboardRecordRow> {
     );
   }
 }
+
+/// The wide form's number column: "INV-0042" in 12 px mono, ellipsized past
+/// that — a fixed width, so the client starts at one x on every row.
+const double _kNumberColumn = 64;
+
+/// The wide form's status column — "Past Due" at 11 px; a longer word
+/// ("Partial/Deposit") scales down rather than moving the columns.
+const double _kStatusColumn = 84;
+
+/// The wide form's amount column.
+const double _kAmountColumn = 104;
+
+/// The wide form's first and second line sizes.
+const double _kMainLine = 12.5;
+const double _kSubLine = 11;
+const double _kMainHeight = 1.3;
+const double _kSubHeight = 1.2;
 
 /// Size of an action's glyph in its icon-only form.
 const double _kActionGlyph = 18;

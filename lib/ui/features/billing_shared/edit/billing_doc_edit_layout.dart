@@ -6,27 +6,36 @@ import 'package:logging/logging.dart';
 import 'package:provider/provider.dart';
 
 import 'package:admin/app/design_tokens.dart';
+import 'package:admin/app/env.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/data/models/domain/billing/billing_contact.dart';
 import 'package:admin/data/models/domain/billing/billing_doc_fields.dart';
 import 'package:admin/data/models/domain/billing/line_item.dart';
 import 'package:admin/data/models/domain/company.dart';
+import 'package:admin/data/models/domain/credit.dart';
+import 'package:admin/data/models/domain/invoice.dart';
 import 'package:admin/data/models/value/date.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/edit/create_form_documents.dart';
 import 'package:admin/ui/core/edit/entity_custom_fields_section.dart';
 import 'package:admin/ui/core/widgets/centered_form_column.dart';
+import 'package:admin/ui/core/widgets/field_action_button.dart';
 import 'package:admin/ui/core/widgets/field_label.dart';
+import 'package:admin/ui/core/widgets/form_field_pair.dart';
 import 'package:admin/ui/core/widgets/form_save_scope.dart';
 import 'package:admin/ui/core/widgets/in_date_field.dart';
+import 'package:admin/ui/core/widgets/party_money_cell.dart';
 import 'package:admin/ui/features/billing_shared/billing_doc_type.dart';
 import 'package:admin/ui/features/billing_shared/billing_edit_totals.dart';
 import 'package:admin/ui/features/billing_shared/contacts/billing_doc_contacts_section.dart';
+import 'package:admin/ui/features/billing_shared/detail/billing_doc_standing.dart';
 import 'package:admin/ui/features/billing_shared/edit/billing_doc_client_picker.dart';
+import 'package:admin/ui/features/billing_shared/edit/billing_doc_date_order.dart';
 import 'package:admin/ui/features/billing_shared/edit/billing_doc_edit_desktop_shell.dart';
 import 'package:admin/ui/features/billing_shared/edit/billing_doc_edit_fab.dart';
 import 'package:admin/ui/features/billing_shared/edit/billing_doc_edit_items_body.dart';
 import 'package:admin/ui/features/billing_shared/edit/billing_doc_edit_tab_strip.dart';
+import 'package:admin/ui/features/billing_shared/edit/billing_doc_payment_terms_button.dart';
 import 'package:admin/ui/features/billing_shared/edit/billing_doc_settings_tab.dart';
 import 'package:admin/ui/features/billing_shared/edit/billing_doc_vendor_picker.dart';
 import 'package:admin/ui/features/billing_shared/edit/billing_edit_field_decoration.dart';
@@ -47,8 +56,10 @@ import 'package:admin/ui/features/billing_shared/view_models/billing_doc_edit_vi
 import 'package:admin/ui/features/dashboard/widgets/card_shell.dart';
 import 'package:admin/ui/features/settings/widgets/form_section.dart';
 import 'package:admin/ui/features/tasks/widgets/create_task_from_line_item_sheet.dart';
+import 'package:admin/utils/formatting.dart';
 import 'package:admin/utils/notes_html.dart';
 import 'package:admin/ui/features/billing_shared/detail/signed_document_pill.dart';
+import 'package:admin/ui/core/widgets/toast_host.dart';
 
 final _log = Logger('BillingDocEditLayout');
 
@@ -73,7 +84,7 @@ class BillingDocEditSlots {
     this.eInvoiceTab,
     this.autoBillEnabled,
     this.onAutoBillEnabledChanged,
-    this.scheduleCard,
+    this.scheduleFields,
     this.scheduleTab,
     this.autoBillMode,
   });
@@ -96,13 +107,15 @@ class BillingDocEditSlots {
   final bool Function()? autoBillEnabled;
   final ValueChanged<bool>? onAutoBillEnabledChanged;
 
-  /// The recurring invoice's schedule: a desktop card in the dates card's
-  /// place, and a narrow tab after Details.
-  final WidgetBuilder? scheduleCard;
+  /// The recurring invoice's schedule: fields on the desktop details panel,
+  /// in the dates' place and paired like them, and a narrow tab after
+  /// Details.
+  final List<Widget> Function(BuildContext context)? scheduleFields;
   final WidgetBuilder? scheduleTab;
 
-  /// The recurring invoice's auto-bill mode picker, after Discount on the
-  /// desktop number card ([desktop] true) and the narrow Details tab.
+  /// The recurring invoice's auto-bill mode picker, beside Discount on the
+  /// desktop details panel ([desktop] true) and after it on the narrow
+  /// Details tab.
   final Widget Function(BuildContext context, {required bool desktop})?
   autoBillMode;
 }
@@ -388,54 +401,56 @@ class _BillingDocEditLayoutState<T extends BillingDocFields>
 
   /// Label + body for one tab, in a single `switch` so a key can never carry
   /// one and not the other.
-  ({String label, Widget body}) _tabFor(BuildContext context, _Tab key) =>
-      switch (key) {
-        _Tab.details => (
-          label: context.tr('details'),
-          body: _DetailsTab<T>(type: _type, vm: _vm, slots: widget.slots),
-        ),
-        _Tab.schedule => (
-          label: context.tr('schedule'),
-          body: widget.slots.scheduleTab!(context),
-        ),
-        _Tab.contacts => (
-          label: context.tr('contacts'),
-          body: _ContactsTab<T>(type: _type, vm: _vm),
-        ),
-        _Tab.items => (
-          label: context.tr('items'),
-          body: _ItemsTab<T>(
-            type: _type,
-            vm: _vm,
-            onPickItems: () => _openPicker(context),
-            onCreateTask: _createTaskHandler(context),
-            allowOptionalLines: _offersOptionalLines,
-          ),
-        ),
-        _Tab.notes => (
-          label: context.tr('notes'),
-          body: _NotesTab<T>(type: _type, vm: _vm),
-        ),
-        _Tab.settings => (
-          label: context.tr('settings'),
-          body: _SettingsTab<T>(type: _type, vm: _vm, slots: widget.slots),
-        ),
-        _Tab.documents => (
-          label: context.tr('documents'),
-          body: SingleChildScrollView(
-            padding: EdgeInsets.all(InSpacing.lg(context)),
-            child: CreateFormDocumentsPanel(vm: _vm),
-          ),
-        ),
-        _Tab.pdf => (
-          label: context.tr('pdf'),
-          body: _PdfTab<T>(type: _type, vm: _vm, slots: widget.slots),
-        ),
-        _Tab.eInvoice => (
-          label: context.tr('e_invoice'),
-          body: widget.slots.eInvoiceTab!(context),
-        ),
-      };
+  BillingDocEditTab _tabFor(BuildContext context, _Tab key) => switch (key) {
+    _Tab.details => BillingDocEditTab(
+      label: context.tr('details'),
+      body: _DetailsTab<T>(type: _type, vm: _vm, slots: widget.slots),
+    ),
+    _Tab.schedule => BillingDocEditTab(
+      label: context.tr('schedule'),
+      body: widget.slots.scheduleTab!(context),
+    ),
+    _Tab.contacts => BillingDocEditTab(
+      label: context.tr('contacts'),
+      body: _ContactsTab<T>(type: _type, vm: _vm),
+    ),
+    _Tab.items => BillingDocEditTab(
+      label: context.tr('items'),
+      // The draft's own lines, live — a blank row the editor keeps open
+      // for typing is not a line.
+      count: _vm.draft.lineItems.where((l) => !l.isBlank).length,
+      body: _ItemsTab<T>(
+        type: _type,
+        vm: _vm,
+        onPickItems: () => _openPicker(context),
+        onCreateTask: _createTaskHandler(context),
+        allowOptionalLines: _offersOptionalLines,
+      ),
+    ),
+    _Tab.notes => BillingDocEditTab(
+      label: context.tr('notes'),
+      body: _NotesTab<T>(type: _type, vm: _vm),
+    ),
+    _Tab.settings => BillingDocEditTab(
+      label: context.tr('settings'),
+      body: _SettingsTab<T>(type: _type, vm: _vm, slots: widget.slots),
+    ),
+    _Tab.documents => BillingDocEditTab(
+      label: context.tr('documents'),
+      body: SingleChildScrollView(
+        padding: EdgeInsets.all(InSpacing.lg(context)),
+        child: CreateFormDocumentsPanel(vm: _vm),
+      ),
+    ),
+    _Tab.pdf => BillingDocEditTab(
+      label: context.tr('pdf'),
+      body: _PdfTab<T>(type: _type, vm: _vm, slots: widget.slots),
+    ),
+    _Tab.eInvoice => BillingDocEditTab(
+      label: context.tr('e_invoice'),
+      body: widget.slots.eInvoiceTab!(context),
+    ),
+  };
 
   Widget _buildMobile(BuildContext context) {
     final tokens = context.inTheme;
@@ -454,9 +469,14 @@ class _BillingDocEditLayoutState<T extends BillingDocFields>
             ),
           ),
           Divider(height: 1, color: tokens.border),
-          Padding(
-            padding: EdgeInsets.all(InSpacing.md(context)),
-            child: _Totals<T>(type: _type, vm: _vm, dense: true),
+          // A bottom bar: published so a toast, the phone's timer dock
+          // arithmetic and the wide shell's floating timer pill clear it.
+          ToastBottomInset(
+            controller: context.read<Services?>()?.toasts,
+            child: Padding(
+              padding: EdgeInsets.all(InSpacing.md(context)),
+              child: _Totals<T>(type: _type, vm: _vm, dense: true),
+            ),
           ),
         ],
       ),
@@ -465,14 +485,11 @@ class _BillingDocEditLayoutState<T extends BillingDocFields>
 
   Widget _buildDesktop(BuildContext context) {
     final shell = BillingDocEditDesktopShell(
-      topRow: (ctx, slot) => switch (slot) {
-        0 => _PartyCardDesktop<T>(type: _type, vm: _vm),
-        1 =>
-          widget.slots.scheduleCard?.call(ctx) ??
-              _DatesCardDesktop<T>(type: _type, vm: _vm),
-        2 => _NumberCardDesktop<T>(type: _type, vm: _vm, slots: widget.slots),
-        _ => const SizedBox.shrink(),
-      },
+      details: _DetailsPanelDesktop<T>(
+        type: _type,
+        vm: _vm,
+        slots: widget.slots,
+      ),
       // The picker's way in sits under the table it fills, as a button,
       // not as a floating "+" over the page: anchored to the window, that
       // covered the totals and, on a short document, an empty card.
@@ -503,11 +520,21 @@ class _BillingDocEditLayoutState<T extends BillingDocFields>
         showEInvoice: _showEInvoice,
         showDocuments: _showDocuments,
       ),
-      totalsCard: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      // One card: the breakdown, the document taxes / inclusive switch /
+      // surcharges set inside it, then the total and — while it is open —
+      // the balance due, which leads.
+      totalsCard: FormSection(
+        title: null,
+        spacing: 0,
+        elevated: false,
         children: [
-          _TaxSurchargeSection<T>(vm: _vm),
-          _Totals<T>(type: _type, vm: _vm, bordered: false),
+          _Totals<T>(
+            type: _type,
+            vm: _vm,
+            bordered: false,
+            padded: false,
+            editor: _TaxSurchargeSection<T>(vm: _vm, framed: false),
+          ),
         ],
       ),
       pdfPane: _PdfPaneDesktop<T>(type: _type, vm: _vm, slots: widget.slots),
@@ -552,9 +579,35 @@ ValueChanged<DateTime?> _onDate(ValueChanged<Date?> set) =>
 String _decimalText(Decimal value) =>
     value == Decimal.zero ? '' : value.toString();
 
+/// What has been settled against [draft] — an invoice's paid to date, a
+/// credit's applied amount — where the document has a balance figure at all
+/// ([BillingDocType.balanceLabelKey]); null otherwise.
+Decimal? _paidToDateOf(BillingDocType type, BillingDocFields draft) {
+  if (type.balanceLabelKey == null) return null;
+  return switch (draft) {
+    final Invoice i => i.paidToDate,
+    final Credit c => c.paidToDate,
+    _ => null,
+  };
+}
+
+/// Whether [draft]'s live [balance] (the total being edited less what has
+/// been settled) is open, by the standing card's one lead rule
+/// (`billingDocLeadsWithBalance`): not zero, and not a draft, a cancelled or
+/// a reversed invoice, nor a draft credit.
+bool _balanceIsOpen(BillingDocFields draft, Decimal balance) => switch (draft) {
+  final Invoice i => billingDocLeadsWithBalance(i.copyWith(balance: balance)),
+  final Credit c => billingDocLeadsWithBalance(c.copyWith(balance: balance)),
+  _ => false,
+};
+
 /// The totals in one of their three dresses: the narrow sticky bar
 /// ([dense]), the desktop breakdown card ([bordered] false) and the desktop
 /// slim bar ([dense] + [slim]).
+///
+/// Each shows what has been settled (while not zero) and the balance due
+/// while the document is open — the live total less what has been settled,
+/// since the server recomputes the stored balance on save.
 class _Totals<T extends BillingDocFields> extends StatelessWidget {
   const _Totals({
     required this.type,
@@ -562,6 +615,8 @@ class _Totals<T extends BillingDocFields> extends StatelessWidget {
     this.dense = false,
     this.slim = false,
     this.bordered = true,
+    this.padded = true,
+    this.editor,
   });
 
   final BillingDocType type;
@@ -569,11 +624,14 @@ class _Totals<T extends BillingDocFields> extends StatelessWidget {
   final bool dense;
   final bool slim;
   final bool bordered;
+  final bool padded;
+  final Widget? editor;
 
   @override
   Widget build(BuildContext context) {
     final d = vm.draft;
     final client = type.party == BillingDocParty.client;
+    final paidToDate = _paidToDateOf(type, d);
     return BillingEditTotals(
       totalsAt: vm.totalsAt,
       clientId: client ? d.clientId : null,
@@ -587,6 +645,14 @@ class _Totals<T extends BillingDocFields> extends StatelessWidget {
         d.customSurcharge4,
       ],
       partial: type.hasPartial ? _partialOf(type, d) : null,
+      paidToDate: paidToDate,
+      balanceIsOpen: paidToDate == null
+          ? null
+          : (balance) => _balanceIsOpen(d, balance),
+      balanceLabelKey: type.balanceLabelKey ?? 'balance',
+      paidToDateLabelKey: type.settledLabelKey ?? 'paid_to_date',
+      editor: editor,
+      padded: padded,
       dense: dense,
       slim: slim,
       bordered: bordered,
@@ -594,9 +660,9 @@ class _Totals<T extends BillingDocFields> extends StatelessWidget {
   }
 }
 
-/// The custom-field inputs. The desktop splits the four slots over the dates
-/// card (1, 3) and the number card (2, 4); the narrow Details tab renders all
-/// four in one titled card.
+/// The custom-field inputs. The desktop details panel splits the four slots
+/// into two columns (1, 3 | 2, 4); the narrow Details tab renders all four in
+/// one titled card.
 Widget _customFields(
   BuildContext context,
   BillingDocEditViewModel<BillingDocFields> vm, {
@@ -623,18 +689,63 @@ Widget _customFields(
 
 // ── Desktop multi-column cards ───────────────────────────────────────
 
-class _PartyCardDesktop<T extends BillingDocFields> extends StatelessWidget {
-  const _PartyCardDesktop({required this.type, required this.vm});
+/// The wide layout's details: ONE panel — the party (client or vendor, and
+/// the contacts it sends to) on the start side, the document's own fields on
+/// the end side, two to a row (`FormFieldPair`): number | PO number, date |
+/// due date (or the recurring invoice's schedule), partial | partial due
+/// date, discount | auto-bill, then the custom fields. Three cards of uneven
+/// height used to sit side by side here. Stacked where the panel is too
+/// narrow for two columns.
+class _DetailsPanelDesktop<T extends BillingDocFields> extends StatefulWidget {
+  const _DetailsPanelDesktop({
+    required this.type,
+    required this.vm,
+    required this.slots,
+  });
   final BillingDocType type;
   final BillingDocEditViewModel<T> vm;
+  final BillingDocEditSlots slots;
+
+  @override
+  State<_DetailsPanelDesktop<T>> createState() =>
+      _DetailsPanelDesktopState<T>();
+}
+
+/// Below this the panel stacks the party over the fields.
+const double _kDetailsTwoColumnWidth = 720;
+
+class _DetailsPanelDesktopState<T extends BillingDocFields>
+    extends State<_DetailsPanelDesktop<T>> {
+  late final TextEditingController _number = TextEditingController(
+    text: widget.vm.draft.number,
+  );
+  late final TextEditingController _poNumber = TextEditingController(
+    text: widget.vm.draft.poNumber,
+  );
+  late final TextEditingController _partial = TextEditingController(
+    text: _decimalText(_partialOf(widget.type, widget.vm.draft)),
+  );
+  late final TextEditingController _discount = TextEditingController(
+    text: _decimalText(widget.vm.draft.discount),
+  );
+
+  @override
+  void dispose() {
+    _number.dispose();
+    _poNumber.dispose();
+    _partial.dispose();
+    _discount.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
+    final vm = widget.vm;
+    final type = widget.type;
     final client = type.party == BillingDocParty.client;
-    return FormSection(
-      title: null,
-      spacing: 0,
-      elevated: false,
+    final party = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
       children: [
         if (client)
           BillingDocClientPicker(vm: vm, companyId: vm.companyId)
@@ -644,7 +755,231 @@ class _PartyCardDesktop<T extends BillingDocFields> extends StatelessWidget {
         _PartyContacts<T>(type: type, vm: vm, dense: true),
       ],
     );
+    final fields = _fields(context);
+    return FormSection(
+      title: null,
+      spacing: 0,
+      elevated: false,
+      children: [
+        LayoutBuilder(
+          builder: (context, constraints) {
+            if (constraints.maxWidth < _kDetailsTwoColumnWidth) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  party,
+                  SizedBox(height: InSpacing.lg(context)),
+                  fields,
+                ],
+              );
+            }
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(flex: 2, child: party),
+                const SizedBox(width: InSpacing.xl),
+                Expanded(flex: 3, child: fields),
+              ],
+            );
+          },
+        ),
+      ],
+    );
   }
+
+  Widget _fields(BuildContext context) {
+    final vm = widget.vm;
+    final type = widget.type;
+    final fmt = context.read<Services>().formatterIfReady(vm.companyId);
+    final partialVm = type.hasPartial ? _partialSetters(vm) : null;
+    final autoBillMode = widget.slots.autoBillMode;
+    final scheduleFields = widget.slots.scheduleFields;
+    final dateErrors = _dateOrderErrorText(context, type, vm);
+
+    Widget pair(Widget start, [Widget? end]) => FormFieldPair(
+      minPairWidth: kAddressPairWidth,
+      left: start,
+      right: end ?? const SizedBox.shrink(),
+    );
+
+    final number = LabeledField(
+      label: context.tr(type.desktopNumberLabelKey),
+      child: TextField(
+        controller: _number,
+        decoration: billingFieldDecoration(
+          context,
+          label: context.tr(type.desktopNumberLabelKey),
+          hint: vm.isCreate ? context.tr('auto_generated') : null,
+          errorText: vm.fieldErrorFor('number'),
+        ),
+        onChanged: vm.setNumber,
+        autocorrect: false,
+        textInputAction: TextInputAction.done,
+        onSubmitted: _saveOnEnter(context),
+      ),
+    );
+    final poNumber = type.hasPoNumberField
+        ? LabeledField(
+            label: context.tr('po_number'),
+            child: TextField(
+              controller: _poNumber,
+              decoration: billingFieldDecoration(
+                context,
+                label: context.tr('po_number'),
+                errorText: vm.fieldErrorFor('po_number'),
+              ),
+              onChanged: vm.setPoNumber,
+              autocorrect: false,
+              textInputAction: TextInputAction.done,
+              onSubmitted: _saveOnEnter(context),
+            ),
+          )
+        : null;
+
+    final tail = <Widget>[
+      if (partialVm != null)
+        LabeledField(
+          label: context.tr('partial'),
+          child: TextField(
+            controller: _partial,
+            decoration: billingFieldDecoration(
+              context,
+              label: context.tr('partial'),
+              errorText: vm.fieldErrorFor('partial'),
+            ),
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            onChanged: partialVm.setPartial,
+            textInputAction: TextInputAction.done,
+            onSubmitted: _saveOnEnter(context),
+          ),
+        ),
+      // Its due date only once a partial is set.
+      if (partialVm != null && _partialOf(type, vm.draft) > Decimal.zero)
+        InDateField(
+          value: _partialDueDateOf(vm.draft)?.toDateTime(),
+          formatter: fmt,
+          onChanged: _onDate(partialVm.setPartialDueDate),
+          labelText: context.tr('partial_due_date'),
+          clearable: true,
+          errorText: dateErrors['partial_due_date'],
+          helperText: _dueDaysHint(context, type, vm, partial: true),
+        ),
+      _DiscountRow<T>(type: type, vm: vm, controller: _discount, desktop: true),
+      ?autoBillMode?.call(context, desktop: true),
+    ];
+    final rows = <Widget>[
+      pair(number, poNumber),
+      if (type.dateLabelKey != null)
+        pair(
+          InDateField(
+            value: vm.draft.date?.toDateTime(),
+            formatter: fmt,
+            onChanged: _onDate(vm.setDate),
+            labelText: context.tr(type.dateLabelKey!),
+          ),
+          _withPaymentTerms(
+            context,
+            type,
+            vm,
+            fmt,
+            InDateField(
+              value: vm.draft.dueDate?.toDateTime(),
+              formatter: fmt,
+              onChanged: _onDate(vm.setDueDate),
+              labelText: context.tr(type.dueDateLabelKey ?? 'due_date'),
+              clearable: true,
+              errorText: dateErrors['due_date'],
+              helperText: _dueDaysHint(context, type, vm),
+            ),
+          ),
+        ),
+      if (scheduleFields != null)
+        ...pairFields(scheduleFields(context), minPairWidth: kAddressPairWidth),
+      // Partial, its due date (once a partial is set), discount and auto-bill
+      // flow two to a row in that order, so a field whose partner isn't shown
+      // sits beside the next one instead of alone at half width: with no
+      // partial due date the deposit and the discount share a row. The
+      // partial keeps the first slot either way, so typing its first digit
+      // (which reveals its due date) never moves the field being typed in.
+      ...[
+        for (var i = 0; i < tail.length; i += 2)
+          pair(tail[i], i + 1 < tail.length ? tail[i + 1] : null),
+      ],
+    ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (final row in rows) ...[
+          row,
+          SizedBox(height: InSpacing.md(context)),
+        ],
+        // The four slots two to a row, in the halves the three cards used
+        // to split them: 1 | 2, 3 | 4.
+        pair(
+          _customFields(context, vm, slots: const [1, 3]),
+          _customFields(context, vm, slots: const [2, 4]),
+        ),
+      ],
+    );
+  }
+}
+
+/// [dueDate] with the payment-terms presets under it, end-aligned like every
+/// field action (docs/template-variables.md) — on a document that offers
+/// them ([BillingDocType.offersPaymentTermPresets]); [dueDate] alone
+/// otherwise.
+Widget _withPaymentTerms(
+  BuildContext context,
+  BillingDocType type,
+  BillingDocEditViewModel<BillingDocFields> vm,
+  Formatter? fmt,
+  InDateField dueDate,
+) {
+  if (!type.offersPaymentTermPresets) return dueDate;
+  return InDateField(
+    key: dueDate.key,
+    value: dueDate.value,
+    formatter: dueDate.formatter,
+    onChanged: dueDate.onChanged,
+    labelText: dueDate.labelText,
+    clearable: dueDate.clearable,
+    errorText: dueDate.errorText,
+    helperText: dueDate.helperText,
+    helper: dueDate.helper,
+    trailingAction: BillingDocPaymentTermsButton(
+      companyId: vm.companyId,
+      date: vm.draft.date,
+      formatter: fmt,
+      onPicked: vm.setDueDate,
+    ),
+  );
+}
+
+/// The inline date-order errors for [vm]'s draft, keyed by API field — a
+/// server 422 (or a save-time block) for the field first, else the live rule
+/// ([billingDocDateOrderErrors]), so a due date before the invoice date is
+/// flagged as it is picked rather than at Save.
+Map<String, String?> _dateOrderErrorText(
+  BuildContext context,
+  BillingDocType type,
+  BillingDocEditViewModel<BillingDocFields> vm,
+) {
+  final live = billingDocDateOrderErrors(type, vm.draft);
+  final messages = live.isEmpty
+      ? null
+      : billingDateOrderMessages(context, type);
+  String? errorFor(String key) =>
+      vm.fieldErrorFor(key) ??
+      switch (live[key]) {
+        final error? => billingDateOrderMessage(messages!, error),
+        null => null,
+      };
+  return {
+    'due_date': errorFor('due_date'),
+    'partial_due_date': errorFor('partial_due_date'),
+  };
 }
 
 /// The contacts of the document's party, each with the checkbox that puts an
@@ -748,9 +1083,30 @@ class _PartyContactsState<T extends BillingDocFields>
         },
       );
       if (dense) {
-        return ConstrainedBox(
+        final scrolled = ConstrainedBox(
           constraints: const BoxConstraints(maxHeight: 240),
           child: SingleChildScrollView(child: list),
+        );
+        if (contacts.length < 2) return scrolled;
+        // The list caps at 240 px and scrolls, so how many are ticked is
+        // said above it rather than left to be counted.
+        final ticked = contacts.where((c) => selected.contains(c.id)).length;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Align(
+              alignment: AlignmentDirectional.centerEnd,
+              child: Text(
+                context.tr('selected_of', {
+                  'selected': '$ticked',
+                  'total': '${contacts.length}',
+                }),
+                style: TextStyle(fontSize: 12, color: context.inTheme.ink3),
+              ),
+            ),
+            scrolled,
+          ],
         );
       }
       return ListView(
@@ -781,198 +1137,35 @@ class _PartyContactsState<T extends BillingDocFields>
   }
 }
 
-class _DatesCardDesktop<T extends BillingDocFields> extends StatefulWidget {
-  const _DatesCardDesktop({required this.type, required this.vm});
-  final BillingDocType type;
-  final BillingDocEditViewModel<T> vm;
-
-  @override
-  State<_DatesCardDesktop<T>> createState() => _DatesCardDesktopState<T>();
-}
-
-class _DatesCardDesktopState<T extends BillingDocFields>
-    extends State<_DatesCardDesktop<T>> {
-  late final TextEditingController _partial = TextEditingController(
-    text: _decimalText(_partialOf(widget.type, widget.vm.draft)),
-  );
-
-  @override
-  void dispose() {
-    _partial.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final vm = widget.vm;
-    final type = widget.type;
-    final fmt = context.read<Services>().formatterIfReady(vm.companyId);
-    final partialVm = type.hasPartial ? _partialSetters(vm) : null;
-    return FormSection(
-      title: null,
-      spacing: 0,
-      elevated: false,
-      children: [
-        InDateField(
-          value: vm.draft.date?.toDateTime(),
-          formatter: fmt,
-          onChanged: _onDate(vm.setDate),
-          labelText: context.tr(type.dateLabelKey ?? 'date'),
-        ),
-        SizedBox(height: InSpacing.md(context)),
-        InDateField(
-          value: vm.draft.dueDate?.toDateTime(),
-          formatter: fmt,
-          onChanged: _onDate(vm.setDueDate),
-          labelText: context.tr(type.dueDateLabelKey ?? 'due_date'),
-          clearable: true,
-          errorText: vm.fieldErrorFor('due_date'),
-          helperText: _dueDaysHint(context, type, vm),
-        ),
-        SizedBox(height: InSpacing.md(context)),
-        if (partialVm != null) ...[
-          LabeledField(
-            label: context.tr('partial'),
-            child: TextField(
-              controller: _partial,
-              decoration: billingFieldDecoration(
-                context,
-                label: context.tr('partial'),
-                errorText: vm.fieldErrorFor('partial'),
-              ),
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              onChanged: partialVm.setPartial,
-              textInputAction: TextInputAction.done,
-              onSubmitted: _saveOnEnter(context),
-            ),
-          ),
-          if (_partialOf(type, vm.draft) > Decimal.zero) ...[
-            SizedBox(height: InSpacing.md(context)),
-            InDateField(
-              value: _partialDueDateOf(vm.draft)?.toDateTime(),
-              formatter: fmt,
-              onChanged: _onDate(partialVm.setPartialDueDate),
-              labelText: context.tr('partial_due_date'),
-              clearable: true,
-              helperText: _dueDaysHint(context, type, vm, partial: true),
-            ),
-          ],
-          SizedBox(height: InSpacing.md(context)),
-        ],
-        _customFields(context, vm, slots: const [1, 3]),
-      ],
-    );
-  }
-}
-
-class _NumberCardDesktop<T extends BillingDocFields> extends StatefulWidget {
-  const _NumberCardDesktop({
-    required this.type,
-    required this.vm,
-    required this.slots,
-  });
-  final BillingDocType type;
-  final BillingDocEditViewModel<T> vm;
-  final BillingDocEditSlots slots;
-
-  @override
-  State<_NumberCardDesktop<T>> createState() => _NumberCardDesktopState<T>();
-}
-
-class _NumberCardDesktopState<T extends BillingDocFields>
-    extends State<_NumberCardDesktop<T>> {
-  late final TextEditingController _number = TextEditingController(
-    text: widget.vm.draft.number,
-  );
-  late final TextEditingController _poNumber = TextEditingController(
-    text: widget.vm.draft.poNumber,
-  );
-  late final TextEditingController _discount = TextEditingController(
-    text: _decimalText(widget.vm.draft.discount),
-  );
-
-  @override
-  void dispose() {
-    _number.dispose();
-    _poNumber.dispose();
-    _discount.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final vm = widget.vm;
-    final type = widget.type;
-    final autoBillMode = widget.slots.autoBillMode;
-    return FormSection(
-      title: null,
-      spacing: 0,
-      elevated: false,
-      children: [
-        LabeledField(
-          label: context.tr(type.desktopNumberLabelKey),
-          child: TextField(
-            controller: _number,
-            decoration: billingFieldDecoration(
-              context,
-              label: context.tr(type.desktopNumberLabelKey),
-              hint: vm.isCreate ? context.tr('auto_generated') : null,
-              errorText: vm.fieldErrorFor('number'),
-            ),
-            onChanged: vm.setNumber,
-            autocorrect: false,
-            textInputAction: TextInputAction.done,
-            onSubmitted: _saveOnEnter(context),
-          ),
-        ),
-        SizedBox(height: InSpacing.md(context)),
-        if (type.hasPoNumberField) ...[
-          LabeledField(
-            label: context.tr('po_number'),
-            child: TextField(
-              controller: _poNumber,
-              decoration: billingFieldDecoration(
-                context,
-                label: context.tr('po_number'),
-                errorText: vm.fieldErrorFor('po_number'),
-              ),
-              onChanged: vm.setPoNumber,
-              autocorrect: false,
-              textInputAction: TextInputAction.done,
-              onSubmitted: _saveOnEnter(context),
-            ),
-          ),
-          SizedBox(height: InSpacing.md(context)),
-        ],
-        _DiscountRow<T>(vm: vm, controller: _discount, desktop: true),
-        SizedBox(height: InSpacing.md(context)),
-        if (autoBillMode != null) ...[
-          autoBillMode(context, desktop: true),
-          SizedBox(height: InSpacing.md(context)),
-        ],
-        // The dates card renders slots 1 and 3; without this the number card
-        // rendered all four and 1 / 3 appeared twice (the credit did, once).
-        _customFields(context, vm, slots: const [2, 4]),
-      ],
-    );
-  }
-}
-
 /// The discount amount and its percent / amount switch.
+///
+/// The switch reads `%` and the document's currency symbol (`$`, `€`) —
+/// the party's currency, client → group → company or a purchase order's
+/// vendor (`PartyCurrencyBuilder`) — with the words `percent` / `amount` as
+/// its tooltips and its screen-reader names. It stays a two-choice
+/// `SegmentedButton` (§ Forms — two-choice fields), 44 px square on touch.
 class _DiscountRow<T extends BillingDocFields> extends StatelessWidget {
   const _DiscountRow({
+    required this.type,
     required this.vm,
     required this.controller,
     required this.desktop,
   });
+  final BillingDocType type;
   final BillingDocEditViewModel<T> vm;
   final TextEditingController controller;
   final bool desktop;
 
   @override
   Widget build(BuildContext context) {
+    final client = type.party == BillingDocParty.client;
+    final fmt = context.read<Services>().formatterIfReady(vm.companyId);
+    // On touch the segments keep the 44 px target; with a pointer they have
+    // no floor of their own, so the field decides the height.
+    final touch = Env.isTouchPrimary;
+    final segmentMin = touch
+        ? const Size(InSizes.touchTarget, InSizes.touchTarget)
+        : Size.zero;
     // The label sits above the pair, and the pair shares one height: the
     // toggle is stretched to whatever the field measures (which depends on
     // platform density and text size), so the two read as one control. With
@@ -1002,21 +1195,42 @@ class _DiscountRow<T extends BillingDocFields> extends StatelessWidget {
                 onSubmitted: _saveOnEnter(context),
               ),
             ),
-            SizedBox(width: InSpacing.md(context)),
-            SegmentedButton<bool>(
-              // No floor of its own, so the field decides the height.
-              style: SegmentedButton.styleFrom(
-                minimumSize: Size.zero,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                visualDensity: VisualDensity.compact,
-              ),
-              segments: [
-                ButtonSegment(value: false, label: Text(context.tr('percent'))),
-                ButtonSegment(value: true, label: Text(context.tr('amount'))),
-              ],
-              selected: {vm.draft.isAmountDiscount},
-              onSelectionChanged: (s) =>
-                  vm.setDiscount(controller.text, isAmount: s.first),
+            SizedBox(width: InSpacing.sm),
+            PartyCurrencyBuilder(
+              clientId: client ? vm.draft.clientId : null,
+              vendorId: client ? null : vm.draft.vendorId,
+              builder: (context, currencyId) {
+                final symbol =
+                    fmt?.currencySymbolFor(currencyId: currencyId) ?? '';
+                return SegmentedButton<bool>(
+                  showSelectedIcon: false,
+                  style: SegmentedButton.styleFrom(
+                    minimumSize: segmentMin,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    visualDensity: touch
+                        ? VisualDensity.standard
+                        : VisualDensity.compact,
+                  ),
+                  segments: [
+                    ButtonSegment(
+                      value: false,
+                      tooltip: context.tr('percent'),
+                      label: Text('%', semanticsLabel: context.tr('percent')),
+                    ),
+                    ButtonSegment(
+                      value: true,
+                      tooltip: context.tr('amount'),
+                      // No symbol until the statics load: the word stands in.
+                      label: symbol.isEmpty
+                          ? Text(context.tr('amount'))
+                          : Text(symbol, semanticsLabel: context.tr('amount')),
+                    ),
+                  ],
+                  selected: {vm.draft.isAmountDiscount},
+                  onSelectionChanged: (s) =>
+                      vm.setDiscount(controller.text, isAmount: s.first),
+                );
+              },
             ),
           ],
         ),
@@ -1409,13 +1623,17 @@ class _PdfPaneDesktop<T extends BillingDocFields> extends StatelessWidget {
 /// Self-collapses when the company has no enabled tax rates and no surcharge
 /// labels configured (so it adds no chrome when unused).
 class _TaxSurchargeSection<T extends BillingDocFields> extends StatelessWidget {
-  const _TaxSurchargeSection({required this.vm});
+  const _TaxSurchargeSection({required this.vm, this.framed = true});
   final BillingDocEditViewModel<T> vm;
+
+  /// See [BillingTaxSurchargeSection.framed].
+  final bool framed;
 
   @override
   Widget build(BuildContext context) {
     final d = vm.draft;
     return BillingTaxSurchargeSection(
+      framed: framed,
       companyId: vm.companyId,
       useCommaAsDecimalPlace: vm.useCommaAsDecimalPlace,
       taxRows: [
@@ -1502,6 +1720,16 @@ class _DetailsTabState<T extends BillingDocFields>
   late final TextEditingController _discount = TextEditingController(
     text: _decimalText(widget.vm.draft.discount),
   );
+  final FocusNode _partialFocus = FocusNode();
+
+  /// Whether the partial (deposit) fields are shown. Most documents never
+  /// take one, so on a phone the two fields start collapsed to an "Add
+  /// deposit" link — open from the first frame when the draft already has a
+  /// partial or its due date, and never collapsing again once opened, so
+  /// clearing the amount doesn't snatch the field away mid-edit.
+  late bool _depositOpen =
+      _partialOf(widget.type, widget.vm.draft) != Decimal.zero ||
+      _partialDueDateOf(widget.vm.draft) != null;
 
   @override
   void dispose() {
@@ -1509,7 +1737,17 @@ class _DetailsTabState<T extends BillingDocFields>
     _poNumber.dispose();
     _partial.dispose();
     _discount.dispose();
+    _partialFocus.dispose();
     super.dispose();
+  }
+
+  void _openDeposit() {
+    setState(() => _depositOpen = true);
+    // The field mounts on the next frame; focus it there, so the tap that
+    // asked for a deposit lands the caret in its amount.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _partialFocus.requestFocus();
+    });
   }
 
   @override
@@ -1520,6 +1758,7 @@ class _DetailsTabState<T extends BillingDocFields>
     final placement = type.mobilePartialPlacement;
     final partialVm = type.hasPartial ? _partialSetters(vm) : null;
     final autoBillMode = widget.slots.autoBillMode;
+    final dateErrors = _dateOrderErrorText(context, type, vm);
 
     final numberField = LabeledField(
       label: context.tr(type.numberLabelKey),
@@ -1540,6 +1779,7 @@ class _DetailsTabState<T extends BillingDocFields>
       label: context.tr('partial'),
       child: TextField(
         controller: _partial,
+        focusNode: _partialFocus,
         decoration: InputDecoration(
           labelText: context.tr('partial'),
           errorText: vm.fieldErrorFor('partial'),
@@ -1556,14 +1796,35 @@ class _DetailsTabState<T extends BillingDocFields>
       onChanged: _onDate(partialVm!.setPartialDueDate),
       labelText: context.tr('partial_due_date'),
       clearable: true,
+      errorText: dateErrors['partial_due_date'],
       helperText: _dueDaysHint(context, type, vm, partial: true),
+    );
+    // A value on the draft — however it got there — or a server error on
+    // either field opens them: neither may sit behind a link.
+    final depositCollapsed =
+        !_depositOpen &&
+        _partialOf(type, vm.draft) == Decimal.zero &&
+        _partialDueDateOf(vm.draft) == null &&
+        vm.fieldErrorFor('partial') == null &&
+        vm.fieldErrorFor('partial_due_date') == null;
+    Widget addDepositLink() => Align(
+      alignment: AlignmentDirectional.centerStart,
+      child: FieldActionButton(
+        icon: Icons.add,
+        label: context.tr('add_deposit'),
+        onPressed: _openDeposit,
+      ),
     );
     // The partial field and — once a partial is set — its due date, stacked.
     List<Widget> stackedPartial() => [
-      partialField(),
-      if (_partialOf(type, vm.draft) > Decimal.zero) ...[
-        SizedBox(height: InSpacing.md(context)),
-        partialDueDate(),
+      if (depositCollapsed)
+        addDepositLink()
+      else ...[
+        partialField(),
+        if (_partialOf(type, vm.draft) > Decimal.zero) ...[
+          SizedBox(height: InSpacing.md(context)),
+          partialDueDate(),
+        ],
       ],
     ];
 
@@ -1628,14 +1889,20 @@ class _DetailsTabState<T extends BillingDocFields>
                   ),
                   SizedBox(width: InSpacing.md(context)),
                   Expanded(
-                    child: InDateField(
-                      value: vm.draft.dueDate?.toDateTime(),
-                      formatter: fmt,
-                      onChanged: _onDate(vm.setDueDate),
-                      labelText: context.tr(type.dueDateLabelKey!),
-                      clearable: true,
-                      errorText: vm.fieldErrorFor('due_date'),
-                      helperText: _dueDaysHint(context, type, vm),
+                    child: _withPaymentTerms(
+                      context,
+                      type,
+                      vm,
+                      fmt,
+                      InDateField(
+                        value: vm.draft.dueDate?.toDateTime(),
+                        formatter: fmt,
+                        onChanged: _onDate(vm.setDueDate),
+                        labelText: context.tr(type.dueDateLabelKey!),
+                        clearable: true,
+                        errorText: dateErrors['due_date'],
+                        helperText: _dueDaysHint(context, type, vm),
+                      ),
                     ),
                   ),
                 ],
@@ -1648,6 +1915,11 @@ class _DetailsTabState<T extends BillingDocFields>
               SizedBox(height: InSpacing.md(context)),
             ],
             if (partialVm != null &&
+                placement == BillingDocPartialPlacement.afterDatesRow &&
+                depositCollapsed) ...[
+              addDepositLink(),
+              SizedBox(height: InSpacing.md(context)),
+            ] else if (partialVm != null &&
                 placement == BillingDocPartialPlacement.afterDatesRow) ...[
               Row(
                 // Top-aligned: a hint under the due date grows it downward.
@@ -1660,7 +1932,12 @@ class _DetailsTabState<T extends BillingDocFields>
               ),
               SizedBox(height: InSpacing.md(context)),
             ],
-            _DiscountRow<T>(vm: vm, controller: _discount, desktop: false),
+            _DiscountRow<T>(
+              type: type,
+              vm: vm,
+              controller: _discount,
+              desktop: false,
+            ),
             if (partialVm != null &&
                 placement == BillingDocPartialPlacement.afterDiscount) ...[
               SizedBox(height: InSpacing.md(context)),

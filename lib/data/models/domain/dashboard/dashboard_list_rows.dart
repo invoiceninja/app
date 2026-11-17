@@ -171,6 +171,7 @@ class DashboardPaymentRow {
     required this.amount,
     required this.statusId,
     required this.currencyId,
+    this.invoiceIds = const [],
   });
 
   final String id;
@@ -181,6 +182,10 @@ class DashboardPaymentRow {
   final Decimal amount;
   final int statusId;
   final String currencyId;
+
+  /// The invoices the payment was applied to, from its `paymentables` (a
+  /// default include of `/payments`), in order, without repeats.
+  final List<String> invoiceIds;
 
   static DashboardPaymentRow fromJson(Map<String, dynamic> json) {
     final client = _client(json['client']);
@@ -198,7 +203,19 @@ class DashboardPaymentRow {
       statusId: status,
       currencyId: (json['currency_id'] ?? client['currency_id'] ?? '')
           .toString(),
+      invoiceIds: _paymentInvoiceIds(json['paymentables']),
     );
+  }
+
+  static List<String> _paymentInvoiceIds(Object? raw) {
+    if (raw is! List) return const [];
+    final ids = <String>[];
+    for (final p in raw) {
+      if (p is! Map) continue;
+      final id = (p['invoice_id'] ?? '').toString();
+      if (id.isNotEmpty && !ids.contains(id)) ids.add(id);
+    }
+    return ids;
   }
 
   static List<DashboardPaymentRow> listFromJson(Object? raw) =>

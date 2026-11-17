@@ -20,6 +20,7 @@ import 'package:admin/ui/core/widgets/formatter_host_mixin.dart';
 import 'package:admin/ui/core/widgets/in_date_field.dart';
 import 'package:admin/ui/core/widgets/searchable_dropdown_field.dart';
 import 'package:admin/ui/features/clients/widgets/edit/client_edit_field_pair.dart';
+import 'package:admin/ui/core/widgets/form_field_pair.dart';
 import 'package:admin/ui/features/clients/widgets/client_picker_field_with_create.dart';
 import 'package:admin/ui/features/dashboard/widgets/card_shell.dart';
 import 'package:admin/ui/features/expense_categories/widgets/expense_category_picker_field.dart';
@@ -28,17 +29,18 @@ import 'package:admin/ui/features/expenses/widgets/edit/receipt_read_banner.dart
 import 'package:admin/ui/features/vendors/widgets/vendor_inline_create.dart';
 import 'package:admin/ui/features/vendors/widgets/vendor_picker_field.dart';
 
-/// Identity & links section — date, number, vendor, client, project (narrowed
-/// by client), category, and assigned user (the currency sits beside the amount). Every picker is
+/// Identity & links section — vendor, category and number here; client and
+/// project (narrowed by client) in the Invoicing card, assigned user and tags
+/// in Organize, and the currency and date beside the amount. Every picker is
 /// type-to-search per CLAUDE.md § Forms. Vendor, client and category can be
 /// created inline from their own popover (`VendorPickerField`,
 /// `ClientPickerField`, `ExpenseCategoryPickerField`), so a new one never means
 /// abandoning the expense; the category picker also keeps a "Manage
 /// categories" link in its `footerBuilder`.
 ///
-/// Date and Number lead the card: the date is the expense's primary fact (it
-/// was missing from the form entirely until invoiceninja/flutter#172), and the
-/// number the server assigns when left blank.
+/// The date sits in the Amount card ([ExpenseDateField]): with the amount it
+/// is what every receipt carries, and what a read fills. The number is the
+/// one the server assigns when left blank.
 class ExpenseEditIdentitySection extends StatelessWidget {
   const ExpenseEditIdentitySection({super.key, required this.vm});
   final ExpenseEditViewModel vm;
@@ -51,13 +53,13 @@ class ExpenseEditIdentitySection extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Two to a row where the card has room: eight fields each the full
-          // width of a desktop card were eight long empty boxes. Paired by
-          // what they describe: when and which, who was paid for what, who
-          // it is billed to, who owns it and in what currency.
-          ClientEditFieldPair(
-            left: _DateField(vm: vm),
-            right: EntityEditField(
+          // Two to a row where the card has room: who was paid for what,
+          // then the number, which keeps the left half so it lines up with
+          // the vendor above it.
+          ...pairFields([
+            _VendorPicker(vm: vm),
+            _CategoryPicker(vm: vm),
+            EntityEditField(
               label: context.tr('number'),
               initial: vm.draft.number,
               onChanged: vm.setNumber,
@@ -65,11 +67,7 @@ class ExpenseEditIdentitySection extends StatelessWidget {
               hintText: vm.isCreate ? context.tr('auto_generated') : null,
               autocorrect: false,
             ),
-          ),
-          ClientEditFieldPair(
-            left: _VendorPicker(vm: vm),
-            right: _CategoryPicker(vm: vm),
-          ),
+          ]),
         ],
       ),
     );
@@ -107,19 +105,25 @@ class ExpenseEditOrganizeSection extends StatelessWidget {
   }
 }
 
-/// The expense date. Not clearable: `StoreExpenseRequest` validates `date` as
-/// `date:Y-m-d` with no `nullable`, so a blank date would 422 on create — an
-/// emptied field reverts instead. Stateful only to host the company
-/// [Formatter] that renders the date in the company's `date_format_id`.
-class _DateField extends StatefulWidget {
-  const _DateField({required this.vm});
+/// The expense date, drawn beside the amount in the Amount card
+/// (`ExpenseEditAmountTaxSection`). Not clearable: `StoreExpenseRequest`
+/// validates `date` as `date:Y-m-d` with no `nullable`, so a blank date would
+/// 422 on create — an emptied field reverts instead. Stateful only to host
+/// the company [Formatter] that renders the date in the company's
+/// `date_format_id`.
+///
+/// Its own receipt focus scope, outside the amount's: a date being typed
+/// keeps a read off the date alone (docs/receipt-ocr.md).
+class ExpenseDateField extends StatefulWidget {
+  const ExpenseDateField({super.key, required this.vm});
   final ExpenseEditViewModel vm;
 
   @override
-  State<_DateField> createState() => _DateFieldState();
+  State<ExpenseDateField> createState() => _ExpenseDateFieldState();
 }
 
-class _DateFieldState extends State<_DateField> with FormatterHostMixin {
+class _ExpenseDateFieldState extends State<ExpenseDateField>
+    with FormatterHostMixin {
   @override
   void initState() {
     super.initState();

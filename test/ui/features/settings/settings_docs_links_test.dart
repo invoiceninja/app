@@ -63,15 +63,17 @@ void main() {
     await tester.pump();
   }
 
-  testWidgets('a section page shows Learn more, before its own actions', (
+  testWidgets('a section page shows Learn more, after its own actions', (
     tester,
   ) async {
+    // `[Save][Discard][?]`: Save leads the end-aligned cluster and the help
+    // icon every page carries closes it.
     await pump(tester, 'company_details');
     final help = find.byKey(const ValueKey('settings_learn_more'));
     expect(help, findsOneWidget);
     expect(
       tester.getTopLeft(help).dx,
-      lessThan(tester.getTopLeft(find.text('Save')).dx),
+      greaterThan(tester.getTopLeft(find.text('Save')).dx),
     );
   });
 

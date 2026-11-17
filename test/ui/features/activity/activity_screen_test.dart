@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 
 import 'package:admin/app/design_tokens.dart';
+import 'package:admin/app/search_focus_registry.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/app/theme.dart';
 import 'package:admin/data/db/app_database.dart';
@@ -74,6 +75,9 @@ class _FakeServices implements Services {
 
   @override
   late final UserRepository user = _FakeUserRepo();
+
+  @override
+  final SearchFocusRegistry searchFocus = SearchFocusRegistry();
 
   @override
   Future<Formatter> formatterFor(String companyId) =>
@@ -278,9 +282,9 @@ void main() {
   testWidgets('groups rows under a day header', (tester) async {
     await pumpScreen(tester);
     await emit(tester, [_activity(id: '1', invoiceId: 'inv1')]);
-    // The header is a node on the timeline spine, and says how many events
-    // the day holds.
-    expect(find.text('Today · 1 event'), findsOneWidget);
+    // The dashboard card's day header ("Today" / "Yesterday" / the company
+    // date), plus how many events the day holds.
+    expect(find.text('Today  1 event'), findsOneWidget);
   });
 
   testWidgets('a row with no entity reference renders inert', (tester) async {
@@ -381,6 +385,59 @@ void main() {
   });
 
   group('layout', () {
+    testWidgets('a wide pane puts the search in the title row, and `/` '
+        'focuses it', (tester) async {
+      await pumpScreen(tester, size: const Size(900, 900));
+      await emit(tester, [_activity(id: '1', invoiceId: 'inv1')]);
+      final appBar = tester.widget<AppBar>(find.byType(AppBar));
+      expect(appBar.bottom, isNull);
+      final field = tester.widget<TextField>(find.byType(TextField));
+      expect(services.searchFocus.current, same(field.focusNode));
+
+      services.searchFocus.activate();
+      await tester.pump();
+      expect(field.focusNode!.hasFocus, isTrue);
+    });
+
+    testWidgets('a narrow pane keeps the search on a row of its own', (
+      tester,
+    ) async {
+      await pumpScreen(tester);
+      await emit(tester, [_activity(id: '1', invoiceId: 'inv1')]);
+      final appBar = tester.widget<AppBar>(find.byType(AppBar));
+      expect(appBar.bottom, isNotNull);
+      expect(
+        find.descendant(
+          of: find.byType(AppBar),
+          matching: find.byType(TextField),
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('category chips sit under the chart from 600 px, and in the '
+        'filters below it', (tester) async {
+      await pumpScreen(tester, size: const Size(800, 900));
+      await emit(tester, [_activity(id: '1', invoiceId: 'inv1')]);
+      expect(find.byType(ActivityCategoryChips), findsOneWidget);
+
+      await pumpScreen(tester, size: const Size(500, 900));
+      await emit(tester, [_activity(id: '1', invoiceId: 'inv1')]);
+      expect(find.byType(ActivityCategoryChips), findsNothing);
+    });
+
+    testWidgets('a wide feed gives each row its time in a leading column', (
+      tester,
+    ) async {
+      await pumpScreen(tester, size: const Size(1200, 900));
+      await emit(tester, [_activity(id: '1', invoiceId: 'inv1')]);
+      final row = tester.widget<ActivityFeedRow>(find.byType(ActivityFeedRow));
+      // `formatterFor` never completes here, so the relative time stands in,
+      // on the meta line.
+      expect(row.time, isNull);
+      expect(row.meta, contains('10.0.0.1'));
+    });
+
     testWidgets('a wide pane shows the filters as a rail, with no button', (
       tester,
     ) async {

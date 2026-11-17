@@ -30,6 +30,11 @@ class TotalsWidget extends StatelessWidget {
     Decimal? partial,
     this.balance,
     this.paidToDate,
+    this.balanceLabelKey = 'balance',
+    this.paidToDateLabelKey = 'paid_to_date',
+    this.leadBalance = false,
+    this.editor,
+    this.padded = true,
     this.dense = false,
     this.slim = false,
     this.bordered = true,
@@ -61,6 +66,27 @@ class TotalsWidget extends StatelessWidget {
   final Decimal? balance;
   final Decimal? paidToDate;
 
+  /// What the [balance] and [paidToDate] rows are called — `balance_due` /
+  /// `paid_to_date` on an invoice, `credit_remaining` / `applied` on a credit
+  /// (`BillingDocType.balanceLabelKey` / `settledLabelKey`).
+  final String balanceLabelKey;
+  final String paidToDateLabelKey;
+
+  /// The balance is the figure that leads (the edit form's totals card,
+  /// while the document is open): drawn even when it equals the total, last
+  /// and larger. Ignored in [dense].
+  final bool leadBalance;
+
+  /// Inputs drawn inside the breakdown, after its rows and before the rule
+  /// over the total — the edit form's document taxes, inclusive-tax switch
+  /// and surcharges, so the card that sums them is where they are set.
+  /// Ignored in [slim].
+  final Widget? editor;
+
+  /// With [bordered] false: the plain row list pads itself. False when the
+  /// host is already a padded card.
+  final bool padded;
+
   /// Compact mode: smaller padding + 13 px text. Used in the edit-screen
   /// sticky-bottom footer. Default false renders the larger detail-screen
   /// variant.
@@ -88,31 +114,30 @@ class TotalsWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final tokens = context.inTheme;
     if (dense && slim) {
+      // One line, the figures at the end: Total, and Balance Due beside it
+      // while it says something the total does not.
+      final showBalance = balance != null && balance != totals.total;
       return Container(
         padding: EdgeInsets.symmetric(
           horizontal: InSpacing.lg(context),
           vertical: InSpacing.sm,
         ),
         color: tokens.surfaceAlt,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _row(
-              context,
-              label: context.tr('total'),
-              amount: totals.total,
-              strong: true,
-            ),
-            if (balance != null && balance != totals.total)
-              _row(
+        child: showBalance
+            ? Wrap(
+                alignment: WrapAlignment.end,
+                spacing: InSpacing.xl,
+                children: [
+                  _pair(context, context.tr('total'), totals.total),
+                  _pair(context, context.tr(balanceLabelKey), balance!),
+                ],
+              )
+            : _row(
                 context,
-                label: context.tr('balance'),
-                amount: balance!,
+                label: context.tr('total'),
+                amount: totals.total,
                 strong: true,
               ),
-          ],
-        ),
       );
     }
     final rows = <Widget>[
@@ -144,6 +169,7 @@ class TotalsWidget extends StatelessWidget {
           ),
       if (partial != Decimal.zero)
         _row(context, label: context.tr('partial'), amount: partial),
+      ?editor,
       Divider(height: InSpacing.lg(context), color: tokens.border),
       _row(
         context,
@@ -154,14 +180,16 @@ class TotalsWidget extends StatelessWidget {
       if (paidToDate != null && paidToDate! != Decimal.zero)
         _row(
           context,
-          label: context.tr('paid_to_date'),
+          label: context.tr(paidToDateLabelKey),
           amount: paidToDate!,
           subtractive: true,
         ),
-      if (balance != null && balance != totals.total)
+      if (balance != null && !dense && leadBalance)
+        _leadRow(context, context.tr(balanceLabelKey), balance!)
+      else if (balance != null && balance != totals.total)
         _row(
           context,
-          label: context.tr('balance'),
+          label: context.tr(balanceLabelKey),
           amount: balance!,
           strong: true,
         ),
@@ -189,7 +217,9 @@ class TotalsWidget extends StatelessWidget {
       // Borderless row list — matches the React / old-Flutter
       // references where the totals sit as plain rows, no card.
       return Padding(
-        padding: EdgeInsets.all(InSpacing.lg(context)),
+        padding: padded
+            ? EdgeInsets.all(InSpacing.lg(context))
+            : EdgeInsets.zero,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,
@@ -247,6 +277,65 @@ class TotalsWidget extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  /// The figure that leads — the open balance — on its own tinted band,
+  /// a size up from the total above it.
+  Widget _leadRow(BuildContext context, String label, Decimal amount) {
+    final tokens = context.inTheme;
+    return Container(
+      margin: const EdgeInsets.only(top: InSpacing.sm),
+      padding: const EdgeInsets.symmetric(
+        horizontal: InSpacing.sm,
+        vertical: InSpacing.sm,
+      ),
+      decoration: BoxDecoration(
+        color: tokens.surfaceAlt,
+        borderRadius: BorderRadius.circular(InRadii.r2),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 14,
+                color: tokens.ink,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          LtrText(
+            _formatAmount(amount, false),
+            style: moneyTextStyle(
+              fontSize: 18,
+              color: tokens.ink,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// A label and its figure side by side, for the slim bar's one line.
+  Widget _pair(BuildContext context, String label, Decimal amount) {
+    final tokens = context.inTheme;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(label, style: TextStyle(fontSize: 13, color: tokens.ink2)),
+        const SizedBox(width: InSpacing.sm),
+        LtrText(
+          _formatAmount(amount, false),
+          style: moneyTextStyle(
+            fontSize: 13,
+            color: tokens.ink,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
     );
   }
 

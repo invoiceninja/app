@@ -34,6 +34,7 @@ class EntityEditField extends StatefulWidget {
     this.readOnly = false,
     this.prefixText,
     this.suffixText,
+    this.suffixIcon,
     this.textCapitalization = TextCapitalization.none,
     this.autofillHints,
     this.autocorrect = true,
@@ -127,6 +128,13 @@ class EntityEditField extends StatefulWidget {
   /// Static text pinned inside the field, after the value — a unit ("days").
   /// Not part of the value, like [prefixText].
   final String? suffixText;
+
+  /// A button at the end of the box — the website field's open-link button.
+  /// Ignored on an [obscureText] field, whose end slot is the reveal toggle.
+  /// Its box is held to no minimum height, so it never makes this field
+  /// taller than its neighbours (`docs/form-fields.md` § A field is raised a
+  /// step off its card, 44 px tall).
+  final Widget? suffixIcon;
 
   @override
   State<EntityEditField> createState() => _EntityEditFieldState();
@@ -247,7 +255,11 @@ class _EntityEditFieldState extends State<EntityEditField> {
                     ),
                     onPressed: () => setState(() => _obscured = !_obscured),
                   )
-                : null,
+                : widget.suffixIcon,
+            suffixIconConstraints:
+                widget.obscureText || widget.suffixIcon == null
+                ? null
+                : const BoxConstraints(minHeight: 0, minWidth: 0),
             prefixStyle: theme.textTheme.bodyMedium?.copyWith(
               color: tokens.ink3,
             ),

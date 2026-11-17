@@ -16,22 +16,26 @@ import '../../billing_shared/edit/_billing_edit_harness.dart';
 import '../../shell/_shell_test_helpers.dart';
 
 void main() {
-  Widget section() => ExpenseTaxSection(
-    companyId: kHarnessCompanyId,
-    amount: Decimal.zero,
-    amountError: null,
-    taxNames: const ['', '', ''],
-    taxRates: [Decimal.zero, Decimal.zero, Decimal.zero],
-    taxAmounts: [Decimal.zero, Decimal.zero, Decimal.zero],
-    usesInclusiveTaxes: false,
-    calculateTaxByAmount: false,
-    onAmountChanged: (_) {},
-    onTaxNameChanged: (_, _) {},
-    onTaxRateChanged: (_, _) {},
-    onTaxAmountChanged: (_, _) {},
-    onUsesInclusiveTaxesChanged: (_) {},
-    onCalculateByAmountChanged: (_) {},
-  );
+  Widget section({Decimal? taxTotal, Decimal? total, bool inclusive = false}) =>
+      ExpenseTaxSection(
+        companyId: kHarnessCompanyId,
+        amount: Decimal.zero,
+        currencyId: '1',
+        taxTotal: taxTotal ?? Decimal.zero,
+        total: total ?? Decimal.zero,
+        amountError: null,
+        taxNames: const ['', '', ''],
+        taxRates: [Decimal.zero, Decimal.zero, Decimal.zero],
+        taxAmounts: [Decimal.zero, Decimal.zero, Decimal.zero],
+        usesInclusiveTaxes: inclusive,
+        calculateTaxByAmount: false,
+        onAmountChanged: (_) {},
+        onTaxNameChanged: (_, _) {},
+        onTaxRateChanged: (_, _) {},
+        onTaxAmountChanged: (_, _) {},
+        onUsesInclusiveTaxesChanged: (_) {},
+        onCalculateByAmountChanged: (_) {},
+      );
 
   Future<void> setRates(ShellFixture fixture, int enabled) async {
     final db = fixture.db;
@@ -67,6 +71,60 @@ void main() {
     await setRates(fixture, 1);
     await settle(tester);
     expect(tiers(tester), 2);
+    await unmount(tester, fixture);
+  });
+  // Beta feedback: admin-portal printed "Expense Total: <gross>" in the edit
+  // footer, and the rebuild showed the amount with no figure including tax.
+  testWidgets('states the tax and the Expense Total once taxes are on, and '
+      'neither while they are off', (tester) async {
+    setWindow(tester, 1200);
+    final fixture = await buildFixture(
+      closeStreamsSynchronously: true,
+      companies: const [FakeCompany(id: kHarnessCompanyId, name: 'Co')],
+    );
+    addTearDown(fixture.dispose);
+    await tester.pumpWidget(
+      wrapWithShell(
+        fixture.services,
+        section(taxTotal: Decimal.parse('10'), total: Decimal.parse('110')),
+      ),
+    );
+    await settle(tester);
+    expect(find.text('Expense Total'), findsNothing);
+
+    await setRates(fixture, 1);
+    await settle(tester);
+    expect(find.text('Expense Total'), findsOneWidget);
+    // Exclusive: the net is the amount the user typed, so no row repeats it.
+    expect(find.text('Net Amount'), findsNothing);
+    // The harness has no currency catalog, so the figures themselves are
+    // blank here — the formatting is `Formatter.money`'s own test.
+    await unmount(tester, fixture);
+  });
+
+  // Inclusive: the total IS the amount typed, so the net is the figure added.
+  testWidgets('an inclusive tax adds the Net Amount row', (tester) async {
+    setWindow(tester, 1200);
+    final fixture = await buildFixture(
+      closeStreamsSynchronously: true,
+      companies: const [FakeCompany(id: kHarnessCompanyId, name: 'Co')],
+    );
+    addTearDown(fixture.dispose);
+    await setRates(fixture, 1);
+
+    await tester.pumpWidget(
+      wrapWithShell(
+        fixture.services,
+        section(
+          taxTotal: Decimal.parse('10'),
+          total: Decimal.parse('110'),
+          inclusive: true,
+        ),
+      ),
+    );
+    await settle(tester);
+    expect(find.text('Net Amount'), findsOneWidget);
+    expect(find.text('Expense Total'), findsOneWidget);
     await unmount(tester, fixture);
   });
 }

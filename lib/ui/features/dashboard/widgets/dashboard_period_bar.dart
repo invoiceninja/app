@@ -5,6 +5,8 @@ import 'package:admin/app/env.dart';
 import 'package:admin/data/models/value/dashboard_comparison.dart';
 import 'package:admin/data/models/value/dashboard_filter.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/core/widgets/dashed_border.dart';
+import 'package:admin/ui/core/widgets/ltr_value.dart';
 import 'package:admin/ui/features/dashboard/helpers/converted_hint.dart';
 import 'package:admin/ui/features/dashboard/helpers/totals_math.dart';
 import 'package:admin/ui/features/dashboard/view_models/dashboard_view_model.dart';
@@ -22,6 +24,15 @@ import 'package:admin/utils/formatting.dart';
 /// it; and a control you have to open to learn its state is a control you
 /// forget is set. Here each one shows its value at rest, and the period the
 /// trends compare with is named once, beside the range it derives from.
+///
+/// **Wide, it reads as one sentence about the period**: the range with the
+/// days it resolves to, a dashed "Compare to Oct 1 - Oct 17", the currency and
+/// what it is converted to — and Include Drafts pushed to the trailing end,
+/// a switch that changes what is counted rather than which period. The dashed
+/// box is a label, not a control: no compare picker exists, so it takes no
+/// focus, no tap and no fill, and the solid-outlined controls beside it are
+/// the ones that open something. When the row is too narrow for both halves
+/// the switch drops under the rest (`OverflowBar`).
 ///
 /// **Currency is drawn only when there is a choice** — the company's totals
 /// carry a second currency, or one is already selected — and never on the
@@ -47,8 +58,10 @@ class DashboardPeriodBar extends StatelessWidget {
   /// rather than measured: the body already knows which layout it is.
   final bool compact;
 
-  /// "Oct 1 - Oct 7 vs Sep 1 - Sep 7": the days the trends measure, and the
-  /// days they measure them against.
+  /// The compact caption, "Oct 1 - Oct 7 vs Sep 1 - Sep 7": the days the
+  /// trends measure, and the days they measure them against. (Wide, the first
+  /// half is [_currentWindow] on the range button and the second the dashed
+  /// Compare label.)
   ///
   /// The first half is what a preset's name leaves unsaid — "This Month" on
   /// the 7th is seven days, set against the first seven of the month before
@@ -59,23 +72,33 @@ class DashboardPeriodBar extends StatelessWidget {
   /// (`DashboardApi.fetchTotals`), which the button's dates do not say, so the
   /// current window is named as it is for a preset.
   String _windows(BuildContext context, DashboardComparison comparison) {
-    final previous = formatter.dateRange(
-      comparison.previousStart.toIso(),
-      comparison.previousEnd.toIso(),
-    );
-    if (vm.filter.range is DashboardCustomRange) {
-      final (_, end) = vm.filter.resolveDates(today: vm.today);
-      if (comparison.currentEnd.compareTo(end) >= 0) {
-        return context.tr('compared_with_range', {'range': previous});
-      }
+    final previous = _previousWindow(comparison);
+    final current = _currentWindow(comparison);
+    if (current == null) {
+      return context.tr('compared_with_range', {'range': previous});
     }
     return context.tr('period_vs_period', {
-      'current': formatter.dateRange(
-        comparison.currentStart.toIso(),
-        comparison.currentEnd.toIso(),
-      ),
+      'current': current,
       'previous': previous,
     });
+  }
+
+  String _previousWindow(DashboardComparison comparison) => formatter.dateRange(
+    comparison.previousStart.toIso(),
+    comparison.previousEnd.toIso(),
+  );
+
+  /// The days the figures sum, or null where the range button already prints
+  /// them: a finished custom range shows its own dates.
+  String? _currentWindow(DashboardComparison comparison) {
+    if (vm.filter.range is DashboardCustomRange) {
+      final (_, end) = vm.filter.resolveDates(today: vm.today);
+      if (comparison.currentEnd.compareTo(end) >= 0) return null;
+    }
+    return formatter.dateRange(
+      comparison.currentStart.toIso(),
+      comparison.currentEnd.toIso(),
+    );
   }
 
   @override
@@ -94,14 +117,14 @@ class DashboardPeriodBar extends StatelessWidget {
     final caption = Theme.of(
       context,
     ).textTheme.bodySmall?.copyWith(color: tokens.ink2);
-    final range = DateRangePickerButton(
-      current: vm.filter.range,
-      onChange: vm.setDateRange,
-      formatter: formatter,
-    );
-    final windows = comparison == null ? null : _windows(context, comparison);
-
     if (compact) {
+      final range = DateRangePickerButton(
+        current: vm.filter.range,
+        onChange: vm.setDateRange,
+        formatter: formatter,
+        showChevron: true,
+      );
+      final windows = comparison == null ? null : _windows(context, comparison);
       final notes = [?windows, ?converted].join(' · ');
       return Column(
         mainAxisSize: MainAxisSize.min,
@@ -126,20 +149,92 @@ class DashboardPeriodBar extends StatelessWidget {
       );
     }
 
-    return Wrap(
-      spacing: InSpacing.md(context),
-      runSpacing: InSpacing.sm,
-      crossAxisAlignment: WrapCrossAlignment.center,
+    final range = DateRangePickerButton(
+      current: vm.filter.range,
+      onChange: vm.setDateRange,
+      formatter: formatter,
+      resolvedDates: comparison == null ? null : _currentWindow(comparison),
+      showChevron: true,
+    );
+    final gap = InSpacing.md(context);
+    // Two halves: the period and its currency at the start, the drafts switch
+    // at the end. `OverflowBar` keeps them on one line while they fit and
+    // otherwise stacks the switch under the rest — a `Row` with a spacer
+    // would leave the start half to wrap in whatever the switch left it.
+    return OverflowBar(
+      spacing: gap,
+      overflowSpacing: InSpacing.sm,
+      alignment: MainAxisAlignment.spaceBetween,
       children: [
-        range,
-        if (windows != null) Text(windows, style: caption),
-        if (showCurrency) _CurrencyButton(vm: vm),
-        // Said once, beside the control it is about: under "All currencies"
-        // the figures and the chart below are the server's conversion into
-        // the company's own currency. It used to be repeated under each card.
-        if (converted != null) Text(converted, style: caption),
+        Wrap(
+          spacing: gap,
+          runSpacing: InSpacing.sm,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            range,
+            if (comparison != null)
+              DashboardCompareLabel(dates: _previousWindow(comparison)),
+            if (showCurrency) _CurrencyButton(vm: vm),
+            // Said once, beside the control it is about: under "All
+            // currencies" the figures and the chart below are the server's
+            // conversion into the company's own currency. It used to be
+            // repeated under each card.
+            if (converted != null) Text(converted, style: caption),
+          ],
+        ),
         IncludeDraftsSwitch(vm: vm),
       ],
+    );
+  }
+}
+
+/// "Compare to Oct 1 - Oct 17": the window the trends are measured against,
+/// as a dashed box that is deliberately not a control.
+///
+/// There is no compare picker — the previous window follows from the range —
+/// so this must not look or act like one: a dashed outline and no fill where
+/// the controls beside it are solid, no hover, no focus, no tap. It is plain
+/// text to a screen reader, read as one phrase. The dates are a value, so
+/// they stay left-to-right in an RTL locale (`LtrText`).
+class DashboardCompareLabel extends StatelessWidget {
+  const DashboardCompareLabel({super.key, required this.dates});
+
+  final String dates;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.inTheme;
+    final style = Theme.of(
+      context,
+    ).textTheme.bodySmall?.copyWith(color: tokens.ink2);
+    return MergeSemantics(
+      child: DashedBorder(
+        color: tokens.borderStrong,
+        radius: InRadii.r2,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(context.tr('compare_to'), style: style),
+              const SizedBox(width: 6),
+              // Ellipsised rather than overflowing in a row narrower than
+              // the label — only a test's em-wide glyphs get there.
+              Flexible(
+                child: LtrText(
+                  dates,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: style?.copyWith(
+                    color: tokens.ink,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -169,14 +264,23 @@ class _CurrencyButton extends StatelessWidget {
           ),
         ),
         icon: const Icon(Icons.payments_outlined, size: 14),
-        label: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 200),
-          child: Text(
-            name,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 13),
-          ),
+        label: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 200),
+              child: Text(
+                name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 13),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsetsDirectional.only(start: 2),
+              child: Icon(Icons.expand_more, size: 16, color: tokens.ink3),
+            ),
+          ],
         ),
         onPressed: () => openDashboardCurrencyPopover(anchor, vm: vm),
       ),
@@ -219,7 +323,7 @@ class IncludeDraftsSwitch extends StatelessWidget {
             // own switch size stands on touch.
             Transform.scale(
               scale: Env.isTouchPrimary ? 1 : 0.8,
-              child: Switch.adaptive(
+              child: Switch(
                 value: on,
                 onChanged: vm.setIncludeDrafts,
                 materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,

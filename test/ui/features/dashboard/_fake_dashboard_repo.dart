@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import 'package:admin/data/db/app_database.dart';
 import 'package:admin/data/models/domain/dashboard/dashboard_activity.dart';
+import 'package:admin/data/models/domain/dashboard/dashboard_aging.dart';
 import 'package:admin/data/models/domain/dashboard/dashboard_calculated_field.dart';
 import 'package:admin/data/models/domain/dashboard/dashboard_card_config.dart';
 import 'package:admin/data/models/domain/dashboard/dashboard_chart_series.dart';
@@ -30,7 +31,7 @@ final ApiClient dummyDashboardClient = ApiClient(
 ///
 /// Shared by `dashboard_view_model_test.dart` (which drives the streams to
 /// test section routing) and `widgets/chart_card_test.dart` (which seeds the
-/// chart stream to render a real `LineChart`).
+/// chart stream to render a real `BarChart`).
 class FakeDashboardRepo extends DashboardRepository {
   FakeDashboardRepo(AppDatabase db)
     : super(db: db, api: DashboardApi(dummyDashboardClient));
@@ -48,6 +49,7 @@ class FakeDashboardRepo extends DashboardRepository {
   final totals = StreamController<DashboardTotals?>.broadcast();
   final totalsPrev = StreamController<DashboardTotals?>.broadcast();
   final outstanding = StreamController<DashboardTotals?>.broadcast();
+  final aging = StreamController<DashboardAging?>.broadcast();
   final chart = StreamController<DashboardChartSeries?>.broadcast();
 
   /// The `activities` row's write time — what the `/activity` screen's
@@ -113,6 +115,17 @@ class FakeDashboardRepo extends DashboardRepository {
     watchOutstandingCalls++;
     watchOutstandingDrafts = includeDrafts;
     return outstanding.stream;
+  }
+
+  @override
+  Stream<DashboardAging?> watchAging(String c) => aging.stream;
+
+  /// Calls of the aging-only refresh (a per-section retry).
+  int refreshAgingCalls = 0;
+
+  @override
+  Future<void> refreshAging(String c, {Duration? maxAge}) async {
+    refreshAgingCalls++;
   }
 
   @override

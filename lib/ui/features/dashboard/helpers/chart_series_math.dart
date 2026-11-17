@@ -1,24 +1,43 @@
+import 'dart:math' as math;
+
 import 'package:admin/data/models/domain/dashboard/dashboard_chart_series.dart';
 import 'package:admin/data/models/value/date.dart';
 import 'package:admin/ui/features/dashboard/view_models/dashboard_view_model.dart'
     show ChartSeriesId, ChartGrouping;
 import 'package:admin/utils/date_ranges.dart';
 
-/// Continuous, zero-filled time axis built from the *sparse* per-date points
-/// `POST /api/v1/charts/chart_summary_v2` returns.
+/// One bar slot of the Cash flow chart: an inclusive span of calendar days.
 ///
-/// The server only emits buckets for dates that had activity, so plotting the
-/// raw list by index collapses a sparse-but-equal series into a flat line and
-/// loses the date scale. The reference React client
-/// (`react/src/pages/dashboard/components/Chart.tsx`,
-/// `hooks/useGenerateWeekDateRange.ts`, `helpers/helpers.ts`) generates the
-/// bucket boundaries for the chosen Day/Week/Month grouping, zero-fills them,
-/// then accumulates each sparse point into its bucket. This is a faithful Dart
-/// port of that algorithm.
-///
-/// Week start follows the company `first_day_of_week` (0=Sun..6=Sat). With the
-/// default 0 (Sunday) the boundary is the Saturday week-end — matching dayjs's
-/// default `en` locale `endOf('week')`, which is what React uses.
+/// A slot is a *period*, not a boundary. The line chart this replaced plotted
+/// the web client's boundary dates (`useGenerateWeekDateRange`), where the
+/// first point is the window's first day on its own and every later one sums
+/// the days since the previous boundary. Drawn as bars that made the first
+/// bar one day wide beside bars a week wide — and an invoice dated on the 1st
+/// a lone spike. Here each slot is a whole day, week or month, clipped to the
+/// window at its two ends.
+class ChartPeriod {
+  const ChartPeriod(this.start, this.end);
+
+  final Date start;
+  final Date end;
+
+  bool get isSingleDay => start == end;
+
+  bool contains(Date d) => d.compareTo(start) >= 0 && d.compareTo(end) <= 0;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ChartPeriod && other.start == start && other.end == end;
+
+  @override
+  int get hashCode => Object.hash(start, end);
+
+  @override
+  String toString() => 'ChartPeriod(${start.toIso()}..${end.toIso()})';
+}
+
+/// The chart's slots and one value per slot per series, zero-filled: a quiet
+/// day keeps its slot, so the spacing of the bars is the spacing of time.
 class ChartAxis {
   const ChartAxis({
     required this.buckets,
@@ -26,35 +45,58 @@ class ChartAxis {
     this.grouping = ChartGrouping.month,
   });
 
-  /// The grouping the buckets were actually built at — the one asked for, or a
-  /// coarser / finer one when that could not draw a useful line (see
-  /// [buildContinuousAxis]). The chart's Day / Week / Month control shows this,
-  /// so it never claims a grouping the plot is not using.
+  /// The grouping the slots were actually built at — the one asked for, or a
+  /// coarser / finer one when that could not draw the window (see
+  /// [buildChartAxis]). The chart's Day / Week / Month control shows this, so
+  /// it never claims a grouping the plot is not using.
   final ChartGrouping grouping;
 
-  /// Ordered, contiguous bucket boundary dates spanning the period.
-  final List<Date> buckets;
+  /// Ordered, contiguous periods spanning the window.
+  final List<ChartPeriod> buckets;
 
-  /// One value per [buckets] index, per series. Missing buckets are `0.0`.
+  /// One value per [buckets] index, per series. An empty slot is `0.0`.
   final Map<ChartSeriesId, List<double>> values;
 
   bool get isEmpty => buckets.isEmpty;
 }
 
-/// Render-only ceiling. If the selected grouping would emit more boundaries
-/// than this (e.g. "All time" at Day granularity), the *render* coarsens one
-/// step (day→week→month) so fl_chart isn't handed tens of thousands of spots.
-/// The user's selected grouping is unchanged.
-const int _maxRenderBuckets = 750;
+/// The most bars groups the chart draws — a month by day. A grouping that
+/// needs more is disabled and the plot coarsens (day → week → month): past
+/// this a bar is a few pixels wide on a desktop and a hairline on a phone.
+const int kChartMaxBuckets = 31;
 
-/// The fewest boundaries that still draw a shape. A single month grouped by
-/// month is two — its first day and its last — which plots as one straight
-/// line from nothing to the total: the default range under the default
-/// grouping, and it said nothing a figure did not.
+/// The fewest slots that still show a shape. One month grouped by month is a
+/// single slot — a figure the cards above already state.
 const int _minUsefulBuckets = 4;
 
+/// The slots [grouping] cuts `[start, end]` into, honouring the company's
+/// [firstDayOfWeek] (0 = Sunday … 6 = Saturday). Empty for an inverted window.
+List<ChartPeriod> chartPeriods(
+  Date start,
+  Date end,
+  ChartGrouping grouping, {
+  int firstDayOfWeek = 0,
+}) {
+  final out = <ChartPeriod>[];
+  if (start.compareTo(end) > 0) return out;
+  var cursor = start;
+  // Date-space stepping (`Date.addDays`), never local midnight + 24 h: across
+  // a DST change the `DateTime` cursor drifts an hour and drops the last day.
+  while (cursor.compareTo(end) <= 0) {
+    final natural = switch (grouping) {
+      ChartGrouping.day => cursor,
+      ChartGrouping.week => endOfWeek(cursor, firstDayOfWeek),
+      ChartGrouping.month => _monthEnd(cursor),
+    };
+    final last = natural.compareTo(end) > 0 ? end : natural;
+    out.add(ChartPeriod(cursor, last));
+    cursor = last.addDays(1);
+  }
+  return out;
+}
+
 /// Whether [grouping] can draw the window `[start, end]` as it stands: enough
-/// boundaries to show a shape, few enough to render.
+/// slots to show a shape, few enough to read as bars.
 bool chartGroupingFits(
   Date start,
   Date end,
@@ -62,81 +104,92 @@ bool chartGroupingFits(
   int firstDayOfWeek = 0,
 }) {
   if (start.compareTo(end) > 0) return false;
-  final n = _buildBoundaries(start, end, grouping, firstDayOfWeek).length;
-  return n >= _minUsefulBuckets && n <= _maxRenderBuckets;
+  final n = chartPeriods(
+    start,
+    end,
+    grouping,
+    firstDayOfWeek: firstDayOfWeek,
+  ).length;
+  return n >= _minUsefulBuckets && n <= kChartMaxBuckets;
 }
 
-/// Builds a [ChartAxis] from [pointsBySeries] at [grouping] granularity. Range
-/// is `[startDate, endDate]` when both are present; otherwise it falls back to
-/// the min/max of every non-null point date across all series. Returns an empty
-/// axis when there is nothing datable to plot (caller shows the "no data"
-/// overlay).
-ChartAxis buildContinuousAxis({
+/// Buckets [pointsBySeries] — the sparse per-date totals
+/// `POST /api/v1/charts/chart_summary_v2` returns — into [grouping]-sized
+/// periods over `[startDate, endDate]`.
+///
+/// The grouping is a request, not a promise: past [kChartMaxBuckets] slots it
+/// coarsens (day → week → month), and under four it refines (month → week →
+/// day) where the finer one still fits. When even months are too many — "All
+/// time" is a fifty-year window — the axis starts at the first month that has
+/// data rather than at 1976.
+///
+/// With no window it falls back to the span of the points' own dates; with
+/// nothing datable it returns an empty axis (the card says "no data").
+ChartAxis buildChartAxis({
   required Map<ChartSeriesId, List<DashboardChartPoint>> pointsBySeries,
   required Date? startDate,
   required Date? endDate,
   required ChartGrouping grouping,
   int firstDayOfWeek = 0,
-  bool refineShortRanges = false,
 }) {
-  Date? start = startDate;
-  Date? end = endDate;
-
-  if (start == null || end == null) {
-    Date? lo;
-    Date? hi;
-    for (final pts in pointsBySeries.values) {
-      for (final p in pts) {
-        final d = p.date;
-        if (d == null) continue;
-        if (lo == null || d.compareTo(lo) < 0) lo = d;
-        if (hi == null || d.compareTo(hi) > 0) hi = d;
-      }
+  Date? lo;
+  Date? hi;
+  for (final pts in pointsBySeries.values) {
+    for (final p in pts) {
+      final d = p.date;
+      if (d == null) continue;
+      if (lo == null || d.compareTo(lo) < 0) lo = d;
+      if (hi == null || d.compareTo(hi) > 0) hi = d;
     }
-    start ??= lo;
-    end ??= hi;
   }
-
+  var start = startDate ?? lo;
+  final end = endDate ?? hi;
   if (start == null || end == null || start.compareTo(end) > 0) {
     return const ChartAxis(buckets: [], values: {});
   }
 
-  // Coarsen the *render* grouping until the boundary count is bounded.
+  List<ChartPeriod> cut(ChartGrouping g) =>
+      chartPeriods(start!, end, g, firstDayOfWeek: firstDayOfWeek);
+
   var effective = grouping;
-  var buckets = _buildBoundaries(start, end, effective, firstDayOfWeek);
-  while (buckets.length > _maxRenderBuckets &&
+  var buckets = cut(effective);
+  while (buckets.length > kChartMaxBuckets &&
       effective != ChartGrouping.month) {
     effective = effective == ChartGrouping.day
         ? ChartGrouping.week
         : ChartGrouping.month;
-    buckets = _buildBoundaries(start, end, effective, firstDayOfWeek);
+    buckets = cut(effective);
   }
-  // …and refine it while it is too coarse to show anything. Opt-in: the
-  // boundary rules themselves are a port of the web client's and are tested
-  // as such; this is the chart's own choice of which of them to draw.
-  while (refineShortRanges &&
-      buckets.length < _minUsefulBuckets &&
-      effective != ChartGrouping.day) {
+  while (buckets.length < _minUsefulBuckets && effective != ChartGrouping.day) {
     final finer = effective == ChartGrouping.month
         ? ChartGrouping.week
         : ChartGrouping.day;
-    final next = _buildBoundaries(start, end, finer, firstDayOfWeek);
-    if (next.length > _maxRenderBuckets) break;
+    final next = cut(finer);
+    if (next.length > kChartMaxBuckets) break;
     effective = finer;
     buckets = next;
+  }
+  // Still too many at month: drop the empty months before the first point.
+  if (buckets.length > kChartMaxBuckets &&
+      lo != null &&
+      lo.compareTo(start) > 0 &&
+      lo.compareTo(end) <= 0) {
+    start = Date(lo.year, lo.month, 1).compareTo(start) > 0
+        ? Date(lo.year, lo.month, 1)
+        : start;
+    buckets = cut(effective);
   }
 
   final values = <ChartSeriesId, List<double>>{
     for (final id in ChartSeriesId.values)
       id: List<double>.filled(buckets.length, 0),
   };
-
   pointsBySeries.forEach((id, pts) {
     final lane = values[id]!;
     for (final p in pts) {
       final d = p.date;
       if (d == null) continue;
-      final idx = _bucketIndex(buckets, d, effective);
+      final idx = _bucketIndex(buckets, d);
       if (idx < 0) continue;
       lane[idx] += p.total.toDouble();
     }
@@ -145,147 +198,47 @@ ChartAxis buildContinuousAxis({
   return ChartAxis(buckets: buckets, values: values, grouping: effective);
 }
 
-// ─── Boundary generation (ports of the React helpers) ───────────────────────
-
-List<Date> _buildBoundaries(
-  Date start,
-  Date end,
-  ChartGrouping grouping,
-  int firstDayOfWeek,
-) {
-  switch (grouping) {
-    case ChartGrouping.day:
-      return _ensureUnique(_dailyBoundaries(start, end), end);
-    case ChartGrouping.week:
-      return _ensureUnique(_weeklyBoundaries(start, end, firstDayOfWeek), end);
-    case ChartGrouping.month:
-      return _ensureUnique(_monthlyBoundaries(start, end), end);
-  }
-}
-
-List<Date> _dailyBoundaries(Date start, Date end) {
-  // Date-space stepping (Date.addDays), not local-midnight + 24h: across a
-  // DST transition the DateTime cursor drifted to 23:00/01:00, exited the
-  // loop one day early, and silently dropped the range's final bucket (and
-  // its revenue) from the chart.
-  final out = <Date>[];
-  var cursor = start;
-  while (cursor.compareTo(end) <= 0) {
-    out.add(cursor);
-    cursor = cursor.addDays(1);
-  }
-  return out;
-}
-
-/// Port of `useGenerateWeekDateRange`: push `start` once, then each
-/// `endOf('week')`, stepping a week at a time; clamp/append so the final
-/// boundary lands on `end`. The week-end honors [firstDayOfWeek].
-List<Date> _weeklyBoundaries(Date start, Date end, int firstDayOfWeek) {
-  // Date-space stepping — see _dailyBoundaries.
-  final out = <Date>[];
-  var cursor = start;
-  var first = true;
-  while (cursor.compareTo(end) <= 0) {
-    if (first) {
-      out.add(start);
-      first = false;
-    }
-    out.add(endOfWeek(cursor, firstDayOfWeek));
-    cursor = cursor.addDays(7);
-  }
-  if (out.isEmpty) return out;
-  if (out.last.compareTo(end) > 0) {
-    out[out.length - 1] = end;
-  } else if (out.last.compareTo(end) < 0) {
-    out.add(end);
-  }
-  return out;
-}
-
-/// Port of `generateMonthDateRange`: partial-month-aware month-end boundaries.
-List<Date> _monthlyBoundaries(Date start, Date end) {
-  final out = <Date>[];
-  final startFirst = _isFirstOfMonth(start);
-  final startLast = _isLastOfMonth(start);
-  if (!startFirst && !startLast) out.add(start);
-
-  var year = start.year;
-  var month = start.month;
-  while (true) {
-    final cursorFirst = Date(year, month, 1);
-    if (cursorFirst == _firstOfMonth(start) && !startLast && startFirst) {
-      out.add(start);
-    }
-    final eom = _monthEnd(Date(year, month, 1));
-    if (eom.compareTo(end) <= 0) out.add(eom);
-
-    if (year > end.year || (year == end.year && month >= end.month)) break;
-    if (month == 12) {
-      month = 1;
-      year++;
+/// The slot holding [d], or -1 when it falls outside the window.
+int _bucketIndex(List<ChartPeriod> buckets, Date d) {
+  var lo = 0;
+  var hi = buckets.length - 1;
+  while (lo <= hi) {
+    final mid = (lo + hi) >> 1;
+    final b = buckets[mid];
+    if (d.compareTo(b.start) < 0) {
+      hi = mid - 1;
+    } else if (d.compareTo(b.end) > 0) {
+      lo = mid + 1;
     } else {
-      month++;
+      return mid;
     }
   }
-  if (!_isLastOfMonth(end)) out.add(end);
-  return out;
+  return -1;
 }
 
-/// Port of `ensureUniqueDates`: clamp a trailing past-`end` boundary to `end`,
-/// then dedupe by calendar day preserving first-seen order.
-List<Date> _ensureUnique(List<Date> dates, Date end) {
-  if (dates.isEmpty) return dates;
-  if (dates.last.compareTo(end) > 0) dates[dates.length - 1] = end;
-  final seen = <String>{};
-  final out = <Date>[];
-  for (final d in dates) {
-    if (seen.add(d.toIso())) out.add(d);
-  }
-  return out;
-}
-
-// ─── Point → bucket assignment (port of `getRecordIndex`) ────────────────────
-
-int _bucketIndex(List<Date> buckets, Date d, ChartGrouping grouping) {
-  var idx = -1;
-  var exact = false;
-  for (var i = 0; i < buckets.length; i++) {
-    if (i + 1 < buckets.length) {
-      final lo = buckets[i];
-      final hi = buckets[i + 1];
-      final inRange = d.compareTo(lo) > 0 && d.compareTo(hi) < 0;
-      final isExact = d == buckets[i];
-      if (inRange || isExact) {
-        idx = i;
-        exact = isExact;
-        break;
-      }
-    } else {
-      if (d == buckets[i]) {
-        idx = i;
-        exact = true;
-      }
-      break;
+/// A value axis for bars: a round [step] (1, 2, 2.5 or 5 × a power of ten,
+/// never under one unit of money) and the multiple of it at or above
+/// [rawMax], so the top gridline is a labelled amount and the tallest bar
+/// sits under it. At most [maxSteps] gridlines above the baseline.
+({double step, double max}) chartValueScale(double rawMax, {int maxSteps = 4}) {
+  if (!(rawMax > 0) || !rawMax.isFinite) return (step: 1, max: 1);
+  final rough = rawMax / maxSteps;
+  final magnitude = math.max(
+    1.0,
+    math.pow(10, (math.log(rough) / math.ln10).floor()).toDouble(),
+  );
+  for (final m in const [1.0, 2.0, 2.5, 5.0, 10.0]) {
+    final step = m * magnitude;
+    if (rawMax / step <= maxSteps) {
+      return (step: step, max: (rawMax / step).ceil() * step);
     }
   }
-  // Week/Month: a point landing strictly inside a period rolls into that
-  // period's end bucket (the next boundary). Day never shifts.
-  if (grouping != ChartGrouping.day && idx > -1 && !exact) {
-    return idx + 1;
-  }
-  return idx;
+  final step = 10 * magnitude;
+  return (step: step, max: (rawMax / step).ceil() * step);
 }
-
-// ─── Calendar helpers ───────────────────────────────────────────────────────
-
-Date _firstOfMonth(Date d) => Date(d.year, d.month, 1);
 
 Date _monthEnd(Date d) {
-  // Day 0 of the next month == last day of this month.
+  // Day 0 of the next month is the last day of this one.
   final dt = DateTime(d.year, d.month + 1, 0);
   return Date(dt.year, dt.month, dt.day);
 }
-
-bool _isFirstOfMonth(Date d) => d.day == 1;
-
-bool _isLastOfMonth(Date d) => d.day == _monthEnd(d).day;

@@ -473,7 +473,7 @@ class _ToggleRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SwitchListTile.adaptive(
+    return SwitchListTile(
       contentPadding: EdgeInsets.zero,
       title: Text(context.tr(titleKey)),
       subtitle: Text(context.tr(subtitleKey)),

@@ -18,6 +18,8 @@ import 'package:admin/ui/features/billing_shared/seed_client_invitations.dart';
 import 'package:admin/ui/features/credits/view_models/credit_edit_view_model.dart';
 import 'package:admin/ui/features/credits/widgets/edit/credit_edit_layout.dart';
 import 'package:admin/ui/features/credits/widgets/credit_actions.dart';
+import 'package:admin/ui/features/billing_shared/edit/billing_doc_edit_status.dart';
+import 'package:admin/ui/features/credits/widgets/credit_status_pill.dart';
 
 class CreditEditScreen extends StatelessWidget {
   const CreditEditScreen({
@@ -109,6 +111,11 @@ class CreditEditScreen extends StatelessWidget {
       },
       titleWhileLoading: (ctx) =>
           existingId == null ? ctx.tr('new_credit') : ctx.tr('edit'),
+      // Title · status · Unsaved on a wide header.
+      titleTrailingBuilder: (ctx, vm) => billingDocEditStatus(
+        vm,
+        (saved) => CreditStatusPill(statusId: saved.calculatedStatusId),
+      ),
       titleBuilder: (ctx, vm) => vm.isCreate
           ? ctx.tr('new_credit')
           : (vm.draft.number.isNotEmpty

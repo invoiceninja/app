@@ -495,8 +495,9 @@ void main() {
         tester.widget<DashboardCreateStrip>(strip).options.map((o) => o.type),
         containsAll([EntityType.invoice, EntityType.client]),
       );
+      // The primary reads as its full phrase.
       expect(
-        find.descendant(of: strip, matching: find.text('Invoice')),
+        find.descendant(of: strip, matching: find.text('New Invoice')),
         findsOneWidget,
       );
     });
@@ -811,7 +812,7 @@ void main() {
           tester,
           find.descendant(
             of: find.byType(DashboardCreateStrip),
-            matching: find.text('Invoice'),
+            matching: find.text('New Invoice'),
           ),
         );
 

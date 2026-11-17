@@ -25,6 +25,7 @@ import 'package:admin/ui/features/gateways/widgets/edit/gateway_settings_tab.dar
 import 'package:admin/ui/features/gateways/widgets/edit/gateway_type_picker.dart';
 import 'package:admin/ui/features/gateways/widgets/edit/oauth_stub_card.dart';
 import 'package:admin/ui/features/terminal/tap_to_pay_offer.dart';
+import 'package:admin/ui/features/settings/widgets/settings_tab_strip.dart';
 
 /// Labels surfaced on the edit screen for the in-app settings search index.
 const kCompanyGatewayEditSearchKeys = <String>[
@@ -301,29 +302,36 @@ class _TabbedBody extends StatelessWidget {
     final errorSlug = vm.errorTabSlug();
     return Column(
       children: [
-        TabBar(
-          controller: tabController,
-          isScrollable: true,
-          tabAlignment: TabAlignment.center,
-          labelColor: tokens.ink,
-          unselectedLabelColor: tokens.ink3,
-          indicatorColor: tokens.accent,
-          indicatorWeight: 2,
-          tabs: [
-            _Tab(
-              label: context.tr('credentials'),
-              error: errorSlug == 'credentials',
-            ),
-            _Tab(label: context.tr('settings'), error: errorSlug == 'settings'),
-            _Tab(
-              label: context.tr('required_fields_label'),
-              error: errorSlug == 'required_fields',
-            ),
-            _Tab(
-              label: context.tr('limits_and_fees'),
-              error: errorSlug == 'limits_and_fees',
-            ),
-          ],
+        SettingsTabStrip(
+          color: Theme.of(context).scaffoldBackgroundColor,
+          tabBar: TabBar(
+            controller: tabController,
+            isScrollable: true,
+            tabAlignment: TabAlignment.start,
+            padding: settingsTabBarPadding(),
+            labelColor: tokens.ink,
+            unselectedLabelColor: tokens.ink3,
+            indicatorColor: tokens.accent,
+            indicatorWeight: 2,
+            tabs: [
+              _Tab(
+                label: context.tr('credentials'),
+                error: errorSlug == 'credentials',
+              ),
+              _Tab(
+                label: context.tr('settings'),
+                error: errorSlug == 'settings',
+              ),
+              _Tab(
+                label: context.tr('required_fields_label'),
+                error: errorSlug == 'required_fields',
+              ),
+              _Tab(
+                label: context.tr('limits_and_fees'),
+                error: errorSlug == 'limits_and_fees',
+              ),
+            ],
+          ),
         ),
         Expanded(
           child: TabBarView(

@@ -317,13 +317,13 @@ Email-template `$variables` render as chips wherever a template is edited (Templ
 
 ### Two-choice fields → radio, not dropdown
 
-A fixed field with two choices (occasionally up to ~4) is a **radio group, not a dropdown** — `OverridableRadioField<T>` on cascade settings.
+A fixed field with two choices (occasionally up to ~4) is a **radio group, not a dropdown** — `OverridableRadioField<T>` on cascade settings, or `OverridableSegmentedField<T>`, which falls back to it when a label won't fit.
 
 ### Date and time fields
 
 Single dates and times go through `InDateField` / `InTimeField` (`lib/ui/core/widgets/`): a typed field taking shortcuts (`today`, `+7`, `5/14`; `9p`, `930`) plus a picker icon, committing on blur or Enter and silently reverting on a parse failure. Typed input parses locale-independently; only display follows the company `Formatter`. Reuse `parseDateInput` / `parseTimeInput` (`lib/utils/formatting.dart`) for the shortcuts without the chrome. → `docs/form-fields.md`
 
-- **The placeholder is a worked example, never a format pattern.** → `docs/form-fields.md`
+- **The placeholder is an "e.g." worked example, never a format pattern.** → `docs/form-fields.md`
 
 **Don't use `showDatePicker` / `showTimePicker` for form fields** — only one-tap *range* filters (`DateRangePickerButton`) still do.
 
@@ -354,7 +354,7 @@ Building a *custom* shell (e.g. tabbed like Company Details)? Reach for `Setting
 
 ### Width cap: every body under `/settings/...` goes through `SettingsFormShell`
 
-Centred, 720 px max — including tab bodies inside an `EntityEditScreenScaffold` (the gateway-edit tabs). Never a raw top-level `ListView(padding: ...)`. → `docs/settings-screens.md`
+Start-aligned, 720 px max (1000 side by side) — including tab bodies inside an `EntityEditScreenScaffold` (gateway edit). Never a raw top-level `ListView`. → `docs/settings-screens.md`
 
 ### Anti-pattern: User Details ListView+ListTile shape
 
@@ -441,6 +441,7 @@ Every surface calls `guardedOnTap(context, item)`, never `item.onTap`; surfaces 
 - **A `/refresh` delta carries the fourteen browsable entity tables too, and they are applied as an upsert-only top-up (the Documents harvest also prunes, above) — never on a full sync, and never over a newer local row.** → `docs/sync.md`
 - **Anything that must fetch once a Sync pass is over listens to `ResyncController.lastCompletion` — the idle falling edge also fires for a cancelled pass.** → `docs/sync.md`
 - **A pushed server event never writes an entity — it only schedules the `/refresh` delta (`RefreshScheduler.requestSoon`), except a download-ready notice, which is shown, not refreshed — and only `main.dart` opens the socket (`Services.build(realtimeUpdates:)` defaults off).** → `docs/realtime-updates.md`
+- **A payment's receipt is sent by the bulk `email` action; `email_receipt` only rides a create.** → `docs/entering-a-payment.md`
 - **An edit of a record whose create failed saves as a create — `performSave` branches on `savesAsCreate`, never `isCreate`.** → `docs/sync.md`
 - **The local `is_dirty` flag is layered onto the domain model in `<Repository>._decode`, which reads its row and nothing else.** → `docs/sync.md`
 
@@ -502,7 +503,7 @@ A one-tap status strip above every entity list (invoiceninja/flutter#98) — a *
 - **A widened mapping MUST be marked `widened: true`, and that flag is not bookkeeping.** → `docs/entity-lists.md`
 - **Don't map a mode whose only superset is nearly the whole table.**
 - **A tab whose predicate reads another entity's table has to fetch that table too, or it reads zero.** → `docs/entity-lists.md`
-- **No strip on an embedded list; the strip renders whenever a tab is active, even with the device setting off** (`DevicePrefKeys.statusTabs`, default on).
+- **An embedded list gets count-free segments, not the strip; the strip shows while a tab is active, even with the setting off** (`DevicePrefKeys.statusTabs`, default on).
 - **Counts are active-only, and a zero renders in the neutral palette.**
 - **The strip's edge fades are gated on the scroll position, like `EntityDetailTabs`'.** → `docs/entity-lists.md`
 - **The strip has a second, wrapped layout, used only by the dashboard's Invoices and Quotes panels — and selection there is a fill, not the underline.** → `docs/dashboard-panels.md`
@@ -692,10 +693,6 @@ invoiceninja://app/clients/Wpmbk5ezJn?company=Xrtq1oa8Aq     <- fallback, still 
 - **On Android a share or a link reaches MainActivity only through an engine-free trampoline carrying a one-time token, and MainActivity strips every extra before Flutter reads one.** → `docs/deep-links.md`
 - **A shared file reaches Flutter only as a native copy in `shared_intake/`, and only `SharedIntakeFiles` deletes one.** → `docs/sharing-files-into-the-app.md`
 - **A camera or gallery capture is adopted into `shared_intake/` before it reaches `onFiles` — a temp path dies before an offline upload is sent.** → `docs/sharing-files-into-the-app.md`
-
-**Adding an entity?** `test/lint/entity_copy_link_coverage_test.dart` fails the
-build unless its action enum declares `copyLink` — nothing in the type system
-would otherwise notice a new entity shipping with no way to link to it.
 
 ## Desktop window state
 

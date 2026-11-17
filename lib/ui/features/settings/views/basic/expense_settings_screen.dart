@@ -11,12 +11,13 @@ import 'package:admin/ui/core/widgets/searchable_dropdown_field.dart';
 import 'package:admin/ui/features/payments/widgets/payment_type_picker_field.dart';
 import 'package:admin/ui/features/settings/view_models/expense_settings_view_model.dart';
 import 'package:admin/ui/features/settings/widgets/form_section.dart';
-import 'package:admin/ui/features/settings/widgets/plain_radio_field.dart';
+import 'package:admin/ui/features/settings/widgets/segmented_choice_field.dart';
 import 'package:admin/ui/features/settings/widgets/settings_company_scoped_host.dart';
 import 'package:admin/ui/features/settings/widgets/settings_form_shell.dart';
 import 'package:admin/ui/features/settings/widgets/settings_page_scaffold.dart';
 import 'package:admin/ui/features/settings/widgets/settings_switch_tile.dart';
 import 'package:admin/ui/features/settings/widgets/settings_text_field.dart';
+import 'package:admin/ui/features/settings/widgets/tax_worked_example.dart';
 
 /// Searchable label keys rendered by this screen. Aggregated into
 /// `kSettingsSearchCatalog['expense_settings']` so the in-app search surfaces
@@ -87,11 +88,13 @@ class _ExpenseSettingsBody extends StatelessWidget {
     // Default `isHosted` to true so unknown sessions never accidentally expose
     // the mailbox config (which is meaningless on hosted).
     final isSelfHosted = !(services.auth.session.value?.isHosted ?? true);
+    final formatter = services.formatterIfReady(vm.companyId);
 
     return SettingsFormShell(
       sections: [
+        // Untitled: "Settings" under the Expense Settings title said nothing.
         FormSection(
-          title: context.tr('settings'),
+          title: null,
           children: [
             SettingsSwitchTile(
               label: context.tr('should_be_invoiced'),
@@ -223,7 +226,9 @@ class _ExpenseSettingsBody extends StatelessWidget {
         FormSection(
           title: context.tr('tax_settings'),
           children: [
-            PlainRadioField<bool>(
+            // Two short choices: one tap, both visible (radios only where a
+            // translation won't fit). A company field, so the plain control.
+            SegmentedChoiceField<bool>(
               label: context.tr('enter_taxes'),
               value: draft.calculateExpenseTaxByAmount,
               options: [
@@ -236,11 +241,17 @@ class _ExpenseSettingsBody extends StatelessWidget {
             ),
             SettingsSwitchTile(
               label: context.tr('inclusive_taxes'),
-              // Leading newline gives the formula examples vertical room under
-              // the title — matches the old admin-portal subtitle.
+              // The same worked example as Tax Settings' inclusive choice,
+              // for the state the switch is in; both formulas until the
+              // company formatter has loaded.
               help:
-                  '\n${context.tr('exclusive')}: 100 + 10% = 100 + 10\n'
-                  '${context.tr('inclusive')}: 100 + 10% = 90.91 + 9.09',
+                  taxWorkedExample(
+                    context,
+                    formatter,
+                    inclusive: draft.expenseInclusiveTaxes,
+                  ) ??
+                  '${context.tr('exclusive')}: 100 + 10% = 100 + 10\n'
+                      '${context.tr('inclusive')}: 100 + 10% = 90.91 + 9.09',
               value: draft.expenseInclusiveTaxes,
               onChanged: (v) =>
                   vm.updateCompany((c) => c.copyWith(expenseInclusiveTaxes: v)),

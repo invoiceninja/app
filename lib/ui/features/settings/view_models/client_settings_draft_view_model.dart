@@ -266,6 +266,18 @@ class ClientSettingsDraftViewModel extends SettingsDraftHost
   }
 
   @override
+  Object? draftSnapshot() => _ClientDraftSnapshot(_draft);
+
+  @override
+  void restoreDraftSnapshot(Object snapshot) {
+    if (_disposed || snapshot is! _ClientDraftSnapshot) return;
+    _draft = snapshot.draft;
+    _submitError = null;
+    _fieldErrors = const {};
+    notifyListeners();
+  }
+
+  @override
   Future<Client?> save() async {
     final client = _client;
     if (client == null || _isSaving) return null;
@@ -343,4 +355,11 @@ class ClientSettingsDraftViewModel extends SettingsDraftHost
     }
     return true;
   }
+}
+
+/// What [draftSnapshot] hands out: the sparse override draft, wrapped so
+/// another host's settings blob can't be restored here by mistake.
+class _ClientDraftSnapshot {
+  const _ClientDraftSnapshot(this.draft);
+  final CompanySettings draft;
 }

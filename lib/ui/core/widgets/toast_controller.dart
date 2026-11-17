@@ -106,10 +106,13 @@ class ToastController extends ChangeNotifier {
   /// Live toasts, oldest first. The host renders newest-nearest-the-corner.
   List<ToastData> get toasts => List.unmodifiable(_toasts);
 
-  /// How far a bottom toast is lifted so it never covers actions pinned to
-  /// the bottom of the screen (a checkout's pay button): the tallest height
-  /// any mounted `ToastBottomInset` reports. A notifier of its own, so a
-  /// change never rebuilds anything that listens for toasts.
+  /// How far a bottom toast (and, on a wide layout, the floating timer pill)
+  /// is lifted so it never covers bars pinned to the bottom of the screen: the
+  /// SUM of what every mounted, visible `ToastBottomInset` reports. A sum,
+  /// because those bars stack — a billing editor's totals bar sits on top of
+  /// the phone's running-timer dock — and the tallest alone would leave the
+  /// toast over the upper one. A notifier of its own, so a change never
+  /// rebuilds anything that listens for toasts.
   ValueListenable<double> get bottomInset => _bottomInset;
   final ValueNotifier<double> _bottomInset = ValueNotifier(0);
   final Map<Object, double> _bottomInsets = {};
@@ -123,7 +126,7 @@ class ToastController extends ChangeNotifier {
       if (_bottomInsets[owner] == height) return;
       _bottomInsets[owner] = height;
     }
-    _bottomInset.value = _bottomInsets.values.fold(0, (a, b) => a > b ? a : b);
+    _bottomInset.value = _bottomInsets.values.fold(0, (a, b) => a + b);
   }
 
   // Convenience variants — used by callers that captured the controller

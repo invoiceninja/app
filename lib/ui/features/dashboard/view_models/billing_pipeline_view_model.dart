@@ -1,10 +1,12 @@
 import 'dart:async';
 
+import 'package:decimal/decimal.dart';
 import 'package:flutter/foundation.dart';
 import 'package:logging/logging.dart';
 
 import 'package:admin/data/models/domain/invoice.dart';
 import 'package:admin/data/models/domain/quote.dart';
+import 'package:admin/data/models/value/date.dart';
 import 'package:admin/data/repositories/base_entity_repository.dart';
 import 'package:admin/data/repositories/invoice_repository.dart';
 import 'package:admin/data/repositories/quote_repository.dart';
@@ -41,6 +43,8 @@ class BillingPipelineRow {
     required this.hasBounce,
     required this.sortDate,
     required this.sortCreatedAt,
+    this.openDeadline,
+    this.exchangeRate,
   });
 
   factory BillingPipelineRow.fromInvoice(Invoice e) => BillingPipelineRow(
@@ -54,6 +58,18 @@ class BillingPipelineRow {
     hasBounce: e.hasBouncedInvitation,
     sortDate: e.date?.toIso() ?? '',
     sortCreatedAt: e.createdAt.millisecondsSinceEpoch,
+    // The date `Invoice.isPastDueOn` measures from: the deposit's when one is
+    // asked for. Only while something is still owed on a sent invoice — a
+    // draft, a paid or a cancelled one has no deadline to count towards.
+    openDeadline:
+        e.isDraft ||
+            e.isPaid ||
+            e.isCancelled ||
+            e.isReversed ||
+            e.balance <= Decimal.zero
+        ? null
+        : e.partialDueDate ?? e.dueDate,
+    exchangeRate: e.exchangeRate,
   );
 
   factory BillingPipelineRow.fromQuote(Quote e) => BillingPipelineRow(
@@ -67,6 +83,11 @@ class BillingPipelineRow {
     hasBounce: e.hasBouncedInvitation,
     sortDate: e.date?.toIso() ?? '',
     sortCreatedAt: e.createdAt.millisecondsSinceEpoch,
+    // The valid-until date (`due_date` on the wire), only while the quote is
+    // out with the client — a draft, approved, converted or rejected quote no
+    // longer expires in any sense the user acts on.
+    openDeadline: e.isSent && !e.isConverted ? e.dueDate : null,
+    exchangeRate: e.exchangeRate,
   );
 
   final EntityType type;
@@ -88,6 +109,15 @@ class BillingPipelineRow {
   /// sort FIRST under DESC, not last — the Dart twin of the DAO's
   /// `CASE created_at WHEN 0 THEN <max>`. See [compareRows].
   final int sortCreatedAt;
+
+  /// The deadline the row's relative sub-line counts towards — an invoice's
+  /// (deposit) due date, a quote's valid-until — or null when the document is
+  /// closed or has none, and the row says nothing relative.
+  final Date? openDeadline;
+
+  /// The document's stored rate from the company currency to its own
+  /// (`exchange_rate`). Null when unknown. Feeds the "≈ base" line.
+  final Decimal? exchangeRate;
 }
 
 /// The total order the DAO produces, restated for the cross-entity merge.

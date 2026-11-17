@@ -1,18 +1,16 @@
 import 'package:material_ui/material_ui.dart';
+import 'package:provider/provider.dart';
 
 import 'package:admin/app/design_tokens.dart';
-
-/// Builder for one of the three top-row card slots on the desktop
-/// billing-doc edit shell. The per-entity layout supplies the slot
-/// contents — see `_ClientCard` / `_DatesCard` / `_NumberCard` in
-/// `invoice_edit_layout.dart` and friends.
-typedef TopRowSlotBuilder = Widget Function(BuildContext context, int slot);
+import 'package:admin/app/services.dart';
+import 'package:admin/ui/core/widgets/toast_host.dart';
 
 /// Desktop multi-column layout for the five billing-doc edit screens
 /// (invoice / quote / credit / purchase_order / recurring_invoice).
 ///
 /// Layout from top to bottom:
-/// 1. Top row: three [TopRowSlotBuilder] cards side-by-side.
+/// 1. The details panel: the party and its contacts beside the document's
+///    own fields (`BillingDocEditLayout`'s `_DetailsPanelDesktop`).
 /// 2. Items section: the host's `LineItemEditor` (full-width, inline
 ///    edit table on desktop).
 /// 3. Bottom row: a tabbed notes/terms/footer/eInvoice card on the
@@ -21,14 +19,12 @@ typedef TopRowSlotBuilder = Widget Function(BuildContext context, int slot);
 ///    below the bottom row (mirrors React / admin-portal).
 /// 5. Sticky totals strip pinned at the bottom.
 ///
-/// Each slot is intentionally a builder rather than a Widget so the
-/// host controls per-entity quirks (vendor vs client picker, recurring
-/// frequency block, credit hiding due dates, …) without the shell
-/// having to know about any specific entity's fields.
+/// The host builds every piece, so per-document differences (vendor vs
+/// client picker, the recurring schedule, …) never reach the shell.
 class BillingDocEditDesktopShell extends StatelessWidget {
   const BillingDocEditDesktopShell({
     super.key,
-    required this.topRow,
+    required this.details,
     required this.itemsSection,
     required this.notesTabsCard,
     required this.totalsCard,
@@ -36,7 +32,7 @@ class BillingDocEditDesktopShell extends StatelessWidget {
     required this.stickyTotals,
   });
 
-  final TopRowSlotBuilder topRow;
+  final Widget details;
   final Widget itemsSection;
   final Widget notesTabsCard;
 
@@ -86,21 +82,7 @@ class BillingDocEditDesktopShell extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Top row: client / dates / number-discount-design-customs.
-                // The Number card carries 6+ fields (number, PO, discount,
-                // design, custom 1-4) so it gets more horizontal room than
-                // the Client and Dates cards.
-                // Top row: three equal columns, old-app proportions.
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(child: topRow(context, 0)),
-                    SizedBox(width: InSpacing.lg(context)),
-                    Expanded(child: topRow(context, 1)),
-                    SizedBox(width: InSpacing.lg(context)),
-                    Expanded(child: topRow(context, 2)),
-                  ],
-                ),
+                details,
                 SizedBox(height: InSpacing.md(context)),
                 itemsSection,
                 SizedBox(height: InSpacing.lg(context)),
@@ -131,7 +113,12 @@ class BillingDocEditDesktopShell extends StatelessWidget {
           ),
         ),
         Divider(height: 1, color: tokens.border),
-        stickyTotals,
+        // Published as a bottom bar, so the shell lifts the floating timer
+        // pill (and a bottom toast) above it rather than over the Total.
+        ToastBottomInset(
+          controller: context.read<Services?>()?.toasts,
+          child: stickyTotals,
+        ),
       ],
     );
   }

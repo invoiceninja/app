@@ -23,37 +23,6 @@ import 'package:admin/ui/features/dashboard/widgets/kpi_card.dart';
 /// Which tab the manage-dashboard surface opens on.
 enum ManagePane { cards, panels }
 
-/// Top-bar / app-bar entry point that opens the manage-dashboard surface
-/// (metric cards + list panels). Styled identically to `DashboardSettingsButton`
-/// so the dashboard chrome reads as one family.
-class DashboardCardsButton extends StatelessWidget {
-  const DashboardCardsButton({super.key, required this.vm});
-
-  final DashboardViewModel vm;
-
-  @override
-  Widget build(BuildContext context) {
-    final tokens = context.inTheme;
-    return TextButton.icon(
-      style: TextButton.styleFrom(
-        foregroundColor: tokens.ink2,
-        backgroundColor: Colors.transparent,
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(InRadii.r2),
-          side: BorderSide(color: tokens.border),
-        ),
-      ),
-      icon: const Icon(Icons.dashboard_customize_outlined, size: 14),
-      label: Text(
-        context.tr('customize'),
-        style: const TextStyle(fontSize: 13),
-      ),
-      onPressed: () => openManageDashboardCards(context, vm: vm),
-    );
-  }
-}
-
 /// Wide (≥600) → centered dialog (~720, the settings max-width convention),
 /// two columns (compose | current). Narrow → full-height scroll-controlled
 /// bottom sheet, single column. Both host the same live editor; mutations
@@ -907,7 +876,7 @@ class _HideEmptyPanelsSwitch extends StatelessWidget {
                 ),
               ),
               SizedBox(width: InSpacing.sm),
-              Switch.adaptive(
+              Switch(
                 value: on,
                 onChanged: (value) => pref.setIn(context, value),
               ),
@@ -1119,7 +1088,7 @@ class _PanelRow extends StatelessWidget {
             // Inert when the backing module is off — the panel can't render
             // regardless, so Material greys the switch to match the dimmed row.
             // The saved `visible` flag is untouched and returns when re-enabled.
-            child: Switch.adaptive(
+            child: Switch(
               value: visible,
               onChanged: moduleEnabled ? (_) => onToggle() : null,
             ),

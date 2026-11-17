@@ -63,7 +63,7 @@ void main() {
     tester,
   ) async {
     await _pump(tester, formatter: _formatter(military: true));
-    expect(_hintOf(tester), '13:45');
+    expect(_hintOf(tester), 'e.g. 13:45');
     expect(_hintOf(tester), isNot('HH:MM'));
   });
 
@@ -71,7 +71,7 @@ void main() {
     tester,
   ) async {
     await _pump(tester, formatter: _formatter(military: false));
-    expect(_hintOf(tester), '1:45 PM');
+    expect(_hintOf(tester), 'e.g. 1:45 PM');
     expect(_hintOf(tester), isNot('h:mm AM'));
   });
 
@@ -99,7 +99,7 @@ void main() {
     tester,
   ) async {
     await _pump(tester);
-    expect(_hintOf(tester), '13:45');
+    expect(_hintOf(tester), 'e.g. 13:45');
   });
 
   testWidgets('renders a committed value in the same shape as the hint', (

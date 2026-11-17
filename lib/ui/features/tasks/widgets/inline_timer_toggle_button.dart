@@ -2,6 +2,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 
 import 'package:admin/app/design_tokens.dart';
+import 'package:admin/app/env.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/data/models/domain/task.dart';
 import 'package:admin/l10n/localization.dart';
@@ -89,7 +90,16 @@ class _InlineTimerToggleButtonState extends State<InlineTimerToggleButton> {
         iconSize: widget.iconSize,
         color: color,
         padding: EdgeInsets.zero,
-        visualDensity: VisualDensity.compact,
+        // `compact` takes 8 off the constraints below, so a 44 asked for
+        // drew 36 — under a finger the density goes and the floor holds
+        // (docs/touch-targets.md, trap 2); shrinkWrap keeps `padded` from
+        // inflating the layout past it (trap 3).
+        visualDensity: Env.isTouchPrimary
+            ? VisualDensity.standard
+            : VisualDensity.compact,
+        style: const ButtonStyle(
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
         constraints: BoxConstraints(
           minWidth: widget.minTapTarget,
           minHeight: widget.minTapTarget,

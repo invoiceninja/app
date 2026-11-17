@@ -424,10 +424,11 @@ final List<RouteBase> settingsRoutes = [
     path: 'account_management/plan',
     redirect: (_, _) => '/settings/account_management',
   ),
-  // Backup | Restore is a single shell with two URL-driven tabs. Bare URL
-  // resolves to the Backup tab; `/restore` to the Restore tab. Shared page
-  // key (see `tabbedSettingsRoutePair`) keeps the shell's TabController + the
-  // Restore tab's in-progress upload state alive across the two paths.
+  // Backup | Restore is one page with both cards. `/restore` (the old Restore
+  // tab's URL, which a restored route or a link can still carry) resolves to
+  // the same page, scrolled to the Restore card. Shared page key (see
+  // `tabbedSettingsRoutePair`) keeps an in-progress upload alive across the
+  // two paths.
   ...tabbedSettingsRoutePair(
     path: 'backup_restore',
     pageKey: 'backup_restore_shell',

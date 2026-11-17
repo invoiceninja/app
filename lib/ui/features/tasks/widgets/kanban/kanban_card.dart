@@ -171,7 +171,9 @@ class KanbanCard extends StatelessWidget {
             Padding(
               padding: EdgeInsetsDirectional.fromSTEB(
                 pad,
-                menu ? 6 : 10,
+                // The touch `⋮` is 8 px taller than the pointer one; most of
+                // that comes out of the air above it, not the card's height.
+                menu ? (Env.isTouchPrimary ? 2 : 6) : 10,
                 menu ? 2 : pad,
                 10,
               ),
@@ -297,11 +299,15 @@ class KanbanCard extends StatelessWidget {
     );
   }
 
-  /// The `⋮` button: 36 under a finger, like the timer beside it, 28 with a
-  /// pointer.
-  static double get _menuSize => Env.isTouchPrimary ? 36 : 28;
+  /// The `⋮` button: the 44 px touch floor under a finger
+  /// (`docs/touch-targets.md`) — it is the card's only way to its actions and
+  /// moves there, so a short target is a missed one — and 28 with a pointer.
+  static double get _menuSize => Env.isTouchPrimary ? InSizes.touchTarget : 28;
 
-  static const double _timerTarget = 36;
+  /// The corner's Start / Stop: the 44 px touch floor under a finger, like
+  /// the `⋮` above — the card's one-tap timer — and 36 with a pointer.
+  static double get _timerTarget =>
+      Env.isTouchPrimary ? InSizes.touchTarget : 36;
   static const double _avatarSize = 20;
 
   /// Height under the title that keeps it clear of the corner's glyphs.

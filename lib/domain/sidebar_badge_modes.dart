@@ -10,9 +10,17 @@
 /// from columns already denormalized into Drift — the badge never issues a
 /// network call.
 ///
-/// Two ids are universal: [kBadgeModeTotal] (the default, and what every
-/// install shows today) and [kBadgeModeNone], which hides the badge entirely.
+/// Two ids are universal: [kBadgeModeTotal] (every active row) and
+/// [kBadgeModeNone], which hides the badge entirely.
+///
+/// **The default is actionable, not total** ([defaultBadgeModeFor]): a fresh
+/// install badges only Invoices (overdue), Quotes (expired) and Payments
+/// (unapplied) — the three counts that are work waiting — and every other row
+/// shows none. A number on every row read as the size of the archive, which is
+/// the very thing #9 set out to stop.
 library;
+
+import 'package:admin/domain/entity_type.dart';
 
 /// Colour weight of a badge. Maps to `InTheme` tokens in the widget layer —
 /// deliberately an enum here so this file stays free of a UI import.
@@ -55,8 +63,8 @@ class SidebarBadgeMode {
   final bool requiresInventoryTracking;
 }
 
-/// Count every active row — the default, and what the badge did before this
-/// existed.
+/// Count every active row — what the badge did before modes existed, and the
+/// default until the actionable defaults ([defaultBadgeModeFor]) replaced it.
 const String kBadgeModeTotal = 'total';
 
 /// Hide the badge on this row.
@@ -142,6 +150,9 @@ const List<SidebarBadgeMode> kInvoiceBadgeModes = [
     tone: SidebarBadgeTone.warning,
   ),
   SidebarBadgeMode('draft', labelKey: 'draft', tone: SidebarBadgeTone.muted),
+  // Exists for the list's Paid status tab; as a rail counter it is offered
+  // but nobody's default (an archive size, not work waiting).
+  SidebarBadgeMode('paid', labelKey: 'paid'),
   _assignedToMe,
   _none,
 ];
@@ -324,6 +335,25 @@ List<SidebarBadgeMode> availableBadgeModes(
       if (!m.requiresInventoryTracking) m,
   ];
 }
+
+/// The rows that badge something out of the box, and what they count. Every
+/// id here must be in that entity's list (`sidebar_badge_mode_controller_test`
+/// checks).
+const Map<EntityType, String> _kActionableDefaults = {
+  EntityType.invoice: 'overdue',
+  EntityType.quote: 'expired',
+  EntityType.payment: 'unapplied',
+};
+
+/// What [type]'s sidebar badge counts until the user picks something else:
+/// the actionable count for Invoices (overdue), Quotes (expired) and Payments
+/// (unapplied), [kBadgeModeNone] — no badge — for every other row.
+///
+/// The user's saved choice wins (`SidebarBadgeModeController.modeFor`), and
+/// Reset returns every row here. Only choices that differ from this are
+/// stored, so changing a default here moves every user who never picked.
+String defaultBadgeModeFor(EntityType type) =>
+    _kActionableDefaults[type] ?? kBadgeModeNone;
 
 /// Every per-entity list declared above. Lets the controller and the coherence
 /// test walk the whole catalog without re-listing it.

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:go_router/go_router.dart';
 
@@ -64,7 +65,22 @@ class MasterDetailNavController {
     _selectedId = selectedId;
     _itemIds = itemIds;
     _items = items;
+    // Notifies only when an edge flips — `ValueNotifier` compares the record
+    // by value — and this runs inside the list's build, so a listener must
+    // defer its own rebuild to after the frame (`_PaneStepButtons` does).
+    _edges.value = (hasPrev: prevId() != null, hasNext: nextId() != null);
   }
+
+  final ValueNotifier<({bool hasPrev, bool hasNext})> _edges = ValueNotifier((
+    hasPrev: false,
+    hasNext: false,
+  ));
+
+  /// Whether [prevId] / [nextId] would answer a row right now, for the pane's
+  /// previous / next buttons. They step exactly as `K` / `J` do, so they are
+  /// enabled exactly when those keys would move — and re-enable when a page
+  /// the list loads while the user sits on its last row arrives.
+  ValueListenable<({bool hasPrev, bool hasNext})> get edges => _edges;
 
   /// The visible domain object for [id] from the list's most recent
   /// snapshot, or null when the list has never rendered that row (deep

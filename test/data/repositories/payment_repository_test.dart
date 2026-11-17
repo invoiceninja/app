@@ -308,6 +308,23 @@ void main() {
       },
     );
 
+    // A re-save with `?email_receipt=true` sends nothing on an existing
+    // payment — the server reads the flag only on a create — so the receipt
+    // goes through the bulk `email` action.
+    test('emailReceipt enqueues an email row, not a re-save', () async {
+      await repo.emailReceipt(companyId: companyId, paymentId: 'p_real_3');
+      final rows = await db.outboxDao.nextReady(
+        companyId: companyId,
+        now: 1 << 60,
+      );
+      expect(rows.length, 1);
+      final row = rows.single;
+      expect(row.mutationKind, MutationKind.emailEntity.wireName);
+      expect(row.entityType, 'payment');
+      expect(row.entityId, 'p_real_3');
+      expect(jsonDecode(row.payload), {'id': 'p_real_3'});
+    });
+
     test(
       'create threads send_email through the synthetic payload key',
       () async {

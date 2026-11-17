@@ -1,5 +1,6 @@
 import 'package:decimal/decimal.dart';
 
+import 'package:admin/data/models/domain/dashboard/dashboard_aging.dart';
 import 'package:admin/data/models/domain/dashboard/dashboard_totals.dart';
 import 'package:admin/data/models/value/dashboard_filter.dart';
 
@@ -16,6 +17,24 @@ DashboardCurrencyTotals? selectCurrencyTotals(
   if (key != null) return totals.byCurrency[key];
   return totals.byCurrency[kDashboardCurrencyAll.toString()] ??
       totals.byCurrency.values.first;
+}
+
+/// Pick the aging buckets for the currency the figures show — the same key
+/// [selectCurrencyTotals] takes, so the bar under Outstanding is always in the
+/// figure's currency: under "All currencies" (null) the server's converted
+/// `999` aggregate.
+///
+/// Null whenever there is nothing honest to draw: not loaded, a server
+/// without the endpoint ([DashboardAging.unsupported]), or no bucket for the
+/// selected currency. The bar is then left out, never drawn as zero.
+DashboardAgingBuckets? selectAgingBuckets(DashboardAging? aging, String? key) {
+  if (aging == null || aging.unsupported || aging.byCurrency.isEmpty) {
+    return null;
+  }
+  if (key != null) return aging.byCurrency[key];
+  final all = aging.byCurrency[kDashboardCurrencyAll.toString()];
+  if (all != null) return all;
+  return aging.byCurrency.length == 1 ? aging.byCurrency.values.first : null;
 }
 
 /// Bucket key for the selected currency: null under "All currencies"

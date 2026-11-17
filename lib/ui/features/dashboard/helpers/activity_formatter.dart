@@ -18,21 +18,50 @@ export 'package:admin/domain/activity/activity_tones.dart';
 /// activity card consumes.
 ///
 /// The title is the localized `activity_N` string with `:user`/`:contact`/
-/// `:client`/`:invoice`/... tokens replaced. Unknown activity types fall back
-/// to "Activity #N" so the card never renders raw template strings.
+/// `:client`/`:invoice`/... tokens replaced — a token the row has no value for
+/// by [kActivityMissingValue]. Unknown activity types fall back to
+/// "Activity #N" so the card never renders raw template strings.
 class ActivityRender {
   const ActivityRender({
     required this.title,
     required this.meta,
     required this.tone,
     required this.icon,
+    this.segments = const [],
+    this.tokens = const {},
   });
 
   final String title;
   final String meta;
   final ActivityTone tone;
   final IconData icon;
+
+  /// [title] cut where the template's words meet its substituted values, so a
+  /// surface can set the values apart — the actor's name in the strong weight
+  /// reads as one name however many words it has. Joined, the texts are
+  /// [title] exactly. Empty for a hand-built render.
+  final List<ActivitySegment> segments;
+
+  /// Every `:token` the template substituted (`user`, `invoice`, `client`, …)
+  /// — what the sentence already names, so a caller adding context beside it
+  /// (the dashboard's meta line) does not say the client twice.
+  final Set<String> tokens;
 }
+
+/// One run of an [ActivityRender.title]: template words, or a value the
+/// server's label (or the note) filled in.
+@immutable
+class ActivitySegment {
+  const ActivitySegment(this.text, {this.isValue = false});
+
+  final String text;
+  final bool isValue;
+}
+
+/// What a template token reads when the row carries no value for it: an em
+/// dash, the empty value of a labelled slot (`docs/row-actions-and-values.md`)
+/// — the template's word in front of it ("quote", "client") is the label.
+const String kActivityMissingValue = '—';
 
 /// `activity_type_id`s whose template names both an actor and a target user
 /// (`CREATE_USER` 48 … `RESTORE_USER` 52). The actor arrives as the row's
@@ -69,6 +98,8 @@ class ActivityFormatter {
     final hasTemplate = raw.isNotEmpty && raw != key;
 
     String resolved;
+    final segments = <ActivitySegment>[];
+    final used = <String>{};
     if (hasTemplate) {
       // Type 54 with a contact is contact-initiated → swap `:user`→`:contact`.
       if (a.activityTypeId == 54 && a.labels.containsKey('contact')) {
@@ -101,23 +132,45 @@ class ActivityFormatter {
       // `buildActivitySpans` does — see there.
       final rtl = Directionality.of(context) == TextDirection.rtl;
       String value(String s) => rtl ? firstStrongIsolate(s) : s;
-      resolved = raw.replaceAllMapped(RegExp(r':([a-z_]+)'), (m) {
+      var last = 0;
+      for (final m in RegExp(r':([a-z_]+)').allMatches(raw)) {
+        if (m.start > last) {
+          segments.add(ActivitySegment(raw.substring(last, m.start)));
+        }
+        last = m.end;
         final token = m.group(1)!;
         // The marker is stripped because the row already renders a phone icon
         // for it (below) — leaving it in prints the glyph twice. That is
         // exactly what `stripCallNoteMarker`'s doc says it exists for, and it
         // is a no-op on every note that has no marker.
-        if (token == 'notes') return value(stripCallNoteMarker(a.notes));
+        if (token == 'notes') {
+          used.add(token);
+          segments.add(
+            ActivitySegment(value(stripCallNoteMarker(a.notes)), isValue: true),
+          );
+          continue;
+        }
         // The server's denormalized label (real client / user name, invoice
-        // number, …); falls back to the localized noun when the row doesn't
-        // name the object, so a bare `:token` never leaks.
+        // number, …). A row that doesn't name the object gets an em dash, so a
+        // bare `:token` never leaks. Not the localized noun: the template's own
+        // word already labels the slot, and "restored quote Quote" (the
+        // server's `QuoteRestoredActivity` never sets `quote_id`, BACKEND.md
+        // § F3g) read as a quote whose number is "Quote".
         final label = a.labels[token];
-        return label == null ? context.tr(token) : value(label);
-      });
+        if (label == null) {
+          segments.add(const ActivitySegment(kActivityMissingValue));
+        } else {
+          used.add(token);
+          segments.add(ActivitySegment(value(label), isValue: true));
+        }
+      }
+      if (last < raw.length) segments.add(ActivitySegment(raw.substring(last)));
+      resolved = segments.map((s) => s.text).join();
     } else {
       resolved = context.tr('activity_unknown', {
         'id': a.activityTypeId.toString(),
       });
+      segments.add(ActivitySegment(resolved));
     }
 
     final tone = activityToneFor(a.activityTypeId);
@@ -137,7 +190,14 @@ class ActivityFormatter {
         DateTime.fromMillisecondsSinceEpoch(a.createdAt * 1000),
       ),
     );
-    return ActivityRender(title: resolved, meta: meta, tone: tone, icon: icon);
+    return ActivityRender(
+      title: resolved,
+      meta: meta,
+      tone: tone,
+      icon: icon,
+      segments: segments,
+      tokens: used,
+    );
   }
 }
 

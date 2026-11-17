@@ -43,6 +43,7 @@ the log). A release build runs the body directly.
 | `statics.decode` | `StaticsRepository` | the stored blob → typed views |
 | `prefetch.sweep` | `_runSidebarPrefetch` | the whole 14-entity sweep |
 | `dashboard.refresh` | `DashboardRepository._runJobs` | one dashboard refresh pass |
+| `db.orphanSweep` | `OrphanStoreSweep.run` | web only: deleting abandoned database generations, after the first frame (`docs/migrations.md`) |
 | `scriptFonts.load` | `ScriptFonts._load` | one bundled Noto family read and registered (`family:`) |
 | `scriptFonts.deferred` | `ScriptFonts._loadDeferred` | the deferred families, with what set them off (`trigger: settled \| ceiling`) and `sinceFirstFrameMs` — the measured length of the launch window |
 
@@ -55,6 +56,10 @@ Awaited before `runApp`, in order: the diagnostics log (debug only), the databas
 lock, keychain key, isolate spawn, one `PRAGMA table_info` round trip per table), `Services.build`,
 then `auth.restore()` alongside the device preferences, the statics warm-up, and the saved route.
 `runApp` follows, and Flutter holds the first frame until the localization delegate resolves.
+
+On web, the sweep of abandoned database generations is not part of the open: `main.dart` starts
+it after the first frame and never awaits it
+(`docs/migrations.md` § Abandoned web stores are swept after the first frame).
 
 `restore()` also starts work nobody awaits, so it is already in flight when the first frame
 paints:

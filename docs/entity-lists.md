@@ -72,9 +72,31 @@ repeats the parent down every row. The drop is render-only (`columnIds` and the
 stored layout keep the id) and never leaves no columns at all. Pinned by
 `generic_list_view_model_embedded_columns_test.dart`.
 
+### Money columns end-aligned, emphasis per column
+
+Every money column declares `align: ColumnAlign.end`, and its header follows the column's `align` (`_HeaderCell`, sort arrow on the start side), so a figure's last digit and its label end at one x down the table; `CellSlot` and the header both resolve `AlignmentDirectional`, so RTL mirrors them. The figures line up because `moneyTextStyle` sets tabular figures — in Inter Tight since Nov 2026, not JetBrains Mono (`lib/app/design_tokens.dart`).
+
+Emphasis belongs to the column, never to `cellMoney`: the Clients **Balance** cell (`clientBalanceCell`) draws a balance above zero at weight 600, keeps `cellMoney`'s dimmed dash for a zero, and leaves a negative (a credit) plain. A **Last Login** that never happened is the labelled-slot em dash, never "Never". `test/domain/columns/list_emphasis_cells_test.dart` pins all three.
+
+### A late invoice's due date is red, and says how late only in its tooltip
+
+**The Due Date (and Partial Due Date) cell keeps `cellDate`, drawn in the `overdue` ink while `Invoice.isPastDueOn(today)`** — the Past Due pill's predicate, and in SQL the Overdue tab's (`invoiceOverdueFilter`), so a passed partial due date makes the row late even while the full date is ahead. How late ("12 days late", the dashboard's `lateText` keys) is a `Tooltip`, which screen readers read too; relative text in the cell would break the column's scan and its sort. Quotes are left alone: Valid Until has its own expiry predicate, not this one.
+
+### The header's select-all is always drawn with a pointer
+
+**With a pointer the column header's select-all checkbox is drawn at rest (empty) whenever the list has rows; each row's own checkbox stays hover-revealed in its leading slot.** A hover-only box at both ends left multi-select undiscoverable on desktop. Touch keeps the slot empty until multi-select — a 32 px box is under the touch target, and the toolbar's Select or a long-press is the way in there. Pinned in `entity_list_column_headers_test.dart`.
+
+### A standalone table has no card
+
+**A standalone list's wide table sits on the page with no card border or fill, at both densities, inside `entityListTableInset` (24 px each side, a small top gap, none below)** — the header's rule and the rows' hairlines are its only edges, as in the list designs. A local transparency `Material` (clipped) is still the rows' ink host. Because the rows now sit on `bg`, the row hover is a translucent `ink` wash (`_rowHoverColor`): the old opaque `surfaceAlt` is lighter than the light themes' `bg` and vanished. An embedded list keeps its card (`_embeddedListCard`), which lines it up with the record's other cards.
+
 ## List status tabs
 
-A one-tap status strip above every entity list — `All / Draft / Unpaid / Overdue` on Invoices, and so on for the other 13 entities that declare status counters (invoiceninja/flutter#98: reaching a draft through the search field's filter menu cost three or four taps). It is a **view over the sidebar-counter catalog**, not a second one: `lib/domain/list_status_tabs.dart` adds only the tab *order* (lifecycle, deliberately not the badge lists' "most actionable first") and the optional server translation. Labels, tones and the inventory gate all resolve from the entity's own `badgeModes` at render time.
+A one-tap status strip above every entity list — `All / Draft / Unpaid / Overdue / Paid` on Invoices, and so on for the other 13 entities that declare status counters (invoiceninja/flutter#98: reaching a draft through the search field's filter menu cost three or four taps). It is a **view over the sidebar-counter catalog**, not a second one: `lib/domain/list_status_tabs.dart` adds only the tab *order* (lifecycle, deliberately not the badge lists' "most actionable first") and the optional server translation. Labels, tones and the inventory gate all resolve from the entity's own `badgeModes` at render time.
+
+### Invoices end on Paid
+
+The Invoices strip's last tab is **Paid** (`status_id = 4` in `InvoiceDao.badgeModePredicate`, and `status_id=4` on the wire — `InvoiceFilters::status_id` is a plain `whereIn`, so the mapping is exact, not widened). Lifecycle order puts it last. It is also a selectable rail counter (no tone), and — because `kBillingPipelineTabOrder` must reproduce each entity's strip — the dashboard's Invoices card shows it too.
 
 ### The count and the rows are one predicate
 
@@ -91,6 +113,13 @@ A one-tap status strip above every entity list — `All / Draft / Unpaid / Overd
 ### No strip on an embedded list
 
 **No strip on an embedded list** (`widget.embedded`): the counts are company-wide, so "Draft 47" on one client's Invoices tab would be a flat lie.
+
+**It gets count-free status segments in its toolbar instead, where they fit** (Nov 2026, from the client-record review). `EmbeddedStatusSegments` (`entity_list_status_tabs.dart`) draws the same tabs — `listStatusTabsFor`, `All` first — as the dashboard strip's wrapped chips in one bordered box, between the search field and New. They write the same `badge_mode` through `setBadgeMode`, so `exclusiveStatusFilters` holds (a segment drops the Status chip, the chip moves the segments to All), and the scaffold decides them with the same `decideStatusStrip` as the strip — `embedded: false`, because no counts is the whole of what the embedded rule was about — so the device setting and the stock-bucket heal apply unchanged.
+
+- **Only where the toolbar has room.** `EmbeddedListTopRow` measures its own width and places them only when the search field keeps `kEmbeddedSearchMinWidth` (280) beside `EmbeddedStatusSegments.naturalWidth` and New. In the 440–560 px pane and on a phone they are left out, and the Status chip in the search field is the way to filter, as before. The width is measured over every tab the entity could offer (stock tabs included), so a company row landing a frame late never puts them in a row too narrow for them.
+- **The segments carry their own leading gap**, so a decision to draw nothing (setting off, no tabs) costs the toolbar nothing.
+- **On touch the box has no padding** and its border is a foreground decoration, so the 44 px chips fit the 45 px header-row slot.
+- Pinned by `test/ui/core/list/embedded_status_segments_test.dart` and the client screen's "status segments in a tab's toolbar" group.
 
 
 ### An embedded list selects like a standalone one
@@ -174,6 +203,12 @@ Pinned by `test/ui/core/list/generic_list_view_model_status_tab_test.dart` › a
 `sidebar_badge_count_test` fails the build if a declared mode has no predicate — the failure mode otherwise is silent, since a null predicate makes the badge count *every* row and still look like it works. Both pickers (the row's right-click menu and Settings → Device Settings → Sidebar counters) read the same registry list through `availableBadgeModes(...)`, so they can't drift apart.
 
 Note `BaseEntityDao.watchBadgeCount` counts **active** rows (`archived_at IS NULL`), unlike the older `watchCount`, which is archived-inclusive and still backs list empty-states.
+
+### A row's default counter is actionable, not total
+
+**Out of the box only three rows carry a badge: Invoices count overdue, Quotes expired, Payments unapplied; every other row is on `none`** (`defaultBadgeModeFor`, `lib/domain/sidebar_badge_modes.dart`; critique pass 2, Nov 2026). The old default — `total` on every row — put a number beside every entity, and a number that is the size of the archive teaches the eye to ignore the one that is work waiting, which is what #9 introduced modes to fix. The user's saved choice still wins, and Reset (Device Settings → Sidebar counters) returns every row to these defaults.
+
+`SidebarBadgeModeController` stores only choices that differ from the row's default, so: `total` is now stored like any other choice (it used to be the implicit absent value); a stored value equal to the default is dropped on load, so Reset is not offered for it; and a stored mode the company no longer offers (a stock counter with inventory tracking off) falls back to the row's default, then to `none`. Changing a default in `_kActionableDefaults` moves every user who never picked — a blob written before this change never held `total`, so every existing install moved to the new defaults with no migration. `sidebar_badge_mode_controller_test` › defaults pins the three ids against their entity's list; `sidebar_counters_section_test` pins what the card shows on a fresh install.
 
 ### Counts come from the local Drift cache, so they can under-report
 

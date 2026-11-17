@@ -8,6 +8,7 @@ import 'package:admin/app/services.dart';
 import 'package:admin/data/db/dao/purchase_order_dao.dart';
 import 'package:admin/data/models/domain/billing/billing_doc_fields.dart';
 import 'package:admin/data/models/domain/purchase_order.dart';
+import 'package:admin/domain/billing/selection_totals.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/list/entity_list_screen_scaffold.dart';
 import 'package:admin/ui/core/list/entity_sort_filter_sheet.dart';
@@ -16,6 +17,7 @@ import 'package:admin/ui/features/billing_shared/email/recipient_email_fix.dart'
 import 'package:admin/ui/features/billing_shared/actions/billing_doc_bulk_pdf.dart';
 import 'package:admin/ui/features/billing_shared/billing_doc_type.dart';
 import 'package:admin/ui/features/billing_shared/email/billing_doc_email_sheet.dart';
+import 'package:admin/ui/features/billing_shared/selection_totals_bar.dart';
 import 'package:admin/ui/features/invoices/widgets/detail/run_template_dialog.dart';
 import 'package:admin/ui/features/purchase_orders/view_models/purchase_order_edit_view_model.dart';
 import 'package:admin/ui/features/purchase_orders/view_models/purchase_order_list_view_model.dart';
@@ -99,6 +101,19 @@ class PurchaseOrderListScreen extends StatelessWidget {
       searchFieldBuilder: (context, vm, wide) =>
           PurchaseOrderTokenSearchField(vm: vm, wide: wide),
       emptyStateBuilder: (context, vm) => PurchaseOrderListEmptyState(vm: vm),
+      selectionSummaryBuilder: (context, vm, formatter) => SelectionTotalsBar(
+        companyId: vm.companyId,
+        formatter: formatter,
+        rows: [
+          // In the vendor's currency, as the list's money cells are.
+          for (final p in vm.selectedItems)
+            SelectionTotalsRow(
+              vendorId: p.vendorId,
+              amount: p.amount,
+              taxes: p.taxAmount,
+            ),
+        ],
+      ),
       tileBuilder: (context, vm, po, index, options) {
         final isUrlSelected = options.selectedId == po.id;
         return PurchaseOrderListTile(

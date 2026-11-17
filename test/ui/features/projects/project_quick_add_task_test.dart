@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:admin/data/models/api/task_status_api_model.dart';
 import 'package:admin/data/models/domain/project.dart';
+import 'package:admin/data/models/domain/task.dart';
 import 'package:admin/ui/features/projects/view_models/project_edit_view_model.dart'
     show emptyProject;
 import 'package:admin/ui/features/projects/widgets/detail/project_quick_add_task.dart';
@@ -83,6 +84,125 @@ void main() {
     final input = tester.widget<TextField>(field);
     expect(input.controller!.text, isEmpty);
     expect(input.focusNode!.hasFocus, isTrue);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 1));
+  });
+
+  Future<void> pumpField(
+    WidgetTester tester,
+    ShellFixture fixture,
+    Project project,
+  ) async {
+    tester.view.physicalSize = const Size(1200, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(
+      wrapWithShell(
+        fixture.services,
+        Scaffold(
+          body: SingleChildScrollView(
+            child: ProjectQuickAddTask(project: project, companyId: 'co1'),
+          ),
+        ),
+      ),
+    );
+    await settle(tester);
+  }
+
+  Future<ShellFixture> fixtureWithStatuses(WidgetTester tester) async {
+    final fixture = await buildFixture(
+      companies: [const FakeCompany(id: 'co1', name: 'Co')],
+    );
+    await tester.runAsync(
+      () => fixture.services.taskStatuses.applyBundle(
+        companyId: 'co1',
+        bundle: const [
+          TaskStatusApi(id: 'st1', name: 'Backlog', statusOrder: 1),
+          TaskStatusApi(id: 'st2', name: 'Ready to do', statusOrder: 2),
+          TaskStatusApi(id: 'st3', name: 'In progress', statusOrder: 3),
+        ],
+      ),
+    );
+    return fixture;
+  }
+
+  testWidgets('Start creates the typed task already running, In progress, '
+      'through the planner', (tester) async {
+    final fixture = await fixtureWithStatuses(tester);
+    addTearDown(fixture.dispose);
+    final services = fixture.services;
+    final project = emptyProject().copyWith(
+      id: 'p1',
+      name: 'Site',
+      clientId: 'cl1',
+      taskRate: Decimal.fromInt(80),
+    );
+    await pumpField(tester, fixture, project);
+
+    final field = find.byKey(const Key('project_quick_add_task'));
+    await tester.enterText(field, 'Call the client');
+    final before = DateTime.now();
+    await tester.tap(find.byKey(const Key('project_quick_add_start')));
+    await settle(tester);
+
+    final tasks = await tester.runAsync(
+      () => services.tasks
+          .watchForProject(companyId: 'co1', projectId: 'p1')
+          .first,
+    );
+    final task = tasks!.single;
+    expect(task.description, 'Call the client');
+    expect(task.clientId, 'cl1');
+    expect(task.rate, Decimal.fromInt(80));
+    // The move a Start makes from a not-started status (`TaskActions`).
+    expect(task.statusId, 'st3');
+    // One open entry, from now: what `planTaskStart` appends to an empty log.
+    expect(task.isRunning, isTrue);
+    expect(task.timeLog, hasLength(1));
+    final entry = task.timeLog.single;
+    expect(entry.stop, isNull);
+    expect(entry.billable, isTrue);
+    expect(
+      entry.start!.isBefore(before.subtract(const Duration(seconds: 5))),
+      isFalse,
+    );
+
+    expect(tester.widget<TextField>(field).controller!.text, isEmpty);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 1));
+  });
+
+  testWidgets('Start works on an empty field — Enter does not', (tester) async {
+    final fixture = await fixtureWithStatuses(tester);
+    addTearDown(fixture.dispose);
+    final services = fixture.services;
+    final project = emptyProject().copyWith(id: 'p1', name: 'Site');
+    await pumpField(tester, fixture, project);
+
+    final field = find.byKey(const Key('project_quick_add_task'));
+    await tester.tap(field);
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await settle(tester);
+    var tasks = await tester.runAsync(
+      () => services.tasks
+          .watchForProject(companyId: 'co1', projectId: 'p1')
+          .first,
+    );
+    expect(tasks, isEmpty, reason: 'Enter on nothing creates nothing');
+
+    await tester.tap(find.byKey(const Key('project_quick_add_start')));
+    await settle(tester);
+    tasks = await tester.runAsync(
+      () => services.tasks
+          .watchForProject(companyId: 'co1', projectId: 'p1')
+          .first,
+    );
+    // The server takes a task with no description; name it later.
+    expect(tasks!.single.description, isEmpty);
+    expect(tasks.single.isRunning, isTrue);
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(milliseconds: 1));

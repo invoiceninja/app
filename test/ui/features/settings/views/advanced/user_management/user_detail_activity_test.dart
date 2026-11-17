@@ -230,12 +230,13 @@ void main() {
     // And the entity token resolves to a real number, not the noun "Invoice".
     expect(find.textContaining('0026'), findsOneWidget);
 
-    // The discriminating assertion. A row that names no actor must fall back
-    // to the localized noun — never to whoever's page this is. Seeding the
-    // viewed user here is precisely what #45 was. Match on the whole sentence:
-    // the bare name legitimately renders once, in the Details `name` row.
+    // The discriminating assertion. A row that names no actor must leave the
+    // slot empty (an em dash) — never fill it with whoever's page this is.
+    // Seeding the viewed user here is precisely what #45 was. Match on the
+    // whole sentence: the bare name legitimately renders once, in the Details
+    // `name` row.
     expect(find.textContaining('Zoe Viewer created'), findsNothing);
-    expect(find.text('User created invoice Invoice'), findsOneWidget);
+    expect(find.text('— created invoice —'), findsOneWidget);
   });
 
   testWidgets('the viewed user still owns the details row', (tester) async {

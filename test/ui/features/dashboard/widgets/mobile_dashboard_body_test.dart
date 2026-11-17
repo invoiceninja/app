@@ -431,10 +431,28 @@ void main() {
       surface: const Size(390, 2000),
     );
 
-    for (final label in ['OUTSTANDING', 'INVOICES', 'PAYMENTS']) {
-      expect(find.text(label), findsOneWidget, reason: label);
+    // Within the figures: the chart's legend names its series too.
+    expect(
+      find.descendant(
+        of: find.byType(OutstandingFigureCard),
+        matching: find.text('Outstanding'),
+      ),
+      findsOneWidget,
+    );
+    for (final label in ['Invoiced', 'Payments']) {
+      expect(
+        find.descendant(
+          of: find.byType(PeriodFiguresCard),
+          matching: find.text(label),
+        ),
+        findsOneWidget,
+        reason: label,
+      );
     }
-    expect(find.textContaining('THIS MONTH'), findsNothing);
+    expect(
+      find.textContaining(RegExp('this month', caseSensitive: false)),
+      findsNothing,
+    );
     // Before the totals answer, a figure is a placeholder — never `$0.00`.
     expect(find.byType(FigureSkeletonBar), findsWidgets);
   });
@@ -557,7 +575,7 @@ void main() {
     }
     // Positive control: the figure sat directly above the row, so the body
     // has rendered past the point where the tiles used to be.
-    expect(find.text('OUTSTANDING'), findsOneWidget);
+    expect(find.text('Outstanding'), findsOneWidget);
   });
 
   // The FAB covers the bottom 72 px of the body. Without the padding, the

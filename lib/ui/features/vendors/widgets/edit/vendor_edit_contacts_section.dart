@@ -9,6 +9,7 @@ import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/edit/entity_custom_fields_section.dart';
 import 'package:admin/ui/core/edit/entity_edit_field.dart';
 import 'package:admin/ui/core/widgets/contact_edit_rows.dart';
+import 'package:admin/ui/core/widgets/form_field_pair.dart';
 import 'package:admin/ui/core/widgets/labeled_switch_group.dart';
 import 'package:admin/ui/features/dashboard/widgets/card_shell.dart';
 import 'package:admin/ui/features/vendors/view_models/vendor_edit_view_model.dart';
@@ -96,24 +97,32 @@ class _ContactList extends StatelessWidget {
           ),
       ],
       onMakePrimary: vm.setContactPrimary,
-      onDelete: vm.removeContact,
+      onDelete: (i) {
+        final removed = vm.removeContact(i);
+        if (removed == null) return null;
+        return () => vm.restoreContact(i, removed);
+      },
       fieldsBuilder: (context, i) => _fields(context, contacts[i], i),
     );
   }
 
   List<Widget> _fields(BuildContext context, VendorContact c, int i) {
     return [
-      EntityEditField(
-        label: context.tr('first_name'),
-        initial: c.firstName,
-        onChanged: (v) => vm.setContactFirstNameAt(i, v),
-        textCapitalization: TextCapitalization.words,
-      ),
-      EntityEditField(
-        label: context.tr('last_name'),
-        initial: c.lastName,
-        onChanged: (v) => vm.setContactLastNameAt(i, v),
-        textCapitalization: TextCapitalization.words,
+      // Side by side wherever the card has room, as on Edit Client.
+      FormFieldPair(
+        minPairWidth: kSidebarPairWidth,
+        left: EntityEditField(
+          label: context.tr('first_name'),
+          initial: c.firstName,
+          onChanged: (v) => vm.setContactFirstNameAt(i, v),
+          textCapitalization: TextCapitalization.words,
+        ),
+        right: EntityEditField(
+          label: context.tr('last_name'),
+          initial: c.lastName,
+          onChanged: (v) => vm.setContactLastNameAt(i, v),
+          textCapitalization: TextCapitalization.words,
+        ),
       ),
       EntityEditField(
         label: context.tr('email'),

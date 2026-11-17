@@ -14,6 +14,7 @@ import 'package:admin/data/services/connectivity_watcher.dart';
 import 'package:admin/data/services/expenses_api.dart';
 import 'package:admin/data/services/upload_source.dart';
 import 'package:admin/domain/entity_registry.dart';
+import 'package:admin/domain/expenses/receipt_scanner.dart';
 import 'package:admin/ui/core/widgets/file_drop_zone.dart';
 import 'package:admin/ui/features/expenses/view_models/expense_edit_view_model.dart';
 import 'package:admin/ui/features/expenses/widgets/edit/expense_edit_documents_section.dart';
@@ -23,6 +24,18 @@ import '../../../_localization_helper.dart';
 /// New Expense's Documents card (invoiceninja/flutter#173): where a receipt
 /// shared into the app shows up, and where files are attached before the
 /// expense exists.
+
+class _SupportedScanner implements ReceiptScanner {
+  @override
+  Duration get timeout => const Duration(seconds: 15);
+
+  @override
+  Future<bool> isSupported() async => true;
+
+  @override
+  Future<ReceiptRead?> scan(UploadSource source, String companyId) =>
+      Completer<ReceiptRead?>().future;
+}
 
 class _FakeExpensesApi implements ExpensesApi {
   @override
@@ -164,6 +177,29 @@ void main() {
       isTrue,
     );
   }, variant: TargetPlatformVariant.only(TargetPlatform.iOS));
+
+  // Nothing else tells a user that the photo they attach fills the form.
+  testWidgets('says a receipt fills the form only where one can be read', (
+    tester,
+  ) async {
+    const hint = "We'll fill in the amount, date and tax from a receipt.";
+    final plain = ExpenseEditViewModel(repo: repo, companyId: 'co');
+    addTearDown(plain.dispose);
+    await pump(tester, plain);
+    expect(find.text(hint), findsNothing, reason: 'no OCR engine here');
+
+    final reading = ExpenseEditViewModel(
+      repo: repo,
+      companyId: 'co',
+      receiptScanner: _SupportedScanner(),
+    );
+    addTearDown(reading.dispose);
+    await pump(tester, reading);
+    await tester.pump();
+    expect(reading.canReadReceipt, isTrue);
+    expect(find.text(hint), findsOneWidget);
+    expect(find.text('Documents'), findsOneWidget, reason: 'title unchanged');
+  });
 
   testWidgets('no files: just the drop zone, no hint', (tester) async {
     final vm = ExpenseEditViewModel(repo: repo, companyId: 'co');

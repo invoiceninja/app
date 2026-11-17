@@ -82,9 +82,12 @@ String activityRangeLabel(
 
 /// A short axis tick for a bar starting at [start].
 ///
-/// Locale-aware `DateFormat` **skeletons**, never literal patterns — a literal
-/// pins the field order and drops the locale's own connectives. There is no
-/// `Formatter` month-only or hour-only method, which is the same exception
+/// A time of day goes through the company `Formatter`, so the axis follows
+/// the company's 12 / 24-hour setting like every other time in the app (the
+/// local instant goes in as UTC, as [activityInstantLabel] explains). Dates
+/// use locale-aware `DateFormat` **skeletons**, never literal patterns — a
+/// literal pins the field order and drops the locale's own connectives. There
+/// is no `Formatter` month-only method, which is the same exception
 /// `task_calendar_header.dart` documents.
 String activityAxisLabel(
   DateTime start,
@@ -95,7 +98,16 @@ String activityAxisLabel(
   // `DateFormat` misbehaves on `''`.
   final tag = locale.isEmpty ? null : locale;
   return switch (size) {
-    TimelineBucketSize.hour => DateFormat.j(tag).format(start),
+    TimelineBucketSize.quarterHour ||
+    TimelineBucketSize.halfHour ||
+    TimelineBucketSize.hour =>
+      formatter?.date(
+            start.toUtc().toIso8601String(),
+            showDate: false,
+            showTime: true,
+            showSeconds: false,
+          ) ??
+          DateFormat.jm(tag).format(start),
     TimelineBucketSize.day ||
     TimelineBucketSize.week => DateFormat.MMMd(tag).format(start),
     TimelineBucketSize.month => DateFormat.yMMM(tag).format(start),

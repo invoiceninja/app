@@ -37,6 +37,16 @@ void main() {
       expect(initialsFor('123 456'), isNull);
     });
 
+    test('a hyphen separates words — first and last, as with spaces', () {
+      expect(initialsFor('Brown-Mertz'), 'BM');
+      expect(initialsFor('Jean-Luc Picard'), 'JP');
+      expect(initialsFor('Mary Smith-Jones'), 'MJ');
+      expect(initialsFor('Anne\u2011Marie'), 'AM');
+      // A stray hyphen is not a word.
+      expect(initialsFor('Acme -'), 'A');
+      expect(initialsFor('- Acme'), 'A');
+    });
+
     test('handles non-Latin scripts', () {
       expect(initialsFor('Ада Лавлейс'), 'АЛ');
       expect(initialsFor('田中 太郎'), '田太');
@@ -58,7 +68,10 @@ void main() {
 
       final box = tester.widget<Container>(find.byType(Container));
       final decoration = box.decoration! as BoxDecoration;
-      expect(decoration.color, avatarTintFor('c1'));
+      final tint = avatarTintFor(tester.element(find.text('AL')), 'c1');
+      expect(decoration.color, tint.background);
+      // The ink is the pair's, never white on a soft tint.
+      expect(tester.widget<Text>(find.text('AL')).style!.color, tint.ink);
       // Rounded rectangle, never a circle or a pill.
       expect(decoration.shape, BoxShape.rectangle);
       expect(decoration.borderRadius, isNotNull);

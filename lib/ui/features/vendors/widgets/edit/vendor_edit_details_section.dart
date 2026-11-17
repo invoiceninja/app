@@ -7,6 +7,7 @@ import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/edit/entity_custom_fields_section.dart';
 import 'package:admin/ui/core/edit/entity_edit_field.dart';
 import 'package:admin/ui/core/widgets/entity_tags_field.dart';
+import 'package:admin/ui/core/widgets/open_website_button.dart';
 import 'package:admin/ui/features/dashboard/widgets/card_shell.dart';
 import 'package:admin/ui/features/vendors/view_models/vendor_edit_view_model.dart';
 import 'package:admin/ui/features/vendors/widgets/edit/vendor_edit_field_pair.dart';
@@ -75,6 +76,8 @@ class VendorEditDetailsSection extends StatelessWidget {
             initial: draft.website,
             onChanged: vm.setWebsite,
             keyboardType: TextInputType.url,
+            // Check the address without leaving the form.
+            suffixIcon: OpenWebsiteButton(value: draft.website),
             errorText: vm.fieldErrorFor('website'),
           ),
           EntityCustomFieldsSection(

@@ -18,6 +18,12 @@ const String kPaymentValidationCreditExceedsInvoice = 'credit_payment_error';
 const String kPaymentValidationMissingAllocations =
     'please_select_an_invoice_or_credit';
 
+/// Translation key surfaced when a new payment leaves money unapplied while the
+/// company has Manual Overpayments (`enable_applying_payments`) off — v1 hid
+/// the amount field in that state, so a payment could only ever be the sum of
+/// what it applied.
+const String kPaymentValidationOverpaymentsDisabled = 'over_payments_disabled';
+
 /// Translation key surfaced when the invoices are allocated more than the
 /// payment amount plus its credits — the server's `PaymentAmountsBalanceRule`
 /// rejects that save with this same message.
@@ -28,14 +34,14 @@ const String kPaymentValidationAmountsDoNotBalance = 'amounts_do_not_balance';
 /// handles the server round-trip.
 ///
 /// [sendEmail] is a transient UI-only flag passed straight to the repository
-/// (never persisted). On create the default mirrors the company setting
-/// `client_manual_payment_notification`; on update the user toggles it
-/// explicitly.
+/// (never persisted), and only on a CREATE: the server reads `email_receipt`
+/// on nothing else, so an existing payment's receipt goes through the record's
+/// Send Email action (`PaymentRepository.emailReceipt`). Its default is the
+/// settings cascade's `client_manual_payment_notification` ([seedSendEmail]).
 ///
-/// [enableApplyingPayments] reflects the active company's
-/// `enable_applying_payments` setting at construction time. When false, the
-/// save flow requires at least one paymentable on create (mirrors admin-
-/// portal `payment_edit_vm.dart:105-115`).
+/// [enableApplyingPayments] is the active company's `enable_applying_payments`
+/// ("Manual Overpayments"), set once the company is read. When false, a new
+/// payment must apply all of its amount ([validateForSave]).
 class PaymentEditViewModel extends GenericEditViewModel<Payment> {
   PaymentEditViewModel({
     required this.repo,
@@ -43,12 +49,13 @@ class PaymentEditViewModel extends GenericEditViewModel<Payment> {
     Payment? existing,
     Payment? cloneFrom,
     bool defaultSendEmail = false,
-    this.enableApplyingPayments = true,
+    bool enableApplyingPayments = true,
     String Function(String key)? translate,
     super.sync,
     super.connectivity,
     super.useCommaAsDecimalPlace,
   }) : _sendEmail = defaultSendEmail,
+       _enableApplyingPayments = enableApplyingPayments,
        // Lock the dirty flag for both edit (`existing`) and clone-from
        // (`cloneFrom`) entry points — either carries a user-meaningful
        // amount we must not auto-sync over.
@@ -82,7 +89,16 @@ class PaymentEditViewModel extends GenericEditViewModel<Payment> {
   @override
   PendingUploadsRepository get documentUploadRepository => repo;
   final String companyId;
-  final bool enableApplyingPayments;
+
+  bool get enableApplyingPayments => _enableApplyingPayments;
+  bool _enableApplyingPayments;
+
+  /// The company's Manual Overpayments setting, read after construction.
+  set enableApplyingPayments(bool value) {
+    if (_enableApplyingPayments == value || isDisposed) return;
+    _enableApplyingPayments = value;
+    notifyListeners();
+  }
 
   /// Localizer used by [performSave] to throw a `ValidationException` whose
   /// `message` is already translated — the scaffold's "Could not save"
@@ -95,7 +111,22 @@ class PaymentEditViewModel extends GenericEditViewModel<Payment> {
 
   bool get sendEmail => _sendEmail;
 
+  /// The user's own choice — from then on [seedSendEmail] leaves it alone.
   set sendEmail(bool value) {
+    _userTouchedSendEmail = true;
+    if (_sendEmail == value) return;
+    _sendEmail = value;
+    notifyListeners();
+  }
+
+  bool _userTouchedSendEmail = false;
+
+  /// The Email receipt switch's default — the settings cascade's
+  /// `client_manual_payment_notification` for the chosen client (React's
+  /// default too). Ignored once the user has flipped the switch, and on
+  /// anything but a new payment.
+  void seedSendEmail(bool value) {
+    if (_userTouchedSendEmail || !isCreate || isDisposed) return;
     if (_sendEmail == value) return;
     _sendEmail = value;
     notifyListeners();
@@ -159,6 +190,18 @@ class PaymentEditViewModel extends GenericEditViewModel<Payment> {
   /// (the form should flag this red).
   Decimal get allocationRemainder => draft.amount - allocatedTotal;
 
+  /// What the invoices take, net of the credits that pay them too — the
+  /// form's Applied figure.
+  Decimal get netApplied => invoiceAllocatedTotal - creditAllocatedTotal;
+
+  /// What the amount received leaves unapplied — the form's Unapplied figure.
+  /// Zero while the amount follows the allocations, and never below zero (an
+  /// over-allocation is [kPaymentValidationAmountsDoNotBalance]'s to report).
+  Decimal get unappliedAmount {
+    final left = draft.amount - netApplied;
+    return left > Decimal.zero ? left : Decimal.zero;
+  }
+
   @override
   bool draftIsNonEmpty() {
     final d = draft;
@@ -184,6 +227,11 @@ class PaymentEditViewModel extends GenericEditViewModel<Payment> {
     // create payment must touch at least one invoice or credit.
     if (isCreate && !enableApplyingPayments && draft.paymentables.isEmpty) {
       return kPaymentValidationMissingAllocations;
+    }
+    // ...nor money left over on it: "Manual Overpayments" off means a payment
+    // is what it applies (v1 hid the amount field).
+    if (isCreate && !enableApplyingPayments && unappliedAmount > Decimal.zero) {
+      return kPaymentValidationOverpaymentsDisabled;
     }
     // The server's balance rule: a zero amount is derived from the
     // allocations, anything else must cover the invoices with the credits —
@@ -211,17 +259,17 @@ class PaymentEditViewModel extends GenericEditViewModel<Payment> {
       final result = await repo.create(
         companyId: companyId,
         draft: draft,
-        sendEmail: _sendEmail,
+        // Only the new-payment form shows the switch; a failed create re-saved
+        // from its record sends none (its Send Email action does).
+        sendEmail: isCreate && _sendEmail,
         existingTempId: recoveryTempId,
       );
       rememberCreateTempId(result.entity.id);
       return result;
     }
-    return repo.save(
-      companyId: companyId,
-      payment: draft,
-      sendEmail: _sendEmail,
-    );
+    // Never `true` on an update: the server ignores it there, and the edit
+    // screen's Send Email action sends the receipt after this save.
+    return repo.save(companyId: companyId, payment: draft, sendEmail: false);
   }
 
   void resetToEmpty() => reset(emptyDraft: emptyPayment());
@@ -308,6 +356,7 @@ class PaymentEditViewModel extends GenericEditViewModel<Payment> {
   @override
   void reset({required Payment emptyDraft}) {
     _userTouchedType = false;
+    _userTouchedSendEmail = false;
     _typeSeedSource = PaymentTypeSeedSource.none;
     super.reset(emptyDraft: emptyDraft);
   }
@@ -471,6 +520,23 @@ class PaymentEditViewModel extends GenericEditViewModel<Payment> {
     // A fresh pick replaces the invoice allocations, so the amount may lead
     // them again — even when it re-picked the same invoice.
     _allocationsEdited = false;
+  }
+
+  /// Make [invoiceRows] the payment's invoice allocations exactly as given,
+  /// keeping the credits — the Apply table's Auto-apply, which has already
+  /// fitted them to the amount (partials first, oldest first). Unlike
+  /// [replacePaymentables] the amount neither follows them nor re-spreads
+  /// them; a later typed amount still does.
+  void setInvoiceAllocations(List<Paymentable> invoiceRows) {
+    _allocationsEdited = false;
+    updateDraft(
+      draft.copyWith(
+        paymentables: List<Paymentable>.unmodifiable([
+          ...invoiceRows,
+          ...draft.paymentables.where((p) => p.creditId.isNotEmpty),
+        ]),
+      ),
+    );
   }
 
   /// Drop every invoice allocation, keeping credits — the Invoice picker

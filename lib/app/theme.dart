@@ -219,24 +219,38 @@ ThemeData buildInTheme(InTheme baseTokens, {Color? accentOverride}) {
     // text, not Material's near-white fill: a segmented control is a choice
     // among equals, and the bright segment read as the screen's primary
     // action. Matches the designs' period and filter toggles.
-    // One switch, visible off as well as on: the Material default drew an
-    // off switch as a `surfaceAlt` track and a `border` thumb on the card,
-    // which in the dark themes nearly vanished ("24 Hour Time", "CC Only").
-    // Off is a `borderStrong` track with a light knob; on is the accent.
+    // One switch, visible off as well as on, and never mistakable for on.
+    // The Material default drew an off switch as a `surfaceAlt` track and a
+    // `border` thumb on the card, which in the dark themes nearly vanished
+    // ("24 Hour Time", "CC Only"); the filled `borderStrong` track that
+    // replaced it read as a second "on" colour beside the accent. Off is now
+    // the M3 outline shape: a `surface`-filled track, a 2 px `ink3` outline
+    // and M3's small unselected knob in `ink3` — 3.5:1 or better against the
+    // card and the page in all six presets (`switch_theme_contrast_test`).
+    // On is unchanged: an accent track with a white knob. Every switch is a
+    // plain `Switch` — `Switch.adaptive` draws a `CupertinoSwitch` on Apple
+    // platforms, which this theme does not reach.
     switchTheme: SwitchThemeData(
       thumbColor: WidgetStateProperty.resolveWith(
         (states) => states.contains(WidgetState.disabled)
             ? tokens.ink4
             : states.contains(WidgetState.selected)
             ? Colors.white
-            : tokens.ink2,
+            : tokens.ink3,
       ),
       trackColor: WidgetStateProperty.resolveWith(
         (states) => states.contains(WidgetState.selected)
             ? tokens.accent
-            : tokens.borderStrong,
+            : tokens.surface,
       ),
-      trackOutlineColor: const WidgetStatePropertyAll(Colors.transparent),
+      trackOutlineColor: WidgetStateProperty.resolveWith(
+        (states) => states.contains(WidgetState.selected)
+            ? Colors.transparent
+            : states.contains(WidgetState.disabled)
+            ? tokens.ink4
+            : tokens.ink3,
+      ),
+      trackOutlineWidth: const WidgetStatePropertyAll(2),
     ),
 
     segmentedButtonTheme: SegmentedButtonThemeData(

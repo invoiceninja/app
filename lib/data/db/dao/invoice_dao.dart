@@ -101,6 +101,7 @@ class InvoiceDao extends BaseEntityDao<$InvoicesTable, InvoiceRow>
       InvoiceStatus.partial.wireId,
     ]),
     'draft' => invoices.statusId.equals(InvoiceStatus.draft.wireId),
+    'paid' => invoices.statusId.equals(InvoiceStatus.paid.wireId),
     kBadgeModeAssignedToMe => assignedToUserFilter(
       currentUserId,
       column: invoices.assignedUserId,

@@ -365,7 +365,9 @@ void main() {
     ) async {
       await pumpMoney(tester, moneyClient(paidToDate: '695.00'));
 
-      expect(find.text(r'$695.00'), findsOneWidget);
+      // Labelled: alone in the top slot, a bare `$695.00` read as owed.
+      expect(find.text(r'$695.00 paid'), findsOneWidget);
+      expect(find.text(r'$695.00'), findsNothing);
       expect(find.text('—'), findsNothing);
       // Not just "no dash": without `zeroIsNull` the hidden line comes back as
       // a formatted zero, which neither assertion above would catch.
@@ -391,10 +393,10 @@ void main() {
       );
 
       expect(find.text(r'$1,200.00'), findsOneWidget);
-      expect(find.text(r'$695.00'), findsOneWidget);
+      expect(find.text(r'$695.00 paid'), findsOneWidget);
       expect(
         tester.getCenter(find.text(r'$1,200.00')).dy,
-        lessThan(tester.getCenter(find.text(r'$695.00')).dy),
+        lessThan(tester.getCenter(find.text(r'$695.00 paid')).dy),
       );
     });
 

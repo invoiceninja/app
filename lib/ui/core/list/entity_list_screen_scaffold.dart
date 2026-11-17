@@ -16,6 +16,7 @@ import 'package:provider/provider.dart';
 
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/services.dart';
+import 'package:admin/ui/core/widgets/toast_host.dart';
 import 'package:admin/data/db/app_database.dart' show CompanyRow;
 import 'package:admin/domain/entity_registry.dart' show EntityHandlers;
 import 'package:admin/domain/entity_state.dart';
@@ -57,6 +58,7 @@ import 'package:admin/ui/core/widgets/error_view.dart';
 import 'package:admin/ui/core/widgets/formatter_host_mixin.dart';
 import 'package:admin/ui/core/widgets/formatter_scope.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
+import 'package:admin/ui/core/widgets/scroll_edge_fades.dart';
 import 'package:admin/ui/features/settings/widgets/settings_two_pane_scope.dart';
 import 'package:admin/ui/features/shell/widgets/app_drawer.dart';
 import 'package:admin/utils/formatting.dart';
@@ -319,6 +321,7 @@ class EntityListScreenScaffold<T, VM extends GenericListViewModel<T>>
     this.selectionSummaryBuilder,
     this.canCreate = true,
     this.embeddedNewOverride,
+    this.embeddedOffersNew = true,
     this.selectionShortcuts,
   });
 
@@ -342,6 +345,14 @@ class EntityListScreenScaffold<T, VM extends GenericListViewModel<T>>
   /// `(ctx) => ctx.go('/invoices/new', extra: emptyInvoice().copyWith(...))`.
   /// When null the button falls back to `context.go(newRoute)`.
   final void Function(BuildContext context)? embeddedNewOverride;
+
+  /// Embedded-only: `false` withdraws the slim toolbar's New button and the
+  /// `N` shortcut, leaving every row and bulk action in place — for a tab
+  /// whose host draws its own create control above the list (the project
+  /// Tasks tab's quick-add field). Distinct from a soft-deleted parent
+  /// ([EmbeddedListParentScope.readOnly]), which means the record takes no
+  /// new related rows at all; this only says New lives elsewhere.
+  final bool embeddedOffersNew;
 
   /// Optional extra single-key shortcuts that act on the URL-selected row.
   /// Each activator's callback receives the resolved selected item (or null
@@ -1002,6 +1013,16 @@ class _EntityListScreenScaffoldState<T, VM extends GenericListViewModel<T>>
     );
   }
 
+  /// [bar] reported through `ToastBottomInset` (it pays the bottom safe inset
+  /// with its own `SafeArea`, so that part is not counted).
+  Widget? _publishedBottomBar(Widget? bar) => bar == null
+      ? null
+      : ToastBottomInset(
+          controller: context.read<Services?>()?.toasts,
+          paysBottomPadding: true,
+          child: bar,
+        );
+
   @override
   Widget build(BuildContext context) {
     _maybeApplyListIntent(context);
@@ -1142,6 +1163,7 @@ class _EntityListScreenScaffoldState<T, VM extends GenericListViewModel<T>>
   ) {
     // A user without `create_<entity>` gets no New at all, like the FAB.
     if (!_mayCreate) return null;
+    if (!widget.embeddedOffersNew) return null;
     final parent = EmbeddedListParentScope.maybeOf(context);
     if (parent?.readOnly ?? false) return null;
     final newRoute = widget.newRoute;
@@ -1388,6 +1410,15 @@ class _EntityListScreenScaffoldState<T, VM extends GenericListViewModel<T>>
                           onSelect: (!wide && _vm.items.isNotEmpty)
                               ? _vm.enterSelectionMode
                               : null,
+                          // One-click status filters where the toolbar has
+                          // room — the strip's catalog, without its counts.
+                          statusSegments: _statusTabs(
+                            context,
+                            wide: wide,
+                            selecting: selecting,
+                            segments: true,
+                          ),
+                          statusSegmentsWidth: _embeddedSegmentsWidth(context),
                           // Key by company so the search field's State (which
                           // binds its TokenSearchController to the VM ONCE in
                           // initState — `TokenSearchController.vm` is final) is
@@ -1493,13 +1524,17 @@ class _EntityListScreenScaffoldState<T, VM extends GenericListViewModel<T>>
               // Where the `+` sits otherwise — it is hidden while selecting —
               // so the totals take no row from the list, and a slot the
               // Scaffold insets the body for. The bar owns its safe area.
-              bottomNavigationBar: selecting && _vm.countSelected > 0
-                  ? widget.selectionSummaryBuilder?.call(
-                      context,
-                      _vm,
-                      formatter,
-                    )
-                  : null,
+              // Published as a bottom bar, so a toast and the wide shell's
+              // floating timer pill are lifted above it.
+              bottomNavigationBar: _publishedBottomBar(
+                selecting && _vm.countSelected > 0
+                    ? widget.selectionSummaryBuilder?.call(
+                        context,
+                        _vm,
+                        formatter,
+                      )
+                    : null,
+              ),
               // One header for both modes: the selection chrome is stacked
               // over the normal chrome rather than swapped for it, so it is
               // exactly as tall — wrapped filter chips included — and the
@@ -1600,15 +1635,22 @@ class _EntityListScreenScaffoldState<T, VM extends GenericListViewModel<T>>
   /// early for both the empty state and [ErrorView], so a strip mounted inside
   /// it would vanish exactly when a tab yields no rows — stranding the user on
   /// a filtered-to-nothing list with no visible way back to **All**.
+  ///
+  /// With [segments] it is instead an embedded list's count-free status
+  /// segments (`EmbeddedStatusSegments`), for its toolbar — the same
+  /// decision, the same catalog and the same `badge_mode` write.
   Widget? _statusTabs(
     BuildContext context, {
     required bool wide,
     required bool selecting,
+    bool segments = false,
   }) {
     // Embedded lists are scoped to a parent record while the counts are
     // company-wide, so "Draft 47" on one client's Invoices tab would be a flat
-    // lie. There's no cheap parent-scoped count to swap in, so no strip.
-    if (widget.embedded) return null;
+    // lie. There's no cheap parent-scoped count to swap in, so no strip — the
+    // segments in the toolbar carry no counts — and a standalone list has the
+    // strip, so no segments.
+    if (widget.embedded != segments) return null;
     final handlers = _services.entityRegistry[_vm.entityType];
     if (handlers == null) return null;
     if (!kListStatusTabs.containsKey(_vm.entityType)) return null;
@@ -1630,6 +1672,7 @@ class _EntityListScreenScaffoldState<T, VM extends GenericListViewModel<T>>
             handlers,
             wide: wide,
             selecting: selecting,
+            segments: segments,
             settingEnabled: enabled,
             trackInventory: false,
             availabilityKnown: true,
@@ -1642,6 +1685,7 @@ class _EntityListScreenScaffoldState<T, VM extends GenericListViewModel<T>>
             handlers,
             wide: wide,
             selecting: selecting,
+            segments: segments,
             settingEnabled: enabled,
             trackInventory: snap.data?.trackInventory ?? false,
             // Load-bearing: a Drift read cannot land synchronously, so the
@@ -1652,6 +1696,23 @@ class _EntityListScreenScaffoldState<T, VM extends GenericListViewModel<T>>
           ),
         );
       },
+    );
+  }
+
+  /// The width an embedded list's status segments would take, for its toolbar
+  /// to decide whether they fit. Measured over every tab the entity could
+  /// offer (stock tabs included), so a company's inventory setting landing a
+  /// frame late never makes the segments appear in a row too narrow for them.
+  double _embeddedSegmentsWidth(BuildContext context) {
+    final handlers = _services.entityRegistry[_vm.entityType];
+    if (handlers == null) return 0;
+    return EmbeddedStatusSegments.naturalWidth(
+      context,
+      listStatusTabsFor(
+        _vm.entityType,
+        modes: handlers.badgeModes,
+        trackInventory: true,
+      ),
     );
   }
 
@@ -1695,6 +1756,7 @@ class _EntityListScreenScaffoldState<T, VM extends GenericListViewModel<T>>
     required bool settingEnabled,
     required bool trackInventory,
     required bool availabilityKnown,
+    bool segments = false,
   }) {
     final tabs = listStatusTabsFor(
       _vm.entityType,
@@ -1702,7 +1764,10 @@ class _EntityListScreenScaffoldState<T, VM extends GenericListViewModel<T>>
       trackInventory: trackInventory,
     );
     final decision = decideStatusStrip(
-      embedded: widget.embedded,
+      // The segments carry no counts, which is all the embedded rule is
+      // about; every other rule (the device setting, healing a bucket this
+      // company cannot use) holds for them as it does for the strip.
+      embedded: widget.embedded && !segments,
       settingEnabled: settingEnabled,
       activeModeId: _vm.activeBadgeModeId,
       tabs: tabs,
@@ -1716,10 +1781,18 @@ class _EntityListScreenScaffoldState<T, VM extends GenericListViewModel<T>>
         _healUnavailableBadgeMode();
         return const SizedBox.shrink();
       case StatusStripAction.show:
+        if (segments) {
+          return EmbeddedStatusSegments(
+            tabs: tabs,
+            selectedIndex: decision.selectedIndex,
+            enabled: !selecting,
+            onTap: (tab) => _vm.setBadgeMode(tab.listModeId),
+          );
+        }
         return Opacity(
           opacity: selecting ? 0.4 : 1,
           child: EntityListStatusTabs(
-            // 24 on wide lines the first tab up with the table card below it.
+            // 24 on wide lines the first tab up with the table below it.
             contentPadding: EdgeInsetsDirectional.only(
               start: wide ? 24 : InSpacing.sm,
             ),
@@ -2022,41 +2095,56 @@ class _EntityListScreenScaffoldState<T, VM extends GenericListViewModel<T>>
     final inner = LayoutBuilder(
       builder: (context, c) {
         final tableWidth = math.max(c.maxWidth, minWidth);
-        return Scrollbar(
-          controller: _hScroll,
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
+        // A table wider than its pane says so: an edge fade on whichever side
+        // has columns scrolled out of view, gated on the horizontal position
+        // (none while it all fits). Only the horizontal scroll view is at
+        // notification depth 0 here — the rows' vertical list is nested
+        // inside it, so its scrolling never toggles a fade. Fades into the
+        // surface behind the table: the card on a record tab, the page bg
+        // standalone. Directional, so RTL fades the correct edge.
+        return ScrollEdgeFades(
+          color: widget.embedded ? context.inTheme.surface : context.inTheme.bg,
+          width: 32,
+          child: Scrollbar(
             controller: _hScroll,
-            child: SizedBox(
-              width: tableWidth,
-              child: Column(
-                // Embedded sits in the page's unbounded-height scroll, so
-                // it must shrink-wrap; standalone fills the bounded card.
-                mainAxisSize: widget.embedded
-                    ? MainAxisSize.min
-                    : MainAxisSize.max,
-                children: [
-                  headers,
-                  if (widget.embedded) list else Expanded(child: list),
-                ],
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              controller: _hScroll,
+              child: SizedBox(
+                width: tableWidth,
+                child: Column(
+                  // Embedded sits in the page's unbounded-height scroll, so
+                  // it must shrink-wrap; standalone fills the bounded card.
+                  mainAxisSize: widget.embedded
+                      ? MainAxisSize.min
+                      : MainAxisSize.max,
+                  children: [
+                    headers,
+                    if (widget.embedded) list else Expanded(child: list),
+                  ],
+                ),
               ),
             ),
           ),
         );
       },
     );
-    final card = _embeddedListCard(context, inner);
-    // Embedded: full content width so the card lines up with the toolbar,
-    // tab strip, and Details/Address/Contacts cards (the detail page
+    // Embedded: a card at full content width, so it lines up with the
+    // toolbar, tab strip, and Details/Address/Contacts cards (the detail page
     // already insets everything via its SingleChildScrollView padding, and
-    // the toolbar supplies the gap above). Standalone: keep the 24 px
-    // inset inside its bare Scaffold body.
-    if (widget.embedded) return card;
+    // the toolbar supplies the gap above).
+    if (widget.embedded) return _embeddedListCard(context, inner);
+    // Standalone: no card — the table sits on the page inside a 24 px gutter
+    // (the header's rule and the rows' hairlines are its only edges). The
+    // transparency Material is still the rows' ink host, clipped to the
+    // table, for the reason given on `_embeddedListCard`.
     return Padding(
-      padding: entityListCardInset(
+      padding: entityListTableInset(
         compact: ListDensityScope.isCompactOf(context),
       ),
-      child: card,
+      child: ClipRect(
+        child: Material(type: MaterialType.transparency, child: inner),
+      ),
     );
   }
 }

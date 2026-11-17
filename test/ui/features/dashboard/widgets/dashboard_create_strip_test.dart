@@ -71,20 +71,59 @@ void main() {
       if (_labelOf(tester, e) != 'More') _labelOf(tester, e),
   ];
 
-  testWidgets('leads with the first option as the primary, in gate order', (
+  testWidgets('the first option is the primary, at the trailing end', (
     tester,
   ) async {
     await pumpStrip(tester);
     final labels = inlineLabels(tester);
-    // `kQuickCreateEntities` order, as bare nouns beside the `+`.
-    expect(labels.take(3), ['Invoice', 'Quote', 'Payment']);
+    // `kQuickCreateEntities` order: the primary as its full phrase, the
+    // secondaries as bare nouns beside the `+`.
+    expect(labels.take(3), ['New Invoice', 'Quote', 'Payment']);
     expect(find.byType(FilledButton), findsOneWidget);
-    expect(
-      find.descendant(
-        of: find.byType(FilledButton),
-        matching: find.text('Invoice'),
+    // Last on the line, after the secondaries and their More — and the only
+    // filled button, so the one the user comes for is found at a glance.
+    final primary = tester.getRect(find.byType(FilledButton));
+    for (final e in find.byType(OutlinedButton).evaluate()) {
+      expect(
+        tester.getRect(find.byWidget(e.widget)).right,
+        lessThan(primary.left),
+      );
+    }
+  });
+
+  testWidgets('a squeeze folds the secondaries, never the primary', (
+    tester,
+  ) async {
+    await pumpStrip(tester, width: 280);
+    expect(tester.takeException(), isNull);
+    expect(find.text('New Invoice'), findsOneWidget);
+    expect(find.text('More'), findsOneWidget);
+  });
+
+  testWidgets('the floor it reports holds the primary and a More', (
+    tester,
+  ) async {
+    late double floor;
+    await tester.pumpWidget(
+      MaterialApp(
+        localizationsDelegates: kTestLocalizationsDelegates,
+        supportedLocales: kTestSupportedLocales,
+        theme: buildInTheme(InTheme.light),
+        home: Builder(
+          builder: (context) {
+            floor = dashboardCreateStripMinWidth(context, allOptions);
+            return const SizedBox();
+          },
+        ),
       ),
-      findsOneWidget,
+    );
+    await pumpStrip(tester, width: floor);
+    expect(tester.takeException(), isNull);
+    expect(find.text('New Invoice'), findsOneWidget);
+    expect(find.text('More'), findsOneWidget);
+    expect(
+      tester.getSize(find.byType(DashboardCreateStrip)).width,
+      lessThanOrEqualTo(floor),
     );
   });
 
@@ -211,7 +250,7 @@ void main() {
 
   testWidgets('with everything fitting there is no More', (tester) async {
     await pumpStrip(tester, options: allOptions.take(2).toList(), width: 600);
-    expect(inlineLabels(tester), ['Invoice', 'Quote']);
+    expect(inlineLabels(tester), ['New Invoice', 'Quote']);
     expect(find.text('More'), findsNothing);
   });
 

@@ -51,6 +51,21 @@ const _kPhpDateFormatsUrl = 'https://www.php.net/manual/en/datetime.format.php';
 ///
 /// Mounted by `GeneratedNumbersShell` inside a `CascadeTabbedSettingsShell`, so
 /// `SettingsDraftHost` is already supplied via Provider.
+/// The counter a quote or credit number is actually drawn from. With
+/// `shared_invoice_quote_counter` / `shared_invoice_credit_counter` on, the
+/// server numbers it from `invoice_number_counter` (`getEntityCounter` in
+/// `app/Utils/Traits/GeneratesCounter.php`), so the preview reads that one —
+/// the tab's own counter is then unused. [read] is a settings-binding read.
+String previewCounterKey(String counterKey, String? Function(String) read) {
+  final sharedKey = switch (counterKey) {
+    'quote_number_counter' => 'shared_invoice_quote_counter',
+    'credit_number_counter' => 'shared_invoice_credit_counter',
+    _ => null,
+  };
+  if (sharedKey == null || read(sharedKey) != 'true') return counterKey;
+  return 'invoice_number_counter';
+}
+
 class GeneratedNumbersEntityBody extends StatefulWidget {
   const GeneratedNumbersEntityBody({
     super.key,
@@ -155,10 +170,12 @@ class _GeneratedNumbersEntityBodyState
     // Live, read-only example of the generated number. Reads the effective
     // (merged) settings, so it's NOT gated by the override toggle like the
     // chips — at client scope it shows the inherited-or-overridden result.
+    final counterKey = previewCounterKey(
+      widget.counterKey,
+      (key) => settingsBindingOf(key).read(host.settings),
+    );
     final counter =
-        int.tryParse(
-          settingsBindingOf(widget.counterKey).read(host.settings) ?? '',
-        ) ??
+        int.tryParse(settingsBindingOf(counterKey).read(host.settings) ?? '') ??
         1;
     final padding =
         int.tryParse(

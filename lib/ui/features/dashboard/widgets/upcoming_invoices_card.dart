@@ -10,7 +10,8 @@ import 'package:admin/ui/features/dashboard/widgets/dashboard_record_row.dart';
 import 'package:admin/ui/features/dashboard/widgets/list_card.dart';
 import 'package:admin/utils/formatting.dart';
 
-/// Unpaid invoices with a due date still ahead, soonest first.
+/// Unpaid invoices with a due date still ahead, soonest first. A row shows
+/// the date it falls due and, within a month, how soon ("due in 3 days").
 ///
 /// The rows arrive sorted (`DashboardRepository.watchUpcomingInvoices`) — the
 /// server sends them newest-created first, so the five shown used not to be
@@ -64,11 +65,18 @@ class UpcomingInvoicesCard extends StatelessWidget {
                 number: r.number,
                 client: r.clientName,
                 lead: switch (nextDueDate(r, today)) {
-                  final Date due => dueText(context, due, today),
+                  final Date due => formatter.date(due.toIso()),
                   // On the server "upcoming" includes a sent invoice with no
                   // due date at all, and saying so is the useful thing: it is
                   // owed with nothing chasing it.
                   null => context.tr('no_due_date'),
+                },
+                subline: switch (invoiceRowWhen(
+                  due: nextDueDate(r, today),
+                  today: today,
+                )) {
+                  final RowWhen near => rowWhenText(context, near),
+                  null => null,
                 },
                 amount: formatter.money(
                   r.balance,

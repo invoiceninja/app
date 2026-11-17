@@ -30,6 +30,7 @@ void main() {
         'draft',
         'unpaid',
         'overdue',
+        'paid',
         'sent',
         'approved',
         'rejected',
@@ -60,7 +61,7 @@ void main() {
       }
 
       // Invoice-only.
-      for (final id in ['unpaid', 'overdue']) {
+      for (final id in ['unpaid', 'overdue', 'paid']) {
         expect(byId[id]!.quoteModeId, isNull, reason: id);
         expect(byId[id]!.invoiceModeId, id, reason: id);
       }
@@ -76,7 +77,13 @@ void main() {
     });
 
     test('a missing half drops its tabs and its side of a mixed one', () {
-      expect(idsOf(tabs(quotes: false)), ['', 'draft', 'unpaid', 'overdue']);
+      expect(idsOf(tabs(quotes: false)), [
+        '',
+        'draft',
+        'unpaid',
+        'overdue',
+        'paid',
+      ]);
       expect(idsOf(tabs(invoices: false)), [
         '',
         'draft',

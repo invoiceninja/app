@@ -111,6 +111,10 @@ class ExpenseEditViewModel extends GenericEditViewModel<Expense> {
   /// yet, so a read must leave it alone ([noteReceiptFieldFocus]).
   final Set<ReceiptFillField> _focused = {};
 
+  /// How many focus scopes report each field as focused
+  /// ([noteReceiptFieldFocus]).
+  final Map<ReceiptFillField, int> _focusScopes = {};
+
   /// Whether this form can read receipts: a device with an engine, a new
   /// expense, and a form not locked by a save.
   bool get canReadReceipt =>
@@ -192,8 +196,19 @@ class ExpenseEditViewModel extends GenericEditViewModel<Expense> {
   /// A field gained or lost focus. A read leaves a focused field alone, and
   /// its marker stays until the user leaves it — so the form doesn't shift
   /// under a finger mid-edit.
+  ///
+  /// Counted per field, because one field can be reported by more than one
+  /// scope: the Amount card's amount and taxes are one field for a read but
+  /// sit in two scopes (the date is drawn between them). Focus moving from
+  /// one scope to the other reports the gain before the loss, so a plain set
+  /// would end with the field forgotten while the user is still in it.
   void noteReceiptFieldFocus(ReceiptFillField field, bool focused) {
-    final changed = focused ? _focused.add(field) : _focused.remove(field);
+    final before = _focusScopes[field] ?? 0;
+    final after = focused ? before + 1 : (before - 1).clamp(0, before);
+    _focusScopes[field] = after;
+    final changed = focused
+        ? (after > 0 && _focused.add(field))
+        : (after == 0 && _focused.remove(field));
     if (changed && !focused && _reads.any((r) => r.filled.containsKey(field))) {
       notifyListeners();
     }
@@ -637,9 +652,9 @@ class ExpenseEditViewModel extends GenericEditViewModel<Expense> {
       updateDraft(draft.copyWith(paymentTypeId: v));
   void setTransactionReference(String v) =>
       updateDraft(draft.copyWith(transactionReference: v));
-  void setTransactionId(String v) =>
-      updateDraft(draft.copyWith(transactionId: v));
-  void setBankId(String v) => updateDraft(draft.copyWith(bankId: v));
+  // No setters for `transaction_id` / `bank_id`: the link is made from the
+  // transaction (Transactions → Convert / Link), and the form shows it read
+  // only (`ExpenseEditBankingSection`).
   void setAmount(String input) {
     final amount =
         parseDecimal(input, useCommaAsDecimalPlace: useCommaAsDecimalPlace) ??

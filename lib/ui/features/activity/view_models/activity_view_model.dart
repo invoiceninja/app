@@ -11,6 +11,7 @@ import 'package:admin/data/models/api/activity_api_model.dart'
 import 'package:admin/data/models/domain/dashboard/dashboard_activity.dart';
 import 'package:admin/data/repositories/dashboard_repository.dart';
 import 'package:admin/data/services/dashboard_api.dart';
+import 'package:admin/domain/activity/activity_record_types.dart';
 import 'package:admin/domain/activity/activity_timeline.dart';
 import 'package:admin/domain/phone/call_note.dart';
 import 'package:admin/ui/features/activity/activity_deep_link.dart';
@@ -61,6 +62,7 @@ class ActivityFilters {
     this.from,
     this.until,
     this.categories = const <ActivityCategory>{},
+    this.recordType,
   });
 
   final String? userId;
@@ -79,6 +81,10 @@ class ActivityFilters {
   /// and the type picker — they narrow by *type*, this by *meaning*.
   final Set<ActivityCategory> categories;
 
+  /// Which kind of record to keep (`activityRecordTypeFor`); null keeps
+  /// every kind. Single, like the user: "invoices" is the question asked.
+  final ActivityRecordType? recordType;
+
   bool get hasRange => from != null || until != null;
 
   /// Restricts to human-written rows. ANDs with the rest, and the screen
@@ -93,7 +99,8 @@ class ActivityFilters {
       search.trim().isNotEmpty ||
       lens != ActivityLens.all ||
       hasRange ||
-      categories.isNotEmpty;
+      categories.isNotEmpty ||
+      recordType != null;
 
   int get activeCount =>
       (userId != null ? 1 : 0) +
@@ -101,7 +108,8 @@ class ActivityFilters {
       (search.trim().isNotEmpty ? 1 : 0) +
       (lens != ActivityLens.all ? 1 : 0) +
       (hasRange ? 1 : 0) +
-      (categories.isNotEmpty ? 1 : 0);
+      (categories.isNotEmpty ? 1 : 0) +
+      (recordType != null ? 1 : 0);
 
   ActivityFilters copyWith({
     String? Function()? userId,
@@ -110,6 +118,7 @@ class ActivityFilters {
     ActivityLens? lens,
     (DateTime?, DateTime?)? range,
     Set<ActivityCategory>? categories,
+    ActivityRecordType? Function()? recordType,
   }) => ActivityFilters(
     userId: userId != null ? userId() : this.userId,
     typeIds: typeIds ?? this.typeIds,
@@ -118,6 +127,7 @@ class ActivityFilters {
     from: range != null ? range.$1 : from,
     until: range != null ? range.$2 : until,
     categories: categories ?? this.categories,
+    recordType: recordType != null ? recordType() : this.recordType,
   );
 
   Map<String, dynamic> toJson() => {
@@ -138,6 +148,7 @@ class ActivityFilters {
     if (until != null) 'until': until!.toIso8601String(),
     if (categories.isNotEmpty)
       'cats': [for (final c in categories) c.name]..sort(),
+    if (recordType != null) 'record': recordType!.name,
   };
 
   static ActivityFilters fromJson(Map<String, dynamic> json) {
@@ -168,6 +179,9 @@ class ActivityFilters {
                   if (c.name == name) c,
             }
           : const <ActivityCategory>{},
+      recordType: ActivityRecordType.values
+          .where((t) => t.name == json['record'])
+          .firstOrNull,
     );
   }
 
@@ -494,6 +508,13 @@ class ActivityViewModel extends ChangeNotifier {
   /// facet rule, so an unticked chip still says what ticking it would add.
   Map<ActivityCategory, int> get categoryCounts => _categoryCounts;
 
+  Map<ActivityRecordType, int> _recordTypeCounts = const {};
+
+  /// Rows per record type under **every filter but the record type** — the
+  /// same facet rule, so the picker offers only the types that would keep a
+  /// row, and says how many.
+  Map<ActivityRecordType, int> get recordTypeCounts => _recordTypeCounts;
+
   DateTime? _oldestAt;
 
   /// When the oldest row in the window happened — where the timeline starts,
@@ -533,7 +554,11 @@ class ActivityViewModel extends ChangeNotifier {
   }
 
   bool matches(DashboardActivity a) =>
-      _matchesBase(a) && _inRange(a) && _inCategories(a);
+      _matchesBase(a) && _inRange(a) && _inCategories(a) && _inRecordType(a);
+
+  bool _inRecordType(DashboardActivity a) =>
+      _filters.recordType == null ||
+      activityRecordTypeFor(a) == _filters.recordType;
 
   bool _inRange(DashboardActivity a) {
     final f = _filters;
@@ -548,7 +573,7 @@ class ActivityViewModel extends ChangeNotifier {
       _filters.categories.isEmpty ||
       _filters.categories.contains(activityCategoryFor(a));
 
-  /// Every predicate except the two the timeline and the category facet each
+  /// Every predicate except the three the timeline and the two facets each
   /// leave out of their own counts.
   bool _matchesBase(DashboardActivity a) {
     final f = _filters;
@@ -589,25 +614,32 @@ class ActivityViewModel extends ChangeNotifier {
       _matchCount = 0;
       _timeline = ActivityTimeline.empty;
       _categoryCounts = const {};
+      _recordTypeCounts = const {};
       _oldestAt = null;
       notifyListeners();
       return;
     }
     // One pass, because `_matchesBase` is the expensive predicate (it renders
-    // the sentence for the text search) and three outputs need it.
+    // the sentence for the text search) and four outputs need it.
     final kept = <DashboardActivity>[];
     final forTimeline = <DashboardActivity>[];
     final counts = <ActivityCategory, int>{};
+    final recordCounts = <ActivityRecordType, int>{};
     for (final a in rows) {
       if (!_matchesBase(a)) continue;
       final inRange = _inRange(a);
       final inCategories = _inCategories(a);
-      if (inCategories) forTimeline.add(a);
-      if (inRange) {
+      final inRecordType = _inRecordType(a);
+      if (inCategories && inRecordType) forTimeline.add(a);
+      if (inRange && inRecordType) {
         final c = activityCategoryFor(a);
         counts[c] = (counts[c] ?? 0) + 1;
       }
-      if (inRange && inCategories) kept.add(a);
+      if (inRange && inCategories) {
+        final t = activityRecordTypeFor(a);
+        if (t != null) recordCounts[t] = (recordCounts[t] ?? 0) + 1;
+      }
+      if (inRange && inCategories && inRecordType) kept.add(a);
     }
     kept.sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
@@ -658,6 +690,7 @@ class ActivityViewModel extends ChangeNotifier {
     _entries = List.unmodifiable(out);
     _matchCount = kept.length;
     _categoryCounts = Map.unmodifiable(counts);
+    _recordTypeCounts = Map.unmodifiable(recordCounts);
     _timeline = bucketize(
       forTimeline,
       now: _now(),
@@ -701,6 +734,9 @@ class ActivityViewModel extends ChangeNotifier {
     if (!next.remove(c)) next.add(c);
     _apply(_filters.copyWith(categories: Set.unmodifiable(next)));
   }
+
+  void setRecordType(ActivityRecordType? type) =>
+      _apply(_filters.copyWith(recordType: () => type));
 
   void clearCategories() =>
       _apply(_filters.copyWith(categories: const <ActivityCategory>{}));

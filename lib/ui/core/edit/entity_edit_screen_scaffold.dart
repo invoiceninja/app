@@ -62,6 +62,7 @@ class EntityEditScreenScaffold<T, VM extends GenericEditViewModel<T>>
     this.confirmSave,
     this.onAfterSaveAction,
     this.onAfterSaveActionOnCreate,
+    this.titleTrailingBuilder,
   });
 
   /// Existing entity id when editing; null for create.
@@ -95,6 +96,10 @@ class EntityEditScreenScaffold<T, VM extends GenericEditViewModel<T>>
 
   /// AppBar title once the VM is ready.
   final String Function(BuildContext context, VM vm) titleBuilder;
+
+  /// See [EntityEditScaffold.titleTrailing] — a billing document's status
+  /// pill beside its title. Null draws nothing.
+  final Widget? Function(BuildContext context, VM vm)? titleTrailingBuilder;
 
   /// AppBar title while the existing row is being fetched.
   final String Function(BuildContext context) titleWhileLoading;
@@ -530,6 +535,11 @@ class _EntityEditScreenScaffoldState<T, VM extends GenericEditViewModel<T>>
       onAfterSaveAction: widget.onAfterSaveAction,
       onAfterSaveActionOnCreate: widget.onAfterSaveActionOnCreate,
       titleBuilder: (ctx) => widget.titleBuilder(ctx, vm),
+      titleTrailing: widget.titleTrailingBuilder == null
+          ? null
+          : (ctx) =>
+                widget.titleTrailingBuilder!(ctx, vm) ??
+                const SizedBox.shrink(),
       bodyBuilder: (ctx) => widget.bodyBuilder(ctx, vm),
       topBanner: Column(
         mainAxisSize: MainAxisSize.min,

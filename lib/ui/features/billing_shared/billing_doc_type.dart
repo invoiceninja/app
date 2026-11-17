@@ -210,6 +210,14 @@ enum BillingDocType {
   bool get hasPartial =>
       mobilePartialPlacement != BillingDocPartialPlacement.none;
 
+  /// Whether the edit form checks the dates' order inline — a due date
+  /// before the document date, a partial due date outside `[date, due)` —
+  /// the rules `Update{Invoice,Quote}Request` enforce
+  /// (`billingDocDateOrderErrors`). The credit and purchase order requests
+  /// carry no such rule, and a recurring invoice has no dates of its own.
+  bool get validatesDateOrder =>
+      this == BillingDocType.invoice || this == BillingDocType.quote;
+
   /// Whether a line item's row menu offers "create a task from this"
   /// (invoiceninja/flutter#88).
   bool get supportsCreateTaskFromLineItem =>
@@ -241,6 +249,11 @@ enum BillingDocType {
     BillingDocType.quote => 'valid_until',
     _ => null,
   };
+
+  /// Whether the due date offers the company's payment terms as presets
+  /// ("Net 30" → the date plus 30 days). Invoices only: the terms are
+  /// *payment* terms, and a quote's valid-until setting is a different list.
+  bool get offersPaymentTermPresets => dueDaysCascadeKey == 'payment_terms';
 
   /// [settings] with [value] as this document's default terms / footer.
   CompanySettings withDefaultTerms(CompanySettings settings, String? value) =>

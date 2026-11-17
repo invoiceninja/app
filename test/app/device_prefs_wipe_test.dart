@@ -88,8 +88,10 @@ final Map<PrefKey<Object>, _Probe> _probes = {
     (s) => !s.keyboardShortcuts.isOverridden(ShortcutActionIds.toggleSidebar),
   ),
   DevicePrefKeys.sidebarBadgeModes: _Probe(
-    (s) => s.sidebarBadgeModes.set(EntityType.invoice, 'overdue'),
-    (s) => s.sidebarBadgeModes.modeFor(EntityType.invoice) == kBadgeModeTotal,
+    (s) => s.sidebarBadgeModes.set(EntityType.invoice, kBadgeModeTotal),
+    (s) =>
+        s.sidebarBadgeModes.modeFor(EntityType.invoice) ==
+        defaultBadgeModeFor(EntityType.invoice),
   ),
   DevicePrefKeys.confirmActions: _Probe(
     (s) => s.confirmActions.set(false),

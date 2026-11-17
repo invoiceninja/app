@@ -12,6 +12,7 @@ import 'package:admin/ui/core/widgets/formatter_scope.dart';
 import 'package:admin/ui/core/widgets/leading_select_slot.dart';
 import 'package:admin/ui/core/widgets/party_money_cell.dart';
 import 'package:admin/ui/core/widgets/vendor_name_label.dart';
+import 'package:admin/ui/features/billing_shared/billing_row_subtitle.dart';
 import 'package:admin/ui/features/purchase_orders/widgets/purchase_order_actions.dart';
 import 'package:admin/ui/features/purchase_orders/widgets/purchase_order_status_pill.dart';
 import 'package:admin/ui/core/widgets/ltr_value.dart';
@@ -186,15 +187,23 @@ class _PurchaseOrderListTileState extends State<PurchaseOrderListTile> {
           overflow: TextOverflow.ellipsis,
           style: const TextStyle(fontWeight: FontWeight.w600),
         ),
-        if (p.vendorId.isNotEmpty) ...[
+        if (p.vendorId.isNotEmpty || p.dueDate != null) ...[
           const SizedBox(height: 2),
-          VendorNameLabel(
-            vendorId: p.vendorId,
-            style: TextStyle(
-              color: tokens.ink2,
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-            ),
+          // "Acme · Due 3 Nov 2026". Never in the overdue ink: a purchase
+          // order has no past-due status for the colour to agree with.
+          BillingRowSubtitle(
+            date: p.dueDate,
+            dateLabelKey: 'due_on_date_label',
+            party: p.vendorId.isEmpty
+                ? null
+                : VendorNameLabel(
+                    vendorId: p.vendorId,
+                    style: TextStyle(
+                      color: tokens.ink2,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
           ),
         ],
       ],

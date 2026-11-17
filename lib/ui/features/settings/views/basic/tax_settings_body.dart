@@ -13,10 +13,11 @@ import 'package:admin/ui/core/widgets/searchable_dropdown_field.dart';
 import 'package:admin/ui/features/settings/state/settings_level_controller.dart';
 import 'package:admin/ui/features/settings/view_models/settings_draft_view_model.dart';
 import 'package:admin/ui/features/settings/widgets/form_section.dart';
-import 'package:admin/ui/features/settings/widgets/overridable_switch_field.dart';
+import 'package:admin/ui/features/settings/widgets/segmented_choice_field.dart';
 import 'package:admin/ui/features/settings/widgets/settings_form_shell.dart';
 import 'package:admin/ui/features/settings/widgets/subregion_edit_dialog.dart';
 import 'package:admin/ui/features/settings/widgets/tax_rate_picker.dart';
+import 'package:admin/ui/features/settings/widgets/tax_worked_example.dart';
 import 'package:admin/utils/formatting.dart';
 import 'package:admin/utils/tax_regions.dart';
 
@@ -41,8 +42,8 @@ const kTaxSettingsSearchKeys = <String>[
 /// it via Provider.
 ///
 /// Layout (mirroring React, with one UX divergence — see Section C):
-///   * Section A — Tax Settings: three rate-count dropdowns + inclusive
-///     toggle. Tax-rate-count + inclusive hide when Calculate Taxes is on.
+///   * Section A — Tax Settings: three rate-count choices + inclusive
+///     choice. Tax-rate-count + inclusive hide when Calculate Taxes is on.
 ///   * Section B — Default Tax Rates: picker rows for slots `1..enabledTaxRates`.
 ///     Visible when `enabledTaxRates >= 1`.
 ///   * Section B′ — Default Item Tax Rates: same picker shape, visible
@@ -69,27 +70,35 @@ class TaxSettingsBody extends StatelessWidget {
     final useComma = ctx?.useCommaAsDecimalPlace ?? false;
     final invoiceTaxRates = ctx?.enabledTaxRates ?? 0;
     final itemTaxRates = ctx?.enabledItemTaxRates ?? 0;
-    final session = context.read<Services>().auth.session.value;
+    final services = context.read<Services>();
+    final session = services.auth.session.value;
+    final companyId = session?.currentCompanyId;
+    final formatter = companyId == null
+        ? null
+        : services.formatterIfReady(companyId);
+    final inclusive = host.settings.inclusiveTaxes ?? false;
 
     return SettingsFormShell(
+      subtitle: context.tr('tax_settings_subtitle'),
       sections: [
         // ── Section A — basic toggles ────────────────────────────────────
+        // Untitled: it would repeat the page's own "Tax Settings" title.
         FormSection(
-          title: context.tr('tax_settings'),
+          title: null,
           children: [
-            // Tax-rate-count dropdowns are top-level company.* fields, not
+            // Tax-rate counts are top-level company.* fields, not
             // settings — they have no cascade override at client/group
             // scope, so we hide them entirely outside company scope (where
             // `company`/`host.draft` is non-null).
             if (isCompany && company != null && !calculateTaxes)
-              _RateCountDropdown(
+              _RateCountField(
                 label: context.tr('invoice_tax_rates'),
                 value: company.enabledTaxRates,
                 onChanged: (v) =>
                     host.updateCompany((c) => c.copyWith(enabledTaxRates: v)),
               ),
             if (isCompany && company != null)
-              _RateCountDropdown(
+              _RateCountField(
                 label: context.tr('invoice_item_tax_rates'),
                 value: company.enabledItemTaxRates,
                 onChanged: (v) => host.updateCompany(
@@ -97,7 +106,7 @@ class TaxSettingsBody extends StatelessWidget {
                 ),
               ),
             if (isCompany && company != null)
-              _RateCountDropdown(
+              _RateCountField(
                 label: context.tr('expense_tax_rates'),
                 value: company.enabledExpenseTaxRates,
                 onChanged: (v) => host.updateCompany(
@@ -105,10 +114,26 @@ class TaxSettingsBody extends StatelessWidget {
                 ),
               ),
             if (!calculateTaxes)
-              OverridableSwitchField(
+              OverridableSegmentedField<bool>(
                 label: context.tr('inclusive_taxes'),
                 apiKey: 'inclusive_taxes',
-                subtitle: context.tr('exclusive_inclusive_tax_help'),
+                // Unset is the server's default, exclusive.
+                value: inclusive,
+                options: [
+                  (value: false, label: context.tr('exclusive')),
+                  (value: true, label: context.tr('inclusive')),
+                ],
+                // The choice worked through on a price, in the company's
+                // money; the static two-line help until the formatter loads.
+                helperText:
+                    taxWorkedExample(
+                      context,
+                      formatter,
+                      inclusive: inclusive,
+                    ) ??
+                    context.tr('exclusive_inclusive_tax_help'),
+                onChanged: (v) =>
+                    host.updateSettings((s) => s.copyWith(inclusiveTaxes: v)),
               ),
           ],
         ),
@@ -213,8 +238,8 @@ class TaxSettingsBody extends StatelessWidget {
   }
 }
 
-class _RateCountDropdown extends StatelessWidget {
-  const _RateCountDropdown({
+class _RateCountField extends StatelessWidget {
+  const _RateCountField({
     required this.label,
     required this.value,
     required this.onChanged,
@@ -226,31 +251,32 @@ class _RateCountDropdown extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // `initialValue:` is the canonical API on Material 3 + Flutter 3.33+
-    // (the old `value:` is deprecated). The `ValueKey(value)` is defense
-    // in depth: when an external cascade (e.g. enabling Calculate Taxes
-    // resets `enabledTaxRates → 0`) flips the underlying field, the new
-    // key forces the form-field state to rebuild against the fresh
-    // `initialValue`.
-    return LabeledField(
+    // A top-level company field, so the plain (non-cascade) control. The
+    // segments are counts ("Off · 1 · 2 · 3") — the label above already says
+    // what is counted, and "Three Tax Rates" ×3 fell back to twelve radio rows
+    // on a phone. The long names stay as each segment's tooltip and as the
+    // radio titles where even the short labels don't fit.
+    final services = context.read<Services>();
+    final companyId = services.auth.session.value?.currentCompanyId;
+    final formatter = companyId == null
+        ? null
+        : services.formatterIfReady(companyId);
+    String count(int n) => formatter?.integer(n) ?? '$n';
+    final fullLabels = {
+      0: context.tr('disabled'),
+      1: context.tr('one_tax_rate'),
+      2: context.tr('two_tax_rates'),
+      3: context.tr('three_tax_rates'),
+    };
+    return SegmentedChoiceField<int>(
       label: label,
-      child: DropdownButtonFormField<int>(
-        key: ValueKey('rate-count-$label-$value'),
-        decoration: InputDecoration(labelText: label),
-        initialValue: value,
-        items: [
-          DropdownMenuItem(value: 0, child: Text(context.tr('disabled'))),
-          DropdownMenuItem(value: 1, child: Text(context.tr('one_tax_rate'))),
-          DropdownMenuItem(value: 2, child: Text(context.tr('two_tax_rates'))),
-          DropdownMenuItem(
-            value: 3,
-            child: Text(context.tr('three_tax_rates')),
-          ),
-        ],
-        onChanged: (v) {
-          if (v != null) onChanged(v);
-        },
-      ),
+      value: value,
+      options: [
+        (value: 0, label: context.tr('off')),
+        for (final n in const [1, 2, 3]) (value: n, label: count(n)),
+      ],
+      fullLabelOf: (v) => fullLabels[v] ?? count(v),
+      onChanged: onChanged,
     );
   }
 }

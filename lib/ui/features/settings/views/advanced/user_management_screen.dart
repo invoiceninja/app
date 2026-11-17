@@ -10,6 +10,7 @@ import 'package:admin/data/models/domain/user.dart';
 import 'package:admin/domain/assignable_users.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/empty_state.dart';
+import 'package:admin/ui/core/widgets/initials_avatar.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
 import 'package:admin/ui/features/settings/widgets/form_section.dart';
@@ -529,97 +530,67 @@ class _UserRow extends StatelessWidget {
       if (isArchived) _Badge(labelKey: 'archived', tone: _BadgeTone.muted),
     ];
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        // Below ~480 px the role + status badges in `trailing` crush the name
-        // into ellipsis, so move them onto a second line under the subtitle and
-        // leave only the chevron in `trailing`.
-        final narrow = constraints.maxWidth < 480;
-        // More than one badge goes to the second line at any width. `ListTile`
-        // lays `trailing` out under the width left over by the avatar, title
-        // and subtitle, so a Wrap there breaks onto its own runs and drags the
-        // whole row's height with it — and a long label wraps *inside* its own
-        // chip on top of that. Measured at 800 px: a row carrying
-        // Administrator + Current User + Verification Pending grew from 72 px
-        // to ~410 and pushed the rest of the roster off-screen. Deliberately
-        // count-based rather than width-based: badge text is translated
-        // ("Verificatie in afwachting" is 25 characters), so any px threshold
-        // tuned on English breaks in another locale.
-        final stackBadges = narrow || badges.length > 1;
-        final chevron = !selectionActive
-            ? const Icon(Icons.chevron_right, size: 18)
-            : null;
-        final trailing = stackBadges
-            ? chevron
-            : Wrap(
-                crossAxisAlignment: WrapCrossAlignment.center,
-                spacing: 8,
-                children: [...badges, if (chevron != null) chevron],
-              );
-
-        return ListTile(
-          key: ValueKey(user.id),
-          selected: selected,
-          selectedTileColor: tokens.accentSoft,
-          leading: selectionActive
-              ? Checkbox(
-                  value: selected,
-                  // Null for the owner and for your own row — keeps the column
-                  // aligned while reading as "not selectable" rather than as a
-                  // missing control.
-                  onChanged: onToggle == null ? null : (_) => onToggle!(),
-                )
-              : CircleAvatar(
-                  backgroundColor: tokens.surfaceAlt,
-                  foregroundColor: tokens.ink2,
-                  child: Text(
-                    _initialsOf(user),
-                    style: theme.textTheme.labelMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-          title: Text(
-            user.displayName.isNotEmpty ? user.displayName : user.email,
-            style: theme.textTheme.bodyLarge,
+    // The badges always sit on their own line under the email, on every row
+    // and at every width, so the role reads in the same place down the
+    // roster. They used to go in `trailing` when a row had exactly one and
+    // the pane was wide, and under the email otherwise — so the Owner's role
+    // was at the far end of its row while the next row's was under its name.
+    // `trailing` is too narrow to hold them anyway: `ListTile` lays it out in
+    // the width the avatar, title and subtitle leave, so a Wrap there broke
+    // onto its own runs (a row with three badges grew from 72 px to ~410 at
+    // 800 px wide), and badge text is translated, so no px threshold tuned on
+    // English holds.
+    return ListTile(
+      key: ValueKey(user.id),
+      selected: selected,
+      selectedTileColor: tokens.accentSoft,
+      leading: selectionActive
+          ? Checkbox(
+              value: selected,
+              // Null for the owner and for your own row — keeps the column
+              // aligned while reading as "not selectable" rather than as a
+              // missing control.
+              onChanged: onToggle == null ? null : (_) => onToggle!(),
+            )
+          // The app's one initials badge, seeded on the id like every
+          // other avatar (`UserAvatar` on task rows draws the same tint
+          // for the same user). The name is the title, so the badge is
+          // not read twice.
+          : ExcludeSemantics(
+              child: InitialsAvatar(
+                seed: user.id,
+                label:
+                    initialsFor(user.displayName) ??
+                    initialsFor(user.email) ??
+                    '?',
+              ),
+            ),
+      title: Text(
+        user.displayName.isNotEmpty ? user.displayName : user.email,
+        style: theme.textTheme.bodyLarge,
+      ),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (subtitle.isNotEmpty)
+            Text(subtitle, style: theme.textTheme.bodySmall),
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Wrap(spacing: 8, runSpacing: 4, children: badges),
           ),
-          subtitle: (subtitle.isNotEmpty || stackBadges)
-              ? Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (subtitle.isNotEmpty)
-                      Text(subtitle, style: theme.textTheme.bodySmall),
-                    if (stackBadges)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 4),
-                        child: Wrap(
-                          spacing: 8,
-                          runSpacing: 4,
-                          children: badges,
-                        ),
-                      ),
-                  ],
-                )
-              : null,
-          trailing: trailing,
-          onLongPress: onToggle,
-          // A guarded row (null [onToggle]) has nothing to toggle, so it keeps
-          // navigating even while a selection is active — otherwise it would
-          // be entirely inert: no tap, no long-press, disabled checkbox.
-          onTap: selectionActive && onToggle != null
-              ? onToggle
-              : () => context.go('/settings/users/${user.id}'),
-        );
-      },
+        ],
+      ),
+      trailing: selectionActive
+          ? null
+          : const Icon(Icons.chevron_right, size: 18),
+      onLongPress: onToggle,
+      // A guarded row (null [onToggle]) has nothing to toggle, so it keeps
+      // navigating even while a selection is active — otherwise it would
+      // be entirely inert: no tap, no long-press, disabled checkbox.
+      onTap: selectionActive && onToggle != null
+          ? onToggle
+          : () => context.go('/settings/users/${user.id}'),
     );
-  }
-
-  static String _initialsOf(User u) {
-    final first = u.firstName.isNotEmpty ? u.firstName[0] : '';
-    final last = u.lastName.isNotEmpty ? u.lastName[0] : '';
-    final initials = (first + last).toUpperCase();
-    if (initials.isNotEmpty) return initials;
-    return u.email.isNotEmpty ? u.email[0].toUpperCase() : '?';
   }
 }
 

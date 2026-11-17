@@ -128,6 +128,27 @@ void main() {
     expect(text, isNot(contains(':invoice')));
   });
 
+  testWidgets('a token the server omitted reads as an em dash', (tester) async {
+    // Not the localized noun: the template's word already labels the slot,
+    // and "restored quote Quote" read as a quote numbered "Quote" (BACKEND.md
+    // § F3g). Same rendering as `ActivityFormatter` on the dashboard.
+    final text = await _render(
+      tester,
+      _activity(
+        typeId: 6,
+        refs: {
+          'user': const ActivityRef(label: 'Jane Doe'),
+          'invoice': const ActivityRef(label: '0013'),
+          'client': const ActivityRef(label: 'Acme Co'),
+        },
+      ),
+    );
+    // en.json activity_6: ":user emailed invoice :invoice for :client to :contact"
+    expect(text, contains('to —'));
+    expect(text, isNot(contains(':contact')));
+    expect(text, isNot(contains('to Contact')));
+  });
+
   testWidgets('unknown activity type falls back to "Activity #N"', (
     tester,
   ) async {

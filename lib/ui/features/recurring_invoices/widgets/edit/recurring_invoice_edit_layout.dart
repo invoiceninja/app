@@ -7,7 +7,6 @@ import 'package:admin/data/models/domain/recurring_invoice.dart';
 import 'package:admin/data/models/value/date.dart';
 import 'package:admin/domain/recurring_frequency.dart';
 import 'package:admin/l10n/localization.dart';
-import 'package:admin/ui/core/edit/entity_custom_fields_section.dart';
 import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/in_date_field.dart';
 import 'package:admin/ui/core/widgets/searchable_dropdown_field.dart';
@@ -18,13 +17,12 @@ import 'package:admin/ui/features/billing_shared/edit/billing_edit_field_decorat
 import 'package:admin/ui/features/billing_shared/edit/e_invoice_fields_tab.dart';
 import 'package:admin/ui/features/billing_shared/pdf/billing_doc_draft_preview.dart';
 import 'package:admin/ui/features/recurring_invoices/view_models/recurring_invoice_edit_view_model.dart';
-import 'package:admin/ui/features/settings/widgets/form_section.dart';
 
 /// The recurring-invoice edit body: [BillingDocEditLayout] as a recurring
 /// invoice. What makes it one is [BillingDocType.recurringInvoice] — no
 /// document or due date (its schedule decides them), no partial payment, no
 /// "Save as default" (occurrences inherit the invoice's terms) — plus its
-/// schedule (a desktop card in the dates card's place, a narrow tab after
+/// schedule (desktop details-panel fields in the dates' place, a narrow tab after
 /// Details), its auto-bill mode, its PDF fetcher and an E-Invoice tab.
 ///
 /// Note this is the one strip that still scrolls on a phone after
@@ -56,7 +54,7 @@ class RecurringInvoiceEditLayout extends StatelessWidget {
     openLineItem: openLineItem,
     slots: BillingDocEditSlots(
       pdfFetcher: (context) => _draftPdfFetcher(context, vm),
-      scheduleCard: (context) => _ScheduleCardDesktop(vm: vm),
+      scheduleFields: (context) => _scheduleFieldsDesktop(context, vm),
       scheduleTab: (context) => _ScheduleTab(vm: vm),
       autoBillMode: (context, {required desktop}) =>
           _AutoBillModeField(vm: vm, desktop: desktop),
@@ -95,8 +93,8 @@ Widget recurringInvoiceDraftPreviewButton(
   _draftPdfFetcher(context, vm),
 );
 
-/// The auto-bill mode (`off` / `always` / `optout` / `optin`), after Discount
-/// on the desktop number card and the narrow Details tab. There is no
+/// The auto-bill mode (`off` / `always` / `optout` / `optin`), beside Discount
+/// on the desktop details panel and after it on the narrow Details tab. There is no
 /// separate `auto_bill_enabled` toggle: the server derives it from this
 /// field (`always` / `optout` → true) and overwrites it on save — see
 /// `RecurringInvoiceEditViewModel.setAutoBill`. Matches React.
@@ -121,33 +119,33 @@ class _AutoBillModeField extends StatelessWidget {
   }
 }
 
-class _ScheduleCardDesktop extends StatelessWidget {
-  const _ScheduleCardDesktop({required this.vm});
-  final RecurringInvoiceEditViewModel vm;
-
-  @override
-  Widget build(BuildContext context) {
-    final fmt = context.read<Services>().formatterIfReady(vm.companyId);
-    return FormSection(
-      title: null,
-      spacing: 0,
-      elevated: false,
-      children: [
-        LabeledField(
+/// The schedule's fields on the desktop details panel, in the place the
+/// document and due dates take on the other documents, paired two to a row
+/// by the layout: Frequency | Next Send Date, Remaining Cycles | Due Date.
+List<Widget> _scheduleFieldsDesktop(
+  BuildContext context,
+  RecurringInvoiceEditViewModel vm,
+) {
+  final fmt = context.read<Services>().formatterIfReady(vm.companyId);
+  return [
+    LabeledField(
+      label: context.tr('frequency'),
+      child: DropdownButtonFormField<String>(
+        initialValue: vm.draft.frequencyId.isEmpty
+            ? null
+            : vm.draft.frequencyId,
+        decoration: billingFieldDecoration(
+          context,
           label: context.tr('frequency'),
-          child: DropdownButtonFormField<String>(
-            initialValue: vm.draft.frequencyId.isEmpty
-                ? null
-                : vm.draft.frequencyId,
-            decoration: billingFieldDecoration(
-              context,
-              label: context.tr('frequency'),
-            ),
-            items: _frequencyItems(context),
-            onChanged: (v) => vm.setFrequencyId(v ?? ''),
-          ),
         ),
-        SizedBox(height: InSpacing.md(context)),
+        items: _frequencyItems(context),
+        onChanged: (v) => vm.setFrequencyId(v ?? ''),
+      ),
+    ),
+    Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
         InDateField(
           value: vm.draft.nextSendDate?.toDateTime(),
           formatter: fmt,
@@ -162,35 +160,11 @@ class _ScheduleCardDesktop extends StatelessWidget {
           clearable: true,
         ),
         if (vm.draft.nextSendDate != null) _NextSendPreview(vm: vm),
-        SizedBox(height: InSpacing.md(context)),
-        _RemainingCyclesField(vm: vm),
-        SizedBox(height: InSpacing.md(context)),
-        _DueDateDaysField(vm: vm),
-        SizedBox(height: InSpacing.md(context)),
-        EntityCustomFieldsSection(
-          keyPrefix: 'invoice',
-          companyStream: context.read<Services>().company.watchCompany(
-            vm.companyId,
-          ),
-          formatter: context.read<Services>().formatterIfReady(vm.companyId),
-          values: [
-            vm.draft.customValue1,
-            vm.draft.customValue2,
-            vm.draft.customValue3,
-            vm.draft.customValue4,
-          ],
-          onChanged: [
-            vm.setCustomValue1,
-            vm.setCustomValue2,
-            vm.setCustomValue3,
-            vm.setCustomValue4,
-          ],
-          wrapInCard: false,
-          slots: const [1, 3],
-        ),
       ],
-    );
-  }
+    ),
+    _RemainingCyclesField(vm: vm),
+    _DueDateDaysField(vm: vm),
+  ];
 }
 
 class _ScheduleTab extends StatelessWidget {
@@ -241,7 +215,7 @@ class _ScheduleTab extends StatelessWidget {
   }
 }
 
-/// Frequency dropdown items, shared by the desktop card and the mobile
+/// Frequency dropdown items, shared by the desktop panel and the mobile
 /// schedule tab. Backed by [kRecurringFrequencyOrdered] /
 /// [kRecurringFrequencyLabelKey] (`lib/domain/recurring_frequency.dart`) —
 /// the same canonical id→`freq_*` map used by recurring expenses and
@@ -256,7 +230,7 @@ List<DropdownMenuItem<String>> _frequencyItems(BuildContext context) => [
     ),
 ];
 
-/// Auto-bill mode items, shared by the desktop card and the mobile schedule
+/// Auto-bill mode items, shared by the desktop panel and the mobile schedule
 /// tab. Values match the server (`off` / `always` / `optout` / `optin`);
 /// `always` is labelled "Enabled" to match the React form.
 List<DropdownMenuItem<String>> _autoBillItems(BuildContext context) => [

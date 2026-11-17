@@ -6,8 +6,8 @@ import 'package:admin/app/services.dart';
 import 'package:admin/data/models/domain/user.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/adaptive.dart';
-import 'package:admin/ui/core/widgets/entity_picker_field.dart';
 import 'package:admin/ui/features/tasks/view_models/task_filters_mixin.dart';
+import 'package:admin/ui/features/tasks/widgets/task_filter_controls.dart';
 
 typedef _Named = ({String id, String name});
 
@@ -57,20 +57,51 @@ _Named? Function(T?) _namedOrNull<T extends Object>(_Named Function(T) of) =>
     (value) => value == null ? null : of(value);
 
 /// The three task filter pickers — Project, Client, Assigned User, in that
-/// order.
+/// order — as the labelled `EntityPickerField`s the filter sheet stacks.
+List<Widget> taskFilterPickers(
+  BuildContext context, {
+  required TaskFiltersMixin filters,
+  required String companyId,
+}) => [
+  for (final d in taskFilterDimensions(
+    context,
+    filters: filters,
+    companyId: companyId,
+  ))
+    d.picker(),
+];
+
+/// The same three as compact `Project · Any ▾` dropdowns, for
+/// [TaskFilterBar]'s wide row.
+List<Widget> taskFilterDropdowns(
+  BuildContext context, {
+  required TaskFiltersMixin filters,
+  required String companyId,
+}) => [
+  for (final d in taskFilterDimensions(
+    context,
+    filters: filters,
+    companyId: companyId,
+  ))
+    d.dropdown(),
+];
+
+/// The three task filter dimensions — Project, Client, Assigned User, in that
+/// order — each described once and drawn as a labelled picker (the sheet) or
+/// a compact dropdown (the wide row) by [TaskFilterDimension].
 ///
-/// Public because two surfaces lay them out: [TaskFilterBar]'s inline wide row
-/// and `openTaskFilters`' sheet. One construction site, so the wiring below
-/// cannot drift between them — and so `test/lint/task_filter_bar_wiring_test
-/// .dart`, which scans this file only, still sees all three.
+/// One construction site, so the wiring below cannot drift between the two
+/// surfaces — and so `test/lint/task_filter_bar_wiring_test.dart`, which scans
+/// this file, still sees all three.
 ///
-/// **Call it inside a `ListenableBuilder` on [filters]**: every picker reads
+/// **Call it inside a `ListenableBuilder` on [filters]**: every control reads
 /// `selectedId` eagerly, so without a rebuild the sheet's "Clear filters" would
 /// empty the view model while all three fields kept their old values.
 ///
-/// All three are [EntityPickerField], not a `StreamBuilder` + dropdown pair,
-/// and that is load-bearing in three ways this file learned the hard way (the
-/// invoiceninja/flutter#134 follow-up).
+/// Both renderings resolve the selection the way `EntityPickerField` does,
+/// not with a `StreamBuilder` + dropdown pair, and that is load-bearing in
+/// three ways this file learned the hard way (the invoiceninja/flutter#134
+/// follow-up).
 ///
 /// **The selection is resolved by id, not by scanning the visible list.** The
 /// old shape (`items.where((c) => c.id == filters.clientId).firstOrNull`) is
@@ -98,7 +129,7 @@ _Named? Function(T?) _namedOrNull<T extends Object>(_Named Function(T) of) =>
 /// through `WatchBuilder` keyed on [EntityPickerField.cacheKey], where the old
 /// inline `stream:` expressions sat inside the `ListenableBuilder` and so
 /// re-queried Drift three times on every filter change.
-List<Widget> taskFilterPickers(
+List<TaskFilterDimension> taskFilterDimensions(
   BuildContext context, {
   required TaskFiltersMixin filters,
   required String companyId,
@@ -111,8 +142,9 @@ List<Widget> taskFilterPickers(
   final services = context.read<Services>();
 
   return [
-    EntityPickerField<_Named>(
+    TaskFilterDimension<_Named>(
       label: context.tr('project'),
+      anyLabel: context.tr('filter_any'),
       cacheKey: companyId,
       selectedId: filters.projectId,
       itemsStream: () =>
@@ -137,8 +169,9 @@ List<Widget> taskFilterPickers(
       idleResults: _kFilterIdleResults,
       onChanged: (p) => filters.setProjectFilter(p?.id ?? ''),
     ),
-    EntityPickerField<_Named>(
+    TaskFilterDimension<_Named>(
       label: context.tr('client'),
+      anyLabel: context.tr('filter_any'),
       cacheKey: companyId,
       selectedId: filters.clientId,
       itemsStream: () =>
@@ -166,8 +199,9 @@ List<Widget> taskFilterPickers(
       idleResults: _kFilterIdleResults,
       onChanged: (c) => filters.setClientFilter(c?.id ?? ''),
     ),
-    EntityPickerField<User>(
+    TaskFilterDimension<User>(
       label: context.tr('assigned_user'),
+      anyLabel: context.tr('filter_anyone'),
       cacheKey: companyId,
       selectedId: filters.assignedUserId,
       // `watchAllForPicker` is the whole-roster accessor, but unlike the paged
@@ -226,7 +260,9 @@ List<Widget> taskFilterPickers(
 /// with [taskFiltersInline] and feeds to this bar *and* to
 /// `buildTasksViewAppBar`, so the two can never disagree:
 ///
-///  * **[inline] true** — the pickers side by side, plus Clear. Unchanged.
+///  * **[inline] true** — one compact row: the board's search, the three
+///    filters as `Project · Any ▾` dropdowns, and a Clear link while any of it
+///    narrows the view.
 ///  * **[inline] false** — `SizedBox.shrink()` while nothing is filtered (the
 ///    whole point of invoiceninja/flutter#136: three stacked full-width pickers
 ///    cost ~180 px of a 412×915 phone and ~230 once a filter adds the Clear
@@ -290,30 +326,45 @@ class TaskFilterBar extends StatelessWidget {
     );
   }
 
+  /// One compact band: the board's search, then `Project · Any ▾`,
+  /// `Client · Any ▾`, `Assigned User · Anyone ▾`, then Clear. A dropdown is
+  /// as wide as its label and value (capped, the value ellipsising), so a
+  /// desktop pane holds the lot on one line; a `Wrap`, not a `Row`, because
+  /// near the gate's 648 px floor three picked names do not fit beside the
+  /// search, and a second line is better than a dropdown that shows only its
+  /// label.
   Widget _inlineRow(BuildContext context) {
-    final pickers = taskFilterPickers(
+    final dropdowns = taskFilterDropdowns(
       context,
       filters: filters,
       companyId: companyId,
     );
-    return Row(
-      children: [
-        for (var i = 0; i < pickers.length; i++) ...[
-          if (i > 0) SizedBox(width: InSpacing.md(context)),
-          Expanded(child: pickers[i]),
+    // Full width, so the band spans the pane like the headers under it
+    // (the host `Column` centres a child that shrink-wraps).
+    return SizedBox(
+      width: double.infinity,
+      child: Wrap(
+        spacing: InSpacing.md(context),
+        runSpacing: InSpacing.sm,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          if (filters.supportsSearch)
+            SizedBox(width: 260, child: TaskSearchField(filters: filters)),
+          for (final d in dropdowns)
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 240),
+              child: d,
+            ),
+          // Hidden rather than disabled: a permanently dead link is dead width
+          // in the row. The sheet's own Clear is the opposite (always visible,
+          // disabled when inactive) because there it has room.
+          if (filters.filtersActive)
+            TextButton(
+              onPressed: filters.clearFilters,
+              child: Text(context.tr('clear_filters')),
+            ),
         ],
-        // Hidden rather than disabled: a permanently dead button is dead width
-        // in a three-picker row. The sheet's own Clear is the opposite (always
-        // visible, disabled when inactive) because there it has room.
-        if (filters.filtersActive) ...[
-          SizedBox(width: InSpacing.md(context)),
-          TextButton.icon(
-            onPressed: filters.clearFilters,
-            icon: const Icon(Icons.clear, size: 16),
-            label: Text(context.tr('clear')),
-          ),
-        ],
-      ],
+      ),
     );
   }
 
@@ -334,7 +385,8 @@ class TaskFilterBar extends StatelessWidget {
   /// `Wrap`, never a horizontal scroller: a chip pushed off the edge hides an
   /// active filter — verbatim the defect this file exists to remove — and on
   /// kanban it makes the `filtersActive` drag lock inexplicable. Three
-  /// dimensions is a hard ceiling, so this cannot degrade unboundedly.
+  /// dimensions (four with the board's search) is a hard ceiling, so this
+  /// cannot degrade unboundedly.
   ///
   /// Measured with the bundled Inter Tight (a widget test's substituted font is
   /// a square per glyph and over-measures by roughly half), all three chips are
@@ -366,6 +418,14 @@ class TaskFilterBar extends StatelessWidget {
           labelKey: 'assigned_user',
           onEdit: onEditFilters,
           onRemove: () => filters.setAssigneeFilter(''),
+        ),
+      // The board's search, which the sheet carries too — so a search typed
+      // on a wide pane is never an invisible filter once the pane narrows.
+      if (filters.searchActive)
+        _FilterChip(
+          labelKey: 'search',
+          onEdit: onEditFilters,
+          onRemove: () => filters.setSearch(''),
         ),
     ],
   );

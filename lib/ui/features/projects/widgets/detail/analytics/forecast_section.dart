@@ -1,6 +1,7 @@
 import 'package:decimal/decimal.dart';
 import 'package:material_ui/material_ui.dart';
 
+import 'package:admin/ui/features/projects/widgets/detail/project_hours_format.dart';
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/data/models/domain/project/project_analytics.dart';
 import 'package:admin/data/models/value/date.dart';
@@ -60,7 +61,9 @@ class ForecastSection extends StatelessWidget {
       budgetedHours: budgeted,
       loggedHours: logged,
     );
-    String hours(double h) => analyticsHours(formatter, h);
+    final hoursMinutes = ProjectHoursFormat.of(context);
+    String hours(double h) =>
+        analyticsHours(formatter, h, hoursMinutes: hoursMinutes);
     String? date(Date? d) => d == null ? null : analyticsDate(formatter, d);
 
     final headline = <Widget>[

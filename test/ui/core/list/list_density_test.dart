@@ -186,19 +186,19 @@ void main() {
     );
   });
 
-  group('table card inset', () {
-    test('Compact trims only the vertical inset', () {
-      // The horizontal 24 lines the card up with the header band's row, the
-      // status-tab strip and the desktop title bar's arrows.
+  group('table inset', () {
+    test('Compact trims only the top gap', () {
+      // The horizontal 24 lines the table up with the header band's row, the
+      // status-tab strip and the desktop title bar's arrows. No card, so no
+      // bottom margin: the rows run to the bottom of the pane.
       for (final compact in [false, true]) {
-        final inset = entityListCardInset(compact: compact);
+        final inset = entityListTableInset(compact: compact);
         expect(inset.start, 24);
         expect(inset.end, 24);
+        expect(inset.bottom, 0);
       }
-      expect(entityListCardInset(compact: false).top, 24);
-      expect(entityListCardInset(compact: false).bottom, 24);
-      expect(entityListCardInset(compact: true).top, 12);
-      expect(entityListCardInset(compact: true).bottom, 12);
+      expect(entityListTableInset(compact: false).top, 8);
+      expect(entityListTableInset(compact: true).top, 4);
     });
   });
 }

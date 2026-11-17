@@ -24,7 +24,14 @@ void main() {
     return Future<Uint8List>.error(StateError('no server in test'));
   }
 
-  setUp(() => calls = 0);
+  setUp(() {
+    calls = 0;
+    // The plugin has no channel under `flutter test`; say what a platform
+    // that prints and shares would.
+    billingDocPdfPrintingInfo = () async =>
+        const PrintingInfo(canPrint: true, canShare: true);
+  });
+  tearDown(() => billingDocPdfPrintingInfo = Printing.info);
 
   Future<void> pump(
     WidgetTester tester, {
@@ -164,6 +171,17 @@ void main() {
     );
 
     final download = find.byTooltip('Download PDF');
+    final share = find.byTooltip('Share PDF');
+    final print = find.byTooltip('Print PDF');
+    bool enabled(WidgetTester tester, Finder button) =>
+        tester
+            .widget<IconButton>(
+              find
+                  .ancestor(of: button, matching: find.byType(IconButton))
+                  .first,
+            )
+            .onPressed !=
+        null;
     PdfPreview preview(WidgetTester tester) =>
         tester.widget<PdfPreview>(find.byType(PdfPreview));
 
@@ -181,7 +199,10 @@ void main() {
           await mount(tester, contentRevision: 1);
           await tester.pump(const Duration(milliseconds: 10));
           expect(download, findsOneWidget);
-          expect(preview(tester).allowSharing, shares);
+          expect(share, shares ? findsOneWidget : findsNothing);
+          expect(print, findsOneWidget);
+          // The package's own bar is off; the toolbar above replaces it.
+          expect(preview(tester).useActions, isFalse);
 
           // A stale render is not offered for download, like print and share.
           next = fails;
@@ -189,7 +210,9 @@ void main() {
           await tester.pump(const Duration(milliseconds: 60));
           await tester.pump();
           expect(notice, findsOneWidget);
-          expect(download, findsNothing);
+          expect(enabled(tester, download), isFalse);
+          if (shares) expect(enabled(tester, share), isFalse);
+          expect(enabled(tester, print), isFalse);
         },
         variant: TargetPlatformVariant.only(platform),
       );
@@ -202,7 +225,45 @@ void main() {
       await mount(tester, contentRevision: 1);
       await tester.pump(const Duration(milliseconds: 10));
       expect(download, findsNothing);
-      expect(preview(tester).allowSharing, isTrue);
+      expect(share, findsOneWidget);
+    });
+
+    testWidgets('a platform that cannot print or share offers neither', (
+      tester,
+    ) async {
+      billingDocPdfPrintingInfo = () async => PrintingInfo.unavailable;
+      next = () async => pdfA;
+      await mount(tester, contentRevision: 1);
+      await tester.pump(const Duration(milliseconds: 10));
+      expect(print, findsNothing);
+      expect(share, findsNothing);
+    });
+
+    testWidgets('the stale notice never resizes the preview', (tester) async {
+      // Every page re-rasters when the preview's size changes, so the notice
+      // lives inside the toolbar rather than in a slot of its own.
+      next = () async => pdfA;
+      await mount(tester, contentRevision: 1);
+      await tester.pump(const Duration(milliseconds: 10));
+      final before = tester.getRect(find.byType(PdfPreview));
+
+      next = fails;
+      await mount(tester, contentRevision: 2);
+      await tester.pump(const Duration(milliseconds: 60));
+      await tester.pump();
+      expect(notice, findsOneWidget);
+      expect(find.text('Retry'), findsOneWidget);
+      expect(tester.getRect(find.byType(PdfPreview)), before);
+    });
+
+    testWidgets('the toolbar sits above the PDF', (tester) async {
+      next = () async => pdfA;
+      await mount(tester, initialDeliveryNote: false);
+      await tester.pump(const Duration(milliseconds: 10));
+      expect(
+        tester.getBottomLeft(find.byType(SegmentedButton<bool>)).dy,
+        lessThanOrEqualTo(tester.getTopLeft(find.byType(PdfPreview)).dy),
+      );
     });
 
     testWidgets('a delivery note downloads under its own name', (tester) async {
@@ -211,7 +272,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 10));
       expect(preview(tester).pdfFileName, 'invoice_INV-1_delivery_note.pdf');
 
-      await tester.tap(find.byType(Switch));
+      await tester.tap(find.text('Invoice'));
       await tester.pump(const Duration(milliseconds: 10));
       expect(preview(tester).pdfFileName, 'invoice_INV-1.pdf');
     });
@@ -224,10 +285,7 @@ void main() {
         await mount(tester, contentRevision: 1);
         await tester.pump(const Duration(milliseconds: 10));
         expect(find.byType(PdfPreview), findsOneWidget);
-        expect(
-          tester.widget<PdfPreview>(find.byType(PdfPreview)).allowPrinting,
-          isTrue,
-        );
+        expect(enabled(tester, print), isTrue);
 
         next = fails;
         await mount(tester, contentRevision: 2);
@@ -237,19 +295,15 @@ void main() {
         expect(find.byType(PdfPreview), findsOneWidget);
         expect(find.byType(ErrorView), findsNothing);
         expect(notice, findsOneWidget);
-        final stale = tester.widget<PdfPreview>(find.byType(PdfPreview));
-        expect(stale.allowPrinting, isFalse);
-        expect(stale.allowSharing, isFalse);
+        expect(enabled(tester, print), isFalse);
+        expect(enabled(tester, share), isFalse);
 
         next = () async => pdfB;
         await tester.tap(find.text('Retry'));
         await tester.pump();
         await tester.pump();
         expect(notice, findsNothing);
-        expect(
-          tester.widget<PdfPreview>(find.byType(PdfPreview)).allowPrinting,
-          isTrue,
-        );
+        expect(enabled(tester, print), isTrue);
       },
     );
 
@@ -343,13 +397,10 @@ void main() {
         await tester.pump(const Duration(milliseconds: 10));
         expect(notice, findsOneWidget);
         expect(find.text('Retry'), findsNothing);
-        expect(
-          tester.widget<PdfPreview>(find.byType(PdfPreview)).allowPrinting,
-          isFalse,
-        );
+        expect(enabled(tester, print), isFalse);
 
         // The invoice itself renders the local edit.
-        await tester.tap(find.byType(Switch));
+        await tester.tap(find.text('Invoice'));
         await tester.pump();
         await tester.pump();
         expect(notice, findsNothing);
@@ -360,8 +411,8 @@ void main() {
   testWidgets('a Maximize button sits in the toolbar only when asked for', (
     tester,
   ) async {
-    // Real bytes this time: the toolbar belongs to `PdfPreview`, which only
-    // mounts once a renderable PDF has arrived. Its page raster never lands
+    // Real bytes this time: the toolbar mounts with `PdfPreview`, once a
+    // renderable PDF has arrived. Its page raster never lands
     // in a widget test, so a bounded pump, not `pumpAndSettle`.
     final pdf = Uint8List.fromList('%PDF-1.4\n%%EOF\n'.codeUnits);
     final opened = <bool>[];
@@ -395,7 +446,7 @@ void main() {
     expect(opened, [false]);
 
     // The full-size screen opens on the document the pane shows.
-    await tester.tap(find.byType(Switch));
+    await tester.tap(find.text('Delivery Note'));
     await tester.pump(const Duration(milliseconds: 100));
     await tester.tap(find.byTooltip('Maximize'));
     expect(opened, [false, true]);

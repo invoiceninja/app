@@ -6,20 +6,24 @@ import 'package:admin/app/services.dart';
 import 'package:admin/data/models/domain/company.dart';
 import 'package:admin/data/models/domain/contact.dart';
 import 'package:admin/data/services/device_contacts_service.dart';
+import 'package:admin/domain/contact_email_mode.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/features/clients/view_models/client_edit_view_model.dart';
 import 'package:admin/ui/core/edit/entity_custom_fields_section.dart';
 import 'package:admin/ui/core/edit/entity_edit_field.dart';
 import 'package:admin/ui/core/widgets/contact_edit_rows.dart';
+import 'package:admin/ui/core/widgets/form_field_pair.dart';
 import 'package:admin/ui/core/widgets/labeled_switch_group.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/utils/formatting.dart';
 import 'package:admin/ui/features/dashboard/widgets/card_shell.dart';
 import 'package:admin/ui/features/billing_shared/detail/signed_document_pill.dart';
 
-/// "Contacts" card on the client edit screen. Renders every contact inline,
-/// each with its own First/Last/Email/Phone block plus a header row carrying
-/// the primary-toggle star and (when 2+ contacts) a delete button.
+/// "Contacts" card on the client edit screen. Renders every contact as a row
+/// that opens one at a time (`ContactEditRows`), the open row carrying its
+/// First/Last/Email/Phone block, its email choice (To / CC / None) and the
+/// Make primary / Remove buttons (Remove only with 2+ contacts, undone from
+/// its toast).
 ///
 /// "+ Add contact" sits at the bottom of the card.
 ///
@@ -199,24 +203,33 @@ class _ContactList extends StatelessWidget {
           ),
       ],
       onMakePrimary: vm.setContactPrimary,
-      onDelete: vm.removeContact,
+      onDelete: (i) {
+        final removed = vm.removeContact(i);
+        if (removed == null) return null;
+        return () => vm.restoreContact(i, removed);
+      },
       fieldsBuilder: (context, i) => _fields(context, contacts[i], i),
     );
   }
 
   List<Widget> _fields(BuildContext context, Contact c, int i) {
     return [
-      EntityEditField(
-        label: context.tr('first_name'),
-        initial: c.firstName,
-        onChanged: (v) => vm.setContactFirstNameAt(i, v),
-        textCapitalization: TextCapitalization.words,
-      ),
-      EntityEditField(
-        label: context.tr('last_name'),
-        initial: c.lastName,
-        onChanged: (v) => vm.setContactLastNameAt(i, v),
-        textCapitalization: TextCapitalization.words,
+      // Side by side wherever the card has room — the 360 px sidebar card
+      // included — stacked below that.
+      FormFieldPair(
+        minPairWidth: kSidebarPairWidth,
+        left: EntityEditField(
+          label: context.tr('first_name'),
+          initial: c.firstName,
+          onChanged: (v) => vm.setContactFirstNameAt(i, v),
+          textCapitalization: TextCapitalization.words,
+        ),
+        right: EntityEditField(
+          label: context.tr('last_name'),
+          initial: c.lastName,
+          onChanged: (v) => vm.setContactLastNameAt(i, v),
+          textCapitalization: TextCapitalization.words,
+        ),
       ),
       EntityEditField(
         label: context.tr('email'),
@@ -276,6 +289,18 @@ class _ContactList extends StatelessWidget {
           (v) => vm.setContactCustomValue4At(i, v),
         ],
       ),
+      // "Add to invoices" and "CC only" as the one choice they are: To, CC
+      // or no email. The server keeps the primary out of CC and a CC-only
+      // contact out of To (`ContactEmailMode`).
+      ContactEmailModeField(
+        value: contactEmailModeOf(
+          sendEmail: c.sendEmail,
+          ccOnly: c.ccOnly,
+          isPrimary: c.isPrimary,
+        ),
+        isPrimary: c.isPrimary,
+        onChanged: (mode) => vm.setContactEmailModeAt(i, mode),
+      ),
       StreamBuilder<Company?>(
         stream: companyStream,
         builder: (context, snapshot) {
@@ -285,28 +310,14 @@ class _ContactList extends StatelessWidget {
           // kept on save regardless (`Contact.toApiJson` still emits `can_sign`).
           // ...and on a plan that still runs DocuNinja.
           final eSignEnabled = docuNinjaSigningActive(context, snapshot.data);
+          if (!eSignEnabled) return const SizedBox.shrink();
           return LabeledSwitchGroup(
             items: [
               LabeledSwitchItem(
-                label: context.tr('add_to_invoices'),
-                value: c.sendEmail,
-                // CC-only and send_email are mutually exclusive; greyed out
-                // (onChanged: null) while CC-only is on.
-                onChanged: c.ccOnly
-                    ? null
-                    : (v) => vm.setContactSendEmailAt(i, v),
+                label: context.tr('authorized_to_sign'),
+                value: c.canSign,
+                onChanged: (v) => vm.setContactCanSignAt(i, v),
               ),
-              LabeledSwitchItem(
-                label: context.tr('cc_only'),
-                value: c.ccOnly,
-                onChanged: (v) => vm.setContactCcOnlyAt(i, v),
-              ),
-              if (eSignEnabled)
-                LabeledSwitchItem(
-                  label: context.tr('authorized_to_sign'),
-                  value: c.canSign,
-                  onChanged: (v) => vm.setContactCanSignAt(i, v),
-                ),
             ],
           );
         },

@@ -18,6 +18,8 @@ import 'package:admin/ui/features/billing_shared/seed_client_invitations.dart';
 import 'package:admin/ui/features/recurring_invoices/view_models/recurring_invoice_edit_view_model.dart';
 import 'package:admin/ui/features/recurring_invoices/widgets/edit/recurring_invoice_edit_layout.dart';
 import 'package:admin/ui/features/recurring_invoices/widgets/recurring_invoice_actions.dart';
+import 'package:admin/ui/features/billing_shared/edit/billing_doc_edit_status.dart';
+import 'package:admin/ui/features/recurring_invoices/widgets/recurring_invoice_status_pill.dart';
 
 class RecurringInvoiceEditScreen extends StatelessWidget {
   const RecurringInvoiceEditScreen({
@@ -112,6 +114,12 @@ class RecurringInvoiceEditScreen extends StatelessWidget {
       },
       titleWhileLoading: (ctx) =>
           existingId == null ? ctx.tr('new_recurring_invoice') : ctx.tr('edit'),
+      // Title · status · Unsaved on a wide header.
+      titleTrailingBuilder: (ctx, vm) => billingDocEditStatus(
+        vm,
+        (saved) =>
+            RecurringInvoiceStatusPill(statusId: saved.calculatedStatusId),
+      ),
       titleBuilder: (ctx, vm) => vm.isCreate
           ? ctx.tr('new_recurring_invoice')
           : (vm.draft.number.isNotEmpty

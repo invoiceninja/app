@@ -390,7 +390,7 @@ class CreditActions {
       ?q.pick(CreditAction.markSent, context.tr('mark_sent')),
       ?q.pick(CreditAction.applyToInvoice, context.tr('apply')),
       ?q.pick(CreditAction.sendEmail, context.tr('email')),
-      ?q.pick(CreditAction.viewPdf, context.tr('pdf'), applies: !hasPdfPane),
+      ?q.pick(CreditAction.viewPdf, context.tr('pdf'), onScreen: hasPdfPane),
       ?q.pick(CreditAction.downloadPdf, context.tr('download')),
       ?q.pick(CreditAction.markPaid, context.tr('mark_paid')),
       ?q.pick(CreditAction.clone, context.tr('clone')),

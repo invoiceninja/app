@@ -1675,4 +1675,52 @@ void main() {
       findsOneWidget,
     );
   });
+
+  // A required value (the company currency): clearing it would write a blank
+  // the whole app then formats with, so the ✕ is never offered over a value.
+  group('clearable: false', () {
+    Widget required({required ValueChanged<_Option?> onChanged}) => _host(
+      SearchableDropdownField<_Option>(
+        label: 'Fruit',
+        items: _items,
+        initialValue: _items[0],
+        displayString: (o) => o.name,
+        idOf: (o) => o.id,
+        clearable: false,
+        onChanged: onChanged,
+      ),
+      sink: true,
+    );
+
+    testWidgets('no clear button over the committed value', (tester) async {
+      await tester.pumpWidget(required(onChanged: (_) {}));
+      await tester.pumpAndSettle();
+      expect(find.byIcon(Icons.close), findsNothing);
+      expect(find.byIcon(Icons.arrow_drop_down), findsOneWidget);
+    });
+
+    testWidgets('the ✕ over a typed query erases it and keeps the value', (
+      tester,
+    ) async {
+      var fired = false;
+      await tester.pumpWidget(required(onChanged: (_) => fired = true));
+      await tester.pumpAndSettle();
+
+      final field = find.byType(TextField).first;
+      await tester.tap(field);
+      await tester.enterText(field, 'ch');
+      await tester.pumpAndSettle();
+      expect(find.byIcon(Icons.close), findsOneWidget);
+
+      await tester.tap(find.byIcon(Icons.close));
+      await tester.pumpAndSettle();
+      expect(fired, isFalse, reason: 'erasing a query commits nothing');
+
+      // Blur: the field shows the value it never lost.
+      await tester.tap(find.byKey(const ValueKey('sink')));
+      await tester.pumpAndSettle();
+      expect(find.widgetWithText(TextField, 'Apple'), findsOneWidget);
+      expect(fired, isFalse);
+    });
+  });
 }

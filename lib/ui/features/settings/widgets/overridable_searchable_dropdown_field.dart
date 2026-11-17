@@ -34,6 +34,8 @@ class OverridableSearchableDropdownField<T extends Object>
     this.idleExcludes,
     this.idleResults = 20,
     this.optionTrailingBuilder,
+    this.requiredAtCompanyScope = false,
+    this.helperText,
   });
 
   final String label;
@@ -69,6 +71,18 @@ class OverridableSearchableDropdownField<T extends Object>
 
   /// Forwarded to [SearchableDropdownField.optionTrailingBuilder].
   final Widget Function(BuildContext, T)? optionTrailingBuilder;
+
+  /// True for a setting the company must always have (currency, language,
+  /// timezone, date format): at company scope the ✕ is withheld, because
+  /// clearing writes `''` and the server keeps it — a blank company currency.
+  /// At group / client scope the ✕ still drops the override back to the
+  /// inherited value, which is never a blank.
+  final bool requiredAtCompanyScope;
+
+  /// One line under the field — "Applies when E-Invoicing is on" for a
+  /// setting that only matters once another is switched on. Hidden while a
+  /// server error shows.
+  final String? helperText;
 
   @override
   Widget build(BuildContext context) {
@@ -108,6 +122,8 @@ class OverridableSearchableDropdownField<T extends Object>
       idleExcludes: idleExcludes,
       idleResults: idleResults,
       optionTrailingBuilder: optionTrailingBuilder,
+      clearable: host.isCascadeScope || !requiredAtCompanyScope,
+      helper: helperText == null ? null : Text(helperText!),
     );
 
     return OverridableField.bind(

@@ -14,6 +14,7 @@ import 'package:admin/ui/core/detail/detail_tab_indices.dart';
 import 'package:admin/ui/core/detail/standing_card.dart';
 import 'package:admin/ui/core/widgets/party_money_cell.dart';
 import 'package:admin/ui/core/widgets/status_pill.dart';
+import 'package:admin/ui/features/projects/widgets/detail/project_hours_format.dart';
 import 'package:admin/ui/features/projects/widgets/detail/project_progress_math.dart';
 import 'package:admin/ui/features/tasks/widgets/detail/task_rate_context.dart';
 import 'package:admin/utils/formatting.dart';
@@ -169,7 +170,9 @@ class _ProjectDetailStandingState extends State<ProjectDetailStanding> {
           : null,
       semanticsHint: linked && tasksLinked ? context.tr('tasks') : null,
     );
-    String hours(double h) => '${fmtHours(h)} h';
+    // Decimal or `H:MM`, as the device's hours-format preference says.
+    final hoursMinutes = ProjectHoursFormat.of(context);
+    String hours(double h) => projectHoursText(h, hoursMinutes: hoursMinutes);
 
     final budgeted = p.budgetedHours;
     if (tasks == null && !widget.tasksPending) {
@@ -463,10 +466,13 @@ class ProjectBudgetBar extends StatelessWidget {
     final over = flex(math.max(0.0, logged - budgeted));
     final rest = math.max(0, 1000 - within - over);
     final mark = elapsed;
+    final hoursMinutes = ProjectHoursFormat.of(context);
     return Semantics(
       label:
-          '${context.tr('logged')} ${fmtHours(logged)} h, '
-          '${context.tr('budgeted')} ${fmtHours(budgeted)} h',
+          '${context.tr('logged')} '
+          '${projectHoursText(logged, hoursMinutes: hoursMinutes)}, '
+          '${context.tr('budgeted')} '
+          '${projectHoursText(budgeted, hoursMinutes: hoursMinutes)}',
       child: SizedBox(
         height: 14,
         child: Stack(

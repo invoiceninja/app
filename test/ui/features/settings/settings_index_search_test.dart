@@ -5,10 +5,13 @@
 // phone it scrolled away and the only way back to it was to fling to the top,
 // even though the AppBar above stayed pinned the whole time.
 //
-// The rule under test: the trigger lives in the pinned chrome, never in the
-// scrolling body. On narrow that chrome is `SettingsScreen`'s AppBar (icon in
-// `actions:`, field in a 56 px `bottom:`); on the wide 280 px pane, which has
-// no AppBar, it's a group header lifted out of the scroll area.
+// The rule under test: the search lives in the pinned chrome, never in the
+// scrolling body, and the field itself is always visible. On narrow that
+// chrome is `SettingsScreen`'s AppBar (the field in a 56 px `bottom:`, close
+// in `actions:` while searching); on the wide 280 px pane, which has no
+// AppBar, it's a strip lifted out of the scroll area.
+//
+// Also: the five topic groups, and the phone home's per-row values (R1).
 
 import 'package:admin/data/models/domain/company.dart';
 import 'package:admin/data/repositories/company_repository.dart';
@@ -21,6 +24,10 @@ import 'package:admin/ui/core/adaptive.dart';
 import 'package:admin/ui/core/unsaved_changes/unsaved_changes_guard.dart';
 import 'package:admin/ui/features/settings/settings_search_catalog.dart';
 import 'package:admin/ui/features/settings/state/settings_level_controller.dart';
+import 'package:admin/ui/features/settings/view_models/settings_home_summary_view_model.dart';
+import 'package:admin/data/models/domain/company_settings.dart';
+import 'package:admin/data/models/domain/design.dart';
+import 'package:admin/utils/formatting.dart';
 import 'package:admin/ui/features/settings/views/settings_screen.dart';
 import 'package:admin/ui/features/settings/widgets/settings_two_pane_scope.dart';
 import 'package:material_ui/material_ui.dart';
@@ -75,6 +82,47 @@ class _FakeCompanyRepo implements CompanyRepository {
       throw UnimplementedError(invocation.memberName.toString());
 }
 
+/// The phone home's value sources: a fixed company and fixed counts, so the
+/// home renders values without a Drift graph.
+class _FakeHomeSources implements SettingsHomeSources {
+  Company? companyValue = const Company(
+    id: 'c1',
+    settings: CompanySettings(currencyId: '1', languageId: '1'),
+  );
+  int gateways = 0;
+  int users = 3;
+
+  @override
+  Stream<Company?> company(String companyId) => Stream.value(companyValue);
+  @override
+  Stream<int> gatewayCount(String companyId) => Stream.value(gateways);
+  @override
+  Stream<int> userCount(String companyId) => Stream.value(users);
+  @override
+  Stream<int> bankAccountCount(String companyId) => Stream.value(0);
+  @override
+  Stream<int> groupCount(String companyId) => Stream.value(0);
+  @override
+  Stream<int> paymentLinkCount(String companyId) => Stream.value(0);
+  @override
+  Stream<int> scheduleCount(String companyId) => Stream.value(0);
+  @override
+  Stream<List<Design>> designs(String companyId) => Stream.value(const []);
+  @override
+  Future<Formatter?> formatter(String companyId) async => null;
+  @override
+  Future<void> ensureStatics() async {}
+  @override
+  String? currencyCode(String currencyId) => currencyId == '1' ? 'USD' : null;
+  @override
+  String? languageName(String languageId) =>
+      languageId == '1' ? 'English' : null;
+  @override
+  ThemeMode get themeMode => ThemeMode.dark;
+  @override
+  final Listenable themeChanges = ChangeNotifier();
+}
+
 /// Android's system back press, as the platform delivers it.
 Future<void> simulateSystemBack(WidgetTester tester) {
   return tester.binding.defaultBinaryMessenger.handlePlatformMessage(
@@ -88,6 +136,7 @@ Future<void> simulateSystemBack(WidgetTester tester) {
 
 void main() {
   late _FakeServices services;
+  late _FakeHomeSources homeSources;
 
   Widget wrap(WidgetTester tester, Widget child) {
     final auth = _FakeAuth();
@@ -95,9 +144,11 @@ void main() {
     final level = SettingsLevelController();
     addTearDown(level.dispose);
     services = _FakeServices(auth);
+    homeSources = _FakeHomeSources();
     return MultiProvider(
       providers: [
         Provider<Services>.value(value: services),
+        Provider<SettingsHomeSources?>.value(value: homeSources),
         ChangeNotifierProvider<SettingsLevelController>.value(value: level),
       ],
       child: child,
@@ -202,58 +253,80 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  // `widgetWithIcon(IconButton, ...)`, never `byIcon`: the search field's own
-  // `prefixIcon` is also `Icons.search`.
-  Finder searchButton({Finder? within}) => find.descendant(
-    of: within ?? find.byType(AppBar),
-    matching: find.widgetWithIcon(IconButton, Icons.search),
+  /// The phone home's search field, pinned in the AppBar.
+  Finder appBarField() => find.descendant(
+    of: find.byType(AppBar),
+    matching: find.byType(TextField),
   );
+
+  /// Focusing the always-visible field is what opens the search.
+  Future<void> openSearch(WidgetTester tester) async {
+    await tester.tap(appBarField());
+    await tester.pumpAndSettle();
+  }
 
   String currentUri(GoRouter router) =>
       router.routerDelegate.currentConfiguration.uri.toString();
 
-  testWidgets('the search trigger lives in the pinned AppBar, so scrolling '
+  testWidgets('the search field is always in the pinned AppBar, so scrolling '
       'the section list cannot take it away (issue #42)', (tester) async {
     await pumpIndex(tester);
 
     expect(
-      searchButton(),
+      appBarField(),
       findsOneWidget,
-      reason: 'before the fix the trigger was a child of the ListView',
+      reason: 'a search box people can see is one they use — no magnifier',
     );
     expect(
-      searchButton(within: find.byType(ListView)),
+      find.descendant(
+        of: find.byType(ListView),
+        matching: find.byType(TextField),
+      ),
       findsNothing,
-      reason: 'a second, scroll-away trigger is exactly the reported bug',
+      reason: 'a scroll-away search is exactly the reported bug',
+    );
+    expect(find.widgetWithIcon(IconButton, Icons.search), findsNothing);
+    expect(find.widgetWithIcon(IconButton, Icons.close), findsNothing);
+    // `AppBar` derives this from `bottom` — nothing to hand-maintain.
+    expect(
+      tester.widget<AppBar>(find.byType(AppBar)).preferredSize.height,
+      kToolbarHeight + 56,
     );
 
-    // Scroll well past the "Basic Settings" header — this is the exact gesture
-    // in the reporter's second screenshot.
+    // Scroll well past the first group header — the exact gesture in the
+    // reporter's second screenshot.
     await tester.drag(find.byType(ListView), const Offset(0, -3000));
     await tester.pumpAndSettle();
 
-    expect(find.text('Advanced Settings'), findsOneWidget);
-    expect(searchButton(), findsOneWidget);
+    expect(find.text('App & Data'), findsOneWidget);
+    expect(appBarField(), findsOneWidget);
   });
 
-  testWidgets('tapping it opens the field in the AppBar bottom strip and '
-      'swaps the action to close', (tester) async {
+  testWidgets('the sections are listed under the five topic groups', (
+    tester,
+  ) async {
+    await pumpIndex(tester);
+    expect(find.text('Basic Settings'), findsNothing);
+    expect(find.text('Company'), findsOneWidget);
+    // Client Groups sit under Company, above the Billing header.
+    expect(
+      tester.getTopLeft(find.text('Group Settings')).dy,
+      lessThan(tester.getTopLeft(find.text('Billing')).dy),
+    );
+    await tester.drag(find.byType(ListView), const Offset(0, -3000));
+    await tester.pumpAndSettle();
+    expect(find.text('App & Data'), findsOneWidget);
+  });
+
+  testWidgets('focusing the field opens the search and adds close', (
+    tester,
+  ) async {
     await pumpIndex(tester);
 
-    await tester.tap(searchButton());
-    await tester.pumpAndSettle();
+    await openSearch(tester);
 
-    expect(
-      find.descendant(
-        of: find.byType(AppBar),
-        matching: find.byType(TextField),
-      ),
-      findsOneWidget,
-      reason: 'the field is pinned in the header, not in the scrolling body',
-    );
-    expect(searchButton(), findsNothing);
+    expect(appBarField(), findsOneWidget);
     expect(find.widgetWithIcon(IconButton, Icons.close), findsOneWidget);
-    // `AppBar` derives this from `bottom` — nothing to hand-maintain.
     expect(
       tester.widget<AppBar>(find.byType(AppBar)).preferredSize.height,
       kToolbarHeight + 56,
@@ -264,8 +337,7 @@ void main() {
     tester,
   ) async {
     await pumpIndex(tester);
-    await tester.tap(searchButton());
-    await tester.pumpAndSettle();
+    await openSearch(tester);
 
     await tester.enterText(find.byType(TextField), 'postal');
     await tester.pumpAndSettle();
@@ -276,7 +348,7 @@ void main() {
     // The subtitle names the tab the hit opens.
     expect(find.text('Company Details › Address'), findsOneWidget);
     expect(
-      find.text('Advanced Settings'),
+      find.text('Company'),
       findsNothing,
       reason: 'the section list is replaced by results while searching',
     );
@@ -286,23 +358,24 @@ void main() {
     tester,
   ) async {
     await pumpIndex(tester);
-    await tester.tap(searchButton());
-    await tester.pumpAndSettle();
+    await openSearch(tester);
     await tester.enterText(find.byType(TextField), 'postal');
     await tester.pumpAndSettle();
 
     await tester.tap(find.widgetWithIcon(IconButton, Icons.close));
     await tester.pumpAndSettle();
 
-    expect(searchButton(), findsOneWidget);
-    expect(find.text('Basic Settings'), findsOneWidget);
-
-    // Reopen: the query must not have survived.
-    await tester.tap(searchButton());
-    await tester.pumpAndSettle();
+    expect(find.widgetWithIcon(IconButton, Icons.close), findsNothing);
+    expect(find.text('Company'), findsOneWidget);
+    expect(appBarField(), findsOneWidget);
     expect(
       tester.widget<TextField>(find.byType(TextField)).controller?.text,
       '',
+    );
+    expect(
+      tester.widget<TextField>(find.byType(TextField)).focusNode?.hasFocus,
+      isFalse,
+      reason: 'closing puts the keyboard away',
     );
   });
 
@@ -310,39 +383,37 @@ void main() {
     'Android back closes an open search instead of leaving Settings',
     (tester) async {
       final router = await pumpIndex(tester);
-      await tester.tap(searchButton());
-      await tester.pumpAndSettle();
-      expect(
-        find.descendant(
-          of: find.byType(AppBar),
-          matching: find.byType(TextField),
-        ),
-        findsOneWidget,
-      );
+      await openSearch(tester);
+      expect(find.widgetWithIcon(IconButton, Icons.close), findsOneWidget);
 
       await simulateSystemBack(tester);
       await tester.pumpAndSettle();
 
       expect(currentUri(router), '/settings');
-      expect(
-        find.descendant(
-          of: find.byType(AppBar),
-          matching: find.byType(TextField),
-        ),
-        findsNothing,
-      );
-      expect(searchButton(), findsOneWidget);
-      expect(find.text('Basic Settings'), findsOneWidget);
+      expect(find.widgetWithIcon(IconButton, Icons.close), findsNothing);
+      expect(appBarField(), findsOneWidget);
+      expect(find.text('Company'), findsOneWidget);
     },
   );
 
-  testWidgets('the wide pane owns its own title + affordance and pins them '
-      'above the scroll area — it has no AppBar to host them', (tester) async {
+  testWidgets('the wide pane owns its own title + an always-visible search '
+      'field, pinned above the scroll area — it has no AppBar to host them', (
+    tester,
+  ) async {
     await pumpBarePane(tester);
 
-    // Present, and outside the ListView: same invariant, different chrome.
-    expect(find.widgetWithIcon(IconButton, Icons.search), findsOneWidget);
-    expect(searchButton(within: find.byType(ListView)), findsNothing);
+    // The field is on screen at rest — no magnifier to find first — and
+    // outside the ListView: same invariant, different chrome.
+    expect(find.byType(TextField), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(ListView),
+        matching: find.byType(TextField),
+      ),
+      findsNothing,
+    );
+    expect(find.widgetWithIcon(IconButton, Icons.search), findsNothing);
+    expect(find.widgetWithIcon(IconButton, Icons.close), findsNothing);
     // The screen title the narrow layout gets from its AppBar. Exactly one, so
     // the pane can't grow a second copy inside the list.
     expect(find.text('Settings'), findsOneWidget);
@@ -350,11 +421,11 @@ void main() {
     await tester.drag(find.byType(ListView), const Offset(0, -3000));
     await tester.pumpAndSettle();
 
-    expect(find.text('Advanced Settings'), findsOneWidget);
+    expect(find.text('App & Data'), findsOneWidget);
     expect(
-      find.widgetWithIcon(IconButton, Icons.search),
+      find.byType(TextField),
       findsOneWidget,
-      reason: 'the pinned strip keeps it reachable at any scroll position',
+      reason: 'the pinned field stays reachable at any scroll position',
     );
     expect(
       find.text('Settings'),
@@ -362,19 +433,156 @@ void main() {
       reason: 'the screen title is pinned, so it survives any scroll position',
     );
     expect(
-      find.text('Basic Settings'),
+      find.text('Company'),
       findsNothing,
       reason:
           'the pinned strip carries the SCREEN title, never a group label — '
-          'hoisting "Basic Settings" would leave it claiming Basic down here '
-          'in Advanced',
+          'hoisting "Company" would leave it claiming Company down here in '
+          'App & Data',
     );
 
-    // And it still opens the in-pane field row.
-    await tester.tap(find.widgetWithIcon(IconButton, Icons.search));
+    // Focusing the field opens the search; typing swaps in results; ✕ closes.
+    await tester.tap(find.byType(TextField));
     await tester.pumpAndSettle();
-    expect(find.byType(TextField), findsOneWidget);
     expect(find.widgetWithIcon(IconButton, Icons.close), findsOneWidget);
+    await tester.enterText(find.byType(TextField), 'zzqqxx');
+    await tester.pumpAndSettle();
+    expect(find.text('No results found.'), findsOneWidget);
+    await tester.tap(find.widgetWithIcon(IconButton, Icons.close));
+    await tester.pumpAndSettle();
+    expect(find.text('No results found.'), findsNothing);
+    expect(find.byType(TextField), findsOneWidget);
+  });
+
+  testWidgets('the phone home opens on a company card that names the scope '
+      'when settings are scoped to a client', (tester) async {
+    await pumpIndex(tester);
+    final card = find.byKey(const ValueKey('settings-company-card'));
+    // Signed out: no company, no card.
+    expect(card, findsNothing);
+
+    (services.auth as _FakeAuth).session.value = const AuthSession(
+      baseUrl: 'https://example.test',
+      isHosted: false,
+      accountId: 'acct',
+      companies: [
+        AuthCompany(
+          id: 'c1',
+          name: 'Hamill Ltd',
+          displayName: 'Hamill Ltd',
+          permissions: '',
+          isAdmin: true,
+          isOwner: true,
+        ),
+      ],
+      currentCompanyId: 'c1',
+    );
+    await tester.pumpAndSettle();
+    expect(card, findsOneWidget);
+    expect(
+      find.descendant(of: card, matching: find.text('Hamill Ltd')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: card, matching: find.text('Switch Company')),
+      findsOneWidget,
+    );
+    // It leads the list, above the first group header.
+    expect(
+      tester.getTopLeft(card).dy,
+      lessThan(tester.getTopLeft(find.text('Company')).dy),
+    );
+
+    tester
+        .element(find.byType(SettingsScreen))
+        .read<SettingsLevelController>()
+        .setLevel(SettingsLevel.client, targetId: 'x', targetName: 'Acme');
+    await tester.pumpAndSettle();
+    expect(
+      find.descendant(of: card, matching: find.text('Client Settings: Acme')),
+      findsOneWidget,
+    );
+
+    // Not while searching: the results own the list.
+    await openSearch(tester);
+    expect(card, findsNothing);
+  });
+
+  testWidgets('the phone home shows each section\'s current value at company '
+      'scope, and none at client scope (R1)', (tester) async {
+    await pumpIndex(tester);
+    (services.auth as _FakeAuth).session.value = const AuthSession(
+      baseUrl: 'https://example.test',
+      isHosted: false,
+      accountId: 'acct',
+      companies: [
+        AuthCompany(
+          id: 'c1',
+          name: 'Hamill Ltd',
+          displayName: 'Hamill Ltd',
+          permissions: '',
+          isAdmin: true,
+          isOwner: true,
+        ),
+      ],
+      currentCompanyId: 'c1',
+    );
+    await tester.pumpAndSettle();
+
+    Finder row(String title) =>
+        find.ancestor(of: find.text(title), matching: find.byType(ListTile));
+
+    // A text value: a one-line subtitle.
+    expect(
+      find.descendant(
+        of: row('Localization'),
+        matching: find.text('USD · English'),
+      ),
+      findsOneWidget,
+    );
+    // A count: a trailing number. A zero draws nothing.
+    expect(
+      find.descendant(of: row('User Management'), matching: find.text('3')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: row('Bank Accounts'), matching: find.text('0')),
+      findsNothing,
+    );
+    // A problem: a warning icon whose sentence is the screen reader's.
+    final warning = find.descendant(
+      of: row('Payment Settings'),
+      matching: find.byIcon(Icons.warning_amber_rounded),
+    );
+    expect(warning, findsOneWidget);
+    expect(
+      find.bySemanticsLabel(RegExp('No payment gateway is connected')),
+      findsOneWidget,
+    );
+    // Further down: the device's own theme preference.
+    await tester.scrollUntilVisible(
+      find.text('Device Settings'),
+      300,
+      scrollable: find
+          .descendant(
+            of: find.byType(ListView),
+            matching: find.byType(Scrollable),
+          )
+          .first,
+    );
+    expect(
+      find.descendant(of: row('Device Settings'), matching: find.text('Dark')),
+      findsOneWidget,
+    );
+
+    // At client scope a value would be the company's, not the page's.
+    tester
+        .element(find.byType(SettingsScreen))
+        .read<SettingsLevelController>()
+        .setLevel(SettingsLevel.client, targetId: 'x', targetName: 'Acme');
+    await tester.pumpAndSettle();
+    expect(find.text('USD · English'), findsNothing);
+    expect(find.byIcon(Icons.warning_amber_rounded), findsNothing);
   });
 
   group('keyboard and empty query', () {
@@ -396,17 +604,15 @@ void main() {
     ) async {
       // It used to list every field in the catalog — hundreds of rows.
       await pumpIndex(tester);
-      await tester.tap(searchButton());
-      await tester.pumpAndSettle();
+      await openSearch(tester);
 
-      expect(find.text('Basic Settings'), findsOneWidget);
+      expect(find.text('Company'), findsOneWidget);
       expect(find.text('Company Details'), findsOneWidget);
     });
 
     testWidgets('a section name leads with the section itself', (tester) async {
       await pumpIndex(tester);
-      await tester.tap(searchButton());
-      await tester.pumpAndSettle();
+      await openSearch(tester);
       await tester.enterText(find.byType(TextField), 'tax settings');
       await tester.pumpAndSettle();
 
@@ -416,8 +622,7 @@ void main() {
 
     testWidgets('Enter opens the field\'s tab', (tester) async {
       final router = await pumpIndex(tester);
-      await tester.tap(searchButton());
-      await tester.pumpAndSettle();
+      await openSearch(tester);
       await tester.enterText(find.byType(TextField), 'postal');
       await tester.pumpAndSettle();
 
@@ -431,8 +636,7 @@ void main() {
       tester,
     ) async {
       final router = await pumpIndex(tester);
-      await tester.tap(searchButton());
-      await tester.pumpAndSettle();
+      await openSearch(tester);
       await tester.enterText(find.byType(TextField), 'number');
       await tester.pumpAndSettle();
 
@@ -477,23 +681,26 @@ void main() {
       // Back on the index, reopen and close with Esc.
       router.go('/settings');
       await tester.pumpAndSettle();
-      await tester.tap(searchButton());
-      await tester.pumpAndSettle();
+      await openSearch(tester);
       await tester.sendKeyEvent(LogicalKeyboardKey.escape);
       await tester.pumpAndSettle();
-      expect(find.byType(TextField), findsNothing);
-      expect(searchButton(), findsOneWidget);
+      expect(find.widgetWithIcon(IconButton, Icons.close), findsNothing);
+      expect(find.text('Company'), findsOneWidget);
     });
 
     testWidgets('`/` opens the search on the settings index', (tester) async {
       await pumpIndex(tester);
-      expect(find.byType(TextField), findsNothing);
+      expect(
+        tester.widget<TextField>(find.byType(TextField)).focusNode?.hasFocus,
+        isFalse,
+      );
 
       services.searchFocus.activate();
       await tester.pumpAndSettle();
 
       final field = tester.widget<TextField>(find.byType(TextField));
       expect(field.focusNode?.hasFocus, isTrue);
+      expect(find.widgetWithIcon(IconButton, Icons.close), findsOneWidget);
     });
   });
 }

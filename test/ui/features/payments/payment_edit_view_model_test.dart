@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:decimal/decimal.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -214,6 +216,96 @@ void main() {
       vm.replacePaymentables([inv('i1', 100), cre('cr1', 25)]);
       vm.clearInvoiceAllocations();
       expect(vm.draft.paymentables.single.creditId, 'cr1');
+    });
+  });
+
+  // Regression: a receipt is sent once. The switch rides the CREATE only;
+  // an update never carries `email_receipt` (the server ignores it there, and
+  // the edit screen's Send Email action sends the receipt itself).
+  group('PaymentEditViewModel — email receipt', () {
+    Future<Map<String, dynamic>> lastPayload() async {
+      final rows = await db.outboxDao.nextReady(
+        companyId: companyId,
+        now: 1 << 60,
+      );
+      return jsonDecode(rows.last.payload) as Map<String, dynamic>;
+    }
+
+    test('a new payment carries the switch', () async {
+      final vm = vmFor()
+        ..setClientId('c1')
+        ..setAmount('10')
+        ..sendEmail = true;
+      expect(await vm.save(), isNotNull);
+      expect((await lastPayload())[kPaymentSendEmailKey], isTrue);
+    });
+
+    test('an update never asks for a receipt', () async {
+      final existing = emptyPayment().copyWith(
+        id: 'p1',
+        clientId: 'c1',
+        amount: Decimal.parse('10'),
+      );
+      final vm = vmFor(existing: existing)
+        ..setNumber('42')
+        ..sendEmail = true;
+      expect(await vm.save(), isNotNull);
+      expect((await lastPayload())[kPaymentSendEmailKey], isFalse);
+    });
+
+    test('the settings default seeds it until the user flips it', () {
+      final vm = vmFor()..seedSendEmail(true);
+      expect(vm.sendEmail, isTrue);
+      vm.sendEmail = false;
+      vm.seedSendEmail(true);
+      expect(vm.sendEmail, isFalse);
+    });
+
+    test('an edit form is never seeded', () {
+      final vm = vmFor(existing: emptyPayment().copyWith(id: 'p1'))
+        ..seedSendEmail(true);
+      expect(vm.sendEmail, isFalse);
+    });
+  });
+
+  group('PaymentEditViewModel — Manual Overpayments off', () {
+    test('money left unapplied is refused', () {
+      final vm = vmFor(enableApplyingPayments: false)
+        ..replacePaymentables([inv('i1', 40)])
+        ..setAmount('100');
+      // The follow can't place the rest (no open amount known), so 60 is
+      // left over.
+      expect(vm.unappliedAmount, Decimal.parse('60'));
+      expect(vm.validateForSave(), kPaymentValidationOverpaymentsDisabled);
+    });
+
+    test('a fully applied payment passes', () {
+      final vm = vmFor(enableApplyingPayments: false)
+        ..replacePaymentables([inv('i1', 40)]);
+      expect(vm.validateForSave(), isNull);
+    });
+
+    test('with it on, money may be left unapplied', () {
+      final vm = vmFor()
+        ..replacePaymentables([inv('i1', 40)])
+        ..setAmount('100');
+      expect(vm.validateForSave(), isNull);
+    });
+  });
+
+  group('PaymentEditViewModel — setInvoiceAllocations', () {
+    test('takes the rows as given and keeps the credits', () {
+      final vm = vmFor()
+        ..replacePaymentables([cre('c1', 10)])
+        ..setAmount('100');
+      vm.setInvoiceAllocations([inv('i1', 30), inv('i2', 80)]);
+      expect(
+        vm.draft.paymentables.map(
+          (p) => (p.invoiceId, p.creditId, p.amount.toString()),
+        ),
+        [('i1', '', '30'), ('i2', '', '80'), ('', 'c1', '10')],
+      );
+      expect(vm.draft.amount, Decimal.parse('100'));
     });
   });
 

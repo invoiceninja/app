@@ -5,6 +5,7 @@ import 'package:admin/data/models/domain/contact.dart';
 import 'package:admin/data/repositories/_repository_helpers.dart';
 import 'package:admin/data/repositories/client_repository.dart';
 import 'package:admin/data/services/device_contacts_service.dart';
+import 'package:admin/domain/contact_email_mode.dart';
 import 'package:admin/ui/core/edit/generic_edit_view_model.dart';
 import 'package:admin/utils/formatting.dart';
 import 'package:admin/data/repositories/document_bearing_repository.dart';
@@ -265,16 +266,30 @@ class ClientEditViewModel extends GenericEditViewModel<Client> {
     updateDraft(draft.copyWith(contacts: contacts));
   }
 
-  /// Remove the contact at [index]. If that contact was the primary and any
-  /// others remain, contacts[0] is promoted so the entity always carries one
-  /// primary (or none when the list ends up empty).
-  void removeContact(int index) {
-    if (index < 0 || index >= draft.contacts.length) return;
+  /// Remove the contact at [index] and return it, for the Undo toast's
+  /// [restoreContact]. If that contact was the primary and any others remain,
+  /// contacts[0] is promoted so the entity always carries one primary (or
+  /// none when the list ends up empty).
+  Contact? removeContact(int index) {
+    if (index < 0 || index >= draft.contacts.length) return null;
     final contacts = [...draft.contacts];
     final removed = contacts.removeAt(index);
     if (removed.isPrimary && contacts.isNotEmpty) {
-      contacts[0] = contacts[0].copyWith(isPrimary: true);
+      contacts[0] = _asPrimary(contacts[0]);
     }
+    updateDraft(draft.copyWith(contacts: contacts));
+    return removed;
+  }
+
+  /// Put back a contact [removeContact] took out, at the [index] it had. A
+  /// restored primary is primary again; the contact promoted in its place
+  /// steps back down.
+  void restoreContact(int index, Contact contact) {
+    final contacts = [
+      for (final c in draft.contacts)
+        contact.isPrimary ? c.copyWith(isPrimary: false) : c,
+    ];
+    contacts.insert(index.clamp(0, contacts.length), contact);
     updateDraft(draft.copyWith(contacts: contacts));
   }
 
@@ -284,10 +299,22 @@ class ClientEditViewModel extends GenericEditViewModel<Client> {
     if (index < 0 || index >= draft.contacts.length) return;
     final contacts = <Contact>[
       for (var i = 0; i < draft.contacts.length; i++)
-        draft.contacts[i].copyWith(isPrimary: i == index),
+        i == index
+            ? _asPrimary(draft.contacts[i])
+            : draft.contacts[i].copyWith(isPrimary: false),
     ];
     updateDraft(draft.copyWith(contacts: contacts));
   }
+
+  /// [c] as the primary contact. The server never stores the primary as
+  /// CC-only (`ClientContactRepository::save` forces `cc_only` false), so a
+  /// CC-only contact promoted here is moved to the To line: it was meant to
+  /// get the email, and dropping it to "none" would be a silent change.
+  static Contact _asPrimary(Contact c) => c.copyWith(
+    isPrimary: true,
+    ccOnly: false,
+    sendEmail: c.sendEmail || c.ccOnly,
+  );
 
   void setContactFirstNameAt(int i, String v) =>
       _updateContactAt(i, (c) => c.copyWith(firstName: v));
@@ -305,6 +332,20 @@ class ClientEditViewModel extends GenericEditViewModel<Client> {
     i,
     (c) => c.copyWith(ccOnly: v, sendEmail: v ? false : c.sendEmail),
   );
+
+  /// The contact's one choice of three — To, CC or no email
+  /// (`ContactEmailMode`). CC is refused on the primary contact, which the
+  /// server never stores as CC-only.
+  void setContactEmailModeAt(int i, ContactEmailMode mode) {
+    if (i < 0 || i >= draft.contacts.length) return;
+    if (mode == ContactEmailMode.cc && draft.contacts[i].isPrimary) return;
+    final flags = contactEmailFlagsOf(mode);
+    _updateContactAt(
+      i,
+      (c) => c.copyWith(sendEmail: flags.sendEmail, ccOnly: flags.ccOnly),
+    );
+  }
+
   // "Authorized to sign" — portal e-signature permission (React parity). The
   // UI gates the toggle on the company's e-sign module being enabled.
   void setContactCanSignAt(int i, bool v) =>

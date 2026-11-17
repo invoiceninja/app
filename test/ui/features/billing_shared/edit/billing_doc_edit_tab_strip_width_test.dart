@@ -64,7 +64,10 @@ String _label(String key) => bundledLocalization().lookup(key);
 
 List<BillingDocEditTab> _tabs(List<String> labels) => [
   for (final label in labels)
-    (label: label, body: Center(child: Text('body:$label'))),
+    BillingDocEditTab(
+      label: label,
+      body: Center(child: Text('body:$label')),
+    ),
 ];
 
 Future<void> _pumpStrip(

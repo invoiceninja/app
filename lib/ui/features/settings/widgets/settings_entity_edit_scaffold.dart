@@ -14,6 +14,7 @@ import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/dialogs/confirm_action_dialog.dart';
 import 'package:admin/ui/core/dialogs/discard_changes_dialog.dart';
 import 'package:admin/ui/core/edit/generic_edit_view_model.dart';
+import 'package:admin/ui/core/edit/unsaved_label.dart';
 import 'package:admin/ui/core/unsaved_changes/unsaved_changes_scope.dart';
 import 'package:admin/ui/core/utils/platform_modifier.dart';
 import 'package:admin/ui/core/widgets/empty_state.dart';
@@ -639,7 +640,8 @@ class _SettingsEntityEditScaffoldState<T, VM extends GenericEditViewModel<T>>
               ? null
               : widget.saveDisabledReason?.call(context, vm);
           final saveButton = FilledButton(
-            style: FilledButton.styleFrom(minimumSize: const Size(64, 36)),
+            key: const ValueKey('settings_entity_save'),
+            style: FilledButton.styleFrom(minimumSize: const Size(64, 44)),
             onPressed: canSave ? _onSave : null,
             child: vm.isSaving
                 ? const SizedBox(
@@ -662,8 +664,19 @@ class _SettingsEntityEditScaffoldState<T, VM extends GenericEditViewModel<T>>
                       builder: (context) => widget.titleBuilder!(context, vm),
                     ),
                   ),
+            // Wide only (the scaffold gates it on the pane), as on every
+            // entity edit screen.
+            titleTrailing: UnsavedLabel(vm: vm),
             leading: const BackButton(),
+            // Save leads the end-aligned cluster, as on every edit screen:
+            // `[Save][page actions…][⋮]`.
             actions: [
+              Padding(
+                padding: const EdgeInsetsDirectional.only(end: 8),
+                child: disabledReason == null
+                    ? saveButton
+                    : Tooltip(message: disabledReason, child: saveButton),
+              ),
               ...?widget.actionsBuilder?.call(context, vm),
               if (!isCreate)
                 SettingsEntityOverflowMenu(
@@ -674,12 +687,7 @@ class _SettingsEntityEditScaffoldState<T, VM extends GenericEditViewModel<T>>
                   onRestore: () => widget.onRestore(widget.existingId!),
                   onDelete: () => widget.onDelete(widget.existingId!),
                 ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                child: disabledReason == null
-                    ? saveButton
-                    : Tooltip(message: disabledReason, child: saveButton),
-              ),
+              const SizedBox(width: 8),
             ],
             body: body,
           );

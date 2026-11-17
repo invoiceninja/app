@@ -2,15 +2,31 @@ import 'package:material_ui/material_ui.dart';
 
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/ui/core/widgets/scroll_edge_fades.dart';
+import 'package:admin/ui/core/widgets/tab_count_badge.dart';
 
-/// One tab of a narrow billing-doc edit strip: its label and its body,
-/// together.
+/// One tab of a narrow billing-doc edit strip: its label, its body and its
+/// optional count, together.
 ///
-/// A record rather than two parallel lists, because the `tabs:` / `children:`
+/// One value rather than parallel lists, because the `tabs:` / `children:`
 /// pair this replaced could lose an entry from one and not the other — and a
 /// `TabBar` whose length disagrees with its `TabBarView`'s throws at runtime,
 /// not at compile time.
-typedef BillingDocEditTab = ({String label, Widget body});
+@immutable
+class BillingDocEditTab {
+  const BillingDocEditTab({
+    required this.label,
+    required this.body,
+    this.count,
+  });
+
+  final String label;
+  final Widget body;
+
+  /// Drawn beside [label] as a [TabCountBadge] — the Items tab's line count,
+  /// so a phone user on Details can see the document has lines without
+  /// switching tabs. Null draws no badge.
+  final int? count;
+}
 
 /// The narrow (below `Breakpoints.wide`) tab strip and body shared by all five
 /// billing-doc edit layouts — invoice, quote, credit, purchase order and
@@ -116,6 +132,28 @@ class _BillingDocEditTabStripState extends State<BillingDocEditTabStrip>
     super.dispose();
   }
 
+  /// A plain `Tab(text:)` unless the tab has a count; then the label and its
+  /// [TabCountBadge], read as one node — "Items, 3" — so a screen reader
+  /// neither runs them together nor reads the badge on its own.
+  Widget _tabFor(BillingDocEditTab tab) {
+    final count = tab.count;
+    if (count == null) return Tab(text: tab.label);
+    return Tab(
+      child: Semantics(
+        label: '${tab.label}, $count',
+        excludeSemantics: true,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(tab.label),
+            const SizedBox(width: 6),
+            TabCountBadge(count: count),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _view() => TabBarView(
     controller: _tab,
     children: [
@@ -151,7 +189,7 @@ class _BillingDocEditTabStripState extends State<BillingDocEditTabStrip>
               // `TabAlignment.start` asserts on a NON-scrollable TabBar, and
               // the app has three.
               tabAlignment: TabAlignment.start,
-              tabs: [for (final tab in widget.tabs) Tab(text: tab.label)],
+              tabs: [for (final tab in widget.tabs) _tabFor(tab)],
             ),
           ),
         ),

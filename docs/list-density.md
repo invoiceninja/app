@@ -17,7 +17,8 @@ the old app showed 20 or more.
 - **The old app's rows were smaller.** Its `DataTable` rows were 48 px
   (`kMinInteractiveDimension`).
 - **The chrome above the rows adds up.** It takes about 222 px on web or macOS: header
-  band 69, status tabs ~46, card inset 24 + 1, column headers 57, then 1 + 24 below.
+  band 69, status tabs ~46, card inset 24 + 1, column headers 57, then 1 + 24 below (the
+  card and most of that inset went in Nov 2026: 8 above the header and nothing below).
 - **The result:** (1100 − 222) / 72 ≈ 12 rows.
 
 Normal stays the default and is unchanged, because the tester liked the look. Compact is
@@ -82,7 +83,7 @@ On a phone, the two-line tile goes from 72 px to about 57 px per row.
 | Column-header strip, vertical (no fill, a rule under it) | 4 | 2 |
 | Status-tab strip (`dense:`), vertical | `InSpacing.md` | `InSpacing.sm` |
 | Group section header, top / bottom | `lg` / `sm` | `sm` / `xs` |
-| Standalone table card inset (`entityListCardInset`) | 24 all round | 24 horizontal, 12 vertical |
+| Standalone table inset (`entityListTableInset`; no card since Nov 2026) | 24 horizontal, 8 top, 0 bottom | 24 horizontal, 4 top |
 | Record screen quick-action tile (`EntityQuickActions`): floor / vertical padding | 56 / 8 | 48 / 4 |
 | Form field label (`LabeledField`, `docs/form-fields.md` § Labels sit above the field) | on its own line above the field | inside the field (floating) |
 | Record screen standing card (`StandingCard`) padding, vertical only | `InSpacing.lg` | `InSpacing.md` |
@@ -134,11 +135,11 @@ What changes, Normal → Compact (pointer first, touch in brackets where it diff
 | Card corner radius (`dashboardCardRadius`) | `r3` (14) | `r2` (10) |
 | `DashboardCardShell` header top / bottom, body vertical | `lg` / `md`, `md` | `md` / `sm`, `sm` (the record screen's dense branch) |
 | Band list header and failed-saves line floors | 40 [44] | 32 [44] |
-| `DashboardRecordRow` action box / vertical padding | 32 / 6 [44 / 6] | 28 / 2 [44 / 0] → a 32 px row [44] |
+| `DashboardRecordRow` action box / vertical padding | 32 / 6 [44 / 6] (the floor also holds the wide form's two-line cells, 32 + 12) | 28 / 2 [44 / 0] → a 32 px row [44]; second lines fold onto the first |
 | Stacked band row | 64 [76] | 52 [64] |
 | Phone-form row (`compact: true`) | 60, padding `sm` | 52, padding `xs` |
-| Figure cards (`OutstandingFigureCard`, `PeriodFiguresCard`, `KpiCard`) floor | 104 | 64 (`kFigureCardMinHeightDense`); a phone's period card 72 |
-| Figure padding / value sizes | `lg` all round; 26 / 22 (configured 24) | `lg` × `md`; 22 / 20 (configured 20) |
+| Figure cards (`OutstandingFigureCard`, `PeriodSummaryCard`, `PeriodFiguresCard`, `KpiCard`) floor | 104 | 64 (`kFigureCardMinHeightDense`); a phone's period card 72 |
+| Figure padding / value sizes | `lg` all round; wide 24, phone 30 / 16 (configured 24) | `lg` × `md`; wide 20, phone 26 / 16 (configured 20) |
 | Figure sub-line ("17 unpaid", the trend) | its own line | on the value's line (`_InlineSubline`); a phone's three narrow cells keep their trend line |
 | Chart legend | its own line in the body | in the header row on the wide layout (a `Wrap`, so it can answer `IntrinsicHeight`); a phone keeps it in the body |
 | Chart plot floor beside Activity / stacked aspect | 220 / 2.4 | 168 / 3.2 (phone 3.0) |
@@ -188,13 +189,14 @@ the theme density would move nothing in a row.
   are gated on the platform). The floor says so, so that the scaffold's scroll-to-row
   estimate is not 12 px short per row on a tablet.
 
-**The card inset loses only vertical space.** Its horizontal 24 lines the table up with:
+**The table inset loses only vertical space.** The standalone table has had no card since Nov
+2026 (docs/entity-lists.md § A standalone table has no card), so what is left is a gutter. Its
+horizontal 24 lines the table up with:
 - the header band's row (`entity_list_app_bar.dart`, "aligns … with the table card below")
 - the status-tab strip's start (`_statusTabsFor`, `start: wide ? 24`)
 - the frameless desktop title bar's nav arrows
 
-The header band is out of scope, so cutting the card's horizontal inset would break that
-alignment.
+The header band is out of scope, so cutting the horizontal inset would break that alignment.
 
 **The status tabs take a `dense` parameter instead of reading the scope.** The dashboard's
 Invoices and Quotes panels use the same widget in its `wrap: true` form. Two callers set it —
@@ -232,5 +234,5 @@ rule 1).
 
 `test/ui/core/list/list_density_test.dart` measures the actual rows: 72 under Normal, 40
 with a pointer and 52 on touch under Compact. It also checks that a dense strip is 8 px
-shorter, and that the card inset keeps its horizontal 24. The column-header,
+shorter, and that the table inset keeps its horizontal 24. The column-header,
 section-header and activity-row tests each carry a Compact case of their own.

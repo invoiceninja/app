@@ -2,7 +2,10 @@ import 'package:decimal/decimal.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 
+import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/services.dart';
+import 'package:admin/data/models/domain/company_settings.dart';
+import 'package:admin/data/models/value/company_format_settings.dart';
 import 'package:admin/data/models/value/currency.dart';
 import 'package:admin/data/models/value/datetime_format.dart';
 import 'package:admin/data/models/value/language.dart';
@@ -10,6 +13,7 @@ import 'package:admin/data/models/value/timezone.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/form_field_pair.dart';
+import 'package:admin/ui/core/widgets/ltr_value.dart';
 import 'package:admin/ui/features/settings/state/settings_level_controller.dart';
 import 'package:admin/ui/features/settings/view_models/settings_draft_view_model.dart';
 import 'package:admin/ui/features/settings/widgets/form_section.dart';
@@ -95,55 +99,63 @@ class LocalizationSettingsBody extends StatelessWidget {
     final showLanguage = !isDemoSession;
 
     return SettingsFormShell(
+      subtitle: context.tr('localization_subtitle'),
       sections: [
         FormSection(
           title: context.tr('region'),
-          // Two to a row: the currency beside how it is written, then the
-          // language, timezone and date format.
-          children: pairFields([
-            OverridableSearchableDropdownField<Currency>(
-              label: context.tr('currency'),
-              apiKey: 'currency_id',
-              value: host.settings.currencyId,
-              items: currencies,
-              displayString: (c) => '${c.code} — ${c.name}',
-              idOf: (c) => c.id,
-              onChanged: (v) =>
-                  host.updateSettings((s) => s.copyWith(currencyId: v)),
-            ),
-            _currencyFormatField(context, host),
-            if (showLanguage)
-              OverridableSearchableDropdownField<Language>(
-                label: context.tr('language'),
-                apiKey: 'language_id',
-                value: host.settings.languageId,
-                items: languages,
-                displayString: (l) => l.name,
-                idOf: (l) => l.id,
+          // A live sample first, then two to a row: the currency beside how
+          // it is written, then the language, timezone and date format.
+          children: [
+            _FormatPreview(settings: host.settings),
+            ...pairFields([
+              OverridableSearchableDropdownField<Currency>(
+                label: context.tr('currency'),
+                apiKey: 'currency_id',
+                requiredAtCompanyScope: true,
+                value: host.settings.currencyId,
+                items: currencies,
+                displayString: (c) => '${c.code} — ${c.name}',
+                idOf: (c) => c.id,
                 onChanged: (v) =>
-                    host.updateSettings((s) => s.copyWith(languageId: v)),
+                    host.updateSettings((s) => s.copyWith(currencyId: v)),
               ),
-            OverridableSearchableDropdownField<Timezone>(
-              label: context.tr('timezone'),
-              apiKey: 'timezone_id',
-              value: host.settings.timezoneId,
-              items: timezones,
-              displayString: (t) => t.name,
-              idOf: (t) => t.id,
-              onChanged: (v) =>
-                  host.updateSettings((s) => s.copyWith(timezoneId: v)),
-            ),
-            OverridableSearchableDropdownField<DatetimeFormat>(
-              label: context.tr('date_format'),
-              apiKey: 'date_format_id',
-              value: host.settings.dateFormatId,
-              items: dateFormats,
-              displayString: (f) => _dateFormatPreview(f, previewLocale),
-              idOf: (f) => f.id,
-              onChanged: (v) =>
-                  host.updateSettings((s) => s.copyWith(dateFormatId: v)),
-            ),
-          ]),
+              _currencyFormatField(context, host),
+              if (showLanguage)
+                OverridableSearchableDropdownField<Language>(
+                  label: context.tr('language'),
+                  apiKey: 'language_id',
+                  requiredAtCompanyScope: true,
+                  value: host.settings.languageId,
+                  items: languages,
+                  displayString: (l) => l.name,
+                  idOf: (l) => l.id,
+                  onChanged: (v) =>
+                      host.updateSettings((s) => s.copyWith(languageId: v)),
+                ),
+              OverridableSearchableDropdownField<Timezone>(
+                label: context.tr('timezone'),
+                apiKey: 'timezone_id',
+                requiredAtCompanyScope: true,
+                value: host.settings.timezoneId,
+                items: timezones,
+                displayString: (t) => t.name,
+                idOf: (t) => t.id,
+                onChanged: (v) =>
+                    host.updateSettings((s) => s.copyWith(timezoneId: v)),
+              ),
+              OverridableSearchableDropdownField<DatetimeFormat>(
+                label: context.tr('date_format'),
+                apiKey: 'date_format_id',
+                requiredAtCompanyScope: true,
+                value: host.settings.dateFormatId,
+                items: dateFormats,
+                displayString: (f) => _dateFormatPreview(f, previewLocale),
+                idOf: (f) => f.id,
+                onChanged: (v) =>
+                    host.updateSettings((s) => s.copyWith(dateFormatId: v)),
+              ),
+            ]),
+          ],
         ),
         FormSection(
           title: context.tr('format'),
@@ -321,5 +333,110 @@ class LocalizationSettingsBody extends StatelessWidget {
       for (var i = 0; i < days.length; i++)
         DropdownMenuItem<String>(value: '$i', child: Text(context.tr(days[i]))),
     ];
+  }
+}
+
+/// The sample amount the preview formats: thousands and decimals both show.
+final Decimal kLocalizationPreviewAmount = Decimal.parse('1234.56');
+
+/// A [Formatter] for the page's unsaved draft: the currency, currency format,
+/// date format, 24-hour time, language and country as [draft] resolves them,
+/// over the saved company's [base] for everything else.
+///
+/// The decimal comma deliberately comes from [base], whatever the draft says:
+/// `use_comma_as_decimal_place` decides how typed amounts are *parsed*, and
+/// the separators an amount is *shown* with come from the currency (and the
+/// Euro country override), so flipping it here would preview something no
+/// other screen renders.
+Formatter localizationPreviewFormatter(Formatter base, CompanySettings draft) {
+  final saved = base.settings;
+  final draftFormat = CompanyFormatSettings.fromCompanyJson(draft.toJson())
+      .withCompanyColumns(
+        firstMonthOfYear: saved.firstMonthOfYear,
+        firstDayOfWeek: saved.configuredFirstDayOfWeek,
+        useCommaAsDecimalPlace: saved.useCommaAsDecimalPlace,
+      );
+  return Formatter(
+    settings: draftFormat,
+    currencies: base.currencies,
+    countries: base.countries,
+    dateFormats: base.dateFormats,
+  );
+}
+
+/// "Preview  $1,234.56 · 31/Jan/2000 · 1:45 PM" — how an amount, a date and a
+/// time read under the settings on the page, updated as they change (the body
+/// rebuilds on every draft edit). Draws nothing until the company formatter
+/// has loaded.
+class _FormatPreview extends StatelessWidget {
+  const _FormatPreview({required this.settings});
+
+  final CompanySettings settings;
+
+  @override
+  Widget build(BuildContext context) {
+    final services = context.read<Services>();
+    final companyId = services.auth.session.value?.currentCompanyId;
+    return FutureBuilder<Formatter>(
+      future: companyId == null ? null : services.formatterFor(companyId),
+      initialData: companyId == null
+          ? null
+          : services.formatterIfReady(companyId),
+      builder: (context, snapshot) {
+        final base = snapshot.data;
+        if (base == null) return const SizedBox.shrink();
+        final f = localizationPreviewFormatter(base, settings);
+        final tokens = context.inTheme;
+        final theme = Theme.of(context);
+        final valueStyle = theme.textTheme.bodyMedium?.copyWith(
+          color: tokens.ink,
+        );
+        final dot = Text(
+          ' · ',
+          style: valueStyle?.copyWith(color: tokens.ink3),
+        );
+        final values = [
+          f.money(kLocalizationPreviewAmount),
+          f.dateExample,
+          timeFormatSample(military: f.settings.enableMilitaryTime),
+        ];
+        return Semantics(
+          container: true,
+          label: '${context.tr('preview')}: ${values.join(', ')}',
+          child: ExcludeSemantics(
+            child: Container(
+              padding: EdgeInsets.symmetric(
+                horizontal: InSpacing.md(context),
+                vertical: InSpacing.sm,
+              ),
+              decoration: BoxDecoration(
+                color: tokens.surfaceAlt,
+                borderRadius: BorderRadius.circular(InRadii.r2),
+              ),
+              child: Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Padding(
+                    padding: EdgeInsetsDirectional.only(
+                      end: InSpacing.md(context),
+                    ),
+                    child: Text(
+                      context.tr('preview'),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: tokens.ink3,
+                      ),
+                    ),
+                  ),
+                  for (final (i, v) in values.indexed) ...[
+                    if (i > 0) dot,
+                    LtrText(v, style: valueStyle),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 }

@@ -4,6 +4,7 @@ import 'package:material_ui/material_ui.dart';
 
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/ui/core/utils/show_seconds.dart';
+import 'package:admin/ui/core/widgets/ltr_value.dart';
 import 'package:admin/utils/formatting.dart';
 
 /// Ticking duration label for the currently-running entry of a task.
@@ -257,7 +258,9 @@ class _RunningDurationLabelState extends State<RunningDurationLabel>
         ],
         ValueListenableBuilder<String>(
           valueListenable: _label,
-          builder: (_, label, _) => Text(label, style: style),
+          // A duration is a value: `1:05:09` must not reorder in a
+          // right-to-left layout (docs/right-to-left-layout.md).
+          builder: (_, label, _) => LtrText(label, style: style),
         ),
       ],
     );

@@ -107,6 +107,7 @@ class GeneralSettingsBody extends StatelessWidget {
         ),
     ];
     return SettingsFormShell(
+      subtitle: context.tr('invoice_design_subtitle'),
       sections: [
         FormSection(
           title: context.tr('design'),

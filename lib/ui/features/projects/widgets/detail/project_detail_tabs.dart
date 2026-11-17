@@ -223,7 +223,14 @@ class ProjectDetailTabs extends StatelessWidget {
                 ],
                 _scoped(
                   projectId,
-                  TaskListScreen(projectId: projectId, embedded: true),
+                  TaskListScreen(
+                    projectId: projectId,
+                    embedded: true,
+                    // The quick-add field is this tab's create control: two
+                    // in one toolbar row competed, and the full editor is
+                    // still one tap away on the record's `+ Task` tile.
+                    offersNew: !quickAdd,
+                  ),
                 ),
               ],
             ),

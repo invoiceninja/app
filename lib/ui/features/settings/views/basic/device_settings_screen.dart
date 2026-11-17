@@ -43,6 +43,7 @@ import 'package:admin/ui/features/settings/widgets/theme_tile.dart';
 import 'package:admin/ui/features/settings/widgets/trusted_certificates_section.dart';
 import 'package:admin/utils/formatting.dart';
 import 'package:admin/ui/core/utils/router_state.dart';
+import 'package:admin/ui/features/settings/widgets/settings_tab_strip.dart';
 
 // Search keys for the settings search, one list per tab. Colocated with the
 // screen so adding / renaming a field updates both ends in one place (see
@@ -145,7 +146,8 @@ const _kTabs = <_TabDef>[
 ///
 /// Pairs with `tabbedSettingsRoutePair(...)` in `settings_routes.dart`, so the
 /// tab is the route — restored on restart like every tabbed settings screen's.
-/// Modeled on `BackupRestoreShell`: no VM, because no tab has a draft to save.
+/// No VM, because no tab has a draft to save (`AccountManagementShell` is the
+/// same shape).
 class DeviceSettingsScreen extends StatefulWidget {
   const DeviceSettingsScreen({super.key, this.initialTab});
 
@@ -213,20 +215,25 @@ class _DeviceSettingsScreenState extends State<DeviceSettingsScreen>
     final tokens = context.inTheme;
     return SettingsScreenScaffold(
       titleKey: 'device_settings',
-      bottom: TabBar(
-        controller: _controller,
-        isScrollable: true,
-        tabAlignment: TabAlignment.center,
-        // 12 a side, not Material's 16: five tabs at 16 ran 6 px past a 390 px
-        // phone, so the strip scrolled to hide a sliver of "Data". At 12 they
-        // fit down to a 360 px phone in English (docs/pane-width-and-overflow.md
-        // § A tab strip is a width budget); longer translations still scroll.
-        labelPadding: const EdgeInsets.symmetric(horizontal: 12),
-        labelColor: tokens.ink,
-        unselectedLabelColor: tokens.ink3,
-        indicatorColor: tokens.accent,
-        indicatorWeight: 2,
-        tabs: [for (final tab in _kTabs) Tab(text: context.tr(tab.labelKey))],
+      bottom: SettingsTabStrip(
+        tabBar: TabBar(
+          controller: _controller,
+          isScrollable: true,
+          tabAlignment: TabAlignment.start,
+          // No start inset, unlike the other settings strips: the five tabs
+          // fit a 360 px phone with 4 px to spare, and the inset that would
+          // line the first label up with the content costs 12.
+          // 12 a side, not Material's 16: five tabs at 16 ran 6 px past a 390 px
+          // phone, so the strip scrolled to hide a sliver of "Data". At 12 they
+          // fit down to a 360 px phone in English (docs/pane-width-and-overflow.md
+          // § A tab strip is a width budget); longer translations still scroll.
+          labelPadding: const EdgeInsets.symmetric(horizontal: 12),
+          labelColor: tokens.ink,
+          unselectedLabelColor: tokens.ink3,
+          indicatorColor: tokens.accent,
+          indicatorWeight: 2,
+          tabs: [for (final tab in _kTabs) Tab(text: context.tr(tab.labelKey))],
+        ),
       ),
       // Every tab opens with a card that renders on every platform, so none
       // is ever empty when the platform-gated cards hide themselves.

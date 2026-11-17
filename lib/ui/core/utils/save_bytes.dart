@@ -163,6 +163,13 @@ Future<bool> _printingShare({
 @visibleForTesting
 PdfShare pdfShare = _printingShare;
 
+/// Shares a PDF the user asked to *share* (not download): the share sheet on a
+/// phone, the share picker on macOS, a browser download on web. Gate the
+/// control on `!pdfShareOpensTempCopy()` — on Windows and Linux this only
+/// opens a temp copy, which is what Download is for.
+Future<void> sharePdfBytes(Uint8List bytes, {required String fileName}) =>
+    pdfShare(bytes: bytes, filename: fileName);
+
 /// Downloads a PDF the caller is about to fetch, with everything taken from
 /// [context] now (like [bytesSaver]): on desktop it is written into the
 /// downloads folder; on mobile it is the share sheet and on web a browser

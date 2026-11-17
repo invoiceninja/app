@@ -297,14 +297,34 @@ void main() {
           .map(File.new)
           .map((f) => f.readAsStringSync())
           .join('\n');
+      // A billing document lands on Activity (1) beside its PDF pane, which
+      // already shows the document, and on Overview (2) without it — still
+      // past the pair's first slot, and still 2 wherever the content is not
+      // on screen. The five take that from `BillingDocRecordBody`.
+      final billingLanding =
+          joined.contains('initialIndex: landingTab') &&
+          joined.contains('BillingDocRecordBody(');
       expect(
-        joined,
-        contains('initialIndex: 2'),
+        billingLanding || joined.contains('initialIndex: 2'),
+        isTrue,
         reason:
             '${entry.key} leads with the Comments + Activity pair but does not '
             'push its landing tab past them',
       );
     }
+    final body = File(
+      'lib/ui/features/billing_shared/detail/billing_doc_record_body.dart',
+    ).readAsStringSync();
+    expect(body, contains('activityTabIndex = 1'));
+    expect(body, contains('overviewTabIndex = 2'));
+    expect(
+      body,
+      allOf(
+        contains('_landingTab ??= split'),
+        contains('? BillingDocRecordBody.activityTabIndex'),
+      ),
+      reason: 'Activity beside the PDF pane, Overview without it',
+    );
   });
 
   test('a ViewModel is always both armed and disposed by its owner', () {

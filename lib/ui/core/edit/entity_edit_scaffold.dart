@@ -13,6 +13,7 @@ import 'package:admin/ui/core/adaptive.dart';
 import 'package:admin/ui/core/detail/entity_detail_actions_row.dart';
 import 'package:admin/ui/core/dialogs/discard_changes_dialog.dart';
 import 'package:admin/ui/core/edit/generic_edit_view_model.dart';
+import 'package:admin/ui/core/edit/unsaved_label.dart';
 import 'package:admin/ui/core/list/master_detail_layout.dart';
 import 'package:admin/ui/core/unsaved_changes/unsaved_changes_scope.dart';
 import 'package:admin/ui/core/utils/platform_modifier.dart';
@@ -61,6 +62,7 @@ class EntityEditScaffold<T> extends StatelessWidget {
     this.onAfterSaveAction,
     this.onAfterSaveActionOnCreate,
     this.onSaveCleanup,
+    this.titleTrailing,
   });
 
   final GenericEditViewModel<T> vm;
@@ -172,6 +174,11 @@ class EntityEditScaffold<T> extends StatelessWidget {
   /// a successful re-save — otherwise a prior 422's `dead` row lingers and the
   /// entity re-hydrates a false SaveFailedBanner on the next open. Awaited.
   final FutureOr<void> Function()? onSaveCleanup;
+
+  /// Drawn after the title on a wide header, before the "Unsaved" label —
+  /// a billing document's status pill. Wide only, like that label: the
+  /// narrow header has no room beside the title. Null draws nothing.
+  final WidgetBuilder? titleTrailing;
 
   /// The Discard of the unsaved-changes guard: [resetToEmpty], and the save
   /// that failed on this visit with it (`failedAttemptRowId`). The draft the
@@ -561,6 +568,8 @@ class EntityEditScaffold<T> extends StatelessWidget {
                                 ),
                                 child: title,
                               ),
+                              ?titleTrailing?.call(context),
+                              UnsavedLabel(vm: vm),
                               const SizedBox(width: 12),
                               Expanded(
                                 child: Align(
@@ -615,6 +624,9 @@ class EntityEditScaffold<T> extends StatelessWidget {
                                 ),
                                 child: title,
                               ),
+                              // Wide only: the narrow header has no room.
+                              ?titleTrailing?.call(context),
+                              UnsavedLabel(vm: vm),
                               const SizedBox(width: 12),
                               Expanded(
                                 child: Align(

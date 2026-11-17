@@ -25,6 +25,7 @@ class CustomFieldsExpensesScreen extends StatelessWidget {
       CustomFieldSlotsSection(
         prefix: 'expense',
         title: context.tr('expense_field'),
+        description: context.tr('custom_expense_fields_help'),
       ),
     ],
   );

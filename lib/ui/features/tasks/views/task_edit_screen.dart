@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 
+import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/data/models/domain/task.dart';
 import 'package:admin/l10n/localization.dart';
@@ -15,6 +16,7 @@ import 'package:admin/ui/core/widgets/formatter_host_mixin.dart';
 import 'package:admin/ui/features/tasks/view_models/task_edit_view_model.dart';
 import 'package:admin/ui/features/tasks/widgets/edit/task_edit_layout.dart';
 import 'package:admin/ui/features/tasks/widgets/task_actions.dart';
+import 'package:admin/ui/features/tasks/widgets/task_status_pill.dart';
 
 /// Edit + Create form for a Task. Standard scaffold wiring; the body is
 /// in `TaskEditLayout`, which composes the identity / times / custom-fields
@@ -158,6 +160,28 @@ class _TaskEditScreenState extends State<TaskEditScreen>
       },
       titleWhileLoading: (ctx) =>
           widget.existingId == null ? ctx.tr('new_task') : ctx.tr('edit'),
+      // Title · status · Unsaved on a wide header. The DRAFT's status, not
+      // the saved one: unlike a billing document's, a task's status is a field
+      // of this very form, so the pill follows the picker — and says nothing
+      // while it is blank. Hidden on create, like the billing documents'.
+      titleTrailingBuilder: (ctx, vm) =>
+          vm.isCreate || vm.draft.statusId.isEmpty
+          ? null
+          : Padding(
+              padding: const EdgeInsetsDirectional.only(start: InSpacing.sm),
+              child: TaskStatusPill(
+                statusId: vm.draft.statusId,
+                // The billing documents' pill size (`StatusPill`'s own), not
+                // the 13 px a list row wears.
+                dotSize: 5,
+                textStyle: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: ctx.inTheme.ink,
+                  letterSpacing: 0.2,
+                ),
+              ),
+            ),
       titleBuilder: (ctx, vm) => vm.isCreate
           ? ctx.tr('new_task')
           : (vm.draft.description.isNotEmpty

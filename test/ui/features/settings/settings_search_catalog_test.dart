@@ -104,6 +104,25 @@ void main() {
       );
     });
 
+    test('a revealAs entry maps a key of its tab to another key of it', () {
+      for (final MapEntry(key: slug, value: tabs)
+          in kSettingsSearchCatalog.entries) {
+        for (final tab in tabs) {
+          for (final MapEntry(key: child, value: parent)
+              in tab.revealAs.entries) {
+            expect(
+              tab.keys,
+              containsAll([child, parent]),
+              reason:
+                  '$slug/${tab.path}: revealAs $child → $parent names a key '
+                  'the tab does not list',
+            );
+            expect(child, isNot(parent));
+          }
+        }
+      }
+    });
+
     test('section routes all start with /settings/<slug>', () {
       for (final section in kSettingsSections) {
         expect(
@@ -154,6 +173,25 @@ void main() {
         ),
         isTrue,
       );
+    });
+
+    test('a field drawn under a toggle reveals the toggle', () {
+      final l10n = bundledLocalization();
+      final hit = searchSettings(
+        'stock notifications',
+        l10n,
+      ).firstWhere((h) => h.fieldKey == 'stock_notifications');
+      // The row still reads as the field searched for …
+      expect(hit.section.slug, 'product_settings');
+      // … but opening it flashes Track Inventory, which is on the page
+      // whether or not inventory is tracked.
+      expect(hit.revealKey, 'track_inventory');
+
+      final plain = searchSettings(
+        'track inventory',
+        l10n,
+      ).firstWhere((h) => h.fieldKey == 'track_inventory');
+      expect(plain.revealKey, 'track_inventory');
     });
 
     test('returns no hits for a no-match query', () {

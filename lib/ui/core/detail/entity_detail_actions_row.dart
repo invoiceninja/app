@@ -15,7 +15,8 @@ import 'package:admin/ui/core/widgets/back_dismissible_menu_anchor.dart';
 /// One row item in an [EntityDetailActionsRow].
 ///
 /// Whichever item carries `isPrimary: true` renders as a `FilledButton`
-/// (Edit, by convention). An item with `enabled: false` is **hidden** —
+/// (Edit, by convention) — outlined instead on a record screen whose
+/// quick-action strip already leads with an accent-filled tile. An item with `enabled: false` is **hidden** —
 /// an action that isn't supported in the current context (e.g. "Refund
 /// Payment" while creating a new invoice) simply doesn't appear, rather
 /// than rendering greyed-out with a misleading "Coming soon" hint.
@@ -44,6 +45,7 @@ class EntityActionItem<A> {
     this.confirmMessageKey,
     this.confirmSubject,
     this.iconBuilder,
+    this.menuOnly = false,
   });
 
   final A kind;
@@ -131,6 +133,14 @@ class EntityActionItem<A> {
   /// existing Transifex key over inventing app-local copy.
   final String? confirmMessageKey;
 
+  /// Never a button of its own in a spread action bar — always under its
+  /// More / `⋮`, wherever the bar has room.
+  ///
+  /// For an action that is real but occasional, and that a bar button would
+  /// promote above the day-to-day ones: a client's Settings (the client-level
+  /// settings override) took the slot beside Edit on every client record.
+  final bool menuOnly;
+
   /// The record the action will hit, as a display label ("Acme Corp",
   /// "#0012"). Rendered under the message so a prompt fired from a long list
   /// says *which* row it's about.
@@ -152,6 +162,32 @@ class EntityActionItem<A> {
   final List<EntityActionItem<A>>? children;
 
   bool get hasChildren => children != null && children!.isNotEmpty;
+
+  /// This item with [isPrimary] replaced — every other field carried over.
+  ///
+  /// `filterForEditScreen` clears it: the edit screen's one primary is Save,
+  /// so an action the detail screen promotes (a sent invoice's Enter Payment)
+  /// must not draw filled beside it.
+  EntityActionItem<A> copyWith({bool? isPrimary}) => EntityActionItem<A>(
+    kind: kind,
+    icon: icon,
+    label: label,
+    enabled: enabled,
+    isPrimary: isPrimary ?? this.isPrimary,
+    isEdit: isEdit,
+    onTap: onTap,
+    children: children,
+    disabledTooltipKey: disabledTooltipKey,
+    isLifecycle: isLifecycle,
+    startsGroup: startsGroup,
+    isNavigationOnly: isNavigationOnly,
+    confirm: confirm,
+    isDestructive: isDestructive,
+    confirmMessageKey: confirmMessageKey,
+    confirmSubject: confirmSubject,
+    iconBuilder: iconBuilder,
+    menuOnly: menuOnly,
+  );
 
   /// Whether this item is rendered at all. An unsupported action
   /// (`enabled: false` with a non-null [disabledTooltipKey]) is hidden;
@@ -318,6 +354,17 @@ class EntityOverflowActionBar<A> extends StatelessWidget {
   /// `remaining`→`hidden` slice below correct.
   final Widget? leading;
 
+  /// Whether [item] — or, for a group, any action in its fly-out — is one of
+  /// [menuOnly]. An invoice's Clone tile is `clone`, a child of the bar's
+  /// Clone group; checking the parent's own kind alone drew Clone twice, as a
+  /// tile and as a bar button. The whole group goes under More, where its
+  /// clone-to targets are still a click away.
+  bool _inMenuOnly(EntityActionItem<A> item) {
+    if (menuOnly.contains(item.kind)) return true;
+    final children = item.children;
+    return children != null && children.any(_inMenuOnly);
+  }
+
   @override
   Widget build(BuildContext context) {
     // Drop unsupported actions up front so the visible cluster and the
@@ -336,7 +383,7 @@ class EntityOverflowActionBar<A> extends StatelessWidget {
     final maxInline = ActionBarLayoutScope.maybeMaxInlineOf(context);
     final candidates = [
       for (final item in shown)
-        if (!menuOnly.contains(item.kind)) item,
+        if (!item.menuOnly && !_inMenuOnly(item)) item,
     ];
     final inline = maxInline == null || candidates.length <= maxInline
         ? candidates
@@ -437,9 +484,8 @@ class EntityDetailActionsRow<A> extends StatelessWidget {
     EntityActionItem<A>? primary,
     List<EntityActionItem<A>> rest,
   ) {
-    final tiled =
-        primary != null &&
-        QuickActionKindsScope.watch(context).contains(primary.kind);
+    final tiles = QuickActionKindsScope.watch(context);
+    final tiled = primary != null && tiles.contains(primary.kind);
     final button = tiled ? null : primary;
     final menu = tiled ? [primary, ...rest] : rest;
     // The primary is the one part that can give: on a bar narrower than the
@@ -448,7 +494,13 @@ class EntityDetailActionsRow<A> extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        if (button != null) Flexible(child: _ActionButton<A>(item: button)),
+        if (button != null)
+          Flexible(
+            child: _ActionButton<A>(
+              item: button,
+              neutral: QuickActionKindsScope.hasTilesOf(context),
+            ),
+          ),
         if (button != null && menu.isNotEmpty)
           SizedBox(width: InSpacing.md(context)),
         if (menu.isNotEmpty) _OverflowMenuButton<A>(items: menu),
@@ -502,7 +554,10 @@ class EntityDetailActionsRow<A> extends StatelessWidget {
                 child: EntityOverflowActionBar<A>(
                   leading: primary == null
                       ? null
-                      : _ActionButton<A>(item: primary),
+                      : _ActionButton<A>(
+                          item: primary,
+                          neutral: QuickActionKindsScope.hasTilesOf(context),
+                        ),
                   items: rest,
                   // What the quick-action strip shows stays out of the
                   // spread; it is still in More.
@@ -530,8 +585,16 @@ class EntityDetailActionsRow<A> extends StatelessWidget {
 }
 
 class _ActionButton<A> extends StatelessWidget {
-  const _ActionButton({required this.item});
+  const _ActionButton({required this.item, this.neutral = false});
   final EntityActionItem<A> item;
+
+  /// Draw a primary item outlined, like the rest of the bar: one accent per
+  /// screen. On a record screen whose quick-action strip is showing, the
+  /// strip's first tile is already the accent-filled action, and a filled
+  /// Edit a few pixels above it made the user choose between two. Edit keeps
+  /// its leading place and its `E` shortcut (`docs/detail-screen-layout.md`
+  /// § One accent per screen).
+  final bool neutral;
 
   @override
   Widget build(BuildContext context) {
@@ -555,7 +618,25 @@ class _ActionButton<A> extends StatelessWidget {
         ),
       );
     }
-    final Widget button = item.isPrimary
+    final Widget button = item.isPrimary && neutral
+        ? OutlinedButton.icon(
+            // `Size(0, 40)`, not the theme's infinite-width floor, so it can
+            // sit in a `Row` and still shorten to an ellipsis in the compact
+            // cluster, as the filled form does.
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size(0, 40),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+            ),
+            icon: item.iconWidget(18),
+            label: Text(
+              item.label,
+              maxLines: 1,
+              softWrap: false,
+              overflow: TextOverflow.ellipsis,
+            ),
+            onPressed: item.enabled ? guardedOnTap<A>(context, item) : null,
+          )
+        : item.isPrimary
         ? FilledButton.icon(
             style: FilledButton.styleFrom(
               minimumSize: const Size(0, 40),

@@ -76,7 +76,7 @@ class _AccountManagementEnabledModulesScreenState
                 spacing: 0,
                 children: [
                   for (final module in kEnabledModulesOrder)
-                    SwitchListTile.adaptive(
+                    SwitchListTile(
                       contentPadding: EdgeInsets.zero,
                       title: Text(context.tr(module.labelKey)),
                       value: isModuleEnabled(company.enabledModules, module),

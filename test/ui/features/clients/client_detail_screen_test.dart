@@ -18,6 +18,7 @@ import 'package:admin/ui/features/clients/views/client_detail_screen.dart';
 import 'package:admin/ui/features/clients/widgets/client_actions.dart';
 import 'package:admin/ui/features/clients/widgets/detail/client_detail_header.dart';
 import 'package:admin/ui/features/clients/widgets/detail/client_past_due_line.dart';
+import 'package:admin/ui/core/list/entity_list_status_tabs.dart';
 import 'package:admin/ui/core/list/search/filter_token_chip.dart';
 
 import '../../../_support/record_screen_harness.dart';
@@ -57,11 +58,16 @@ ClientApi _client({
 
 // Far from today in both directions, so no clock or timezone can move an
 // invoice across the line.
-Map<String, dynamic> _invoice(String id, String balance, String due) => {
+Map<String, dynamic> _invoice(
+  String id,
+  String balance,
+  String due, {
+  String statusId = '2',
+}) => {
   'id': id,
   'client_id': 'c1',
   'number': id,
-  'status_id': '2',
+  'status_id': statusId,
   'amount': balance,
   'balance': balance,
   'due_date': due,
@@ -151,6 +157,7 @@ void _screenTest(
   FakeCompany company = const FakeCompany(id: 'co1', name: 'Co'),
   List<FakeCompany> otherCompanies = const [],
   Future<void> Function(WidgetTester tester, RecordScreen screen)? beforeSettle,
+  Size size = const Size(480, 2000),
 }) => recordScreenTest(
   description,
   seed: (services) => services.clients.applyUpdateResponse(
@@ -165,6 +172,7 @@ void _screenTest(
   company: company,
   otherCompanies: otherCompanies,
   beforeSettle: beforeSettle,
+  size: size,
 );
 
 /// The count badge drawn inside the tab labelled [label].
@@ -370,6 +378,14 @@ void main() {
         expect(_badge('Quotes', '0'), findsOneWidget);
         // Payments was never answered — no badge, not a zero.
         expect(_badge('Payments', '0'), findsNothing);
+        // A screen reader hears the label and its count as one phrase, and
+        // Comments carries none.
+        final semantics = tester.ensureSemantics();
+        expect(find.bySemanticsLabel('Invoices, 12'), findsOneWidget);
+        expect(find.bySemanticsLabel('Quotes, 0'), findsOneWidget);
+        expect(find.bySemanticsLabel('Comments'), findsWidgets);
+        expect(find.bySemanticsLabel(RegExp(r'^Comments, ')), findsNothing);
+        semantics.dispose();
 
         expect(counted.counts, isNotEmpty);
         for (final u in counted.counts) {
@@ -515,6 +531,51 @@ void main() {
         }
       },
       server: server,
+    );
+  });
+
+  group('status segments in a tab\'s toolbar', () {
+    final server = _Server()
+      ..invoices = [
+        _invoice('d1', '100.00', '2999-01-01', statusId: '1'),
+        _invoice('s1', '4150.00', '2999-01-01'),
+      ];
+    _screenTest(
+      'where the toolbar has room, one click narrows the list — no counts',
+      _client(),
+      (tester, screen) async {
+        // A table at this width, where the number has no `#`.
+        await screen.untilFound(find.textContaining('s1'), 'the list');
+        final segments = find.byType(EmbeddedStatusSegments);
+        expect(segments, findsOneWidget);
+        // A company-wide count over one client's list would be a lie.
+        expect(
+          find.descendant(of: segments, matching: find.text('2')),
+          findsNothing,
+        );
+        await tester.tap(
+          find.descendant(of: segments, matching: find.text('Draft')),
+        );
+        await screen.until(
+          () => find.textContaining('s1').evaluate().isEmpty,
+          'the narrowed list',
+        );
+        expect(find.textContaining('d1'), findsOneWidget);
+      },
+      server: server,
+      online: true,
+      size: const Size(1100, 2000),
+    );
+
+    _screenTest(
+      'in the pane there is no room, and the Status chip is the way in',
+      _client(),
+      (tester, screen) async {
+        await screen.untilFound(find.text('#s1'), 'the list');
+        expect(find.byType(EmbeddedStatusSegments), findsNothing);
+      },
+      server: server,
+      online: true,
     );
   });
 }

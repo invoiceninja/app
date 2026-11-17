@@ -22,7 +22,11 @@ class CustomFieldsTasksScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) => SettingsFormShell(
     sections: [
-      CustomFieldSlotsSection(prefix: 'task', title: context.tr('task_field')),
+      CustomFieldSlotsSection(
+        prefix: 'task',
+        title: context.tr('task_field'),
+        description: context.tr('custom_task_fields_help'),
+      ),
     ],
   );
 }

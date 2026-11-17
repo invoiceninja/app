@@ -15,7 +15,7 @@ Web is a supported target (`flutter run -d chrome`, `flutter build web`). Native
 ## Conditional-import seams
 
 **Conditional-import seams** (default file = web, `if (dart.library.io)` override = native):
-- `lib/data/db/database_opener.dart` → `_io` (SQLCipher file + keychain key + `.broken.<ts>` recovery) / `_web` (`WasmDatabase` + IndexedDB delete on reset). `pruneBrokenDbFiles` is native-only (`database_opener_io.dart`).
+- `lib/data/db/database_opener.dart` → `_io` (SQLCipher file + keychain key + `.broken.<ts>` recovery) / `_web` (`WasmDatabase` + IndexedDB delete on reset). `pruneBrokenDbFiles` is native-only (`database_opener_io.dart`); `sweepAbandonedStores()` does work only on web, after the first frame (`docs/migrations.md` § Abandoned web stores are swept after the first frame).
 - `lib/data/services/token_storage_factory.dart` → `defaultTokenStorage()`: `SecureTokenStorage` (native) / `LocalStorageTokenStorage` (web).
 - `WebBiometricService` (`biometric_service.dart`) — `isAvailable() => false`; selected via `kIsWeb` in `Services.build`. Biometric/lock UI hides itself.
 

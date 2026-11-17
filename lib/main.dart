@@ -9,6 +9,8 @@ import 'package:provider/provider.dart';
 import 'package:store_services/store_services.dart';
 
 import 'package:admin/app/serving_server.dart';
+import 'package:admin/app/app_reload.dart';
+import 'package:admin/app/corrupt_store_boot.dart';
 import 'package:admin/app/entity_links.dart';
 import 'package:admin/data/repositories/docuninja/docuninja_session.dart';
 import 'package:admin/data/services/docuninja/docuninja_api.dart';
@@ -52,6 +54,7 @@ import 'package:admin/app/user_activity_notification.dart';
 import 'package:admin/app/version.dart';
 import 'package:admin/app/script_fonts.dart';
 import 'package:admin/data/db/app_database.dart';
+import 'package:admin/data/db/database_opener.dart' show sweepAbandonedStores;
 import 'package:admin/data/db/db_open_exception.dart';
 import 'package:admin/data/repositories/auth_repository.dart';
 import 'package:admin/data/repositories/passkey_repository.dart';
@@ -169,6 +172,11 @@ DebugCaptureStore? _debugCaptureStoreRef;
 const _kRestoreBudget = Duration(seconds: 20);
 const _kNavStateBudget = Duration(seconds: 10);
 
+/// Longest the abandoned-store sweep waits for the first frame before it
+/// starts anyway (`sweepAbandonedStores`). It is not awaited by boot either
+/// way; this only keeps it from depending on a frame-timing report.
+const _kStoreSweepCeiling = Duration(seconds: 5);
+
 Future<void> _bootstrap() async {
   WidgetsFlutterBinding.ensureInitialized();
   // Before `Services.build` constructs the first `HttpClient`: the overrides
@@ -225,9 +233,15 @@ Future<void> _bootstrap() async {
   _diagnosticsLogRef = diag;
   mark('diagnostics');
 
+  // A store found corrupt is kept, marked, while its outbox holds work a
+  // reset would lose — on web, which carries nothing across a reset. Not in
+  // the demo: a visitor has no work, and every load wipes it anyway.
+  final corruptResetWaitsForOutbox = kIsWeb && Env.demoApiToken.isEmpty;
   final OpenedDatabase opened;
   try {
-    opened = await openAppDatabase();
+    opened = await openAppDatabase(
+      corruptResetWaitsForOutbox: corruptResetWaitsForOutbox,
+    );
   } on KeyringUnavailableException catch (e, st) {
     // The OS secret store (keychain / keyring) is unreachable, so the
     // encrypted DB can't be opened — e.g. a Linux Snap or Flatpak on a
@@ -373,6 +387,47 @@ Future<void> _bootstrap() async {
     mark('demo token bootstrap');
   }
 
+  // A store that opened cleanly but turned out corrupt in the phases above —
+  // a sign-out wipe hitting a malformed page failed every sign-in, the demo's
+  // included, and left the user on /login. The watch has marked it; on web
+  // one reload lets the next open reset it. See docs/migrations.md:
+  // § A store found corrupt after it opened is repaired at the next open
+  switch (await corruptStoreBootStep(
+    corruption: opened.corruption,
+    db: opened.db,
+    hadCorruptMark: opened.hadCorruptMark,
+    waitsForOutbox: corruptResetWaitsForOutbox,
+  )) {
+    case CorruptStoreBootStep.carryOn:
+      break;
+    case CorruptStoreBootStep.reload:
+      mark('corrupt store: reloading to repair it');
+      reloadApp();
+      // Painted only if the reload has not taken by then — boot must always
+      // paint, but painting at once flashes the error screen at a visitor
+      // whose reload is about to fix it.
+      unawaited(
+        Future<void>.delayed(
+          const Duration(seconds: 3),
+          () => runApp(
+            LocalDataUnavailableApp(
+              detail: '${opened.corruption.detected.value}',
+              kind: DbOpenFailureKind.corrupt,
+            ),
+          ),
+        ),
+      );
+      return;
+    case CorruptStoreBootStep.showRepairScreen:
+      runApp(
+        LocalDataUnavailableApp(
+          detail: '${opened.corruption.detected.value}',
+          kind: DbOpenFailureKind.corrupt,
+        ),
+      );
+      return;
+  }
+
   // Home-screen widgets, after the restore. Started earlier, a cold start's
   // not-yet-restored session reads as signed out and blanks every widget for a
   // moment. After a restore that failed or timed out, no session is not the
@@ -480,6 +535,29 @@ Future<void> _bootstrap() async {
       (_) => mark('first frame'),
     ),
   );
+  // Web: delete the database generations earlier resets abandoned. Off the
+  // boot path on purpose — a store the browser still holds makes each delete
+  // wait out sqlite3's 1 s bound, which used to sit inside db-open. Started
+  // once the first frame is up (or after a ceiling, should the first-frame
+  // timing never arrive), never awaited, and it never throws.
+  // `docs/migrations.md` § Abandoned web stores are swept after the first frame.
+  unawaited(
+    Future.any<void>([
+          WidgetsBinding.instance.waitUntilFirstFrameRasterized,
+          Future<void>.delayed(_kStoreSweepCeiling),
+        ])
+        .then((_) => sweepAbandonedStores())
+        .then((outcome) {
+          if (outcome.attempted == 0) return;
+          mark(
+            'abandoned-store sweep (swept ${outcome.swept} of '
+            '${outcome.attempted}, ${outcome.remaining} left)',
+          );
+        })
+        .catchError((Object e) {
+          Logger('main.boot').warning('abandoned-store sweep failed', e);
+        }),
+  );
   // Web URL strategy is left at Flutter's default (hash — `/#/clients`).
   // This is intentional: hash routing needs no server rewrite-to-index
   // config, so the build deploys to any static host. Do NOT add
@@ -488,7 +566,9 @@ Future<void> _bootstrap() async {
   runApp(
     InvoiceNinjaApp(
       services: services,
-      dbWasReset: opened.wasReset,
+      // The demo wipes its local data on every load by design, so a reset
+      // has nothing to tell a visitor about.
+      dbWasReset: opened.wasReset && Env.demoApiToken.isEmpty,
       localDataRecovery: opened.recovery,
       initialLocation: initialLocation,
       servingServer: servingServer,

@@ -4,6 +4,7 @@ import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/env.dart';
 import 'package:admin/domain/activity/activity_timeline.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/core/widgets/ltr_value.dart';
 import 'package:admin/ui/features/activity/widgets/activity_period_labels.dart';
 import 'package:admin/utils/formatting.dart';
 
@@ -150,8 +151,21 @@ class _ActivityTimelineChartState extends State<ActivityTimelineChart> {
         formatter: widget.formatter,
       );
 
-  String _readout(BuildContext context) {
+  /// What the readout says: a count, the period it covers (null at rest,
+  /// where the window's start is the period), and the same as one sentence
+  /// for a screen reader.
+  ({int count, String? period, String sentence}) _readout(
+    BuildContext context,
+  ) {
     final f = widget.formatter;
+    ({int count, String? period, String sentence}) inPeriod(
+      int count,
+      String period,
+    ) => (
+      count: count,
+      period: period,
+      sentence: '$period · ${activityEventCount(context, count)}',
+    );
     if (_dragAnchor != null && _dragEnd != null) {
       final lo = _dragAnchor! < _dragEnd! ? _dragAnchor! : _dragEnd!;
       final hi = _dragAnchor! < _dragEnd! ? _dragEnd! : _dragAnchor!;
@@ -159,41 +173,75 @@ class _ActivityTimelineChartState extends State<ActivityTimelineChart> {
       for (var i = lo; i <= hi; i++) {
         sum += _buckets[i].count;
       }
-      final label = activityRangeLabel(
-        context,
-        from: _buckets[lo].start,
-        until: _buckets[hi].end,
-        formatter: f,
+      return inPeriod(
+        sum,
+        activityRangeLabel(
+          context,
+          from: _buckets[lo].start,
+          until: _buckets[hi].end,
+          formatter: f,
+        ),
       );
-      return '$label · ${activityEventCount(context, sum)}';
     }
     final hover = _hover;
     if (hover != null && hover < _buckets.length) {
       final b = _buckets[hover];
-      return '${_bucketLabel(context, b)} · '
-          '${activityEventCount(context, b.count)}';
+      return inPeriod(b.count, _bucketLabel(context, b));
     }
     if (_hasRange) {
-      final label = activityRangeLabel(
-        context,
-        from: widget.from,
-        until: widget.until,
-        formatter: f,
+      return inPeriod(
+        widget.selectionCount,
+        activityRangeLabel(
+          context,
+          from: widget.from,
+          until: widget.until,
+          formatter: f,
+        ),
       );
-      return '$label · ${activityEventCount(context, widget.selectionCount)}';
     }
     final total = _buckets.fold<int>(0, (s, b) => s + b.count);
     final oldest = widget.oldestAt;
-    if (oldest == null) return activityEventCount(context, total);
-    return context.tr('activity_timeline_since', {
-      'events': activityEventCount(context, total),
-      'date': activityDayLabel(oldest, f),
+    if (oldest == null) {
+      return (
+        count: total,
+        period: null,
+        sentence: activityEventCount(context, total),
+      );
+    }
+    final date = activityDayLabel(oldest, f);
+    return (
+      count: total,
+      period: date,
+      sentence: context.tr('activity_timeline_since', {
+        'events': activityEventCount(context, total),
+        'date': date,
+      }),
+    );
+  }
+
+  /// The caption beside the big number: what it counts, over which period.
+  String _caption(
+    BuildContext context,
+    ({int count, String? period, String sentence}) r,
+  ) {
+    final one = r.count == 1;
+    final period = r.period;
+    // No rows, so no window start: the number says it all.
+    if (period == null) return '';
+    final atRest = !_hasRange && _dragAnchor == null && _hover == null;
+    if (atRest) {
+      return context.tr(
+        one ? 'activity_readout_since_one' : 'activity_readout_since',
+        {'date': period},
+      );
+    }
+    return context.tr(one ? 'activity_readout_in_one' : 'activity_readout_in', {
+      'period': period,
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    final tokens = context.inTheme;
     final plotHeight = widget.compact ? 40.0 : 88.0;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -205,14 +253,7 @@ class _ActivityTimelineChartState extends State<ActivityTimelineChart> {
           ),
           child: Row(
             children: [
-              Expanded(
-                child: Text(
-                  _readout(context),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 12, color: tokens.ink2),
-                ),
-              ),
+              Expanded(child: _readoutLine(context)),
               if (_hasRange)
                 TextButton.icon(
                   onPressed: widget.onClear,
@@ -259,6 +300,46 @@ class _ActivityTimelineChartState extends State<ActivityTimelineChart> {
           ),
         ),
       ],
+    );
+  }
+
+  /// The big total and its caption — rewritten while a bar is hovered or a
+  /// drag is held, so the number under the pointer is the one that is big.
+  /// One node for a screen reader, read as the plain sentence.
+  Widget _readoutLine(BuildContext context) {
+    final tokens = context.inTheme;
+    final r = _readout(context);
+    return Semantics(
+      liveRegion: true,
+      label: r.sentence,
+      child: ExcludeSemantics(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.baseline,
+          textBaseline: TextBaseline.alphabetic,
+          children: [
+            LtrText(
+              '${r.count}',
+              maxLines: 1,
+              style: TextStyle(
+                fontSize: widget.compact ? 20 : 28,
+                height: 1.1,
+                fontWeight: FontWeight.w600,
+                color: tokens.ink,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
+            const SizedBox(width: InSpacing.sm),
+            Expanded(
+              child: Text(
+                _caption(context, r),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 12, color: tokens.ink2),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

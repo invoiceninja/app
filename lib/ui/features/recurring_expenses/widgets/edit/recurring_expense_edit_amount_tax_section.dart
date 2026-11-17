@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 
+import 'package:admin/data/models/domain/recurring_expense.dart';
 import 'package:admin/ui/features/expenses/widgets/edit/expense_tax_section.dart';
 import 'package:admin/ui/features/recurring_expenses/view_models/recurring_expense_edit_view_model.dart';
 import 'package:admin/ui/features/recurring_expenses/widgets/edit/recurring_expense_edit_identity_section.dart';
@@ -25,6 +26,9 @@ class RecurringExpenseEditAmountTaxSection extends StatelessWidget {
       taxAmounts: [d.taxAmount1, d.taxAmount2, d.taxAmount3],
       usesInclusiveTaxes: d.usesInclusiveTaxes,
       calculateTaxByAmount: d.calculateTaxByAmount,
+      currencyId: d.currencyId,
+      taxTotal: d.taxAmountSum,
+      total: d.grossAmount,
       onAmountChanged: vm.setAmount,
       onTaxNameChanged: (slot, v) =>
           _apply(slot, vm.setTaxName1, vm.setTaxName2, vm.setTaxName3, v),

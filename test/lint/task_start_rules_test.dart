@@ -29,13 +29,15 @@ void main() {
       .join('\n');
 
   test('every path that opens a time entry goes through planTaskStart', () {
-    // Four, not two: the repository primitive behind the inline toggles and
+    // Five, not two: the repository primitive behind the inline toggles and
     // the bulk toolbar, the ⋮ menu's Start and Resume (which share
-    // `_beginTimer`), and the edit screen's own draft-level button, which
-    // never touches the repository at all.
+    // `_beginTimer`), the edit screen's own draft-level button, which never
+    // touches the repository at all, and the project quick-add's Start, which
+    // creates the task already running.
     for (final path in const [
       'lib/data/repositories/task_repository.dart',
       'lib/ui/features/tasks/view_models/task_edit_view_model.dart',
+      'lib/ui/features/projects/widgets/detail/project_quick_add_task.dart',
     ]) {
       expect(
         codeOf(path),
@@ -58,13 +60,46 @@ void main() {
     );
   });
 
+  test('every non-bulk Start moves a not-started task to In progress, and '
+      'bulk never does', () {
+    // `_beginTimer` is the one widget-side start (the ⋮ menu's Start and
+    // Resume, every inline toggle, the home-screen widget's Start). It used to
+    // pass only `claimStatusId`, so a plain Start left a ticking card in
+    // Backlog; the status move is now on every start it makes, with the same
+    // Undo. Silent both ways: a dropped `startStatusId:` just stops moving the
+    // card, and one added to the bulk toolbar moves fifty without an Undo.
+    final actions = codeOf('lib/ui/features/tasks/widgets/task_actions.dart');
+    final dense = actions.replaceAll(RegExp(r'\s+'), '');
+    expect(dense, contains('startStatusId:startStatusId'));
+    expect(
+      dense.contains('claimStatusId:'),
+      isFalse,
+      reason: 'the claim-only parameter would move a status on a claim alone',
+    );
+    final bulk = codeOf(
+      'lib/ui/features/tasks/view_models/task_list_view_model.dart',
+    );
+    expect(bulk, contains('repo.startTimer('));
+    expect(
+      bulk.contains('startStatusId') || bulk.contains('claimStatusId'),
+      isFalse,
+      reason: 'a bulk start never moves a status (no Undo there)',
+    );
+  });
+
   test('one Start glyph across every task surface (flutter#153)', () {
     // The reporter's "one uses a circle around the play symbol, the other
     // doesn't". `stop_circle_outlined` has no un-circled Material sibling, so
     // the pair is settled in the circled direction and the bare arrow is out.
     final dir = Directory('lib/ui/features/tasks');
     final offenders = <String>[];
-    for (final file in dir.listSync(recursive: true).whereType<File>()) {
+    for (final file in [
+      ...dir.listSync(recursive: true).whereType<File>(),
+      // A Start outside the tasks feature: the project's quick-add.
+      File(
+        'lib/ui/features/projects/widgets/detail/project_quick_add_task.dart',
+      ),
+    ]) {
       if (!file.path.endsWith('.dart')) continue;
       final code = file
           .readAsLinesSync()

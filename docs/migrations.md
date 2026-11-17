@@ -224,6 +224,112 @@ having the app open twice abandoned the store, and the next load swept it.
 boot screen's copy says what that keeps on each platform instead of promising that
 everything is re-downloaded.
 
+## A store found corrupt after it opened is repaired at the next open
+
+The open's probe (`SELECT 1`) and schema check (`PRAGMA table_info`) read the schema, not a
+table's own pages, so a store with a malformed table page opens cleanly. It shipped on the
+web demo (2026-11): a sign-out wipe the previous load owed (`kAuthWipePendingKey`) ran
+`DELETE FROM "recurring_invoices"`, hit `SqliteException(11)` (SQLITE_CORRUPT), and the
+throw left `loginWithToken` before activation. `main` logged "Demo token bootstrap failed"
+and the visitor got `/login` — on every load, since nothing ever repaired the store. A real
+user hit the same wall: every sign-in tried the owed wipe first.
+
+- **Detected by every statement, recorded for the next open.** Each opened database runs
+  through `StoreCorruptionWatch` (`lib/data/db/store_corruption.dart`), a drift
+  `QueryInterceptor` armed once the open has settled. The first error
+  `classifyDbOpenFailure` calls `corrupt` (codes 11 and 26, the open path's own reading) is
+  marked through the platform seam (`markStoreCorrupt`), then published on `detected`.
+  Every error is rethrown untouched, and no other kind is marked.
+- **The mark is a file natively and `localStorage` on web.** Natively it is
+  `invoiceninja.sqlite.corrupt` beside the store, outside every snapshot pattern. On web it
+  is `invoiceninja.db.corrupt.v1`, holding the store's *name*. A mark naming a store since
+  abandoned (a later generation is live) is stale and dropped.
+- **The next open checks before it resets.** With the mark set and the schema intact,
+  `openAppDatabase` runs `PRAGMA quick_check`. A store that passes keeps running and the
+  mark is dropped: a mark is a suspicion. One that fails takes `resetAndReopen`, the reset a
+  corrupt open takes. Natively that is quarantine plus salvage; on web, delete, or abandon by
+  generation bump. The mark is cleared only after the reset is verified, so a failed reset
+  (`DatabaseResetFailedException`) leaves it for the next open. A lock or I/O error during
+  the check is classified like any other open failure: store untouched.
+- **On web a damaged store waits for its outbox.** Web has no salvage, so a reset there
+  would take unsynced changes that can still sync. With `corruptResetWaitsForOutbox` (web,
+  except the demo build) and a non-empty outbox, the store is kept, still marked, and resets
+  on the first open after the outbox drains (`corruptStoreMayReset`). An outbox the
+  corruption itself has reached can't drain, so that one resets. Natively the salvage
+  carries the outbox across, so nothing waits.
+- **One automatic reload per launch, at boot only.** After the restore and the demo
+  sign-in, `corruptStoreBootStep` (`lib/app/corrupt_store_boot.dart`) reloads the page on
+  web, through `reloadApp`, when corruption was met. Nothing is in memory yet. It never
+  reloads in these cases, and shows the boot screen for a corrupt store instead (Try again,
+  Reset):
+  - when this launch's open already found a mark (`OpenedDatabase.hadCorruptMark`), since
+    the repair did not cure it;
+  - when the mark did not reach storage, since the next open could not see it, so a reload
+    could only loop.
+
+  Native has no in-place reload: it carries on, and the next launch repairs. Corruption met
+  mid-session is only marked.
+
+Pinned by `test/data/db/store_corruption_test.dart` (the watch, the marked open, the web
+outbox gate, the native mark) and `test/app/corrupt_store_boot_test.dart`. The second runs
+the demo boot through a real `AuthRepository.loginWithToken` over a store whose
+`recurring_invoices` deletes throw SQLITE_CORRUPT. It asserts one reload, then a signed-in
+second load, and no second reload when the reset does not cure it.
+
+**The `VfsException(1)` on deleting `invoiceninja_g1` / `_g2` is not this.** It is
+`IndexedDbFileSystem.deleteDatabase`'s own 1-second timeout (sqlite3 3.7.1
+`vfs/indexed_db.dart`): no success, error or `blocked` event arrived. Those are stores
+abandoned by two earlier resets (§ Why the web database reset needs a store it can abandon,
+`docs/architecture.md`), still held open, most likely by drift's shared worker, which
+outlives a reload. They are different databases from the live one, so they play no part in
+its corruption. They used to cost a second each of the boot's db-open time on every load
+until a sweep succeeded; the sweep now runs after the first frame (next section). They are
+also evidence that this browser has needed a reset before.
+
+## Abandoned web stores are swept after the first frame
+
+**The web sweep of abandoned generations (`invoiceninja_gN`) is never awaited by boot:
+`openDatabaseExecutor()` only snapshots the orphan list, and `main.dart` starts
+`sweepAbandonedStores()` once the first frame is rasterized (or after 5 s, whichever comes
+first).**
+
+The failure it fixes, from a real console:
+
+```
+[WARNING] AppDatabase: Deleting web database store "invoiceninja_g1" failed: VfsException(1)
+[WARNING] AppDatabase: Deleting web database store "invoiceninja_g2" failed: VfsException(1)
+[INFO] main.boot: db-open (incl. secure-storage key): 2204ms
+```
+
+The sweep used to run at the top of `openDatabaseExecutor()`, awaited. A store the browser
+will not release makes each delete wait out `IndexedDbFileSystem.deleteDatabase`'s 1 s bound,
+and the orphan list holds up to 8, so up to 8 s of db-open bought nothing the first frame
+needs.
+
+The logic lives in `OrphanStoreSweep` (`lib/data/db/orphan_store_sweep.dart`), platform-free
+so the VM can test it; `database_opener_web.dart` hands it `localStorage` and the delete, and
+native's `sweepAbandonedStores()` is a no-op. Four things hold:
+
+- **The candidates are fixed by the first open of the load** (`snapshot()`, synchronous,
+  before anything is opened). A store this load abandons is held by this page and would only
+  time out, so it waits for the next load, as before. A reset's reopen keeps the first
+  snapshot.
+- **The live store is never deleted.** The live name is checked before each delete, since a
+  reset during the run moves it; a list entry naming it is dropped, not deleted.
+- **An abandon during the run survives it.** The run re-reads the orphan list at the end and
+  removes only the stores it deleted, so a store a mid-run reset abandoned is still there for
+  the next load. A sign-out wipes rows, never a store, and the sweep reads no rows.
+- **Once per load, and it never throws.** A second `run()` returns the first's future.
+
+What the log says: each store still logs `Swept abandoned web database store` (INFO) or
+`Deleting web database store … failed` (WARNING); the whole run is a `db.orphanSweep`
+`traceAsync` span; and when there was anything to sweep, `main.boot` marks
+`abandoned-store sweep (swept N of M, K left)` after `first frame`.
+
+Pinned by `test/data/db/orphan_store_sweep_test.dart`: an `openAppDatabase` completes while a
+fake slow delete is still pending, then the sweep finishes; plus the live-store, mid-run
+abandon, snapshot and once-per-load cases.
+
 ## A second copy of the app never opens the store
 
 Two processes on one store both drained its outbox, so every change went out twice. A second

@@ -110,4 +110,48 @@ void main() {
     expect(called, isTrue);
     expect(captured, '');
   });
+
+  // R3: the ✕ on the company currency wrote '' and the server kept it.
+  testWidgets('a required field offers no clear at company scope', (
+    tester,
+  ) async {
+    final host = _FakeHost(const CompanySettings());
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildInTheme(InTheme.light),
+        localizationsDelegates: kTestLocalizationsDelegates,
+        supportedLocales: kTestSupportedLocales,
+        home: Scaffold(
+          body: MultiProvider(
+            providers: [
+              ChangeNotifierProvider<SettingsLevelController>.value(
+                value: SettingsLevelController(),
+              ),
+              ChangeNotifierProvider<SettingsDraftHost>.value(value: host),
+            ],
+            child: SizedBox(
+              width: 360,
+              child: OverridableSearchableDropdownField<_Opt>(
+                label: 'Currency',
+                apiKey: 'currency_id',
+                value: '1',
+                items: const [_Opt('1', 'USD'), _Opt('2', 'EUR')],
+                displayString: (o) => o.name,
+                idOf: (o) => o.id,
+                requiredAtCompanyScope: true,
+                onChanged: (_) {},
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final inner = tester.widget<SearchableDropdownField<_Opt>>(
+      find.byType(SearchableDropdownField<_Opt>),
+    );
+    expect(inner.clearable, isFalse);
+    expect(find.byIcon(Icons.close), findsNothing);
+  });
 }

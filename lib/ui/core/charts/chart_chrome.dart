@@ -77,6 +77,7 @@ class ChartLegendToggle extends StatelessWidget {
     required this.color,
     required this.active,
     required this.onTap,
+    this.chip = false,
   });
 
   final String label;
@@ -84,36 +85,71 @@ class ChartLegendToggle extends StatelessWidget {
   final bool active;
   final VoidCallback onTap;
 
+  /// Draw the entry as a bordered chip, filled while its series is shown —
+  /// the dashboard's Cash flow legend. Off, it is a bare swatch and name.
+  final bool chip;
+
   @override
   Widget build(BuildContext context) {
     final tokens = context.inTheme;
     return MergeSemantics(
       child: Semantics(
         toggled: active,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(InRadii.r1),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              minHeight: Env.isTouchPrimary ? InSizes.touchTarget : 28,
-            ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 6),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  ChartSwatch(color: color, filled: active),
-                  const SizedBox(width: 6),
-                  Text(
-                    label,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: active ? tokens.ink : tokens.ink2,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+        child: chip ? _chip(context, tokens) : _bare(context, tokens),
+      ),
+    );
+  }
+
+  Widget _content(BuildContext context, InTheme tokens) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      ChartSwatch(color: color, filled: active),
+      const SizedBox(width: 6),
+      Text(
+        label,
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+          color: active ? tokens.ink : tokens.ink2,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+    ],
+  );
+
+  Widget _bare(BuildContext context, InTheme tokens) => InkWell(
+    onTap: onTap,
+    borderRadius: BorderRadius.circular(InRadii.r1),
+    child: ConstrainedBox(
+      constraints: BoxConstraints(
+        minHeight: Env.isTouchPrimary ? InSizes.touchTarget : 28,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 6),
+        child: _content(context, tokens),
+      ),
+    ),
+  );
+
+  /// A local `Material` paints the fill, so the ink splash lands on it
+  /// (`Ink` is banned — CLAUDE.md § Design system).
+  Widget _chip(BuildContext context, InTheme tokens) {
+    final shape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(InRadii.r2),
+      side: BorderSide(color: tokens.border),
+    );
+    return Material(
+      color: active ? tokens.surfaceAlt : Colors.transparent,
+      shape: shape,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        customBorder: shape,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            minHeight: Env.isTouchPrimary ? InSizes.touchTarget : 32,
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            child: _content(context, tokens),
           ),
         ),
       ),

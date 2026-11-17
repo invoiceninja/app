@@ -36,19 +36,19 @@ class CompanyAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tint = avatarTintFor(seed);
+    final tint = avatarTintFor(context, seed);
     final initials = _initialsFor(name);
     final radius = BorderRadius.circular(size * 0.32);
 
     Widget initialsBox() => Container(
       width: size,
       height: size,
-      decoration: BoxDecoration(color: tint, borderRadius: radius),
+      decoration: BoxDecoration(color: tint.background, borderRadius: radius),
       alignment: Alignment.center,
       child: Text(
         initials,
         style: TextStyle(
-          color: Colors.white,
+          color: tint.ink,
           fontWeight: FontWeight.w700,
           fontSize: size * 0.42,
           letterSpacing: 0.2,

@@ -61,7 +61,7 @@ class VendorDetailContactsCard extends StatefulWidget {
 }
 
 /// The contacts worth rendering. A blank one has nothing to show but
-/// `(no name)`, a primary star, and portal buttons for a link the server mints
+/// `(no name)`, a Primary label, and portal buttons for a link the server mints
 /// for it regardless — the portal stays reachable from
 /// `VendorAction.vendorPortal`. A deleted one is not this vendor's contact any
 /// more.
@@ -120,6 +120,12 @@ class _VendorDetailContactsCardState extends State<VendorDetailContactsCard> {
     final showAll = _expanded || all.length <= _inlineLimit;
     final visible = showAll ? all : all.take(_inlineLimit).toList();
     final hiddenCount = all.length - visible.length;
+    // "Primary" only says something beside another contact.
+    final labelPrimary = all.length >= 2;
+    final avatars = PartyContactRow.railAvatars(
+      context,
+      emails: all.map((c) => c.email),
+    );
 
     return DashboardCardShell(
       title: context.tr('contacts'),
@@ -130,7 +136,13 @@ class _VendorDetailContactsCardState extends State<VendorDetailContactsCard> {
           DetailRowStack(
             children: [
               for (final c in visible)
-                VendorContactRow(c, widget.vendorId, company: widget.company),
+                VendorContactRow(
+                  c,
+                  widget.vendorId,
+                  company: widget.company,
+                  labelPrimary: labelPrimary,
+                  avatar: avatars,
+                ),
             ],
           ),
           if (hiddenCount > 0)
@@ -178,10 +190,20 @@ class VendorContactRow extends StatelessWidget {
     this.vendorId, {
     super.key,
     this.company,
+    this.labelPrimary = false,
+    this.avatar = false,
   });
 
   final VendorContact contact;
   final String vendorId;
+
+  /// Mark the primary contact "Primary" — true only where the vendor has two
+  /// or more contacts worth showing (`PartyContactRow.isPrimary`).
+  final bool labelPrimary;
+
+  /// Lead with an initials avatar seeded on the contact's id
+  /// (`PartyContactRow.railAvatars` decides, for the whole card).
+  final bool avatar;
 
   /// For contact custom-field labels; null draws none.
   final Company? company;
@@ -210,7 +232,12 @@ class VendorContactRow extends StatelessWidget {
       name: '${contact.firstName} ${contact.lastName}'.trim(),
       email: contact.email,
       phone: contact.phone,
-      isPrimary: contact.isPrimary,
+      isPrimary: labelPrimary && contact.isPrimary,
+      avatarSeed: !avatar
+          ? null
+          : (contact.id.isNotEmpty
+                ? contact.id
+                : '${contact.email}|${contact.firstName} ${contact.lastName}'),
       phoneSubject: subject,
       // No `clientId`: a vendor has no settings cascade of its own, so the
       // out-of-hours check falls back to the company's timezone.

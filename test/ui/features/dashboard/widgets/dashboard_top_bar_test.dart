@@ -20,7 +20,6 @@ import 'package:admin/ui/features/dashboard/widgets/dashboard_refresh_button.dar
 import 'package:admin/ui/features/dashboard/widgets/dashboard_top_bar.dart';
 import 'package:admin/ui/features/dashboard/widgets/filters/date_range_picker_button.dart';
 import 'package:admin/ui/features/dashboard/widgets/freshness.dart';
-import 'package:admin/ui/features/dashboard/widgets/manage_dashboard_cards_sheet.dart';
 
 import '../../../../_localization_helper.dart';
 import '../_fake_dashboard_repo.dart';
@@ -224,7 +223,7 @@ void main() {
 
       expect(tester.takeException(), isNull);
       final bar = tester.getRect(find.byType(DashboardTopBar));
-      for (final type in [DashboardRefreshButton, DashboardCardsButton]) {
+      for (final type in [DashboardRefreshButton, DashboardCustomizeButton]) {
         final rect = tester.getRect(find.byType(type));
         expect(rect.right, lessThanOrEqualTo(bar.right), reason: '$type');
         expect(rect.width, greaterThan(0), reason: '$type');
@@ -303,22 +302,109 @@ void main() {
     final pass = vm.refresh();
     await pumpBar(tester, width: 1400);
 
-    final button = tester.widget<TextButton>(
+    final button = tester.widget<IconButton>(
       find.descendant(
         of: find.byType(DashboardRefreshButton),
-        matching: find.byType(TextButton),
+        matching: find.byType(IconButton),
       ),
     );
     expect(button.onPressed, isNull);
-    // The label never changes — only the glyph — so the button's width can't
-    // reflow the header mid-click.
-    expect(find.text('Refresh'), findsOneWidget);
+    // Only the glyph changes, never the extent, so the line can't reflow
+    // mid-click.
+    expect(
+      tester.getSize(find.byType(DashboardRefreshButton)),
+      Size.square(DashboardRefreshButton.extent()),
+    );
     expect(find.byType(CircularProgressIndicator), findsOneWidget);
 
     gate.complete();
     await pass;
     await tester.pump(const Duration(milliseconds: 10));
     expect(find.byType(CircularProgressIndicator), findsNothing);
+  });
+
+  // ---------------------------------------------------------------------------
+  // The arrangement: Refresh beside the stamp it renews, the creates with the
+  // one filled primary at their end, Customize last and quiet.
+
+  testWidgets('Refresh is a small icon at the end of the freshness line', (
+    tester,
+  ) async {
+    final handle = tester.ensureSemantics();
+    await pumpBar(tester, width: 1400, creates: _manyCreates.take(3).toList());
+
+    final refresh = tester.getRect(find.byType(DashboardRefreshButton));
+    final title = tester.getRect(find.text('Acme Corporation'));
+    final stamp = tester.getRect(find.text('Updated just now'));
+    expect(refresh.top, greaterThanOrEqualTo(title.bottom - 1));
+    expect(refresh.left, greaterThanOrEqualTo(stamp.right));
+    // 24 px with a pointer, the touch target on touch (the test platform,
+    // Android, is touch-primary).
+    expect(refresh.size, Size.square(DashboardRefreshButton.extent()));
+    expect(DashboardRefreshButton.extent(), InSizes.touchTarget);
+    expect(find.byTooltip('Refresh dashboard data'), findsOneWidget);
+    expect(
+      tester.getSemantics(find.byType(DashboardRefreshButton)),
+      matchesSemantics(
+        tooltip: 'Refresh dashboard data',
+        isButton: true,
+        isEnabled: true,
+        hasEnabledState: true,
+        hasTapAction: true,
+        isFocusable: true,
+        hasFocusAction: true,
+      ),
+    );
+    handle.dispose();
+  });
+
+  testWidgets('with a pointer, Refresh is 24 px', (tester) async {
+    await pumpBar(tester, width: 1400);
+    expect(
+      tester.getSize(find.byType(DashboardRefreshButton)),
+      const Size(24, 24),
+    );
+  }, variant: TargetPlatformVariant.only(TargetPlatform.macOS));
+
+  testWidgets('one filled primary, last of the creates; Customize at the end', (
+    tester,
+  ) async {
+    await pumpBar(tester, width: 1400, creates: _manyCreates);
+
+    final strip = find.byType(DashboardCreateStrip);
+    final filled = find.descendant(
+      of: strip,
+      matching: find.byType(FilledButton),
+    );
+    expect(filled, findsOneWidget);
+    expect(
+      find.descendant(of: filled, matching: find.text('New Invoice')),
+      findsOneWidget,
+    );
+    final primary = tester.getRect(filled);
+    for (final label in ['Quote', 'Payment', 'More']) {
+      expect(
+        tester
+            .getRect(find.descendant(of: strip, matching: find.text(label)))
+            .right,
+        lessThan(primary.left),
+        reason: '$label sits before the primary',
+      );
+    }
+    // The overflow is the vertical ⋮, never the horizontal ⋯.
+    expect(find.byIcon(Icons.more_vert), findsOneWidget);
+    expect(find.byIcon(Icons.more_horiz), findsNothing);
+
+    final customize = tester.getRect(find.byType(DashboardCustomizeButton));
+    expect(customize.left, greaterThan(primary.right));
+    expect(find.byTooltip('Customize'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(DashboardCustomizeButton),
+        matching: find.byIcon(Icons.tune),
+      ),
+      findsOneWidget,
+    );
   });
 
   // ---------------------------------------------------------------------------

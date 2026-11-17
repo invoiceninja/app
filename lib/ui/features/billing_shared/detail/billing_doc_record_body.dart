@@ -43,7 +43,7 @@ const double kBillingDocPdfSplitMinWidth = 900;
 /// 1000 px at which `EntityRecordColumn` puts the standing card beside the
 /// header until the window is ~2200 px wide. That is intended: a document's
 /// record column is a narrow stack almost everywhere, and is designed as one.
-class BillingDocRecordBody extends StatelessWidget {
+class BillingDocRecordBody extends StatefulWidget {
   const BillingDocRecordBody({
     super.key,
     required this.record,
@@ -51,6 +51,11 @@ class BillingDocRecordBody extends StatelessWidget {
     required this.tabs,
     required this.pdfPane,
   });
+
+  /// The five documents' tab order: Comments, Activity, Overview, then each
+  /// screen's own. Pinned by `comments_surface_wiring_test`.
+  static const int activityTabIndex = 1;
+  static const int overviewTabIndex = 2;
 
   final RecordScreenController record;
 
@@ -61,12 +66,21 @@ class BillingDocRecordBody extends StatelessWidget {
 
   /// The screen's `EntityDetailTabs`, built by the host (the two leading tabs
   /// are pinned to the host file by `comments_surface_wiring_test`). Pass
-  /// `layout` straight to `EntityDetailTabs.layoutBuilder`, and wire
-  /// `onReveal` to `record.page.revealTabs`.
+  /// `layout` straight to `EntityDetailTabs.layoutBuilder`, `landingTab` to
+  /// its `initialIndex`, and wire `onReveal` to `record.page.revealTabs`.
+  ///
+  /// `landingTab` is the tab a freshly opened document lands on, decided the
+  /// first time the body lays out and never again — resizing across the PDF
+  /// split must not change the tab under the user. Beside the PDF pane the
+  /// document itself is on screen, so Overview (its lines and totals) would
+  /// repeat it and Activity — sent, viewed, paid — leads instead; without the
+  /// pane Overview is the document. A tab remembered for this entity's pane
+  /// still wins (`EntityDetailTabs._restoredIndex`).
   final Widget Function(
     BuildContext context,
     bool hasPdfPane,
     EntityDetailTabsLayoutBuilder layout,
+    int landingTab,
   )
   tabs;
 
@@ -74,11 +88,22 @@ class BillingDocRecordBody extends StatelessWidget {
   final WidgetBuilder pdfPane;
 
   @override
+  State<BillingDocRecordBody> createState() => _BillingDocRecordBodyState();
+}
+
+class _BillingDocRecordBodyState extends State<BillingDocRecordBody> {
+  /// See [BillingDocRecordBody.tabs]. Set by the first layout.
+  int? _landingTab;
+
+  @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final split = constraints.maxWidth >= kBillingDocPdfSplitMinWidth;
-        return tabs(
+        final landingTab = _landingTab ??= split
+            ? BillingDocRecordBody.activityTabIndex
+            : BillingDocRecordBody.overviewTabIndex;
+        return widget.tabs(
           context,
           split,
           (context, strip, body) => Row(
@@ -86,18 +111,19 @@ class BillingDocRecordBody extends StatelessWidget {
             children: [
               Expanded(
                 flex: 5,
-                child: record.buildPage(
+                child: widget.record.buildPage(
                   strip: strip,
                   body: body,
-                  top: top(context, split),
+                  top: widget.top(context, split),
                 ),
               ),
               if (split) ...[
                 VerticalDivider(width: 1, color: context.inTheme.border),
-                Expanded(flex: 6, child: pdfPane(context)),
+                Expanded(flex: 6, child: widget.pdfPane(context)),
               ],
             ],
           ),
+          landingTab,
         );
       },
     );
@@ -236,7 +262,14 @@ class BillingDocQuickActions<A> {
   /// The tile for [kind], or null when the document does not have that action
   /// right now. [applies] is the host's "worth a tile for this record" rule,
   /// on top of the item's own `enabled`.
-  EntityQuickAction<A>? pick(A kind, String shortLabel, {bool applies = true}) {
+  /// [onScreen]: what it opens is already showing — see
+  /// `EntityQuickAction.onScreen`.
+  EntityQuickAction<A>? pick(
+    A kind,
+    String shortLabel, {
+    bool applies = true,
+    bool onScreen = false,
+  }) {
     if (_inert) return null;
     final item = findActionItem<A>(_items, kind);
     if (item == null) return null;
@@ -244,6 +277,7 @@ class BillingDocQuickActions<A> {
       item: item,
       shortLabel: shortLabel,
       applies: applies,
+      onScreen: onScreen,
     );
   }
 }

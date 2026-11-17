@@ -407,11 +407,11 @@ class _LoginScreenState extends State<LoginScreen> {
     final vm = _vm;
     final busy = vm.busy;
     final showSocial = vm.socialEnabled;
-    // A page an Invoice Ninja server served signs in to that server: there is
-    // no platform or URL to choose.
-    final served = vm.served != null;
+    // A page an Invoice Ninja server served signs in to that server, and the
+    // public demo never offers a server: no platform or URL to choose.
+    final serverChoice = vm.offersServerChoice;
     return [
-      if (!served) ...[
+      if (serverChoice) ...[
         AuthEyebrowLabel(context.tr('select_platform').toUpperCase()),
         _SegmentedToggle<bool>(
           value: vm.isHosted,
@@ -425,7 +425,7 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
         SizedBox(height: InSpacing.lg(context)),
       ],
-      if (!vm.isHosted && !served) ...[
+      if (!vm.isHosted && serverChoice) ...[
         AuthField(
           key: const ValueKey('login_url'),
           label: context.tr('server_url'),

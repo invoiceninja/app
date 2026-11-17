@@ -1,6 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 
 import 'package:admin/app/design_tokens.dart';
+import 'package:admin/app/env.dart';
 import 'package:admin/domain/tasks/task_schedule.dart';
 import 'package:admin/data/models/value/date.dart';
 import 'package:admin/data/models/domain/time_entry.dart';
@@ -89,13 +90,7 @@ class TimeEntryRow extends StatelessWidget {
           );
 
     final deleteButton = enabled
-        ? IconButton(
-            tooltip: context.tr('remove'),
-            icon: const Icon(Icons.close, size: 16),
-            onPressed: onRemove,
-            visualDensity: VisualDensity.compact,
-            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-          )
+        ? TimeEntryRemoveButton(onPressed: onRemove)
         : null;
 
     final description = Text(
@@ -202,5 +197,44 @@ class TimeEntryRow extends StatelessWidget {
         '${d.day.toString().padLeft(2, '0')}';
     final f = formatter;
     return f == null ? iso : f.date(iso);
+  }
+}
+
+/// The ✕ that removes one time entry — the phone rows' and the desktop
+/// table's, so the two cannot drift apart again.
+///
+/// 44 px under a finger, 32 px with a pointer, and **pinned** at that size
+/// (`docs/touch-targets.md` traps 2, 3 and 5): it used to set
+/// `VisualDensity.compact` with `minWidth: 32` constraints, which a touch
+/// platform's `padded` theme floored at 40 — short of the 44 px floor — while
+/// the density took 8 px off whatever the constraints asked for.
+class TimeEntryRemoveButton extends StatelessWidget {
+  const TimeEntryRemoveButton({super.key, required this.onPressed, this.touch});
+
+  final VoidCallback onPressed;
+
+  /// Overrides [Env.isTouchPrimary]; tests pin it.
+  final bool? touch;
+
+  /// The button's side for this input device.
+  static double extentFor({required bool touch}) =>
+      touch ? InSizes.touchTarget : 32;
+
+  @override
+  Widget build(BuildContext context) {
+    final extent = extentFor(touch: touch ?? Env.isTouchPrimary);
+    return IconButton(
+      tooltip: context.tr('remove'),
+      icon: const Icon(Icons.close, size: 16),
+      onPressed: onPressed,
+      style: IconButton.styleFrom(
+        fixedSize: Size.square(extent),
+        // `fixedSize` is clamped by these; the M3 default minimum is 48.
+        minimumSize: Size.zero,
+        maximumSize: Size.infinite,
+        padding: EdgeInsets.zero,
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      ),
+    );
   }
 }

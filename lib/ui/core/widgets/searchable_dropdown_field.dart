@@ -71,6 +71,7 @@ class SearchableDropdownField<T extends Object> extends StatefulWidget {
     this.idleExcludes,
     this.onCreateRequested,
     this.createLabelKey,
+    this.clearable = true,
   });
 
   /// Resolved (already-translated) field label.
@@ -163,6 +164,13 @@ class SearchableDropdownField<T extends Object> extends StatefulWidget {
   /// Translation key for the create row when the query is empty
   /// (`new_vendor`, say). Defaults to `create`.
   final String? createLabelKey;
+
+  /// False for a value that must always be set — the company's currency,
+  /// language, timezone or date format, where `onChanged(null)` would write a
+  /// blank the whole app then formats with. The ✕ is then offered only over a
+  /// half-typed query, and there it erases the query alone: the committed
+  /// value stays, and a blur still snaps the field back to it.
+  final bool clearable;
 
   @override
   State<SearchableDropdownField<T>> createState() =>
@@ -1231,7 +1239,12 @@ class _SearchableDropdownFieldState<T extends Object>
         // Text, not `_committed != null`: `T` can be `String`, and a picker
         // whose "unset" option is the empty string (dropdown custom fields)
         // has a non-null committed value with nothing to clear.
-        final canClear = textController.text.isNotEmpty;
+        //
+        // A required field ([SearchableDropdownField.clearable] false) keeps
+        // the ✕ only for a typed query — there is no selection to clear.
+        final canClear =
+            textController.text.isNotEmpty &&
+            (widget.clearable || !_isPristine(textController.text));
         if (_creating) {
           return const Padding(
             padding: EdgeInsetsDirectional.only(end: InSpacing.sm * 1.5),
@@ -1261,6 +1274,13 @@ class _SearchableDropdownFieldState<T extends Object>
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
                 onPressed: () {
+                  if (!widget.clearable) {
+                    // Erase the query, never the value: `_committed` stays,
+                    // so focus and the reopened idle list lead with it and a
+                    // blur snaps the text back.
+                    textController.clear();
+                    return;
+                  }
                   // Both read BEFORE the mutation below: `_isPristine` reads
                   // the controller and `_parentOwnsCommitted` reads
                   // `_committed`.

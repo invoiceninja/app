@@ -9,6 +9,7 @@ import 'package:admin/data/models/domain/dashboard/dashboard_list_rows.dart';
 import 'package:admin/data/models/value/company_format_settings.dart';
 import 'package:admin/data/models/value/currency.dart';
 import 'package:admin/data/models/value/date.dart';
+import 'package:admin/data/models/value/datetime_format.dart';
 import 'package:admin/ui/features/dashboard/view_models/async_section.dart';
 import 'package:admin/ui/features/dashboard/widgets/dashboard_panel_grid.dart';
 import 'package:admin/ui/features/dashboard/widgets/dashboard_record_row.dart';
@@ -40,6 +41,15 @@ final _formatter = Formatter(
   },
   countries: const {},
   dateFormats: const {},
+);
+
+/// [_formatter] with the company's `date_format_id` resolvable, as in the
+/// app; [_formatter] has no formats, where `Formatter.date` falls back to ISO.
+final _datedFormatter = Formatter(
+  settings: CompanyFormatSettings.fallback,
+  currencies: _formatter.currencies,
+  countries: const {},
+  dateFormats: const {'5': DatetimeFormat(id: '5', format: 'MMM d, yyyy')},
 );
 
 DashboardInvoiceRow _inv(String id, {Date? due, String balance = '100'}) =>
@@ -139,9 +149,18 @@ void main() {
         ]),
       );
 
-      expect(richText('0050 · Acme'), findsOneWidget);
-      expect(richText('due in 3 days'), findsOneWidget);
-      expect(richText('due today'), findsOneWidget);
+      // A table row: the number in its own column, the client beside it, the
+      // due date over how near it is.
+      expect(find.text('0050'), findsOneWidget);
+      expect(find.text('Acme'), findsNWidgets(2));
+      expect(richText('2026-10-17'), findsOneWidget);
+      expect(find.text('due in 3 days'), findsOneWidget);
+      expect(find.text('due today'), findsOneWidget);
+      expect(
+        tester.getTopLeft(find.text('due in 3 days')).dy,
+        greaterThan(tester.getTopLeft(richText('2026-10-17')).dy),
+        reason: 'the relative line sits under the date',
+      );
       // The balance, not the invoice's original amount: the column used to be
       // headed "Amount" over the balance.
       expect(find.text(r'$80.00'), findsOneWidget);
@@ -151,6 +170,43 @@ void main() {
     // The server's "upcoming" includes a sent invoice with no due date at
     // all — every one of the demo account's is. A bare dash in an unlabelled
     // slot is a mark with no meaning; this one says what is true.
+    testWidgets('the due date is the company format, never ISO', (
+      tester,
+    ) async {
+      await pumpCard(
+        tester,
+        UpcomingInvoicesCard(
+          section: AsyncSection.ready([
+            _inv('0050', due: const Date(2026, 11, 20)),
+          ]),
+          formatter: _datedFormatter,
+          today: _today,
+          compact: false,
+          onInvoiceTap: (_) {},
+          onViewAll: () {},
+          onRetry: () {},
+        ),
+      );
+
+      expect(find.text('Nov 20, 2026'), findsOneWidget);
+      expect(
+        find.textContaining('2026-11-20', findRichText: true),
+        findsNothing,
+      );
+    });
+
+    testWidgets('a due date past the window says nothing relative', (
+      tester,
+    ) async {
+      await pumpCard(
+        tester,
+        card([_inv('0060', due: const Date(2026, 12, 20))]),
+      );
+
+      expect(richText('2026-12-20'), findsOneWidget);
+      expect(find.textContaining('due in'), findsNothing);
+    });
+
     testWidgets('an invoice with no due date says so in words', (tester) async {
       await pumpCard(tester, card([_inv('0052')]));
 
@@ -173,7 +229,7 @@ void main() {
         ),
       );
 
-      await tester.tap(richText('0050 · Acme'));
+      await tester.tap(find.text('Acme'));
       expect(opened, ['0050']);
 
       await tester.tap(find.byTooltip('Enter Payment'));
@@ -241,9 +297,10 @@ void main() {
       );
 
       expect(tester.takeException(), isNull);
-      // Two lines: the "when" sits under the identity, not beside it.
+      // Two lines: the "when" sits under the identity, not beside it, and on
+      // a phone the relative words ride on the date's line.
       expect(
-        tester.getTopLeft(richText('due in 3 days')).dy,
+        tester.getTopLeft(richText('2026-10-17 · due in 3 days')).dy,
         greaterThan(tester.getTopLeft(richText('0050 · Acme')).dy),
       );
     });
@@ -284,6 +341,77 @@ void main() {
       }
     });
   }
+
+  // The wide form is a table row whose cells may carry a second line (a date
+  // over "due in 3 days", an amount over "≈ base"). Rows with and without
+  // second lines sit in the same card and beside each other, so the floor
+  // already holds two lines.
+  for (final platform in const [TargetPlatform.macOS, TargetPlatform.android]) {
+    testWidgets(
+      'a row with second lines is as tall as one without ($platform)',
+      (tester) async {
+        debugDefaultTargetPlatformOverride = platform;
+        try {
+          DashboardRecordRow row({required bool lines}) => DashboardRecordRow(
+            number: '0042',
+            client: 'Acme Ltd',
+            lead: '2026-10-05',
+            subline: lines ? '12 days late' : null,
+            sublineIsLate: lines,
+            clientNote: lines ? const Text('for invoice 0011') : null,
+            amountNote: lines ? r'≈ $1,512.00' : null,
+            amount: '£1,200.00',
+            onTap: () {},
+            compact: false,
+          );
+          await pumpCard(tester, row(lines: false));
+          final plain = tester.getSize(find.byType(DashboardRecordRow)).height;
+          await pumpCard(tester, row(lines: true));
+          expect(tester.takeException(), isNull);
+          expect(tester.getSize(find.byType(DashboardRecordRow)).height, plain);
+          // Each second line sits under its first.
+          expect(
+            tester.getTopLeft(find.text('12 days late')).dy,
+            greaterThan(tester.getTopLeft(find.text('2026-10-05')).dy),
+          );
+          expect(
+            tester.getTopLeft(find.text(r'≈ $1,512.00')).dy,
+            greaterThan(tester.getTopLeft(find.text('£1,200.00')).dy),
+          );
+          expect(
+            tester.widget<Text>(find.text('12 days late')).style!.color,
+            isSameColorAs(InTheme.light.overdue),
+          );
+        } finally {
+          debugDefaultTargetPlatformOverride = null;
+        }
+      },
+    );
+  }
+
+  testWidgets('the phone form drops the notes and keeps two lines', (
+    tester,
+  ) async {
+    await pumpCard(
+      tester,
+      DashboardRecordRow(
+        number: '0042',
+        client: 'Acme Ltd',
+        lead: '2026-10-05',
+        subline: '12 days late',
+        clientNote: const Text('for invoice 0011'),
+        amountNote: r'≈ $1,512.00',
+        amount: '£1,200.00',
+        onTap: () {},
+        compact: true,
+      ),
+      width: 360,
+    );
+    expect(richText('0042 · Acme Ltd'), findsOneWidget);
+    expect(richText('2026-10-05 · 12 days late'), findsOneWidget);
+    expect(find.text('for invoice 0011'), findsNothing);
+    expect(find.text(r'≈ $1,512.00'), findsNothing);
+  });
 
   // The form the needs-attention band's columns use on a wide screen:
   //
@@ -478,7 +606,7 @@ void main() {
         ),
       );
 
-      expect(richText('0050 · Acme'), findsOneWidget);
+      expect(find.text('0050'), findsOneWidget);
       expect(find.text("Couldn't load"), findsNothing);
     });
   });
@@ -615,9 +743,19 @@ void main() {
         ),
       );
 
-      expect(richText('Expired 2026-10-01'), findsOneWidget);
-      // No date on the record: the bare word, not "Expired " and a gap.
-      expect(find.text('Expired', findRichText: true), findsOneWidget);
+      // The date it lapsed, "Expired" under it in the late tone.
+      expect(richText('2026-10-01'), findsOneWidget);
+      // The lead of the dateless row is a rich run; the subline a plain line.
+      final under = find.byWidgetPredicate(
+        (w) => w is Text && w.data == 'Expired',
+      );
+      expect(under, findsOneWidget);
+      expect(
+        tester.widget<Text>(under).style!.color,
+        isSameColorAs(InTheme.light.overdue),
+      );
+      // No date on the record: the bare word leads, not "Expired " and a gap.
+      expect(find.text('Expired', findRichText: true), findsNWidgets(2));
       // Nothing can be done about a lapsed quote from here.
       expect(find.byType(IconButton), findsNothing);
     });
@@ -645,7 +783,13 @@ void main() {
       // A "Completed" pill on every row hid the one that was not.
       expect(richText('Completed'), findsNothing);
       expect(richText('2026-10-09 · Refunded'), findsOneWidget);
+      // Ordinary ink: no "+", no green — a payment is not a gain to flag.
       expect(find.text(r'$75.00'), findsNWidgets(2));
+      expect(find.textContaining('+'), findsNothing);
+      expect(
+        tester.widget<Text>(find.text(r'$75.00').first).style!.color,
+        isSameColorAs(InTheme.light.ink),
+      );
     });
   });
 
@@ -675,7 +819,8 @@ void main() {
         ),
       );
 
-      expect(richText('R-0001 · Acme Recurring'), findsOneWidget);
+      expect(find.text('R-0001'), findsOneWidget);
+      expect(find.text('Acme Recurring'), findsOneWidget);
       expect(richText('2026-11-01'), findsOneWidget);
       expect(find.text(r'$300.00'), findsOneWidget);
     });

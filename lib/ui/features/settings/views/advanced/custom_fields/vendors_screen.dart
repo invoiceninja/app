@@ -29,6 +29,7 @@ class CustomFieldsVendorsScreen extends StatelessWidget {
       sections: [
         FormSection(
           title: context.tr('vendor_field'),
+          description: context.tr('custom_vendor_fields_help'),
           children: [
             for (var i = 1; i <= 4; i++)
               CustomFieldRow<CustomFieldsViewModel>(

@@ -35,6 +35,8 @@ class _FakeVM extends GenericEditViewModel<String> {
   bool saveCalled = false;
   Map<String, String>? consumedQuery;
 
+  void edit(String next) => updateDraft(next);
+
   @override
   Future<SaveResult<String>> performSave() async {
     saveCalled = true;
@@ -440,6 +442,54 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(vm.saveCalled, isTrue);
+    });
+  });
+
+  group('Unsaved label', () {
+    testWidgets('wide: appears beside the title once the form is dirty, as a '
+        'live region', (tester) async {
+      final vm = _FakeVM(initialDraft: 'd', original: 'd');
+      await _pump(
+        tester,
+        vm: vm,
+        canSave: true,
+        surface: const Size(1200, 800),
+        items: (_) => const [],
+      );
+      expect(find.text('Unsaved'), findsNothing);
+
+      vm.edit('e');
+      await tester.pump();
+      expect(find.text('Unsaved'), findsOneWidget);
+      final live = tester.widget<Semantics>(
+        find
+            .ancestor(
+              of: find.text('Unsaved'),
+              matching: find.byType(Semantics),
+            )
+            .first,
+      );
+      expect(live.properties.liveRegion, isTrue);
+
+      // No "Saved" state: back to clean, the label just goes.
+      vm.edit('d');
+      await tester.pump();
+      expect(find.text('Unsaved'), findsNothing);
+    });
+
+    testWidgets('narrow: never shown', (tester) async {
+      final vm = _FakeVM(initialDraft: 'd', original: 'd');
+      await _pump(
+        tester,
+        vm: vm,
+        canSave: true,
+        surface: const Size(360, 640),
+        items: (_) => const [],
+      );
+      vm.edit('e');
+      await tester.pump();
+      expect(find.text('Unsaved'), findsNothing);
+      expect(tester.takeException(), isNull);
     });
   });
 }

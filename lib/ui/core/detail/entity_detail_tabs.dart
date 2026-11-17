@@ -9,6 +9,7 @@ import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/detail/detail_tab_navigator.dart';
 import 'package:admin/ui/core/list/master_detail_nav_scope.dart';
 import 'package:admin/ui/core/widgets/back_dismissible_menu_anchor.dart';
+import 'package:admin/ui/core/widgets/tab_count_badge.dart';
 
 /// One tab in an [EntityDetailTabs] strip. `label` is the rendered string
 /// (already localized); the body is built lazily via [bodyBuilder] so per-tab
@@ -620,11 +621,13 @@ class _TabStripState extends State<_TabStrip> {
     // costs nothing, because the clamp below pins tab 0 to `minScrollExtent`
     // (whereupon the leading fade is not drawn at all) and the last tab to
     // `maxScrollExtent`.
-    // On the trailing side the "all tabs" button stands where the fade would
-    // be, so that is what the revealed tab has to clear there.
+    // On the trailing side the "all tabs" button stands at the edge with its
+    // own fade before it, so the revealed tab has to clear both there.
     final bounds = box.paintBounds;
     final rtl = Directionality.of(context) == TextDirection.rtl;
-    final endGutter = _allTabsShown ? _allTabsSlot : _kStripEdgeFade;
+    final endGutter = _allTabsShown
+        ? _allTabsSlot + _kStripEdgeFade
+        : _kStripEdgeFade;
     final withGutter = Rect.fromLTRB(
       bounds.left - (rtl ? endGutter : _kStripEdgeFade),
       bounds.top,
@@ -820,8 +823,18 @@ class _TabStripState extends State<_TabStrip> {
                             : null;
                         final atStart =
                             p == null || p.pixels <= p.minScrollExtent;
+                        final atEnd =
+                            p == null || p.pixels >= p.maxScrollExtent;
                         return Stack(
-                          children: [if (!atStart) _leadingFade(tokens)],
+                          children: [
+                            if (!atStart) _leadingFade(tokens),
+                            // Before the all-tabs button: a label the button
+                            // cuts through ("Unapplied Paym") read as a
+                            // truncated word, not as a strip that scrolls.
+                            // Gated like the leading one — at the end the
+                            // last tab sits clear of the button.
+                            if (overflows && !atEnd) _trailingFade(tokens),
+                          ],
                         );
                       },
                     ),
@@ -857,6 +870,23 @@ class _TabStripState extends State<_TabStrip> {
       ),
     );
   }
+
+  /// The fade just before the all-tabs button's slot, toward the end edge.
+  Widget _trailingFade(InTheme tokens) => PositionedDirectional(
+    top: 0,
+    bottom: 0,
+    end: _allTabsSlot,
+    child: Container(
+      width: _kStripEdgeFade,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: AlignmentDirectional.centerStart,
+          end: AlignmentDirectional.centerEnd,
+          colors: [tokens.bg.withValues(alpha: 0), tokens.bg],
+        ),
+      ),
+    ),
+  );
 
   /// Directional, so it lands on the correct physical edge in a right-to-left
   /// locale.
@@ -915,6 +945,9 @@ class _TabButton extends StatelessWidget {
       child: Semantics(
         selected: active,
         button: true,
+        // Re-declared beside the role: the label below excludes the texts
+        // (`semantics_excludes_need_ontap_test`).
+        onTap: onTap,
         child: InkWell(
           onTap: onTap,
           focusNode: focusNode,
@@ -935,62 +968,38 @@ class _TabButton extends StatelessWidget {
             ),
             child: ConstrainedBox(
               constraints: BoxConstraints(minHeight: contentFloor),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // No icon in the strip, at any width: it is decoration
-                  // that costs 24 px a tab. On a 390 px phone that was a
-                  // fourth tab pushed behind the ▾ (invoiceninja/flutter#187),
-                  // and in a 785 px pane beside the PDF it was the sixth. The
-                  // label says which tab it is; the all-tabs menu keeps its
-                  // icons.
-                  Text(
-                    tab.label,
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: active ? FontWeight.w600 : FontWeight.w500,
-                      color: color,
+              // One label for the label and its count — "Invoices, 1" — or a
+              // screen reader runs the two together as "Invoices 1", or reads
+              // the badge as a separate node. The tap action is the
+              // `InkWell`'s, above this, so excluding the texts keeps it.
+              child: Semantics(
+                label: count == null ? tab.label : '${tab.label}, $count',
+                excludeSemantics: true,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // No icon in the strip, at any width: it is decoration
+                    // that costs 24 px a tab. On a 390 px phone that was a
+                    // fourth tab pushed behind the ▾ (invoiceninja/flutter#187),
+                    // and in a 785 px pane beside the PDF it was the sixth. The
+                    // label says which tab it is; the all-tabs menu keeps its
+                    // icons.
+                    Text(
+                      tab.label,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: active ? FontWeight.w600 : FontWeight.w500,
+                        color: color,
+                      ),
                     ),
-                  ),
-                  if (count != null) ...[
-                    const SizedBox(width: 6),
-                    _TabCount(count: count, tokens: tokens),
+                    if (count != null) ...[
+                      const SizedBox(width: 6),
+                      TabCountBadge(count: count),
+                    ],
                   ],
-                ],
+                ),
               ),
             ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// The count beside a tab label. A zero stays muted whatever the tab — it is
-/// the one number that means there is nothing to look at.
-class _TabCount extends StatelessWidget {
-  const _TabCount({required this.count, required this.tokens});
-
-  final int count;
-  final InTheme tokens;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: tokens.surfaceAlt,
-        borderRadius: BorderRadius.circular(InRadii.r1),
-        border: Border.all(color: tokens.border),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-        child: Text(
-          '$count',
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-            color: count == 0 ? tokens.ink3 : tokens.ink2,
-            fontFeatures: const [FontFeature.tabularFigures()],
           ),
         ),
       ),
@@ -1122,10 +1131,7 @@ class _AllTabsButton extends StatelessWidget {
                                   ),
                                 ),
                                 if (tabs[i].count != null)
-                                  _TabCount(
-                                    count: tabs[i].count!,
-                                    tokens: tokens,
-                                  ),
+                                  TabCountBadge(count: tabs[i].count!),
                                 if (i == activeIndex) ...[
                                   const SizedBox(width: InSpacing.sm),
                                   Icon(

@@ -278,4 +278,48 @@ void main() {
       );
     });
   });
+
+  // Regression: on a new payment the action bar's Send Email saved the
+  // create (with the Email receipt switch's receipt) and then sent another.
+  // The switch is the new payment's only way to send one; an existing
+  // payment keeps the action (and has no switch).
+  group('the edit screen\'s action bar', () {
+    Future<List<EntityActionItem<PaymentAction>>> editItems(
+      WidgetTester tester, {
+      required bool isCreate,
+    }) async {
+      final fixture = await buildFixture(
+        companies: [const FakeCompany(id: 'co1', name: 'Co')],
+      );
+      addTearDown(fixture.dispose);
+      late List<EntityActionItem<PaymentAction>> items;
+      await tester.pumpWidget(
+        wrapWithShell(
+          fixture.services,
+          Builder(
+            builder: (context) {
+              items = PaymentActions.editScreenItemsFor(
+                context,
+                _payment(id: isCreate ? '' : 'pay1'),
+                (_) {},
+                isCreate: isCreate,
+              );
+              return const SizedBox.shrink();
+            },
+          ),
+        ),
+      );
+      return items;
+    }
+
+    testWidgets('a new payment offers no Send Email', (tester) async {
+      final items = await editItems(tester, isCreate: true);
+      expect(present(items, PaymentAction.sendEmail), isFalse);
+    });
+
+    testWidgets('an existing payment keeps it', (tester) async {
+      final items = await editItems(tester, isCreate: false);
+      expect(present(items, PaymentAction.sendEmail), isTrue);
+    });
+  });
 }

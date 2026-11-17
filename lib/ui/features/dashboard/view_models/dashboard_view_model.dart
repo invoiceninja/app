@@ -7,6 +7,7 @@ import 'package:logging/logging.dart';
 import 'package:admin/app/resync_controller.dart';
 import 'package:admin/data/db/dao/nav_state_dao.dart';
 import 'package:admin/data/models/domain/dashboard/dashboard_activity.dart';
+import 'package:admin/data/models/domain/dashboard/dashboard_aging.dart';
 import 'package:admin/data/models/domain/dashboard/dashboard_calculated_field.dart';
 import 'package:admin/data/models/domain/dashboard/dashboard_card_config.dart';
 import 'package:admin/data/models/domain/dashboard/dashboard_chart_series.dart';
@@ -149,6 +150,13 @@ class DashboardViewModel extends ChangeNotifier {
   /// What is unpaid today, whatever the date range — only its `outstanding`
   /// bucket is read. See `DashboardKind.totalsOutstanding`.
   AsyncSection<DashboardTotals> outstanding = const AsyncSection.idle();
+
+  /// What is unpaid today by how late it is — the bar under Outstanding. See
+  /// `DashboardKind.aging`. **Shown only while it holds data**: a failure, a
+  /// first load and a server without the endpoint (`DashboardAging.
+  /// unsupported`) all leave the bar out, and a failure here never counts
+  /// against a refresh pass (see [_runRefresh]).
+  AsyncSection<DashboardAging> aging = const AsyncSection.idle();
   AsyncSection<DashboardChartSeries> chart = const AsyncSection.idle();
   AsyncSection<List<DashboardActivity>> activities = const AsyncSection.idle();
   AsyncSection<List<DashboardInvoiceRow>> pastDue = const AsyncSection.idle();
@@ -163,8 +171,8 @@ class DashboardViewModel extends ChangeNotifier {
   AsyncSection<List<DashboardRecurringInvoiceRow>> upcomingRecurring =
       const AsyncSection.idle();
 
-  /// Which chart series the legend has enabled. Default = all four, matching
-  /// the React web client. Reassigned (never mutated in place) by
+  /// Which chart series the legend has enabled. Default = all of them.
+  /// Reassigned (never mutated in place) by
   /// [toggleChartSeries] and `_hydrate` — see [kDefaultChartSeries].
   Set<ChartSeriesId> visibleChartSeries = kDefaultChartSeries;
 
@@ -242,12 +250,13 @@ class DashboardViewModel extends ChangeNotifier {
   Listenable listenableFor(String kind) =>
       _sectionNotifiers[kind] ?? (_sectionNotifiers[kind] = _SectionNotifier());
 
-  /// The figures read the period totals, their comparison and what is
-  /// outstanding today, so they listen to all three.
+  /// The figures read the period totals, their comparison, what is
+  /// outstanding today and how late it is, so they listen to all four.
   late final Listenable kpiListenable = Listenable.merge([
     listenableFor(DashboardKind.totalsCurrent),
     listenableFor(DashboardKind.totalsPrevious),
     listenableFor(DashboardKind.totalsOutstanding),
+    listenableFor(DashboardKind.aging),
   ]);
 
   /// The periods the figures' trends compare, or null when there is nothing
@@ -809,14 +818,23 @@ class DashboardViewModel extends ChangeNotifier {
         _filter,
         cards: dashboardCards,
       );
-      if (errors.isNotEmpty) {
+      // The aging bar is optional by design — it hides on any failure, and an
+      // older server has no endpoint for it — so its failure is filed on its
+      // own section and never makes the pass a failed one: no refresh toast,
+      // and "Updated just now" still moves.
+      final agingError = errors[DashboardKind.aging];
+      if (agingError != null || aging.hasError) {
+        _setSectionError(DashboardKind.aging, agingError);
+      }
+      final counted = {...errors}..remove(DashboardKind.aging);
+      if (counted.isNotEmpty) {
         // Streams will emit the latest cached value (possibly null/stale);
         // mark the failing sections as error so the per-card retry surfaces.
-        _foldPerSectionErrors(errors);
+        _foldPerSectionErrors(counted);
         // This — not the catch below — is the path a failed pass actually
         // takes. Leaving globalError null here made it look like a safety net
         // while being permanently unset.
-        if (reportGlobalError) globalError = errors.values.first;
+        if (reportGlobalError) globalError = counted.values.first;
       } else {
         lastRefreshed = _now();
         if (rearmPanels) panelRefreshNonce = lastRefreshed;
@@ -846,6 +864,7 @@ class DashboardViewModel extends ChangeNotifier {
         kind != DashboardKind.totalsCurrent &&
         kind != DashboardKind.totalsPrevious &&
         kind != DashboardKind.totalsOutstanding &&
+        kind != DashboardKind.aging &&
         kind != DashboardKind.chart) {
       return;
     }
@@ -862,6 +881,8 @@ class DashboardViewModel extends ChangeNotifier {
             companyId,
             includeDrafts: _filter.includeDrafts,
           );
+        case DashboardKind.aging:
+          await repo.refreshAging(companyId);
         case DashboardKind.chart:
           await repo.refreshChart(companyId, _filter);
         case DashboardKind.activities:
@@ -928,6 +949,12 @@ class DashboardViewModel extends ChangeNotifier {
 
   void _subscribeAll() {
     _resubscribeFilterKeyed();
+    // Keyed by nothing in the filter — opened once, like the list cards.
+    _subscribe(
+      DashboardKind.aging,
+      repo.watchAging(companyId),
+      (d) => aging = aging.withData(d),
+    );
     _subscribe(
       DashboardKind.activities,
       repo.watchActivities(companyId),
@@ -1110,6 +1137,15 @@ class DashboardViewModel extends ChangeNotifier {
         outstanding = err == null
             ? outstanding.withData(outstanding.data)
             : AsyncSection.error(err, data: outstanding.data);
+      case DashboardKind.aging:
+        final data = aging.data;
+        // `withData(null)` keeps an error, and with nothing cached a cleared
+        // aging error would then outlive the pass that cleared it.
+        aging = err != null
+            ? AsyncSection.error(err, data: data)
+            : data == null
+            ? const AsyncSection.idle()
+            : AsyncSection.ready(data);
       case DashboardKind.totalsPrevious:
         totalsPrevious = err == null
             ? totalsPrevious.withData(totalsPrevious.data)
@@ -1573,11 +1609,14 @@ enum _Synced {
 }
 
 /// Series ids that the chart card can toggle via legend chips.
-enum ChartSeriesId { invoices, payments, outstanding, expenses }
+///
+/// The Cash flow chart's three. The fourth, `outstanding` ("Unpaid"), was
+/// dropped with the bar chart; a stored legend naming it parses without it
+/// (every reader matches names against these values), and one naming only it
+/// falls back to [kDefaultChartSeries].
+enum ChartSeriesId { invoices, payments, expenses }
 
-/// Legend default: all four series, matching the React web client, which
-/// renders invoices/payments/outstanding/expenses unconditionally with no
-/// toggle at all (`react/src/pages/dashboard/components/Chart.tsx`). See #23.
+/// Legend default: every series. See #23.
 ///
 /// Kept a `const` literal rather than `ChartSeriesId.values.toSet()`: every VM
 /// aliases this value until something reassigns, and a shared *growable* set
@@ -1586,7 +1625,6 @@ enum ChartSeriesId { invoices, payments, outstanding, expenses }
 const Set<ChartSeriesId> kDefaultChartSeries = {
   ChartSeriesId.invoices,
   ChartSeriesId.payments,
-  ChartSeriesId.outstanding,
   ChartSeriesId.expenses,
 };
 

@@ -7,6 +7,8 @@ import 'package:admin/data/repositories/_repository_helpers.dart';
 import 'package:admin/data/repositories/invoice_repository.dart';
 import 'package:admin/data/services/api_exception.dart';
 import 'package:admin/domain/billing/invoice_lock.dart';
+import 'package:admin/ui/features/billing_shared/billing_doc_type.dart';
+import 'package:admin/ui/features/billing_shared/edit/billing_doc_date_order.dart';
 import 'package:admin/ui/features/billing_shared/view_models/billing_doc_edit_view_model.dart';
 import 'package:admin/data/repositories/document_bearing_repository.dart';
 
@@ -23,6 +25,7 @@ class InvoiceEditViewModel extends BillingDocEditViewModel<Invoice>
     required this.clientRequiredMessage,
     required this.crossClientLineItemsMessage,
     required this.partialInvalidMessage,
+    this.dateOrderMessages,
     Invoice? existing,
     Invoice? cloneFrom,
     super.currencyPrecision,
@@ -58,12 +61,22 @@ class InvoiceEditViewModel extends BillingDocEditViewModel<Invoice>
   /// inline error for an out-of-range partial-payment amount (`partial_value`).
   final String partialInvalidMessage;
 
+  /// Localized date-order errors (`billingDateOrderMessages`) — a due date
+  /// before the document date, a partial due date outside `[date, due)`. Null
+  /// skips the check (a test that builds the view model bare).
+  final BillingDateOrderMessages? dateOrderMessages;
+
   @override
   Map<String, List<String>> validate() {
     return {
       if (draft.clientId.isEmpty) 'client_id': [clientRequiredMessage],
       ...validateCrossClient(crossClientLineItemsMessage),
       ...validatePartial(partialInvalidMessage),
+      ...billingDocDateOrderValidation(
+        BillingDocType.invoice,
+        draft,
+        dateOrderMessages,
+      ),
     };
   }
 

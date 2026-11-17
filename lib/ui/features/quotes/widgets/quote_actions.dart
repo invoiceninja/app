@@ -479,7 +479,7 @@ class QuoteActions {
         applies: !draft,
       ),
       ?q.pick(QuoteAction.sendEmail, context.tr('email')),
-      ?q.pick(QuoteAction.viewPdf, context.tr('pdf'), applies: !hasPdfPane),
+      ?q.pick(QuoteAction.viewPdf, context.tr('pdf'), onScreen: hasPdfPane),
       ?q.pick(QuoteAction.downloadPdf, context.tr('download')),
       ?q.pick(QuoteAction.approve, context.tr('approve'), applies: draft),
       ?q.pick(

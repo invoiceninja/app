@@ -202,25 +202,43 @@ class _KanbanColumnState extends State<KanbanColumn> {
       );
     }
 
-    Widget list() => ListView.builder(
-      key: _listKey,
-      controller: _scroll,
-      padding: const EdgeInsets.all(InSpacing.sm),
-      itemCount: tasks.length,
-      itemBuilder: (context, i) {
-        final t = tasks[i];
-        return KanbanCardSlot(
-          task: t,
-          card: _card(context, t, ghost: false),
-          ghost: _card(context, t, ghost: true),
-          canDrag: canEdit,
-          scroller: widget.scroller,
-          onDropAbove: onAcceptTask == null
-              ? null
-              : (dropped) => onAcceptTask(dropped, t.id),
-        );
-      },
-    );
+    Widget list() => tasks.isEmpty
+        // A neutral line, never a promise about what to do next: the same
+        // column is Backlog, Done or a status the company named itself, and
+        // under a filter "empty" may only mean "nothing matches".
+        ? Align(
+            alignment: AlignmentDirectional.topCenter,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: InSpacing.sm,
+                vertical: InSpacing.xl,
+              ),
+              child: Text(
+                context.tr('kanban_column_empty'),
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 13, color: tokens.ink3),
+              ),
+            ),
+          )
+        : ListView.builder(
+            key: _listKey,
+            controller: _scroll,
+            padding: const EdgeInsets.all(InSpacing.sm),
+            itemCount: tasks.length,
+            itemBuilder: (context, i) {
+              final t = tasks[i];
+              return KanbanCardSlot(
+                task: t,
+                card: _card(context, t, ghost: false),
+                ghost: _card(context, t, ghost: true),
+                canDrag: canEdit,
+                scroller: widget.scroller,
+                onDropAbove: onAcceptTask == null
+                    ? null
+                    : (dropped) => onAcceptTask(dropped, t.id),
+              );
+            },
+          );
 
     return Container(
       decoration: BoxDecoration(

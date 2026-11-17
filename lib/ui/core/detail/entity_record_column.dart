@@ -107,6 +107,7 @@ class EntityRecordColumn extends StatelessWidget {
     if (part == RecordColumnPart.rail) {
       final standing = this.standing;
       return RecordColumnScope(
+        part: RecordColumnPart.rail,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,
@@ -203,15 +204,33 @@ enum RecordColumnPart {
 /// Comments card alike, deliberately: they sit in one stack) and not there
 /// (`docs/list-density.md` § What Compact changes).
 class RecordColumnScope extends InheritedWidget {
-  const RecordColumnScope({super.key, required super.child});
+  const RecordColumnScope({
+    super.key,
+    this.part = RecordColumnPart.all,
+    required super.child,
+  });
+
+  /// Which of the column's layouts this is — [RecordColumnPart.rail] for the
+  /// fixed `kRecordRailWidth` column beside a hub record's tabs.
+  final RecordColumnPart part;
 
   /// Whether [context] is inside an [EntityRecordColumn]. Does not subscribe:
   /// the answer cannot change for a mounted widget.
   static bool contains(BuildContext context) =>
       context.getInheritedWidgetOfExactType<RecordColumnScope>() != null;
 
+  /// Whether [context] is inside the rail, whose width is known in advance
+  /// (`kRecordRailWidth`) — so a card there can decide what fits without a
+  /// `LayoutBuilder`, which a card levelled with `IntrinsicHeight` elsewhere
+  /// may not contain. Does not subscribe: crossing the rail threshold mounts
+  /// the cards under a different column.
+  static bool isRail(BuildContext context) =>
+      context.getInheritedWidgetOfExactType<RecordColumnScope>()?.part ==
+      RecordColumnPart.rail;
+
   @override
-  bool updateShouldNotify(RecordColumnScope oldWidget) => false;
+  bool updateShouldNotify(RecordColumnScope oldWidget) =>
+      oldWidget.part != part;
 }
 
 /// [child], then [gap] below it — unless [child] laid itself out at zero

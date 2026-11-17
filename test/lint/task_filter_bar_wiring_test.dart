@@ -3,9 +3,13 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 const String _kFile = 'lib/ui/features/tasks/widgets/task_filter_bar.dart';
+const String _kControlsFile =
+    'lib/ui/features/tasks/widgets/task_filter_controls.dart';
 
-/// `TaskFilterBar`'s three pickers must stay on `EntityPickerField`, and must
-/// keep reading the whole-table name accessors.
+/// `TaskFilterBar`'s three filters must stay described once
+/// (`TaskFilterDimension`), resolved by id in both renderings (the sheet's
+/// `EntityPickerField`, the wide row's `TaskFilterDropdown`), and must keep
+/// reading the whole-table name accessors.
 ///
 /// Structural, and it has to be. `EntityPickerField`'s own suite already proves
 /// the mechanism — `entity_picker_field_test.dart` has "renders a selection that
@@ -87,12 +91,40 @@ void main() {
       );
     }
     expect(
-      'EntityPickerField<'.allMatches(code).length,
+      'TaskFilterDimension<'.allMatches(code).length,
       3,
       reason:
-          'Project, Client and Assigned User must each be an EntityPickerField, '
-          'which resolves the selection through `watchById` instead of scanning '
-          'the loaded window.',
+          'Project, Client and Assigned User must each be described once, as a '
+          'TaskFilterDimension, so the sheet\'s picker and the wide row\'s '
+          'dropdown are drawn from the same wiring.',
+    );
+    // Both renderings resolve through `watchById`: the picker by being an
+    // EntityPickerField, the dropdown by watching it itself.
+    final controls = File(_kControlsFile)
+        .readAsStringSync()
+        .split('\n')
+        .map((l) {
+          final i = l.indexOf('//');
+          return i == -1 ? l : l.substring(0, i);
+        })
+        .join('\n')
+        .replaceAll(RegExp(r'\s+'), '');
+    expect(
+      controls.contains('EntityPickerField<T>(') &&
+          controls.contains('watchById:watchById'),
+      isTrue,
+      reason:
+          'the sheet\'s picker must stay an EntityPickerField, which resolves '
+          'the selection through `watchById` instead of scanning the loaded '
+          'window.',
+    );
+    expect(
+      controls.contains('_d.watchById(id)'),
+      isTrue,
+      reason:
+          'the compact dropdown must resolve its selection by id too — scan the '
+          'active-only option list instead and archiving the picked record '
+          'blanks the control while the board stays filtered by it.',
     );
     expect(
       code.contains('SearchableDropdownField'),

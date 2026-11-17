@@ -1,14 +1,20 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/core/adaptive.dart';
+import 'package:admin/app/shortcut_hint_controller.dart';
 import 'package:admin/ui/core/dialogs/discard_changes_dialog.dart';
+import 'package:admin/ui/core/utils/platform_modifier.dart';
+import 'package:admin/ui/core/edit/unsaved_label.dart';
 import 'package:admin/ui/core/unsaved_changes/unsaved_changes_scope.dart';
 import 'package:admin/ui/core/widgets/copyable_value.dart';
 import 'package:admin/ui/core/widgets/form_save_scope.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
+import 'package:admin/ui/core/widgets/shortcut_hint_scope.dart';
 import 'package:admin/ui/features/settings/view_models/settings_draft_view_model.dart';
 import 'package:admin/ui/features/settings/widgets/settings_screen_scaffold.dart';
 
@@ -20,13 +26,19 @@ import 'package:admin/ui/features/settings/widgets/settings_screen_scaffold.dart
 ///   `Provider<SettingsDraftHost>` (so override widgets bind via the
 ///   interface).
 /// * `UnsavedChangesScope` + `PopScope` with the discard-on-exit dialog.
-/// * `SettingsScreenScaffold` with title, Save button (state-driven from
-///   the VM), caller's `extraActions`, and optional `bottom` (e.g. a
-///   [TabBar] for tabbed pages).
+/// * `SettingsScreenScaffold` with title (plus "Unsaved" beside it on a
+///   wide pane), the `[Save][Discard]` pair leading the end-aligned action
+///   cluster (Save filled and enabled only when dirty; Discard only when
+///   dirty, no dialog, an Undo toast — [runSettingsDiscard]), caller's
+///   `extraActions`, and optional `bottom` (e.g. a [TabBar] for tabbed
+///   pages).
 /// * Spinner while loading; the inline [_LoadErrorBanner] above the body
 ///   when `viewModel.loadError` is set.
 /// * `FormSaveScope` wrapping the body so Enter on single-line fields fires
 ///   the same save callback the Save button uses.
+/// * ⌘S / Ctrl+S around the whole page, AppBar included — the Save button's
+///   gate and handler, as on the entity edit screens (D1 of the settings
+///   pass). Cascade pages get it too: `CascadeSettingsScaffold` builds this.
 /// * Success / error toast via [Notify] on save.
 ///
 /// The [SettingsLevelController] is read from the ambient `Provider` chain
@@ -67,8 +79,8 @@ class SettingsPageScaffold<V extends SettingsDraftHost>
   /// Optional AppBar bottom (typically a [TabBar] for tabbed pages).
   final PreferredSizeWidget? bottom;
 
-  /// Additional AppBar action widgets rendered to the right of the Save
-  /// button.
+  /// Additional AppBar action widgets rendered after Save and Discard (and
+  /// before the "Learn more" icon the chrome closes the cluster with).
   final List<Widget> extraActions;
 
   /// Optional toggle for the AppBar Save button. Defaults to always-visible.
@@ -158,50 +170,62 @@ class _SettingsPageBody extends StatelessWidget {
               // is on top, even the last route.
               if (Navigator.of(context).canPop()) Navigator.of(context).pop();
             },
-            child: SettingsScreenScaffold(
-              titleKey: titleKey,
-              actions: [
-                _SaveButton(
-                  viewModel: viewModel,
-                  visible: saveVisible,
-                  canSaveOverride: canSaveOverride,
+            child: _SaveShortcut(
+              viewModel: viewModel,
+              saveVisible: saveVisible,
+              canSaveOverride: canSaveOverride,
+              child: SettingsScreenScaffold(
+                titleKey: titleKey,
+                // Wide only (the scaffold gates it on the pane): "Unsaved"
+                // beside the title, the same label the entity edit screens
+                // carry. Not while saving — it must not sit beside a spinner.
+                titleTrailing: UnsavedLabel.listening(
+                  listenable: viewModel,
+                  isDirty: () => viewModel.isDirty && !viewModel.isSaving,
                 ),
-                const SizedBox(width: 8),
-                ...extraActions,
-              ],
-              bottom: bottom,
-              body: ListenableBuilder(
-                listenable: viewModel,
-                builder: (context, _) {
-                  // Hold the spinner until both `isLoaded` and the host's
-                  // own `draftReady` gate (default `true`; the company VM
-                  // narrows it to `_draft != null`) flip — see
-                  // [SettingsDraftHost.draftReady] for why a tabbed shell
-                  // needs the extra frame.
-                  if (!viewModel.isLoaded || !viewModel.draftReady) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-                  final err = viewModel.loadError;
-                  final canSave =
-                      viewModel.isDirty &&
-                      !viewModel.isSaving &&
-                      (canSaveOverride?.call(viewModel) ?? true);
-                  final wrapped = FormSaveScope(
-                    enabled: canSave,
-                    onSubmit: () => runSettingsSave(context, viewModel),
-                    child: body,
-                  );
-                  if (err != null) {
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        _LoadErrorBanner(message: err),
-                        Expanded(child: wrapped),
-                      ],
+                actions: [
+                  _SaveDiscardCluster(
+                    viewModel: viewModel,
+                    visible: saveVisible,
+                    canSaveOverride: canSaveOverride,
+                  ),
+                  const SizedBox(width: 8),
+                  ...extraActions,
+                ],
+                bottom: bottom,
+                body: ListenableBuilder(
+                  listenable: viewModel,
+                  builder: (context, _) {
+                    // Hold the spinner until both `isLoaded` and the host's
+                    // own `draftReady` gate (default `true`; the company VM
+                    // narrows it to `_draft != null`) flip — see
+                    // [SettingsDraftHost.draftReady] for why a tabbed shell
+                    // needs the extra frame.
+                    if (!viewModel.isLoaded || !viewModel.draftReady) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    final err = viewModel.loadError;
+                    final canSave =
+                        viewModel.isDirty &&
+                        !viewModel.isSaving &&
+                        (canSaveOverride?.call(viewModel) ?? true);
+                    final wrapped = FormSaveScope(
+                      enabled: canSave,
+                      onSubmit: () => runSettingsSave(context, viewModel),
+                      child: body,
                     );
-                  }
-                  return wrapped;
-                },
+                    if (err != null) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _LoadErrorBanner(message: err),
+                          Expanded(child: wrapped),
+                        ],
+                      );
+                    }
+                    return wrapped;
+                  },
+                ),
               ),
             ),
           );
@@ -209,6 +233,64 @@ class _SettingsPageBody extends StatelessWidget {
       ),
     );
   }
+}
+
+/// ⌘S / Ctrl+S: the Save button, by keyboard — same gate (dirty, not saving,
+/// [canSaveOverride], and not on a tab where [saveVisible] hides Save), same
+/// handler ([runSettingsSave]). Around the page, AppBar included, so a field
+/// up there keeps the shortcut while it is being typed in; listed in the `?`
+/// cheat sheet through [ShortcutHintScope].
+class _SaveShortcut extends StatelessWidget {
+  const _SaveShortcut({
+    required this.viewModel,
+    required this.saveVisible,
+    required this.canSaveOverride,
+    required this.child,
+  });
+
+  final SettingsDraftHost viewModel;
+  final ValueListenable<bool>? saveVisible;
+  final bool Function(SettingsDraftHost host)? canSaveOverride;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return ShortcutHintScope(
+      hints: [
+        ShortcutHint(keys: [platformModifierLabel(), 'S'], labelKey: 'save'),
+      ],
+      child: Shortcuts(
+        shortcuts: const <ShortcutActivator, Intent>{
+          SingleActivator(LogicalKeyboardKey.keyS, meta: true):
+              _SaveSettingsIntent(),
+          SingleActivator(LogicalKeyboardKey.keyS, control: true):
+              _SaveSettingsIntent(),
+        },
+        child: Actions(
+          actions: <Type, Action<Intent>>{
+            _SaveSettingsIntent: CallbackAction<_SaveSettingsIntent>(
+              onInvoke: (_) {
+                // Read at the press, not at build: the draft may have turned
+                // dirty since this was built.
+                final canSave =
+                    (saveVisible?.value ?? true) &&
+                    viewModel.isDirty &&
+                    !viewModel.isSaving &&
+                    (canSaveOverride?.call(viewModel) ?? true);
+                if (canSave) runSettingsSave(context, viewModel);
+                return null;
+              },
+            ),
+          },
+          child: child,
+        ),
+      ),
+    );
+  }
+}
+
+class _SaveSettingsIntent extends Intent {
+  const _SaveSettingsIntent();
 }
 
 /// Save the [viewModel]'s draft and surface the outcome as a [Notify] toast.
@@ -248,8 +330,35 @@ Future<void> runSettingsSave(
   Notify.error(context, errorFallback, detail: viewModel.submitError);
 }
 
-class _SaveButton extends StatelessWidget {
-  const _SaveButton({
+/// Discard the page's unsaved edit with no dialog — the toast's Undo is the
+/// safety net. The draft is snapshotted first ([SettingsDraftHost.
+/// draftSnapshot]); a host that can't hand its edit back (User Details with
+/// a typed new password) gets the toast without Undo.
+@visibleForTesting
+void runSettingsDiscard(BuildContext context, SettingsDraftHost viewModel) {
+  final snapshot = viewModel.draftSnapshot();
+  viewModel.reset();
+  Notify.info(
+    context,
+    context.tr('changes_discarded'),
+    action: snapshot == null
+        ? null
+        : NotifyAction(
+            context.tr('undo'),
+            // The host may be gone by the time Undo is pressed (the user
+            // left the page, a company switch rebuilt it): every
+            // implementation ignores a restore after dispose.
+            () => viewModel.restoreDraftSnapshot(snapshot),
+          ),
+  );
+}
+
+/// `[Save][Discard]` — the leading pair of the settings AppBar's end-aligned
+/// cluster. Save is the page's one filled button, enabled only while the
+/// draft is dirty; Discard appears only then. [visible] hides both on a tab
+/// that doesn't bind to the draft.
+class _SaveDiscardCluster extends StatelessWidget {
+  const _SaveDiscardCluster({
     required this.viewModel,
     required this.visible,
     required this.canSaveOverride,
@@ -262,31 +371,66 @@ class _SaveButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = context.inTheme;
-    final button = ListenableBuilder(
+    final cluster = ListenableBuilder(
       listenable: viewModel,
       builder: (context, _) {
         final canSave =
             viewModel.isDirty &&
             !viewModel.isSaving &&
             (canSaveOverride?.call(viewModel) ?? true);
-        return TextButton(
-          onPressed: canSave ? () => runSettingsSave(context, viewModel) : null,
-          style: TextButton.styleFrom(foregroundColor: tokens.accent),
-          child: viewModel.isSaving
-              ? const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : Text(context.tr('save')),
+        final showDiscard = viewModel.isDirty && !viewModel.isSaving;
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            FilledButton(
+              key: const ValueKey('settings_save'),
+              // A FilledButton in a Row needs a finite minimum width — the
+              // theme's `Size.fromHeight(44)` is infinitely wide.
+              style: FilledButton.styleFrom(minimumSize: const Size(64, 44)),
+              onPressed: canSave
+                  ? () => runSettingsSave(context, viewModel)
+                  : null,
+              child: viewModel.isSaving
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Text(context.tr('save')),
+            ),
+            if (showDiscard && Breakpoints.isPhone(context)) ...[
+              // A phone's AppBar can't fit the title, Save, a worded Discard
+              // and the help button — "Company Details" truncated to
+              // "Company …" while dirty — so Discard is an icon there.
+              SizedBox(width: InSpacing.xs),
+              IconButton(
+                key: const ValueKey('settings_discard'),
+                tooltip: context.tr('discard'),
+                color: tokens.ink2,
+                icon: const Icon(Icons.undo),
+                onPressed: () => runSettingsDiscard(context, viewModel),
+              ),
+            ] else if (showDiscard) ...[
+              SizedBox(width: InSpacing.md(context)),
+              TextButton(
+                key: const ValueKey('settings_discard'),
+                style: TextButton.styleFrom(
+                  foregroundColor: tokens.ink2,
+                  minimumSize: const Size(64, 44),
+                ),
+                onPressed: () => runSettingsDiscard(context, viewModel),
+                child: Text(context.tr('discard')),
+              ),
+            ],
+          ],
         );
       },
     );
     final v = visible;
-    if (v == null) return button;
+    if (v == null) return cluster;
     return ValueListenableBuilder<bool>(
       valueListenable: v,
-      builder: (context, value, _) => value ? button : const SizedBox.shrink(),
+      builder: (context, value, _) => value ? cluster : const SizedBox.shrink(),
     );
   }
 }

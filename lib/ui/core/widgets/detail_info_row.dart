@@ -1,6 +1,8 @@
 import 'package:material_ui/material_ui.dart';
 
 import 'package:admin/app/design_tokens.dart';
+import 'package:admin/app/env.dart';
+import 'package:admin/ui/core/list/list_density_scope.dart';
 import 'package:admin/ui/core/widgets/copyable_value.dart';
 import 'package:admin/ui/core/widgets/link_text.dart';
 
@@ -145,7 +147,7 @@ class DetailInfoRow extends StatelessWidget {
           )
         : display;
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 7),
+      padding: EdgeInsets.symmetric(vertical: detailInfoRowPadding(context)),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -169,6 +171,19 @@ class DetailInfoRow extends StatelessWidget {
       ),
     );
   }
+}
+
+/// A [DetailInfoRow]'s padding above and below its text.
+///
+/// Tighter with a pointer, and tighter again under the Compact density: a
+/// card of eight facts ran 33 px a row, and with a mouse the row is only a
+/// copy-on-hover target. **Touch keeps 7 at every density** — there the row is
+/// a tap-to-copy target already under 44 px, and trimming it would trade a
+/// touch target for a few pixels (`docs/detail-screen-layout.md` § The phone
+/// record layout).
+double detailInfoRowPadding(BuildContext context) {
+  if (Env.isTouchPrimary) return 7;
+  return ListDensityScope.isCompactOf(context) ? 3 : 5;
 }
 
 /// The space between rows in a detail card. It was a hairline rule under

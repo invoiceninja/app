@@ -4,6 +4,7 @@ import 'package:logging/logging.dart';
 import 'package:sqlite3/wasm.dart';
 import 'package:web/web.dart' as web;
 
+import 'package:admin/data/db/orphan_store_sweep.dart';
 import 'package:admin/data/db/salvage.dart';
 
 final _log = Logger('AppDatabase');
@@ -38,10 +39,6 @@ const _kOpenTimeout = Duration(seconds: 5);
 /// the resolved `drift` / `sqlite3` packages.
 final _sqlite3Uri = Uri.parse('sqlite3.wasm');
 final _driftWorkerUri = Uri.parse('drift_worker.js');
-
-/// Orphan stores are swept once per page load, on the first open — see
-/// [_sweepOrphans] for why that is the only moment it can work.
-bool _sweptThisLoad = false;
 
 /// In-memory fallback for the generation when `localStorage` is unwritable
 /// (private mode, blocked site data). A generation that does not survive the
@@ -139,37 +136,36 @@ void _abandonCurrentStore() {
   );
 }
 
-/// Delete abandoned stores, once, before anything in this page has opened one.
+/// The abandoned stores, swept once per page load **off the boot path**.
 ///
-/// Timing is the whole point. IndexedDB's `deleteDatabase` blocks for as long
-/// as any connection is open, and drift's shared worker releases its handle
-/// asynchronously — several message-port hops after the page's own `close()`
-/// future has already resolved, with no signal back to the page. So a store
-/// this page has already opened usually cannot be deleted *in* this page. One
-/// abandoned on an earlier load has no such handle, and deleting it here
-/// succeeds. Gated on the orphan list being non-empty, so a normal boot spawns
-/// nothing and pays nothing.
-Future<void> _sweepOrphans() async {
-  if (_sweptThisLoad) return;
-  _sweptThisLoad = true;
-  final orphans = _orphans();
-  if (orphans.isEmpty) return;
-  final remaining = <String>[];
-  for (final name in orphans) {
-    if (await _deleteStore(name)) {
-      _log.info('Swept abandoned web database store "$name"');
-    } else {
-      remaining.add(name); // try again on a later load
-    }
-  }
-  _writeLocal(_kOrphansKey, remaining.join(','));
-}
+/// [openDatabaseExecutor] takes the candidates before anything in this page
+/// has opened a store: IndexedDB's `deleteDatabase` blocks while any
+/// connection is open, and drift's shared worker releases a handle this page
+/// opened asynchronously, several message-port hops after `close()` resolved,
+/// with no signal back. So a store this load abandons waits for the next one;
+/// a store abandoned on an earlier load has no handle from this page.
+///
+/// The deletes themselves run from `main.dart` once the first frame is up
+/// ([sweepAbandonedStores]). Awaiting them in the open cost about a second a
+/// store whenever the browser still held one (sqlite3's own bound on
+/// `deleteDatabase`), up to [_kMaxOrphans] seconds of boot. Gated on the
+/// orphan list being non-empty, so a normal load spawns nothing.
+final _orphanSweep = OrphanStoreSweep(
+  readOrphans: _orphans,
+  writeOrphans: (names) => _writeLocal(_kOrphansKey, names.join(',')),
+  liveName: _dbName,
+  deleteStore: _deleteStore,
+);
+
+/// Delete the stores earlier loads abandoned. Never throws, runs once per
+/// load; `main.dart` starts it after the first frame and never awaits it.
+Future<OrphanSweepOutcome> sweepAbandonedStores() => _orphanSweep.run();
 
 /// Web executor: drift WASM over the best available browser storage
 /// (OPFS where headers allow it, otherwise IndexedDB). No encryption and
 /// no `PRAGMA key` — the browser origin sandbox is the trust boundary.
 Future<QueryExecutor> openDatabaseExecutor() async {
-  await _sweepOrphans();
+  _orphanSweep.snapshot();
   final result = await WasmDatabase.open(
     databaseName: _dbName(),
     sqlite3Uri: _sqlite3Uri,
@@ -207,6 +203,46 @@ Future<bool> destroyDatabaseStore() async {
   if (await _deleteStore(target)) return true;
   _abandonCurrentStore();
   return _dbName() != target;
+}
+
+/// `localStorage` key naming the store found corrupt after it opened
+/// (`StoreCorruptionWatch`). It holds the store's *name*, so a mark naming a
+/// store since abandoned — a later generation is live — is stale by
+/// construction.
+const _kCorruptKey = 'invoiceninja.db.corrupt.v1';
+
+/// Mark the live store for repair at the next open. Returns whether the mark
+/// can be read back: with `localStorage` unwritable (private mode, blocked
+/// site data) the next load would never see it, and a reload to repair would
+/// only find the same store again.
+Future<bool> markStoreCorrupt() async {
+  final name = _dbName();
+  try {
+    web.window.localStorage.setItem(_kCorruptKey, name);
+  } catch (e) {
+    _log.warning('Could not mark web database store "$name" corrupt: $e');
+    return false;
+  }
+  return _readLocal(_kCorruptKey) == name;
+}
+
+/// Whether the store the next [openDatabaseExecutor] opens was marked by
+/// [markStoreCorrupt]. A mark naming another store is dropped.
+Future<bool> storeMarkedCorrupt() async {
+  final marked = _readLocal(_kCorruptKey);
+  if (marked == null || marked.isEmpty) return false;
+  if (marked == _dbName()) return true;
+  await clearStoreCorruptMark();
+  return false;
+}
+
+/// Take the mark [markStoreCorrupt] left.
+Future<void> clearStoreCorruptMark() async {
+  try {
+    web.window.localStorage.removeItem(_kCorruptKey);
+  } catch (_) {
+    // Unwritable storage never held a mark either.
+  }
 }
 
 /// Web half of the salvage seam: not yet implemented, so a reset on web

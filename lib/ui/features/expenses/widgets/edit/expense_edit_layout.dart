@@ -23,11 +23,12 @@ import 'package:admin/ui/features/expenses/widgets/edit/expense_edit_payment_sec
 /// expanded main column + fixed-width sidebar on wide widths, single column
 /// on narrow. Direct mirror of `ClientEditLayout`.
 ///
-/// - ≥1000 px: two columns. Left (`Expanded`) holds Amount/Tax, Details,
-///   Invoicing (client, project, the billing switches and currency
-///   conversion) and Payment. Right (`_sidebarWidth` 360 px) holds Documents
-///   (create only — `vm.offersDocuments`), Notes, and the collapsible Banking
-///   and Custom fields.
+/// - ≥1000 px: two columns. Left (`Expanded`) holds Amount (with the
+///   currency, the date and the taxes), Details, Invoicing (client, project,
+///   the billing switch revealing the rest) and Payment. Right
+///   (`_sidebarWidth` 360 px) holds Documents (create only —
+///   `vm.offersDocuments`), Notes, Organize, Banking (only for an expense
+///   linked to a bank transaction) and the collapsible Custom fields.
 /// - <1000 px: single centered column (≤820 px) in the same order, with
 ///   Documents (create only) straight after the amount.
 class ExpenseEditLayout extends StatelessWidget {
@@ -96,8 +97,7 @@ class ExpenseEditLayout extends StatelessWidget {
               ExpenseEditNotesSection(vm: vm),
               const SizedBox(height: kFormCardGap),
               ExpenseEditOrganizeSection(vm: vm),
-              const SizedBox(height: kFormCardGap),
-              _banking(context),
+              ..._banking(),
               const SizedBox(height: kFormCardGap),
               _CustomFieldsCollapsible(vm: vm),
             ],
@@ -126,20 +126,21 @@ class ExpenseEditLayout extends StatelessWidget {
         ExpenseEditNotesSection(vm: vm),
         const SizedBox(height: kFormCardGap),
         ExpenseEditOrganizeSection(vm: vm),
-        const SizedBox(height: kFormCardGap),
-        _banking(context),
+        ..._banking(),
         const SizedBox(height: kFormCardGap),
         _CustomFieldsCollapsible(vm: vm),
       ],
     );
   }
 
-  Widget _banking(BuildContext context) => _CollapsibleFormSection(
-    title: context.tr('banking'),
-    initiallyExpanded:
-        vm.draft.bankId.isNotEmpty || vm.draft.transactionId.isNotEmpty,
-    child: ExpenseEditBankingSection(vm: vm),
-  );
+  /// The Banking card and the gap before it — nothing at all for an expense
+  /// that isn't linked to a bank transaction, so no empty gap either.
+  List<Widget> _banking() => [
+    if (ExpenseEditBankingSection.isLinked(vm)) ...[
+      const SizedBox(height: kFormCardGap),
+      ExpenseEditBankingSection(vm: vm),
+    ],
+  ];
 }
 
 /// The "Custom Fields" collapsible — shown only when the company has at least

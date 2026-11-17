@@ -115,6 +115,12 @@ class _FakeDashboardApi extends DashboardApi {
     return _maybe('totals_outstanding', outstandingTotals);
   }
 
+  /// Canned `analytics_totals` payload.
+  Object? agingTotals;
+
+  @override
+  Future<Object?> fetchAgingTotals() => _maybe('aging', agingTotals);
+
   @override
   Future<Object?> fetchChartSummary(DashboardFilter filter) =>
       _maybe('chart', chartSummary);
@@ -334,6 +340,103 @@ void main() {
         ),
         isNotNull,
       );
+    });
+
+    group('aging', () {
+      // The demo server's shape (2026-11-17): amounts are strings, a currency
+      // with nothing unpaid carries `{}`, and the aggregate under 999.
+      final payload = {
+        'currencies': {'1': 'USD', '2': 'GBP'},
+        'start_date': '1970-01-01',
+        'end_date': '2099-12-31',
+        '1': {
+          'mrr': {'mrr': '1.00'},
+          'aging': {
+            'total': '1000.000000',
+            'current_amount': '400.000000',
+            'age_0_30': '300.000000',
+            'age_31_60': '100.000000',
+            'age_61_90': '100.000000',
+            'age_91_120': '50.000000',
+            'age_120_plus': '50.000000',
+            'outstanding_count': 7,
+            'currency_id': '1',
+          },
+        },
+        '2': {'aging': <String, dynamic>{}},
+        '999': {
+          'aging': {
+            'total': '1200.0000000000',
+            'current_amount': '600.0000000000',
+            'age_0_30': '300.0000000000',
+            'age_31_60': '100.0000000000',
+            'age_61_90': '200.0000000000',
+            'age_91_120': null,
+            'age_120_plus': null,
+            'outstanding_count': 9,
+          },
+        },
+      };
+
+      test('decodes each currency and the aggregate', () async {
+        api.agingTotals = payload;
+        final values = <dynamic>[];
+        final sub = repo.watchAging('co_a').listen(values.add);
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+        expect(values.last, isNull);
+
+        await repo.refreshAging('co_a');
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+        final usd = values.last!.byCurrency['1']!;
+        expect('${usd.current}', '400');
+        expect('${usd.days1To30}', '300');
+        expect('${usd.days31To60}', '100');
+        expect('${usd.days60Plus}', '200', reason: '61-90 + 91-120 + 120+');
+        expect('${usd.pastDue}', '600');
+        expect(usd.count, 7);
+        // Nothing unpaid in pounds: an empty object, read as zero.
+        expect('${values.last!.byCurrency['2']!.total}', '0');
+        final all = values.last!.byCurrency['999']!;
+        expect('${all.days60Plus}', '200', reason: 'nulls read as zero');
+        expect(values.last!.unsupported, isFalse);
+        expect(values.last!.byCurrency.containsKey('currencies'), isFalse);
+        await sub.cancel();
+      });
+
+      test(
+        'a server without the endpoint is an answer, not a failure',
+        () async {
+          api.failures['aging'] = const ServerException(
+            404,
+            'Route does not exist',
+          );
+          await repo.refreshAging('co_a');
+          final aging = await repo.watchAging('co_a').first;
+          expect(aging!.unsupported, isTrue);
+          expect(aging.byCurrency, isEmpty);
+
+          // In a full pass it reports nothing either.
+          final filter = DashboardFilter.defaults();
+          final errors = await repo.refreshAll('co_a', filter);
+          expect(errors.containsKey(DashboardKind.aging), isFalse);
+        },
+      );
+
+      test('any other failure is filed under its own kind', () async {
+        api.failures['aging'] = const ServerException(500, 'boom');
+        final filter = DashboardFilter.defaults();
+        final errors = await repo.refreshAll('co_a', filter);
+        expect(errors[DashboardKind.aging], isA<ServerException>());
+      });
+
+      test('a new date range does not refetch it', () async {
+        api.agingTotals = payload;
+        final filter = DashboardFilter.defaults();
+        await repo.refreshFilterKeyed('co_a', filter);
+        expect(api.calls['aging'], isNull);
+        await repo.refreshAll('co_a', filter);
+        expect(api.calls['aging'], 1);
+      });
     });
 
     test('all time writes no previous-period row', () async {

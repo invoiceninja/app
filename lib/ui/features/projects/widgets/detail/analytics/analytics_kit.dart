@@ -177,7 +177,12 @@ class Kpi extends StatelessWidget {
 /// Hours to one decimal, through the company's separators — `12,5 h` on a
 /// decimal-comma company. The `h` is the record screens' own (see
 /// `project_detail_standing.dart`).
-String analyticsHours(Formatter? f, double h) {
+///
+/// [hoursMinutes] (`ProjectHoursFormat.of`) reads a figure as `H:MM` instead,
+/// as the device's hours-format preference says. Chart axis ticks leave it
+/// off: a tick is a coordinate, and whole hours label one best.
+String analyticsHours(Formatter? f, double h, {bool hoursMinutes = false}) {
+  if (hoursMinutes) return hoursMinutesText((h * 3600).round());
   final rounded = (h * 10).round() / 10;
   final body =
       f?.decimal(rounded, maxDecimals: 1) ??

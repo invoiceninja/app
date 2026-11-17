@@ -59,4 +59,19 @@ void main() {
       kFloatingActionButtonMargin + 56 + 40,
     );
   });
+
+  test('a bar pinned to the bottom of the screen lifts the pill above it', () {
+    // A real desktop invoice editor: no FAB, so the pill sat 16 px up — on
+    // top of the sticky totals bar's trailing Total. The bar publishes its
+    // height (`ToastBottomInset`) and the pill clears it by the same 16.
+    expect(
+      runningTimerPillBottom(paneWidth: 1208, isPhone: false, bottomBar: 52),
+      16 + 52,
+    );
+    // Over a FAB too: Material floats a FAB above a `bottomNavigationBar`.
+    expect(
+      runningTimerPillBottom(paneWidth: 468, isPhone: false, bottomBar: 60),
+      112 + 60,
+    );
+  });
 }

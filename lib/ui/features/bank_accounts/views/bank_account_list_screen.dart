@@ -135,7 +135,7 @@ class _BankAccountRow extends StatelessWidget {
             children: [
               if (account.type.isNotEmpty)
                 Text(
-                  account.type,
+                  context.tr(labelKeyForAccountType(account.type)),
                   style: TextStyle(color: tokens.ink2, fontSize: 12),
                 ),
               if (account.provider.isNotEmpty ||

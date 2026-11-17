@@ -15,8 +15,9 @@ String _quoteMoney(Formatter formatter, DashboardQuoteRow q) => formatter.money(
 );
 
 /// Sent quotes still valid, soonest to lapse first (sorted by
-/// `DashboardRepository.watchUpcomingQuotes`). Each row says how long the
-/// quote has left; one with no valid-until date says nothing there.
+/// `DashboardRepository.watchUpcomingQuotes`). Each row shows its valid-until
+/// date and, within a month, how long it has left; one with no valid-until
+/// date says nothing there.
 class UpcomingQuotesCard extends StatelessWidget {
   const UpcomingQuotesCard({
     super.key,
@@ -66,7 +67,14 @@ class UpcomingQuotesCard extends StatelessWidget {
                 client: q.clientName,
                 lead: q.validUntil == null
                     ? ''
-                    : expiresText(context, q.validUntil!, today),
+                    : formatter.date(q.validUntil!.toIso()),
+                subline: switch (quoteRowWhen(
+                  validUntil: q.validUntil,
+                  today: today,
+                )) {
+                  final RowWhen near => rowWhenText(context, near),
+                  null => null,
+                },
                 amount: _quoteMoney(formatter, q),
                 onTap: () => onQuoteTap(q),
                 compact: compact,
@@ -125,14 +133,15 @@ class ExpiredQuotesCard extends StatelessWidget {
               key: ValueKey('quote:${q.id}'),
               number: q.number,
               client: q.clientName,
-              // "Expired 01/Oct/2026" — the date the server calls `due_date`.
-              // The column that used to show it read `valid_until`, a field
-              // that is never sent, and so was a column of dashes.
+              // The date it lapsed — the one the server calls `due_date`. The
+              // column that used to show it read `valid_until`, a field that is
+              // never sent, and so was a column of dashes. "Expired" goes under
+              // it, as it does on the Quotes panel; with no date it leads.
               lead: q.validUntil == null
                   ? context.tr('expired')
-                  : context.tr('expired_on', {
-                      'date': formatter.date(q.validUntil!.toIso()),
-                    }),
+                  : formatter.date(q.validUntil!.toIso()),
+              subline: q.validUntil == null ? null : context.tr('expired'),
+              sublineIsLate: true,
               amount: _quoteMoney(formatter, q),
               onTap: () => onQuoteTap(q),
               compact: compact,

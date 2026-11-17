@@ -9,7 +9,6 @@ import 'package:admin/data/models/api/recurring_invoice_api_model.dart';
 import 'package:admin/ui/core/detail/entity_quick_actions.dart';
 import 'package:admin/ui/core/detail/standing_card.dart';
 import 'package:admin/ui/features/billing_shared/detail/billing_doc_profile.dart';
-import 'package:admin/ui/features/billing_shared/detail/billing_doc_record_header.dart';
 import 'package:admin/ui/features/billing_shared/detail/billing_doc_standing.dart';
 import 'package:admin/ui/features/recurring_invoices/views/recurring_invoice_detail_screen.dart';
 import 'package:admin/ui/features/recurring_invoices/widgets/recurring_invoice_actions.dart';
@@ -86,7 +85,6 @@ void main() {
     'stop it',
     _recurring(),
     (tester, screen) async {
-      final header = find.byType(BillingDocRecordHeader);
       // It has no document date or due date of its own; the one date behind
       // it is when it last went out.
       expect(find.text('Last Sent Date: 2000-03-01'), findsOneWidget);

@@ -194,6 +194,21 @@ void main() {
     await db.close();
   });
 
+  group('the server choice', () {
+    test('is offered on a normal build', () {
+      expect(
+        LoginViewModel(auth: auth, isDemoBuild: false).offersServerChoice,
+        isTrue,
+      );
+    });
+
+    test('is never offered on the public web demo, which signs in hosted', () {
+      final demo = LoginViewModel(auth: auth, isDemoBuild: true);
+      expect(demo.offersServerChoice, isFalse);
+      expect(demo.isHosted, isTrue);
+    });
+  });
+
   group('self-hosted base URL validation', () {
     test('rejects empty URL', () async {
       vm.setUrlOverride('');

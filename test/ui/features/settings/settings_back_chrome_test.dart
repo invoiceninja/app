@@ -342,7 +342,14 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Discard changes?'), findsOneWidget);
 
-    await tester.tap(find.text('Discard'));
+    // The dialog's Discard, not the toolbar's (shown while the page is
+    // dirty).
+    await tester.tap(
+      find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.text('Discard'),
+      ),
+    );
     await tester.pumpAndSettle();
 
     // The guard used to call `maybePop`, whose disposition still read the

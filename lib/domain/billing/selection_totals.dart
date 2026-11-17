@@ -1,15 +1,28 @@
 import 'package:decimal/decimal.dart';
 
+/// Marks a [SelectionTotalsRow.partyKey] that names a vendor.
+const String kVendorPartyPrefix = 'vendor:';
+
 /// One selected billing document, as the selection totals read it.
 class SelectionTotalsRow {
   const SelectionTotalsRow({
-    required this.clientId,
+    this.clientId = '',
+    this.vendorId = '',
     required this.amount,
     required this.taxes,
     this.balance,
   });
 
+  /// The party whose currency the row is in: the client, or — for a purchase
+  /// order — the [vendorId], which wins when set.
   final String clientId;
+  final String vendorId;
+
+  /// What [selectionTotals] hands its `currencyOf`: the client id as is, a
+  /// vendor id prefixed so the two id spaces can't collide.
+  String get partyKey =>
+      vendorId.isEmpty ? clientId : '$kVendorPartyPrefix$vendorId';
+
   final Decimal amount;
 
   /// `total_taxes` — what separates the amount from the net amount.
@@ -45,12 +58,13 @@ class CurrencyTotals {
 /// two currencies together: React's footer does, and prints the result
 /// unformatted, which is a number with no meaning.
 ///
-/// [currencyOf] resolves a row's client to its effective currency id. It may
-/// return null for a client still resolving; the whole answer is then null,
-/// since a total missing a row is a wrong total, not a partial one.
+/// [currencyOf] resolves a row's party ([SelectionTotalsRow.partyKey]) to its
+/// effective currency id. It may return null for a party still resolving; the
+/// whole answer is then null, since a total missing a row is a wrong total,
+/// not a partial one.
 List<CurrencyTotals>? selectionTotals(
   Iterable<SelectionTotalsRow> rows,
-  String? Function(String clientId) currencyOf,
+  String? Function(String partyKey) currencyOf,
 ) {
   final order = <String>[];
   final count = <String, int>{};
@@ -58,7 +72,7 @@ List<CurrencyTotals>? selectionTotals(
   final net = <String, Decimal>{};
   final balance = <String, Decimal>{};
   for (final row in rows) {
-    final currency = currencyOf(row.clientId);
+    final currency = currencyOf(row.partyKey);
     if (currency == null) return null;
     if (!count.containsKey(currency)) {
       order.add(currency);

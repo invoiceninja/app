@@ -1018,12 +1018,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
           () => KpiRow(
             vm: _vm,
             formatter: formatter,
-            // The band's own count, so "4 past due" here and the tab above
-            // can never disagree.
-            pastDueCount:
+            // The band's own buckets, so what Outstanding calls past due and
+            // what the band above it says can never disagree.
+            attention:
                 enabled.contains(DashboardKind.pastDue) &&
                     _vm.pastDue.data != null
-                ? _vm.attention().pastDueCount
+                ? _vm.attention(
+                    companyCurrencyId: formatter.settings.currencyId,
+                  )
                 : null,
             showExpenses: expensesOn,
             onOutstandingTap: () =>
@@ -1076,6 +1078,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         onViewAll: () => _safeNavigate('/activity'),
         onRetry: () => _vm.retry(DashboardKind.activities),
         onActivityTap: _navActivity,
+        formatter: formatter,
       ),
     );
     if (!showChart) return activity;
@@ -1084,7 +1087,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
       _vm.chartCardListenable,
       // Beside Activity the plot takes whatever height that card has, so the
       // two end on one line; stacked, it keeps its own proportions.
-      () => ChartCard(vm: _vm, formatter: formatter, fillHeight: sideBySide),
+      () => ChartCard(
+        vm: _vm,
+        formatter: formatter,
+        fillHeight: sideBySide,
+        expensesOn: _moduleOn(EntityType.expense),
+      ),
     );
     final gutter = dashboardDense(context)
         ? InSpacing.md(context)

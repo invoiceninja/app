@@ -12,6 +12,7 @@ import 'package:admin/data/models/domain/time_entry.dart';
 import 'package:admin/data/models/value/date.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/features/dashboard/widgets/card_shell.dart';
+import 'package:admin/ui/features/projects/widgets/detail/project_hours_format.dart';
 import 'package:admin/ui/features/projects/widgets/detail/project_progress_math.dart';
 import 'package:admin/utils/formatting.dart';
 
@@ -192,6 +193,8 @@ class _ChartPart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Read here, not in the tooltip callback, which runs outside any build.
+    final hoursMinutes = ProjectHoursFormat.of(context);
     final dueDt = dueDate?.toDateTime().add(const Duration(days: 1));
     final nowIndex = _dayIndex(now, createdAt);
     final dueIndex = dueDt == null ? null : _dayIndex(dueDt, createdAt);
@@ -455,7 +458,10 @@ class _ChartPart extends StatelessWidget {
                       final pct = budgeted > 0
                           ? ((spot.y / budgeted) * 100).round()
                           : null;
-                      final hours = '${fmtHours(spot.y)} h';
+                      final hours = projectHoursText(
+                        spot.y,
+                        hoursMinutes: hoursMinutes,
+                      );
                       final label = pct == null
                           ? '$dateLabel · $hours'
                           : '$dateLabel · $hours · '

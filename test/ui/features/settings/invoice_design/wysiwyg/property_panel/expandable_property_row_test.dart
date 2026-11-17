@@ -90,7 +90,7 @@ void main() {
 
     testWidgets('trailing slot accepts arbitrary widgets', (tester) async {
       // Confirms Info/Table can pass a delete IconButton AND Total can
-      // pass a Switch.adaptive — both via the same `trailing:` slot.
+      // pass a Switch — both via the same `trailing:` slot.
       await tester.pumpWidget(
         _wrap(
           ExpandablePropertyRow(
@@ -99,7 +99,7 @@ void main() {
             subtitle: const Text('subtitle'),
             expanded: false,
             onToggleExpanded: () {},
-            trailing: const Switch.adaptive(value: true, onChanged: null),
+            trailing: const Switch(value: true, onChanged: null),
             expandedChild: const SizedBox.shrink(),
           ),
         ),

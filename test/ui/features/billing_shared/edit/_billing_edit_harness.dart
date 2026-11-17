@@ -141,9 +141,35 @@ List<List<String>> tabBarLabels(WidgetTester tester) => [
   for (final bar in tester.widgetList<TabBar>(find.byType(TabBar)))
     [
       for (final tab in bar.tabs)
-        if (tab is Tab) tab.text ?? '?' else '?',
+        if (tab is Tab) tab.text ?? _countedTabLabel(tab) else '?',
     ],
 ];
+
+/// A tab drawn with a count (`BillingDocEditTab.count`) is a `Tab(child:)`
+/// whose one semantics node reads "Items, 3": the label is that, less the
+/// count — which [tabBarCounts] reports on its own.
+String _countedTabLabel(Tab tab) => switch (tab.child) {
+  final Semantics s => (s.properties.label ?? '?').replaceFirst(
+    RegExp(r', \d+$'),
+    '',
+  ),
+  _ => '?',
+};
+
+/// The count beside each tab of the first [TabBar] on screen, keyed by its
+/// label; a tab with no count is absent.
+Map<String, int> tabBarCounts(WidgetTester tester) {
+  final bar = tester.widget<TabBar>(find.byType(TabBar).first);
+  final counts = <String, int>{};
+  for (final tab in bar.tabs) {
+    if (tab is! Tab) continue;
+    final child = tab.child;
+    if (child is! Semantics) continue;
+    final m = RegExp(r'^(.*), (\d+)$').firstMatch(child.properties.label ?? '');
+    if (m != null) counts[m.group(1)!] = int.parse(m.group(2)!);
+  }
+  return counts;
+}
 
 /// The label of every on-screen input decorator (text fields, pickers,
 /// dropdowns), in paint order — the layout's field set, as the user reads it.

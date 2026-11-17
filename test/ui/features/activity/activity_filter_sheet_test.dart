@@ -1,9 +1,13 @@
+import 'dart:async';
+
 import 'package:drift/native.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 
 import 'package:admin/app/design_tokens.dart';
+import 'package:admin/domain/activity/activity_record_types.dart';
+import 'package:admin/data/models/value/date.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/app/theme.dart';
 import 'package:admin/data/db/app_database.dart';
@@ -12,6 +16,7 @@ import 'package:admin/data/models/domain/user.dart';
 import 'package:admin/data/repositories/user_repository.dart';
 import 'package:admin/domain/activity/activity_timeline.dart';
 import 'package:admin/ui/core/widgets/multi_entity_picker.dart';
+import 'package:admin/ui/core/widgets/searchable_dropdown_field.dart';
 import 'package:admin/ui/features/activity/view_models/activity_view_model.dart';
 import 'package:admin/ui/features/activity/widgets/activity_filter_sheet.dart';
 
@@ -28,8 +33,12 @@ class _FakeUserRepo implements UserRepository {
   // `Stream.multi`, not `Stream.value`: the sheet's `StreamBuilder`
   // re-subscribes on every rebuild and a single-subscription stream throws the
   // second time.
+  /// A roster that has not answered yet, when set.
+  static Stream<List<User>>? pending;
+
   @override
   Stream<List<User>> watchAllForPicker({required String companyId}) =>
+      pending ??
       Stream<List<User>>.multi((c) {
         c.add(const <User>[]);
         c.close();
@@ -144,6 +153,8 @@ void main() {
     await open(tester, width: 900);
     expect(vm.filters.lens, ActivityLens.all);
 
+    await tester.ensureVisible(find.text('Calls'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Calls'));
     await tester.pumpAndSettle();
 
@@ -200,5 +211,99 @@ void main() {
     await tester.tap(find.byTooltip('Clear'));
     await tester.pumpAndSettle();
     expect(vm.filters.hasRange, isFalse);
+  });
+
+  group('date range toggles', () {
+    testWidgets('pick a quick range, and All Time drops it', (tester) async {
+      await open(tester, width: 900);
+      await tester.tap(find.widgetWithText(OutlinedButton, 'Last 7 Days'));
+      await tester.pumpAndSettle();
+      final today = Date.today();
+      expect(vm.filters.until, today.addDays(1).toDateTime());
+      expect(activityQuickRangeOf(vm.filters), ActivityQuickRange.last7);
+
+      await tester.tap(find.widgetWithText(OutlinedButton, 'Today'));
+      await tester.pumpAndSettle();
+      expect(vm.filters.from, today.toDateTime());
+      expect(vm.filters.until, today.addDays(1).toDateTime());
+
+      await tester.tap(find.widgetWithText(OutlinedButton, 'All Time'));
+      await tester.pumpAndSettle();
+      expect(vm.filters.hasRange, isFalse);
+    });
+
+    test('a range from a bar is custom, not a quick range', () {
+      vm.setRange(DateTime(2026, 6, 7, 15), DateTime(2026, 6, 7, 16));
+      expect(activityQuickRangeOf(vm.filters), isNull);
+      vm.setRange(null, null);
+      expect(activityQuickRangeOf(vm.filters), ActivityQuickRange.allTime);
+    });
+  });
+
+  testWidgets(
+    'the type picker has one label, and the add wording is its hint',
+    (tester) async {
+      await open(tester, width: 900);
+      final picker = find.byType(MultiEntityPicker<ActivityTypeOption>);
+      final field = tester.widget<TextField>(
+        find.descendant(of: picker, matching: find.byType(TextField)),
+      );
+      expect(field.decoration?.labelText, 'Type');
+      expect(field.decoration?.hintText, 'Add Item');
+    },
+  );
+
+  testWidgets('record type offers only what the other filters keep', (
+    tester,
+  ) async {
+    DashboardActivity row(String id, int type) => DashboardActivity.fromJson({
+      'id': id,
+      'activity_type_id': type,
+      'created_at': DateTime.now().millisecondsSinceEpoch ~/ 1000,
+      'notes': '',
+    });
+    // Two invoice events, one payment.
+    repo.activities.add([row('a', 4), row('b', 6), row('c', 10)]);
+    await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+    expect(vm.recordTypeCounts, {
+      ActivityRecordType.invoice: 2,
+      ActivityRecordType.payment: 1,
+    });
+
+    vm.setRecordType(ActivityRecordType.payment);
+    expect(vm.matchCount, 1);
+    // The facet leaves its own filter out.
+    expect(vm.recordTypeCounts[ActivityRecordType.invoice], 2);
+    expect(vm.filters.toJson()['record'], 'payment');
+    expect(
+      ActivityFilters.fromJson(vm.filters.toJson()).recordType,
+      ActivityRecordType.payment,
+    );
+  });
+
+  testWidgets('the user picker says Loading until the roster answers, and '
+      'no records only once it has', (tester) async {
+    final roster = StreamController<List<User>>.broadcast();
+    _FakeUserRepo.pending = roster.stream;
+    addTearDown(() {
+      _FakeUserRepo.pending = null;
+      roster.close();
+    });
+    await open(tester, width: 900);
+    Finder userField() => find.ancestor(
+      of: find.text('User'),
+      matching: find.byType(SearchableDropdownField<User>),
+    );
+    String? hint() => tester
+        .widget<TextField>(
+          find.descendant(of: userField(), matching: find.byType(TextField)),
+        )
+        .decoration
+        ?.hintText;
+    expect(hint(), 'Loading');
+
+    roster.add(const <User>[]);
+    await tester.pumpAndSettle();
+    expect(hint(), 'No records found');
   });
 }

@@ -5,6 +5,7 @@ import 'package:admin/app/color_hex.dart';
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/data/models/domain/company.dart';
 import 'package:admin/data/models/domain/project.dart';
+import 'package:admin/domain/tasks/task_rate.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/detail/custom_field_detail_rows.dart';
 import 'package:admin/ui/core/detail/record_timestamps.dart';
@@ -14,6 +15,9 @@ import 'package:admin/ui/core/widgets/detail_row_columns.dart';
 import 'package:admin/ui/core/widgets/party_money_cell.dart';
 import 'package:admin/ui/core/widgets/user_name_label.dart';
 import 'package:admin/ui/features/dashboard/widgets/card_shell.dart';
+import 'package:admin/ui/features/tasks/view_models/task_edit_view_model.dart'
+    show emptyTask;
+import 'package:admin/ui/features/tasks/widgets/detail/task_rate_context.dart';
 import 'package:admin/utils/formatting.dart';
 
 /// "Details" card on the project screen — what the edit form can set and
@@ -34,9 +38,16 @@ class ProjectDetailDetailsCard extends StatelessWidget {
     required this.project,
     this.company,
     this.formatter,
+    this.rates,
   });
 
   final Project project;
+
+  /// The task-rate cascade above the project, watched by the profile only
+  /// when the project has no rate of its own. With it, Task rate shows what
+  /// the tasks inherit and from where (`projectInheritedTaskRate`); null, a
+  /// project without a rate has no Task rate row.
+  final TaskRateContext? rates;
 
   /// Null while the company row is still loading — custom fields wait for it.
   final Company? company;
@@ -52,7 +63,14 @@ class ProjectDetailDetailsCard extends StatelessWidget {
     Project project,
     Company? company, {
     Formatter? formatter,
-  }) => rowsFor(context, project, company, formatter: formatter).isNotEmpty;
+    TaskRateContext? rates,
+  }) => rowsFor(
+    context,
+    project,
+    company,
+    formatter: formatter,
+    rates: rates,
+  ).isNotEmpty;
 
   /// The rows, in display order.
   static List<Widget> rowsFor(
@@ -60,9 +78,13 @@ class ProjectDetailDetailsCard extends StatelessWidget {
     Project project,
     Company? company, {
     Formatter? formatter,
+    TaskRateContext? rates,
   }) {
     final p = project;
     final due = p.dueDate;
+    final inherited = p.taskRate == Decimal.zero && rates != null
+        ? projectInheritedTaskRate(rates)
+        : null;
     return [
       // Not until the formatter is here: a raw ISO date is not how this
       // company reads dates, and the row arrives with the rest a frame later.
@@ -79,14 +101,32 @@ class ProjectDetailDetailsCard extends StatelessWidget {
           copyable: false,
           child: UserNameLabel(userId: p.assignedUserId),
         ),
-      // A stored zero is "no rate of its own" — the tasks then bill at the
-      // client's or the company's — so there is nothing to print.
       if (p.taskRate != Decimal.zero)
         _MoneyRow(
           labelKey: 'task_rate',
           amount: p.taskRate,
           clientId: p.clientId,
           formatter: formatter,
+        )
+      // A stored zero is "no rate of its own": the tasks bill at what the
+      // project inherits, so that is the rate — said with where it comes
+      // from, so it is not mistaken for one set here. Nothing anywhere in the
+      // cascade, no row.
+      else if (inherited != null)
+        _MoneyRow(
+          labelKey: 'task_rate',
+          amount: inherited.rate,
+          clientId: p.clientId,
+          formatter: formatter,
+          note: switch (inherited.source) {
+            TaskRateSource.group => context.tr('inherited_from_group', {
+              'name': inherited.groupName,
+            }),
+            TaskRateSource.company => context.tr('inherited_from_company'),
+            // Client — the only other level a project-less, rate-less walk
+            // can answer from.
+            _ => context.tr('inherited_from_client'),
+          },
         ),
       // Likewise optional: blank means "budgeted hours × task rate".
       if (p.budgetedAmount != Decimal.zero)
@@ -145,7 +185,13 @@ class ProjectDetailDetailsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final rows = rowsFor(context, project, company, formatter: formatter);
+    final rows = rowsFor(
+      context,
+      project,
+      company,
+      formatter: formatter,
+      rates: rates,
+    );
     if (rows.isEmpty) return const SizedBox.shrink();
     return DashboardCardShell(
       title: context.tr('details'),
@@ -163,6 +209,7 @@ class _MoneyRow extends StatelessWidget {
     required this.amount,
     required this.clientId,
     required this.formatter,
+    this.note,
   });
 
   final String labelKey;
@@ -170,15 +217,29 @@ class _MoneyRow extends StatelessWidget {
   final String clientId;
   final Formatter? formatter;
 
+  /// Dimmed context after the amount — where an inherited rate comes from.
+  final String? note;
+
   @override
   Widget build(BuildContext context) {
     final f = formatter;
+    final note = this.note;
+    final trailing = note == null
+        ? null
+        : Text(
+            ' · $note',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: context.inTheme.ink2,
+              fontSize: 12.5,
+            ),
+          );
     if (f == null) {
       return DetailInfoRow(
         label: context.tr(labelKey),
         value: amount.toString(),
         monospace: true,
         copyable: false,
+        trailing: trailing,
       );
     }
     return PartyCurrencyBuilder(
@@ -188,9 +249,35 @@ class _MoneyRow extends StatelessWidget {
         value: f.money(amount, clientCurrencyId: currencyId),
         monospace: true,
         copyable: false,
+        trailing: trailing,
       ),
     );
   }
+}
+
+/// The rate a project with no task rate of its own hands its tasks, the
+/// level it comes from (client, group or company) and that group's name — or
+/// null when nothing in the cascade sets one.
+///
+/// Answered by `resolveTaskRateWithSource` with a rate-less task and no
+/// project, so it is the rate an invoice line from this project's task is
+/// priced at, from the same one walk of the cascade the task edit form uses.
+({Decimal rate, TaskRateSource source, String groupName})?
+projectInheritedTaskRate(TaskRateContext rates) {
+  final resolved = resolveTaskRateWithSource(
+    task: emptyTask(),
+    client: rates.client,
+    group: rates.group,
+    company: rates.company,
+  );
+  if (resolved.source == TaskRateSource.none || resolved.rate <= Decimal.zero) {
+    return null;
+  }
+  return (
+    rate: resolved.rate,
+    source: resolved.source,
+    groupName: rates.group?.name ?? '',
+  );
 }
 
 /// The project's colour, as the kanban and the calendar draw it.

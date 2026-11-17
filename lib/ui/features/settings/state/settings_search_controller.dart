@@ -3,15 +3,15 @@ import 'package:flutter/widgets.dart';
 /// Open/closed state, query text and keyboard selection for the `/settings`
 /// index search.
 ///
-/// Lives outside `SettingsListSidebar` because the *trigger* and the *results*
-/// no longer share a parent. On narrow the magnifying glass and the field sit
-/// in `SettingsScreen`'s pinned AppBar — they used to be the `trailing:` of the
-/// in-list "Basic Settings" header, so they scrolled away (issue #42) — while
-/// the results still render in the list body below.
+/// Lives outside `SettingsListSidebar` because the *field* and the *results*
+/// don't share a parent. On narrow the field sits, always visible, in
+/// `SettingsScreen`'s pinned AppBar — the search used to be the `trailing:` of
+/// the in-list "Basic Settings" header, so it scrolled away (issue #42) — while
+/// the results render in the list body below.
 ///
-/// Ownership rule: **whoever creates the controller renders the trigger.** The
-/// wide 280 px pane has no AppBar, so it creates its own and keeps an in-pane
-/// affordance; `SettingsScreen` passes one down and owns the chrome itself.
+/// Ownership rule: **whoever creates the controller renders the field.** The
+/// wide 280 px pane has no AppBar, so it creates its own and pins the field
+/// above its list; `SettingsScreen` passes one down and owns the chrome itself.
 class SettingsSearchController extends ChangeNotifier {
   SettingsSearchController() {
     query.addListener(_onQueryChanged);

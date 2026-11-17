@@ -73,7 +73,9 @@ class LoginViewModel extends ChangeNotifier {
     this.passkeyAuthenticator = const PlatformPasskeyAuthenticator(),
     this.served,
     bool? isWeb,
-  }) : _isWeb = isWeb ?? kIsWeb {
+    bool? isDemoBuild,
+  }) : _isWeb = isWeb ?? kIsWeb,
+       _isDemoBuild = isDemoBuild ?? Env.isDemoBuild {
     // A page an Invoice Ninja server served signs in to that server, hosted or
     // not; the view drops the server choice (docs/web-deploy.md).
     final page = served;
@@ -126,6 +128,15 @@ class LoginViewModel extends ChangeNotifier {
   /// the page's server is used either way and this keeps only its other
   /// meanings (the session's hosted flag, no `X-API-SECRET`).
   bool isHosted = true;
+
+  final bool _isDemoBuild;
+
+  /// Whether step 1 offers the Hosted / Self-hosted choice and the server
+  /// URL. Not on a page an Invoice Ninja server served (it signs in to that
+  /// server), and not on the public web demo: a visitor who lands on its
+  /// login (a failed bootstrap, a sign-out) must not take the shared demo
+  /// page for their own app instance and point it at their server.
+  bool get offersServerChoice => served == null && !_isDemoBuild;
 
   LoginStep _step = LoginStep.email;
   LoginStep get step => _step;

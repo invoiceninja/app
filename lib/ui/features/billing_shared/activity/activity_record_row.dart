@@ -4,6 +4,7 @@ import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/env.dart';
 import 'package:admin/app/router.dart';
 import 'package:admin/data/models/domain/activity.dart';
+import 'package:admin/domain/activity/activity_ip.dart';
 import 'package:admin/domain/activity/activity_refs.dart';
 import 'package:admin/domain/phone/call_note.dart';
 import 'package:admin/l10n/localization.dart';
@@ -287,11 +288,13 @@ class _ActivityRecordRowState extends State<ActivityRecordRow> {
     final actor = a.isComment ? (a.userLabel ?? '').trim() : '';
     final sourceRef = _sourceRef(a);
     final source = sourceRef?.label.trim() ?? '';
+    // A background job's activity carries the loopback address — dropped.
+    final ip = displayableActivityIp(a.ip);
     final meta = [
       if (actor.isNotEmpty) actor,
       _timestamp(a, elapsed),
       if (source.isNotEmpty) source,
-      if (widget.showIp && a.ip.isNotEmpty) a.ip,
+      if (widget.showIp && ip.isNotEmpty) ip,
     ].join(' · ');
 
     final body = Column(

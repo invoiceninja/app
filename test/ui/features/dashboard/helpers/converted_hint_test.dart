@@ -149,4 +149,40 @@ void main() {
       isNull,
     );
   });
+
+  group('approxInBaseCurrency', () {
+    String? approx({
+      String? currencyId = '3',
+      String rate = '0.8',
+      String amount = '100',
+    }) => approxInBaseCurrency(
+      formatter: _formatter(),
+      amount: Decimal.parse(amount),
+      documentCurrencyId: currencyId,
+      exchangeRate: Decimal.parse(rate),
+    );
+
+    test('divides by the stored rate, as the server totals do', () {
+      // 100 EUR at 0.8 EUR per GBP is 125 GBP.
+      expect(approx(), contains('125.00'));
+      expect(approx(), startsWith('≈ '));
+      expect(approx(), contains('£'));
+    });
+
+    test('a document in the company currency has no estimate', () {
+      expect(approx(currencyId: '2'), isNull);
+      // Unresolved / company default.
+      expect(approx(currencyId: null), isNull);
+      expect(approx(currencyId: ''), isNull);
+    });
+
+    test('a missing rate, or 1 between two currencies, shows nothing', () {
+      expect(approx(rate: '0'), isNull);
+      expect(approx(rate: '1'), isNull);
+    });
+
+    test('a zero amount says nothing', () {
+      expect(approx(amount: '0'), isNull);
+    });
+  });
 }

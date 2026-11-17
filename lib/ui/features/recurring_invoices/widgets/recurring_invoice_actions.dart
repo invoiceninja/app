@@ -371,7 +371,7 @@ class RecurringInvoiceActions {
       ?q.pick(
         RecurringInvoiceAction.viewPdf,
         context.tr('pdf'),
-        applies: !hasPdfPane,
+        onScreen: hasPdfPane,
       ),
       ?q.pick(RecurringInvoiceAction.downloadPdf, context.tr('download')),
       ?q.pick(RecurringInvoiceAction.clone, context.tr('clone')),

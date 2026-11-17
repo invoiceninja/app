@@ -2,22 +2,16 @@ import 'package:material_ui/material_ui.dart';
 
 import 'package:admin/app/design_tokens.dart';
 
-/// Row-hover background color for unselected rows.
-///
-/// Light mode reuses `surfaceAlt` — same value the column-headers strip
-/// uses, so hover reads as part of the same surface family. Dark mode
-/// can't use `surfaceAlt`: its delta from `surface` is ~3 % per channel
-/// (e.g. `#28261F` vs `#1F1E18` on espresso) and is perceptually
-/// invisible as a hover affordance over the card surface. Instead we
-/// blend ~8 % of `ink` over `surface`, matching the Material 3 hover
-/// state opacity and producing a clearly readable lift in every dark
-/// palette.
-Color _rowHoverColor(BuildContext context, InTheme tokens) {
-  if (Theme.of(context).brightness == Brightness.light) {
-    return tokens.surfaceAlt;
-  }
-  return Color.alphaBlend(tokens.ink.withAlpha(0x14), tokens.surface);
-}
+/// Row-hover background color for unselected rows: a translucent wash of
+/// `ink` (~4 % light, ~8 % dark — the Material 3 hover opacity in the dark),
+/// so the lift reads the same over whatever the row sits on. A standalone
+/// list's table sits straight on the page `bg` and an embedded one inside a
+/// `surface` card; the old light value, opaque `surfaceAlt`, is *lighter* than
+/// `bg` and all but vanished once the standalone table lost its card. Dark
+/// mode never could use `surfaceAlt`: its delta from `surface` is ~3 % per
+/// channel and perceptually invisible.
+Color _rowHoverColor(BuildContext context, InTheme tokens) => tokens.ink
+    .withAlpha(Theme.of(context).brightness == Brightness.light ? 0x0A : 0x14);
 
 /// Shared selected-row chrome for every entity list tile.
 ///
@@ -46,10 +40,8 @@ Color _rowHoverColor(BuildContext context, InTheme tokens) {
 ///   With no `InkWell` in the tree no overlay can fire, so `accentSoft`
 ///   stays readable on hover. Unselected rows keep the `InkWell` (its
 ///   hover overlay via [_rowHoverColor] + the Material focus highlight
-///   for keyboard nav). The hover color is brightness-aware: light mode
-///   uses `surfaceAlt`; dark mode uses a computed `ink @ 8% over surface`
-///   blend, because raw `surfaceAlt` is perceptually invisible against
-///   the dark card surface.
+///   for keyboard nav). The hover color is a translucent `ink` wash (see
+///   [_rowHoverColor]), so it reads on the page and on a card alike.
 ///
 /// No animation: selection snaps. Arrow-key / J-K navigation in the
 /// master-detail list moves selection on every keypress; an implicit tween

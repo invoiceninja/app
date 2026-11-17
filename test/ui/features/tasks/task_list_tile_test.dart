@@ -274,6 +274,14 @@ void main() {
       ),
     ];
 
+    testWidgets('no time logged: the unlabelled slot is empty, not 0:00', (
+      tester,
+    ) async {
+      await pumpTile(tester, task: _task(log: const []), wide: false);
+      expect(find.text('0:00'), findsNothing);
+      expect(find.text('0:00:00'), findsNothing);
+    });
+
     testWidgets('a long total reads in hours, whole', (tester) async {
       await pumpTile(tester, task: _task(log: long), wide: false);
       final text = tester.widget<Text>(find.text('36:30'));

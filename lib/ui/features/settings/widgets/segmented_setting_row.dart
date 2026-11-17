@@ -1,3 +1,4 @@
+import 'package:flutter/rendering.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'package:admin/l10n/localization.dart';
@@ -15,17 +16,99 @@ const double _kWideRowThreshold = 520;
 /// A fixed-width, centered, single-line segment label so segmented buttons line
 /// up column-to-column across settings rows. Shared by the theme rows and the
 /// font-size row on Device Settings.
-Widget segmentLabel(BuildContext context, String key) {
-  return SizedBox(
-    width: _kSegmentLabelWidth,
-    child: Center(
-      child: Text(
-        context.tr(key),
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-      ),
-    ),
-  );
+///
+/// Under a narrow [SegmentedSettingRow] the label drops the fixed width and
+/// takes its natural one, so the row can tell whether the segments fit the
+/// card and, when they do, stretch them across it.
+Widget segmentLabel(BuildContext context, String key) => _SegmentLabel(key);
+
+class _SegmentLabel extends StatelessWidget {
+  const _SegmentLabel(this.labelKey);
+
+  final String labelKey;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Text(
+      context.tr(labelKey),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      textAlign: TextAlign.center,
+    );
+    if (_SegmentFillScope.of(context)) return text;
+    return SizedBox(
+      width: _kSegmentLabelWidth,
+      child: Center(child: text),
+    );
+  }
+}
+
+/// Marks a narrow row's control: its [segmentLabel]s go natural-width.
+class _SegmentFillScope extends InheritedWidget {
+  const _SegmentFillScope({required super.child});
+
+  static bool of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<_SegmentFillScope>() != null;
+
+  @override
+  bool updateShouldNotify(_SegmentFillScope oldWidget) => false;
+}
+
+/// Lays its child out at the full [width] when the child's natural width fits
+/// it — a [SegmentedButton] given a tight width shares it equally among its
+/// segments — and at its natural width otherwise, for the scroll view around
+/// it to scroll. Decided by measurement, because the labels are translated:
+/// the same row fits in English and not in German.
+class _FillIfFits extends SingleChildRenderObjectWidget {
+  const _FillIfFits({required this.width, required super.child});
+
+  final double width;
+
+  @override
+  RenderObject createRenderObject(BuildContext context) =>
+      _RenderFillIfFits(width);
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    _RenderFillIfFits renderObject,
+  ) {
+    renderObject.width = width;
+  }
+}
+
+class _RenderFillIfFits extends RenderProxyBox {
+  _RenderFillIfFits(this._width);
+
+  double _width;
+  set width(double value) {
+    if (value == _width) return;
+    _width = value;
+    markNeedsLayout();
+  }
+
+  BoxConstraints _childConstraints(RenderBox child) =>
+      child.getMaxIntrinsicWidth(double.infinity) <= _width
+      ? BoxConstraints.tightFor(width: _width)
+      : const BoxConstraints();
+
+  @override
+  Size computeDryLayout(BoxConstraints constraints) {
+    final child = this.child;
+    if (child == null) return constraints.smallest;
+    return constraints.constrain(child.getDryLayout(_childConstraints(child)));
+  }
+
+  @override
+  void performLayout() {
+    final child = this.child;
+    if (child == null) {
+      size = constraints.smallest;
+      return;
+    }
+    child.layout(_childConstraints(child), parentUsesSize: true);
+    size = constraints.constrain(child.size);
+  }
 }
 
 /// A settings row with a leading icon, a title + subtitle, and a wide
@@ -97,13 +180,19 @@ class SegmentedSettingRow extends StatelessWidget {
             ),
             Padding(
               // Match ListTile's default 16px horizontal content inset so the
-              // control lines up with the tile edges; horizontal scroll is a
-              // guard for sub-320px widths where the button is wider than the
-              // row.
+              // control lines up with the tile edges. Segments that fit are
+              // stretched across the card (a phone's segments were a short
+              // strip, or clipped "Dark" / "Paper" at fixed 80 px labels);
+              // the horizontal scroll stays for rows that still don't fit.
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: control,
+              child: LayoutBuilder(
+                builder: (context, inner) => SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: _FillIfFits(
+                    width: inner.maxWidth,
+                    child: _SegmentFillScope(child: control),
+                  ),
+                ),
               ),
             ),
           ],

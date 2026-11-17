@@ -1,7 +1,10 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 
+import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/services.dart';
+import 'package:admin/data/models/domain/company.dart';
+import 'package:admin/data/models/domain/company_settings.dart';
 import 'package:admin/data/models/domain/group_setting.dart';
 import 'package:admin/data/models/value/currency.dart';
 import 'package:admin/data/models/value/industry.dart';
@@ -15,6 +18,7 @@ import 'package:admin/ui/core/widgets/labeled_switch_group.dart';
 import 'package:admin/ui/core/widgets/searchable_dropdown_field.dart';
 import 'package:admin/ui/features/clients/view_models/client_edit_view_model.dart';
 import 'package:admin/ui/features/clients/widgets/edit/client_edit_field_pair.dart';
+import 'package:admin/ui/features/clients/widgets/edit/client_inherited_settings.dart';
 import 'package:admin/ui/features/clients/widgets/edit/client_verification_checks.dart';
 import 'package:admin/ui/features/dashboard/widgets/card_shell.dart';
 
@@ -75,7 +79,7 @@ class ClientEditSettingsSection extends StatelessWidget {
               : taskRateRaw.toString());
 
     final inherited = context.tr('default');
-    final days = context.tr('days');
+    final daysSuffix = context.tr('days');
     return DashboardCardShell(
       title: context.tr('settings'),
       child: Column(
@@ -97,59 +101,116 @@ class ClientEditSettingsSection extends StatelessWidget {
           ),
           // What this client's invoices and quotes start from. Each is a
           // cascade setting: blank inherits the group's, then the company's,
-          // and the empty field says so ("Default") instead of looking unset.
+          // and the empty field says what that is and where it comes from
+          // ("Default (Euro)", "From group Wholesale") instead of looking
+          // unset.
           FormGroupHeading(context.tr('defaults')),
-          ClientEditFieldPair(
-            left: SearchableDropdownField<Currency>(
-              label: context.tr('currency'),
-              hintText: inherited,
-              items: currencies,
-              initialValue: statics.currency(draft.currencyId),
-              displayString: (c) => c.name,
-              idOf: (c) => c.id,
-              onChanged: (c) => vm.setCurrencyId(c?.id ?? ''),
-            ),
-            right: SearchableDropdownField<Language>(
-              label: context.tr('language'),
-              hintText: inherited,
-              items: languages,
-              initialValue: statics.language(draft.languageId),
-              displayString: (l) => l.name,
-              idOf: (l) => l.id,
-              onChanged: (l) => vm.setLanguageId(l?.id ?? ''),
-            ),
-          ),
-          ClientEditFieldPair(
-            left: EntityEditField(
-              label: context.tr('payment_terms'),
-              hintText: inherited,
-              suffixText: days,
-              initial: draft.paymentTerms,
-              keyboardType: TextInputType.number,
-              onChanged: vm.setPaymentTerms,
-            ),
-            // "Quote valid until", not "Valid until": on a client it is a
-            // number of days for its quotes, not a date of its own.
-            right: EntityEditField(
-              label: context.tr('quote_valid_until'),
-              hintText: inherited,
-              suffixText: days,
-              initial: vm.validUntil,
-              keyboardType: TextInputType.number,
-              onChanged: vm.setValidUntil,
-            ),
-          ),
-          ClientEditFieldPair(
-            left: EntityEditField(
-              label: context.tr('task_rate'),
-              hintText: inherited,
-              initial: taskRate,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              onChanged: vm.setDefaultTaskRate,
-            ),
-            right: _SendRemindersPicker(vm: vm),
+          _CascadeSources(
+            companyId: vm.companyId,
+            builder: (context, companySettings, groups) {
+              InheritedSetting? inheritedFor(String key) =>
+                  inheritedClientSetting(
+                    key,
+                    groupId: draft.groupSettingsId,
+                    groups: groups,
+                    companySettings: companySettings,
+                  );
+              String hint(InheritedSetting? s, String Function(Object) show) =>
+                  s == null
+                  ? inherited
+                  : context.tr('default_with_value', {'value': show(s.value)});
+              // The source line shows only while the field is blank: once the
+              // client sets its own value, nothing is inherited.
+              Widget? source(InheritedSetting? s, {required bool unset}) =>
+                  s == null || !unset ? null : _InheritedSourceText(s.source);
+              // The field already ends in "days", so the inherited count is
+              // the bare number: "Default (30)", not "Default (30 days) days".
+              String days(Object v) => '$v';
+
+              final currency = inheritedFor('currency_id');
+              final language = inheritedFor('language_id');
+              final terms = inheritedFor('payment_terms');
+              final validUntil = inheritedFor('valid_until');
+              final rate = inheritedFor('default_task_rate');
+              final reminders = inheritedFor('send_reminders');
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ClientEditFieldPair(
+                    left: SearchableDropdownField<Currency>(
+                      label: context.tr('currency'),
+                      hintText: hint(
+                        currency,
+                        (id) => statics.currency('$id')?.name ?? '$id',
+                      ),
+                      helper: source(currency, unset: draft.currencyId.isEmpty),
+                      items: currencies,
+                      initialValue: statics.currency(draft.currencyId),
+                      displayString: (c) => c.name,
+                      idOf: (c) => c.id,
+                      onChanged: (c) => vm.setCurrencyId(c?.id ?? ''),
+                    ),
+                    right: SearchableDropdownField<Language>(
+                      label: context.tr('language'),
+                      hintText: hint(
+                        language,
+                        (id) => statics.language('$id')?.name ?? '$id',
+                      ),
+                      helper: source(language, unset: draft.languageId.isEmpty),
+                      items: languages,
+                      initialValue: statics.language(draft.languageId),
+                      displayString: (l) => l.name,
+                      idOf: (l) => l.id,
+                      onChanged: (l) => vm.setLanguageId(l?.id ?? ''),
+                    ),
+                  ),
+                  ClientEditFieldPair(
+                    left: EntityEditField(
+                      label: context.tr('payment_terms'),
+                      hintText: hint(terms, days),
+                      helper: source(terms, unset: draft.paymentTerms.isEmpty),
+                      suffixText: daysSuffix,
+                      initial: draft.paymentTerms,
+                      keyboardType: TextInputType.number,
+                      onChanged: vm.setPaymentTerms,
+                    ),
+                    // "Quote valid until", not "Valid until": on a client it
+                    // is a number of days for its quotes, not a date of its
+                    // own.
+                    right: EntityEditField(
+                      label: context.tr('quote_valid_until'),
+                      hintText: hint(validUntil, days),
+                      helper: source(validUntil, unset: vm.validUntil.isEmpty),
+                      suffixText: daysSuffix,
+                      initial: vm.validUntil,
+                      keyboardType: TextInputType.number,
+                      onChanged: vm.setValidUntil,
+                    ),
+                  ),
+                  ClientEditFieldPair(
+                    left: EntityEditField(
+                      label: context.tr('task_rate'),
+                      hintText: hint(rate, _plainNumber),
+                      helper: source(rate, unset: taskRate.isEmpty),
+                      initial: taskRate,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      onChanged: vm.setDefaultTaskRate,
+                    ),
+                    right: _SendRemindersPicker(
+                      vm: vm,
+                      inherited: reminders,
+                      helper: source(
+                        reminders,
+                        unset: vm.sendReminders == null,
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
           // Who the client is, for reporting and e-invoicing.
           FormGroupHeading(context.tr('profile')),
@@ -252,8 +313,18 @@ class _GroupPicker extends StatelessWidget {
 /// Enabled / Disabled. The `__default__` sentinel item maps to a cleared
 /// override (no per-client `send_reminders` key).
 class _SendRemindersPicker extends StatelessWidget {
-  const _SendRemindersPicker({required this.vm});
+  const _SendRemindersPicker({
+    required this.vm,
+    required this.inherited,
+    required this.helper,
+  });
   final ClientEditViewModel vm;
+
+  /// What Default resolves to, for "Default (Enabled)"; null says "Default".
+  final InheritedSetting? inherited;
+
+  /// Where Default comes from, while Default is chosen.
+  final Widget? helper;
 
   static const String _inheritKey = '__default__';
 
@@ -267,8 +338,15 @@ class _SendRemindersPicker extends StatelessWidget {
       label: context.tr('send_reminders'),
       items: const [_inheritKey, 'enabled', 'disabled'],
       initialValue: current,
-      displayString: (v) =>
-          v == _inheritKey ? context.tr('default') : context.tr(v),
+      helper: helper,
+      displayString: (v) => v != _inheritKey
+          ? context.tr(v)
+          : switch (inherited?.value) {
+              final bool on => context.tr('default_with_value', {
+                'value': context.tr(on ? 'enabled' : 'disabled'),
+              }),
+              _ => context.tr('default'),
+            },
       idOf: (v) => v,
       onChanged: (v) {
         switch (v) {
@@ -280,6 +358,81 @@ class _SendRemindersPicker extends StatelessWidget {
             vm.setSendReminders(null); // Default / cleared → inherit.
         }
       },
+    );
+  }
+}
+
+/// A whole number without its `.0` ("75", not "75.0"); anything else as is.
+String _plainNumber(Object v) {
+  if (v is num && v % 1 == 0) return v.toInt().toString();
+  return '$v';
+}
+
+/// The line under a blank cascade field naming where its value comes from.
+class _InheritedSourceText extends StatelessWidget {
+  const _InheritedSourceText(this.source);
+  final InheritedSource source;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = switch (source) {
+      FromGroup(:final name) => context.tr('inherited_from_group', {
+        'name': name,
+      }),
+      FromCompany() => context.tr('inherited_from_company'),
+    };
+    return Text(
+      text,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: TextStyle(fontSize: 12, color: context.inTheme.ink3),
+    );
+  }
+}
+
+/// The company's settings and the company's groups, for resolving what a
+/// blank client setting inherits. The streams are opened once, not on every
+/// keystroke's rebuild of the form.
+class _CascadeSources extends StatefulWidget {
+  const _CascadeSources({required this.companyId, required this.builder});
+
+  final String companyId;
+  final Widget Function(
+    BuildContext context,
+    CompanySettings? companySettings,
+    List<GroupSetting>? groups,
+  )
+  builder;
+
+  @override
+  State<_CascadeSources> createState() => _CascadeSourcesState();
+}
+
+class _CascadeSourcesState extends State<_CascadeSources> {
+  late final Stream<Company?> _company;
+  // Archived groups too: a client can still belong to one, and the server
+  // still cascades through it.
+  late final Stream<List<GroupSetting>> _groups;
+
+  @override
+  void initState() {
+    super.initState();
+    final services = context.read<Services>();
+    _company = services.company.watchCompany(widget.companyId);
+    _groups = services.groupSettings.watchAllIncludingArchived(
+      companyId: widget.companyId,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<Company?>(
+      stream: _company,
+      builder: (context, company) => StreamBuilder<List<GroupSetting>>(
+        stream: _groups,
+        builder: (context, groups) =>
+            widget.builder(context, company.data?.settings, groups.data),
+      ),
     );
   }
 }

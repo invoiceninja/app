@@ -118,6 +118,7 @@ void main() {
     WidgetTester tester, {
     String? parentId,
     bool readOnly = false,
+    bool offersNew = true,
     EmbeddedListIntents? intents,
     DetailRefreshSignal? refresh,
     FakeCompany company = const FakeCompany(
@@ -140,6 +141,7 @@ void main() {
         wantsFormatter: false,
         embedded: true,
         embeddedNewOverride: (_) => created.add(1),
+        embeddedOffersNew: offersNew,
         buildVm: (services, companyId) => vm = _Vm(
           companyId: companyId,
           navStateDao: services.db.navStateDao,
@@ -181,7 +183,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 1));
   }
 
-  final newButton = find.widgetWithText(FilledButton, 'New');
+  final newButton = find.widgetWithText(OutlinedButton, 'New');
 
   testWidgets('with no scope the list behaves as it always did', (
     tester,
@@ -242,6 +244,27 @@ void main() {
     await tester.sendKeyEvent(LogicalKeyboardKey.keyN);
     await _frames(tester);
     expect(created, isEmpty);
+    await dispose(tester);
+  });
+
+  // The project Tasks tab: its quick-add field is the create control, so the
+  // list's New goes — and nothing else does. It used to borrow the deleted-
+  // parent flag above to say this.
+  testWidgets('embeddedOffersNew: false withdraws only New and N', (
+    tester,
+  ) async {
+    final created = await pumpList(tester, parentId: 'p1', offersNew: false);
+    expect(newButton, findsNothing, reason: 'left out, not greyed');
+    await tester.sendKeyEvent(LogicalKeyboardKey.keyN);
+    await _frames(tester);
+    expect(created, isEmpty);
+
+    // Rows and selection are untouched: ticking a row still selects it.
+    expect(find.text('i1'), findsOneWidget);
+    vm.toggleSelected('i1');
+    await _frames(tester);
+    expect(vm.isInMultiselect, isTrue);
+    expect(vm.selectedItems.map((r) => r.id), ['i1']);
     await dispose(tester);
   });
 

@@ -4,12 +4,17 @@ import 'package:provider/provider.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/data/models/domain/custom_field_types.dart';
 import 'package:admin/data/models/value/industry.dart';
+import 'package:admin/data/services/live_design_service.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/edit/entity_custom_fields_section.dart';
+import 'package:admin/ui/core/widgets/example_hint.dart';
 import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/form_field_pair.dart';
 import 'package:admin/ui/core/widgets/searchable_dropdown_field.dart';
+import 'package:admin/ui/features/settings/state/settings_level_controller.dart';
 import 'package:admin/ui/features/settings/view_models/company_details_view_model.dart';
+import 'package:admin/ui/features/settings/view_models/settings_draft_view_model.dart';
+import 'package:admin/ui/features/settings/views/advanced/invoice_design/widgets/invoice_design_preview_pane.dart';
 import 'package:admin/ui/features/settings/widgets/form_section.dart';
 import 'package:admin/ui/features/settings/widgets/overridable_text_field.dart';
 import 'package:admin/ui/features/settings/widgets/settings_form_shell.dart';
@@ -68,7 +73,9 @@ class CompanyDetailsScreen extends StatelessWidget {
     );
 
     return SettingsFormShell(
+      subtitle: context.tr('company_details_subtitle'),
       sections: [
+        const _PreviewDocumentLink(),
         FormSection(
           title: context.tr('identification'),
           children: [
@@ -120,10 +127,12 @@ class CompanyDetailsScreen extends StatelessWidget {
         ),
         FormSection(
           title: context.tr('contact'),
+          description: context.tr('company_contact_section_help'),
           children: [
             OverridableTextField(
               label: context.tr('website'),
               apiKey: 'website',
+              hintText: exampleHint(context, 'https://example.com'),
               keyboardType: TextInputType.url,
               autocorrect: false,
             ),
@@ -131,6 +140,7 @@ class CompanyDetailsScreen extends StatelessWidget {
               left: OverridableTextField(
                 label: context.tr('email'),
                 apiKey: 'email',
+                hintText: exampleHint(context, 'billing@example.com'),
                 keyboardType: TextInputType.emailAddress,
                 autocorrect: false,
                 autofillHints: const [AutofillHints.email],
@@ -148,6 +158,7 @@ class CompanyDetailsScreen extends StatelessWidget {
         // through the settings cascade, so no PropertyCheckbox wrapper.
         FormSection(
           title: context.tr('business'),
+          description: context.tr('industry_help'),
           children: [
             FormFieldPair(left: _SizeField(), right: _IndustryField()),
           ],
@@ -264,6 +275,48 @@ class _IndustryField extends StatelessWidget {
       idOf: (i) => i.id,
       onChanged: (i) =>
           vm.updateCompany((c) => c.copyWith(industryId: i?.id ?? '')),
+    );
+  }
+}
+
+/// "Preview a document": the name, address and contact details on this page
+/// are what every invoice prints, so the page links to the Invoice Design
+/// live preview — rendered by the server from the unsaved draft, the same
+/// pane Invoice Design uses — rather than drawing a look-alike on the device.
+class _PreviewDocumentLink extends StatelessWidget {
+  const _PreviewDocumentLink();
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: AlignmentDirectional.centerStart,
+      child: TextButton.icon(
+        style: TextButton.styleFrom(minimumSize: const Size(64, 40)),
+        icon: const Icon(Icons.visibility_outlined, size: 18),
+        label: Text(context.tr('preview_a_document')),
+        onPressed: () => _open(context),
+      ),
+    );
+  }
+
+  void _open(BuildContext context) {
+    final services = context.read<Services>();
+    // Captured here: the preview is pushed above the settings subtree, so it
+    // re-provides the page's draft (the same hand-off Invoice Design's
+    // phone preview makes).
+    final host = context.read<SettingsDraftHost>();
+    final level = context.read<SettingsLevelController>();
+    final companyId = services.auth.session.value?.currentCompanyId;
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        fullscreenDialog: true,
+        builder: (_) => InvoiceDesignPreviewScreen(
+          host: host,
+          level: level,
+          service: LiveDesignService(services.apiClient),
+          companyId: companyId,
+        ),
+      ),
     );
   }
 }

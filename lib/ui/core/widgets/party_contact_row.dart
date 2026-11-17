@@ -3,9 +3,12 @@ import 'package:material_ui/material_ui.dart';
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/env.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/core/detail/entity_record_column.dart';
+import 'package:admin/ui/core/detail/entity_record_page.dart';
 import 'package:admin/ui/core/utils/phone_actions.dart';
 import 'package:admin/ui/core/widgets/back_dismissible_menu_anchor.dart';
 import 'package:admin/ui/core/widgets/copyable_value.dart';
+import 'package:admin/ui/core/widgets/initials_avatar.dart';
 import 'package:admin/ui/core/widgets/phone_number_value.dart';
 import 'package:admin/ui/core/widgets/status_pill.dart';
 
@@ -62,7 +65,74 @@ class PartyContactRow extends StatelessWidget {
     this.phoneSubject,
     this.clientId,
     this.logTarget,
+    this.avatarSeed,
   });
+
+  /// Draws an `InitialsAvatar` before the contact, seeded on this — the
+  /// contact's id. Null draws none, which is every place but a hub record's
+  /// rail with a pointer, and there only when every address still fits
+  /// beside it ([avatarsFit]).
+  final String? avatarSeed;
+
+  /// Whether the contact rows of a card at [context] get avatars: only in a
+  /// hub record's rail (`RecordColumnScope.isRail`), only with a pointer, and
+  /// only when every one of [emails] still fits beside one ([avatarsFit]).
+  ///
+  /// The rail is the one place the card's width is known without measuring
+  /// it — the same card sits in an `IntrinsicHeight` row elsewhere, where a
+  /// `LayoutBuilder` may not go. On touch the three action buttons are 44 px
+  /// each and the avatar would cost the address its room; in the wide row and
+  /// the pane the card is narrower still.
+  static bool railAvatars(
+    BuildContext context, {
+    required Iterable<String> emails,
+  }) {
+    if (Env.isTouchPrimary || !RecordColumnScope.isRail(context)) {
+      return false;
+    }
+    // The card's own padding and its 1 px border, each side.
+    final width = kRecordRailWidth - InSpacing.lg(context) * 2 - 2;
+    return avatarsFit(context, width: width, emails: emails);
+  }
+
+  /// Whether a card [width] wide has room for an avatar on every one of
+  /// [emails] without shortening any of them to an ellipsis.
+  ///
+  /// The avatar costs ~44 px of a row whose text is already the narrowest
+  /// thing on it, and a cut-off address is a wrong one: so the card asks this
+  /// once for all its rows, and draws avatars on all of them or on none.
+  /// Measured, not estimated — the font, the text scale and the locale's
+  /// glyphs all move the answer.
+  static bool avatarsFit(
+    BuildContext context, {
+    required double width,
+    required Iterable<String> emails,
+  }) {
+    final style = Theme.of(
+      context,
+    ).textTheme.bodySmall?.copyWith(color: context.inTheme.ink2);
+    // The worst case: two buttons and the `⋮`, after the gap before them.
+    final actions = _actionSize() * 3 + InSpacing.sm;
+    final room = width - actions - _kAvatarSize - _kAvatarGap;
+    if (room <= 0) return false;
+    final painter = TextPainter(
+      textDirection: Directionality.of(context),
+      textScaler: MediaQuery.textScalerOf(context),
+      maxLines: 1,
+    );
+    try {
+      for (final email in emails) {
+        if (email.isEmpty) continue;
+        painter
+          ..text = TextSpan(text: email, style: style)
+          ..layout();
+        if (painter.width > room) return false;
+      }
+    } finally {
+      painter.dispose();
+    }
+    return true;
+  }
 
   /// Empty falls back to [email], then to `no_name_fallback`.
   final String name;
@@ -72,6 +142,9 @@ class PartyContactRow extends StatelessWidget {
   /// Most-used first. See the class doc for how they are split.
   final List<PartyContactAction> actions;
 
+  /// Draws [PartyContactPrimaryLabel] beside the name. The caller passes
+  /// `contact.isPrimary` **only when the party has two or more contacts worth
+  /// showing** — beside a lone contact the word answers nothing.
   final bool isPrimary;
 
   /// Exceptions worth a label under the name — Unsubscribed, CC Only. Empty
@@ -144,27 +217,30 @@ class PartyContactRow extends StatelessWidget {
         ),
         if (isPrimary) ...[
           const SizedBox(width: 6),
-          // A bare star says nothing to a screen reader and little to anyone
-          // who has not learned it.
-          Tooltip(
-            message: context.tr('primary_contact'),
-            child: Icon(
-              Icons.star,
-              size: 14,
-              color: tokens.accent,
-              semanticLabel: context.tr('primary_contact'),
-            ),
-          ),
+          // A word, where this was a star: a star says nothing to a screen
+          // reader and little to anyone who has not learned it.
+          const PartyContactPrimaryLabel(),
         ],
       ],
     );
 
+    final seed = avatarSeed;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: InSpacing.sm),
       child: Row(
         // Centred against the buttons: on one line the name sits level with
         // them, and stacked it is a block beside them.
         children: [
+          if (seed != null) ...[
+            ExcludeSemantics(
+              child: InitialsAvatar(
+                seed: seed,
+                label: initialsFor(title) ?? '?',
+                size: _kAvatarSize,
+              ),
+            ),
+            const SizedBox(width: _kAvatarGap),
+          ],
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -223,6 +299,9 @@ class PartyContactRow extends StatelessWidget {
     );
   }
 }
+
+const double _kAvatarSize = 32;
+const double _kAvatarGap = 12;
 
 /// The least width a contact's name takes on the line it shares with the
 /// address — wide enough for most names, so the addresses line up.
@@ -301,6 +380,46 @@ class PartyContactPill extends StatelessWidget {
       label: label,
       fgColor: alert ? tokens.overdue : tokens.draft,
       bgColor: alert ? tokens.overdueSoft : tokens.draftSoft,
+    );
+  }
+}
+
+/// "Primary", beside the contact a client or vendor's mail goes to first.
+///
+/// Drawn only where it tells the user something — a party with two or more
+/// contacts worth showing; on a lone contact it is noise. A rounded rectangle
+/// in the accent's soft tint, never a pill (CLAUDE.md § Design system), and a
+/// word where this used to be a star.
+class PartyContactPrimaryLabel extends StatelessWidget {
+  const PartyContactPrimaryLabel({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.inTheme;
+    return Tooltip(
+      message: context.tr('primary_contact'),
+      child: Semantics(
+        label: context.tr('primary_contact'),
+        excludeSemantics: true,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: tokens.accentSoft,
+            borderRadius: BorderRadius.circular(InRadii.r1),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+            child: Text(
+              context.tr('primary'),
+              maxLines: 1,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: tokens.accentInk,
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

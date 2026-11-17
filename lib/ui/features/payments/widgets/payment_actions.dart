@@ -13,6 +13,7 @@ import 'package:admin/ui/core/detail/entity_detail_actions_row.dart';
 import 'package:admin/ui/core/detail/entity_quick_actions.dart';
 import 'package:admin/ui/core/detail/standard_entity_action_items.dart';
 import 'package:admin/ui/core/detail/standard_entity_actions.dart';
+import 'package:admin/ui/core/edit/edit_action_filter.dart';
 import 'package:admin/ui/core/sync/require_synced.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/features/billing_shared/email/recipient_email_fix.dart';
@@ -192,6 +193,25 @@ class PaymentActions {
     ];
   }
 
+  /// [itemsFor] as the edit screen's action bar offers it
+  /// (`filterForEditScreen`), less Send Email on a new payment: the form's
+  /// Email receipt switch sends it with the create, and the action — saving
+  /// first, then sending — would be a second receipt on top of a switched-on
+  /// one.
+  static List<EntityActionItem<PaymentAction>> editScreenItemsFor(
+    BuildContext context,
+    Payment payment,
+    void Function(PaymentAction) onTap, {
+    required bool isCreate,
+  }) => [
+    for (final item in filterForEditScreen(
+      itemsFor(context, payment, onTap),
+      isCreate: isCreate,
+      isLifecycle: isLifecycle,
+    ))
+      if (!(isCreate && item.kind == PaymentAction.sendEmail)) item,
+  ];
+
   /// The record screen's quick-action tiles, most-used first: put the
   /// unapplied money somewhere, send the receipt, refund, open the client.
   ///
@@ -282,12 +302,11 @@ class PaymentActions {
           return;
         }
         if (!context.mounted) return;
-        // Re-save with sendEmail=true so the server fires off a receipt. The
-        // outbox handles the round-trip; no extra endpoint needed.
-        await services.payments.save(
+        // The bulk `email` action, never a re-save: the server reads
+        // `?email_receipt=true` only on a create (`emailReceipt`'s doc).
+        await services.payments.emailReceipt(
           companyId: companyId,
-          payment: payment,
-          sendEmail: true,
+          paymentId: payment.id,
         );
         if (context.mounted) {
           Notify.success(context, context.tr('emailed_payment'));

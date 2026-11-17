@@ -114,10 +114,21 @@ class EInvoiceBody extends StatelessWidget {
         // affordance React ships at the top of EInvoice.tsx.
         const _HelpLinkRow(),
 
-        // ── E-Invoice Type ─────────────────────────────────────────────
+        // ── E-Invoicing: the switch, then the format it uses ────────────
+        // One card, switch first: two cards titled "E-Invoice Type" and
+        // "Enable E-Invoice" each repeated their only field's label, and the
+        // format read as the decision when it is the detail. The format is a
+        // cascade field, so it is never disabled while the switch is off —
+        // it says when it applies instead. PEPPOL has no switch (choosing it
+        // is turning it on), so the format leads there.
         FormSection(
-          title: context.tr('e_invoice_type'),
+          title: null,
           children: [
+            if (!isPeppol)
+              OverridableSwitchField(
+                label: context.tr('enable_e_invoice'),
+                apiKey: 'enable_e_invoice',
+              ),
             OverridableSearchableDropdownField<String>(
               label: context.tr('e_invoice_type'),
               apiKey: 'e_invoice_type',
@@ -125,6 +136,13 @@ class EInvoiceBody extends StatelessWidget {
               items: dropdownItems,
               displayString: (t) => t,
               idOf: (t) => t,
+              // Always has a value: the server falls back to EN16931.
+              requiredAtCompanyScope: true,
+              helperText: isPeppol || enableEInvoice
+                  ? null
+                  : context.tr('applies_when_on', {
+                      'setting': context.tr('enable_e_invoice'),
+                    }),
               onChanged: (v) async {
                 // Switch-type-away-while-connected guard. If the user
                 // is moving off PEPPOL with an active legal entity bound
@@ -139,6 +157,28 @@ class EInvoiceBody extends StatelessWidget {
                 host.updateSettings((s) => s.copyWith(eInvoiceType: v));
               },
             ),
+            if (!isPeppol && enableEInvoice) ...[
+              OverridableSwitchField(
+                label: context.tr('merge_e_invoice_to_pdf'),
+                apiKey: 'merge_e_invoice_to_pdf',
+              ),
+              OverridableDropdownField<String>(
+                label: context.tr('e_quote_type'),
+                apiKey: 'e_quote_type',
+                value: settings.eQuoteType ?? kEQuoteTypeOrderX_Comfort,
+                items: kEQuoteTypes
+                    .map(
+                      (t) => DropdownMenuItem<String>(value: t, child: Text(t)),
+                    )
+                    .toList(),
+                onChanged: (v) =>
+                    host.updateSettings((s) => s.copyWith(eQuoteType: v)),
+              ),
+              // Forward-email fields + the skip-automatic-email toggle used
+              // to live here, but they are PEPPOL-specific: React surfaces
+              // them only on the PEPPOL Preferences card once a legal entity
+              // is bound. Moved to `PeppolPreferencesCard` for parity.
+            ],
           ],
         ),
 
@@ -149,41 +189,6 @@ class EInvoiceBody extends StatelessWidget {
         // carve-out for already-selected VERIFACTU), so this card mirrors
         // the user's current selection.
         if (isVerifactu && isCompany) const _VerifactuInfoCard(),
-
-        // ── Enable E-Invoice + cascade-friendly toggles ────────────────
-        if (!isPeppol)
-          FormSection(
-            title: context.tr('enable_e_invoice'),
-            children: [
-              OverridableSwitchField(
-                label: context.tr('enable_e_invoice'),
-                apiKey: 'enable_e_invoice',
-              ),
-              if (enableEInvoice) ...[
-                OverridableSwitchField(
-                  label: context.tr('merge_e_invoice_to_pdf'),
-                  apiKey: 'merge_e_invoice_to_pdf',
-                ),
-                OverridableDropdownField<String>(
-                  label: context.tr('e_quote_type'),
-                  apiKey: 'e_quote_type',
-                  value: settings.eQuoteType ?? kEQuoteTypeOrderX_Comfort,
-                  items: kEQuoteTypes
-                      .map(
-                        (t) =>
-                            DropdownMenuItem<String>(value: t, child: Text(t)),
-                      )
-                      .toList(),
-                  onChanged: (v) =>
-                      host.updateSettings((s) => s.copyWith(eQuoteType: v)),
-                ),
-                // Forward-email fields + the skip-automatic-email toggle used
-                // to live here, but they are PEPPOL-specific: React surfaces
-                // them only on the PEPPOL Preferences card once a legal entity
-                // is bound. Moved to `PeppolPreferencesCard` for parity.
-              ],
-            ],
-          ),
 
         // ── France e-reporting ───────────────────────────────────────
         // French e-reporting mandate. Company-scope only, France-only, and

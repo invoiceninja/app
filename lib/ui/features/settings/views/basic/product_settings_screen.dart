@@ -37,6 +37,16 @@ const kProductSettingsSearchKeys = <String>[
   'convert_to',
 ];
 
+/// Fields drawn only under a parent toggle → that parent's label. A search
+/// hit on one flashes the parent, which is on the page whether or not the
+/// child is.
+const kProductSettingsRevealAs = <String, String>{
+  'stock_notifications': 'track_inventory',
+  'notification_threshold': 'track_inventory',
+  'convert_to': 'convert_products',
+  'default_quantity': 'show_product_quantity',
+};
+
 /// Settings → Product Settings. Company-only page that writes 12 top-level
 /// `company.*` fields, grouped into Inventory / Display / Behavior cards to
 /// mirror the legacy admin-portal page. Two UX refinements: the Notification
@@ -95,16 +105,31 @@ class _ProductSettingsBody extends StatelessWidget {
               onChanged: (v) =>
                   vm.updateCompany((c) => c.copyWith(trackInventory: v)),
             ),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text(context.tr('stock_notifications')),
-              subtitle: Text(context.tr('stock_notifications_help')),
-              value: draft.stockNotification,
-              onChanged: (v) =>
-                  vm.updateCompany((c) => c.copyWith(stockNotification: v)),
-            ),
-            if (draft.stockNotification)
-              _NestedChild(child: _ThresholdField(vm: vm)),
+            // The server reads the stock notification settings only while
+            // inventory is tracked (`AdjustProductInventory` runs only then),
+            // so they are offered only under Track Inventory. Turning it off
+            // hides them and keeps their values. A search hit on either lands
+            // on Track Inventory (`revealAs` in the search catalog).
+            if (draft.trackInventory)
+              _NestedChild(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(context.tr('stock_notifications')),
+                      subtitle: Text(context.tr('stock_notifications_help')),
+                      value: draft.stockNotification,
+                      onChanged: (v) => vm.updateCompany(
+                        (c) => c.copyWith(stockNotification: v),
+                      ),
+                    ),
+                    if (draft.stockNotification)
+                      _NestedChild(child: _ThresholdField(vm: vm)),
+                  ],
+                ),
+              ),
           ],
         ),
         // Display
@@ -136,14 +161,22 @@ class _ProductSettingsBody extends StatelessWidget {
               onChanged: (v) =>
                   vm.updateCompany((c) => c.copyWith(enableProductQuantity: v)),
             ),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text(context.tr('default_quantity')),
-              subtitle: Text(context.tr('default_quantity_help')),
-              value: draft.defaultQuantity,
-              onChanged: (v) =>
-                  vm.updateCompany((c) => c.copyWith(defaultQuantity: v)),
-            ),
+            // Default Quantity only decides anything while the quantity
+            // column is shown: with it hidden every picked product lands at
+            // a quantity of 1 regardless (`lineItemFromProduct`), so it is
+            // offered under Show Product Quantity, like the stock
+            // notifications under Track Inventory. Hiding keeps its value.
+            if (draft.enableProductQuantity)
+              _NestedChild(
+                child: SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(context.tr('default_quantity')),
+                  subtitle: Text(context.tr('default_quantity_help')),
+                  value: draft.defaultQuantity,
+                  onChanged: (v) =>
+                      vm.updateCompany((c) => c.copyWith(defaultQuantity: v)),
+                ),
+              ),
           ],
         ),
         // Behavior

@@ -24,32 +24,37 @@ class _Row {
 void main() {
   // The shared chrome renders a SettingsScopeBanner, which reads the scope
   // controller off the settings shell in production.
-  Widget host(List<_Row> rows, {bool supportsArchive = true, Widget? footer}) =>
-      ChangeNotifierProvider<SettingsLevelController>(
-        create: (_) => SettingsLevelController(),
-        child: MaterialApp(
-          theme: buildInTheme(InTheme.light),
-          localizationsDelegates: kTestLocalizationsDelegates,
-          supportedLocales: kTestSupportedLocales,
-          home: SettingsEntityListScaffold<_Row>(
-            titleKey: 'schedules',
-            sectionTitleKey: 'schedules',
-            newRoute: '/settings/schedules/new',
-            newLabelKey: 'new_schedule',
-            emptyIcon: Icons.schedule_outlined,
-            emptyTitleKey: 'no_schedules',
-            emptyHintKey: 'no_schedules_hint',
-            supportsArchive: supportsArchive,
-            refreshAll: () async {},
-            streamKey: 'test',
-            stream: () => Stream.value(rows),
-            isArchivedOf: (r) => r.archived,
-            isDeletedOf: (r) => r.deleted,
-            rowBuilder: (r) => ListTile(key: ValueKey(r.id), title: Text(r.id)),
-            footer: footer,
-          ),
-        ),
-      );
+  Widget host(
+    List<_Row> rows, {
+    bool supportsArchive = true,
+    Widget? footer,
+    List<SettingsListStarter>? starters,
+  }) => ChangeNotifierProvider<SettingsLevelController>(
+    create: (_) => SettingsLevelController(),
+    child: MaterialApp(
+      theme: buildInTheme(InTheme.light),
+      localizationsDelegates: kTestLocalizationsDelegates,
+      supportedLocales: kTestSupportedLocales,
+      home: SettingsEntityListScaffold<_Row>(
+        titleKey: 'schedules',
+        sectionTitleKey: 'schedules',
+        newRoute: '/settings/schedules/new',
+        newLabelKey: 'new_schedule',
+        emptyIcon: Icons.schedule_outlined,
+        emptyTitleKey: 'no_schedules',
+        emptyHintKey: 'no_schedules_hint',
+        supportsArchive: supportsArchive,
+        refreshAll: () async {},
+        streamKey: 'test',
+        stream: () => Stream.value(rows),
+        isArchivedOf: (r) => r.archived,
+        isDeletedOf: (r) => r.deleted,
+        rowBuilder: (r) => ListTile(key: ValueKey(r.id), title: Text(r.id)),
+        footer: footer,
+        starters: starters,
+      ),
+    ),
+  );
 
   Finder archiveToggle() => find.text('Show archived');
   Finder activeToggle() => find.text('Show active');
@@ -166,6 +171,60 @@ void main() {
 
       expect(find.text('No schedules yet'), findsOneWidget);
       expect(find.byKey(const ValueKey('footer')), findsNothing);
+    });
+  });
+
+  // R9: the list card no longer repeats the page title, the empty state sits
+  // at the top of the column, and starters are rows that ARE the empty state.
+  group('layout', () {
+    testWidgets('the card does not repeat the page title', (tester) async {
+      await tester.pumpWidget(host(const [_Row('a')]));
+      await tester.pumpAndSettle();
+      expect(find.text('Schedules'), findsOneWidget, reason: 'app bar only');
+    });
+
+    testWidgets('the empty state sits at the top, not mid-page', (
+      tester,
+    ) async {
+      await tester.pumpWidget(host(const []));
+      await tester.pumpAndSettle();
+      expect(
+        tester.getTopLeft(find.text('No schedules yet')).dy,
+        lessThan(200),
+      );
+      expect(find.text('New Schedule'), findsOneWidget);
+    });
+
+    testWidgets('starters are rows, with the blank create after them', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        host(
+          const [],
+          starters: const [
+            SettingsListStarter(
+              icon: Icons.mail_outline,
+              titleKey: 'starter_email_monthly_statements',
+              subtitleKey: 'starter_email_monthly_statements_hint',
+              route: '/settings/schedules/new?starter=monthly_statement',
+            ),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+      // The generic title gives way to the starters; the hint stays.
+      expect(find.text('No schedules yet'), findsNothing);
+      final starter = find.ancestor(
+        of: find.byIcon(Icons.mail_outline),
+        matching: find.byType(ListTile),
+      );
+      expect(starter, findsOneWidget);
+      final create = find.widgetWithText(ListTile, 'New Schedule');
+      expect(create, findsOneWidget);
+      expect(
+        tester.getTopLeft(create).dy,
+        greaterThan(tester.getTopLeft(starter).dy),
+      );
     });
   });
 }

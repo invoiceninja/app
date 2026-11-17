@@ -131,6 +131,33 @@ class DashboardApi {
     return _unwrap(raw);
   }
 
+  /// `POST /api/v1/charts/analytics_totals` — read for its `aging` object:
+  /// what is unpaid today, by how late it is, per currency and as the `999`
+  /// aggregate (`DashboardAging`).
+  ///
+  /// The aging is a snapshot (`AnalyticsQueries::getAgingBucketTotals`): the
+  /// window does not enter it and drafts are always left out, whatever
+  /// `include_drafts` says. The body is the Outstanding window anyway — fixed,
+  /// like that one, so every request is the same — and `ShowChartRequest`
+  /// requires nothing more. Verified on the demo server: the same buckets come
+  /// back for `{}` and for this body, with no `data` envelope.
+  ///
+  /// A server older than the endpoint answers 404 ("Route does not exist");
+  /// `DashboardRepository.refreshAging` turns that into "unsupported", not a
+  /// failure.
+  Future<Object?> fetchAgingTotals() async {
+    final raw = await client.postJson(
+      '/api/v1/charts/analytics_totals',
+      body: const {
+        'date_range': 'custom',
+        'start_date': kOutstandingWindowStart,
+        'end_date': kOutstandingWindowEnd,
+      },
+      readOnly: true,
+    );
+    return _unwrap(raw);
+  }
+
   /// `POST /api/v1/charts/chart_summary_v2`. Returns the time-series payload
   /// (start/end dates + per-currency arrays of {date, total, currency}).
   Future<Object?> fetchChartSummary(DashboardFilter filter) async {

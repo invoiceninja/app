@@ -225,13 +225,67 @@ void main() {
       expect((await render(tester, _row(9999))).title, 'Activity #9999');
     });
 
-    testWidgets('a row that names no object keeps the localized noun', (
+    testWidgets('a row that names no object fills the slot with a dash', (
       tester,
     ) async {
-      // The #45 fallback: with no `invoice` label the token becomes the noun,
-      // never a bare `:invoice` and never some other row's value.
+      // The #45 fallback: with no `invoice` label the token is never a bare
+      // `:invoice` and never some other row's value. Not the noun either —
+      // "created invoice Invoice" reads as an invoice numbered "Invoice".
       final r = await render(tester, _row(4));
-      expect(r.title, 'Alice Admin created invoice Invoice');
+      expect(r.title, 'Alice Admin created invoice —');
+      expect(r.tokens, isNot(contains('invoice')));
+      expect(r.segments.last.isValue, isFalse);
+    });
+
+    testWidgets('a contact-actor row names the contact, not a dash', (
+      tester,
+    ) async {
+      // `activity_7` / `activity_29` lead with `:contact`. The server's
+      // `Activity::resolveContact` sends `contact: {label}` whenever the row
+      // has a contact, and `ClientContactPresenter::name` falls back to the
+      // client's name, so the label is never blank — the dash is only for a
+      // row with no contact at all.
+      final viewed = await render(
+        tester,
+        _row(
+          7,
+          extra: {
+            'contact': {'label': "Ubaldo O'Keefe", 'hashed_id': 'c1'},
+            'invoice': {'label': '0001', 'hashed_id': 'i1'},
+            'client': {'label': 'Satterfield Group', 'hashed_id': 'c1'},
+          },
+        ),
+      );
+      expect(
+        viewed.title,
+        "Ubaldo O'Keefe viewed invoice 0001 for Satterfield Group",
+      );
+      expect(viewed.segments.first.isValue, isTrue);
+
+      final approved = await render(
+        tester,
+        _row(
+          29,
+          extra: {
+            'contact': {'label': 'Ana Prueba', 'hashed_id': 'c2'},
+            'quote': {'label': '0026', 'hashed_id': 'q1'},
+            'client': {'label': 'PRUEBA AFI borrar', 'hashed_id': 'c2'},
+          },
+        ),
+      );
+      expect(
+        approved.title,
+        'Ana Prueba approved quote 0026 for PRUEBA AFI borrar',
+      );
+    });
+
+    testWidgets('a restored quote with no quote label reads "quote —"', (
+      tester,
+    ) async {
+      // The live case: `QuoteRestoredActivity` never sets `quote_id`
+      // (BACKEND.md § F3g), so the row has no `quote` object at all.
+      final r = await render(tester, _row(24));
+      expect(r.title, 'Alice Admin restored quote —');
     });
   });
 

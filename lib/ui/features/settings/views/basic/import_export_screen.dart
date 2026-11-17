@@ -14,6 +14,7 @@ import 'package:admin/data/services/import_api.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/file_drop_zone.dart';
+import 'package:admin/ui/core/widgets/form_field_pair.dart';
 import 'package:admin/ui/core/widgets/in_date_field.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/core/widgets/searchable_dropdown_field.dart';
@@ -603,6 +604,11 @@ class _ImportExportScreenState extends State<ImportExportScreen> {
   /// Direct third-party importers (FreshBooks / Wave / Zoho / …). Fixed-schema
   /// formats → no preimport/column-map; a multipart POST straight to
   /// `/api/v1/import`. Mirrors React `Import.tsx`.
+  ///
+  /// The apps are cards (one tap, every app visible), built from
+  /// [_kThirdPartyImports] so a new importer is one map entry; the picked
+  /// app's file slots come from the same map — each a labelled drop zone, two
+  /// to a row where the card has the width.
   Widget _thirdPartySection(BuildContext context) {
     final groups = _kThirdPartyImports[_thirdPartyType] ?? const <String>[];
     final ready = groups.every(_thirdPartyFiles.containsKey);
@@ -611,50 +617,41 @@ class _ImportExportScreenState extends State<ImportExportScreen> {
       // "Import") so the two stacked sections aren't indistinguishable.
       title: context.tr('import_third_party'),
       children: [
-        LabeledField(
-          label: context.tr('import_type'),
-          child: DropdownButtonFormField<String>(
-            initialValue: _thirdPartyType,
-            isExpanded: true,
-            decoration: InputDecoration(
-              labelText: context.tr('import_type'),
-              border: const OutlineInputBorder(),
-              isDense: true,
+        Padding(
+          padding: const EdgeInsetsDirectional.only(bottom: kLabelGap),
+          child: ExcludeSemantics(
+            child: Text(
+              context.tr('import_type'),
+              style: LabeledField.textStyle(context),
             ),
-            onChanged: _thirdPartyBusy
-                ? null
-                : (v) => setState(() {
-                    _thirdPartyType = v ?? _thirdPartyType;
-                    _thirdPartyFiles.clear();
-                  }),
-            items: [
+          ),
+        ),
+        Semantics(
+          label: context.tr('import_type'),
+          container: true,
+          child: Wrap(
+            spacing: InSpacing.sm,
+            runSpacing: InSpacing.sm,
+            children: [
               for (final t in _kThirdPartyImports.keys)
-                DropdownMenuItem(value: t, child: Text(context.tr(t))),
+                _ImporterCard(
+                  label: context.tr(t),
+                  selected: t == _thirdPartyType,
+                  onTap: _thirdPartyBusy
+                      ? null
+                      : () => setState(() {
+                          if (t == _thirdPartyType) return;
+                          _thirdPartyType = t;
+                          _thirdPartyFiles.clear();
+                        }),
+                ),
             ],
           ),
         ),
-        for (final group in groups) ...[
-          SizedBox(height: InSpacing.md(context)),
-          Text(
-            context.tr(group),
-            style: const TextStyle(fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: InSpacing.sm),
-          FileDropZone(
-            allowedExtensions: group == 'backup'
-                ? const ['zip']
-                : const ['csv'],
-            enabled: !_thirdPartyBusy,
-            onFiles: (sources) => _onThirdPartyFiles(group, sources),
-          ),
-          if (_thirdPartyFiles[group] != null) ...[
-            const SizedBox(height: InSpacing.sm),
-            Text(
-              _thirdPartyFiles[group]!.name,
-              style: TextStyle(fontSize: 13, color: context.inTheme.ink2),
-            ),
-          ],
-        ],
+        SizedBox(height: InSpacing.md(context)),
+        ...pairFields([
+          for (final group in groups) _thirdPartySlot(context, group),
+        ]),
         SizedBox(height: InSpacing.md(context)),
         Align(
           alignment: AlignmentDirectional.centerEnd,
@@ -671,6 +668,43 @@ class _ImportExportScreenState extends State<ImportExportScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  /// One file the picked importer needs ("Clients", "Invoices", "Backup"):
+  /// its name over a drop zone, then the picked file's name.
+  Widget _thirdPartySlot(BuildContext context, String group) {
+    final picked = _thirdPartyFiles[group];
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: kFieldVerticalGap),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: const EdgeInsetsDirectional.only(bottom: kLabelGap),
+            child: Text(
+              context.tr(group),
+              style: LabeledField.textStyle(context),
+            ),
+          ),
+          FileDropZone(
+            allowedExtensions: group == 'backup'
+                ? const ['zip']
+                : const ['csv'],
+            enabled: !_thirdPartyBusy,
+            onFiles: (sources) => _onThirdPartyFiles(group, sources),
+          ),
+          if (picked != null) ...[
+            const SizedBox(height: InSpacing.sm),
+            Text(
+              picked.name,
+              style: TextStyle(fontSize: 13, color: context.inTheme.ink2),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ],
+      ),
     );
   }
 
@@ -963,6 +997,66 @@ class _ImportExportScreenState extends State<ImportExportScreen> {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// One app in the "Import from another app" chooser: a rounded card, the
+/// selected one outlined in the accent. A whole-card tap target, at least
+/// 44 px tall on every platform.
+class _ImporterCard extends StatelessWidget {
+  const _ImporterCard({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.inTheme;
+    final radius = BorderRadius.circular(InRadii.r2);
+    return Semantics(
+      button: true,
+      selected: selected,
+      child: Material(
+        color: selected ? tokens.accentSoft : tokens.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: radius,
+          side: BorderSide(
+            color: selected ? tokens.accent : tokens.border,
+            width: selected ? 1.5 : 1,
+          ),
+        ),
+        child: InkWell(
+          borderRadius: radius,
+          onTap: onTap,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 44, minWidth: 120),
+            child: Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: InSpacing.lg(context),
+                vertical: InSpacing.sm,
+              ),
+              child: Align(
+                alignment: AlignmentDirectional.centerStart,
+                widthFactor: 1,
+                heightFactor: 1,
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    color: tokens.ink,
+                    fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

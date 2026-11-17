@@ -11,15 +11,17 @@ import 'package:admin/ui/core/utils/save_bytes.dart';
 import 'package:admin/ui/core/utils/save_download.dart';
 import 'package:admin/ui/core/widgets/empty_state.dart';
 import 'package:admin/ui/core/widgets/error_view.dart';
-import 'package:admin/ui/core/widgets/notify.dart' show formatNotifyError;
+import 'package:admin/ui/core/widgets/notify.dart'
+    show Notify, formatNotifyError;
 import 'package:admin/ui/features/billing_shared/billing_doc_type.dart';
 import 'package:admin/utils/file_names.dart';
 import 'package:admin/utils/pdf_bytes_guard.dart';
 
 /// Shared PDF preview pane for billing docs. Fetches bytes via the
 /// caller-supplied [fetcher] (typically `services.invoices.api.downloadPdf`)
-/// and renders via the `printing` package's [PdfPreview] (which carries
-/// its own print/share/download toolbar).
+/// and renders via the `printing` package's [PdfPreview], under a toolbar of
+/// its own (`_PdfToolbar`: the delivery-note choice, the stale notice, print,
+/// share, download and full size — the package's bottom bar is off).
 ///
 /// State machine:
 ///   * First load → full-pane spinner.
@@ -32,6 +34,11 @@ import 'package:admin/utils/pdf_bytes_guard.dart';
 ///
 /// `entity` decides what extra controls render (only [BillingDocType.invoice]
 /// gets the delivery-note toggle today).
+/// `Printing.info`, swappable so a test can say what the platform offers —
+/// the plugin has no channel under `flutter test`.
+@visibleForTesting
+Future<PrintingInfo> Function() billingDocPdfPrintingInfo = Printing.info;
+
 class BillingDocPdfView extends StatefulWidget {
   const BillingDocPdfView({
     super.key,
@@ -47,7 +54,7 @@ class BillingDocPdfView extends StatefulWidget {
     this.onOpenFullSize,
   });
 
-  /// Adds a Maximize button to the toolbar, beside print and share. The wide
+  /// Adds a Maximize button to the toolbar, after print and share. The wide
   /// detail screen's pane passes it: there the PDF gets only part of the
   /// window, and the toolbar is where a user looks for a bigger one. Called
   /// with whether the view shows the delivery note, so the full-size screen
@@ -139,10 +146,28 @@ class _BillingDocPdfViewState extends State<BillingDocPdfView> {
   Timer? _debounce;
   Timer? _progressDelay;
 
+  /// What the platform's print / share can do; null until it answers (or
+  /// when it cannot — a test, a platform with no plugin), which hides both.
+  PrintingInfo? _printingInfo;
+
   @override
   void initState() {
     super.initState();
     _load();
+    billingDocPdfPrintingInfo()
+        .then((info) {
+          if (mounted) setState(() => _printingInfo = info);
+        })
+        .catchError((Object _) {});
+  }
+
+  Future<void> _print(Uint8List bytes, String fileName) async {
+    try {
+      await Printing.layoutPdf(onLayout: (_) async => bytes, name: fileName);
+    } catch (e) {
+      if (!mounted) return;
+      Notify.error(context, context.tr('error'), error: e);
+    }
   }
 
   @override
@@ -287,88 +312,81 @@ class _BillingDocPdfViewState extends State<BillingDocPdfView> {
         : baseName;
     final fileName = '${sanitizeFileName(rawName, fallback: previewName)}.pdf';
     final scrim = Theme.of(context).colorScheme.scrim.withValues(alpha: 0.4);
-    final preview = Stack(
+    // Nothing goes out while the render is stale — printing or sharing it
+    // would send a document that no longer matches the record — or while a
+    // different document is loading behind the scrim.
+    final ready = !stale && !_loading;
+    final info = _printingInfo;
+    final toolbar = _PdfToolbar(
+      deliveryNote: showToggle ? _deliveryNote : null,
+      onDeliveryNoteChanged: (v) {
+        setState(() => _deliveryNote = v);
+        _load();
+      },
+      stale: stale,
+      // Only a failed fetch is worth retrying; the delivery note of a
+      // document with an unsynced edit can't show the edit at all.
+      onRetry: _stale ? () => _load(quiet: true) : null,
+      // Disabled, not hidden, while not [ready]: a button that came and went
+      // could change the bar's height, and so the preview's.
+      ready: ready,
+      onPrint: (info?.canPrint ?? false) ? () => _print(bytes, fileName) : null,
+      // On Windows / Linux the platform share only opens a temp copy;
+      // Download replaces it there (docs/file-downloads.md).
+      onShare: !pdfShareOpensTempCopy() && (info?.canShare ?? false)
+          ? () => sharePdfBytes(bytes, fileName: fileName)
+          : null,
+      onDownload: Env.isDesktop
+          ? () => downloadPdf(context, fileName: fileName)(bytes)
+          : null,
+      onOpenFullSize: switch (widget.onOpenFullSize) {
+        final open? => () => open(_deliveryNote),
+        null => null,
+      },
+    );
+    final preview = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Positioned.fill(
-          child: PdfPreview(
-            build: build,
-            // Printing or sharing a stale render would send out a document
-            // that no longer matches the record. On Windows / Linux the
-            // package's Share only opens a temp copy; Download replaces it
-            // (docs/file-downloads.md).
-            allowPrinting: !stale,
-            allowSharing: !stale && !pdfShareOpensTempCopy(),
-            canChangePageFormat: false,
-            canChangeOrientation: false,
-            canDebug: false,
-            maxPageWidth: 800,
-            pdfFileName: fileName,
-            actions: [
-              if (Env.isDesktop && !stale)
-                IconButton(
-                  icon: const Icon(Icons.download),
-                  tooltip: context.tr('download_pdf'),
-                  onPressed: () =>
-                      downloadPdf(context, fileName: fileName)(bytes),
+        // On top and always present once a PDF is: a bar that came and went
+        // would resize the preview and re-raster every page, so the stale
+        // notice lives inside it rather than in a slot of its own.
+        toolbar,
+        Expanded(
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: PdfPreview(
+                  build: build,
+                  // The package's own bar (at the bottom, with zoom-less
+                  // print / share) is replaced by [_PdfToolbar] above. Share
+                  // stays gated anyway — the lint reads every PdfPreview.
+                  useActions: false,
+                  allowPrinting: false,
+                  allowSharing: !stale && !pdfShareOpensTempCopy(),
+                  canChangePageFormat: false,
+                  canChangeOrientation: false,
+                  canDebug: false,
+                  maxPageWidth: 800,
+                  pdfFileName: fileName,
                 ),
-              if (widget.onOpenFullSize case final open?)
-                IconButton(
-                  icon: const Icon(Icons.open_in_full),
-                  tooltip: context.tr('maximize'),
-                  onPressed: () => open(_deliveryNote),
+              ),
+              if (_showProgress)
+                const PositionedDirectional(
+                  top: 0,
+                  start: 0,
+                  end: 0,
+                  child: LinearProgressIndicator(minHeight: 2),
+                ),
+              if (_loading)
+                Positioned.fill(
+                  child: ColoredBox(
+                    color: scrim,
+                    child: const Center(child: CircularProgressIndicator()),
+                  ),
                 ),
             ],
           ),
         ),
-        if (stale || showToggle)
-          PositionedDirectional(
-            top: InSpacing.md(context),
-            start: InSpacing.md(context),
-            end: InSpacing.md(context),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Empty space here passes taps through to the PDF: neither
-                // `Align` nor `Row` hit-tests itself.
-                Expanded(
-                  child: Align(
-                    alignment: AlignmentDirectional.topStart,
-                    child: stale
-                        ? _StaleNotice(
-                            // Only a failed fetch is worth retrying; the
-                            // delivery note can't show the edit at all.
-                            onRetry: _stale ? () => _load(quiet: true) : null,
-                          )
-                        : const SizedBox.shrink(),
-                  ),
-                ),
-                if (showToggle) ...[
-                  SizedBox(width: InSpacing.md(context)),
-                  _DeliveryNoteToggle(
-                    value: _deliveryNote,
-                    onChanged: (v) {
-                      setState(() => _deliveryNote = v);
-                      _load();
-                    },
-                  ),
-                ],
-              ],
-            ),
-          ),
-        if (_showProgress)
-          const PositionedDirectional(
-            top: 0,
-            start: 0,
-            end: 0,
-            child: LinearProgressIndicator(minHeight: 2),
-          ),
-        if (_loading)
-          Positioned.fill(
-            child: ColoredBox(
-              color: scrim,
-              child: const Center(child: CircularProgressIndicator()),
-            ),
-          ),
       ],
     );
     // Disable text selection over the PDF: an ancestor SelectionArea (entity
@@ -378,10 +396,132 @@ class _BillingDocPdfViewState extends State<BillingDocPdfView> {
   }
 }
 
+/// The bar above the PDF: which document (the invoice or its delivery note),
+/// whether the render is current, and what can be done with it. No zoom —
+/// the preview pinches and scrolls on its own.
+class _PdfToolbar extends StatelessWidget {
+  const _PdfToolbar({
+    required this.deliveryNote,
+    required this.onDeliveryNoteChanged,
+    required this.stale,
+    required this.onRetry,
+    required this.ready,
+    required this.onPrint,
+    required this.onShare,
+    required this.onDownload,
+    required this.onOpenFullSize,
+  });
+
+  /// Null hides the Invoice / Delivery Note choice: not an invoice, not yet
+  /// saved, or a past version (a frozen render has no variant).
+  final bool? deliveryNote;
+  final ValueChanged<bool> onDeliveryNoteChanged;
+  final bool stale;
+  final VoidCallback? onRetry;
+
+  /// False disables print, share and download: the render is stale, or
+  /// another document is loading behind the scrim.
+  final bool ready;
+
+  /// Each null hides its button — the platform cannot, or the caller asked
+  /// for nothing.
+  final VoidCallback? onPrint;
+  final VoidCallback? onShare;
+  final VoidCallback? onDownload;
+  final VoidCallback? onOpenFullSize;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.inTheme;
+    final note = deliveryNote;
+    Widget action(
+      IconData icon,
+      String tooltipKey,
+      VoidCallback onPressed, {
+      bool gated = true,
+    }) => IconButton(
+      icon: Icon(icon, size: 20),
+      tooltip: context.tr(tooltipKey),
+      onPressed: gated && !ready ? null : onPressed,
+    );
+    final print = onPrint;
+    final share = onShare;
+    final download = onDownload;
+    final openFullSize = onOpenFullSize;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: t.surface,
+        border: Border(bottom: BorderSide(color: t.border)),
+      ),
+      child: Padding(
+        padding: EdgeInsetsDirectional.only(
+          start: InSpacing.md(context),
+          end: 4,
+          top: 4,
+          bottom: 4,
+        ),
+        child: ConstrainedBox(
+          // The tallest thing that can come and go here is the stale
+          // notice's Retry, whose padded tap target is 48 on touch.
+          constraints: BoxConstraints(
+            minHeight: Env.isTouchPrimary ? kMinInteractiveDimension : 40,
+          ),
+          child: Row(
+            children: [
+              if (note != null) ...[
+                SegmentedButton<bool>(
+                  segments: [
+                    ButtonSegment(
+                      value: false,
+                      label: Text(context.tr('invoice')),
+                    ),
+                    ButtonSegment(
+                      value: true,
+                      label: Text(context.tr('delivery_note')),
+                    ),
+                  ],
+                  selected: {note},
+                  showSelectedIcon: false,
+                  style: const ButtonStyle(
+                    visualDensity: VisualDensity.compact,
+                  ),
+                  onSelectionChanged: (v) => onDeliveryNoteChanged(v.first),
+                ),
+                SizedBox(width: InSpacing.md(context)),
+              ],
+              Expanded(
+                child: Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: stale
+                      ? _StaleNotice(onRetry: onRetry)
+                      : const SizedBox.shrink(),
+                ),
+              ),
+              if (print != null)
+                action(Icons.print_outlined, 'print_pdf', print),
+              if (share != null)
+                action(Icons.ios_share_outlined, 'share_pdf', share),
+              if (download != null)
+                action(Icons.download_outlined, 'download_pdf', download),
+              if (openFullSize != null)
+                action(
+                  Icons.open_in_full,
+                  'maximize',
+                  openFullSize,
+                  gated: false,
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// Says the PDF on screen predates the document's latest content, so it is
-/// never passed off as current. A floating card like [_DeliveryNoteToggle],
-/// over the PDF rather than above it: a slot that comes and goes above the
-/// preview would resize it and re-raster every page.
+/// never passed off as current. One line inside the toolbar — never a slot of
+/// its own, which would resize the preview — with the full sentence in its
+/// tooltip when the bar is too narrow to show it.
 class _StaleNotice extends StatelessWidget {
   const _StaleNotice({required this.onRetry});
 
@@ -393,71 +533,64 @@ class _StaleNotice extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.inTheme;
     final retry = onRetry;
-    return Material(
-      color: t.warningSoft,
-      elevation: 2,
-      borderRadius: BorderRadius.circular(InRadii.r2),
-      child: Padding(
-        padding: EdgeInsetsDirectional.only(
-          start: InSpacing.md(context),
-          end: retry == null ? InSpacing.md(context) : 4,
-          top: 4,
-          bottom: 4,
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.sync_problem_outlined, size: 16, color: t.warning),
-            const SizedBox(width: 8),
-            Flexible(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                child: Text(
-                  context.tr('pdf_preview_out_of_date'),
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodySmall?.copyWith(color: t.ink),
-                ),
+    final message = context.tr('pdf_preview_out_of_date');
+    // Below ~200 px (a phone, beside the delivery-note choice) the sentence
+    // could show only its first letter; the icon then carries it, in its
+    // tooltip and to a screen reader, rather than a lone "T…".
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final roomy = constraints.maxWidth >= 200;
+        return Tooltip(
+          message: message,
+          excludeFromSemantics: roomy,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: t.warningSoft,
+              borderRadius: BorderRadius.circular(InRadii.r2),
+            ),
+            child: Padding(
+              padding: EdgeInsetsDirectional.only(
+                start: InSpacing.sm,
+                end: retry == null ? InSpacing.sm : 0,
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    child: Icon(
+                      Icons.sync_problem_outlined,
+                      size: 16,
+                      color: t.warning,
+                    ),
+                  ),
+                  if (roomy) ...[
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        message,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(
+                          context,
+                        ).textTheme.bodySmall?.copyWith(color: t.ink),
+                      ),
+                    ),
+                  ],
+                  if (retry != null)
+                    TextButton(
+                      onPressed: retry,
+                      style: TextButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                      ),
+                      child: Text(context.tr('retry')),
+                    ),
+                ],
               ),
             ),
-            if (retry != null) ...[
-              const SizedBox(width: 4),
-              TextButton(onPressed: retry, child: Text(context.tr('retry'))),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _DeliveryNoteToggle extends StatelessWidget {
-  const _DeliveryNoteToggle({required this.value, required this.onChanged});
-
-  final bool value;
-  final ValueChanged<bool> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = context.inTheme;
-    return Material(
-      color: t.surface,
-      elevation: 2,
-      borderRadius: BorderRadius.circular(InRadii.r2),
-      child: Padding(
-        padding: EdgeInsets.symmetric(
-          horizontal: InSpacing.md(context),
-          vertical: 4,
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(context.tr('delivery_note')),
-            const SizedBox(width: 8),
-            Switch(value: value, onChanged: onChanged),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }

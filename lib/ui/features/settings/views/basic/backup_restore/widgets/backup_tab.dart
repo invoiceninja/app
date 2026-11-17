@@ -7,24 +7,23 @@ import 'package:admin/data/services/api_exception.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/features/settings/widgets/form_section.dart';
-import 'package:admin/ui/features/settings/widgets/settings_form_shell.dart';
 
-/// Search keys rendered by this tab. See
+/// Search keys rendered by this card. See
 /// `kCompanyDetailsDetailsSearchKeys` for the colocation pattern.
 const kBackupTabSearchKeys = <String>['backup', 'export'];
 
-/// Backup tab body — one-shot `POST /api/v1/export` that asks the server to
-/// build a zip of the active company and email the user a download link.
-/// There's no in-app download path; legacy admin-portal and the React client
-/// both rely on the email flow.
-class BackupTabBody extends StatefulWidget {
-  const BackupTabBody({super.key});
+/// The Backup card of Settings → Backup | Restore — one-shot
+/// `POST /api/v1/export` that asks the server to build a zip of the active
+/// company and email the user a download link. There's no in-app download
+/// path; legacy admin-portal and the React client both rely on the email flow.
+class BackupSection extends StatefulWidget {
+  const BackupSection({super.key});
 
   @override
-  State<BackupTabBody> createState() => _BackupTabBodyState();
+  State<BackupSection> createState() => _BackupSectionState();
 }
 
-class _BackupTabBodyState extends State<BackupTabBody> {
+class _BackupSectionState extends State<BackupSection> {
   bool _busy = false;
 
   Future<void> _runBackup() async {
@@ -78,78 +77,72 @@ class _BackupTabBodyState extends State<BackupTabBody> {
       valueListenable: session,
       builder: (context, value, _) {
         final email = value?.userEmail ?? '';
-        return SettingsFormShell(
-          sections: [
-            FormSection(
-              title: context.tr('backup'),
-              children: [
-                // Personalised email line carries the same meaning as
-                // `exported_data` ("we'll email a link") + the destination,
-                // so we drop the generic explanation and keep just this one.
-                if (email.isNotEmpty)
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.only(top: 2),
-                        child: Icon(
-                          Icons.alternate_email,
-                          size: 18,
-                          color: tokens.ink3,
-                        ),
-                      ),
-                      SizedBox(width: InSpacing.sm),
-                      Expanded(
-                        // No ellipsis: long emails wrap to a second line
-                        // rather than silently clipping the user's own
-                        // address.
-                        child: Text.rich(
+        return FormSection(
+          title: context.tr('backup'),
+          children: [
+            // Personalised email line carries the same meaning as
+            // `exported_data` ("we'll email a link") + the destination,
+            // so we drop the generic explanation and keep just this one.
+            if (email.isNotEmpty)
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Icon(
+                      Icons.alternate_email,
+                      size: 18,
+                      color: tokens.ink3,
+                    ),
+                  ),
+                  SizedBox(width: InSpacing.sm),
+                  Expanded(
+                    // No ellipsis: long emails wrap to a second line
+                    // rather than silently clipping the user's own
+                    // address.
+                    child: Text.rich(
+                      TextSpan(
+                        children: [
                           TextSpan(
-                            children: [
-                              TextSpan(
-                                text: '${context.tr('backup_sent_to_email')} ',
-                                style: TextStyle(color: tokens.ink2),
-                              ),
-                              TextSpan(
-                                text: email,
-                                style: TextStyle(
-                                  color: tokens.ink,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
+                            text: '${context.tr('backup_sent_to_email')} ',
+                            style: TextStyle(color: tokens.ink2),
                           ),
-                          softWrap: true,
-                        ),
+                          TextSpan(
+                            text: email,
+                            style: TextStyle(
+                              color: tokens.ink,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
-                  )
-                else
-                  Text(
-                    context.tr('exported_data'),
-                    style: TextStyle(color: tokens.ink2),
-                  ),
-                SizedBox(height: InSpacing.lg(context)),
-                Align(
-                  alignment: AlignmentDirectional.centerStart,
-                  child: FilledButton.icon(
-                    // Fixed 18×18 leading slot so the button width is stable
-                    // across idle/busy states.
-                    icon: SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: _busy
-                          ? const CircularProgressIndicator(strokeWidth: 2)
-                          : const Icon(Icons.cloud_download_outlined, size: 18),
+                      softWrap: true,
                     ),
-                    label: Text(context.tr('export')),
-                    style: FilledButton.styleFrom(
-                      minimumSize: const Size(120, 44),
-                    ),
-                    onPressed: _busy ? null : _runBackup,
                   ),
+                ],
+              )
+            else
+              Text(
+                context.tr('exported_data'),
+                style: TextStyle(color: tokens.ink2),
+              ),
+            SizedBox(height: InSpacing.lg(context)),
+            Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: FilledButton.icon(
+                // Fixed 18×18 leading slot so the button width is stable
+                // across idle/busy states.
+                icon: SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: _busy
+                      ? const CircularProgressIndicator(strokeWidth: 2)
+                      : const Icon(Icons.cloud_download_outlined, size: 18),
                 ),
-              ],
+                label: Text(context.tr('export')),
+                style: FilledButton.styleFrom(minimumSize: const Size(120, 44)),
+                onPressed: _busy ? null : _runBackup,
+              ),
             ),
           ],
         );

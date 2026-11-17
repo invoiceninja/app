@@ -14,6 +14,7 @@ import 'package:admin/ui/features/settings/views/basic/account_management/referr
 import 'package:admin/ui/features/settings/views/basic/account_management/security_settings_screen.dart';
 import 'package:admin/ui/features/settings/widgets/settings_screen_scaffold.dart';
 import 'package:admin/ui/core/utils/router_state.dart';
+import 'package:admin/ui/features/settings/widgets/settings_tab_strip.dart';
 
 const String _kBasePath = '/settings/account_management';
 
@@ -116,8 +117,8 @@ List<String> visibleAccountManagementTabSlugs({required bool isHosted}) => [
 /// the bare URL and per-tab URL resolve to a single Navigator Page so
 /// swiping a tab doesn't remount the shell.
 ///
-/// Modeled on `BackupRestoreShell` (`widgets/backup_restore_shell.dart`):
-/// no VM scaffolding because each tab fires its writes through
+/// A URL-driven tab shell with no VM scaffolding (Device Settings has the
+/// same shape), because each tab fires its writes through
 /// `services.company.updateCompany` independently — there is no unified Save
 /// button. The `TabbedSettingsShell<V extends SettingsDraftHost>` machinery
 /// would be pure overhead here.
@@ -273,15 +274,18 @@ class _AccountManagementShellState extends State<AccountManagementShell>
     final tokens = context.inTheme;
     return SettingsScreenScaffold(
       titleKey: 'account_management',
-      bottom: TabBar(
-        controller: _controller,
-        isScrollable: true,
-        tabAlignment: TabAlignment.center,
-        labelColor: tokens.ink,
-        unselectedLabelColor: tokens.ink3,
-        indicatorColor: tokens.accent,
-        indicatorWeight: 2,
-        tabs: [for (final tab in _tabs) Tab(text: context.tr(tab.labelKey))],
+      bottom: SettingsTabStrip(
+        tabBar: TabBar(
+          controller: _controller,
+          isScrollable: true,
+          tabAlignment: TabAlignment.start,
+          padding: settingsTabBarPadding(),
+          labelColor: tokens.ink,
+          unselectedLabelColor: tokens.ink3,
+          indicatorColor: tokens.accent,
+          indicatorWeight: 2,
+          tabs: [for (final tab in _tabs) Tab(text: context.tr(tab.labelKey))],
+        ),
       ),
       body: TabBarView(
         controller: _controller,

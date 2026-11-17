@@ -5,6 +5,7 @@ import 'package:material_ui/material_ui.dart';
 
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/data/models/domain/task.dart';
+import 'package:admin/domain/tasks/task_time_summary.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/detail/detail_tab_indices.dart';
 import 'package:admin/ui/core/detail/standing_card.dart';
@@ -100,8 +101,11 @@ class _TaskDetailStandingState extends State<TaskDetailStanding> {
   Widget build(BuildContext context) {
     final t = widget.task;
     final tokens = context.inTheme;
-    final worked = t.workedTime(_now);
-    final booked = t.bookedTime(_now);
+    // Shared with the edit screen's timer card, so the two never disagree
+    // about what counts as worked, booked or remaining.
+    final time = TaskTimeSummary.of(t, _now);
+    final worked = time.worked;
+    final booked = time.booked;
     String short(Duration d) =>
         formatDuration(d, compactDays: true, showSeconds: false);
 
@@ -146,7 +150,7 @@ class _TaskDetailStandingState extends State<TaskDetailStanding> {
             footnote:
                 t.statusId.isEmpty && !t.isInvoiced && t.estimatedSeconds <= 0
                 ? null
-                : _StatusLine(task: t, worked: worked),
+                : _StatusLine(task: t, time: time),
           );
         },
       ),
@@ -158,10 +162,10 @@ class _TaskDetailStandingState extends State<TaskDetailStanding> {
 /// estimate with what is left of it. **Owns its leading gap** — see
 /// `StandingCard.footnote`.
 class _StatusLine extends StatelessWidget {
-  const _StatusLine({required this.task, required this.worked});
+  const _StatusLine({required this.task, required this.time});
 
   final Task task;
-  final Duration worked;
+  final TaskTimeSummary time;
 
   @override
   Widget build(BuildContext context) {
@@ -179,12 +183,11 @@ class _StatusLine extends StatelessWidget {
     );
     String short(Duration d) =>
         formatDuration(d, compactDays: true, showSeconds: false);
-    final estimate = Duration(seconds: task.estimatedSeconds);
-    final hasEstimate = task.estimatedSeconds > 0;
+    final estimate = time.estimate;
+    final hasEstimate = time.hasEstimate;
     // Nothing worked yet: "remaining" would only restate the estimate.
-    final showRemaining =
-        hasEstimate && worked != Duration.zero && worked != estimate;
-    final over = worked > estimate;
+    final showRemaining = time.showRemaining;
+    final over = time.isOver;
     final facts = <Widget>[
       if (task.statusId.isNotEmpty)
         TaskStatusPill(
@@ -208,8 +211,8 @@ class _StatusLine extends StatelessWidget {
       if (showRemaining)
         Text(
           over
-              ? '${context.tr('remaining')}: -${short(worked - estimate)}'
-              : '${context.tr('remaining')}: ${short(estimate - worked)}',
+              ? '${context.tr('remaining')}: -${short(-time.remaining)}'
+              : '${context.tr('remaining')}: ${short(time.remaining)}',
           style: over
               ? muted?.copyWith(
                   color: tokens.overdue,

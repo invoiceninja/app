@@ -5,6 +5,7 @@ import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/mdi_icons.dart';
 import 'package:admin/app/theme.dart';
 import 'package:admin/ui/core/detail/entity_detail_actions_row.dart';
+import 'package:admin/ui/core/detail/quick_action_kinds_scope.dart';
 
 import '../../../_localization_helper.dart';
 
@@ -203,6 +204,146 @@ void main() {
       expect(find.widgetWithText(OutlinedButton, 'Archive'), findsOneWidget);
       expect(find.widgetWithText(OutlinedButton, 'Delete'), findsOneWidget);
       expect(find.byIcon(Icons.more_vert), findsNothing);
+    });
+  });
+
+  group('beside a quick-action strip', () {
+    /// The bar under a record screen's scope, with [tiled] published as the
+    /// strip's tiles and [onScreen] as already showing.
+    Future<void> pumpBar(
+      WidgetTester tester,
+      List<EntityActionItem<String>> items, {
+      required double width,
+      Set<Object?> tiled = const {},
+      Set<Object?> onScreen = const {},
+    }) async {
+      final kinds = QuickActionKinds();
+      addTearDown(kinds.dispose);
+      await tester.pumpWidget(
+        _host(
+          QuickActionKindsScope(
+            notifier: kinds,
+            child: EntityDetailActionsRow<String>(items: items),
+          ),
+          width: width,
+        ),
+      );
+      kinds.publish(tiled, onScreen: onScreen);
+      // Published after a frame, never during build.
+      await tester.pump();
+      await tester.pumpAndSettle();
+    }
+
+    const edit = EntityActionItem<String>(
+      kind: 'edit',
+      icon: MdiIcons.circleEditOutline,
+      label: 'Edit',
+      enabled: true,
+      isPrimary: true,
+    );
+
+    for (final width in [400.0, 800.0]) {
+      testWidgets('one accent per screen: Edit is outlined while the strip '
+          'shows tiles (width $width)', (tester) async {
+        await pumpBar(
+          tester,
+          [
+            edit,
+            const EntityActionItem(
+              kind: 'statement',
+              icon: Icons.picture_as_pdf,
+              label: 'Statement',
+              enabled: true,
+            ),
+          ],
+          width: width,
+          tiled: {'statement'},
+        );
+        expect(find.widgetWithText(FilledButton, 'Edit'), findsNothing);
+        expect(find.widgetWithText(OutlinedButton, 'Edit'), findsOneWidget);
+      });
+    }
+
+    testWidgets('a kind that is only on screen does not turn Edit neutral', (
+      tester,
+    ) async {
+      await pumpBar(tester, [edit], width: 800, onScreen: {'pdf'});
+      expect(find.widgetWithText(FilledButton, 'Edit'), findsOneWidget);
+    });
+
+    testWidgets('a menu-only item never gets a bar button, but is in More', (
+      tester,
+    ) async {
+      await pumpBar(tester, [
+        edit,
+        const EntityActionItem(
+          kind: 'settings',
+          icon: Icons.settings_outlined,
+          label: 'Settings',
+          enabled: true,
+          menuOnly: true,
+        ),
+        const EntityActionItem(
+          kind: 'comment',
+          icon: Icons.add_comment_outlined,
+          label: 'Add Comment',
+          enabled: true,
+        ),
+      ], width: 800);
+      expect(
+        find.widgetWithText(OutlinedButton, 'Add Comment'),
+        findsOneWidget,
+      );
+      expect(find.widgetWithText(OutlinedButton, 'Settings'), findsNothing);
+      await tester.tap(find.widgetWithIcon(OutlinedButton, Icons.more_vert));
+      await tester.pumpAndSettle();
+      expect(find.widgetWithText(MenuItemButton, 'Settings'), findsOneWidget);
+    });
+
+    testWidgets('a group whose child is a tile goes under More whole — Clone '
+        'was drawn twice', (tester) async {
+      await pumpBar(
+        tester,
+        [
+          edit,
+          const EntityActionItem(
+            kind: 'cloneGroup',
+            icon: Icons.copy_outlined,
+            label: 'Clone',
+            enabled: true,
+            children: [
+              EntityActionItem(
+                kind: 'clone',
+                icon: Icons.copy_outlined,
+                label: 'Clone',
+                enabled: true,
+              ),
+              EntityActionItem(
+                kind: 'cloneToQuote',
+                icon: Icons.copy_outlined,
+                label: 'Clone to Quote',
+                enabled: true,
+              ),
+            ],
+          ),
+          const EntityActionItem(
+            kind: 'pdf',
+            icon: Icons.picture_as_pdf,
+            label: 'View PDF',
+            enabled: true,
+          ),
+        ],
+        width: 800,
+        tiled: {'clone'},
+        onScreen: {'pdf'},
+      );
+      expect(find.widgetWithText(OutlinedButton, 'Clone'), findsNothing);
+      // The PDF is on screen beside the record: no button for it either.
+      expect(find.widgetWithText(OutlinedButton, 'View PDF'), findsNothing);
+      await tester.tap(find.widgetWithIcon(OutlinedButton, Icons.more_vert));
+      await tester.pumpAndSettle();
+      expect(find.widgetWithText(SubmenuButton, 'Clone'), findsOneWidget);
+      expect(find.widgetWithText(MenuItemButton, 'View PDF'), findsOneWidget);
     });
   });
 }

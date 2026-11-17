@@ -7,8 +7,9 @@ import 'package:admin/app/theme.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/data/models/domain/user.dart';
 import 'package:admin/ui/core/adaptive.dart';
-import 'package:admin/ui/core/widgets/entity_picker_field.dart';
+import 'package:admin/ui/features/tasks/view_models/task_filters_mixin.dart';
 import 'package:admin/ui/features/tasks/widgets/task_filter_bar.dart';
+import 'package:admin/ui/features/tasks/widgets/task_filter_controls.dart';
 
 import '../../../../_localization_helper.dart';
 import '../../../../_responsive_helper.dart';
@@ -232,11 +233,12 @@ void main() {
       expectNoOverflow(tester);
     });
 
-    testWidgets('inline renders the three pickers and no chips', (
-      tester,
-    ) async {
-      filters.setClientFilter('c1');
-      tester.view.physicalSize = const Size(1400, 900);
+    Future<void> pumpInline(
+      WidgetTester tester,
+      TaskFiltersMixin f, {
+      double width = 1400,
+    }) async {
+      tester.view.physicalSize = Size(width, 900);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.reset);
       await tester.pumpWidget(
@@ -246,18 +248,143 @@ void main() {
             theme: buildInTheme(InTheme.light),
             localizationsDelegates: kTestLocalizationsDelegates,
             supportedLocales: kTestSupportedLocales,
-            home: Scaffold(body: bar(inline: true)),
+            home: Scaffold(
+              body: TaskFilterBar(
+                filters: f,
+                companyId: 'co',
+                inline: true,
+                onEditFilters: () => edits++,
+              ),
+            ),
           ),
         ),
       );
       await tester.pumpAndSettle();
+    }
 
-      expect(find.byType(EntityPickerField<User>), findsOneWidget);
-      expect(find.byType(TextField), findsNWidgets(3));
+    testWidgets('inline is one compact row of labelled dropdowns, and no '
+        'chips', (tester) async {
+      await pumpInline(tester, filters);
+
+      expect(find.byType(TaskFilterDropdown<User>), findsOneWidget);
+      // Label and value on one line, `Any` until something is picked.
+      expect(find.text('Project'), findsOneWidget);
+      expect(find.text('Assigned User'), findsOneWidget);
+      expect(find.text('Any'), findsNWidgets(2));
+      expect(find.text('Anyone'), findsOneWidget);
+      // No search box on a view that cannot match one.
+      expect(find.byType(TextField), findsNothing);
       expect(find.byType(InputChip), findsNothing);
-      // Clear rides in the row rather than the strip.
-      expect(find.text('Clear'), findsOneWidget);
+      // Clear only once something narrows the view.
+      expect(find.text('Clear Filters'), findsNothing);
+      // One band: the controls (44 px here — a test runs as Android, a touch
+      // platform) plus the bar's padding and rule, where the labelled pickers
+      // stacked a label over a 44 px field.
+      expect(
+        tester.getSize(find.byType(TaskFilterBar)).height,
+        lessThanOrEqualTo(62),
+      );
       expectNoOverflow(tester);
     });
+
+    testWidgets('a picked value reads as the record\'s name, resolved by id, '
+        'and Clear appears', (tester) async {
+      filters.setClientFilter('c1');
+      await pumpInline(tester, filters);
+
+      expect(find.text('Acme Corp'), findsOneWidget);
+      expect(find.text('Clear Filters'), findsOneWidget);
+      await tester.tap(find.text('Clear Filters'));
+      await tester.pumpAndSettle();
+      expect(filters.clientId, '');
+      expect(find.text('Clear Filters'), findsNothing);
+    });
+
+    testWidgets('a dropdown opens a searchable menu, and a pick sets the '
+        'filter', (tester) async {
+      await pumpInline(tester, filters);
+
+      await tester.tap(find.text('Project'));
+      await tester.pumpAndSettle();
+      expect(find.text('Website redesign'), findsOneWidget);
+      // The search narrows by every word, in any order.
+      // The menu's own search field — this view has no other text field.
+      await tester.enterText(find.byType(TextField), 'redesign web');
+      await tester.pumpAndSettle();
+      expect(find.text('Website redesign'), findsOneWidget);
+      await tester.tap(find.text('Website redesign'));
+      await tester.pumpAndSettle();
+      expect(filters.projectId, 'p1');
+    });
+
+    testWidgets('the board gets a search box, which counts as a filter', (
+      tester,
+    ) async {
+      final searchable = _SearchableFilters();
+      addTearDown(searchable.dispose);
+      await pumpInline(tester, searchable);
+
+      expect(find.byType(TaskSearchField), findsOneWidget);
+      await tester.enterText(find.byType(TextField), 'gate');
+      await tester.pumpAndSettle();
+      expect(searchable.search, 'gate');
+      expect(searchable.filtersActive, isTrue);
+      expect(find.text('Clear Filters'), findsOneWidget);
+
+      await tester.tap(find.text('Clear Filters'));
+      await tester.pumpAndSettle();
+      expect(searchable.search, '');
+      expect(
+        tester.widget<TextField>(find.byType(TextField)).controller!.text,
+        isEmpty,
+        reason: 'a Clear made elsewhere empties the box',
+      );
+      expectNoOverflow(tester);
+    });
+
+    testWidgets('the gate\'s narrowest inline pane still holds the whole row', (
+      tester,
+    ) async {
+      final searchable = _SearchableFilters()..setSearch('gate');
+      addTearDown(searchable.dispose);
+      searchable.setClientFilter('c1');
+      await pumpInline(
+        tester,
+        searchable,
+        width: Breakpoints.wide + 2 * kTaskFilterBarGutter,
+      );
+      expectNoOverflow(tester);
+    });
+
+    testWidgets('collapsed, a running search is a chip like the others', (
+      tester,
+    ) async {
+      final searchable = _SearchableFilters()..setSearch('gate');
+      addTearDown(searchable.dispose);
+      await pumpBare(
+        tester,
+        TaskFilterBar(
+          filters: searchable,
+          companyId: 'co',
+          inline: false,
+          onEditFilters: () => edits++,
+        ),
+      );
+      expect(find.widgetWithText(InputChip, 'Search'), findsOneWidget);
+      await tester.tap(
+        find.descendant(
+          of: find.widgetWithText(InputChip, 'Search'),
+          matching: find.byIcon(Icons.close),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(searchable.search, '');
+    });
   });
+}
+
+/// The board's filter state: the one view with a search box.
+class _SearchableFilters extends TaskFiltersDouble {
+  @override
+  bool get supportsSearch => true;
 }

@@ -61,6 +61,45 @@ void main() {
     expect(find.byType(SegmentedButton<int>), findsOneWidget);
   });
 
+  // R8: on a phone the segments that fit fill the card rather than sitting
+  // as a short strip; ones that don't keep their natural width and scroll.
+  testWidgets('narrow: segments that fit are stretched to the row', (
+    tester,
+  ) async {
+    await pumpAt(tester, 360, row());
+    final button = tester.getSize(find.byType(SegmentedButton<int>));
+    // 360 less the row's 16 px inset on each side.
+    expect(button.width, moreOrLessEquals(328, epsilon: 1));
+  });
+
+  testWidgets('narrow: segments that do not fit keep their width and scroll', (
+    tester,
+  ) async {
+    await pumpAt(
+      tester,
+      360,
+      SegmentedSettingRow(
+        leading: const Icon(Icons.format_size_outlined),
+        title: 'Font size',
+        subtitle: 'Normal',
+        control: SegmentedButton<int>(
+          showSelectedIcon: false,
+          segments: [
+            for (var i = 0; i < 4; i++)
+              ButtonSegment(value: i, label: Text('A rather long label $i')),
+          ],
+          selected: const {1},
+          onSelectionChanged: (_) {},
+        ),
+      ),
+    );
+    expectNoOverflow(tester);
+    expect(
+      tester.getSize(find.byType(SegmentedButton<int>)).width,
+      greaterThan(328),
+    );
+  });
+
   testWidgets(
     'scrollableTrailing wraps a wide control in a horizontal scroll view so a '
     'large text scale cannot overflow the trailing slot',

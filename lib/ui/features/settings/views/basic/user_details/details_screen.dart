@@ -4,12 +4,14 @@ import 'package:provider/provider.dart';
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/env.dart';
 import 'package:admin/app/services.dart';
+import 'package:admin/data/models/domain/company.dart';
 import 'package:admin/data/models/value/language.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/edit/entity_custom_fields_section.dart';
 import 'package:admin/ui/core/widgets/form_field_pair.dart';
 import 'package:admin/ui/core/widgets/markdown_text_field.dart';
 import 'package:admin/ui/core/widgets/searchable_dropdown_field.dart';
+import 'package:admin/ui/core/widgets/watch_builder.dart';
 import 'package:admin/ui/features/settings/settings_actions.dart';
 import 'package:admin/ui/features/settings/view_models/user_details_view_model.dart';
 import 'package:admin/ui/features/settings/widgets/form_section.dart';
@@ -99,21 +101,41 @@ class _DetailsForm extends StatelessWidget {
           ),
         ),
         SizedBox(height: InSpacing.lg(context)),
-        SearchableDropdownField<Language>(
-          label: context.tr('document_language'),
-          items: languages,
-          initialValue: activeLanguage,
-          displayString: (l) => l.name,
-          idOf: (l) => l.id,
-          onChanged: (l) =>
-              vm.updateUser((u) => u.copyWith(languageId: l?.id ?? '')),
-          errorText: vm.fieldErrors['language_id']?.firstOrNull,
+        // Unset is a real choice — the company's own language — so the empty
+        // field says which one that is ("Default (English)") rather than
+        // reading as missing. The ✕ stays: clearing returns to it.
+        WatchBuilder<Company?>(
+          cacheKey: vm.companyId,
+          create: () => services.company.watchCompany(vm.companyId),
+          builder: (context, snapshot) {
+            final companyLanguageId = snapshot.data?.settings.languageId ?? '';
+            final companyLanguage =
+                services.statics.languages[companyLanguageId]?.name;
+            return SearchableDropdownField<Language>(
+              label: context.tr('document_language'),
+              items: languages,
+              initialValue: activeLanguage,
+              displayString: (l) => l.name,
+              idOf: (l) => l.id,
+              hintText: companyLanguage == null
+                  ? context.tr('default')
+                  : context.tr('default_with_value', {
+                      'value': companyLanguage,
+                    }),
+              onChanged: (l) =>
+                  vm.updateUser((u) => u.copyWith(languageId: l?.id ?? '')),
+              errorText: vm.fieldErrors['language_id']?.firstOrNull,
+            );
+          },
         ),
         SizedBox(height: InSpacing.lg(context)),
+        // A floor, not a size (the field grows to its max, then scrolls):
+        // most signatures are two or three lines, and 180 px of empty box
+        // pushed Custom Fields and Sign out below a phone's first screen.
         MarkdownTextField(
           label: context.tr('signature'),
           initialValue: user.signature,
-          height: 180,
+          height: 100,
           onChanged: (v) => vm.updateUser((u) => u.copyWith(signature: v)),
         ),
         // User custom fields (`user1..4`) — type-aware, gated by the company's

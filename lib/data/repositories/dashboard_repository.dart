@@ -7,6 +7,7 @@ import 'package:logging/logging.dart';
 import 'package:admin/data/db/app_database.dart';
 import 'package:admin/data/db/dao/dashboard_cache_dao.dart';
 import 'package:admin/data/models/domain/dashboard/dashboard_activity.dart';
+import 'package:admin/data/models/domain/dashboard/dashboard_aging.dart';
 import 'package:admin/data/models/domain/dashboard/dashboard_calculated_field.dart';
 import 'package:admin/data/models/domain/dashboard/dashboard_card_config.dart';
 import 'package:admin/data/models/domain/dashboard/dashboard_chart_series.dart';
@@ -37,6 +38,14 @@ class DashboardKind {
   /// nor blanks it, and a failure is filed here rather than taking the period
   /// figures down with it. See `DashboardApi.fetchOutstandingTotals`.
   static const String totalsOutstanding = 'totals_outstanding';
+
+  /// What is unpaid today **by how late it is** — the aging bar under
+  /// Outstanding (`POST /charts/analytics_totals`, [DashboardAging]). A
+  /// snapshot like [totalsOutstanding], but keyed by nothing at all
+  /// ([kDashboardAgingHash]): the server leaves drafts out whatever the switch
+  /// says, and the dates do not enter it. Refreshed with every full pass
+  /// ([DashboardRepository.refreshAll]), never on a filter change.
+  static const String aging = 'aging';
   static const String chart = 'chart';
   static const String activities = 'activities';
   static const String pastDue = 'past_due';
@@ -92,6 +101,7 @@ class DashboardKind {
     totalsCurrent,
     totalsPrevious,
     totalsOutstanding,
+    aging,
     chart,
     ...listKinds,
   ];
@@ -143,6 +153,10 @@ class DashboardKind {
 /// the response's buckets on the client, and the window is always all time.
 String dashboardOutstandingHash({required bool includeDrafts}) =>
     'outstanding|d=$includeDrafts';
+
+/// Cache key of the [DashboardKind.aging] row — one row per company: nothing
+/// in the filter changes the answer.
+const String kDashboardAgingHash = 'aging';
 
 /// One unit of refresh work: the cache `kind` a failure is filed under, paired
 /// with the call that does it.
@@ -288,6 +302,17 @@ class DashboardRepository {
     filterHash: dashboardOutstandingHash(includeDrafts: includeDrafts),
     decode: (m) => DashboardTotals.fromJson(m),
   );
+
+  /// The aging buckets under Outstanding — see [DashboardKind.aging]. Emits
+  /// [DashboardAging.none] (unsupported) once a server without the endpoint
+  /// has answered, and null while nothing is cached.
+  Stream<DashboardAging?> watchAging(String companyId) =>
+      _watchDecoded<DashboardAging>(
+        companyId: companyId,
+        kind: DashboardKind.aging,
+        filterHash: kDashboardAgingHash,
+        decode: (m) => DashboardAging.fromJson(m),
+      );
 
   Stream<DashboardChartSeries?> watchChart(
     String companyId,
@@ -503,6 +528,39 @@ class DashboardRepository {
     fetch: () => api.fetchOutstandingTotals(includeDrafts: includeDrafts),
     maxAge: maxAge,
   );
+
+  /// Refresh the aging buckets — see [DashboardKind.aging].
+  ///
+  /// **A server without the endpoint is an answer, not a failure.** An older
+  /// self-hosted install has no `charts/analytics_totals` route, and Invoice
+  /// Ninja answers a missing route with 404 (400 / 405 on some stacks). That
+  /// is cached as [DashboardAging.unsupportedMarker], so the bar is simply not
+  /// drawn: a failure here would put a retry, or a refresh toast, in front of
+  /// a figure the server can never give. The next refresh asks again, so an
+  /// upgraded server is picked up.
+  Future<void> refreshAging(String companyId, {Duration? maxAge}) => _refresh(
+    companyId: companyId,
+    kind: DashboardKind.aging,
+    filterHash: kDashboardAgingHash,
+    fetch: () async {
+      try {
+        return await api.fetchAgingTotals();
+      } on ApiException catch (e) {
+        if (!_isMissingRoute(e)) rethrow;
+        _log.info('No aging on this server ($e); the bar stays hidden');
+        return const {DashboardAging.unsupportedMarker: true};
+      }
+    },
+    maxAge: maxAge,
+  );
+
+  /// Whether [e] is a server saying it has no such route.
+  static bool _isMissingRoute(ApiException e) {
+    if (e is NotFoundException) return true;
+    if (e is PermissionDeniedException) return false;
+    return e is ServerException &&
+        (e.statusCode == 404 || e.statusCode == 405 || e.statusCode == 400);
+  }
 
   Future<void> refreshChart(String companyId, DashboardFilter filter) =>
       _refresh(
@@ -767,6 +825,9 @@ class DashboardRepository {
     List<DashboardCardConfig> cards = const [],
   }) => _runJobs([
     ..._totalsAndChartJobs(companyId, filter),
+    // Not filter-keyed, so here and not in [_totalsAndChartJobs]: a new date
+    // range must not refetch it.
+    (DashboardKind.aging, () => refreshAging(companyId)),
     ..._listCardJobs(companyId),
     ..._calculatedFieldJobs(companyId, filter, cards),
   ]);

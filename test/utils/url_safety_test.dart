@@ -83,4 +83,32 @@ void main() {
       expect(isSafeWebUrl('http://'), isFalse);
     });
   });
+
+  group('openableWebsiteUrl', () {
+    test('assumes https when no scheme was typed', () {
+      expect(openableWebsiteUrl('acme.com'), 'https://acme.com');
+      expect(
+        openableWebsiteUrl('  www.acme.com/about '),
+        'https://www.acme.com/about',
+      );
+    });
+
+    test('keeps a typed http or https scheme', () {
+      expect(
+        openableWebsiteUrl('http://intranet.local'),
+        'http://intranet.local',
+      );
+      expect(openableWebsiteUrl('https://acme.com'), 'https://acme.com');
+    });
+
+    test('refuses blank, other schemes and no host', () {
+      expect(openableWebsiteUrl(''), isNull);
+      expect(openableWebsiteUrl('   '), isNull);
+      expect(openableWebsiteUrl('javascript:alert(1)'), isNull);
+      expect(openableWebsiteUrl('file:///etc/passwd'), isNull);
+      expect(openableWebsiteUrl('ftp://acme.com'), isNull);
+      expect(openableWebsiteUrl('https://'), isNull);
+      expect(openableWebsiteUrl('https://user:pw@acme.com'), isNull);
+    });
+  });
 }

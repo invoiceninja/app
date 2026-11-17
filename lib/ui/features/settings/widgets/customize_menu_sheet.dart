@@ -336,7 +336,7 @@ class _MenuRow extends StatelessWidget {
             ),
       trailing: Tooltip(
         message: context.tr(visible ? 'hide' : 'show'),
-        child: Switch.adaptive(
+        child: Switch(
           value: visible,
           onChanged: available ? (_) => onToggle() : null,
         ),

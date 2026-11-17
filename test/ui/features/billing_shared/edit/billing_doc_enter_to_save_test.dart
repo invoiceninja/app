@@ -67,6 +67,12 @@ void main() {
       // Counted per field: a total alone passes when one field saves twice
       // and another not at all.
       for (final (i, label) in headerFields.indexed) {
+        // On a phone the partial starts collapsed behind "Add deposit".
+        if (label == 'Partial/Deposit' &&
+            find.text('Add deposit').evaluate().isNotEmpty) {
+          await tester.tap(find.text('Add deposit'));
+          await settle(tester);
+        }
         await enterIn(tester, label);
         expect(saves(), i + 1, reason: label);
       }

@@ -185,7 +185,12 @@ Widget cellMoney(
 /// while detail/edit screens honored it. Falls back to the locale's medium
 /// pattern (`Jan 5, 2026`) when no formatter is in scope. Caller decides
 /// whether to render `cellEmpty()` for a null/missing date.
-Widget cellDate(DateTime value, BuildContext context) {
+///
+/// [overdue] draws the date in the `overdue` ink — a due date the row is past
+/// (the column's own caller decides, through the entity's past-due predicate).
+/// The cell still shows only the date; whatever says how late belongs in a
+/// tooltip around it, never in the cell.
+Widget cellDate(DateTime value, BuildContext context, {bool overdue = false}) {
   final local = value.toLocal();
   final formatted = FormatterScope.maybeOf(context)?.date(
     '${local.year.toString().padLeft(4, '0')}-'
@@ -193,11 +198,11 @@ Widget cellDate(DateTime value, BuildContext context) {
     '${local.day.toString().padLeft(2, '0')}',
   );
   if (formatted != null && formatted.isNotEmpty) {
-    return CellText(value: formatted);
+    return CellText(value: formatted, overdue: overdue);
   }
   final localeKey = Localizations.localeOf(context).toString();
   final fallback = _dateFormatCache[localeKey] ??= DateFormat.yMMMd(localeKey);
-  return CellText(value: fallback.format(local));
+  return CellText(value: fallback.format(local), overdue: overdue);
 }
 
 /// Colour cell — a small swatch plus the stored hex. Parses through the
@@ -241,12 +246,16 @@ class CellText extends StatelessWidget {
     required this.value,
     this.bold = false,
     this.muted = false,
+    this.overdue = false,
     super.key,
   });
 
   final String value;
   final bool bold;
   final bool muted;
+
+  /// The `overdue` ink — see [cellDate].
+  final bool overdue;
 
   @override
   Widget build(BuildContext context) {
@@ -260,19 +269,33 @@ class CellText extends StatelessWidget {
         fontSize: 13,
         height: 1.2,
         fontWeight: bold ? FontWeight.w600 : FontWeight.w400,
-        color: muted ? tokens.ink4 : tokens.ink,
+        color: muted
+            ? tokens.ink4
+            : overdue
+            ? tokens.overdue
+            : tokens.ink,
       ),
     );
   }
 }
 
-/// Money widget tuned for table cells: monospaced + tabular figures so
+/// Money widget tuned for table cells: tabular figures ([moneyTextStyle]) so
 /// digits align vertically across rows, left-to-right in every language.
 class MoneyCellText extends StatelessWidget {
-  const MoneyCellText({required this.text, required this.isZero, super.key});
+  const MoneyCellText({
+    required this.text,
+    required this.isZero,
+    this.strong = false,
+    super.key,
+  });
 
   final String text;
   final bool isZero;
+
+  /// Weight 600 — a column's one figure that asks for attention (the Clients
+  /// list's balance owed). Set by a column's `cellBuilder`, never by
+  /// [cellMoney], so every other money column keeps its weight.
+  final bool strong;
 
   @override
   Widget build(BuildContext context) {
@@ -284,6 +307,7 @@ class MoneyCellText extends StatelessWidget {
       style: moneyTextStyle(
         fontSize: 13,
         height: 1.2,
+        fontWeight: strong && !isZero ? FontWeight.w600 : null,
         color: isZero ? tokens.ink3 : tokens.ink,
       ),
     );

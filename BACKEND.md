@@ -27,6 +27,7 @@ the Flutter app) so they are explicitly **out of scope** here.
 - `users.email_verified_at` — the only per-user verification signal, and it conflates four states, so no client can render a true "pending invite" (**O**, § F4; caused flutter#47, client now under-claims instead).
 - `last_login` never means "last login" — `Carbon::parse(null)` reports **now**, and `UserFactory` seeds the column at creation (**SHIPPED** 2026-09-08, § F5; both halves fixed, but the transformer emits `0` rather than `null` for "never").
 - `POST /api/v1/activities/entity` has **no notes filter** and its `rows` window covers all activity for the record, so a comment can fall out of it entirely (**SHIPPED** 2026-10-19 ([invoiceninja#13365](https://github.com/invoiceninja/invoiceninja/pull/13365)), 2026-10-18, § F3b — the client already sends the filter when the window is full); it **narrows by user instead of 403-ing**, so a restricted user silently sees only their own (**R**, § F3c); a note can never be **edited or deleted** (**O**, § F3d — [flutter#123](https://github.com/invoiceninja/flutter/issues/123)); and adding one **notifies nobody** (**O**, § F3e — [flutter#121](https://github.com/invoiceninja/flutter/issues/121)).
+- "Restored quote" activities (type 24) — `QuoteRestoredActivity` never sets `quote_id`, and overwrites the restoring user with the quote's owner (**O**, § F3g; the client prints "restored quote —").
 - Activity types 48–52 (user lifecycle) — the target's name now lands in `notes` (`fd8cd8ad6c`), but the template still reads `":user created user :user"` (**half shipped**, § F6; the client fills the second slot from `notes`).
 - `TaskAssigned` is **dead code** — `TaskRepository::save` runs `fill()` before the `assigned_user_id` comparison that guards the dispatch, so assigning (or reassigning) a task has never notified anyone (**SHIPPED** 2026-10-19 ([invoiceninja#13365](https://github.com/invoiceninja/invoiceninja/pull/13365)), § F7 — [flutter#148](https://github.com/invoiceninja/flutter/issues/148); no client change).
 - App Links — the two `.well-known` documents and the `/app/{path}` bridge page that make a shared record link open the app (**merged** as #12278, v5.13.44, but not yet live on `invoicing.co`: both documents 404 on 2026-10-15; § App Links). The F-Droid signing key joined the default fingerprints in [invoiceninja#13365](https://github.com/invoiceninja/invoiceninja/pull/13365) (merged 2026-10-19).
@@ -525,6 +526,31 @@ row order inside a second follows microseconds, not ids.)
   spots that, the company is remembered as cursor-less for the session, and
   Load more falls back to the growing window. With the cursor the cap is
   `kActivityCursorWindowMax` (2500). See `docs/activity-timeline.md`.
+
+### F3g. "Restored quote" activities name no quote and the wrong person — **O**
+
+`app/Listeners/Quote/QuoteRestoredActivity.php` (`v5-develop`, read
+2026-11-17) has two defects in `handle()`, both visible in every feed:
+
+1. **No `quote_id`.** It sets `client_id`, `company_id` and
+   `activity_type_id` but never `$fields->quote_id`, unlike every sibling
+   (`QuoteArchivedActivity` line 52, `InvoiceRestoredActivity`,
+   `CreditRestoredActivity`). `activity_24` is `":user restored quote :quote"`,
+   so the row has nothing to fill `:quote` with and nothing to link to:
+   React prints the bare noun ("restored quote Quote"), and the row opens the
+   client, not the quote.
+2. **The wrong actor.** Line 51 sets `$fields->user_id` from
+   `event_vars['user_id']` (the person who restored it), then line 53
+   overwrites it with `$event->quote->user_id` — the quote's **owner**. Any
+   restore by someone other than the owner is attributed to the owner.
+
+- **Fix:** add `$fields->quote_id = $event->quote->id;` and delete line 53.
+- Accept: restoring another user's quote writes an activity with that quote's
+  `quote_id` and the restoring user's `user_id`.
+- **Client:** nothing to undo. `ActivityFormatter` fills a token the row has
+  no value for with an em dash (`kActivityMissingValue`), so the sentence reads
+  "restored quote —" rather than naming a quote "Quote"; the actor stays wrong
+  until the server fix, since the wire has no other copy of it.
 
 ### F4. No wire field expresses a "pending invite" — **O** (client now under-claims)
 
@@ -3338,3 +3364,80 @@ prevent. Nothing the client can read proves (2) before an optional line exists.
 
 Until (2) ships, a quote with an optional line shows one total in the app and another in its PDF
 and list row.
+
+## Found during the 2026-11-17 redesign round — **O (unverified until the batch review)**
+
+Collected while building Hillel's page redesigns (dashboard, clients, invoices, expenses, payments,
+projects, tasks, activity, settings). Each entry is what an agent or reviewer reported from reading
+`/Users/hillel/Code/invoiceninja` (`v5-develop`); none has been re-read by a second pass yet. The
+batch review re-reads each one, confirms the line and the fix, and promotes it to **O** or drops it.
+Already filed elsewhere in this file: the restored-quote activity (§ F3g) and net dashboard totals
+(§ Dashboard net (ex-tax) chart totals).
+
+### Due date before the document date is rejected on update but accepted on create
+
+`Update{Invoice,Quote}Request` carry `due_date … after_or_equal:date`; the `Store*` requests, and
+credits and purchase orders in both directions, have no date-order rule. So an invoice created with a
+due date before its date saves, and the next edit of it 422s. **Fix:** the same rule on the Store
+requests (and decide credits/POs). **Client:** the billing-doc editor validates date order inline for
+invoices and quotes (`billingDocDateOrderErrors`), including `partial_due_date` strictly
+`before:due_date`.
+
+### Linking an expense to a bank transaction from the expense side is one-sided
+
+`UpdateExpenseRequest` accepts `transaction_id` but nothing sets `bank_transactions.expense_id` or the
+transaction's converted status; `StoreExpenseRequest` ignores the field. A link made from the expense
+leaves the transaction unmatched. **Fix:** either link both sides in `ExpenseRepository` or reject the
+field on expenses. **Client:** the expense editor shows Banking read-only (with a View link) and never
+writes `transaction_id`/`bank_id`.
+
+### Vendor contacts can't stop receiving email
+
+`VendorContactRepository::save` sets `send_email = true` on every vendor contact, so a CC-only or
+"don't email" vendor contact reverts on save. **Fix:** persist the sent value like
+`ClientContactRepository`. **Client:** vendor contacts keep the two switches instead of the client
+contacts' To / CC / None radio, which would not survive a save.
+
+### Dashboard aging buckets ignore `partial_due_date`
+
+`AnalyticsQueries::getAgingBucketTotals` (and the aggregate) bucket by `due_date` only, so an
+invoice whose deposit is overdue but whose final due date is ahead counts as Current. Every other
+overdue path coalesces `partial_due_date`. **Client:** the Outstanding card's past-due figure prefers
+the needs-attention band's proven sum; the bar can disagree slightly with it.
+
+### Dashboard aging buckets use the server's date, not the company's
+
+The same queries compare against `CURDATE()`, the database server's day, not the company timezone,
+so around midnight an invoice can sit a bucket early or late. **Fix:** pass the company's local date.
+
+### `InvoiceFilters::overdue` and the app disagree on deposits
+
+`InvoiceFilters::overdue` (`app/Filters/InvoiceFilters.php` ~200, the `orWhere('partial_due_date',
+'<', $now)` ~211) treats an invoice as overdue when its due date **or** its partial due date has
+passed. The app (and the Past Due pill) take the partial due date first when one is set, so the
+server returns a few extra rows (passed due date, deposit still ahead). **Decide** which is right;
+today the client marks the Overdue tab's mapping `widened: true` and drops the extras on the device.
+
+### A number pattern with an unbraced `counter` repeats the same number forever
+
+`GeneratesCounter` (~770, ~810, ~854) tests `stripos($pattern, 'counter')` to decide whether to
+append `{$counter}`, but `applyNumberPattern` (~588–607) only replaces the braced tokens. So
+`INV-$counter`, or any literal containing the word "counter", suppresses the append, every
+document gets the same literal number, and `checkEntityNumber` (~284) loops on the collision. Line
+~770 has a `strlen > 1` guard that ~810 and ~854 lack. **Fix:** test for the braced token.
+**Client:** the generated-number preview mirrors `GeneratesCounter`, so it shows the repeat.
+
+### `enable_client_portal` is documented as switching off the whole portal
+
+`app/Http/Controllers/OpenAPI/CompanySettingsSchema.php` (~128) says it toggles the entire portal;
+`ClientPortalEnabled` only guards the list routes (`routes/client.php` ~56–108), so invitation links,
+the document view and uploads still work with it off. **Fix:** the schema text (docs only).
+**Client:** the portal settings stay visible (disabled where useful) when it is off, never hidden.
+
+### Not a bug: `email_receipt` is read only when a payment is created
+
+`PaymentRepository::applyPayment` reads `email_receipt` only for a new payment (~338,
+`! $is_existing_payment`) — verified 2026-11-17. A re-save with it set emails nothing; the old
+client's "Send Email" on a saved payment toasted success and sent nothing. **Client fix:** Send
+Email now queues `POST /payments/bulk {action: 'email'}` (as React does). Recorded so nobody
+"fixes" the server for it.

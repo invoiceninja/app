@@ -16,6 +16,7 @@ import 'package:admin/ui/features/settings/view_models/settings_draft_view_model
 import 'package:admin/ui/features/settings/views/advanced/templates_reminders/preview_controller.dart';
 import 'package:admin/ui/features/settings/views/advanced/templates_reminders/template_options.dart';
 import 'package:admin/ui/features/settings/views/advanced/templates_reminders/widgets/reminder_rule_section.dart';
+import 'package:admin/ui/features/settings/views/advanced/templates_reminders/widgets/reminders_summary.dart';
 import 'package:admin/ui/features/settings/views/advanced/templates_reminders/widgets/template_preview_panel.dart';
 import 'package:admin/ui/features/settings/widgets/form_section.dart';
 import 'package:admin/ui/features/settings/widgets/overridable_markdown_field.dart';
@@ -82,6 +83,10 @@ class _TemplatesRemindersBodyState extends State<TemplatesRemindersBody> {
   String? _lastScheduledTemplate;
   String? _lastScheduledSubject;
   String? _lastScheduledBody;
+
+  /// Marks the top of the editor card, so opening a reminder from the
+  /// summary can scroll its settings into view.
+  final GlobalKey _editorAnchor = GlobalKey();
 
   static final _log = Logger('TemplatesRemindersBody');
 
@@ -169,6 +174,33 @@ class _TemplatesRemindersBodyState extends State<TemplatesRemindersBody> {
   TemplateOption _findOption(String key) =>
       kTemplateOptions.firstWhere((o) => o.key == key);
 
+  /// Picks [key] in the Template dropdown, as choosing it there would, then
+  /// brings its subject, body and rule into view.
+  void _selectTemplate(String key) {
+    setState(() => _selectedTemplate.value = key);
+    // Kick off a fresh preview for the new template — the KeyedSubtree swap
+    // discards the old field state but the new subject/body live on the
+    // draft and need to be rendered.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _schedulePreview(immediate: true);
+    });
+  }
+
+  void _openReminder(String key) {
+    _selectTemplate(key);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final anchor = _editorAnchor.currentContext;
+      if (anchor == null || !anchor.mounted) return;
+      unawaited(
+        Scrollable.ensureVisible(
+          anchor,
+          duration: InMotion.of(anchor)(InMotion.base),
+          curve: InMotion.move,
+        ),
+      );
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final services = context.read<Services>();
@@ -221,17 +253,7 @@ class _TemplatesRemindersBodyState extends State<TemplatesRemindersBody> {
         _TemplatePicker(
           options: options,
           selectedKey: selected.key,
-          onChanged: (key) {
-            setState(() {
-              _selectedTemplate.value = key;
-            });
-            // Kick off a fresh preview for the new template — the
-            // KeyedSubtree swap discards the old field state but the new
-            // subject/body live on the draft and need to be rendered.
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (mounted) _schedulePreview(immediate: true);
-            });
-          },
+          onChanged: _selectTemplate,
         ),
       ],
     );
@@ -245,6 +267,7 @@ class _TemplatesRemindersBodyState extends State<TemplatesRemindersBody> {
       children: [
         const PlanGateBanner(style: PlanGateStyle.inset),
         pickerCard,
+        SizedBox(key: _editorAnchor),
         // Per-template `ValueKey` forces fresh state for the editor +
         // rule controllers. Mirrors v1 pattern (admin-portal
         // templates_and_reminders.dart:442/462/481/500).
@@ -263,6 +286,13 @@ class _TemplatesRemindersBodyState extends State<TemplatesRemindersBody> {
               enabled: isProOrEnterprise,
             ),
           ),
+        // Every reminder at a glance — whether it sends, and when.
+        RemindersSummary(
+          options: options,
+          settings: host.settings,
+          selectedKey: selected.key,
+          onOpen: _openReminder,
+        ),
         auxiliary,
       ],
     );

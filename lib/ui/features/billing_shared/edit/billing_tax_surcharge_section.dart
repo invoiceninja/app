@@ -34,9 +34,9 @@ typedef SurchargeSpec = ({Decimal amount, ValueChanged<String> onAmount});
 /// apply a document tax rate, set a surcharge, or toggle inclusive taxes
 /// (React exposes all of these in `InvoiceTotals`).
 ///
-/// Tax tiers track the company's `enabled_tax_rates` setting (0–3), like the
-/// expense editor; an "Add tax" button overflows into higher tiers when a
-/// single document needs more. Each tier picks from the company's configured
+/// Tax tiers show as the document fills them: one per tier it already
+/// carries, and "+ Add tax" opens the next — up to the company's
+/// `enabled_tax_rates` (0–3), and never where that is 0. Each tier picks from the company's configured
 /// tax rates (picking one fills both name and rate), as the expense and
 /// product forms, admin-portal and React all do — it was a bare name + rate
 /// pair, so a company's saved "NYS Sales Tax 8.75%" was nowhere to be picked
@@ -54,8 +54,13 @@ class BillingTaxSurchargeSection extends StatefulWidget {
     required this.usesInclusiveTaxes,
     required this.onInclusiveChanged,
     required this.surcharges,
+    this.framed = true,
     super.key,
   });
+
+  /// False draws the inputs bare, for a host that is already their card —
+  /// the desktop totals card, which sums what is set here.
+  final bool framed;
 
   final String companyId;
 
@@ -85,10 +90,10 @@ class BillingTaxSurchargeSection extends StatefulWidget {
 class _BillingTaxSurchargeSectionState
     extends State<BillingTaxSurchargeSection> {
   /// Tax tiers on screen. Grow-only — the card has no way to remove a tier —
-  /// and recomputed on every build: it used to be latched on the FIRST build,
-  /// which on a new document ran before the company row arrived, so a company
-  /// with document taxes enabled got zero tiers and (with no surcharges) no
-  /// card at all — and with it no inclusive-tax switch.
+  /// and recomputed on every build from what the draft carries, so a tier the
+  /// create defaults seed after the first frame still appears. (The tier
+  /// count used to be latched on the first build, which on a new document ran
+  /// before the company row arrived and lost the card's inclusive-tax switch.)
   int _visibleTaxRows = 0;
 
   int _draftPopulated() {
@@ -141,7 +146,9 @@ class _BillingTaxSurchargeSectionState
         final company = snapshot.data;
         final companyEnabled = (company?.enabledTaxRates ?? 0).clamp(0, 3);
         final populated = _draftPopulated();
-        _visibleTaxRows = max(_visibleTaxRows, max(companyEnabled, populated));
+        // A tier shows once it holds a tax or "+ Add tax" opened it — no
+        // empty pickers waiting on a document that takes no tax.
+        _visibleTaxRows = max(_visibleTaxRows, populated);
         final visible = _visibleTaxRows;
 
         final surchargeLabels = <int, String>{};
@@ -191,10 +198,14 @@ class _BillingTaxSurchargeSectionState
             ),
           );
         }
-        if (visible < 3) {
+        // As many tiers as the company enables (`enabled_tax_rates`), and
+        // none at all where it enables none.
+        if (visible < companyEnabled) {
           children.add(
             Align(
-              alignment: AlignmentDirectional.centerStart,
+              alignment: widget.framed
+                  ? AlignmentDirectional.centerStart
+                  : AlignmentDirectional.centerEnd,
               child: TextButton.icon(
                 onPressed: () => setState(() => _visibleTaxRows = visible + 1),
                 icon: const Icon(Icons.add, size: 16),
@@ -204,7 +215,7 @@ class _BillingTaxSurchargeSectionState
           );
         }
         children.add(
-          SwitchListTile.adaptive(
+          SwitchListTile(
             contentPadding: EdgeInsets.zero,
             title: Text(context.tr('inclusive_taxes')),
             value: widget.usesInclusiveTaxes,
@@ -239,20 +250,19 @@ class _BillingTaxSurchargeSectionState
             (company?.enabledItemTaxRates ?? 0) > 0 ||
             widget.usesInclusiveTaxes;
         if (visible == 0 &&
+            companyEnabled == 0 &&
             surchargeLabels.isEmpty &&
-            populated == 0 &&
             !inclusiveMatters) {
           return const SizedBox.shrink();
         }
 
-        return DashboardCardShell(
-          title: context.tr('taxes'),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            mainAxisSize: MainAxisSize.min,
-            children: children,
-          ),
+        final column = Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: children,
         );
+        if (!widget.framed) return column;
+        return DashboardCardShell(title: context.tr('taxes'), child: column);
       },
     );
   }

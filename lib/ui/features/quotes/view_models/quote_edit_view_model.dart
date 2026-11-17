@@ -5,6 +5,8 @@ import 'package:admin/data/models/domain/quote_status.dart';
 import 'package:admin/data/models/value/date.dart';
 import 'package:admin/data/repositories/_repository_helpers.dart';
 import 'package:admin/data/repositories/quote_repository.dart';
+import 'package:admin/ui/features/billing_shared/billing_doc_type.dart';
+import 'package:admin/ui/features/billing_shared/edit/billing_doc_date_order.dart';
 import 'package:admin/ui/features/billing_shared/view_models/billing_doc_edit_view_model.dart';
 import 'package:admin/data/repositories/document_bearing_repository.dart';
 
@@ -20,6 +22,7 @@ class QuoteEditViewModel extends BillingDocEditViewModel<Quote>
     required this.clientRequiredMessage,
     required this.crossClientLineItemsMessage,
     required this.partialInvalidMessage,
+    this.dateOrderMessages,
     bool Function()? enforcesValidUntil,
     this.validUntilPastMessage = '',
     Quote? existing,
@@ -52,6 +55,11 @@ class QuoteEditViewModel extends BillingDocEditViewModel<Quote>
   final String crossClientLineItemsMessage;
   final String partialInvalidMessage;
 
+  /// Localized date-order errors (`billingDateOrderMessages`) — a due date
+  /// before the document date, a partial due date outside `[date, due)`. Null
+  /// skips the check (a test that builds the view model bare).
+  final BillingDateOrderMessages? dateOrderMessages;
+
   /// Whether the server refuses a valid-until date already in the past on a
   /// create, and on an update that changes the date (`IsExpiredRule` /
   /// `UpdateQuoteRequest`, `ServerFeatures.quoteValidUntil`) — false on an
@@ -77,6 +85,13 @@ class QuoteEditViewModel extends BillingDocEditViewModel<Quote>
         _enforcesValidUntil()) {
       errors['due_date'] = [validUntilPastMessage];
     }
+    // The live inline rule, as a save-time block; a past valid-until set
+    // above keeps its own message.
+    billingDocDateOrderValidation(
+      BillingDocType.quote,
+      draft,
+      dateOrderMessages,
+    ).forEach((key, message) => errors.putIfAbsent(key, () => message));
     errors.addAll(validatePartial(partialInvalidMessage));
     return errors;
   }

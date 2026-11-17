@@ -12,6 +12,8 @@ import 'package:admin/ui/core/widgets/formatter_scope.dart';
 import 'package:admin/ui/core/widgets/leading_select_slot.dart';
 import 'package:admin/ui/core/widgets/client_name_label.dart';
 import 'package:admin/ui/core/widgets/party_money_cell.dart';
+import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/features/billing_shared/billing_row_subtitle.dart';
 import 'package:admin/ui/features/quotes/widgets/quote_actions.dart';
 import 'package:admin/ui/features/quotes/widgets/quote_status_pill.dart';
 import 'package:admin/ui/core/widgets/ltr_value.dart';
@@ -183,15 +185,26 @@ class _QuoteListTileState extends State<QuoteListTile> {
           overflow: TextOverflow.ellipsis,
           style: const TextStyle(fontWeight: FontWeight.w600),
         ),
-        if (q.clientId.isNotEmpty) ...[
+        if (q.clientId.isNotEmpty || q.dueDate != null) ...[
           const SizedBox(height: 2),
-          ClientNameLabel(
-            clientId: q.clientId,
-            style: TextStyle(
-              color: tokens.ink2,
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-            ),
+          // "Acme · Valid until 3 Nov 2026", the date in the overdue ink
+          // exactly when the Expired pill shows (`Quote.isExpired`). Not a
+          // link — invoiceninja/flutter#128, see `InvoiceListTile`.
+          BillingRowSubtitle(
+            date: q.dueDate,
+            dateLabelKey: 'valid_until_date_label',
+            late: q.isExpired,
+            lateText: q.isExpired ? context.tr('expired') : null,
+            party: q.clientId.isEmpty
+                ? null
+                : ClientNameLabel(
+                    clientId: q.clientId,
+                    style: TextStyle(
+                      color: tokens.ink2,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
           ),
         ],
       ],

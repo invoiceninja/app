@@ -12,9 +12,10 @@ import 'package:admin/utils/search_fold.dart';
 
 final _log = Logger('ReportEngine');
 
-/// Render ceiling for a gap-filled chart timeline. Mirrors the dashboard's
-/// own `_maxRenderBuckets` (`chart_series_math.dart`) — past this many
-/// points fl_chart is being handed more spots than the axis can show.
+/// Render ceiling for a gap-filled chart timeline: past this many points
+/// fl_chart is being handed more spots than the axis can show. The report's
+/// own number — the dashboard chart caps far lower (`kChartMaxBuckets`, a
+/// month by day), because it draws bars and coarsens instead of refusing.
 const int kMaxReportChartBuckets = 750;
 
 /// Joins the two halves of a composite group key — the group column's own

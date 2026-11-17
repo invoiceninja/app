@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:decimal/decimal.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:admin/data/models/domain/task.dart';
 import 'package:admin/data/models/domain/task_status.dart';
 import 'package:admin/data/repositories/_repository_helpers.dart';
+import 'package:admin/data/repositories/client_repository.dart';
 import 'package:admin/data/repositories/task_repository.dart';
 import 'package:admin/data/repositories/task_status_repository.dart';
 import 'package:admin/ui/features/tasks/view_models/kanban_view_model.dart';
@@ -265,4 +268,97 @@ void main() {
       expect(vm.matchesFilters(draft), isTrue);
     });
   });
+
+  group('search', () {
+    KanbanViewModel searchable(_FakeTaskRepo repo) => KanbanViewModel(
+      repo: repo,
+      statusRepo: _FakeStatusRepo([_s('s1')]),
+      companyId: 'co',
+      clientRepo: _FakeClientNames(),
+    );
+
+    test('every word must match the description, number or client name, in '
+        'any order', () async {
+      final repo = _FakeTaskRepo({
+        's1': [
+          _t('fix gate', clientId: 'c1'),
+          _t('paint fence', clientId: 'c2'),
+        ],
+      });
+      final vm = searchable(repo);
+      await Future<void>.delayed(Duration.zero);
+      expect(vm.supportsSearch, isTrue);
+
+      vm.setSearch('acme gate');
+      expect(vm.filtersActive, isTrue);
+      expect(vm.tasksFor('s1').map((t) => t.id), ['fix gate']);
+
+      vm.setSearch('FENCE');
+      expect(vm.tasksFor('s1').map((t) => t.id), ['paint fence']);
+
+      vm.clearFilters();
+      expect(vm.search, '');
+      expect(vm.tasksFor('s1'), hasLength(2));
+    });
+
+    test('a quick-add under a search stays on the board until the search '
+        'changes', () async {
+      final emissions = StreamController<Map<String, List<Task>>>();
+      addTearDown(emissions.close);
+      final repo = _LiveTaskRepo(emissions.stream);
+      final vm = searchable(repo);
+      emissions.add({
+        's1': [_t('fix gate')],
+      });
+      await Future<void>.delayed(Duration.zero);
+      vm.setSearch('gate');
+      await vm.quickAdd(statusId: 's1', description: 'order hinges');
+      // What the repository's watch emits once the create lands.
+      emissions.add({
+        's1': [_t('fix gate'), _t('tmp_1')],
+      });
+      await Future<void>.delayed(Duration.zero);
+      expect(vm.tasksFor('s1').map((t) => t.id), [
+        'fix gate',
+        'tmp_1',
+      ], reason: 'a card typed in must not vanish behind the search');
+
+      vm.setSearch('gate ');
+      vm.setSearch('fix');
+      expect(vm.tasksFor('s1').map((t) => t.id), ['fix gate']);
+    });
+  });
+}
+
+class _FakeClientNames implements ClientRepository {
+  @override
+  Stream<List<({String id, String name})>> watchAllNames({
+    required String companyId,
+  }) => Stream.value(const [(id: 'c1', name: 'Acme Corp')]);
+
+  @override
+  Object? noSuchMethod(Invocation i) => throw UnimplementedError();
+}
+
+/// A repository whose board stream the test drives, and whose create answers
+/// with a temp id, as the real one does.
+class _LiveTaskRepo extends _FakeTaskRepo {
+  _LiveTaskRepo(this._stream) : super(const {});
+  final Stream<Map<String, List<Task>>> _stream;
+
+  @override
+  Stream<Map<String, List<Task>>> watchAllByStatus({
+    required String companyId,
+    states = const {},
+  }) => _stream;
+
+  @override
+  Future<SaveResult<Task>> create({
+    required String companyId,
+    required Task draft,
+    String? existingTempId,
+  }) async {
+    created.add(draft);
+    return SaveResult(entity: draft.copyWith(id: 'tmp_1'), outboxRowId: 1);
+  }
 }

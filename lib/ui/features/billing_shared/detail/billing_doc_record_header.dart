@@ -281,20 +281,23 @@ class _TypeTile extends StatelessWidget {
   final IconData? icon;
 
   @override
-  Widget build(BuildContext context) => Container(
-    width: kDetailHeaderAvatarSize,
-    height: kDetailHeaderAvatarSize,
-    alignment: Alignment.center,
-    decoration: BoxDecoration(
-      color: avatarTintFor(seed),
-      borderRadius: BorderRadius.circular(InRadii.r2),
-    ),
-    child: Icon(
-      icon ?? Icons.description_outlined,
-      color: Colors.white,
-      size: 28,
-    ),
-  );
+  Widget build(BuildContext context) {
+    final tint = avatarTintFor(context, seed);
+    return Container(
+      width: kDetailHeaderAvatarSize,
+      height: kDetailHeaderAvatarSize,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: tint.background,
+        borderRadius: BorderRadius.circular(InRadii.r2),
+      ),
+      child: Icon(
+        icon ?? Icons.description_outlined,
+        color: tint.ink,
+        size: 28,
+      ),
+    );
+  }
 }
 
 /// The party's name, its call button, and — with a mouse — the name's copy

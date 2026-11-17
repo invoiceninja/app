@@ -431,7 +431,7 @@ class PurchaseOrderActions {
       ?q.pick(
         PurchaseOrderAction.viewPdf,
         context.tr('pdf'),
-        applies: !hasPdfPane,
+        onScreen: hasPdfPane,
       ),
       ?q.pick(PurchaseOrderAction.downloadPdf, context.tr('download')),
       // "+ Expense" makes one; a bare "Expense" opens the one it made.

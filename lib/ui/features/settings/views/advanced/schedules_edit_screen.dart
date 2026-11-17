@@ -135,7 +135,8 @@ void _applyStarter(ScheduleEditViewModel vm, String starter) {
       vm.setReportName('profitloss');
       vm.setReportSendEmail(true);
       break;
-    case 'weekly_reminders':
+    case 'weekly_task_invoicing':
+    case 'weekly_reminders': // the slug before the card was renamed
       vm.setTemplate(kScheduleTemplateInvoiceOutstandingTasks);
       vm.setFrequencyId('2'); // weekly
       vm.setOutstandingTasksAutoSend(true);
@@ -278,7 +279,7 @@ class _CommonFieldsSection extends StatelessWidget {
             externalSyncKey: vm.original?.id,
           ),
         _TemplateDisplayField(vm: vm),
-        SwitchListTile.adaptive(
+        SwitchListTile(
           contentPadding: EdgeInsets.zero,
           title: Text(context.tr('pause_schedule')),
           subtitle: Text(
@@ -488,25 +489,25 @@ class _EmailStatementSection extends StatelessWidget {
             onChanged: (v) => vm.setStatementStatus(v ?? kStatementStatusAll),
           ),
         ),
-        SwitchListTile.adaptive(
+        SwitchListTile(
           contentPadding: EdgeInsets.zero,
           title: Text(context.tr('show_aging_table')),
           value: vm.draft.statementShowAgingTable,
           onChanged: vm.setShowAgingTable,
         ),
-        SwitchListTile.adaptive(
+        SwitchListTile(
           contentPadding: EdgeInsets.zero,
           title: Text(context.tr('show_payments_table')),
           value: vm.draft.statementShowPaymentsTable,
           onChanged: vm.setShowPaymentsTable,
         ),
-        SwitchListTile.adaptive(
+        SwitchListTile(
           contentPadding: EdgeInsets.zero,
           title: Text(context.tr('show_credits_table')),
           value: vm.draft.statementShowCreditsTable,
           onChanged: vm.setShowCreditsTable,
         ),
-        SwitchListTile.adaptive(
+        SwitchListTile(
           contentPadding: EdgeInsets.zero,
           title: Text(context.tr('only_clients_with_invoices')),
           value: vm.draft.statementOnlyClientsWithInvoices,
@@ -665,7 +666,7 @@ class _EmailReportSectionState extends State<_EmailReportSection> {
     switch (field) {
       case EmailReportField.sendEmail:
         // React renders this disabled — a scheduled report always emails.
-        return SwitchListTile.adaptive(
+        return SwitchListTile(
           contentPadding: EdgeInsets.zero,
           title: Text(context.tr('send_email')),
           value: vm.draft.reportSendEmail,
@@ -711,42 +712,42 @@ class _EmailReportSectionState extends State<_EmailReportSection> {
           onChanged: vm.setReportStatus,
         );
       case EmailReportField.documentEmailAttachment:
-        return SwitchListTile.adaptive(
+        return SwitchListTile(
           contentPadding: EdgeInsets.zero,
           title: Text(context.tr('document_email_attachment')),
           value: vm.draft.reportDocumentEmailAttachment,
           onChanged: vm.setReportDocumentEmailAttachment,
         );
       case EmailReportField.pdfEmailAttachment:
-        return SwitchListTile.adaptive(
+        return SwitchListTile(
           contentPadding: EdgeInsets.zero,
           title: Text(context.tr('attach_pdf')),
           value: vm.draft.reportPdfEmailAttachment,
           onChanged: vm.setReportPdfEmailAttachment,
         );
       case EmailReportField.isExpenseBilled:
-        return SwitchListTile.adaptive(
+        return SwitchListTile(
           contentPadding: EdgeInsets.zero,
           title: Text(context.tr('expense_paid_report')),
           value: vm.draft.reportIsExpenseBilled,
           onChanged: vm.setReportIsExpenseBilled,
         );
       case EmailReportField.isIncomeBilled:
-        return SwitchListTile.adaptive(
+        return SwitchListTile(
           contentPadding: EdgeInsets.zero,
           title: Text(context.tr('cash_vs_accrual')),
           value: vm.draft.reportIsIncomeBilled,
           onChanged: vm.setReportIsIncomeBilled,
         );
       case EmailReportField.includeTax:
-        return SwitchListTile.adaptive(
+        return SwitchListTile(
           contentPadding: EdgeInsets.zero,
           title: Text(context.tr('include_tax')),
           value: vm.draft.reportIncludeTax,
           onChanged: vm.setReportIncludeTax,
         );
       case EmailReportField.includeDeleted:
-        return SwitchListTile.adaptive(
+        return SwitchListTile(
           contentPadding: EdgeInsets.zero,
           title: Text(context.tr('include_deleted')),
           value: vm.draft.reportIncludeDeleted,
@@ -886,7 +887,7 @@ class _InvoiceOutstandingTasksSection extends StatelessWidget {
           onChanged: (v) => vm._patchOutstandingDateRange(v),
           options: kStatementDateRangeOptions,
         ),
-        SwitchListTile.adaptive(
+        SwitchListTile(
           contentPadding: EdgeInsets.zero,
           title: Text(context.tr('auto_send')),
           subtitle: Text(
@@ -896,7 +897,7 @@ class _InvoiceOutstandingTasksSection extends StatelessWidget {
           value: vm.draft.outstandingTasksAutoSend,
           onChanged: vm.setOutstandingTasksAutoSend,
         ),
-        SwitchListTile.adaptive(
+        SwitchListTile(
           contentPadding: EdgeInsets.zero,
           title: Text(context.tr('include_project_tasks')),
           subtitle: Text(
@@ -974,7 +975,7 @@ class _PaymentScheduleSectionState extends State<_PaymentScheduleSection> {
           )
         else
           _InvoiceReadonlyField(invoiceId: vm.draft.paymentScheduleInvoiceId),
-        SwitchListTile.adaptive(
+        SwitchListTile(
           contentPadding: EdgeInsets.zero,
           title: Text(context.tr('auto_bill')),
           subtitle: Text(
@@ -985,7 +986,7 @@ class _PaymentScheduleSectionState extends State<_PaymentScheduleSection> {
           onChanged: vm.setPaymentScheduleAutoBill,
         ),
         const SizedBox(height: 8),
-        SwitchListTile.adaptive(
+        SwitchListTile(
           contentPadding: EdgeInsets.zero,
           title: Text(context.tr('amount_mode')),
           subtitle: Text(

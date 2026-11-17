@@ -72,7 +72,11 @@ Download.
 **The Share gate.** On Windows and Linux the package's Share is the same temp
 copy, so every `PdfPreview` passes `allowSharing: … && !pdfShareOpensTempCopy()`
 and the billing pane and client statement add a **Download** button on desktop
-(hidden while the render is stale, like Print and Share). macOS keeps Share —
+(hidden while the render is stale, like Print and Share). The billing pane draws
+its own toolbar (`useActions: false`), so its Share is `sharePdfBytes`
+(`save_bytes.dart`, the one other caller of `pdfShare`) behind the same
+`!pdfShareOpensTempCopy()` gate, and its Print is `Printing.layoutPdf`; each
+also needs `Printing.info()` to say the platform can. macOS keeps Share —
 there it is a real share picker. Both platform predicates check `Env.isDesktop`
 first: on web `defaultTargetPlatform` is the browser's OS, and Share is the
 web's download. Logged in `docs/upstream-workarounds.md` #15.

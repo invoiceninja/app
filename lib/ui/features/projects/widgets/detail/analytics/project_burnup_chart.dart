@@ -4,6 +4,7 @@ import 'package:decimal/decimal.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:material_ui/material_ui.dart';
 
+import 'package:admin/ui/features/projects/widgets/detail/project_hours_format.dart';
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/data/models/domain/project/project_burnup.dart';
 import 'package:admin/data/services/project_charts_api.dart';
@@ -127,7 +128,9 @@ class _ProjectBurnupSectionState extends State<ProjectBurnupSection> {
       BurnupLine.netInvoiced => p.cumulativeNetInvoiced ?? Decimal.zero,
       BurnupLine.netPaid => p.cumulativeNetPaid ?? Decimal.zero,
     };
-    if (money == null) return analyticsHours(f, _valueOf(line, p));
+    if (money == null) {
+      return analyticsHours(f, _valueOf(line, p), hoursMinutes: _hoursMinutes);
+    }
     return analyticsMoney(f, _b.currencyId)(money);
   }
 
@@ -227,8 +230,13 @@ class _ProjectBurnupSectionState extends State<ProjectBurnupSection> {
     if (!_shown.remove(line)) _shown.add(line);
   });
 
+  /// The device's hours-format preference, read in [build] — [_lineText]
+  /// also runs from the chart's tooltip callback, outside any build.
+  bool _hoursMinutes = false;
+
   @override
   Widget build(BuildContext context) {
+    _hoursMinutes = ProjectHoursFormat.of(context);
     final tokens = context.inTheme;
     final vm = widget.vm;
     final series = _b.series;

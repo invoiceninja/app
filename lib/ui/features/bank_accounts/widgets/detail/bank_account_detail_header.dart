@@ -31,7 +31,8 @@ class BankAccountDetailHeader extends StatelessWidget {
     final a = account;
     final segments = [
       if (a.provider.trim().isNotEmpty) Text(a.provider.trim()),
-      if (a.type.trim().isNotEmpty) Text(a.type.trim()),
+      if (a.type.trim().isNotEmpty)
+        Text(context.tr(labelKeyForAccountType(a.type.trim()))),
       // "Manual" for an account nobody connected says nothing new; name the
       // aggregator only when there is one.
       if (a.integrationType.isNotEmpty)

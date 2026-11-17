@@ -733,26 +733,40 @@ class _ScaffoldWithNavState extends State<ScaffoldWithNav> {
                                             context,
                                             remembered,
                                           );
-                                      return ValueListenableBuilder<bool>(
-                                        valueListenable: services.sidebar,
+                                      // A third input: the height of a bar
+                                      // the screen pins to its bottom (the
+                                      // billing totals, a selection bar),
+                                      // published through `ToastBottomInset`
+                                      // — the mechanism that lifts toasts.
+                                      return ListenableBuilder(
+                                        listenable: Listenable.merge([
+                                          services.sidebar,
+                                          services.toasts.bottomInset,
+                                        ]),
                                         child: pill,
-                                        builder: (context, collapsed, inner) =>
-                                            PositionedDirectional(
-                                              end: 16,
-                                              bottom: runningTimerPillBottom(
-                                                paneWidth:
-                                                    constraints.maxWidth -
-                                                    (collapsed
-                                                        ? kInSidebarCollapsedWidth
-                                                        : kInSidebarWidth),
-                                                isPhone: Breakpoints.isPhone(
-                                                  context,
-                                                ),
-                                                screenAlwaysHasFab:
-                                                    alwaysHasFab,
+                                        builder: (context, inner) {
+                                          final collapsed =
+                                              services.sidebar.value;
+                                          return PositionedDirectional(
+                                            end: 16,
+                                            bottom: runningTimerPillBottom(
+                                              paneWidth:
+                                                  constraints.maxWidth -
+                                                  (collapsed
+                                                      ? kInSidebarCollapsedWidth
+                                                      : kInSidebarWidth),
+                                              isPhone: Breakpoints.isPhone(
+                                                context,
                                               ),
-                                              child: inner!,
+                                              screenAlwaysHasFab: alwaysHasFab,
+                                              bottomBar: services
+                                                  .toasts
+                                                  .bottomInset
+                                                  .value,
                                             ),
+                                            child: inner!,
+                                          );
+                                        },
                                       );
                                     },
                                   ),
@@ -848,28 +862,16 @@ class _ScaffoldWithNavState extends State<ScaffoldWithNav> {
                         const CertificateBanner(),
                         const SessionExpiryBanner(),
                         Expanded(
-                          child: Stack(
-                            children: [
-                              widget.navigationShell,
-                              // Narrow: always clear of the per-screen FAB (see
-                              // `runningTimerPillBottom`). The pill hides itself
-                              // when no task is running, so it never obstructs
-                              // empty space.
-                              PositionedDirectional(
-                                end: 12,
-                                // No `screenAlwaysHasFab` here: this branch is
-                                // only reached below `Breakpoints.wide`, and it
-                                // measures the whole window as the pane — so the
-                                // width rule already forces the lifted offset.
-                                // Passing it would cost a `GoRouterState` read
-                                // per layout pass and change nothing.
-                                bottom: runningTimerPillBottom(
-                                  paneWidth: constraints.maxWidth,
-                                  isPhone: Breakpoints.isPhone(context),
-                                ),
-                                child: const RunningTimerPill(),
-                              ),
-                            ],
+                          // Narrow: the running timer DOCKS under the content
+                          // as a full-width bar rather than floating over it —
+                          // the floating pill covered a field or a row on most
+                          // phone screens. The dock owns the bottom safe inset
+                          // (it is the last thing on screen), hides while the
+                          // keyboard is up and lifts toasts above itself, so
+                          // no screen carries code for it. Renders only
+                          // [widget.navigationShell] when nothing is running.
+                          child: RunningTimerDock(
+                            child: widget.navigationShell,
                           ),
                         ),
                         _DebugPanelBand(),

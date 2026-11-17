@@ -2,22 +2,24 @@ import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 
 import 'package:admin/app/design_tokens.dart';
-import 'package:admin/domain/tasks/task_schedule.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/data/models/domain/company.dart';
 import 'package:admin/data/models/domain/time_entry.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/features/tasks/view_models/task_edit_view_model.dart';
+import 'package:admin/ui/features/tasks/widgets/edit/task_edit_timer_card.dart';
 import 'package:admin/ui/features/tasks/widgets/edit/time_entry_editor_sheet.dart';
 import 'package:admin/ui/features/tasks/widgets/edit/time_entry_row.dart';
 import 'package:admin/ui/features/tasks/widgets/edit/time_entry_table.dart';
-import 'package:admin/ui/features/tasks/widgets/task_total_duration_label.dart';
+import 'package:admin/ui/features/tasks/widgets/edit/time_log_empty_state.dart';
 import 'package:admin/ui/features/tasks/widgets/time_log_problem_message.dart';
 import 'package:admin/utils/formatting.dart';
 
-/// The time-log editor inside the Task edit form. Header row holds
-/// "+ Add time" and a Start / Stop / Resume toggle button; the body lists
-/// the entries newest-first.
+/// The time-log column of the Task edit form: the timer card
+/// (`TaskEditTimerCard` — the running clock, Start / Resume / Stop, and the
+/// Logged / Billable / Booked / Estimate strip), then the time log itself,
+/// whose header holds "+ Add time" and whose body lists the entries
+/// newest-first.
 class TaskEditTimesSection extends StatelessWidget {
   const TaskEditTimesSection({
     super.key,
@@ -156,44 +158,6 @@ class TaskEditTimesSection extends StatelessWidget {
     );
   }
 
-  Widget _timerButton(BuildContext context, {bool compact = false}) {
-    // Per-call minimumSize override — `FilledButton.tonal` inherits
-    // `Size.fromHeight(44)` from the theme, which is infinite-width and
-    // crashes when rendered in this Row. See CLAUDE.md § Design system
-    // (v2) for the canonical rule + reference call site.
-    final style = FilledButton.styleFrom(minimumSize: const Size(64, 44));
-    // Phones: drop the label so the title + total + two buttons fit.
-    final compactStyle = FilledButton.styleFrom(
-      minimumSize: const Size(44, 44),
-      padding: EdgeInsets.zero,
-    );
-    final (
-      IconData icon,
-      String labelKey,
-      VoidCallback? onPressed,
-    ) = vm.hasRunningEntry
-        ? (Icons.stop_circle_outlined, 'stop', locked ? null : vm.stopTimer)
-        // `hasStoppedEntries` is true for a booking too, so it alone offered
-        // "Resume" on a task that has never been worked — the mislabel
-        // invoiceninja/flutter#149 opens with, on the third of four surfaces.
-        : (vm.hasStoppedEntries && vm.scheduleState == TaskScheduleState.none)
-        ? (Icons.play_circle_outlined, 'resume', locked ? null : vm.resumeTimer)
-        : (Icons.play_circle_outlined, 'start', locked ? null : vm.startTimer);
-    if (compact) {
-      return FilledButton.tonal(
-        style: compactStyle,
-        onPressed: onPressed,
-        child: Icon(icon),
-      );
-    }
-    return FilledButton.tonalIcon(
-      style: style,
-      icon: Icon(icon),
-      label: Text(context.tr(labelKey)),
-      onPressed: onPressed,
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final services = context.read<Services>();
@@ -209,7 +173,7 @@ class TaskEditTimesSection extends StatelessWidget {
             company?.settings.showTaskItemDescription ?? true;
         final tokens = context.inTheme;
         final entries = vm.draft.timeLog.reversed.toList(growable: false);
-        return Container(
+        final log = Container(
           decoration: BoxDecoration(
             color: tokens.surface,
             border: Border.all(color: tokens.border),
@@ -239,42 +203,29 @@ class TaskEditTimesSection extends StatelessWidget {
                       children: [
                         Row(
                           children: [
-                            // Title and total take what the buttons leave.
-                            // Not a `Flexible` title beside a `Spacer`: they
-                            // halve the free width, and what the title did not
-                            // use was left after the buttons, which then sat
-                            // in the middle of the card.
+                            // The title takes what the button leaves. The
+                            // total it used to carry is the timer card's
+                            // Logged figure now, directly above.
                             Expanded(
-                              child: Row(
-                                children: [
-                                  Flexible(
-                                    child: Text(
-                                      context.tr('time_log').toUpperCase(),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                        color: tokens.ink3,
-                                        letterSpacing: 0.4,
-                                      ),
-                                    ),
-                                  ),
-                                  SizedBox(width: InSpacing.md(context)),
-                                  // Live wall-clock total — ticks every second when an
-                                  // entry is running, otherwise renders statically.
-                                  TaskTotalDurationLabel(vm: vm),
-                                ],
+                              child: Text(
+                                context.tr('time_log').toUpperCase(),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: tokens.ink3,
+                                  letterSpacing: 0.4,
+                                ),
                               ),
                             ),
                             if (!locked) ...[
                               // Per-call minimumSize override: lib/app/theme.dart
                               // sets `Size.fromHeight(40)` on OutlinedButton which
                               // is `Size(double.infinity, 40)` — fine in a column,
-                              // fatal in this Row. Same story for the
-                              // FilledButton.tonalIcon returned by `_timerButton`.
-                              // See CLAUDE.md § Design system (v2) "Default to
-                              // side-by-side dialog actions" for the verbatim rule.
+                              // fatal in this Row. See CLAUDE.md § Design system
+                              // (v2) "Default to side-by-side dialog actions" for
+                              // the verbatim rule.
                               if (compact)
                                 IconButton(
                                   tooltip: context.tr('add_time'),
@@ -306,8 +257,6 @@ class TaskEditTimesSection extends StatelessWidget {
                                               showItemDescription,
                                         ),
                                 ),
-                              const SizedBox(width: InSpacing.sm),
-                              _timerButton(context, compact: compact),
                             ],
                           ],
                         ),
@@ -326,15 +275,7 @@ class TaskEditTimesSection extends StatelessWidget {
                       showDescription: showItemDescription,
                     )
                   else if (entries.isEmpty)
-                    Padding(
-                      padding: EdgeInsets.all(InSpacing.lg(context)),
-                      child: Center(
-                        child: Text(
-                          context.tr('no_entries'),
-                          style: TextStyle(color: tokens.ink3),
-                        ),
-                      ),
-                    )
+                    TimeLogEmptyState(locked: locked)
                   else
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -361,6 +302,19 @@ class TaskEditTimesSection extends StatelessWidget {
               );
             },
           ),
+        );
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TaskEditTimerCard(
+              vm: vm,
+              locked: locked,
+              allowBillable: allowBillable,
+            ),
+            SizedBox(height: InSpacing.lg(context)),
+            log,
+          ],
         );
       },
     );

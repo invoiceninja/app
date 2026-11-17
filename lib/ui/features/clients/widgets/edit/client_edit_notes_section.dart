@@ -6,7 +6,8 @@ import 'package:admin/ui/features/billing_shared/markdown_notes_section.dart';
 import 'package:admin/ui/features/clients/view_models/client_edit_view_model.dart';
 import 'package:admin/ui/features/dashboard/widgets/card_shell.dart';
 
-/// "Notes" card on the client edit screen — private + public notes.
+/// "Notes" card on the client edit screen — private + public notes, stacked,
+/// each with a line under its label saying who reads it.
 ///
 /// Both fields are HTML on the wire, exactly like a billing document's notes:
 /// the React client edits them with its rich editor and every consumer renders
@@ -36,6 +37,7 @@ class ClientEditNotesSection extends StatelessWidget {
           children: [
             MarkdownNotesField(
               label: context.tr('private_notes'),
+              caption: context.tr('private_notes_hint'),
               value: draft.privateNotes,
               onChanged: vm.setPrivateNotes,
               registerBeforeSaveHook: vm.addBeforeSaveHook,
@@ -44,6 +46,7 @@ class ClientEditNotesSection extends StatelessWidget {
             SizedBox(height: InSpacing.md(context)),
             MarkdownNotesField(
               label: context.tr('public_notes'),
+              caption: context.tr('public_notes_hint'),
               value: draft.publicNotes,
               onChanged: vm.setPublicNotes,
               registerBeforeSaveHook: vm.addBeforeSaveHook,

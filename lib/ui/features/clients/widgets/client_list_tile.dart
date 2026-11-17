@@ -18,6 +18,7 @@ import 'package:admin/ui/core/widgets/leading_select_slot.dart';
 import 'package:admin/ui/core/widgets/party_call_button.dart';
 import 'package:admin/ui/core/widgets/status_pill.dart';
 import 'package:admin/ui/features/clients/widgets/client_actions.dart';
+import 'package:admin/utils/bidi.dart';
 import 'package:admin/utils/formatting.dart';
 import 'package:admin/ui/core/widgets/ltr_value.dart';
 
@@ -243,7 +244,32 @@ class _ClientListTileState extends State<ClientListTile> {
       bold: outstandingPositive,
       color: outstandingPositive ? tokens.overdue : tokens.ink,
     );
-    final paidLine = _money(formattedPaid, color: tokens.ink3, fontSize: 11);
+    // Labelled, unlike the balance above it: with no balance the paid figure
+    // is the only line, sits in the top slot, and an unlabelled amount there
+    // reads as owed. The label goes on at every balance so the secondary line
+    // never changes meaning between two rows of the same list.
+    //
+    // A plain `Text`, not `LtrText`: the line is a sentence in the UI
+    // language, so only the amount inside it is isolated left-to-right
+    // (docs/right-to-left-layout.md).
+    final paidLine = formattedPaid.isEmpty
+        ? null
+        : Text(
+            context.tr('amount_paid_label', {
+              'amount': Directionality.of(context) == TextDirection.rtl
+                  ? ltrIsolate(formattedPaid)
+                  : formattedPaid,
+            }),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.end,
+            style: moneyTextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w400,
+              color: tokens.ink3,
+              height: 1.2,
+            ),
+          );
     final moneyLines = <Widget>[
       if (outstandingLine != null) outstandingLine,
       if (paidLine != null) paidLine,

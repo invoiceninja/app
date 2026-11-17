@@ -146,7 +146,7 @@ class TaxRatesScreen extends StatelessWidget {
 }
 ```
 
-The scaffold owns the `StreamBuilder`, the empty state, the `FormSection` container, the "+ New" tile, the Show Archived / Show Active toggle in the AppBar, and the archived section. Each row builder is a thin `StatelessWidget` rendering a `ListTile` + `Divider` (see `_PaymentTermRow` for the canonical layout including the muted "Archived" pill for the `archivedRowBuilder` variant).
+The scaffold owns the `StreamBuilder`, the empty state, the `FormSection` container, the "+ New" tile, the Show Archived / Show Active toggle in the AppBar, and the archived section. The list card carries no heading when `sectionTitleKey == titleKey` (every screen but Group Settings) — it would only repeat the AppBar; the archived card keeps "Archived". An empty list is a compact, start-aligned block at the top of that card (icon, title, `emptyHintKey`, the create button), never an `EmptyState` centred mid-page, which sat below the fold on a phone. A screen with `starters` (Schedules) has no generic empty title at all: the hint, one `ListTile` row per starter, then the same "+ New" row the populated list ends with. Each row builder is a thin `StatelessWidget` rendering a `ListTile` + `Divider` (see `_PaymentTermRow` for the canonical layout including the muted "Archived" pill for the `archivedRowBuilder` variant).
 
 #### Reorderable lists
 
@@ -186,7 +186,7 @@ If the money/date `Formatter` reads the field, also overlay it from the row in `
 
 ## Width cap: every body under `/settings/...` goes through `SettingsFormShell`
 
-`SettingsFormShell` (`lib/ui/features/settings/widgets/settings_form_shell.dart`) wraps its body in `ListView → Center → ConstrainedBox(maxWidth: 720)` and adds the outer `EdgeInsets.all(InSpacing.xl)` padding. **Every screen the user reaches from the settings sidebar renders its body through it** so the column width matches across Localization, Online Payments, Company Details, etc.
+`SettingsFormShell` (`lib/ui/features/settings/widgets/settings_form_shell.dart`) wraps its body in `ListView → Align(topStart) → ConstrainedBox(maxWidth: 720)` and adds the outer `EdgeInsets.all(InSpacing.xl)` padding. **Every screen the user reaches from the settings sidebar renders its body through it** so the column width matches across Localization, Online Payments, Company Details, etc. With 960 px or more of content width the cap rises to 1000 and the sections go side by side — § A section can carry a description, and a wide page lays sections side by side.
 
 This rule applies even when the surrounding chrome isn't the standard settings scaffold. The gateway-edit screen lives under `/settings/company_gateways/.../edit` but uses `EntityEditScreenScaffold` (the same chrome Clients / Products / Tasks use) because it's a full CRUD entity. `EntityEditScreenScaffold` deliberately does **not** constrain width (Clients / Products / Tasks live outside `/settings/...` and want the full window). To get the right look under `/settings/...`, each of the four gateway-edit tab bodies wraps in `SettingsFormShell`:
 
@@ -196,6 +196,10 @@ This rule applies even when the surrounding chrome isn't the standard settings s
 The anti-pattern: a top-level `ListView(padding: EdgeInsets.all(InSpacing.lg), children: [...])` inside a settings tab. The body stretches full-width on a wide window and visibly diverges from neighboring settings screens. The fix is mechanical: hand the same children to `SettingsFormShell` and drop the manual `ListView` + padding.
 
 The TabBar above an entity's edit tabs stays full-width — TabBars conventionally span the full bottom of the AppBar (matches `CascadeTabbedSettingsShell` for Localization). Only the per-tab body gets capped.
+
+### Settings content and tab strips are start-aligned, and a strip fades where it runs past the pane
+
+The column sits at the **start** of the pane, not centred (D5 of the settings pass): on a wide pane a centred 720 px column split the spare width into two gutters and left the form floating away from the title and tabs above it. Every settings `TabBar` is `isScrollable` + `TabAlignment.start`, wrapped in `SettingsTabStrip` (`widgets/settings_tab_strip.dart`), which lays `ScrollEdgeFades` over it in the colour behind it (the AppBar's, or the scaffold's for a strip in a page body: Payment Link and Gateway edit). `settingsTabBarPadding()` insets the first label to `InSpacing.xl`, level with the content's edge. Device Settings alone takes no inset: its five tabs fit a 360 px phone with 4 px to spare, and the inset costs 12. `TabAlignment.start` asserts on a non-scrollable bar, which is why it is set per strip and not in `theme.dart`. The shells: `tabbed_settings_shell`, `cascade_tabbed_settings_shell`, `online_payments_shell`, `account_management_shell`, `device_settings_screen`, `custom_fields_shell`, `payment_link_edit_screen`, `company_gateway_edit_screen`.
 
 ## AppBar chrome: back arrow vs hamburger
 
@@ -235,12 +239,15 @@ The index is the one settings screen that does **not** go through
 `SettingsScreenScaffold` — it's a nav root and owns its own `Scaffold`. It also
 owns the search chrome, and that placement is load-bearing:
 
-- The trigger goes in `AppBar.actions`, the field in a 56 px
-  `bottom: PreferredSize(...)` — the same shape as `EntityListAppBar`'s
-  narrow chrome (a toolbar over a 56 px search row). **Neither may live in the
-  scrolling body.** The magnifying glass
-  used to be the `trailing:` of the in-list "Basic Settings" header, so it
-  scrolled away and the user had to fling back to the top (issue #42).
+- The field lives, always visible, in a 56 px `bottom: PreferredSize(...)` —
+  the same shape as `EntityListAppBar`'s narrow chrome (a toolbar over a 56 px
+  search row) — and ✕ joins `AppBar.actions` only while a search is open.
+  **Neither may live in the scrolling body.** The magnifying glass used to be
+  the `trailing:` of the in-list "Basic Settings" header, so it scrolled away
+  and the user had to fling back to the top (issue #42). Later the phone kept a
+  magnifier in `actions:` that revealed the field; that went too (settings pass
+  O1) — a search box people can see is one they use, and the wide pane had
+  already proved it.
 - The 56 isn't arbitrary: minus the 8 px bottom pad it's the 48 px intrinsic
   height a `prefixIcon` forces. The `title:` slot clamps to `kToolbarHeight`
   and re-creates the clipping `SettingsSearchField`'s comment describes.
@@ -253,14 +260,87 @@ owns the search chrome, and that placement is load-bearing:
 focus node, because the trigger and the results no longer share a parent. The
 invariant is **whoever creates the controller renders the trigger**: pass one to
 `SettingsListSidebar` and it renders only list-or-results; pass none — the wide
-280 px pane, which has no AppBar — and it owns the state *and* pins a slim strip
-carrying the icon above its scroll area. One nullable param, not a second bool:
-a flag would allow two triggers, or none.
+280 px pane, which has no AppBar — and it owns the state *and* pins the screen
+title and the **search field itself** above its scroll area. One nullable param,
+not a second bool: a flag would allow two triggers, or none.
 
-That pinned strip is deliberately **icon-only**. Lifting the "Basic Settings"
-group header up into it was the obvious move and it's wrong: the strip doesn't
-scroll, so the label goes on claiming Basic once the user reaches Advanced.
-Both group headers stay in the list, identical at both widths.
+At both widths the field is **always visible** — there is no magnifier to
+find first. Focusing it (a tap, a click, Tab, `/`) or typing into it opens the
+search; ✕ (shown only while searching) and Esc close it, and on a phone ✕ and
+Android back also drop focus, which is what puts the keyboard away. The field
+is built once, outside the builder that swaps the section list for results, so
+a keystroke never re-mounts it and focus stays put.
+
+The pinned header carries the **screen** title, never a group label. Lifting
+the first group header up into it was the obvious move and it's wrong: the
+header doesn't scroll, so the label goes on claiming Company once the user
+reaches Billing. Every group header stays in the list, identical at both
+widths.
+
+## The settings nav is five topic groups
+
+`SettingsSectionDef.group` (a `SettingsGroup`) replaced the old `isBasic` flag
+(D6 of the settings pass): **Company** (Company Details, User Details,
+Localization, User Management, Account Management, Group Settings), **Billing**
+(Online Payments, Tax, Payment Links, Bank Accounts, E-Invoicing),
+**Documents** (Invoice Design, Generated Numbers, Custom Fields, Templates &
+Reminders, Email, Client Portal), **Products & Work** (Product, Task, Expense,
+Workflow, Schedules beside it, Tags) and **App & Data** (Device Settings,
+Keyboard Shortcuts, Backup & Restore, Import & Export, System Logs). Basic /
+Advanced said how often a page is visited, not what it is about, so a user
+hunting for Bank Accounts had no way to guess its half.
+
+- The nav lists `SettingsGroup.values` in order and, inside a group,
+  `kSettingsSections` in catalog order — so a section moves by moving its
+  entry, and `kSettingsSections` is kept sorted by group.
+- A group whose every section is out of scope (client scope empties most of
+  App & Data) draws no header.
+- A search hit for a whole section names its group as the subtitle
+  (`settingsHitSubtitle`).
+- Company and Documents reuse Transifex's `company` / `documents`; the other
+  three are app-local (`settings_group_billing`,
+  `settings_group_products_and_work`, `settings_group_app_and_data`).
+
+Test: `settings_index_search_test.dart`.
+
+## The phone settings home shows each section's current value
+
+The narrow `/settings` index (`SettingsScreen`) draws what each page is set to
+beside its title (R1 of the settings pass), so the home answers "what is my
+currency / is a gateway connected" without a tap. `SettingsHomeSummaryViewModel`
+(`view_models/`) lives in the screen's `State`, keyed on the active company,
+and opens every source once — never in a `build`. All of them are local
+(Drift's bundled tables, the company row, the statics cache, the theme
+preference): **the home never makes a request.**
+
+| Row | Shows |
+|---|---|
+| Localization | `USD · English` — the currency code (isolated LTR) and the picker's language name |
+| Payment Settings | gateway count, or a warning icon when there are none (screen reader: `no_gateway_connected`) |
+| Tax Settings | the named default rates in the slots the company shows, `VAT 20% · GST 5%` (`Formatter.percent`) |
+| Account Management | the hosted plan (`planHeadlineKey`, + Free trial); nothing self-hosted |
+| Invoice Design | distinct invoice / quote / credit / PO design names for enabled modules, two then `+n` |
+| Client Portal | the portal host (`clientPortalUrl`), or Disabled |
+| E-Invoicing | the format code while e-invoicing is on |
+| Device Settings | Match system / Light / Dark |
+| Custom Fields, User Management, Bank Accounts, Group Settings, Payment Links, Schedules | a trailing count of active rows (labelled slots for Custom Fields) |
+
+- **A text value is a one-line `ink3` subtitle; a count is a trailing neutral
+  number and a zero draws nothing; a problem is a trailing warning icon.** One
+  per row.
+- **Nothing is claimed before its source answers** — a count or warning
+  appears only once its stream has emitted, so a company with gateways never
+  flashes the warning.
+- **The plan-gate lock wins** — a locked page shows the lock and no value.
+- **Company scope only, phone home only.** At client or group scope a value
+  would be the company's, not the one the page opens on; the wide nav sits
+  beside the page itself, and search hits are about fields, not values.
+- Tags are not bundled, so they stay plain rather than show a partial count.
+- `SettingsHomeSources` is the seam: production builds it from `Services`, a
+  widget test provides `Provider<SettingsHomeSources?>`.
+
+Tests: `settings_home_summary_view_model_test.dart`,
+`settings_index_search_test.dart`.
 
 `SettingsScreen`'s `PopScope` makes Android back collapse an open search before
 leaving, gated on `!SettingsTwoPaneScope.of(context)` — a resize past
@@ -268,6 +348,42 @@ leaving, gated on `!SettingsTwoPaneScope.of(context)` — a resize past
 `HiddenShellNavigator` (`settingsIndexRedirect` runs on *navigation* only), and
 an invisible open search must not swallow the press. When `canPop` is true the
 route bubbles to `SystemBackGate` exactly as before.
+
+## The phone settings home opens on the company card
+
+The narrow `/settings` index (`SettingsScreen`, host-owned search) leads its list with a card for the active company: its avatar and name, and a second line that reads **Switch Company** at company scope or names the scope (**Client Settings: Acme**) when the settings are scoped to a client or group. A tap opens the existing `showCompanyPicker` sheet, whose "New company" row stays the only one — the card adds no second entry. The card is not drawn on the wide pane (the rail's switcher sits beside it) nor while a search is open (the results own the list). It is a local `Material` with a rounded-rectangle border and an `InkWell` (`Ink` is banned), and at least 44 px tall. Test: `settings_index_search_test.dart`.
+
+## Save leads the settings AppBar cluster, and Discard undoes rather than asks
+
+A draft page's AppBar actions read, from the start of the end-aligned cluster, `[Save][Discard][page extras…][?]` (`SettingsPageScaffold`'s `_SaveDiscardCluster`, then `SettingsScreenScaffold`'s "Learn more" icon, which used to come first):
+
+- **Save** is a `FilledButton` with `minimumSize: Size(64, 44)` (the theme's `Size.fromHeight(44)` is infinitely wide in a `Row`), enabled only while the draft is dirty, not saving, and past any `canSaveOverride`. It stays at the top on phones too — there is no bottom bar.
+- **Discard** shows only while dirty. It opens no dialog: `runSettingsDiscard` takes `SettingsDraftHost.draftSnapshot()`, calls `reset()`, and toasts "Changes discarded" with an **Undo** that hands the snapshot to `restoreDraftSnapshot`. `DraftStreamHost`, `ClientSettingsDraftViewModel` and `GroupSettingsDraftViewModel` snapshot their (freezed, immutable) draft; every restore is ignored after dispose, because the toast outlives the page. User Details returns no snapshot while a new password is typed — the toast then has no Undo rather than holding the secret for its lifetime.
+- **⌘S / Ctrl+S** is the Save button by keyboard (`_SaveShortcut`, D1 of the settings pass): the same gate — dirty, not saving, `canSaveOverride`, and never on a tab whose `saveVisible` hides Save — and the same `runSettingsSave`, bound around the whole page so a field in the AppBar keeps it, and listed in the `?` cheat sheet. Every cascade page has it too, because `CascadeSettingsScaffold` builds a `SettingsPageScaffold`. Like the entity edit screens, it needs focus inside the page.
+- **Unsaved** sits beside the title on a wide pane (`UnsavedLabel.listening`, the same widget the entity edit screens use, driven by the host instead of a `GenericEditViewModel`); `SettingsScreenScaffold(titleTrailing:)` gates it on its own `LayoutBuilder`, never the window.
+- `SettingsEntityEditScaffold` (tax rates, payment terms, the designer…) puts Save first too, `[Save][actionsBuilder…][⋮]`, at 44 px, with the same Unsaved label.
+
+Tests: `settings_page_scaffold_test.dart`, `settings_docs_links_test.dart`.
+
+## A section can carry a description, and a wide page lays sections side by side
+
+`FormSection(description:)` draws one muted line or two under the title. Under a `SettingsFormShell` whose content is at least `kSettingsSideLayoutMinWidth` (960) wide, the shell raises its cap to `kSettingsSideLayoutMaxWidth` (1000) and publishes `FormSectionSideLayout`: each section puts its title and description in a 200 px start column, a 40 px gap, and the card (≥ 720) beside it holding only the fields — a `trailing` button moves to the top of the card. Narrower, everything stacks inside the card as before. The line is 960 because the settings pane measures ~927 px at 1440 but less at 1366 / 1280, where a 200 px column would starve a `FormFieldPair` (600 px).
+
+- **The shell always mounts `FormSectionSideLayout` and only flips `enabled`, and under it a section builds one tree for both layouts**, so a resize across the line keeps every field's state and focus. Outside a shell there is no scope and a section is the plain card, because a `Row` with `Expanded` would throw where an edit form gives it unbounded width. A card's own fields sit under `enabled: false`, so a nested section never splits again.
+- **A section title is a level-2 heading** (`header: true, headingLevel: 2`; the page title is level 1).
+- **A section title must never repeat a field label inside it**: the search reveal flashes the first `RichText` on the page that reads the label, and the title comes first in either layout.
+- Descriptions are added only where they say something the title and labels don't, from the existing Transifex `*_help` keys first (the Custom Fields sections, Company Details' Business) and one app-local key (`company_contact_section_help`).
+- Non-section content in a page body (a banner, a custom child) spans the full 1000 in side mode.
+
+Tests: `settings_form_shell_reveal_test.dart` (side layout, reveal, heading level), `form_section_test.dart`.
+
+## A page subtitle is the first line of the body, at company scope only
+
+`SettingsFormShell(subtitle:)` draws the page's purpose as the first line of the scrolling body — never in the AppBar, which has no room on a phone. It speaks for the company, so the shell hides it at the client and group scopes. Only the most-visited pages carry one, each an app-local `*_subtitle` key, on their first tab: Company Details, Localization, Online Payments (the combined wide body and the narrow first tab), Tax Settings, Invoice Design and Email Settings. Templates & Reminders has no `SettingsFormShell` of its own to carry one.
+
+## Example placeholders only on fields with a format
+
+A settings field gets an example placeholder through `exampleHint` (`e.g. https://example.com`) only when its value has a shape worth showing — today Company Details' Website and Email. Never on a cascade field showing an inherited value, and not on VAT / ID numbers, whose shape depends on the country.
 
 ## Anti-pattern: User Details ListView+ListTile shape (full version)
 
@@ -279,7 +395,7 @@ This rule applies to **read-only diagnostic screens and action-only screens too*
 
 ## Device Settings is tabbed, and every tab opens with a card that always renders
 
-Device Settings had grown to about 20 cards in one flat list. It is now five URL-driven tabs, shaped like `BackupRestoreShell`: a `SettingsScreenScaffold` with a `TabBar` in `bottom:`, no VM (no tab has a draft), and routes from `tabbedSettingsRoutePair` on `kDeviceSettingsTabSlugs`. The tab is the route, so a restart restores it like any tabbed settings screen's.
+Device Settings had grown to about 20 cards in one flat list. It is now five URL-driven tabs, shaped like `AccountManagementShell`: a `SettingsScreenScaffold` with a `TabBar` in `bottom:`, no VM (no tab has a draft), and routes from `tabbedSettingsRoutePair` on `kDeviceSettingsTabSlugs`. The tab is the route, so a restart restores it like any tabbed settings screen's.
 
 | Tab (slug) | Cards, in order | Platform-gated parts |
 |---|---|---|
@@ -292,7 +408,7 @@ Device Settings had grown to about 20 cards in one flat list. It is now five URL
 - **Every tab opens with a card that renders on every platform**: Theme, the Security card, Phone numbers, Items, Data. No tab is ever empty, so neither a tab nor its `SettingsSearchTab` needs a platform gate. Only the cards and rows that hide themselves are gated, by key, through `_kDeviceSettingsKeyGates`. A new platform-gated card goes *after* an always-shown one. If a tab could ever be all gated cards, the shell has to drop that tab and the catalog has to gate its entry.
 - **Each tab has its own colocated `kDeviceSettings<Tab>SearchKeys` constant**, spread into its own `SettingsSearchTab` with a `titleKey`. The consistency test scans each tab against the screen and the card widgets it mounts. A tab's own label is its `titleKey`, so `security` is not repeated as a field key.
 - **A card whose title would only repeat its tab drops the title** (`FormSection(title: null)`): Security on Security, Data on Data.
-- **The strip is a width budget.** Five short labels with `labelPadding` at 12 a side fit a 360 px phone in English (356 px). At Material's 16 they ran 6 px past 390 and scrolled to hide a sliver of the last tab. Longer translations still scroll (`isScrollable`, centred, like the other settings shells). A sixth tab or a longer label costs that fit, so measure before adding one.
+- **The strip is a width budget.** Five short labels with `labelPadding` at 12 a side fit a 360 px phone in English (356 px). At Material's 16 they ran 6 px past 390 and scrolled to hide a sliver of the last tab. Longer translations still scroll (`isScrollable`, start-aligned and faded, like the other settings shells — and with no start inset, which would cost 12 of the budget). A sixth tab or a longer label costs that fit, so measure before adding one.
 - **Sidebar counters closes Appearance.** It alone can render 14 rows, so anything after it is a long way down on a phone.
 - **One-control cards that act on the same thing are rows of one card.** Default tab and Spell check act on a billing document's items table (the Items card). Status tabs, Show seconds and Hide Peppol sent status change what a list shows (the Lists card). A deliberate split stays separate: Menu and Sidebar counters, and Users, whose `users` heading is a correctness choice (`assigned_users_section.dart`). Default tab stays a radio (§ Two-choice fields → radio), under a `default_tab` label line so search can still reveal it.
 
@@ -322,6 +438,33 @@ Opening a field hit scrolls its page to the field and flashes it (1600 ms: a tra
 - It is read as `context.read<SettingsRevealController?>()` — provider returns null for a missing nullable type — so a widget test that pumps a settings page bare gets no reveal rather than an error, and none of the ~90 `Services` fakes needed touching. Tests: `settings_form_shell_reveal_test.dart`.
 
 The settings index answers `/` too: `SearchFocusRegistry.claim(node, onActivate:, fallback: true)` lets a claim *open* a field that isn't mounted yet. `SettingsScreen` claims on narrow and the wide pane's self-owned `SettingsListSidebar` on wide, each only while on stage (`TickerMode`, plus `!SettingsTwoPaneScope` for the narrow index, which a resize leaves mounted behind the pane). **Both claim as a fallback**: on a wide window a list beside the pane (Payment Links) claims too, both re-claim when the branch returns, and dependents are notified in no fixed order — a regular claim would let `/` open the settings search over the list the user is looking at. In the field, ↑ / ↓ move the selected row (wrapping), Enter opens it and Esc closes.
+
+### A field drawn only under a parent toggle names that parent in its tab's `revealAs`
+
+The reveal looks for a field's rendered label, so a field the page draws only while a toggle is on — Product Settings' Stock Notifications and Notification Threshold under Track Inventory, Convert To under Convert Products — would be found only some of the time, and the rest of the time the hit would land at the top of the page with nothing flashed. `SettingsSearchTab.revealAs` maps such a key to its parent's key (`kProductSettingsRevealAs`, colocated with the screen's search keys); the hit still reads as the field searched for, and `SettingsSearchHit.revealKey` makes the opened page flash the parent, which is there whether or not the child is. Both keys must be in the tab's `keys` (`settings_search_catalog_test`).
+
+Default Quantity followed (Product Settings): with Show Product Quantity off every picked product lands at a quantity of 1 regardless (`lineItemFromProduct`), so it is offered only under that toggle, and a search hit on it flashes the parent (`kProductSettingsRevealAs`). A **cascade** field is never hidden or disabled this way — it says when it applies instead (`applies_when_on`, as E-Invoice Type does under the e-invoicing switch); VeriFactu's lock is the only disable.
+
+Stock Notifications became such a child in November 2026: the server reads `stock_notification` / `inventory_notification_threshold` only while inventory is tracked (`AdjustProductInventory` runs only then), so the screen offers them only under Track Inventory. Turning Track Inventory off hides them and keeps their values.
+
+## A short settings choice may be segments instead
+
+A fixed choice of two to four short options can be one `SegmentedButton` under its label — every option visible, one tap — through `SegmentedChoiceField<T>` (a top-level `company.*` field) or `OverridableSegmentedField<T>` (a cascade setting: override checkbox, 422 message), both in `widgets/segmented_choice_field.dart`. Never a hand-rolled `SegmentedButton`:
+
+- **The labels are translated, so whether they fit is measured, never a px threshold.** `segmentsFit` lays each label out at the segment text style and the device's text scale; when the sum doesn't fit the field's width the same field renders the radio group CLAUDE.md § Two-choice fields → radio, not dropdown asks for. English "Exclusive / Inclusive" is segments on a phone; the four tax-rate counts are radios there.
+- **A value never picked selects no segment** (Email Alignment has no default, and forcing one would write it on the next unrelated save). Tapping the selected segment does nothing; a choice can't be un-made.
+- **A null `onChanged` disables both forms** — VeriFactu's locked Generate Number.
+- **Segments may be a short form when the label above names the thing** — the tax-rate counts read "Off · 1 · 2 · 3" — and `fullLabelOf` keeps the long name ("Three Tax Rates") as each segment's tooltip and as the radio title where even the short form doesn't fit. The long labels ×3 were twelve radio rows on a phone.
+- **Under 520 px the segments that fit stretch to the field's width** (`expandedInsets: EdgeInsets.zero`), as the inputs around them do. `SegmentedSettingRow`'s narrow branch does the same for Device Settings by measurement (`_FillIfFits`): its `segmentLabel`s drop their fixed 80 px there, and a row whose natural width still doesn't fit keeps it and scrolls.
+- The label is drawn above at both densities (`LabeledField` puts it inside the box under Compact, and a segmented control has no box), so a search hit can still find it.
+
+In use: the three tax-rate counts and Inclusive Taxes (Tax Settings), Auto Bill On and Use Available Payments / Credits (Online Payments — the middle choice reads `show_option`, never the bare noun `option`), Enter Taxes (Expense Settings), Generate Number (Generated Numbers), Email Alignment (Email Settings). Deliberately not: recurring auto-bill (four options, two of them long), lock invoices, counter padding, tags type, task rounding and the Device Settings font size, which keeps its `SegmentedSettingRow`.
+
+## Backup | Restore is one page, and Import data says it replaces
+
+Backup and Restore were two URL-driven tabs, each a single short card. They are now one page (`BackupRestoreShell` → `BackupSection`, `RestoreSection`); `/settings/backup_restore/restore` still resolves — a restored route or an old link can carry it — and scrolls to the Restore card. The search catalog has one tab, `kBackupRestoreSearchKeys`.
+
+The Restore card offers exactly the server's two options (`app/Jobs/Company/CompanyImport.php`): Import settings overwrites the company's settings and logo, and Import data runs `purgeCompanyData` — every client, invoice, payment, product, project, task, vendor, expense and more is force-deleted — before it loads the backup's. There is no merge, so nothing offers or implies one: the toggle's help (`import_data_replaces_help`) and the confirmation (`restore_replaces_data_confirm`) both say the records are deleted first.
 
 ## Custom field placement — single home
 

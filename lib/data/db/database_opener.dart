@@ -12,7 +12,9 @@
 ///   deletes the IndexedDB/OPFS database.
 ///
 /// Both expose the identical surface consumed by `openAppDatabase()`:
-/// `openDatabaseExecutor()` and `destroyDatabaseStore()`. `pruneBrokenDbFiles`
+/// `openDatabaseExecutor()` and `destroyDatabaseStore()`, plus
+/// `sweepAbandonedStores()`, which `main.dart` starts after the first frame
+/// (a no-op on native). `pruneBrokenDbFiles`
 /// is native-only and absent from the web stub.
 ///
 /// The default target is the web stub; `dart.library.io` (true on the Dart

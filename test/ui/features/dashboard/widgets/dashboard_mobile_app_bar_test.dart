@@ -245,7 +245,7 @@ void main() {
   ) async {
     await pumpBar(tester);
 
-    expect(find.byIcon(Icons.dashboard_customize_outlined), findsOneWidget);
+    expect(find.byIcon(Icons.tune), findsOneWidget);
     expect(find.byIcon(Icons.filter_alt_outlined), findsNothing);
     expect(find.byIcon(Icons.settings_outlined), findsNothing);
   });
@@ -319,7 +319,7 @@ void main() {
           reason: 'the actions must survive a title that eats the slack',
         );
         expect(
-          find.byIcon(Icons.dashboard_customize_outlined),
+          find.byIcon(Icons.tune),
           findsOneWidget,
           reason: 'the last action is the first a long title would push out',
         );

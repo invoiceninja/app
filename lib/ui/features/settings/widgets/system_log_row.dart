@@ -172,6 +172,7 @@ class _LogBlock extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = context.inTheme;
+    final raw = systemLogText(this.raw);
     final decoded = _tryDecode(raw);
     final preview = _preview(context, raw, decoded);
 
@@ -209,6 +210,7 @@ class _LogBlock extends StatelessWidget {
     final pretty = decoded == null
         ? raw
         : const JsonEncoder.withIndent('  ').convert(decoded);
+    final copyText = raw;
 
     return Container(
       decoration: BoxDecoration(
@@ -226,7 +228,7 @@ class _LogBlock extends StatelessWidget {
                 icon: const Icon(Icons.copy_outlined, size: 16),
                 visualDensity: VisualDensity.compact,
                 tooltip: context.tr('copy'),
-                onPressed: () => _copy(context),
+                onPressed: () => _copy(context, copyText),
               ),
               IconButton(
                 icon: const Icon(Icons.expand_less, size: 18),
@@ -261,8 +263,8 @@ class _LogBlock extends StatelessWidget {
 
   // `raw` is a log blob, so name it in the toast rather than dumping the first
   // 40 characters of JSON into "Copied … to the clipboard".
-  Future<void> _copy(BuildContext context) =>
-      copyToClipboard(context, raw, label: context.tr('log'));
+  Future<void> _copy(BuildContext context, String text) =>
+      copyToClipboard(context, text, label: context.tr('log'));
 
   Object? _tryDecode(String raw) {
     final trimmed = raw.trim();
@@ -286,5 +288,26 @@ class _LogBlock extends StatelessWidget {
     final cleaned = raw.replaceAll(RegExp(r'\s+'), ' ').trim();
     if (cleaned.length <= 80) return cleaned;
     return '${cleaned.substring(0, 80)}…';
+  }
+}
+
+/// The text a system-log payload says. The server JSON-encodes every `log`,
+/// so a plain message arrives as a quoted JSON string —
+/// `"Payment failed: card declined"`, `\n` escapes and all — and was shown
+/// with its quotes and backslashes. A quoted scalar is decoded to the text
+/// it holds; an object, an array or anything that isn't valid JSON is
+/// returned unchanged for the viewer to handle.
+String systemLogText(String raw) {
+  final trimmed = raw.trim();
+  if (trimmed.length < 2 ||
+      !trimmed.startsWith('"') ||
+      !trimmed.endsWith('"')) {
+    return raw;
+  }
+  try {
+    final decoded = jsonDecode(trimmed);
+    return decoded is String ? decoded : raw;
+  } catch (_) {
+    return raw;
   }
 }

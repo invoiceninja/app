@@ -7,6 +7,7 @@ import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/edit/entity_custom_fields_section.dart';
 import 'package:admin/ui/core/edit/entity_edit_field.dart';
 import 'package:admin/ui/core/widgets/entity_tags_field.dart';
+import 'package:admin/ui/core/widgets/open_website_button.dart';
 import 'package:admin/ui/features/clients/view_models/client_edit_view_model.dart';
 import 'package:admin/ui/features/clients/widgets/edit/client_edit_field_pair.dart';
 import 'package:admin/ui/features/dashboard/widgets/card_shell.dart';
@@ -82,6 +83,8 @@ class ClientEditDetailsSection extends StatelessWidget {
             initial: draft.website,
             onChanged: vm.setWebsite,
             keyboardType: TextInputType.url,
+            // Check the address without leaving the form.
+            suffixIcon: OpenWebsiteButton(value: draft.website),
             errorText: vm.fieldErrorFor('website'),
           ),
           EntityCustomFieldsSection(

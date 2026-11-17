@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/theme.dart';
 import 'package:admin/ui/features/settings/state/settings_reveal_controller.dart';
+import 'package:admin/ui/features/settings/widgets/form_section.dart';
 import 'package:admin/ui/features/settings/widgets/settings_form_shell.dart';
 
 /// A settings search hit names a field; the page it opens scrolls to that
@@ -108,6 +109,96 @@ void main() {
     reveal.reveal(route: '/settings/x', label: 'Field 30');
     await tester.pumpAndSettle();
     expect(flashing(tester), isFalse);
+  });
+
+  group('side-by-side sections on a wide page', () {
+    /// Forty sections of one field each, with a description that must not be
+    /// mistaken for the field.
+    Widget sectioned() => SettingsFormShell(
+      sections: [
+        for (var i = 0; i < 40; i++)
+          FormSection(
+            title: 'Section $i',
+            description: 'About section $i',
+            children: [Text('Field $i')],
+          ),
+      ],
+    );
+
+    Future<SettingsRevealController> pumpWide(
+      WidgetTester tester,
+      double width,
+    ) async {
+      tester.view.physicalSize = Size(width, 600);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final reveal = SettingsRevealController();
+      addTearDown(reveal.dispose);
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildInTheme(InTheme.light),
+          home: ChangeNotifierProvider<SettingsRevealController>.value(
+            value: reveal,
+            child: Scaffold(body: sectioned()),
+          ),
+        ),
+      );
+      return reveal;
+    }
+
+    testWidgets('at 960 px of content the title moves beside the card', (
+      tester,
+    ) async {
+      // 960 + the shell's 2 × 24 padding.
+      await pumpWide(tester, 1008);
+      final title = tester.getTopLeft(find.text('Section 0'));
+      final field = tester.getTopLeft(find.text('Field 0'));
+      expect(field.dx - title.dx, greaterThanOrEqualTo(200));
+      // Level with each other, not stacked.
+      expect((field.dy - title.dy).abs(), lessThan(24));
+      // The card keeps its full 720 beside the column.
+      final card = tester.getSize(
+        find
+            .ancestor(
+              of: find.text('Field 0'),
+              matching: find.byType(Container),
+            )
+            .first,
+      );
+      expect(card.width, greaterThanOrEqualTo(720));
+    });
+
+    testWidgets('narrower, the title and description stack inside the card', (
+      tester,
+    ) async {
+      await pumpWide(tester, 1000);
+      final title = tester.getTopLeft(find.text('Section 0'));
+      final description = tester.getTopLeft(find.text('About section 0'));
+      final field = tester.getTopLeft(find.text('Field 0'));
+      expect(title.dy, lessThan(description.dy));
+      expect(description.dy, lessThan(field.dy));
+      expect((field.dx - title.dx).abs(), lessThan(1));
+    });
+
+    testWidgets('a field in a side-laid section still reveals', (tester) async {
+      final reveal = await pumpWide(tester, 1200);
+      reveal.reveal(route: '/settings/x', label: 'Field 30');
+      await tester.pumpAndSettle();
+      expect(position(tester).pixels, greaterThan(0));
+      expect(
+        tester.getTopLeft(find.text('Field 30')).dy,
+        inInclusiveRange(0, 600),
+      );
+    });
+
+    testWidgets('a section title is a level-2 heading', (tester) async {
+      final semantics = tester.ensureSemantics();
+      await pumpWide(tester, 1200);
+      final node = tester.getSemantics(find.text('Section 0'));
+      expect(node, isSemantics(isHeader: true));
+      expect(node.getSemanticsData().headingLevel, 2);
+      semantics.dispose();
+    });
   });
 
   testWidgets('a label is matched whatever its case and trailing marker', (

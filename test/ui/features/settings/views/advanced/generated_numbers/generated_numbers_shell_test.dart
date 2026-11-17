@@ -25,6 +25,7 @@ import 'package:admin/ui/features/settings/state/settings_level_controller.dart'
 import 'package:admin/ui/features/settings/view_models/generated_numbers_view_model.dart';
 import 'package:admin/ui/features/settings/views/advanced/e_invoice/e_invoice_constants.dart';
 import 'package:admin/ui/features/settings/views/advanced/generated_numbers/generated_numbers_shell.dart';
+import 'package:admin/ui/features/settings/widgets/segmented_choice_field.dart';
 
 import '../../../../../../_localization_helper.dart';
 
@@ -576,14 +577,13 @@ void main() {
   // `|| verifactuEnabled`) by greying the Generate Number dropdown — a null
   // `onChanged` on its DropdownButtonFormField. The Settings tab is index 0, so
   // it renders without tapping any tab.
-  DropdownButtonFormField<String> generateNumberField(WidgetTester tester) =>
-      tester.widget<DropdownButtonFormField<String>>(
-        find.widgetWithText(DropdownButtonFormField<String>, 'Generate Number'),
+  // Two choices, so a segmented control (radios where it can't fit).
+  SegmentedChoiceField<String> generateNumberField(WidgetTester tester) =>
+      tester.widget<SegmentedChoiceField<String>>(
+        find.widgetWithText(SegmentedChoiceField<String>, 'Generate Number'),
       );
 
-  testWidgets('VeriFactu disables the Generate Number dropdown', (
-    tester,
-  ) async {
+  testWidgets('VeriFactu disables the Generate Number choice', (tester) async {
     final services = makeServices(
       company: const Company(
         id: 'co-A',
@@ -599,7 +599,7 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
-  testWidgets('non-VeriFactu leaves the Generate Number dropdown editable', (
+  testWidgets('non-VeriFactu leaves the Generate Number choice editable', (
     tester,
   ) async {
     final services = makeServices(
@@ -741,7 +741,17 @@ void main() {
           find.widgetWithText(DropdownButtonFormField<String>, label),
         );
     expect(dd('Number Padding').initialValue, '4');
-    expect(dd('Generate Number').initialValue, 'when_saved');
+    expect(
+      tester
+          .widget<SegmentedChoiceField<String>>(
+            find.widgetWithText(
+              SegmentedChoiceField<String>,
+              'Generate Number',
+            ),
+          )
+          .value,
+      'when_saved',
+    );
     expect(dd('Reset Counter').initialValue, '0');
 
     await tester.pumpWidget(const SizedBox.shrink());

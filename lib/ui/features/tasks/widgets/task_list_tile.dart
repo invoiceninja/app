@@ -284,13 +284,22 @@ class _TaskListTileState extends State<TaskListTile> {
           // and the identity column beside it has none to spare. See
           // `taskScheduleSlot`. Not clamped either: a cut `12:00…` lost the
           // AM / PM that is the point of it.
+          //
+          // Nothing at all when no time is logged: the slot carries no label,
+          // so a lone `0:00` there is noise every row of a fresh backlog
+          // repeats (CLAUDE.md § Design system: an empty value in an
+          // unlabelled slot is nothing, not a dash).
           Builder(
             builder: (context) {
               final slot = taskScheduleSlot(context, t, formatter: w.formatter);
+              final logged = t.loggedDuration();
+              if (slot == null && logged <= Duration.zero) {
+                return const SizedBox.shrink();
+              }
               return Text(
                 slot?.text ??
                     formatDuration(
-                      t.loggedDuration(),
+                      logged,
                       showSeconds: watchShowSeconds(context),
                     ),
                 maxLines: 1,

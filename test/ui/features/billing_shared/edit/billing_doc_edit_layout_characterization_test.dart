@@ -55,10 +55,8 @@ const _phone = <BillingDoc, Map<String, List<String>>>{
       'PO Number',
       'Invoice Date',
       'Due Date',
-      // Invoice alone shows the partial row unconditionally, both fields;
-      // quote puts it after Discount and credit has no partial due date.
-      'Partial/Deposit',
-      'Partial Due Date',
+      // No partial fields on a new document: they start collapsed to an "Add
+      // deposit" link (pinned by billing_doc_edit_mobile_details_test).
       'Discount',
       // Design lives on the Settings tab only; the Details tab used to carry
       // a second copy of it on phones and tablets.
@@ -79,7 +77,6 @@ const _phone = <BillingDoc, Map<String, List<String>>>{
       'Quote Date',
       'Valid Until',
       'Discount',
-      'Partial/Deposit',
       ..._cf,
     ],
     'Contacts': [],
@@ -96,7 +93,6 @@ const _phone = <BillingDoc, Map<String, List<String>>>{
       'PO Number',
       'Credit Date',
       'Due Date',
-      'Partial/Deposit',
       'Discount',
       ..._cf,
     ],
@@ -150,77 +146,67 @@ Map<String, List<String>> _tablet(BillingDoc doc) => {
   'PDF': [],
 };
 
-/// Desktop (1440 px): every field on the card layout, in paint order.
+/// Desktop (1440 px): every field of the one details panel, in paint order —
+/// the party, then the fields two to a row (number | PO, date | due,
+/// partial, discount | auto-bill), then the custom fields as two columns
+/// (1 / 3 beside 2 / 4).
+const _cfDesktop = ['CF1', 'CF3', 'CF2', 'CF4'];
 const _desktop = <BillingDoc, List<String>>{
   BillingDoc.invoice: [
     'Client',
+    'Invoice Number',
+    'PO Number',
     'Invoice Date',
     'Due Date',
     'Partial/Deposit',
-    'CF1',
-    'CF3',
-    'Invoice Number',
-    'PO Number',
     'Discount',
-    'CF2',
-    'CF4',
+    ..._cfDesktop,
     ..._wideItemsTable,
   ],
   BillingDoc.quote: [
     'Client',
+    'Quote Number',
+    'PO Number',
     'Quote Date',
     'Valid Until',
     'Partial/Deposit',
-    'CF1',
-    'CF3',
-    'Quote Number',
-    'PO Number',
     'Discount',
-    'CF2',
-    'CF4',
+    ..._cfDesktop,
     ..._wideItemsTable,
   ],
   BillingDoc.credit: [
     'Client',
+    'Credit Number',
+    'PO Number',
     'Credit Date',
     'Due Date',
     'Partial/Deposit',
-    'CF1',
-    'CF3',
-    'Credit Number',
-    'PO Number',
     'Discount',
-    'CF2',
-    'CF4',
+    ..._cfDesktop,
     ..._wideItemsTable,
   ],
   BillingDoc.purchaseOrder: [
     'Vendor',
+    'PO Number',
     'Purchase Order Date',
     'Due Date',
-    'CF1',
-    'CF3',
-    'PO Number',
     'Discount',
-    'CF2',
-    'CF4',
+    ..._cfDesktop,
     ..._wideItemsTable,
   ],
   BillingDoc.recurringInvoice: [
     'Client',
+    // NOTE: "Invoice Number" here but "Recurring Number" on mobile.
+    'Invoice Number',
+    'PO Number',
+    // The schedule, in the dates' place.
     'Frequency',
     'Next Send Date',
     'Remaining Cycles',
     'Due Date',
-    'CF1',
-    'CF3',
-    // NOTE: "Invoice Number" here but "Recurring Number" on mobile.
-    'Invoice Number',
-    'PO Number',
     'Discount',
     'Auto Bill',
-    'CF2',
-    'CF4',
+    ..._cfDesktop,
     ..._wideItemsTable,
   ],
 };

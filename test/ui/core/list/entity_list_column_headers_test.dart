@@ -16,6 +16,7 @@ import 'package:admin/domain/entity_type.dart';
 import 'package:admin/ui/core/list/entity_list_column_headers.dart';
 import 'package:admin/ui/core/list/generic_list_view_model.dart';
 import 'package:admin/ui/core/list/list_density_scope.dart';
+import 'package:admin/ui/core/widgets/selection_checkbox.dart';
 
 import '../../../_localization_helper.dart';
 
@@ -169,6 +170,26 @@ void main() {
     await tester.tap(find.text('TAGS'));
     await tester.pumpAndSettle();
     expect(vm.sortField, 'custom1');
+  });
+
+  group('the select-all checkbox', () {
+    testWidgets('is drawn at rest with a pointer — the one visible sign that '
+        'rows can be ticked', (tester) async {
+      final vm = await pump(tester, company: const Company());
+      expect(vm.items, isNotEmpty);
+      expect(find.byType(SelectionCheckbox), findsOneWidget);
+      expect(find.byTooltip('Select all visible'), findsOneWidget);
+      await tester.tap(find.byType(SelectionCheckbox));
+      await tester.pumpAndSettle();
+      expect(vm.isInMultiselect, isTrue);
+      expect(vm.countSelected, vm.items.length);
+    }, variant: TargetPlatformVariant.only(TargetPlatform.macOS));
+
+    testWidgets('stays hidden at rest on touch, where a 32 px box is under the '
+        'touch target', (tester) async {
+      await pump(tester, company: const Company());
+      expect(find.byType(SelectionCheckbox), findsNothing);
+    }, variant: TargetPlatformVariant.only(TargetPlatform.android));
   });
 
   group('at the Compact list density', () {

@@ -1,6 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/core/widgets/example_hint.dart';
 import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/utils/formatting.dart';
 
@@ -117,7 +118,12 @@ class _InTimeFieldState extends State<InTimeField> {
   /// format pattern — the sibling of `InDateField`'s example hint
   /// (invoiceninja/flutter#127). Shares [formatTimeOfDay] with [_format], so
   /// the hint is exactly the shape a committed value takes.
-  String _hint() => widget.hintText ?? timeFormatSample(military: _military);
+  ///
+  /// Worded as an example ("e.g. 13:45", `exampleHint`), so an empty
+  /// field never reads as one already holding a time.
+  String _hint(BuildContext context) =>
+      widget.hintText ??
+      exampleHint(context, timeFormatSample(military: _military));
 
   void _onFocusChange() {
     if (_focusNode.hasFocus) return;
@@ -207,7 +213,7 @@ class _InTimeFieldState extends State<InTimeField> {
         decoration: InputDecoration(
           isDense: true,
           labelText: widget.labelText,
-          hintText: _hint(),
+          hintText: _hint(context),
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 8,
             vertical: 8,

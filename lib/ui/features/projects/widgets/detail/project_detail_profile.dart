@@ -1,3 +1,4 @@
+import 'package:decimal/decimal.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'package:admin/app/design_tokens.dart';
@@ -9,6 +10,7 @@ import 'package:admin/ui/core/widgets/detail_row_columns.dart';
 import 'package:admin/ui/features/projects/widgets/detail/project_detail_details_card.dart';
 import 'package:admin/ui/features/projects/widgets/detail/project_detail_notes_card.dart';
 import 'package:admin/ui/features/projects/widgets/detail/project_progress_card.dart';
+import 'package:admin/ui/features/tasks/widgets/detail/task_rate_context.dart';
 import 'package:admin/utils/formatting.dart';
 
 /// A project's reference fields — the details, the hours over time, the
@@ -32,11 +34,16 @@ class ProjectDetailProfile extends StatelessWidget {
   const ProjectDetailProfile({
     super.key,
     required this.project,
+    required this.companyId,
     required this.company,
     required this.tasks,
     this.formatter,
     this.inRail = false,
   });
+
+  /// For the task-rate cascade a project with no rate of its own inherits —
+  /// see `ProjectDetailDetailsCard.rowsFor`'s `rates`.
+  final String companyId;
 
   /// Drawn in the wide page's rail (`EntityRecordPage.rail`): one stack with
   /// the chart first, at the rail's width. The chart is left out of a narrow
@@ -57,11 +64,28 @@ class ProjectDetailProfile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // A project with no task rate of its own bills its tasks at what it
+    // inherits, and Details says what that is and where it comes from. Only
+    // then is the cascade watched — and here, not in the card, because
+    // `hasContent` has to count that row too.
+    if (project.taskRate != Decimal.zero || companyId.isEmpty) {
+      return _build(context, null);
+    }
+    return TaskRateContextBuilder(
+      companyId: companyId,
+      clientId: project.clientId,
+      project: project,
+      builder: _build,
+    );
+  }
+
+  Widget _build(BuildContext context, TaskRateContext? rates) {
     final hasDetails = ProjectDetailDetailsCard.hasContent(
       context,
       project,
       company,
       formatter: formatter,
+      rates: rates,
     );
     final hasNotes = ProjectDetailNotesCard.hasContent(project);
     final tasks = this.tasks;
@@ -75,6 +99,7 @@ class ProjectDetailProfile extends StatelessWidget {
       project: project,
       company: company,
       formatter: formatter,
+      rates: rates,
     );
     Widget chart(double height) => ProjectProgressCard(
       project: project,

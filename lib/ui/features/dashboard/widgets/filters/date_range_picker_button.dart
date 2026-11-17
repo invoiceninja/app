@@ -12,6 +12,7 @@ import 'package:admin/ui/core/widgets/calendar_weekday_header.dart';
 import 'package:admin/ui/core/adaptive.dart';
 import 'package:admin/ui/core/utils/calendar_week_start.dart';
 import 'package:admin/ui/core/widgets/in_date_field.dart';
+import 'package:admin/ui/core/widgets/ltr_value.dart';
 import 'package:admin/ui/features/shell/widgets/in_sidebar.dart';
 import 'package:admin/utils/date_ranges.dart';
 import 'package:admin/utils/formatting.dart';
@@ -27,6 +28,8 @@ class DateRangePickerButton extends StatelessWidget {
     required this.current,
     required this.onChange,
     this.formatter,
+    this.resolvedDates,
+    this.showChevron = false,
   });
 
   final DashboardDateRange current;
@@ -36,10 +39,28 @@ class DateRangePickerButton extends StatelessWidget {
   // brief window rather than gating the whole top bar on the formatter.
   final Formatter? formatter;
 
+  /// The days the selection resolves to ("Nov 1 - Nov 17"), drawn after the
+  /// label behind a rule, as a second segment of the same button. What a
+  /// preset's name leaves unsaid (flutter#37); the caller passes null where
+  /// the label already says it (a finished custom range) or there are no
+  /// dates to say (All Time).
+  final String? resolvedDates;
+
+  /// A ▾ after the label: this opens a picker. The dashboard's period row
+  /// draws its controls this way, beside a dashed label that is not one.
+  final bool showChevron;
+
   @override
   Widget build(BuildContext context) {
     final tokens = context.inTheme;
     final label = _labelFor(context, current);
+    final resolvedDates = this.resolvedDates;
+    final text = Text(
+      label,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: const TextStyle(fontSize: 13),
+    );
     return TextButton.icon(
       style: TextButton.styleFrom(
         foregroundColor: tokens.ink2,
@@ -57,12 +78,41 @@ class DateRangePickerButton extends StatelessWidget {
       // action Wrap is now width-bounded (it can break to a second run), so
       // this label is the one that can actually get squeezed. Without a cap it
       // soft-wraps to two lines and grows the button; ellipsise instead.
-      label: Text(
-        label,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: const TextStyle(fontSize: 13),
-      ),
+      label: !showChevron && resolvedDates == null
+          ? text
+          : Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Flexible(child: text),
+                if (showChevron)
+                  Padding(
+                    padding: const EdgeInsetsDirectional.only(start: 2),
+                    child: Icon(
+                      Icons.expand_more,
+                      size: 16,
+                      color: tokens.ink3,
+                    ),
+                  ),
+                if (resolvedDates != null) ...[
+                  const SizedBox(width: 8),
+                  Container(width: 1, height: 16, color: tokens.border),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: LtrText(
+                      resolvedDates,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: tokens.ink2,
+                        fontWeight: FontWeight.w400,
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
       onPressed: () => _open(context),
     );
   }

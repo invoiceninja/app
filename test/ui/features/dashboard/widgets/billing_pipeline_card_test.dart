@@ -476,23 +476,24 @@ void main() {
     expect(strip.selectedIndex, 4);
   });
 
-  testWidgets('the Invoices card has its own four tabs, Overdue included', (
-    tester,
-  ) async {
-    await _pump(
-      tester,
-      services: _services(),
-      nav: _Nav(),
-      entity: EntityType.invoice,
-    );
-    expect(
-      tester
-          .widget<EntityListStatusTabs>(find.byType(EntityListStatusTabs))
-          .tabs
-          .map((t) => t.labelKey),
-      ['all', 'draft', 'unpaid', 'overdue'],
-    );
-  });
+  testWidgets(
+    'the Invoices card has the Invoices list\'s tabs, Overdue included',
+    (tester) async {
+      await _pump(
+        tester,
+        services: _services(),
+        nav: _Nav(),
+        entity: EntityType.invoice,
+      );
+      expect(
+        tester
+            .widget<EntityListStatusTabs>(find.byType(EntityListStatusTabs))
+            .tabs
+            .map((t) => t.labelKey),
+        ['all', 'draft', 'unpaid', 'overdue', 'paid'],
+      );
+    },
+  );
 
   testWidgets('the Quotes card never asks invoices for anything', (
     tester,
@@ -966,5 +967,44 @@ void main() {
     props.value = const _Props(companyId: 'other');
     await tester.pumpAndSettle();
     expect(repo.watchedModes.length, greaterThan(before));
+  });
+
+  testWidgets('a row says how near its deadline is, and only when it is', (
+    tester,
+  ) async {
+    final now = DateTime.now();
+    Date inDays(int n) {
+      // Through `DateTime`, which rolls the month over.
+      final t = DateTime(now.year, now.month, now.day + n);
+      return Date(t.year, t.month, t.day);
+    }
+
+    Invoice due(String id, Date d, {InvoiceStatus? status}) =>
+        _invoice(id, status: status).copyWith(dueDate: d);
+    await _pump(
+      tester,
+      services: _services(
+        invoices: [
+          due('soon', inDays(3)),
+          due('late', inDays(-12)),
+          due('far', inDays(90)),
+          due('draft', inDays(3), status: InvoiceStatus.draft),
+        ],
+      ),
+      nav: _Nav(),
+      narrow: false,
+      entity: EntityType.invoice,
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('due in 3 days'), findsOneWidget);
+    expect(find.text('12 days late'), findsOneWidget);
+    // Far off, or a draft: the date alone.
+    expect(find.textContaining('90 days'), findsNothing);
+    expect(find.textContaining('due in', findRichText: true), findsOneWidget);
+    expect(
+      tester.widget<Text>(find.text('12 days late')).style!.color,
+      isSameColorAs(InTheme.light.overdue),
+    );
   });
 }

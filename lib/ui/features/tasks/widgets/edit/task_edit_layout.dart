@@ -3,6 +3,10 @@ import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 
 import 'package:admin/app/design_tokens.dart';
+import 'package:admin/domain/tasks/task_rate.dart';
+import 'package:admin/ui/core/adaptive.dart';
+import 'package:admin/ui/core/widgets/form_field_pair.dart';
+import 'package:admin/ui/core/widgets/form_group_heading.dart';
 import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/in_date_field.dart';
 import 'package:admin/app/services.dart';
@@ -24,6 +28,7 @@ import 'package:admin/ui/features/tasks/widgets/edit/task_edit_times_section.dar
 import 'package:admin/ui/features/tasks/widgets/task_status_picker_field.dart';
 import 'package:admin/utils/formatting.dart';
 import 'package:admin/ui/core/edit/create_form_documents.dart';
+import 'package:admin/ui/core/widgets/example_hint.dart';
 
 /// Form body for the Task edit / create screen. Composes the identity
 /// fields, the time-log section (`TaskEditTimesSection`), and the custom
@@ -250,33 +255,42 @@ class _IdentitySection extends StatelessWidget {
             ),
           ),
           SizedBox(height: InSpacing.md(context)),
-          // Status right under the number: the task's state beside its id.
-          // It was fifth, under the client and project. Not paired on one
-          // row: in a 360 px sidebar the status name was cut to a word.
-          LabeledField(
-            label: context.tr('number'),
-            child: TextFormField(
-              // Server auto-assigns when left blank on create; editable to
-              // match admin-portal / React.
-              initialValue: vm.draft.number,
-              enabled: !locked,
-              textInputAction: TextInputAction.done,
-              decoration: InputDecoration(labelText: context.tr('number')),
-              onChanged: vm.setNumber,
-              onFieldSubmitted: submit,
-              autocorrect: false,
+          // The task's state beside its id where the card is wide enough
+          // (the narrow single-column form); stacked in the 360 px sidebar,
+          // where a status name beside the number was cut to a word.
+          _NumberAndStatus(
+            number: LabeledField(
+              label: context.tr('number'),
+              child: TextFormField(
+                // Server auto-assigns when left blank on create; editable to
+                // match admin-portal / React.
+                initialValue: vm.draft.number,
+                enabled: !locked,
+                textInputAction: TextInputAction.done,
+                decoration: InputDecoration(labelText: context.tr('number')),
+                onChanged: vm.setNumber,
+                onFieldSubmitted: submit,
+                autocorrect: false,
+              ),
+            ),
+            status: _Lockable(
+              locked: locked,
+              child: TaskStatusPickerField(
+                companyId: vm.companyId,
+                selectedId: vm.draft.statusId,
+                onChanged: vm.setStatusId,
+              ),
             ),
           ),
           SizedBox(height: InSpacing.md(context)),
-          _Lockable(
-            locked: locked,
-            child: TaskStatusPickerField(
-              companyId: vm.companyId,
-              selectedId: vm.draft.statusId,
-              onChanged: vm.setStatusId,
-            ),
+          EntityTagsField(
+            entityType: 'task',
+            selectedIds: vm.draft.tagIds,
+            onChanged: vm.setTagIds,
+            enabled: !locked,
           ),
-          SizedBox(height: InSpacing.md(context)),
+          // Who the work is for and who does it.
+          FormGroupHeading(context.tr('assignment')),
           _ClientPicker(vm: vm, locked: locked),
           SizedBox(height: InSpacing.md(context)),
           _ProjectPicker(vm: vm, locked: locked),
@@ -289,21 +303,31 @@ class _IdentitySection extends StatelessWidget {
               onChanged: vm.setAssignedUserId,
             ),
           ),
-          SizedBox(height: InSpacing.md(context)),
-          // The rate a blank field bills at is the cascade's answer —
-          // client, then its group, then the company (React ui#3427) — not
-          // the company default alone, which named the wrong figure for any
-          // client or group with a rate of its own.
+          // What the work bills at, and when it is promised for.
+          FormGroupHeading(context.tr('billing_and_schedule')),
+          // A blank rate bills at the cascade's answer — the project, the
+          // client, its group, then the company (React ui#3427) — so the
+          // empty field says what that is and which level sets it, the way a
+          // client's blank cascade settings do ("Default (€75.00)", "From
+          // project"; docs/form-fields.md).
           TaskRateContextBuilder(
             companyId: vm.companyId,
             clientId: vm.draft.clientId,
             projectId: vm.draft.projectId,
             builder: (context, rates) {
-              final inherited = rates.rateFor(
-                vm.draft.copyWith(rate: Decimal.zero),
+              final inherited = resolveTaskRateWithSource(
+                task: vm.draft.copyWith(rate: Decimal.zero),
+                project: rates.project,
+                client: rates.client,
+                group: rates.group,
+                company: rates.company,
               );
-              final showHint =
-                  vm.draft.rate == Decimal.zero && inherited > Decimal.zero;
+              final showInherited =
+                  vm.draft.rate == Decimal.zero &&
+                  inherited.rate > Decimal.zero;
+              final currencyId = rates.client?.currencyId;
+              final f = formatter;
+              final symbol = f?.currencySymbolFor(currencyId: currencyId) ?? '';
               return LabeledField(
                 label: context.tr('rate'),
                 child: TextFormField(
@@ -315,12 +339,26 @@ class _IdentitySection extends StatelessWidget {
                   ),
                   decoration: InputDecoration(
                     labelText: context.tr('rate'),
-                    // Surface the inherited rate so leaving rate blank is
-                    // clearly "bill at the default" — the cascade
-                    // (resolveTaskRate) applies it on invoice.
-                    helperText: showHint
-                        ? '${context.tr('default_task_rate')}: '
-                              '${formatter?.money(inherited, clientCurrencyId: rates.client?.currencyId) ?? inherited}'
+                    // The client's currency, from the Formatter — never a
+                    // hard-coded `$`. Only once the task has a rate of its
+                    // own: a blank field's hint already names the currency
+                    // ("Default ($75.00)"), and the prefix would say it twice.
+                    prefixText: symbol.isEmpty || vm.draft.rate == Decimal.zero
+                        ? null
+                        : '$symbol ',
+                    suffixText: context.tr('rate_per_hour_suffix'),
+                    hintText: showInherited
+                        ? context.tr('default_with_value', {
+                            'value':
+                                f?.money(
+                                  inherited.rate,
+                                  clientCurrencyId: currencyId,
+                                ) ??
+                                '${inherited.rate}',
+                          })
+                        : null,
+                    helperText: showInherited
+                        ? _rateSourceText(context, inherited.source, rates)
                         : null,
                   ),
                   onChanged: vm.setRate,
@@ -367,7 +405,7 @@ class _IdentitySection extends StatelessWidget {
                     textInputAction: TextInputAction.done,
                     decoration: InputDecoration(
                       labelText: context.tr('estimated_duration'),
-                      hintText: '1h 30m',
+                      hintText: exampleHint(context, kDurationExample),
                     ),
                     onChanged: vm.setEstimatedDuration,
                     onFieldSubmitted: submit,
@@ -376,18 +414,59 @@ class _IdentitySection extends StatelessWidget {
               ),
             ],
           ),
-          SizedBox(height: InSpacing.md(context)),
-          EntityTagsField(
-            entityType: 'task',
-            selectedIds: vm.draft.tagIds,
-            onChanged: vm.setTagIds,
-            enabled: !locked,
-          ),
         ],
       ),
     );
   }
 }
+
+/// Number and Status: one row where the card has room for both, as
+/// [FormFieldPair] decides it, and stacked with the form's usual gap where it
+/// does not — [FormFieldPair]'s own stack puts its two fields closer together
+/// than every other pair of fields on this card.
+class _NumberAndStatus extends StatelessWidget {
+  const _NumberAndStatus({required this.number, required this.status});
+
+  final Widget number;
+  final Widget status;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth >= Breakpoints.wide) {
+          return FormFieldPair(left: number, right: status);
+        }
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            number,
+            SizedBox(height: InSpacing.md(context)),
+            status,
+          ],
+        );
+      },
+    );
+  }
+}
+
+/// Which level of the task-rate cascade a blank Rate field inherits from.
+String? _rateSourceText(
+  BuildContext context,
+  TaskRateSource source,
+  TaskRateContext rates,
+) => switch (source) {
+  TaskRateSource.project => context.tr('inherited_from_project'),
+  TaskRateSource.client => context.tr('inherited_from_client'),
+  TaskRateSource.group => context.tr('inherited_from_group', {
+    'name': (rates.group?.name.isNotEmpty ?? false)
+        ? rates.group!.name
+        : (rates.group?.id ?? ''),
+  }),
+  TaskRateSource.company => context.tr('inherited_from_company'),
+  TaskRateSource.task || TaskRateSource.none => null,
+};
 
 /// Searchable client picker. Pulls the first 5000 active clients from
 /// Drift; type to filter. Mirrors the React app's "Client" combobox on

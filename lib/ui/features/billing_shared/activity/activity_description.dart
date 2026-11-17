@@ -4,6 +4,8 @@ import 'package:flutter/widgets.dart';
 import 'package:admin/app/router.dart';
 import 'package:admin/data/models/domain/activity.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/features/dashboard/helpers/activity_formatter.dart'
+    show kActivityMissingValue;
 import 'package:admin/utils/bidi.dart';
 
 /// The rendered sentence for an [Activity] plus the tap recognizers it
@@ -45,8 +47,8 @@ class ActivitySpans {
 /// - type 54 with a contact → swap `:user`→`:contact` (contact-initiated).
 /// - Routable refs render as accent links (tap → `goEntityRecord`) **when
 ///   [linkRefs]**; the acting `user` and amount tokens render bold-but-static;
-///   `:notes` shows the raw note; a token the server omitted falls back to its
-///   localized noun so a literal `:token` never leaks.
+///   `:notes` shows the raw note; a token the server omitted reads as
+///   [kActivityMissingValue] (an em dash) so a literal `:token` never leaks.
 /// - Missing template → `activity_unknown` ("Activity #N").
 ///
 /// [linkRefs] is false on touch, where an inline span link is unusable and the
@@ -112,9 +114,12 @@ ActivitySpans buildActivitySpans(
     } else {
       final ref = a.refs[token];
       if (ref == null) {
-        // Server omitted this related entity — show its localized noun
-        // (e.g. ":client" → "Client") instead of a raw token.
-        spans.add(TextSpan(text: context.tr(token), style: base));
+        // Server omitted this related entity — an em dash, as
+        // `ActivityFormatter` writes it, so a raw `:token` never leaks. Not
+        // the localized noun: the template's own word already labels the
+        // slot, and "restored quote Quote" (`QuoteRestoredActivity` never
+        // sets `quote_id`, BACKEND.md § F3g) read as a quote numbered "Quote".
+        spans.add(TextSpan(text: kActivityMissingValue, style: base));
       } else if (ref.isLink && linkRefs) {
         tokens.add(token);
         final rec = TapGestureRecognizer()

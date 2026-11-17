@@ -115,11 +115,13 @@ class _SchedulesScreenState extends State<SchedulesScreen>
           subtitleKey: 'starter_run_pnl_quarterly_hint',
           route: '/settings/schedules/new?starter=quarterly_pnl',
         ),
+        // Invoices the company's outstanding tasks — not a reminder (the
+        // title and bell this card once had promised one).
         SettingsListStarter(
-          icon: Icons.notifications_active_outlined,
-          titleKey: 'starter_invoice_reminders_weekly',
-          subtitleKey: 'starter_invoice_reminders_weekly_hint',
-          route: '/settings/schedules/new?starter=weekly_reminders',
+          icon: Icons.task_outlined,
+          titleKey: 'starter_invoice_tasks_weekly',
+          subtitleKey: 'starter_invoice_tasks_weekly_hint',
+          route: '/settings/schedules/new?starter=weekly_task_invoicing',
         ),
       ],
       banner: const PlanGateBanner(style: PlanGateStyle.stripe),
