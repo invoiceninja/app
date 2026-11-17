@@ -185,81 +185,61 @@ class _Pill extends StatelessWidget {
     // user may not edit (`TaskActions.canTimeTask`).
     final canStop = TaskActions.canEditTask(services.auth.session.value, task);
     final label = _runningLabel(context, task);
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () => context.go('/tasks/${task.id}/edit'),
-        child: Container(
-          padding: EdgeInsets.symmetric(
-            horizontal: InSpacing.md(context),
-            vertical: InSpacing.sm,
+    return _FloatingBarShell(
+      onTap: () => context.go('/tasks/${task.id}/edit'),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          RunningDurationLabel(
+            start: task.timeLog.last.start!,
+            dotSize: 6,
+            style: _durationStyle(tokens, fontSize: 13),
           ),
-          decoration: BoxDecoration(
-            color: tokens.accentSoft,
-            border: Border.all(color: tokens.border),
-            borderRadius: BorderRadius.circular(InRadii.r2),
+          const SizedBox(width: 10),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 200),
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 13, color: tokens.onInverseMuted),
+            ),
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              RunningDurationLabel(
-                start: task.timeLog.last.start!,
-                dotSize: 6,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: tokens.ink,
-                  fontFeatures: const [FontFeature.tabularFigures()],
+          if (canStop) ...[
+            const SizedBox(width: 6),
+            IconButton(
+              tooltip: context.tr('stop'),
+              icon: const Icon(Icons.stop_circle_outlined, size: 20),
+              color: tokens.onInverse,
+              onPressed: () => _stop(context),
+              visualDensity: VisualDensity.compact,
+              constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+              padding: EdgeInsets.zero,
+            ),
+          ],
+          // Concurrent timers stay visible + clearable: this pill only
+          // renders the newest running task, so surface a count + a
+          // one-tap "stop them all".
+          if (runningCount > 1) ...[
+            const SizedBox(width: 2),
+            TextButton(
+              onPressed: () => _stopAll(context),
+              style: TextButton.styleFrom(
+                minimumSize: const Size(0, 32),
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                visualDensity: VisualDensity.compact,
+                foregroundColor: tokens.onInverse,
+              ),
+              child: Text(
+                '${context.tr('stop_all')} ($runningCount)',
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
-              const SizedBox(width: 8),
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 160),
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 12, color: tokens.ink2),
-                ),
-              ),
-              if (canStop) ...[
-                const SizedBox(width: 6),
-                IconButton(
-                  tooltip: context.tr('stop'),
-                  icon: const Icon(Icons.stop_circle_outlined, size: 18),
-                  onPressed: () => _stop(context),
-                  visualDensity: VisualDensity.compact,
-                  constraints: const BoxConstraints(
-                    minWidth: 28,
-                    minHeight: 28,
-                  ),
-                  padding: EdgeInsets.zero,
-                ),
-              ],
-              // Concurrent timers stay visible + clearable: this pill only
-              // renders the newest running task, so surface a count + a
-              // one-tap "stop them all".
-              if (runningCount > 1) ...[
-                const SizedBox(width: 2),
-                TextButton(
-                  onPressed: () => _stopAll(context),
-                  style: TextButton.styleFrom(
-                    minimumSize: const Size(0, 32),
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    visualDensity: VisualDensity.compact,
-                    foregroundColor: tokens.ink2,
-                  ),
-                  child: Text(
-                    '${context.tr('stop_all')} ($runningCount)',
-                    style: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -312,83 +292,168 @@ class _DueNowPillState extends State<_DueNowPill> {
         final task = snap.data;
         if (task == null) return const SizedBox.shrink();
         final label = taskPrimaryLabel(task);
-        // `Ink` idiom (CLAUDE.md): the FILL rides on the `Material`, above its
-        // own ink layer, and the `Container` carries the border only — an
-        // opaque child would paint over the fill, the border and the ripple.
-        return Material(
-          color: tokens.warningSoft,
-          borderRadius: BorderRadius.circular(InRadii.r2),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(InRadii.r2),
-            onTap: () => context.go('/tasks/${task.id}/edit'),
-            child: Container(
-              padding: EdgeInsets.symmetric(
-                horizontal: InSpacing.md(context),
-                vertical: InSpacing.sm,
+        return _FloatingBarShell(
+          onTap: () => context.go('/tasks/${task.id}/edit'),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _DueNowLabel(fontSize: 13, dotSize: 6),
+              const SizedBox(width: 10),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 200),
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 13, color: tokens.onInverseMuted),
+                ),
               ),
-              decoration: BoxDecoration(
-                border: Border.all(color: tokens.border),
-                borderRadius: BorderRadius.circular(InRadii.r2),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    context.tr('due_now'),
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: tokens.warning,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 160),
-                    child: Text(
-                      label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 12, color: tokens.ink2),
-                    ),
-                  ),
-                  // The whole point: start the job without leaving the screen
-                  // you are on. Routed through `TaskActions.toggleTimer` so it
-                  // claims the booking, moves the status and offers Undo
-                  // exactly as the list row does. Not for a booking this user
-                  // may not edit (`TaskActions.canTimeTask`).
-                  if (TaskActions.canEditTask(
-                    services.auth.session.value,
+              // The whole point: start the job without leaving the screen
+              // you are on. Routed through `TaskActions.toggleTimer` so it
+              // claims the booking, moves the status and offers Undo
+              // exactly as the list row does. Not for a booking this user
+              // may not edit (`TaskActions.canTimeTask`).
+              if (TaskActions.canEditTask(
+                services.auth.session.value,
+                task,
+              )) ...[
+                const SizedBox(width: 6),
+                IconButton(
+                  tooltip: context.tr('start'),
+                  icon: const Icon(Icons.play_circle_outlined, size: 20),
+                  // Same box as `_Pill`'s stop button — without the zeroed
+                  // padding an `IconButton`'s default `EdgeInsets.all(8)`
+                  // makes this pill taller than the one it alternates
+                  // with, in the same slot.
+                  padding: EdgeInsets.zero,
+                  color: tokens.warningOnInverse,
+                  onPressed: () => TaskActions.toggleTimer(
+                    context,
+                    services,
+                    companyId,
                     task,
-                  )) ...[
-                    const SizedBox(width: 6),
-                    IconButton(
-                      tooltip: context.tr('start'),
-                      icon: const Icon(Icons.play_circle_outlined, size: 18),
-                      // Same box as `_Pill`'s stop button — without the zeroed
-                      // padding an `IconButton`'s default `EdgeInsets.all(8)`
-                      // makes this pill taller than the one it alternates
-                      // with, in the same slot.
-                      padding: EdgeInsets.zero,
-                      color: tokens.warning,
-                      onPressed: () => TaskActions.toggleTimer(
-                        context,
-                        services,
-                        companyId,
-                        task,
-                      ),
-                      visualDensity: VisualDensity.compact,
-                      constraints: const BoxConstraints(
-                        minWidth: 28,
-                        minHeight: 28,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
+                  ),
+                  visualDensity: VisualDensity.compact,
+                  constraints: const BoxConstraints(
+                    minWidth: 28,
+                    minHeight: 28,
+                  ),
+                ),
+              ],
+            ],
           ),
         );
       },
+    );
+  }
+}
+
+/// The running timer's chrome, shared by the floating pill and the docked bar:
+/// an *inverted* surface — the theme's ink as the fill, its card colour as
+/// the text — so the one live thing on a screen of white cards reads at a
+/// glance, in either brightness (docs/tasks-views.md § The running timer is
+/// an inverted bar).
+///
+/// The duration is in the mono face: the digits keep one width, so the label
+/// does not shimmy as the seconds tick.
+TextStyle _durationStyle(InTheme tokens, {required double fontSize}) =>
+    TextStyle(
+      fontFamily: kMonoFontFamily,
+      fontFamilyFallback: const [kSansFontFamily],
+      fontFeatures: const [FontFeature.tabularFigures()],
+      fontSize: fontSize,
+      fontWeight: FontWeight.w500,
+      color: tokens.onInverse,
+    );
+
+/// The ripple and hover wash on [InTheme.inverseSurface]: the theme's own
+/// overlay is ink-on-surface, which on an ink fill paints nothing visible.
+WidgetStateProperty<Color?> _inverseOverlay(InTheme tokens) =>
+    WidgetStateProperty.resolveWith((states) {
+      if (states.contains(WidgetState.pressed) ||
+          states.contains(WidgetState.focused)) {
+        return tokens.onInverse.withValues(alpha: 0.14);
+      }
+      if (states.contains(WidgetState.hovered)) {
+        return tokens.onInverse.withValues(alpha: 0.08);
+      }
+      return null;
+    });
+
+/// "Due now", led by a still dot — both in [InTheme.warningOnInverse], so a
+/// booked block never reads as a running timer, whose dot is the accent and
+/// pulses. The dot holds still on purpose: nothing is ticking yet.
+class _DueNowLabel extends StatelessWidget {
+  const _DueNowLabel({required this.fontSize, required this.dotSize});
+
+  final double fontSize;
+  final double dotSize;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.inTheme;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: dotSize,
+          height: dotSize,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: tokens.warningOnInverse,
+          ),
+        ),
+        const SizedBox(width: 6),
+        Text(
+          context.tr('due_now'),
+          style: TextStyle(
+            fontSize: fontSize,
+            fontWeight: FontWeight.w600,
+            color: tokens.warningOnInverse,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// The floating pill's shell: the inverted fill on a local `Material` (the
+/// `Ink` idiom, CLAUDE.md — the ripple paints above the fill), [InRadii.r3]
+/// corners, never a stadium (CLAUDE.md § Design system (v2)), and `shadow2`,
+/// since it floats over the content.
+class _FloatingBarShell extends StatelessWidget {
+  const _FloatingBarShell({required this.onTap, required this.child});
+
+  final VoidCallback onTap;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.inTheme;
+    final radius = BorderRadius.circular(InRadii.r3);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: radius,
+        boxShadow: tokens.shadow2,
+      ),
+      child: Material(
+        color: tokens.inverseSurface,
+        borderRadius: radius,
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          overlayColor: _inverseOverlay(tokens),
+          child: Padding(
+            padding: EdgeInsetsDirectional.only(
+              start: InSpacing.md(context),
+              end: InSpacing.xs,
+              top: InSpacing.xs,
+              bottom: InSpacing.xs,
+            ),
+            child: child,
+          ),
+        ),
+      ),
     );
   }
 }
@@ -698,98 +763,85 @@ class _DockBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final tokens = context.inTheme;
     final s = surface;
-    final fill = s.dueNow ? tokens.warningSoft : tokens.accentSoft;
     final gutter = InSpacing.lg(context);
     final bottomInset = MediaQuery.paddingOf(context).bottom;
-    // `Ink` idiom (CLAUDE.md): the fill rides on the `Material` itself, so the
-    // `InkWell` ripple shows over it. It paints into the gesture strip too —
-    // the bar is the last thing on screen, like a bottom navigation bar.
+    // `Ink` idiom (CLAUDE.md): the inverted fill rides on the `Material`
+    // itself, so the `InkWell` ripple shows over it. It paints into the
+    // gesture strip too — the bar is the last thing on screen, like a bottom
+    // navigation bar. No top rule: the fill is the edge.
     return Material(
-      color: fill,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          border: Border(top: BorderSide(color: tokens.border)),
-        ),
-        child: Padding(
-          padding: EdgeInsets.only(bottom: bottomInset),
-          child: ToastBottomInset(
-            controller: toasts,
-            child: InkWell(
-              onTap: s.onOpen,
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(
-                  minHeight: kRunningTimerDockHeight,
+      color: tokens.inverseSurface,
+      child: Padding(
+        padding: EdgeInsets.only(bottom: bottomInset),
+        child: ToastBottomInset(
+          controller: toasts,
+          child: InkWell(
+            onTap: s.onOpen,
+            overlayColor: _inverseOverlay(tokens),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(
+                minHeight: kRunningTimerDockHeight,
+              ),
+              child: Padding(
+                padding: EdgeInsetsDirectional.only(
+                  start: gutter,
+                  end: InSpacing.xs,
                 ),
-                child: Padding(
-                  padding: EdgeInsetsDirectional.only(
-                    start: gutter,
-                    end: InSpacing.xs,
-                  ),
-                  child: Row(
-                    children: [
-                      if (s.dueNow)
-                        Text(
-                          context.tr('due_now'),
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: tokens.warning,
-                          ),
-                        )
-                      else
-                        RunningDurationLabel(
-                          start: s.start!,
-                          dotSize: 8,
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: tokens.ink,
-                            fontFeatures: const [FontFeature.tabularFigures()],
-                          ),
-                        ),
-                      const SizedBox(width: InSpacing.sm),
-                      Expanded(
-                        child: Text(
-                          s.label,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(fontSize: 14, color: tokens.ink2),
+                child: Row(
+                  children: [
+                    if (s.dueNow)
+                      const _DueNowLabel(fontSize: 14, dotSize: 8)
+                    else
+                      RunningDurationLabel(
+                        start: s.start!,
+                        dotSize: 8,
+                        style: _durationStyle(tokens, fontSize: 14),
+                      ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        s.label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: tokens.onInverseMuted,
                         ),
                       ),
-                      if (s.runningCount > 1 && s.onStopAll != null)
-                        TextButton(
-                          onPressed: s.onStopAll,
-                          style: TextButton.styleFrom(
-                            minimumSize: const Size(0, 44),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: InSpacing.sm,
-                            ),
-                            foregroundColor: tokens.ink2,
+                    ),
+                    if (s.runningCount > 1 && s.onStopAll != null)
+                      TextButton(
+                        onPressed: s.onStopAll,
+                        style: TextButton.styleFrom(
+                          minimumSize: const Size(0, 44),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: InSpacing.sm,
                           ),
-                          child: Text(
-                            '${context.tr('stop_all')} (${s.runningCount})',
-                            style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                            ),
+                          foregroundColor: tokens.onInverse,
+                        ),
+                        child: Text(
+                          '${context.tr('stop_all')} (${s.runningCount})',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
-                      if (s.onStop != null)
-                        _DockIconButton(
-                          tooltip: context.tr('stop'),
-                          icon: Icons.stop_circle_outlined,
-                          color: tokens.ink,
-                          onPressed: s.onStop!,
-                        ),
-                      if (s.onStart != null)
-                        _DockIconButton(
-                          tooltip: context.tr('start'),
-                          icon: Icons.play_circle_outlined,
-                          color: tokens.warning,
-                          onPressed: s.onStart!,
-                        ),
-                    ],
-                  ),
+                      ),
+                    if (s.onStop != null)
+                      _DockIconButton(
+                        tooltip: context.tr('stop'),
+                        icon: Icons.stop_circle_outlined,
+                        color: tokens.onInverse,
+                        onPressed: s.onStop!,
+                      ),
+                    if (s.onStart != null)
+                      _DockIconButton(
+                        tooltip: context.tr('start'),
+                        icon: Icons.play_circle_outlined,
+                        color: tokens.warningOnInverse,
+                        onPressed: s.onStart!,
+                      ),
+                  ],
                 ),
               ),
             ),

@@ -15,27 +15,20 @@ import 'package:material_ui/material_ui.dart';
 /// `ShortcutHintController` once hit. The bar takes them one frame later.
 class QuickActionKinds extends ChangeNotifier {
   Set<Object?> _kinds = const {};
-  bool _hasTiles = false;
 
   /// What the bar leaves under More: the tiled kinds, and the kinds whose
   /// result is already on screen (`EntityQuickAction.onScreen` — the PDF
   /// beside a billing document).
   Set<Object?> get kinds => _kinds;
 
-  /// Whether the strip is showing any tile — and so leads with the screen's
-  /// one accent-filled action, which is what turns the bar's Edit neutral.
-  bool get hasTiles => _hasTiles;
-
   /// [tiled] are the strip's tiles; [onScreen] the kinds no button should
   /// offer, because what they open is already showing.
   void publish(Set<Object?> tiled, {Set<Object?> onScreen = const {}}) {
     final kinds = onScreen.isEmpty ? tiled : {...tiled, ...onScreen};
-    final hasTiles = tiled.isNotEmpty;
-    if (setEquals(kinds, _kinds) && hasTiles == _hasTiles) return;
+    if (setEquals(kinds, _kinds)) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (setEquals(kinds, _kinds) && hasTiles == _hasTiles) return;
+      if (setEquals(kinds, _kinds)) return;
       _kinds = kinds;
-      _hasTiles = hasTiles;
       notifyListeners();
     });
   }
@@ -56,15 +49,6 @@ class QuickActionKindsScope extends InheritedNotifier<QuickActionKinds> {
           ?.notifier
           ?.kinds ??
       const {};
-
-  /// Whether the strip is showing tiles, subscribing; false outside a record
-  /// screen.
-  static bool hasTilesOf(BuildContext context) =>
-      context
-          .dependOnInheritedWidgetOfExactType<QuickActionKindsScope>()
-          ?.notifier
-          ?.hasTiles ??
-      false;
 
   /// The notifier to publish to, without subscribing.
   static QuickActionKinds? maybeOf(BuildContext context) =>

@@ -243,8 +243,8 @@ void main() {
     );
 
     for (final width in [400.0, 800.0]) {
-      testWidgets('one accent per screen: Edit is outlined while the strip '
-          'shows tiles (width $width)', (tester) async {
+      testWidgets('one accent per screen: Edit stays filled while the strip '
+          'shows tiles, as in 5.1.30 (width $width)', (tester) async {
         await pumpBar(
           tester,
           [
@@ -259,12 +259,65 @@ void main() {
           width: width,
           tiled: {'statement'},
         );
-        expect(find.widgetWithText(FilledButton, 'Edit'), findsNothing);
-        expect(find.widgetWithText(OutlinedButton, 'Edit'), findsOneWidget);
+        expect(find.widgetWithText(FilledButton, 'Edit'), findsOneWidget);
+        expect(find.widgetWithText(OutlinedButton, 'Edit'), findsNothing);
+      });
+
+      testWidgets('Edit leads over a promoted primary — a sent invoice\'s '
+          'Enter Payment is its tile, not a second filled button '
+          '(width $width)', (tester) async {
+        await pumpBar(
+          tester,
+          [
+            const EntityActionItem(
+              kind: 'payment',
+              icon: Icons.payments_outlined,
+              label: 'Enter Payment',
+              enabled: true,
+              isPrimary: true,
+            ),
+            const EntityActionItem(
+              kind: 'edit',
+              icon: MdiIcons.circleEditOutline,
+              label: 'Edit',
+              enabled: true,
+              isEdit: true,
+            ),
+          ],
+          width: width,
+          tiled: {'payment'},
+        );
+        expect(find.byType(FilledButton), findsOneWidget);
+        expect(find.widgetWithText(FilledButton, 'Edit'), findsOneWidget);
+        expect(
+          find.widgetWithText(FilledButton, 'Enter Payment'),
+          findsNothing,
+        );
       });
     }
 
-    testWidgets('a kind that is only on screen does not turn Edit neutral', (
+    test('editLeads leaves the primary alone when Edit cannot run', () {
+      const items = [
+        EntityActionItem<String>(
+          kind: 'payment',
+          icon: Icons.payments_outlined,
+          label: 'Enter Payment',
+          enabled: true,
+          isPrimary: true,
+        ),
+        EntityActionItem<String>(
+          kind: 'edit',
+          icon: MdiIcons.circleEditOutline,
+          label: 'Edit',
+          enabled: false,
+          isEdit: true,
+          disabledTooltipKey: 'locked',
+        ),
+      ];
+      expect(EntityDetailActionsRow.editLeads<String>(items), same(items));
+    });
+
+    testWidgets('a kind that is only on screen leaves Edit filled', (
       tester,
     ) async {
       await pumpBar(tester, [edit], width: 800, onScreen: {'pdf'});

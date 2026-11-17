@@ -17,10 +17,9 @@ the old app showed 20 or more.
 - **The old app's rows were smaller.** Its `DataTable` rows were 48 px
   (`kMinInteractiveDimension`).
 - **The chrome above the rows adds up.** It took about 222 px on web or macOS: header
-  band 69, status tabs ~46, card inset 24 + 1, column headers 57, then 1 + 24 below (the
-  card and most of that inset went in Nov 2026: 8 above the header and nothing below). The
-  title row (Nov 2026, docs/entity-lists.md § A list's title row) put 53 px back: the header
-  is now 122, a title row over the search row.
+  band 69, status tabs ~46, card inset 24 + 1, column headers 57, then 1 + 24 below. (A Nov
+  2026 redesign added a title row and trimmed the inset; both went back to these 5.1.30
+  numbers the same month — docs/entity-lists.md § A wide list's header is one toolbar row.)
 - **The result:** (1100 − 222) / 72 ≈ 12 rows.
 
 Normal stays the default and is unchanged, because the tester liked the look. Compact is
@@ -78,14 +77,15 @@ On a phone, the two-line tile goes from 72 px to about 57 px per row.
 
 | Surface | Normal | Compact |
 |---|---|---|
-| Entity-list row floor (`EntityListRowFloor`) | 52 (was 72 until Nov 2026, the list designs' row) | 40 pointer / 52 touch |
-| Entity-list tile padding (`listRowPadding`), vertical | 10; 14 embedded; Client and Vendor 14 | 4 |
+| Standalone wide table row floor (`EntityListRowFloor(wideTable: true)`, `kWideEntityListRowHeight`) | 72 (5.1.30's) | 40 pointer / 52 touch |
+| Every other entity-list row floor — narrow, embedded (`EntityListRowFloor`) | 52 | 40 pointer / 52 touch |
+| Entity-list tile padding (`listRowPadding`), vertical | 10; 14 embedded; Client and Vendor 14 wide | 4 |
 | Detail record rows (`listRowVerticalPadding`): activity, document history, pending comment, sends, email history — vertical padding | 14 | 4 |
 | The same detail rows' floor (`entityListRowHeight`) | 52 | 40 pointer / 52 touch |
-| Column-header strip, vertical (no fill, a rule under it) | 4 | 2 |
+| Column-header strip, vertical (`surfaceAlt` fill, a rule under it) | 12 (5.1.30's) | 2 |
 | Status-tab strip (`dense:`), vertical | `InSpacing.md` | `InSpacing.sm` |
 | Group section header, top / bottom | `lg` / `sm` | `sm` / `xs` |
-| Standalone table inset (`entityListTableInset`; no card since Nov 2026) | 24 horizontal, 8 top, 0 bottom | 24 horizontal, 4 top |
+| Standalone table panel inset (`entityListTableInset`) | 24 on every side (5.1.30's) | 24 horizontal, 4 top, 16 bottom |
 | Record screen quick-action tile (`EntityQuickActions`): floor / vertical padding | 56 / 8 | 48 / 4 |
 | Form field label (`LabeledField`, `docs/form-fields.md` § Labels sit above the field) | on its own line above the field | inside the field (floating) |
 | Record screen standing card (`StandingCard`) padding, vertical only | `InSpacing.lg` | `InSpacing.md` |
@@ -103,6 +103,21 @@ so the trim is gated on `RecordColumnScope` (mounted by `EntityRecordColumn`) or
 `DashboardScope` (§ The dashboard), never on the edit forms that share the shell. The compact tile is still above the 44 px touch target. The content sets a tile's
 height at normal text, not the floor, so the padding has to tighten with it or the lower
 floor does nothing.
+
+## Comfortable wide rows are 5.1.30's 72 px
+
+**At Comfortable a standalone list's wide table row sits on a 72 px floor
+(`kWideEntityListRowHeight`), 5.1.30's; every other list row keeps 52.** A Nov 2026 redesign
+took every row to 52 to fit the designs' eleven rows; Hillel compared the desktop Clients list
+with 5.1.30 and asked for the old table back — rows, header and pencil — while keeping
+Compact for whoever wants it tighter. So:
+- the scaffold passes `EntityListRowFloor(wideTable: wide && !embedded)`, and its
+  scroll-to-row estimate asks `entityListRowHeight(wideTable:)` the same question, from the
+  width class of the last layout (`_lastBuiltWide`);
+- a narrow row (the phone layout Hillel chose), an embedded list's row and the record rows
+  (activity, history, sends, email history) keep `kEntityListRowHeight`, 52;
+- Compact is unchanged and ignores `wideTable`: 40 with a pointer, 52 on touch — the pencil
+  and `⋮` are both 32 px with a pointer, so the derived floor still holds.
 
 ## The dashboard
 
@@ -191,9 +206,9 @@ the theme density would move nothing in a row.
   are gated on the platform). The floor says so, so that the scaffold's scroll-to-row
   estimate is not 12 px short per row on a tablet.
 
-**The table inset loses only vertical space.** The standalone table has had no card since Nov
-2026 (docs/entity-lists.md § A standalone table has no card), so what is left is a gutter. Its
-horizontal 24 lines the table up with:
+**The table inset loses only vertical space.** The standalone table sits in a white panel
+again (docs/entity-lists.md § A standalone list sits in a white panel), and the inset is the
+gutter around it. Its horizontal 24 lines the panel up with:
 - the header band's row (`entity_list_app_bar.dart`, "aligns … with the table card below")
 - the status-tab strip's start (`_statusTabsFor`, `start: wide ? 24`)
 - the frameless desktop title bar's nav arrows
@@ -211,8 +226,9 @@ rule 1).
 
 ## Out of scope
 
-- **The header (title row and search row).** Each row is `InSizes.headerRow`; Compact
-  leaves both alone.
+- **The header.** A wide list's one toolbar row is `InSizes.headerRow` inside the
+  `InSizes.headerBand` floor; a narrow list's is its `AppBar` and search row. Compact leaves
+  both alone.
 - **The embedded list toolbar.** It keeps its 16 / 16 gap.
 - **Forms' spacing, the sidebar, and reports.** That includes the edit forms that reuse
   `DashboardCardShell` (`DashboardScope` is what keeps them out). The one thing Compact
@@ -234,7 +250,7 @@ rule 1).
 - any `EntityListStatusTabs(` call other than the list scaffold's passes `dense:` — the
   one exception is `billing_pipeline_card.dart`, and only as `dense: dashboardDense(…)`
 
-`test/ui/core/list/list_density_test.dart` measures the actual rows: 72 under Normal, 40
-with a pointer and 52 on touch under Compact. It also checks that a dense strip is 8 px
+`test/ui/core/list/list_density_test.dart` measures the actual rows: 72 for a standalone wide
+row and 52 for any other under Normal, 40 with a pointer and 52 on touch under Compact. It also checks that a dense strip is 8 px
 shorter, and that the table inset keeps its horizontal 24. The column-header,
 section-header and activity-row tests each carry a Compact case of their own.

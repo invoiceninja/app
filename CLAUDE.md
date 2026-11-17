@@ -208,7 +208,7 @@ When styling a page: read `design_tokens.dart`, reuse `InTheme`, prefer `Theme.o
 - **Inside a cap a key gets its printed name** → `docs/keyboard.md`
 
 - **Task status colours resolve through `taskStatusColors`, never an inline parse of `TaskStatus.color`** — `''`, `#fff` and `#ffffff` all mean unset. → `docs/tasks-views.md`
-- **Initials avatars go through `InitialsAvatar` + `initialsFor`, seeded on the entity id (never the name), and a row's badge keeps its 32×32 slot even when empty — except that a phone task list drops the whole column, never one row's slot, when no task in the company is assigned.** → `docs/row-actions-and-values.md`
+- **Initials avatars go through `InitialsAvatar` + `initialsFor`, seeded on the entity id (never the name), solid only on a wide list row, and a row's badge keeps its 32×32 slot even when empty — except that a phone task list drops the whole column, never one row's slot, when no task in the company is assigned.** → `docs/row-actions-and-values.md`
 
 - **A narrow list row has exactly one destination, and a link's at-rest affordance is gated on the input device.** → `docs/row-actions-and-values.md`
 - **A pure navigation action must never reach an edit screen.** → `docs/row-actions-and-values.md`
@@ -233,7 +233,7 @@ When styling a page: read `design_tokens.dart`, reuse `InTheme`, prefer `Theme.o
 - **A one-shot reveal outlives its consumer, and the row scrolls itself.** → `docs/comments-and-activity.md`
 - **The `activity_type_id` → tone map is the server's catalog, not a guess — and the bundled template is the test.** → `docs/comments-and-activity.md`
 
-- **The `/activity` timeline charts only the loaded window, and each count leaves out its own filter — the bars ignore the date range, the category chips ignore the categories.** → `docs/activity-timeline.md`
+- **The `/activity` timeline charts only the loaded window, and each count leaves out its own filter (the bars the date range, the chips the categories).** → `docs/activity-timeline.md`
 - **The activity cache row is shared with the dashboard card, so a fetch merges into it (never a gap, the fetch owns its span) — never replace it; Load more pages back with the feed's `before` cursor where the server honours it, else grows the window to `kActivityWindowMax`.** → `docs/activity-timeline.md`
 
 - **A screen-reader heading sets both `header: true` and `headingLevel:` (1 for a dialog or sheet title, 2 for a section) — since Flutter 3.47 iOS and Android read only the level, while desktop and web still read the flag.** → `docs/screen-reader-headings.md`
@@ -545,7 +545,7 @@ Panels are ordered and hidden per user — `DashboardKind.panelKinds` is the reg
 - **The figures refetch when a change leaves the outbox.** → `docs/dashboard-panels.md`
 - **Every dashboard list draws `DashboardRecordRow`; `layoutPanelRows` pairs the panels.** → `docs/dashboard-panels.md`
 - **Nothing under an `IntrinsicHeight` row may be measured through a `LayoutBuilder`.** → `docs/dashboard-panels.md`
-- **The task-calendar panel (flutter#137) is the first Drift-backed one; what holds it up is invisible at the call site.** → `docs/dashboard-panels.md`
+- **The task-calendar panel is the first Drift-backed one; what holds it up is invisible at the call site.** → `docs/dashboard-panels.md`
 - **Per-day load is one rule in one leaf, and it buckets per time ENTRY.** → `docs/dashboard-panels.md`
 - **The month window is fetched by the view model, month-aligned.** → `docs/dashboard-panels.md`
 - **`hasLoaded` is not enough to claim availability, and the gate is not `Opacity`.** → `docs/dashboard-panels.md`
@@ -561,7 +561,7 @@ Panels are ordered and hidden per user — `DashboardKind.panelKinds` is the reg
 
 - **A record screen runs identity, quick actions, standing, comments and an always-shown profile above a pinned tab strip, in that order (a rail on wide hub records).** → `docs/detail-screen-layout.md`
 - **On a phone the record layout is the same order, denser: the standing card's secondary figures on one line with its footnote, created / updated as one muted line above the tabs, and no tab icons — all gated on `isPhoneRecordLayout`; the header avatar and the action tiles stay where they are.** → `docs/detail-screen-layout.md`
-- **A quick-action tile is a second render of an existing `EntityActionItem`, never a second definition, one that does not apply yields its slot, and only the first is accent-filled.** → `docs/detail-screen-layout.md`
+- **A quick-action tile is a second render of an existing `EntityActionItem`, never a second definition, one that does not apply yields its slot, and every tile is outlined (Edit is the filled one).** → `docs/detail-screen-layout.md`
 - **A figure the server does not supply is shown only when proven — the past-due line needs a complete fetch *and* a sum equal to the client's balance.** → `docs/detail-screen-layout.md`
 - **A new record's edit screen attaches documents itself and uploads them on Save, from one copy in `GenericEditViewModel` (override `documentUploadRepository`) and one card (`CreateFormDocumentsCard`, a tab on billing docs); the plan gate swaps it for the Enterprise banner, never hides it.** → `docs/attaching-documents.md`
 - **A detail body is selectable on every platform — `AppSelectionArea`, never a bare `SelectionArea` — which on touch dismisses a showing selection on any tap it didn't handle and on Android back, reading the selection live; tap-to-copy yields to a showing selection, and touch entity-list rows stay unselectable.** → `docs/selecting-and-copying-text.md`

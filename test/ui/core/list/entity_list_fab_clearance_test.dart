@@ -192,17 +192,19 @@ void main() {
     await _disposeTree(tester);
   });
 
-  testWidgets('the padding is the shared clearance, inset included', (
-    tester,
-  ) async {
+  // The list sits in a white panel that owns the bottom safe inset
+  // (docs/entity-lists.md § A standalone list sits in a white panel): the
+  // panel stops above the home indicator, and the rows inside are told there
+  // is no inset, so the clearance must not carry it a second time.
+  testWidgets('the panel owns the safe inset; the padding is the bare '
+      'clearance', (tester) async {
     await pumpList(tester, rowCount: 30, bottomInset: 34);
     expect(
       listOf(tester).padding,
-      EdgeInsets.only(bottom: kFabClearance + InSpacing.sm + 34),
-      reason:
-          'an explicit padding switches off BoxScrollView own MediaQuery '
-          'consumption, so the safe inset has to be carried here',
+      EdgeInsets.only(bottom: kFabClearance + InSpacing.sm),
     );
+    final listContext = tester.element(find.byWidget(listOf(tester)));
+    expect(MediaQuery.paddingOf(listContext).bottom, 0);
     await _disposeTree(tester);
   });
 

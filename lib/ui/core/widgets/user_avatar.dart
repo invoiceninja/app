@@ -28,7 +28,11 @@ class UserAvatar extends StatelessWidget {
     required this.userId,
     this.companyId,
     this.size = 32,
+    this.solid = false,
   });
+
+  /// Passed to [InitialsAvatar.solid] — true on a wide entity-list row.
+  final bool solid;
 
   /// Empty renders the "unassigned" placeholder.
   final String userId;
@@ -68,7 +72,12 @@ class UserAvatar extends StatelessWidget {
         final label = user == null ? null : initialsFor(user.displayName);
         return Semantics(
           label: user?.displayName,
-          child: InitialsAvatar(seed: userId, label: label ?? '?', size: size),
+          child: InitialsAvatar(
+            seed: userId,
+            label: label ?? '?',
+            size: size,
+            solid: solid,
+          ),
         );
       },
     );

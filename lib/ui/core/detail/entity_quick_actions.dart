@@ -101,12 +101,12 @@ const int kQuickActionsWideMax = 6;
 /// — and below it (the pane, a phone) they are equal-width tiles, icon over
 /// label, which is the only form in which four of them fit 358 px.
 ///
-/// **The first action is the primary one** and is filled with the accent; the
-/// rest sit on `surface` with the card border, not on `surfaceAlt` (1.04-1.22:1
-/// against the page in every palette, which does not read as something to
-/// press). One filled button per strip: the host's priority order already
-/// says which action that is, and a strip of equals made the user read every
-/// label to find it.
+/// **Every action is outlined**: `surface` with the card border, not
+/// `surfaceAlt` (1.04-1.22:1 against the page in every palette, which does not
+/// read as something to press), and no accent fill. The screen's one filled
+/// button is the bar's Edit, as it was in 5.1.30 — a filled first tile beside
+/// it made the user choose between two primaries (`docs/detail-screen-layout.md`
+/// § One accent per screen).
 class EntityQuickActions<A> extends StatelessWidget {
   const EntityQuickActions({super.key, required this.priority});
 
@@ -139,11 +139,7 @@ class EntityQuickActions<A> extends StatelessWidget {
                   runSpacing: InSpacing.sm,
                   children: [
                     for (var i = 0; i < picked.length; i++)
-                      _QuickActionTile<A>(
-                        action: picked[i],
-                        primary: i == 0,
-                        inline: true,
-                      ),
+                      _QuickActionTile<A>(action: picked[i], inline: true),
                   ],
                 )
               // `IntrinsicHeight` + stretch: a label that scales down to fit
@@ -157,12 +153,7 @@ class EntityQuickActions<A> extends StatelessWidget {
                     children: [
                       for (var i = 0; i < picked.length; i++) ...[
                         if (i > 0) const SizedBox(width: InSpacing.sm),
-                        Expanded(
-                          child: _QuickActionTile<A>(
-                            action: picked[i],
-                            primary: i == 0,
-                          ),
-                        ),
+                        Expanded(child: _QuickActionTile<A>(action: picked[i])),
                       ],
                     ],
                   ),
@@ -174,16 +165,9 @@ class EntityQuickActions<A> extends StatelessWidget {
 }
 
 class _QuickActionTile<A> extends StatelessWidget {
-  const _QuickActionTile({
-    required this.action,
-    this.primary = false,
-    this.inline = false,
-  });
+  const _QuickActionTile({required this.action, this.inline = false});
 
   final EntityQuickAction<A> action;
-
-  /// The strip's first action: filled with the accent.
-  final bool primary;
 
   /// Icon beside label at the button's own width, rather than icon over
   /// label in an equal share of the row.
@@ -207,24 +191,11 @@ class _QuickActionTile<A> extends StatelessWidget {
         : guardedOnTap<A>(context, item);
     final compact = ListDensityScope.isCompactOf(context);
     final enabled = handler != null;
-    final fill = primary && enabled ? tokens.accent : tokens.surface;
-    final ink = !enabled
-        ? tokens.ink3
-        : primary
-        ? tokens.onAccent
-        : tokens.ink;
-    final iconInk = !enabled
-        ? tokens.ink4
-        : primary
-        ? tokens.onAccent
-        : tokens.ink2;
+    final ink = enabled ? tokens.ink : tokens.ink3;
+    final iconInk = enabled ? tokens.ink2 : tokens.ink4;
     final shape = RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(InRadii.r2),
-      // The filled one is its own edge; a border in the card colour around
-      // the accent reads as a halo.
-      side: primary && enabled
-          ? BorderSide.none
-          : BorderSide(color: tokens.border),
+      side: BorderSide(color: tokens.border),
     );
     final icon = busy
         ? SizedBox.square(
@@ -318,7 +289,7 @@ class _QuickActionTile<A> extends StatelessWidget {
           // The colour is painted by this `Material`, not by a box above it,
           // so the ink it hosts is visible.
           child: Material(
-            color: fill,
+            color: tokens.surface,
             shape: shape,
             clipBehavior: Clip.antiAlias,
             child: InkWell(onTap: handler, child: content),

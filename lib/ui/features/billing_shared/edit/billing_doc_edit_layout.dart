@@ -21,7 +21,6 @@ import 'package:admin/ui/core/edit/entity_custom_fields_section.dart';
 import 'package:admin/ui/core/widgets/centered_form_column.dart';
 import 'package:admin/ui/core/widgets/field_action_button.dart';
 import 'package:admin/ui/core/widgets/field_label.dart';
-import 'package:admin/ui/core/widgets/form_field_pair.dart';
 import 'package:admin/ui/core/widgets/form_save_scope.dart';
 import 'package:admin/ui/core/widgets/in_date_field.dart';
 import 'package:admin/ui/core/widgets/party_money_cell.dart';
@@ -30,6 +29,7 @@ import 'package:admin/ui/features/billing_shared/billing_edit_totals.dart';
 import 'package:admin/ui/features/billing_shared/contacts/billing_doc_contacts_section.dart';
 import 'package:admin/ui/features/billing_shared/detail/billing_doc_standing.dart';
 import 'package:admin/ui/features/billing_shared/edit/billing_doc_client_picker.dart';
+import 'package:admin/ui/features/billing_shared/edit/billing_doc_details_row.dart';
 import 'package:admin/ui/features/billing_shared/edit/billing_doc_date_order.dart';
 import 'package:admin/ui/features/billing_shared/edit/billing_doc_edit_desktop_shell.dart';
 import 'package:admin/ui/features/billing_shared/edit/billing_doc_edit_fab.dart';
@@ -592,9 +592,8 @@ Decimal? _paidToDateOf(BillingDocType type, BillingDocFields draft) {
 }
 
 /// Whether [draft]'s live [balance] (the total being edited less what has
-/// been settled) is open, by the standing card's one lead rule
-/// (`billingDocLeadsWithBalance`): not zero, and not a draft, a cancelled or
-/// a reversed invoice, nor a draft credit.
+/// been settled) is open, by `billingDocLeadsWithBalance`: not zero, and not
+/// a draft, a cancelled or a reversed invoice, nor a draft credit.
 bool _balanceIsOpen(BillingDocFields draft, Decimal balance) => switch (draft) {
   final Invoice i => billingDocLeadsWithBalance(i.copyWith(balance: balance)),
   final Credit c => billingDocLeadsWithBalance(c.copyWith(balance: balance)),
@@ -689,13 +688,24 @@ Widget _customFields(
 
 // ── Desktop multi-column cards ───────────────────────────────────────
 
-/// The wide layout's details: ONE panel — the party (client or vendor, and
-/// the contacts it sends to) on the start side, the document's own fields on
-/// the end side, two to a row (`FormFieldPair`): number | PO number, date |
-/// due date (or the recurring invoice's schedule), partial | partial due
-/// date, discount | auto-bill, then the custom fields. Three cards of uneven
-/// height used to sit side by side here. Stacked where the panel is too
-/// narrow for two columns.
+/// The wide layout's details: three cards across the top, as 5.1.30 had them
+/// (docs/form-fields.md § A billing document's details are three cards
+/// across the top) —
+///
+/// 1. the party: the client or vendor picker and the contacts it sends to;
+/// 2. the dates: document date and due date (with the invoice's
+///    payment-terms presets), or the recurring invoice's schedule in their
+///    place, then the partial and — once one is set — its due date, then
+///    custom fields 1, 3;
+/// 3. the number: number, PO number (not on a purchase order, whose number
+///    IS its PO number), discount with its % / amount switch, the recurring
+///    invoice's auto-bill mode, then custom fields 2, 4.
+///
+/// Every field is one 44 px box under a label above it, the same height in
+/// every card, so the n-th fields of the three cards share a top. The cards
+/// share a height ([BillingDocDetailsRow]). Below the 1024 px body that
+/// builds this panel the editor is the tabbed layout, whose Details tab
+/// stacks the same fields.
 class _DetailsPanelDesktop<T extends BillingDocFields> extends StatefulWidget {
   const _DetailsPanelDesktop({
     required this.type,
@@ -710,9 +720,6 @@ class _DetailsPanelDesktop<T extends BillingDocFields> extends StatefulWidget {
   State<_DetailsPanelDesktop<T>> createState() =>
       _DetailsPanelDesktopState<T>();
 }
-
-/// Below this the panel stacks the party over the fields.
-const double _kDetailsTwoColumnWidth = 720;
 
 class _DetailsPanelDesktopState<T extends BillingDocFields>
     extends State<_DetailsPanelDesktop<T>> {
@@ -743,101 +750,95 @@ class _DetailsPanelDesktopState<T extends BillingDocFields>
     final vm = widget.vm;
     final type = widget.type;
     final client = type.party == BillingDocParty.client;
-    final party = Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        if (client)
-          BillingDocClientPicker(vm: vm, companyId: vm.companyId)
-        else
-          BillingDocVendorPicker(vm: vm, companyId: vm.companyId),
-        SizedBox(height: InSpacing.md(context)),
-        _PartyContacts<T>(type: type, vm: vm, dense: true),
-      ],
+    final party = _card(const ValueKey('billing-details-party'), [
+      if (client)
+        BillingDocClientPicker(vm: vm, companyId: vm.companyId)
+      else
+        BillingDocVendorPicker(vm: vm, companyId: vm.companyId),
+      SizedBox(height: InSpacing.md(context)),
+      _PartyContacts<T>(type: type, vm: vm, dense: true),
+    ]);
+    final dates = _card(
+      const ValueKey('billing-details-dates'),
+      _spaced(context, _dateFields(context), customSlots: const [1, 3]),
     );
-    final fields = _fields(context);
-    return FormSection(
-      title: null,
-      spacing: 0,
-      elevated: false,
-      children: [
-        LayoutBuilder(
-          builder: (context, constraints) {
-            if (constraints.maxWidth < _kDetailsTwoColumnWidth) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  party,
-                  SizedBox(height: InSpacing.lg(context)),
-                  fields,
-                ],
-              );
-            }
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(flex: 2, child: party),
-                const SizedBox(width: InSpacing.xl),
-                Expanded(flex: 3, child: fields),
-              ],
-            );
-          },
-        ),
-      ],
+    final number = _card(
+      const ValueKey('billing-details-number'),
+      _spaced(context, _numberFields(context), customSlots: const [2, 4]),
+    );
+    // Always three across: this panel is built only from a 1024 px body
+    // (below it the editor is the tabbed layout), so each card has at least
+    // ~320 px — room for the discount and its switch side by side.
+    return BillingDocDetailsRow(
+      gap: InSpacing.lg(context),
+      children: [party, dates, number],
     );
   }
 
-  Widget _fields(BuildContext context) {
+  /// One of the three cards; `FormSection`'s own bottom padding is the gap
+  /// under the row.
+  Widget _card(Key key, List<Widget> children) => FormSection(
+    key: key,
+    title: null,
+    spacing: 0,
+    elevated: false,
+    children: [
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: children,
+      ),
+    ],
+  );
+
+  /// [fields] one under another, the same gap after each, then the card's
+  /// half of the custom fields.
+  List<Widget> _spaced(
+    BuildContext context,
+    List<Widget> fields, {
+    required List<int> customSlots,
+  }) => [
+    for (final field in fields) ...[
+      field,
+      SizedBox(height: InSpacing.md(context)),
+    ],
+    _customFields(context, widget.vm, slots: customSlots),
+  ];
+
+  /// The dates card: date and due date (or the schedule), the partial and its
+  /// due date.
+  List<Widget> _dateFields(BuildContext context) {
     final vm = widget.vm;
     final type = widget.type;
     final fmt = context.read<Services>().formatterIfReady(vm.companyId);
     final partialVm = type.hasPartial ? _partialSetters(vm) : null;
-    final autoBillMode = widget.slots.autoBillMode;
     final scheduleFields = widget.slots.scheduleFields;
     final dateErrors = _dateOrderErrorText(context, type, vm);
-
-    Widget pair(Widget start, [Widget? end]) => FormFieldPair(
-      minPairWidth: kAddressPairWidth,
-      left: start,
-      right: end ?? const SizedBox.shrink(),
-    );
-
-    final number = LabeledField(
-      label: context.tr(type.desktopNumberLabelKey),
-      child: TextField(
-        controller: _number,
-        decoration: billingFieldDecoration(
-          context,
-          label: context.tr(type.desktopNumberLabelKey),
-          hint: vm.isCreate ? context.tr('auto_generated') : null,
-          errorText: vm.fieldErrorFor('number'),
+    return [
+      if (type.dateLabelKey != null) ...[
+        InDateField(
+          value: vm.draft.date?.toDateTime(),
+          formatter: fmt,
+          onChanged: _onDate(vm.setDate),
+          labelText: context.tr(type.dateLabelKey!),
         ),
-        onChanged: vm.setNumber,
-        autocorrect: false,
-        textInputAction: TextInputAction.done,
-        onSubmitted: _saveOnEnter(context),
-      ),
-    );
-    final poNumber = type.hasPoNumberField
-        ? LabeledField(
-            label: context.tr('po_number'),
-            child: TextField(
-              controller: _poNumber,
-              decoration: billingFieldDecoration(
-                context,
-                label: context.tr('po_number'),
-                errorText: vm.fieldErrorFor('po_number'),
-              ),
-              onChanged: vm.setPoNumber,
-              autocorrect: false,
-              textInputAction: TextInputAction.done,
-              onSubmitted: _saveOnEnter(context),
-            ),
-          )
-        : null;
-
-    final tail = <Widget>[
+        _withPaymentTerms(
+          context,
+          type,
+          vm,
+          fmt,
+          InDateField(
+            value: vm.draft.dueDate?.toDateTime(),
+            formatter: fmt,
+            onChanged: _onDate(vm.setDueDate),
+            labelText: context.tr(type.dueDateLabelKey ?? 'due_date'),
+            clearable: true,
+            errorText: dateErrors['due_date'],
+            helperText: _dueDaysHint(context, type, vm),
+          ),
+        ),
+      ],
+      ...?scheduleFields?.call(context),
       if (partialVm != null)
         LabeledField(
           label: context.tr('partial'),
@@ -854,7 +855,8 @@ class _DetailsPanelDesktopState<T extends BillingDocFields>
             onSubmitted: _saveOnEnter(context),
           ),
         ),
-      // Its due date only once a partial is set.
+      // Its due date only once a partial is set — under the partial, so
+      // typing the first digit never moves the field being typed in.
       if (partialVm != null && _partialOf(type, vm.draft) > Decimal.zero)
         InDateField(
           value: _partialDueDateOf(vm.draft)?.toDateTime(),
@@ -865,64 +867,49 @@ class _DetailsPanelDesktopState<T extends BillingDocFields>
           errorText: dateErrors['partial_due_date'],
           helperText: _dueDaysHint(context, type, vm, partial: true),
         ),
-      _DiscountRow<T>(type: type, vm: vm, controller: _discount, desktop: true),
-      ?autoBillMode?.call(context, desktop: true),
     ];
-    final rows = <Widget>[
-      pair(number, poNumber),
-      if (type.dateLabelKey != null)
-        pair(
-          InDateField(
-            value: vm.draft.date?.toDateTime(),
-            formatter: fmt,
-            onChanged: _onDate(vm.setDate),
-            labelText: context.tr(type.dateLabelKey!),
-          ),
-          _withPaymentTerms(
+  }
+
+  /// The number card: number, PO number, discount, auto-bill.
+  List<Widget> _numberFields(BuildContext context) {
+    final vm = widget.vm;
+    final type = widget.type;
+    return [
+      LabeledField(
+        label: context.tr(type.desktopNumberLabelKey),
+        child: TextField(
+          controller: _number,
+          decoration: billingFieldDecoration(
             context,
-            type,
-            vm,
-            fmt,
-            InDateField(
-              value: vm.draft.dueDate?.toDateTime(),
-              formatter: fmt,
-              onChanged: _onDate(vm.setDueDate),
-              labelText: context.tr(type.dueDateLabelKey ?? 'due_date'),
-              clearable: true,
-              errorText: dateErrors['due_date'],
-              helperText: _dueDaysHint(context, type, vm),
+            label: context.tr(type.desktopNumberLabelKey),
+            hint: vm.isCreate ? context.tr('auto_generated') : null,
+            errorText: vm.fieldErrorFor('number'),
+          ),
+          onChanged: vm.setNumber,
+          autocorrect: false,
+          textInputAction: TextInputAction.done,
+          onSubmitted: _saveOnEnter(context),
+        ),
+      ),
+      if (type.hasPoNumberField)
+        LabeledField(
+          label: context.tr('po_number'),
+          child: TextField(
+            controller: _poNumber,
+            decoration: billingFieldDecoration(
+              context,
+              label: context.tr('po_number'),
+              errorText: vm.fieldErrorFor('po_number'),
             ),
+            onChanged: vm.setPoNumber,
+            autocorrect: false,
+            textInputAction: TextInputAction.done,
+            onSubmitted: _saveOnEnter(context),
           ),
         ),
-      if (scheduleFields != null)
-        ...pairFields(scheduleFields(context), minPairWidth: kAddressPairWidth),
-      // Partial, its due date (once a partial is set), discount and auto-bill
-      // flow two to a row in that order, so a field whose partner isn't shown
-      // sits beside the next one instead of alone at half width: with no
-      // partial due date the deposit and the discount share a row. The
-      // partial keeps the first slot either way, so typing its first digit
-      // (which reveals its due date) never moves the field being typed in.
-      ...[
-        for (var i = 0; i < tail.length; i += 2)
-          pair(tail[i], i + 1 < tail.length ? tail[i + 1] : null),
-      ],
+      _DiscountRow<T>(type: type, vm: vm, controller: _discount, desktop: true),
+      ?widget.slots.autoBillMode?.call(context, desktop: true),
     ];
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        for (final row in rows) ...[
-          row,
-          SizedBox(height: InSpacing.md(context)),
-        ],
-        // The four slots two to a row, in the halves the three cards used
-        // to split them: 1 | 2, 3 | 4.
-        pair(
-          _customFields(context, vm, slots: const [1, 3]),
-          _customFields(context, vm, slots: const [2, 4]),
-        ),
-      ],
-    );
   }
 }
 
@@ -1171,8 +1158,14 @@ class _DiscountRow<T extends BillingDocFields> extends StatelessWidget {
     // platform density and text size), so the two read as one control. With
     // the label over the field alone, centring left the toggle half a label
     // too high and its own height a few pixels off the field's.
+    //
+    // `padded: true`: `LabeledField` adds the 8 px above and below only for a
+    // bare Material field it recognises, and this child is the row — so the
+    // discount sat 8 px higher than the partial beside or above it
+    // (Hillel, 2026-11-17: "partial and deposit aren't aligned").
     return LabeledField(
       label: context.tr('discount'),
+      padded: true,
       child: IntrinsicHeight(
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,

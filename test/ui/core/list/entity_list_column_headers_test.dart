@@ -1,4 +1,5 @@
 import 'package:drift/native.dart';
+import 'package:flutter/gestures.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -14,6 +15,7 @@ import 'package:admin/domain/columns/custom_field_columns.dart';
 import 'package:admin/domain/entity_state.dart';
 import 'package:admin/domain/entity_type.dart';
 import 'package:admin/ui/core/list/entity_list_column_headers.dart';
+import 'package:admin/ui/core/list/entity_list_constants.dart';
 import 'package:admin/ui/core/list/generic_list_view_model.dart';
 import 'package:admin/ui/core/list/list_density_scope.dart';
 import 'package:admin/ui/core/widgets/selection_checkbox.dart';
@@ -173,12 +175,33 @@ void main() {
   });
 
   group('the select-all checkbox', () {
-    testWidgets('is drawn at rest with a pointer — the one visible sign that '
-        'rows can be ticked', (tester) async {
+    // 5.1.30's behaviour, restored in Nov 2026 (docs/entity-lists.md § The
+    // header's select-all is hover-revealed, as in 5.1.30).
+    testWidgets('is empty at rest with a pointer, and a hover reveals it', (
+      tester,
+    ) async {
       final vm = await pump(tester, company: const Company());
       expect(vm.items, isNotEmpty);
+      expect(find.byType(SelectionCheckbox), findsNothing);
+
+      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      addTearDown(mouse.removePointer);
+      await mouse.addPointer(location: Offset.zero);
+      final header = find.byType(EntityListColumnHeaders<_Row>);
+      final topLeft = tester.getTopLeft(header);
+      // The select-all slot follows the 16 px padding and the actions slot.
+      await mouse.moveTo(
+        topLeft +
+            Offset(
+              16 +
+                  colWMoreMenu() +
+                  kColActionsLeadingGap +
+                  kColLeadingWidth / 2,
+              tester.getSize(header).height / 2,
+            ),
+      );
+      await tester.pumpAndSettle();
       expect(find.byType(SelectionCheckbox), findsOneWidget);
-      expect(find.byTooltip('Select all visible'), findsOneWidget);
       await tester.tap(find.byType(SelectionCheckbox));
       await tester.pumpAndSettle();
       expect(vm.isInMultiselect, isTrue);
@@ -205,12 +228,26 @@ void main() {
     double height(WidgetTester tester) =>
         tester.getSize(find.byType(EntityListColumnHeaders<_Row>)).height;
 
-    testWidgets('the strip is 37 px with a pointer, against 41', (
+    testWidgets('the strip is 37 px with a pointer, against 5.1.30\'s 57', (
       tester,
     ) async {
-      // 4 + the 32 px select-all slot + 4 + the 1 px rule, then 2 + 32 + 2 + 1.
+      // 12 + the 32 px select-all slot + 12 + the 1 px rule, then
+      // 2 + 32 + 2 + 1.
       await pump(tester, company: const Company());
-      expect(height(tester), 41);
+      expect(height(tester), 57);
+      // 5.1.30's band: a surfaceAlt fill at both densities.
+      final band = tester.widget<Container>(
+        find
+            .descendant(
+              of: find.byType(EntityListColumnHeaders<_Row>),
+              matching: find.byType(Container),
+            )
+            .first,
+      );
+      expect(
+        (band.decoration! as BoxDecoration).color,
+        InTheme.light.surfaceAlt,
+      );
       await pump(tester, company: const Company(), density: compact);
       expect(height(tester), 37);
     }, variant: TargetPlatformVariant.only(TargetPlatform.macOS));

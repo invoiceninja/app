@@ -9,8 +9,9 @@ import 'package:admin/ui/core/widgets/toast_host.dart';
 /// (invoice / quote / credit / purchase_order / recurring_invoice).
 ///
 /// Layout from top to bottom:
-/// 1. The details panel: the party and its contacts beside the document's
-///    own fields (`BillingDocEditLayout`'s `_DetailsPanelDesktop`).
+/// 1. The details: three cards across the top — the party and its
+///    contacts, the dates, the number and discount
+///    (`BillingDocEditLayout`'s `_DetailsPanelDesktop`).
 /// 2. Items section: the host's `LineItemEditor` (full-width, inline
 ///    edit table on desktop).
 /// 3. Bottom row: a tabbed notes/terms/footer/eInvoice card on the

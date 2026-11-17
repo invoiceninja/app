@@ -16,28 +16,36 @@ import 'package:admin/ui/features/dashboard/widgets/dashboard_figures.dart';
 import 'package:admin/ui/features/dashboard/widgets/delta_chip.dart';
 import 'package:admin/utils/formatting.dart';
 
-/// Content width from which every summary card shares one row. Measured on the
-/// row's own width, not the window: a 1280 px window leaves ~1000 px of
-/// content beside the sidebar, and a threshold of 1024 put the figures on two
-/// rows there.
-const double kFiguresOneRowWidth = 880;
+/// The width one figure needs: Outstanding and the period cells share a row
+/// once the row gives each this much. Measured on the row's own width, not
+/// the window: a 1280 px window leaves ~1000 px of content beside the
+/// sidebar, and a threshold of 1024 put the figures on two rows there.
+const double kFigureMinWidth = 220;
 
-/// Content width from which the cards go two to a row; below it, one.
-const double kFiguresTwoPerRowWidth = 440;
+/// Content width from which Outstanding and all three period figures share
+/// one row — see [figuresShareRow].
+const double kFiguresOneRowWidth = kFigureMinWidth * 4;
 
-/// The dashboard's figures on a wide screen: four cards in one layout —
-/// **Outstanding**, what is unpaid today with its aging bar, then
-/// **Invoiced · Payments · Expenses** for the selected period, each with its
-/// change against the compared period the row above names.
+/// Whether Outstanding and [periodCount] period figures fit one row at
+/// [width]: 880 px for all three, 660 with Expenses off.
+bool figuresShareRow(double width, int periodCount) =>
+    width >= kFigureMinWidth * (periodCount + 1);
+
+/// The dashboard's figures on a wide screen: **Outstanding**, what is unpaid
+/// today with its aging bar, as a card of its own; then
+/// **Invoiced · Payments · Expenses** for the selected period as the cells of
+/// one shared card ([PeriodSummaryGroup]), each with its change against the
+/// compared period the row above names.
 ///
 /// Outstanding is a balance as of now and ignores the date range; the other
-/// three are flows inside it. They share a layout — label (↗ only on a link),
-/// value, footer — so the eye reads four answers, not two kinds of card.
-/// Expenses is drawn only with the module on, and is never a link.
+/// three are flows inside it, from one request — so they are grouped, as
+/// 5.1.30 grouped them. Cells and card share a layout — label (↗ only on a
+/// link), value, footer — so the eye reads four answers. Expenses is drawn
+/// only with the module on, and is never a link; the two left stay grouped.
 ///
-/// Four (or three) to a row from [kFiguresOneRowWidth], two to a row from
-/// [kFiguresTwoPerRowWidth] — with an odd count Outstanding takes the first
-/// row alone, so the pairs under it are even — and one to a row below that.
+/// One row when [figuresShareRow] (the group takes a share per cell, so a
+/// cell is as wide as Outstanding); below it Outstanding takes a row and the
+/// group the row under it, its cells still side by side, as on a phone.
 /// The `LayoutBuilder` measuring that is the row's root; nothing under the
 /// `IntrinsicHeight` rows it builds is measured by one.
 ///
@@ -73,88 +81,54 @@ class KpiRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cards = <Widget>[
-      buildOutstandingCard(
-        context,
-        vm: vm,
-        formatter: formatter,
-        attention: attention,
-        onTap: onOutstandingTap,
-        valueFontSize: dashboardDense(context) ? 20 : 24,
-      ),
-      ...buildPeriodSummaryCards(
-        context,
-        vm: vm,
-        formatter: formatter,
-        showExpenses: showExpenses,
-        onInvoicesTap: onInvoicesTap,
-        onPaidTap: onPaidTap,
-      ),
-    ];
+    final outstanding = buildOutstandingCard(
+      context,
+      vm: vm,
+      formatter: formatter,
+      attention: attention,
+      onTap: onOutstandingTap,
+      valueFontSize: dashboardDense(context) ? 20 : 24,
+    );
+    final periods = buildPeriodSummaryGroup(
+      context,
+      vm: vm,
+      formatter: formatter,
+      showExpenses: showExpenses,
+      onInvoicesTap: onInvoicesTap,
+      onPaidTap: onPaidTap,
+    );
     final gap = dashboardDense(context)
         ? InSpacing.md(context)
         : InSpacing.lg(context);
     return LayoutBuilder(
       builder: (context, constraints) {
-        final width = constraints.maxWidth;
-        final perRow = width >= kFiguresOneRowWidth
-            ? cards.length
-            : width >= kFiguresTwoPerRowWidth
-            ? 2
-            : 1;
-        final rows = figureRows(cards.length, perRow);
-        var next = 0;
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (var r = 0; r < rows.length; r++) ...[
-              if (r > 0) SizedBox(height: gap),
-              _row([for (var i = 0; i < rows[r]; i++) cards[next++]], gap),
+        if (!figuresShareRow(constraints.maxWidth, periods.figures.length)) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              outstanding,
+              SizedBox(height: gap),
+              periods,
             ],
-          ],
+          );
+        }
+        // Stretched so the cards end on one line, and their footers with
+        // them; the group's flex is its cell count, so each cell is about
+        // as wide as Outstanding.
+        return IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(child: outstanding),
+              SizedBox(width: gap),
+              Expanded(flex: periods.figures.length, child: periods),
+            ],
+          ),
         );
       },
     );
   }
-
-  Widget _row(List<Widget> cards, double gap) {
-    if (cards.length == 1) return cards.single;
-    // Stretched so the cards end on one line, and their footers with them.
-    return IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          for (var i = 0; i < cards.length; i++) ...[
-            if (i > 0) SizedBox(width: gap),
-            Expanded(child: cards[i]),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-/// How [count] cards are laid out at [perRow] to a row: the size of each row,
-/// in order. With an odd count over rows of two, the first card — Outstanding
-/// — takes a row alone, so the rest pair up evenly instead of leaving a
-/// half-empty last row.
-List<int> figureRows(int count, int perRow) {
-  if (count <= 0) return const [];
-  if (perRow <= 1) return List.filled(count, 1);
-  if (perRow >= count) return [count];
-  final rows = <int>[];
-  var left = count;
-  if (perRow == 2 && count.isOdd) {
-    rows.add(1);
-    left--;
-  }
-  while (left > 0) {
-    final n = left < perRow ? left : perRow;
-    rows.add(n);
-    left -= n;
-  }
-  return rows;
 }
 
 /// What Outstanding's footer calls past due — **the band's definition**: an
@@ -254,7 +228,7 @@ OutstandingFigureCard buildOutstandingCard(
 }
 
 /// The three period figures — Invoiced, Payments, Expenses — for [vm], read
-/// once for the phone's single card and the wide row's three.
+/// once for the phone's card and the wide row's group.
 List<PeriodFigure> _periodFigures(
   BuildContext context, {
   required DashboardViewModel vm,
@@ -316,8 +290,8 @@ List<PeriodFigure> _periodFigures(
   ];
 }
 
-/// The period figures as cards of their own, for the wide row.
-List<PeriodSummaryCard> buildPeriodSummaryCards(
+/// The period figures as the cells of one card, for the wide row.
+PeriodSummaryGroup buildPeriodSummaryGroup(
   BuildContext context, {
   required DashboardViewModel vm,
   required Formatter formatter,
@@ -337,19 +311,14 @@ List<PeriodSummaryCard> buildPeriodSummaryCards(
   // A trend needs a compared period ("All time" has none) whose figures are
   // in hand.
   final compares = vm.comparison != null && vm.totalsPrevious.data != null;
-  final dense = dashboardDense(context);
-  return [
-    for (final figure in figures)
-      PeriodSummaryCard(
-        figure: figure,
-        state: vm.totals.valueState,
-        compares: compares,
-        // The three fail together, but each card is its own surface: a retry
-        // on each is one tap wherever the eye lands.
-        onRetry: () => vm.retry(DashboardKind.totalsCurrent),
-        valueFontSize: dense ? 20 : 24,
-      ),
-  ];
+  return PeriodSummaryGroup(
+    figures: figures,
+    state: vm.totals.valueState,
+    compares: compares,
+    // The three fail together, on one surface: one retry, in its corner.
+    onRetry: () => vm.retry(DashboardKind.totalsCurrent),
+    valueFontSize: dashboardDense(context) ? 20 : 24,
+  );
 }
 
 /// The period card for [vm] — one card, three cells: the phone's form.

@@ -102,3 +102,14 @@ The real fix is a keyset cursor on the `reactv2` branch (BACKEND.md § F3f), whi
 - It used to re-fetch the newest window instead and let the merge drop the vanished row. A window deeper than that fetch (≥ ~1000 rows) carried every older row over, the vanished one included, so every Load more 422'd on the same row and the button never went away.
 
 **Tests:** `activity_window_test` › paging back with the cursor, `dashboard_repository_test` › loadOlderActivities, `activity_view_model_test` › load more.
+
+## The feed sits in a white panel
+
+**The `/activity` feed draws its rows in the white panel a standalone list does (`ContentPanel`, `docs/tasks-views.md` § The time views sit in a white panel), at the screen's own `InSpacing.lg` gutter so its edges line up with the header strip and the chart card.**
+
+- **Narrow: one panel holds the compact chart and the feed**, with the chart's rule between them. Two stacked cards would spend a phone's height on a second pair of margins. The header strip's rule went: the freshness line is the caption over the panel, the way a list's count sits over its rows. The panel starts flush under the strip (`top: 0`) and owns the bottom safe inset.
+- **Rail (≥ 1000 px): the chart keeps its `DashboardCardShell` and the feed gets a panel of its own** under it, `InSpacing.lg` from the chart card and from the pane's bottom. The rule under the header strip stays there, because it joins the filter rail's start border.
+- **The skeleton loads inside the panel**, so the rows do not jump into a card when the data lands; **an error or an empty window keeps its bare state on the page**, no panel, as an empty list does (on a narrow pane the panel still shows when the chart does, since the chart is in it).
+- **Pull-to-refresh is unchanged**: the `RefreshIndicator` wraps the feed inside the panel, and the feed's controller-less `ListView` keeps its default `AlwaysScrollableScrollPhysics`.
+
+Pinned in `activity_screen_test.dart` › white panel.

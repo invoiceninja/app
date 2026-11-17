@@ -150,6 +150,10 @@ class _ProjectQuickAddTaskState extends State<ProjectQuickAddTask> {
           isDense: true,
           hintText: context.tr('new_task'),
           prefixIcon: Icon(Icons.add, size: 18, color: tokens.ink3),
+          // Not the default 48 px square, which made the field 3 px taller
+          // than the search field under it. Neither icon is a button.
+          prefixIconConstraints: const BoxConstraints(minWidth: 40),
+          suffixIconConstraints: const BoxConstraints(minWidth: 24),
           // The app's Enter glyph, on a keyboard-first device only — it says
           // "press Enter" to someone who has one.
           suffixIcon: Env.isTouchPrimary
@@ -166,31 +170,51 @@ class _ProjectQuickAddTaskState extends State<ProjectQuickAddTask> {
                     ),
                   ),
                 ),
-          border: const OutlineInputBorder(),
+          // The app's field border, at the edit fields' radius — the theme's
+          // fill and padding apply as on every other field. It was a bare
+          // `OutlineInputBorder()`, which drew Material's own dark outline at
+          // radius 4 above a search field in the light card border.
+          border: inFieldBorder(tokens, radius: InRadii.r1),
+          // As tall as the list's search field right under it, on touch too:
+          // the theme's 12 px padding made it 48 there, and the two boxes
+          // stacked in one card read as two sizes.
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 14,
+            vertical: 10,
+          ),
+          constraints: const BoxConstraints(minHeight: InSizes.headerRow),
         ),
       ),
     );
-    return Row(
-      children: [
-        Expanded(child: field),
-        SizedBox(width: InSpacing.md(context)),
-        OutlinedButton.icon(
-          key: const Key('project_quick_add_start'),
-          // Disabled while a create is in flight: a second tap would start a
-          // second running task.
-          onPressed: _busy ? null : () => _create(start: true),
-          // The app's one Start glyph (flutter#153), as on every task surface.
-          icon: const Icon(Icons.play_circle_outlined, size: 18),
-          label: Text(context.tr('start')),
-          // In a Row the theme's infinite-width minimum would crash it. As
-          // tall as the field beside it — 40 with a pointer, a touch target
-          // on touch — so no density takes 8 off it.
-          style: OutlinedButton.styleFrom(
-            minimumSize: Size(64, Env.isTouchPrimary ? 48 : 40),
-            visualDensity: VisualDensity.standard,
+    // Stretch: Start takes the field's height, whatever the platform's
+    // density or the text scale makes it.
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(child: field),
+          SizedBox(width: InSpacing.md(context)),
+          OutlinedButton.icon(
+            key: const Key('project_quick_add_start'),
+            // Disabled while a create is in flight: a second tap would start a
+            // second running task.
+            onPressed: _busy ? null : () => _create(start: true),
+            // The app's one Start glyph (flutter#153), as on every task surface.
+            icon: const Icon(Icons.play_circle_outlined, size: 18),
+            label: Text(context.tr('start')),
+            // In a Row the theme's infinite-width minimum would crash it; the
+            // stretch above sets its height, the field's 45 — itself a touch
+            // target. `shrinkWrap`: the padded 48 px tap target on iOS and
+            // Android made the button the taller child, and the stretch then
+            // grew the field to match.
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size(64, 36),
+              visualDensity: VisualDensity.standard,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

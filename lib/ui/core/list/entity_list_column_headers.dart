@@ -1,7 +1,6 @@
 import 'package:material_ui/material_ui.dart';
 
 import 'package:admin/app/design_tokens.dart';
-import 'package:admin/app/env.dart';
 import 'package:admin/domain/columns/column_definition.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/list/entity_list_constants.dart';
@@ -31,16 +30,18 @@ class EntityListColumnHeaders<T> extends StatelessWidget {
       color: tokens.ink3,
     );
     return Container(
-      // A rule under the labels and no fill: the header is a caption for
-      // the columns, not a band of its own (the list designs' 36 px header).
+      // 5.1.30's header band: a `surfaceAlt` fill with a rule under it
+      // (restored in Nov 2026 after a fill-less caption redesign).
       decoration: BoxDecoration(
+        color: tokens.surfaceAlt,
         border: Border(bottom: BorderSide(color: tokens.border)),
       ),
-      // 4 at the Normal list density; 2 at Compact (docs/list-density.md).
-      // The 32 px select-all slot sets the rest of the height.
+      // 12 at the Comfortable list density (5.1.30's); 2 at Compact
+      // (docs/list-density.md). The 32 px select-all slot sets the rest of
+      // the height.
       padding: ListDensityScope.isCompactOf(context)
           ? const EdgeInsetsDirectional.fromSTEB(16, 2, 16, 2)
-          : const EdgeInsetsDirectional.fromSTEB(16, 4, 16, 4),
+          : const EdgeInsetsDirectional.fromSTEB(16, 12, 16, 12),
       child: Row(
         children: [
           // Leading actions slot — empty label, mirrors row's `…` menu.
@@ -142,16 +143,11 @@ class _HeaderCell<T> extends StatelessWidget {
   }
 }
 
-/// The wide-mode column header's leading slot: the select-all checkbox.
-///
-/// With a pointer it is always drawn (empty) while the list has rows — the
-/// one visible sign that rows can be ticked at all, since each row's own
-/// checkbox stays hover-revealed in its leading slot. On touch the slot stays
-/// empty until multi-select (a 32 px box is under the touch target, and a
-/// long-press or the toolbar's Select is the way in there). While in
-/// multi-select the checkbox is always visible and reflects whether *every*
-/// visible row is selected — clicking it then toggles between "select all"
-/// and "clear".
+/// The wide-mode column header's leading slot. Empty at rest (5.1.30's
+/// behaviour, restored in Nov 2026 after an always-drawn circle); hovering it
+/// with a pointer reveals an empty select-all checkbox. While in multi-select
+/// the checkbox is always visible and reflects whether *every* visible row is
+/// selected — clicking it then toggles between "select all" and "clear".
 class _HeaderSelectAllSlot<T> extends StatefulWidget {
   const _HeaderSelectAllSlot({required this.vm});
   final GenericListViewModel<T> vm;
@@ -185,7 +181,7 @@ class _HeaderSelectAllSlotState<T> extends State<_HeaderSelectAllSlot<T>> {
           vm.selectAllVisible();
         }
       };
-    } else if ((_isHovered || !Env.isTouchPrimary) && vm.items.isNotEmpty) {
+    } else if (_isHovered && vm.items.isNotEmpty) {
       child = const SelectionCheckbox(checked: false);
       onTap = vm.selectAllVisible;
     } else {

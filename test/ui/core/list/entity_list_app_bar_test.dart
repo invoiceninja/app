@@ -27,10 +27,7 @@ import '../../../_localization_helper.dart';
 import 'search/_token_search_harness.dart';
 
 const _bodyKey = Key('body');
-// The search field has its row to itself now, so this is narrower than a
-// desktop window: three chips must still wrap to a second line, as they did
-// beside the New / Columns / Views buttons at 1100, on every platform.
-const _surface = Size(600, 700);
+const _surface = Size(1100, 700);
 
 void main() {
   late AppDatabase db;
@@ -124,36 +121,57 @@ void main() {
     await tester.pump();
   }
 
-  headerTest('with nothing wrapped it is the title row over one search row, '
-      'on every platform', (tester) async {
+  headerTest('with nothing wrapped it is the shared band, on every platform', (
+    tester,
+  ) async {
     final vm = newHarnessVm(db);
     await pumpHeader(tester, vm: vm, selecting: ValueNotifier(false));
 
-    final floor = EntityListAppBar.minExtentFor(wide: true);
-    expect(floor, InSizes.headerBand + 8 + InSizes.headerRow);
-    expect(tester.getSize(header()).height, floor);
-    expect(tester.getTopLeft(find.byKey(_bodyKey)).dy, floor);
-    // The title row leads, the field has the row below to itself.
-    final title = tester.getRect(find.text('Clients'));
+    expect(tester.getSize(header()).height, InSizes.headerBand);
+    expect(tester.getTopLeft(find.byKey(_bodyKey)).dy, InSizes.headerBand);
+    // The box is exactly the header row, with the band's 12 px either side.
     final box = tester.getRect(field());
-    expect(title.bottom, lessThan(box.top));
-    expect(box.top, 12 + InSizes.headerRow + 8);
+    expect(box.top, 12);
     expect(box.height, InSizes.headerRow);
-    // Columns / Views / New sit on the title row, not beside the field.
-    expect(tester.getRect(columns()).bottom, lessThan(box.top));
-    expect(
-      tester.getRect(find.widgetWithText(FilledButton, 'New Client')).bottom,
-      lessThan(box.top),
-    );
 
     // One chip still fits one line — it used to overrun the box on touch,
     // where its ✕ was padded to 40 px square.
     await seed(tester, vm, {'a'});
-    expect(tester.getSize(header()).height, floor);
+    expect(tester.getSize(header()).height, InSizes.headerBand);
     final chip = tester.getRect(find.byType(FilterTokenChip));
     final boxNow = tester.getRect(field());
     expect(chip.top, greaterThanOrEqualTo(boxNow.top));
     expect(chip.bottom, lessThanOrEqualTo(boxNow.bottom));
+  });
+
+  // 5.1.30's desktop header, restored in Nov 2026 after a title-row redesign
+  // (docs/entity-lists.md § A wide list's header is one toolbar row): New
+  // leads at the start edge, the field fills the row, Columns and Views end
+  // it — all on one line, with no title.
+  headerTest('the wide row is New, the search field, Columns, Views — in that '
+      'order, on one line, with no title', (tester) async {
+    final vm = newHarnessVm(db);
+    await pumpHeader(tester, vm: vm, selecting: ValueNotifier(false));
+
+    final newButton = tester.getRect(
+      find.widgetWithText(FilledButton, 'New Client'),
+    );
+    final box = tester.getRect(field());
+    final cols = tester.getRect(columns());
+    final views = tester.getRect(find.widgetWithText(OutlinedButton, 'Views'));
+    // New sits at the 24 px start gutter, before everything else.
+    expect(newButton.left, 24);
+    expect(newButton.right, lessThan(box.left));
+    expect(box.right, lessThan(cols.left));
+    expect(cols.right, lessThan(views.left));
+    // Views ends the row at the 24 px end gutter.
+    expect(views.right, _surface.width - 24);
+    // One line: every control is centred on the field's first line.
+    for (final r in [newButton, cols, views]) {
+      expect(r.center.dy, closeTo(box.center.dy, 0.5));
+    }
+    // No title on a wide list — the sidebar names it.
+    expect(find.text('Clients'), findsNothing);
   });
 
   headerTest('grows when the chips wrap, and the body follows in the same '
@@ -169,7 +187,7 @@ void main() {
     final bar = tester.getRect(header());
     final box = tester.getRect(field());
     final input = tester.getRect(find.byType(TextField));
-    expect(bar.height, greaterThan(EntityListAppBar.minExtentFor(wide: true)));
+    expect(bar.height, greaterThan(InSizes.headerBand));
     expect(tester.getTopLeft(find.byKey(_bodyKey)).dy, bar.bottom);
     // Everything the box holds is inside the box, and the box inside the bar.
     for (final e in find.byType(FilterTokenChip).evaluate()) {
@@ -277,18 +295,17 @@ void main() {
     tester,
   ) async {
     final vm = newHarnessVm(db);
-    // Room for the title row and one search row, no more.
-    final floor = EntityListAppBar.minExtentFor(wide: true);
+    // Room for the band and no more.
     await pumpHeader(
       tester,
       vm: vm,
       selecting: ValueNotifier(false),
-      maxExtent: floor,
+      maxExtent: InSizes.headerBand,
     );
     await seed(tester, vm, {'a', 'b', 'c'});
 
     final bar = tester.getRect(header());
-    expect(bar.height, floor);
+    expect(bar.height, InSizes.headerBand);
     expect(tester.getTopLeft(find.byKey(_bodyKey)).dy, bar.bottom);
     // Nothing is painted outside the box: every chip that can be hit is
     // inside it. (The old header left them over the list.)
@@ -301,8 +318,8 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  headerTest('the subtitle line sits under the title, wide and narrow, and '
-      'costs the wide header no height', (tester) async {
+  headerTest('the outstanding line draws under the narrow title, and a wide '
+      'header has no line at all', (tester) async {
     const line = OutstandingLineText(
       key: Key('subtitle'),
       label: 'Outstanding',
@@ -315,14 +332,8 @@ void main() {
       selecting: ValueNotifier(false),
       subtitle: line,
     );
-    final title = tester.getRect(find.text('Clients'));
-    final sub = tester.getRect(find.byKey(const Key('subtitle')));
-    expect(sub.top, greaterThanOrEqualTo(title.bottom));
-    expect(sub.bottom, lessThanOrEqualTo(tester.getRect(field()).top));
-    expect(
-      tester.getSize(header()).height,
-      EntityListAppBar.minExtentFor(wide: true),
-    );
+    expect(find.byKey(const Key('subtitle')), findsNothing);
+    expect(tester.getSize(header()).height, InSizes.headerBand);
     await tester.pump(const Duration(seconds: 1));
 
     final narrowVm = newHarnessVm(db);

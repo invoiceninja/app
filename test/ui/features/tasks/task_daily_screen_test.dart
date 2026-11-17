@@ -11,6 +11,8 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:admin/ui/core/widgets/content_panel.dart';
+import 'package:admin/ui/core/widgets/empty_state.dart';
 import 'package:admin/ui/features/tasks/views/task_daily_screen.dart';
 
 import '../shell/_shell_test_helpers.dart';
@@ -59,6 +61,17 @@ void main() {
         expect(find.text('Log Time'), findsNothing);
         expect(find.byTooltip('Log Time'), findsNothing);
         expect(find.byTooltip('Duplicate Yesterday'), findsNothing);
+        await _disposeTree(tester);
+      });
+
+      testWidgets('an empty day keeps its bare state, with no panel', (
+        tester,
+      ) async {
+        // The rows sit in the white panel a standalone list draws them in;
+        // an empty day is an `EmptyState` on the page, as an empty list is.
+        await pumpDaily(tester, company: admin, window: window);
+        expect(find.byType(EmptyState), findsOneWidget);
+        expect(find.byType(ContentPanelCard), findsNothing);
         await _disposeTree(tester);
       });
 

@@ -48,38 +48,48 @@ const double kColActionsClusterGap = InSpacing.sm;
 /// all read this, and they must stay in lockstep or the table misaligns.
 ///
 /// * touch:   44 + 8 + 44 = **96**, exactly the cluster.
-/// * pointer: the `⋮` alone, 32 + 8 px of slack = **40**. Edit is the menu's
-///   first item there (`EntityActionsPopupButton`); the pencil beside it cost
-///   every list 40 px of its first column.
+/// * pointer: 32 + 8 + 32 = 72, held at **80** — 8 px of deliberate slack, so
+///   fixing the mobile overflow didn't shift every desktop table's columns.
+///   (A Nov 2026 build folded Edit into the menu with a mouse and cut this
+///   to 40; 5.1.30's pencil and slot came back the same month.)
 ///
 /// A function, not a `const` or a top-level `final`: a `final` would freeze
 /// the first-read platform for the whole test process and make any
 /// `debugDefaultTargetPlatformOverride` test order-dependent.
 double colWMoreMenu() =>
-    Env.isTouchPrimary ? actionButtonSize() * 2 + kColActionsClusterGap : 40;
+    Env.isTouchPrimary ? actionButtonSize() * 2 + kColActionsClusterGap : 80;
 
 /// Width of the avatar / select-all checkbox slot.
 const double kColLeadingWidth = 32;
 
-/// Stable minimum height for every entity-list row at the **Normal** list
+/// Stable minimum height for a narrow entity-list row, an embedded list's row
+/// and a record screen's list-like row at the **Normal** (Comfortable) list
 /// density. Read it through [entityListRowHeight], which also answers for
-/// Compact — never as a bare `minHeight:` (`list_row_density_wiring_test`).
+/// Compact and for a standalone wide table — never as a bare `minHeight:`
+/// (`list_row_density_wiring_test`).
 ///
 /// Applied as a `minHeight` floor by [EntityListRowFloor] so a row never
 /// changes height when its leading slot swaps between avatar and selection
-/// checkbox — toggling a row's checkbox must not reflow the list. Slightly
-/// 52: the 32 px avatar and 10 px above and below, the list designs' row.
-/// It was 72, which showed eight rows where the designs show eleven; a tall
-/// row (2-line identity + money column, a large text scale) still grows
-/// past the floor. Also used for the master-detail auto-scroll estimate.
+/// checkbox — toggling a row's checkbox must not reflow the list. 52: the
+/// 32 px avatar and 10 px above and below. A tall row (2-line identity +
+/// money column, a large text scale) still grows past the floor. Also used
+/// for the master-detail auto-scroll estimate.
 const double kEntityListRowHeight = 52;
+
+/// The Comfortable floor of a **standalone list's wide table** row: 5.1.30's
+/// 72, restored in Nov 2026 after a redesign took every row to 52 (Hillel
+/// preferred the old desktop table). Narrow rows, embedded lists and record
+/// rows keep [kEntityListRowHeight]; Compact is unchanged for all of them.
+/// See docs/list-density.md § Comfortable wide rows are 5.1.30's 72 px.
+const double kWideEntityListRowHeight = 72;
 
 /// Vertical padding of every list row under the **Compact** list density —
 /// see [listRowPadding] / [listRowVerticalPadding].
 const double kCompactListRowVerticalPadding = 4;
 
-/// The row floor for the active list density: [kEntityListRowHeight] at
-/// Normal; at Compact, the tallest thing a row always holds — the
+/// The row floor for the active list density: at Normal,
+/// [kWideEntityListRowHeight] for a standalone list's wide table row
+/// ([wideTable]) and [kEntityListRowHeight] for every other row; at Compact, the tallest thing a row always holds — the
 /// [actionButtonSize] buttons — plus [kCompactListRowVerticalPadding] above
 /// and below: **40** with a pointer, **52** on touch, where the 44 px targets
 /// win. Same job as the Normal floor (no reflow on the avatar ↔ checkbox swap)
@@ -88,11 +98,17 @@ const double kCompactListRowVerticalPadding = 4;
 /// [subscribe] false reads the density without registering a dependency —
 /// for a callback outside `build` (the scaffold's scroll-to-row estimate).
 /// See `docs/list-density.md`.
-double entityListRowHeight(BuildContext context, {bool subscribe = true}) {
+double entityListRowHeight(
+  BuildContext context, {
+  bool subscribe = true,
+  bool wideTable = false,
+}) {
   final compact = subscribe
       ? ListDensityScope.isCompactOf(context)
       : ListDensityScope.isCompactRead(context);
-  if (!compact) return kEntityListRowHeight;
+  if (!compact) {
+    return wideTable ? kWideEntityListRowHeight : kEntityListRowHeight;
+  }
   return math.max(40, actionButtonSize() + 2 * kCompactListRowVerticalPadding);
 }
 
@@ -121,33 +137,44 @@ EdgeInsetsDirectional listRowPadding(
   return EdgeInsetsDirectional.fromSTEB(16, v, 16, v);
 }
 
-/// Inset around a standalone list's wide table. The table sits on the page
-/// with no card around it (Nov 2026), so only a gutter is left: the horizontal
-/// 24 lines the table's edges up with the header band's row, the status-tab
-/// strip's start and the frameless desktop title bar's nav arrows; the top is
-/// a small gap under the strip's rule (4 at Compact), and the rows run to the
-/// bottom of the pane (docs/list-density.md).
-EdgeInsetsDirectional entityListTableInset({required bool compact}) =>
-    EdgeInsetsDirectional.fromSTEB(24, compact ? 4 : 8, 24, 0);
+/// Inset around a standalone list's wide table panel: the horizontal 24 lines
+/// the panel's edges up with the header band's row, the status-tab strip's
+/// start and the frameless desktop title bar's nav arrows. Comfortable is
+/// 5.1.30's card inset, 24 on every side; Compact keeps a 4 px gap under the
+/// strip's rule and 16 below the panel (docs/list-density.md).
+EdgeInsetsDirectional entityListTableInset({required bool compact}) => compact
+    ? const EdgeInsetsDirectional.fromSTEB(24, 4, 24, 16)
+    : const EdgeInsetsDirectional.all(24);
 
 /// The [entityListRowHeight] floor every entity-list row sits on.
 ///
 /// `minHeight`, never a fixed height: tall tiles (2-line identity + money
 /// column, a large text scale) grow past it and are never clipped.
 class EntityListRowFloor extends StatelessWidget {
-  const EntityListRowFloor({super.key, required this.child});
+  const EntityListRowFloor({
+    super.key,
+    required this.child,
+    this.wideTable = false,
+  });
 
   final Widget child;
 
+  /// A standalone list's wide table row: the taller Comfortable floor
+  /// ([kWideEntityListRowHeight]).
+  final bool wideTable;
+
   @override
   Widget build(BuildContext context) => ConstrainedBox(
-    constraints: BoxConstraints(minHeight: entityListRowHeight(context)),
+    constraints: BoxConstraints(
+      minHeight: entityListRowHeight(context, wideTable: wideTable),
+    ),
     child: child,
   );
 }
 
-/// Horizontal gap between cells in the table grid.
-const double kColCellGap = 16;
+/// Horizontal gap between cells in the table grid: 5.1.30's 12 (a Nov 2026
+/// redesign's 16 went back with the rest of the wide table).
+const double kColCellGap = 12;
 
 /// Gap between the leading row-actions slot ([colWMoreMenu]) and the
 /// avatar / select-checkbox slot. Intentionally tighter than the 12 px

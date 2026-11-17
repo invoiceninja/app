@@ -7,6 +7,7 @@ import 'package:admin/app/version.dart';
 import 'package:admin/data/models/value/date.dart';
 import 'package:admin/domain/entity_type.dart';
 import 'package:admin/domain/quick_create.dart';
+import 'package:admin/ui/core/widgets/content_panel.dart';
 import 'package:admin/ui/core/list/entity_create_fab.dart';
 import 'package:admin/ui/core/adaptive.dart';
 import 'package:admin/ui/features/shell/widgets/app_drawer.dart';
@@ -305,21 +306,38 @@ class _TaskCalendarScreenState extends State<TaskCalendarScreen> {
                 // three chips still fit) but takes a landscape phone from 37 to
                 // 23, under the 30 px a date needs, and the dates would simply
                 // vanish with nothing thrown.
+                //
+                // The grid sits in the white panel the time views share
+                // (docs/tasks-views.md § The time views sit in a white panel),
+                // and the panel's 2 px of border and its top margin come out of
+                // the same height the week rows do. So the margin is spent only
+                // from height above the floor, then the clearance from what is
+                // left — a landscape phone, already under the floor, gets
+                // neither, exactly as it got no clearance before the panel.
                 Expanded(
                   child: LayoutBuilder(
-                    builder: (context, constraints) => Padding(
-                      padding: EdgeInsets.only(
+                    builder: (context, constraints) {
+                      final spare =
+                          constraints.maxHeight -
+                          2 -
+                          kTaskCalendarMinGridHeight;
+                      final top = spare
+                          .clamp(0.0, ContentPanel.topOf(context, wide: wide))
+                          .toDouble();
+                      return ContentPanel(
+                        wide: wide,
+                        top: top,
                         bottom: taskCalendarFabClearance(
-                          availableHeight: constraints.maxHeight,
-                          // Only the safe inset when there is no `+`
-                          // (no `create_task`).
+                          availableHeight: constraints.maxHeight - 2 - top,
+                          // The panel's own gap and the safe inset when there
+                          // is no `+` (no `create_task`).
                           desired: _mayCreateTask
                               ? fabScrollClearance(context)
-                              : MediaQuery.paddingOf(context).bottom,
+                              : ContentPanel.bottomOf(context, wide: wide),
                         ),
-                      ),
-                      child: TaskCalendarGrid(formatter: _formatter),
-                    ),
+                        child: TaskCalendarGrid(formatter: _formatter),
+                      );
+                    },
                   ),
                 ),
               ],

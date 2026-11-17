@@ -21,7 +21,8 @@ final _log = Logger('ListOutstandingLine');
 const Duration kListOutstandingMaxAge = Duration(minutes: 5);
 
 /// The muted "Outstanding $22,924.00 · £6,091.00" line under the Clients and
-/// Invoices list titles — the server's per-currency outstanding totals, read
+/// Invoices narrow (phone) list titles — the wide header is one toolbar row
+/// with no title, so it has none — the server's per-currency outstanding totals, read
 /// from the dashboard's own cache row (`DashboardRepository.watchOutstanding`,
 /// drafts left out), never summed on the device from whatever rows happen to
 /// be loaded.

@@ -162,8 +162,9 @@ class _ClientListTileState extends State<ClientListTile> {
         '';
 
     final content = Padding(
-      // Client / Vendor rows are 14 at Normal everywhere, not just embedded.
-      padding: listRowPadding(context, normalVertical: 10),
+      // A wide Client / Vendor row keeps 5.1.30's 14 at Normal; a narrow one
+      // takes the shared 10.
+      padding: listRowPadding(context, normalVertical: w.wide ? 14 : 10),
       child: w.wide
           ? _wide(context, tokens, displayName: displayName, state: state)
           : _narrow(
@@ -397,9 +398,11 @@ class _ClientListTileState extends State<ClientListTile> {
       selecting: w.selecting,
       selected: w.selected,
       onSelectTap: w.onSelectTap,
+      // Solid on the wide table (5.1.30's look); the soft tint on a phone row.
       defaultChild: InitialsAvatar(
         seed: w.client.id,
         label: initialsFor(displayName) ?? '?',
+        solid: w.wide,
       ),
     );
   }

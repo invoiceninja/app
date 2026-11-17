@@ -19,6 +19,7 @@ import 'package:admin/data/repositories/dashboard_repository.dart';
 import 'package:admin/data/repositories/user_repository.dart';
 import 'package:admin/data/services/dashboard_api.dart';
 import 'package:admin/domain/activity/activity_timeline.dart';
+import 'package:admin/ui/core/widgets/content_panel.dart';
 import 'package:admin/ui/core/widgets/empty_state.dart';
 import 'package:admin/ui/core/widgets/error_view.dart';
 import 'package:admin/ui/core/widgets/filter_icon_button.dart';
@@ -26,6 +27,7 @@ import 'package:admin/ui/features/activity/views/activity_screen.dart';
 import 'package:admin/ui/features/activity/widgets/activity_feed_row.dart';
 import 'package:admin/ui/features/activity/widgets/activity_filter_sheet.dart';
 import 'package:admin/ui/features/activity/widgets/activity_timeline_chart.dart';
+import 'package:admin/ui/features/dashboard/widgets/card_shell.dart';
 import 'package:admin/utils/formatting.dart';
 
 import '../../../_localization_helper.dart';
@@ -191,6 +193,50 @@ void main() {
       for (var i = 0; i < 8; i++) _activity(id: '$i', invoiceId: 'inv$i'),
     ]);
     expect(find.byType(ActivityFeedRow), findsNWidgets(8));
+  });
+
+  group('white panel', () {
+    Finder inPanel(Finder f) =>
+        find.ancestor(of: f, matching: find.byType(ContentPanelCard));
+
+    testWidgets('a narrow feed and its chart share one panel', (tester) async {
+      await pumpScreen(tester);
+      await emit(tester, [_activity(id: '1', invoiceId: 'inv1')]);
+      expect(find.byType(ContentPanelCard), findsOneWidget);
+      expect(inPanel(find.byType(ActivityFeedRow)), findsOneWidget);
+      expect(inPanel(find.byType(ActivityTimelineChart)), findsOneWidget);
+    });
+
+    testWidgets('a wide feed sits in a panel under the chart card', (
+      tester,
+    ) async {
+      await pumpScreen(tester, size: const Size(1200, 900));
+      await emit(tester, [_activity(id: '1', invoiceId: 'inv1')]);
+      expect(inPanel(find.byType(ActivityFeedRow)), findsOneWidget);
+      // The chart keeps its own card, not a second panel around it.
+      expect(inPanel(find.byType(ActivityTimelineChart)), findsNothing);
+      // The two cards share an edge.
+      expect(
+        tester.getTopLeft(find.byType(ContentPanelCard)).dx,
+        tester.getTopLeft(find.byType(DashboardCardShell)).dx,
+      );
+    });
+
+    testWidgets('the skeleton loads in the panel the rows will land in', (
+      tester,
+    ) async {
+      await pumpScreen(tester);
+      expect(inPanel(find.byType(ActivityFeedSkeleton)), findsOneWidget);
+    });
+
+    testWidgets('an empty window keeps its bare state, with no panel', (
+      tester,
+    ) async {
+      await pumpScreen(tester);
+      await emit(tester, const []);
+      expect(find.text('No activity yet'), findsOneWidget);
+      expect(find.byType(ContentPanelCard), findsNothing);
+    });
   });
 
   group('window footer', () {

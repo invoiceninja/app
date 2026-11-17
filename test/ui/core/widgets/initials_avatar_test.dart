@@ -1,6 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:admin/app/design_tokens.dart';
 import 'package:admin/ui/core/widgets/avatar_tint.dart';
 import 'package:admin/ui/core/widgets/initials_avatar.dart';
 
@@ -75,6 +76,29 @@ void main() {
       // Rounded rectangle, never a circle or a pill.
       expect(decoration.shape, BoxShape.rectangle);
       expect(decoration.borderRadius, isNotNull);
+    });
+
+    // A wide list row keeps 5.1.30's look (docs/row-actions-and-values.md
+    // § A wide row's avatar is solid); every other avatar keeps the tint.
+    testWidgets('solid draws 5.1.30\'s swatch with white initials, in the '
+        'tint\'s hue', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: InitialsAvatar(seed: 'c1', label: 'AL', solid: true),
+          ),
+        ),
+      );
+      final decoration =
+          tester.widget<Container>(find.byType(Container)).decoration!
+              as BoxDecoration;
+      final solid = avatarSolidFor('c1');
+      expect(decoration.color, solid.background);
+      expect(tester.widget<Text>(find.text('AL')).style!.color, Colors.white);
+      // Same palette slot as the soft tint, so an entity keeps its hue.
+      final index = avatarTintIndexFor('c1', InTheme.avatarSolids.length);
+      expect(InTheme.avatarSolids[index], solid);
+      expect(InTheme.avatarSolids.length, InTheme.light.avatarTints.length);
     });
 
     testWidgets('defaults to the 32px list metrics — the width the row leading '

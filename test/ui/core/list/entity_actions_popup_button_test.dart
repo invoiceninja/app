@@ -366,6 +366,25 @@ void main() {
               .width,
           32,
         );
+        // 5.1.30's leading slot, restored in Nov 2026: the pencil leads and
+        // the `⋮` follows with a mouse too, in the 80 px slot
+        // (docs/row-actions-and-values.md § A wide row leads with the pencil
+        // and the menu).
+        expect(colWMoreMenu(), 80);
+        final pencil = tester.getRect(
+          find.widgetWithIcon(IconButton, MdiIcons.circleEditOutline),
+        );
+        final menu = tester.getRect(
+          find.widgetWithIcon(IconButton, Icons.more_vert),
+        );
+        expect(pencil.width, 32);
+        expect(pencil.left, 0);
+        expect(menu.left, pencil.right + kColActionsClusterGap);
+        // Edit is the pencil, not a menu item.
+        await tester.tap(find.widgetWithIcon(IconButton, Icons.more_vert));
+        await tester.pumpAndSettle();
+        expect(find.text('Edit'), findsNothing);
+        expect(find.text('Archive'), findsOneWidget);
       } finally {
         debugDefaultTargetPlatformOverride = null;
       }

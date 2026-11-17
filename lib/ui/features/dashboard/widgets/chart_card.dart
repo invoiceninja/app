@@ -525,15 +525,15 @@ class _ChartSeries {
   final List<double> values;
 }
 
-/// The plot: one straight line per series, a point at the centre of each slot.
+/// The plot: one smooth line per series, a point at the centre of each slot.
 ///
 /// **A point sits at its slot's centre, and an empty slot sits on the
 /// baseline.** The line chart this replaced (before the bars of Nov 2026) drew
 /// sparse daily points joined corner to corner, so a lone payment read as a
 /// slope across its neighbours — a triangle of money on days that had none.
-/// Here every slot has a point (zero-filled by `buildChartAxis`), the segments
-/// are straight (`isCurved: false`), and only a point with a value gets a dot,
-/// so a single payment is a spike in its own day. The x range runs half a slot
+/// Here every slot has a point (zero-filled by `buildChartAxis`), the curve
+/// cannot overshoot (`preventCurveOverShooting`), and only a point with a
+/// value gets a dot, so a single payment is a peak in its own day. The x range runs half a slot
 /// past each end (`minX: -0.5`), so the first and last points are not jammed
 /// against the axes and the spacing of the points is the spacing of time.
 ///
@@ -849,9 +849,12 @@ class _CashFlowLineChartState extends State<_CashFlowLineChart> {
             for (var i = 0; i < buckets.length; i++)
               FlSpot(i.toDouble(), i < s.values.length ? s.values[i] : 0),
           ],
-          // Straight segments: the points are totals per slot, and a spline
-          // between them draws money on days that had none.
-          isCurved: false,
+          // Smooth, as the 5.1 chart was (Hillel preferred it). Overshoot is
+          // prevented, so the curve between a spike and its zero neighbours
+          // never dips below the baseline or bulges past a point.
+          isCurved: true,
+          curveSmoothness: 0.3,
+          preventCurveOverShooting: true,
           color: s.color,
           barWidth: 2,
           isStrokeCapRound: true,

@@ -23,7 +23,14 @@ class InitialsAvatar extends StatelessWidget {
     this.size = 32,
     this.radius,
     this.fontSize,
+    this.solid = false,
   });
+
+  /// Draw 5.1.30's saturated swatch with white initials ([avatarSolidFor])
+  /// instead of the soft tint. Only a wide entity-list row passes true
+  /// (docs/row-actions-and-values.md § A wide row's avatar is solid); record
+  /// screens, the dashboard, activity and narrow rows keep the tint.
+  final bool solid;
 
   /// Stable identity key hashed into the palette — an entity id.
   final String seed;
@@ -42,7 +49,7 @@ class InitialsAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tint = avatarTintFor(context, seed);
+    final tint = solid ? avatarSolidFor(seed) : avatarTintFor(context, seed);
     return Container(
       width: size,
       height: size,

@@ -107,7 +107,13 @@ class OnlinePaymentsGeneralBody extends StatelessWidget {
               spacing: InSpacing.sm,
               runSpacing: InSpacing.sm,
               children: [
+                // The theme's minimum size is infinitely wide, which stacks
+                // a Wrap's buttons one per line; side by side needs a finite
+                // one (CLAUDE.md § Design system (v2)).
                 OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(64, 40),
+                  ),
                   onPressed: () => context.go('/settings/company_gateways'),
                   icon: const Icon(
                     Icons.account_balance_wallet_outlined,
@@ -119,6 +125,9 @@ class OnlinePaymentsGeneralBody extends StatelessWidget {
                 // the company's, with no per-group or per-client value.
                 if (isCompanyScope)
                   OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size(64, 40),
+                    ),
                     onPressed: () =>
                         context.go('/settings/online_payments/payment_types'),
                     icon: const Icon(Icons.credit_card_outlined, size: 18),

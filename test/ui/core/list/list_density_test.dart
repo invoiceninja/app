@@ -66,8 +66,9 @@ void main() {
   }
 
   const rowKey = Key('row');
-  Widget row({bool wide = true}) => EntityListRowFloor(
+  Widget row({bool wide = true, bool wideTable = false}) => EntityListRowFloor(
     key: rowKey,
+    wideTable: wideTable,
     child: ExpenseCategoryListTile(
       category: emptyExpenseCategory().copyWith(name: 'Travel'),
       columns: const [],
@@ -80,7 +81,7 @@ void main() {
       tester.getSize(find.byKey(rowKey)).height;
 
   group('row floor', () {
-    testWidgets('Normal, and no scope at all, keep the 72 px floor', (
+    testWidgets('Normal, and no scope at all, keep the 52 px floor', (
       tester,
     ) async {
       await pump(tester, row(), scoped: false);
@@ -89,6 +90,27 @@ void main() {
       await pump(tester, row());
       expect(density.isCompact, isFalse);
       expect(rowHeight(tester), kEntityListRowHeight);
+    });
+
+    // 5.1.30's desktop table, restored in Nov 2026 (docs/list-density.md
+    // § Comfortable wide rows are 5.1.30's 72 px): a standalone list's wide
+    // table row is 72 at Comfortable, while Compact stays as tight as ever.
+    testWidgets('a standalone wide table row is 72 at Comfortable and 40 at '
+        'Compact with a pointer', (tester) async {
+      await pump(tester, row(wideTable: true));
+      expect(kWideEntityListRowHeight, 72);
+      expect(rowHeight(tester), kWideEntityListRowHeight);
+      await density.toggle();
+      await tester.pump();
+      expect(rowHeight(tester), 40);
+    }, variant: pointer);
+
+    testWidgets('a standalone wide table row is 52 at Compact on touch', (
+      tester,
+    ) async {
+      await density.setCompact(true);
+      await pump(tester, row(wideTable: true));
+      expect(rowHeight(tester), InSizes.touchTarget + 8);
     });
 
     testWidgets('Compact is 40 px with a pointer', (tester) async {
@@ -187,18 +209,21 @@ void main() {
   });
 
   group('table inset', () {
-    test('Compact trims only the top gap', () {
-      // The horizontal 24 lines the table up with the header band's row, the
-      // status-tab strip and the desktop title bar's arrows. No card, so no
-      // bottom margin: the rows run to the bottom of the pane.
+    test('Comfortable is 5.1.30\'s 24 all round; Compact trims only the '
+        'vertical', () {
+      // The horizontal 24 lines the panel up with the header band's row, the
+      // status-tab strip and the desktop title bar's arrows.
       for (final compact in [false, true]) {
         final inset = entityListTableInset(compact: compact);
         expect(inset.start, 24);
         expect(inset.end, 24);
-        expect(inset.bottom, 0);
       }
-      expect(entityListTableInset(compact: false).top, 8);
+      expect(
+        entityListTableInset(compact: false),
+        const EdgeInsetsDirectional.all(24),
+      );
       expect(entityListTableInset(compact: true).top, 4);
+      expect(entityListTableInset(compact: true).bottom, 16);
     });
   });
 }

@@ -202,10 +202,19 @@ class FigureSkeletonBar extends StatelessWidget {
 /// "Retry" when there is nothing to show, a warning glyph when an older answer
 /// is still on screen.
 class _FigureRetry extends StatelessWidget {
-  const _FigureRetry({required this.state, required this.onRetry});
+  const _FigureRetry({
+    required this.state,
+    required this.onRetry,
+    this.placeholder = false,
+  });
 
   final ValueSectionState state;
   final VoidCallback? onRetry;
+
+  /// Draws nothing, but takes the control's height whenever it would show —
+  /// for the cells of a shared card whose one retry sits in the last cell, so
+  /// every cell's value stays on the same line.
+  final bool placeholder;
 
   @override
   Widget build(BuildContext context) {
@@ -213,6 +222,11 @@ class _FigureRetry extends StatelessWidget {
     if (onRetry == null) return const SizedBox.shrink();
     final tokens = context.inTheme;
     final extent = Env.isTouchPrimary ? InSizes.touchTarget : 28.0;
+    if (placeholder) {
+      final shows =
+          state == ValueSectionState.failed || state == ValueSectionState.stale;
+      return SizedBox(height: shows ? extent : 0);
+    }
     switch (state) {
       case ValueSectionState.failed:
         return TextButton(
@@ -271,12 +285,21 @@ class _SummaryCard extends StatelessWidget {
     this.footer,
     this.inlineFooter = false,
     this.semanticsActions,
+    this.framed = true,
+    this.retryPlaceholder = false,
   });
 
   final String label;
   final ValueSectionState state;
   final String value;
   final double valueFontSize;
+
+  /// False draws the content without a surface of its own — a cell of a
+  /// shared card ([PeriodSummaryGroup]), whose `Material` hosts the ink.
+  final bool framed;
+
+  /// See [_FigureRetry.placeholder].
+  final bool retryPlaceholder;
 
   /// The whole card as one sentence for a screen reader.
   final String spoken;
@@ -315,7 +338,11 @@ class _SummaryCard extends StatelessWidget {
                 child: _FigureCaption(label: label, linked: onTap != null),
               ),
             ),
-            _FigureRetry(state: state, onRetry: onRetry),
+            _FigureRetry(
+              state: state,
+              onRetry: onRetry,
+              placeholder: retryPlaceholder,
+            ),
           ],
         ),
         SizedBox(height: dense ? 2 : 6),
@@ -358,6 +385,7 @@ class _SummaryCard extends StatelessWidget {
         ),
       ),
     );
+    final content = onTap == null ? body : InkWell(onTap: onTap, child: body);
     return Semantics(
       container: true,
       label: spoken,
@@ -365,9 +393,7 @@ class _SummaryCard extends StatelessWidget {
       onTap: onTap,
       customSemanticsActions: semanticsActions,
       child: ExcludeSemantics(
-        child: _FigureSurface(
-          child: onTap == null ? body : InkWell(onTap: onTap, child: body),
-        ),
+        child: framed ? _FigureSurface(child: content) : content,
       ),
     );
   }
@@ -552,8 +578,10 @@ class OutstandingFigureCard extends StatelessWidget {
   }
 }
 
-/// One period figure as a card of its own — Invoiced, Payments or Expenses
-/// on a wide screen, in the same layout as Outstanding beside it.
+/// One period figure in the same layout as Outstanding beside it —
+/// Invoiced, Payments or Expenses on a wide screen. A cell of the shared
+/// [PeriodSummaryGroup] card ([framed] false), or a card of its own when it
+/// is the only period figure.
 ///
 /// The footer is the trend: a chip (arrow and sign, not colour alone) and
 /// "vs {previous}". With a compared period but nothing to divide by (the
@@ -567,10 +595,19 @@ class PeriodSummaryCard extends StatelessWidget {
     this.compares = false,
     this.onRetry,
     this.valueFontSize = 24,
+    this.framed = true,
+    this.retryPlaceholder = false,
   });
 
   final PeriodFigure figure;
   final ValueSectionState state;
+
+  /// False draws no surface: the figure is a cell of [PeriodSummaryGroup].
+  final bool framed;
+
+  /// Reserves the retry's height without drawing it: a cell of
+  /// [PeriodSummaryGroup] other than the one that carries the shared retry.
+  final bool retryPlaceholder;
 
   /// Whether the compared period's figure is in hand — draws the footer even
   /// when [PeriodFigure.deltaPercent] is null (then "vs $0.00" alone, no
@@ -610,6 +647,65 @@ class PeriodSummaryCard extends StatelessWidget {
       onTap: onTap,
       onRetry: onRetry,
       footer: footer,
+      framed: framed,
+      retryPlaceholder: retryPlaceholder,
+    );
+  }
+}
+
+/// The wide screen's period figures — Invoiced · Payments · Expenses — as
+/// cells of **one card**, divided by hairlines: one answer ("how did this
+/// period go") from one request, loading and failing together, so one
+/// surface and one retry (in the last cell's corner). Each cell is a
+/// [PeriodSummaryCard] in Outstanding's layout; the row is stretched, so the
+/// values share a line and the trends end on the card's bottom edge.
+///
+/// With one figure there is nothing to group: it is a card of its own.
+class PeriodSummaryGroup extends StatelessWidget {
+  const PeriodSummaryGroup({
+    super.key,
+    required this.figures,
+    required this.state,
+    this.compares = false,
+    this.onRetry,
+    this.valueFontSize = 24,
+  });
+
+  final List<PeriodFigure> figures;
+  final ValueSectionState state;
+
+  /// See [PeriodSummaryCard.compares].
+  final bool compares;
+  final VoidCallback? onRetry;
+  final double valueFontSize;
+
+  @override
+  Widget build(BuildContext context) {
+    PeriodSummaryCard cell(int i, {required bool framed}) => PeriodSummaryCard(
+      figure: figures[i],
+      state: state,
+      compares: compares,
+      onRetry: onRetry,
+      valueFontSize: valueFontSize,
+      framed: framed,
+      retryPlaceholder: i != figures.length - 1,
+    );
+    if (figures.isEmpty) return const SizedBox.shrink();
+    if (figures.length == 1) return cell(0, framed: true);
+    final divider = context.inTheme.border;
+    return _FigureSurface(
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (var i = 0; i < figures.length; i++) ...[
+              if (i > 0)
+                VerticalDivider(width: 1, thickness: 1, color: divider),
+              Expanded(child: cell(i, framed: false)),
+            ],
+          ],
+        ),
+      ),
     );
   }
 }

@@ -328,13 +328,15 @@ class EntityListScreenScaffold<T, VM extends GenericListViewModel<T>>
     this.showOutstandingTotals = false,
   });
 
-  /// Draw the server's per-currency outstanding totals under the list's title
-  /// (`ListOutstandingLine`) — on Clients and Invoices only, the two lists
-  /// whose rows are what is owed. Standalone only; never on an embedded list.
+  /// Draw the server's per-currency outstanding totals under the narrow
+  /// list's title (`ListOutstandingLine`) — on Clients and Invoices only, the
+  /// two lists whose rows are what is owed. Standalone narrow only: never on
+  /// an embedded list, and never on a wide one, whose header is the single
+  /// toolbar row with no title (docs/entity-lists.md § A wide list's header
+  /// is one toolbar row).
   final bool showOutstandingTotals;
 
-  /// Localization key for the list's title — the wide title row and the
-  /// narrow AppBar (e.g. `clients`).
+  /// Localization key for the narrow-mode AppBar title (e.g. `clients`).
   final String titleKey;
 
   /// Route the wide-mode "New X" button + narrow-mode FAB navigate to
@@ -467,6 +469,10 @@ class _EntityListScreenScaffoldState<T, VM extends GenericListViewModel<T>>
     with FormatterHostMixin {
   late VM _vm;
   late final Services _services;
+
+  /// The width class of the last layout, for the scroll-to-row estimate,
+  /// which runs from a callback and cannot ask the constraints again.
+  bool _lastBuiltWide = false;
 
   /// Whether this entity is created from its list at all — see
   /// [EntityListScreenScaffold.newRoute] — by this user. Drives the FAB, its
@@ -620,7 +626,11 @@ class _EntityListScreenScaffoldState<T, VM extends GenericListViewModel<T>>
   void _ensureRowVisible(int index) {
     if (!_vScroll.hasClients) return;
     // Not subscribing: this runs from a callback, not `build`.
-    final estimatedRowPx = entityListRowHeight(context, subscribe: false);
+    final estimatedRowPx = entityListRowHeight(
+      context,
+      subscribe: false,
+      wideTable: !widget.embedded && _lastBuiltWide,
+    );
     final pos = _vScroll.position;
     // Count only the rows that actually occupy space — a collapsed group
     // leaves its members in `items` at zero height, so multiplying the raw
@@ -1365,6 +1375,7 @@ class _EntityListScreenScaffoldState<T, VM extends GenericListViewModel<T>>
         return LayoutBuilder(
           builder: (context, constraints) {
             final wide = Breakpoints.isWide(constraints);
+            _lastBuiltWide = wide;
             final globalNav = Breakpoints.isGlobalNavVisible(context);
             // The token search field uses the inline desktop chrome (chip
             // field + anchored dropdown) on any desktop-class window, even
@@ -1586,7 +1597,8 @@ class _EntityListScreenScaffoldState<T, VM extends GenericListViewModel<T>>
                     widget.extraAppBarActions?.call(context, _vm, wide) ??
                     const <Widget>[],
                 canCreate: widget.canCreate,
-                subtitle: widget.showOutstandingTotals
+                // Narrow only: the wide header has no title to sit under.
+                subtitle: widget.showOutstandingTotals && !wide
                     ? ListOutstandingLine(
                         // Keyed like the search field: a company switch gets a
                         // fresh watch rather than the old company's stream.
@@ -1594,7 +1606,7 @@ class _EntityListScreenScaffoldState<T, VM extends GenericListViewModel<T>>
                         companyId: _companyId,
                         formatter: formatter,
                         // A phone's line holds three currencies at 12.
-                        fontSize: wide ? 13 : 12,
+                        fontSize: 12,
                       )
                     : null,
               ),
@@ -1905,8 +1917,14 @@ class _EntityListScreenScaffoldState<T, VM extends GenericListViewModel<T>>
       // what lets `BoxScrollView` apply the bottom safe inset itself. Once we
       // pass one we own that inset, which is why `fabScrollClearance` includes
       // it. See `lib/ui/core/utils/fab_clearance.dart`.
+      // A standalone narrow list sits in a panel that owns the bottom safe
+      // inset (`_standalonePanel`), so its FAB clearance leaves it out.
       padding: showsFab
-          ? EdgeInsets.only(bottom: fabScrollClearance(context))
+          ? EdgeInsets.only(
+              bottom: widget.embedded
+                  ? fabScrollClearance(context)
+                  : kFabClearance + InSpacing.sm,
+            )
           : null,
       // Embedded: shrink-wrap into the detail page's scroll (single
       // scrollbar, React-like). Standalone: own scrollable + pull-to-
@@ -1956,8 +1974,10 @@ class _EntityListScreenScaffoldState<T, VM extends GenericListViewModel<T>>
             // minHeight (not a fixed height) gives every row a stable
             // taller floor so toggling the leading avatar↔checkbox never
             // reflows the list, while tall tiles (2-line identity + money
-            // column) are never clipped. The floor follows the list density.
+            // column) are never clipped. The floor follows the list density,
+            // and a standalone wide table's Comfortable floor is 5.1.30's.
             : EntityListRowFloor(
+                wideTable: wide && !widget.embedded,
                 child: widget.tileBuilder(
                   context,
                   _vm,
@@ -2006,7 +2026,9 @@ class _EntityListScreenScaffoldState<T, VM extends GenericListViewModel<T>>
         : RefreshIndicator(onRefresh: _vm.refresh, child: listView);
 
     if (!wide) {
-      return widget.embedded ? _embeddedListCard(context, list) : list;
+      return widget.embedded
+          ? _embeddedListCard(context, list)
+          : _standalonePanel(context, list);
     }
     return _wideTable(context, list);
   }
@@ -2035,6 +2057,32 @@ class _EntityListScreenScaffoldState<T, VM extends GenericListViewModel<T>>
         boxShadow: tokens.shadow1,
       ),
       child: Material(type: MaterialType.transparency, child: child),
+    );
+  }
+
+  /// A standalone narrow list's white panel (Nov 2026 redesign): the
+  /// [_embeddedListCard] chrome, inset to line up with the search field above
+  /// it. The panel owns the bottom safe inset — its bottom edge stops above
+  /// the home indicator, and the rows inside are told there is none, so the
+  /// last row is not padded twice. See docs/entity-lists.md § A standalone
+  /// list sits in a white panel.
+  Widget _standalonePanel(BuildContext context, Widget list) {
+    final bottomInset = MediaQuery.paddingOf(context).bottom;
+    return Padding(
+      padding: EdgeInsetsDirectional.fromSTEB(
+        16,
+        InSpacing.md(context),
+        16,
+        InSpacing.md(context) + bottomInset,
+      ),
+      child: _embeddedListCard(
+        context,
+        MediaQuery.removePadding(
+          context: context,
+          removeBottom: true,
+          child: list,
+        ),
+      ),
     );
   }
 
@@ -2119,10 +2167,10 @@ class _EntityListScreenScaffoldState<T, VM extends GenericListViewModel<T>>
         // (none while it all fits). Only the horizontal scroll view is at
         // notification depth 0 here — the rows' vertical list is nested
         // inside it, so its scrolling never toggles a fade. Fades into the
-        // surface behind the table: the card on a record tab, the page bg
-        // standalone. Directional, so RTL fades the correct edge.
+        // surface behind the table: the panel's, embedded or standalone.
+        // Directional, so RTL fades the correct edge.
         return ScrollEdgeFades(
-          color: widget.embedded ? context.inTheme.surface : context.inTheme.bg,
+          color: context.inTheme.surface,
           width: 32,
           child: Scrollbar(
             controller: _hScroll,
@@ -2153,17 +2201,14 @@ class _EntityListScreenScaffoldState<T, VM extends GenericListViewModel<T>>
     // already insets everything via its SingleChildScrollView padding, and
     // the toolbar supplies the gap above).
     if (widget.embedded) return _embeddedListCard(context, inner);
-    // Standalone: no card — the table sits on the page inside a 24 px gutter
-    // (the header's rule and the rows' hairlines are its only edges). The
-    // transparency Material is still the rows' ink host, clipped to the
-    // table, for the reason given on `_embeddedListCard`.
+    // Standalone: the same white panel, inside the 24 px gutter and stopping
+    // a gap above the bottom of the pane (docs/entity-lists.md § A standalone
+    // list sits in a white panel).
     return Padding(
       padding: entityListTableInset(
         compact: ListDensityScope.isCompactOf(context),
       ),
-      child: ClipRect(
-        child: Material(type: MaterialType.transparency, child: inner),
-      ),
+      child: _embeddedListCard(context, inner),
     );
   }
 }

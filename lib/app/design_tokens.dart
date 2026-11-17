@@ -188,6 +188,32 @@ class InTheme extends ThemeExtension<InTheme> {
   /// reason as [onOverdue].
   Color get annotationMark => const Color(0xFFE5241B);
 
+  /// The fill of an *inverted* surface — the running-timer bar, drawn in the
+  /// theme's ink so it reads as the one live thing on a screen of `surface`
+  /// cards (docs/tasks-views.md § The running timer is an inverted bar). Near
+  /// black in the light presets, near white in the dark ones. Getters, like
+  /// [onOverdue], so a preset needs no new field: each is derived from tokens
+  /// every preset already sets.
+  Color get inverseSurface => ink;
+
+  /// Text and icons on [inverseSurface]: the theme's card colour, so the pair
+  /// is the ink-on-surface contrast every preset is already tuned for.
+  Color get onInverse => surface;
+
+  /// Secondary text on [inverseSurface] (the running task's description):
+  /// [onInverse] at 72 %, which keeps at least 6:1 on every preset.
+  Color get onInverseMuted => surface.withValues(alpha: 0.72);
+
+  /// The caution colour on [inverseSurface]: the *other* brightness's
+  /// [warning]. This brightness's own amber is tuned for a `surface` of the
+  /// opposite lightness to [inverseSurface] — the light presets' `#B45309`
+  /// reads about 3.5:1 on their near-black ink, the dark presets' `#E0A33E`
+  /// about 2:1 on their near-white ink — while the swap gives about 8:1 on
+  /// the light presets and 4.3-4.6:1 on the dark ones.
+  Color get warningOnInverse => brightness == Brightness.dark
+      ? InTheme.lightSand.warning
+      : InTheme.darkCarbon.warning;
+
   /// Foreground colour for content placed *on* the filled [accent] background
   /// (the calendars' "today" marker, for example).
   ///
@@ -258,6 +284,14 @@ class InTheme extends ThemeExtension<InTheme> {
   /// [avatarTints] for [brightness] — for a caller with no [InTheme] in scope.
   static List<InAvatarTint> avatarTintsFor(Brightness brightness) =>
       brightness == Brightness.dark ? _kAvatarTintsDark : _kAvatarTintsLight;
+
+  /// The solid initials-avatar colours: 5.1.30's saturated swatches with
+  /// white initials, in the same seed-index order (and hues) as
+  /// [avatarTints]. Brightness-independent, as they were in 5.1.30. Only a
+  /// wide entity-list row draws these (`InitialsAvatar(solid: true)`); every
+  /// other avatar keeps the soft [avatarTints] (docs/row-actions-and-values.md
+  /// § A wide row's avatar is solid).
+  static const List<InAvatarTint> avatarSolids = _kAvatarSolids;
 
   /// The colour of whatever a chart folds together — "Other" — and of a
   /// series shown only for context (a previous period behind the current
@@ -1011,6 +1045,22 @@ const List<InAvatarTint> _kAvatarTintsLight = [
   InAvatarTint(
     background: Color(0xFFF2CEDB),
     ink: Color(0xFF651A35),
+  ), // magenta
+];
+
+/// [InTheme.avatarSolids]: 5.1.30's `InAvatarPalette` swatches, white on
+/// each — the solid look wide list rows keep. Same hue order as the tints.
+const List<InAvatarTint> _kAvatarSolids = [
+  InAvatarTint(background: Color(0xFF1F8A5B), ink: Color(0xFFFFFFFF)), // jade
+  InAvatarTint(background: Color(0xFF2A6FDB), ink: Color(0xFFFFFFFF)), // blue
+  InAvatarTint(background: Color(0xFFB07A1F), ink: Color(0xFFFFFFFF)), // amber
+  InAvatarTint(background: Color(0xFF7A3FB0), ink: Color(0xFFFFFFFF)), // purple
+  InAvatarTint(background: Color(0xFFC0392B), ink: Color(0xFFFFFFFF)), // red
+  InAvatarTint(background: Color(0xFF0E7C8C), ink: Color(0xFFFFFFFF)), // teal
+  InAvatarTint(background: Color(0xFF3F8B2F), ink: Color(0xFFFFFFFF)), // forest
+  InAvatarTint(
+    background: Color(0xFFD04A7A),
+    ink: Color(0xFFFFFFFF),
   ), // magenta
 ];
 

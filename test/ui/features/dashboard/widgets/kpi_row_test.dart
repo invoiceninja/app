@@ -17,6 +17,7 @@ import 'package:admin/data/repositories/dashboard_repository.dart';
 import 'package:admin/data/repositories/statics_repository.dart';
 import 'package:admin/data/services/statics_service.dart';
 import 'package:admin/ui/features/dashboard/helpers/needs_attention.dart';
+import 'package:admin/ui/features/dashboard/view_models/async_section.dart';
 import 'package:admin/ui/features/dashboard/view_models/dashboard_view_model.dart';
 import 'package:admin/ui/features/dashboard/widgets/aging_bar.dart';
 import 'package:admin/ui/features/dashboard/widgets/dashboard_figures.dart';
@@ -187,10 +188,16 @@ void main() {
       await vm.refresh();
       await pumpRow(tester);
 
-      // The three period figures failed together; each card offers a retry.
+      // The three period figures failed together, on one card: one retry.
       expect(find.text('—'), findsNWidgets(3));
-      expect(find.text('Retry'), findsNWidgets(3));
+      expect(find.text('Retry'), findsOneWidget);
       expect(find.textContaining(r'$'), findsNothing);
+      // The other cells keep the retry's height, so the dashes share a line.
+      final tops = {
+        for (final e in find.text('—').evaluate())
+          tester.getTopLeft(find.byWidget(e.widget)).dy,
+      };
+      expect(tops.length, 1, reason: '$tops');
     });
 
     testWidgets('a failed refresh over cached figures keeps them, marked', (
@@ -205,8 +212,8 @@ void main() {
       await pumpRow(tester);
 
       expect(find.text(r'$1,200.00'), findsOneWidget);
-      // One mark per card: each period figure is a card of its own.
-      expect(find.byIcon(Icons.sync_problem), findsNWidgets(3));
+      // One mark for the shared card the three figures sit on.
+      expect(find.byIcon(Icons.sync_problem), findsOneWidget);
       expect(find.text('—'), findsNothing);
     });
 
@@ -700,19 +707,42 @@ void main() {
       repo.aging.add(agingOf());
     }
 
-    testWidgets('one row: four cards, one height, footers on one line', (
+    final group = find.byType(PeriodSummaryGroup);
+    final dividers = find.descendant(
+      of: group,
+      matching: find.byType(VerticalDivider),
+    );
+
+    testWidgets('one row: Outstanding, then one card of three cells', (
       tester,
     ) async {
       await seed(tester);
       await pumpRow(tester, width: 1000);
       await land(tester);
 
+      // Hillel, against 5.1.30: "keep invoices, payments and expenses grouped
+      // together" — one surface, hairlines between the cells.
+      expect(group, findsOneWidget);
       expect(periods, findsNWidgets(3));
+      expect(dividers, findsNWidgets(2));
       final top = topOf(tester, outstanding);
       final bottom = bottomOf(tester, outstanding);
+      expect(topOf(tester, group), top);
+      expect(bottomOf(tester, group), bottom);
       for (var i = 0; i < 3; i++) {
-        expect(topOf(tester, periods.at(i)), top);
-        expect(bottomOf(tester, periods.at(i)), bottom);
+        expect(bottomOf(tester, periods.at(i)), closeTo(bottom, 1));
+      }
+      // The three values on one line, and the cells as wide as Outstanding.
+      final valueTops = {
+        for (final v in [r'$1,200.00', r'$900.00', r'$50.00'])
+          topOf(tester, find.text(v)),
+      };
+      expect(valueTops.length, 1, reason: '$valueTops');
+      for (var i = 0; i < 3; i++) {
+        expect(
+          tester.getSize(periods.at(i)).width,
+          closeTo(tester.getSize(outstanding).width, 2),
+        );
       }
       // The aging bar makes Outstanding the tallest; the trends still end on
       // its footer's last line.
@@ -722,67 +752,72 @@ void main() {
       );
     });
 
-    testWidgets('three cards share the row evenly with Expenses off', (
-      tester,
-    ) async {
+    testWidgets('with Expenses off the two left stay grouped', (tester) async {
       await seed(tester);
       await pumpRow(tester, width: 1000, showExpenses: false);
       await land(tester);
 
-      final widths = [
-        tester.getSize(outstanding).width,
-        for (var i = 0; i < 2; i++) tester.getSize(periods.at(i)).width,
-      ];
-      expect(widths.toSet().length, 1, reason: '$widths');
-    });
-
-    testWidgets('below the one-row width, two to a row', (tester) async {
-      await seed(tester);
-      await pumpRow(tester, width: kFiguresOneRowWidth - 1);
-      await land(tester);
-
-      expect(topOf(tester, periods.at(0)), topOf(tester, outstanding));
-      expect(
-        topOf(tester, periods.at(1)),
-        greaterThan(bottomOf(tester, outstanding)),
-      );
-      expect(topOf(tester, periods.at(2)), topOf(tester, periods.at(1)));
-    });
-
-    testWidgets('with three cards over rows of two, Outstanding leads alone', (
-      tester,
-    ) async {
-      await seed(tester);
-      await pumpRow(tester, width: 600, showExpenses: false);
-      await land(tester);
-
-      expect(
-        bottomOf(tester, outstanding),
-        lessThan(topOf(tester, periods.at(0))),
-      );
-      expect(topOf(tester, periods.at(1)), topOf(tester, periods.at(0)));
-    });
-
-    testWidgets('below the two-to-a-row width, one to a row', (tester) async {
-      await seed(tester);
-      await pumpRow(tester, width: kFiguresTwoPerRowWidth - 1);
-      await land(tester);
-
-      for (var i = 0; i < 3; i++) {
-        final above = i == 0 ? outstanding : periods.at(i - 1);
+      expect(group, findsOneWidget);
+      expect(periods, findsNWidgets(2));
+      expect(dividers, findsOneWidget);
+      expect(topOf(tester, group), topOf(tester, outstanding));
+      for (var i = 0; i < 2; i++) {
         expect(
-          topOf(tester, periods.at(i)),
-          greaterThan(bottomOf(tester, above)),
+          tester.getSize(periods.at(i)).width,
+          closeTo(tester.getSize(outstanding).width, 2),
         );
       }
     });
 
-    test('figureRows', () {
-      expect(figureRows(4, 4), [4]);
-      expect(figureRows(4, 2), [2, 2]);
-      expect(figureRows(3, 2), [1, 2]);
-      expect(figureRows(3, 1), [1, 1, 1]);
-      expect(figureRows(3, 3), [3]);
+    testWidgets('below the one-row width, the group takes a row of its own', (
+      tester,
+    ) async {
+      await seed(tester);
+      await pumpRow(tester, width: kFiguresOneRowWidth - 1);
+      await land(tester);
+
+      expect(topOf(tester, group), greaterThan(bottomOf(tester, outstanding)));
+      // Still one card, its cells side by side.
+      expect(dividers, findsNWidgets(2));
+      for (var i = 1; i < 3; i++) {
+        expect(topOf(tester, periods.at(i)), topOf(tester, periods.at(0)));
+      }
+    });
+
+    testWidgets('two cells and Outstanding share a row from 660 px', (
+      tester,
+    ) async {
+      await seed(tester);
+      await pumpRow(tester, width: 660, showExpenses: false);
+      await land(tester);
+      expect(topOf(tester, group), topOf(tester, outstanding));
+
+      await pumpRow(tester, width: 659, showExpenses: false);
+      await land(tester);
+      expect(topOf(tester, group), greaterThan(bottomOf(tester, outstanding)));
+    });
+
+    testWidgets('narrow, the cells stay side by side, as on a phone', (
+      tester,
+    ) async {
+      await seed(tester);
+      // The wide body's narrowest: a 600 px pane less its padding. A phone
+      // draws the figures through `PeriodFiguresCard` instead.
+      await pumpRow(tester, width: 560);
+      await land(tester);
+
+      expect(tester.takeException(), isNull);
+      for (var i = 1; i < 3; i++) {
+        expect(topOf(tester, periods.at(i)), topOf(tester, periods.at(0)));
+      }
+    });
+
+    test('figuresShareRow', () {
+      expect(figuresShareRow(880, 3), isTrue);
+      expect(figuresShareRow(879, 3), isFalse);
+      expect(figuresShareRow(660, 2), isTrue);
+      expect(figuresShareRow(659, 2), isFalse);
+      expect(figuresShareRow(440, 1), isTrue);
     });
 
     testWidgets('a large amount scales down; it is never cut off', (
@@ -866,6 +901,75 @@ void main() {
         final caption = tester.getRect(find.text(text));
         expect(caption.bottom, lessThan(card.bottom), reason: text);
       }
+    });
+  });
+
+  group('PeriodSummaryGroup', () {
+    PeriodFigure figureOf(String label) => PeriodFigure(
+      label: label,
+      value: r'$1.00',
+      deltaPercent: null,
+      goodDirection: GoodDirection.up,
+    );
+
+    Future<void> pumpGroup(WidgetTester tester, List<String> labels) async {
+      wideSurface(tester);
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildInTheme(InTheme.dark),
+          localizationsDelegates: kTestLocalizationsDelegates,
+          supportedLocales: kTestSupportedLocales,
+          home: Scaffold(
+            body: Align(
+              alignment: Alignment.topLeft,
+              child: SizedBox(
+                width: 600,
+                child: PeriodSummaryGroup(
+                  figures: [for (final l in labels) figureOf(l)],
+                  state: ValueSectionState.failed,
+                  onRetry: () {},
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    testWidgets('a lone figure is just a card, with its own retry', (
+      tester,
+    ) async {
+      await pumpGroup(tester, ['Invoiced']);
+
+      expect(find.byType(VerticalDivider), findsNothing);
+      expect(
+        tester.widget<PeriodSummaryCard>(find.byType(PeriodSummaryCard)).framed,
+        isTrue,
+      );
+      expect(find.text('Retry').hitTestable(), findsOneWidget);
+    });
+
+    testWidgets('grouped cells share one surface and one retry, at the end', (
+      tester,
+    ) async {
+      await pumpGroup(tester, ['Invoiced', 'Payments', 'Expenses']);
+
+      expect(find.byType(VerticalDivider), findsNWidgets(2));
+      final cells = tester.widgetList<PeriodSummaryCard>(
+        find.byType(PeriodSummaryCard),
+      );
+      expect(cells.map((c) => c.framed), everyElement(isFalse));
+      expect(find.text('Retry'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.ancestor(
+            of: find.text('Expenses'),
+            matching: find.byType(PeriodSummaryCard),
+          ),
+          matching: find.text('Retry'),
+        ),
+        findsOneWidget,
+      );
     });
   });
 }

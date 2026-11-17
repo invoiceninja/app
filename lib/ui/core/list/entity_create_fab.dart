@@ -5,7 +5,7 @@ import 'package:admin/l10n/localization.dart';
 /// The create button a narrow list floats in its bottom-end corner: an
 /// extended FAB that says what it makes — "+ New Client" — rather than a bare
 /// `+`, the same words as the wide header's primary button
-/// (`EntityListTitleRow`).
+/// (`EntityListTopRow`).
 ///
 /// Every list that floats one uses this, so they read alike: the entity lists
 /// (`EntityListScreenScaffold`) and the Daily / Weekly / Calendar task views.

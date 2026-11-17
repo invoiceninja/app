@@ -1,7 +1,9 @@
-// The standing card's one lead rule (`billing_doc_standing.dart`): the balance
-// leads only while it is open — not zero, and not a draft, cancelled or
-// reversed document. The bug it fixes: a draft invoice (the server keeps its
-// balance at 0) led with "Balance Due $0.00".
+// The standing card's figures (`billing_doc_standing.dart`): Amount and the
+// balance side by side, zero included, and an invoice's Paid to Date always —
+// the 5.1.30 figures, restored after a "one lead figure" pass left a paid
+// invoice with only its amount. A draft's balance figure is its amount: the
+// server keeps a draft's balance at 0, and "Balance Due $0.00" on a draft said
+// nothing was owed.
 
 import 'package:decimal/decimal.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -15,6 +17,7 @@ import 'package:admin/data/models/domain/billing/billing_doc_fields.dart';
 import 'package:admin/data/models/domain/credit.dart';
 import 'package:admin/data/models/domain/invoice.dart';
 import 'package:admin/data/models/value/company_format_settings.dart';
+import 'package:admin/data/models/value/currency.dart';
 import 'package:admin/data/models/value/datetime_format.dart';
 import 'package:admin/ui/core/detail/standing_card.dart';
 import 'package:admin/ui/features/billing_shared/billing_doc_type.dart';
@@ -33,7 +36,21 @@ final _formatter = Formatter(
     enableMilitaryTime: false,
     locale: '',
   ),
-  currencies: const {},
+  // A real currency: without one `money` prints nothing, and every value
+  // below would compare blank to blank.
+  currencies: {
+    '1': Currency(
+      id: '1',
+      name: 'US Dollar',
+      code: 'USD',
+      symbol: r'$',
+      precision: 2,
+      thousandSeparator: ',',
+      decimalSeparator: '.',
+      swapCurrencySymbol: false,
+      exchangeRate: Decimal.one,
+    ),
+  },
   countries: const {},
   dateFormats: const {'X': DatetimeFormat(id: 'X', format: 'd/MMM/yyyy')},
 );
@@ -52,7 +69,8 @@ Credit _credit(String status, {required String balance}) => Credit.fromApi(
 ).copyWith(amount: Decimal.fromInt(500), balance: Decimal.parse(balance));
 
 void main() {
-  Future<({List<String> primary, List<String> secondary})> figures(
+  Future<({List<StandingFigure> primary, List<StandingFigure> secondary})>
+  figures(
     WidgetTester tester, {
     required BillingDocType type,
     required BillingDocFields doc,
@@ -75,59 +93,37 @@ void main() {
     );
     await tester.pumpAndSettle();
     final card = tester.widget<StandingCard>(find.byType(StandingCard));
-    return (
-      primary: [for (final f in card.primary) f.label],
-      secondary: [for (final f in card.secondary) f.label],
-    );
+    return (primary: card.primary, secondary: card.secondary);
   }
 
-  testWidgets('a draft invoice leads with its amount, not Balance Due \$0', (
-    tester,
-  ) async {
+  Map<String, String> pairs(List<StandingFigure> figures) => {
+    for (final f in figures) f.label: f.value,
+  };
+
+  testWidgets('a paid invoice shows Amount, Balance Due \$0.00 and Paid to '
+      'Date, as 5.1.30 did', (tester) async {
     final f = await figures(
       tester,
       type: BillingDocType.invoice,
-      doc: _invoice('1', balance: '0'),
+      doc: _invoice('4', balance: '0', paid: '500'),
+      settled: Decimal.fromInt(500),
     );
-    expect(f.primary, ['Amount']);
-    expect(f.secondary, isEmpty);
+    expect(pairs(f.primary), {'Amount': r'$500.00', 'Balance Due': r'$0.00'});
+    expect(pairs(f.secondary), {'Paid to Date': r'$500.00'});
   });
 
-  testWidgets('a draft invoice with a locally stamped balance still leads '
-      'with its amount, and does not print the balance', (tester) async {
-    final f = await figures(
-      tester,
-      type: BillingDocType.invoice,
-      doc: _invoice('1', balance: '500'),
-    );
-    expect(f.primary, ['Amount']);
-    expect(f.secondary, isEmpty);
-  });
-
-  for (final (label, status) in [('cancelled', '5'), ('reversed', '6')]) {
-    testWidgets('a $label invoice leads with its amount', (tester) async {
-      final f = await figures(
-        tester,
-        type: BillingDocType.invoice,
-        doc: _invoice(status, balance: '0'),
-      );
-      expect(f.primary, ['Amount']);
-    });
-  }
-
-  testWidgets('a sent invoice leads with Balance Due, the amount beside', (
-    tester,
-  ) async {
+  testWidgets('a sent invoice shows Paid to Date at zero too', (tester) async {
     final f = await figures(
       tester,
       type: BillingDocType.invoice,
       doc: _invoice('2', balance: '500'),
+      settled: Decimal.zero,
     );
-    expect(f.primary, ['Balance Due']);
-    expect(f.secondary, ['Amount']);
+    expect(pairs(f.primary), {'Amount': r'$500.00', 'Balance Due': r'$500.00'});
+    expect(pairs(f.secondary), {'Paid to Date': r'$0.00'});
   });
 
-  testWidgets('a partial invoice keeps Balance Due and shows what was paid', (
+  testWidgets('a partial invoice shows what is left and what was paid', (
     tester,
   ) async {
     final f = await figures(
@@ -136,48 +132,79 @@ void main() {
       doc: _invoice('3', balance: '300', paid: '200'),
       settled: Decimal.fromInt(200),
     );
-    expect(f.primary, ['Balance Due']);
-    expect(f.secondary, ['Amount', 'Paid to Date']);
+    expect(pairs(f.primary), {'Amount': r'$500.00', 'Balance Due': r'$300.00'});
+    expect(pairs(f.secondary), {'Paid to Date': r'$200.00'});
   });
 
-  testWidgets('a paid invoice leads with its amount and does not repeat it as '
-      'Paid to Date', (tester) async {
+  testWidgets('a draft invoice\'s Balance Due is its amount, not the \$0 the '
+      'server stores', (tester) async {
     final f = await figures(
       tester,
       type: BillingDocType.invoice,
-      doc: _invoice('4', balance: '0', paid: '500'),
-      settled: Decimal.fromInt(500),
+      doc: _invoice('1', balance: '0'),
+      settled: Decimal.zero,
     );
-    expect(f.primary, ['Amount']);
-    expect(f.secondary, isEmpty);
+    expect(pairs(f.primary), {'Amount': r'$500.00', 'Balance Due': r'$500.00'});
+    expect(f.primary.first.label, 'Amount', reason: 'Amount leads');
   });
 
-  testWidgets('an overpaid invoice leads with its (negative) balance', (
-    tester,
-  ) async {
+  for (final (label, status) in [('cancelled', '5'), ('reversed', '6')]) {
+    testWidgets('a $label invoice owes nothing and says so', (tester) async {
+      final f = await figures(
+        tester,
+        type: BillingDocType.invoice,
+        doc: _invoice(status, balance: '0'),
+        settled: Decimal.zero,
+      );
+      expect(pairs(f.primary), {'Amount': r'$500.00', 'Balance Due': r'$0.00'});
+    });
+  }
+
+  testWidgets('an overpaid invoice shows its negative balance', (tester) async {
     final f = await figures(
       tester,
       type: BillingDocType.invoice,
       doc: _invoice('4', balance: '-50', paid: '550'),
       settled: Decimal.fromInt(550),
     );
-    expect(f.primary, ['Balance Due']);
-    expect(f.secondary, ['Amount', 'Paid to Date']);
+    expect([for (final x in f.primary) x.label], ['Amount', 'Balance Due']);
+    expect(pairs(f.primary)['Balance Due'], contains('50.00'));
+    expect(pairs(f.secondary), {'Paid to Date': r'$550.00'});
   });
 
-  testWidgets('a draft credit leads with its amount; a sent one with what '
-      'remains', (tester) async {
+  testWidgets('a credit shows Amount and Credit Remaining — a draft\'s is its '
+      'amount — and Applied only once something was', (tester) async {
     var f = await figures(
       tester,
       type: BillingDocType.credit,
-      doc: _credit('1', balance: '500'),
+      doc: _credit('1', balance: '0'),
+      settled: Decimal.zero,
     );
-    expect(f.primary, ['Amount']);
+    expect(pairs(f.primary), {
+      'Amount': r'$500.00',
+      'Credit Remaining': r'$500.00',
+    });
+    expect(f.secondary, isEmpty);
     f = await figures(
       tester,
       type: BillingDocType.credit,
-      doc: _credit('2', balance: '500'),
+      doc: _credit('3', balance: '300'),
+      settled: Decimal.fromInt(200),
     );
-    expect(f.primary, ['Credit Remaining']);
+    expect(pairs(f.primary), {
+      'Amount': r'$500.00',
+      'Credit Remaining': r'$300.00',
+    });
+    expect(pairs(f.secondary), {'Applied': r'$200.00'});
+  });
+
+  testWidgets('a quote shows its amount alone', (tester) async {
+    final f = await figures(
+      tester,
+      type: BillingDocType.quote,
+      doc: _invoice('2', balance: '500'),
+    );
+    expect(pairs(f.primary), {'Amount': r'$500.00'});
+    expect(f.secondary, isEmpty);
   });
 }

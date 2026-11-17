@@ -1,6 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:admin/app/design_tokens.dart';
 import 'package:admin/ui/core/detail/entity_detail_actions_row.dart';
 import 'package:admin/ui/core/detail/entity_quick_actions.dart';
 
@@ -78,7 +79,7 @@ void main() {
     });
 
     testWidgets('with room: buttons at their own width, icon beside label, '
-        'and only the first is filled', (tester) async {
+        'and none filled — Edit is the screen\'s one primary', (tester) async {
       final all = [_quick('a'), _quick('b'), _quick('c')];
       await pumpAt(tester, 700, EntityQuickActions<String>(priority: all));
       expect(find.text('a'), findsOneWidget);
@@ -93,8 +94,15 @@ void main() {
           .where((m) => m.shape != null)
           .toList();
       expect(buttons, hasLength(3));
-      expect(buttons.first.color, isNot(buttons[1].color));
-      expect(buttons[1].color, buttons[2].color);
+      // Every tile outlined on `surface`: the bar's filled Edit is the one
+      // primary, as in 5.1.30.
+      for (final b in buttons) {
+        expect(b.color, InTheme.light.surface);
+        expect(
+          (b.shape! as RoundedRectangleBorder).side.color,
+          InTheme.light.border,
+        );
+      }
       // Their own width, not a third of the strip each.
       final widths = [
         for (final w in tester.widgetList<InkWell>(find.byType(InkWell)))
@@ -124,9 +132,7 @@ void main() {
       expectNoOverflow(tester);
     });
 
-    testWidgets('in a pane the first tile is the filled one too', (
-      tester,
-    ) async {
+    testWidgets('in a pane no tile is filled either', (tester) async {
       await pumpAt(
         tester,
         440,
@@ -141,7 +147,8 @@ void main() {
           )
           .where((m) => m.shape != null)
           .toList();
-      expect(tiles.first.color, isNot(tiles.last.color));
+      expect(tiles, hasLength(2));
+      expect(tiles.every((t) => t.color == InTheme.light.surface), isTrue);
     });
 
     testWidgets('builds nothing, and takes no height, with nothing to show', (

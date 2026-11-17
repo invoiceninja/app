@@ -20,13 +20,18 @@ import 'package:admin/ui/core/utils/count_labels.dart';
 /// question the document raises, and a line under them that says how its
 /// deadline is doing.
 ///
-/// | Document | Figures | Only when non-zero | Line |
+/// | Document | Figures | Secondary | Line |
 /// |---|---|---|---|
-/// | Invoice | Balance Due while open, else Amount | Paid to Date, Partial Due | due / past due |
-/// | Quote | Amount | Partial Due | expires / expired |
-/// | Credit | Credit Remaining while open, else Amount | Applied, Partial Due | — |
+/// | Invoice | Amount, Balance Due | Paid to Date (always); Partial Due when non-zero | due / past due |
+/// | Quote | Amount | Partial Due when non-zero | expires / expired |
+/// | Credit | Amount, Credit Remaining | Applied, Partial Due when non-zero | — |
 /// | Recurring invoice | Amount, Next Send Date | — | frequency, cycles |
 /// | Purchase order | Amount | Balance, when it differs | — |
+///
+/// The figures 5.1.30 drew, restored after a "one lead figure" pass hid the
+/// balance and what was paid on a settled invoice: the user reads a paid
+/// invoice's state from `Balance Due $0.00` beside `Paid to Date`, and a card
+/// with only the amount and a bar left them to work it out.
 ///
 /// It replaces `BillingDocKpiStrip`, which dashed every zero — so a draft
 /// invoice led with `AMOUNT $500 · BALANCE — · PAID —`, two thirds of the
@@ -44,22 +49,20 @@ import 'package:admin/ui/core/utils/count_labels.dart';
 /// an invoice a month late: the status pill above already says Past Due, and
 /// the line below says by how much. One loud thing per card.
 ///
-/// **One lead rule** ([billingDocLeadsWithBalance]). The balance leads only
-/// while it is open: not zero, and the status does not say nothing is owed —
-/// a draft (never sent; the server keeps its balance at 0, so it led with
-/// `$0.00`), a cancelled or a reversed invoice. Otherwise the amount leads.
-/// A partial payment keeps the balance in front; an overpaid invoice (a
-/// negative balance) does too, since that is the figure to act on. What has
-/// been settled is not repeated when it equals the amount — a paid invoice
-/// shows its amount once, as the purchase order's balance rule does.
+/// **A draft's balance is its amount** ([_shownBalance]). The server keeps a
+/// draft invoice's (or credit's) balance at 0 until it is sent, so drawn raw
+/// it said "nothing owed" on a document nobody had been asked to pay — v1's
+/// `balanceOrAmount`. A cancelled or reversed invoice really owes nothing,
+/// and says `$0.00`.
 ///
 /// Amounts go through `PartyCurrencyBuilder` — client → group → company, or
 /// the vendor's own on a purchase order — so a group-inheriting client's
 /// invoice is not printed in the company's currency.
-/// Whether [doc]'s balance is open and so leads its standing card: not zero,
-/// and not a status that owes nothing whatever the balance column reads — a
-/// draft, a cancelled or a reversed invoice; a draft credit. Only an invoice
-/// and a credit have a balance figure at all ([BillingDocType.balanceLabelKey]).
+/// Whether [doc]'s balance is open: not zero, and not a status that owes
+/// nothing whatever the balance column reads — a draft, a cancelled or a
+/// reversed invoice; a draft credit. Only an invoice and a credit have a
+/// balance figure at all ([BillingDocType.balanceLabelKey]). The editor's
+/// totals use it to decide whether to show the balance due.
 bool billingDocLeadsWithBalance(BillingDocFields doc) {
   if (doc.balance == Decimal.zero) return false;
   return switch (doc) {
@@ -68,6 +71,14 @@ bool billingDocLeadsWithBalance(BillingDocFields doc) {
     _ => true,
   };
 }
+
+/// The balance figure for [doc]: its amount while it is a draft (the server
+/// stores 0 until it is sent), else its balance.
+Decimal _shownBalance(BillingDocFields doc) => switch (doc) {
+  final Invoice i => i.balanceOrAmount,
+  final Credit c => c.balanceOrAmount,
+  _ => doc.balance,
+};
 
 class BillingDocStanding extends StatelessWidget {
   const BillingDocStanding({
@@ -124,12 +135,9 @@ class BillingDocStanding extends StatelessWidget {
             : Decimal.zero;
         final nextSend = nextSendDate;
         final f = formatter;
-        final leadsWithBalance =
-            balanceKey != null && billingDocLeadsWithBalance(doc);
         // What has been settled of the whole — paid of an invoice, applied of
-        // a credit. Only once something has been: like the secondary figures
-        // it is drawn when it is not zero, so a draft carries no empty bar
-        // promising a payment nobody has been asked for.
+        // a credit. Only once something has been, so a draft carries no empty
+        // bar promising a payment nobody has been asked for.
         final share =
             balanceKey != null &&
                 settledKey != null &&
@@ -143,15 +151,10 @@ class BillingDocStanding extends StatelessWidget {
           progressLabel: share == null || settled == null || settledKey == null
               ? null
               : '${context.tr(settledKey)}: ${money(settled)}',
-          // One figure leads: what is still open while the document has an
-          // open balance (an invoice's balance due, a credit's remaining),
-          // else its amount. Two equal figures made the reader pick; the total
-          // moves to the line of secondary figures beside what was paid.
           primary: [
-            if (leadsWithBalance)
-              figure(balanceKey, doc.balance)
-            else
-              figure('amount', doc.amount),
+            figure('amount', doc.amount),
+            // Always, zero included: `$0.00` is the answer on a paid invoice.
+            if (balanceKey != null) figure(balanceKey, _shownBalance(doc)),
             // A date, in the figure's own typeface: on this card it is the
             // answer to "when does it next go out", and a draft or a finished
             // series simply has no second figure.
@@ -162,13 +165,12 @@ class BillingDocStanding extends StatelessWidget {
               ),
           ],
           secondary: [
-            if (leadsWithBalance) figure('amount', doc.amount),
-            // Paid in full — or applied in full — is the amount again: the
-            // lead figure already says it.
+            // An invoice's Paid to Date always prints, as it did in 5.1.30 —
+            // beside Balance Due it is how a reader tells paid from unpaid.
+            // A credit's Applied only once something has been.
             if (settledKey != null &&
                 settled != null &&
-                settled != Decimal.zero &&
-                settled != doc.amount)
+                (type == BillingDocType.invoice || settled != Decimal.zero))
               figure(settledKey, settled),
             if (partial != Decimal.zero) figure('partial_due', partial),
             // A purchase order's balance is its amount until something is

@@ -21,6 +21,14 @@ InAvatarTint avatarTintFor(BuildContext context, String seed) {
   return tints[avatarTintIndexFor(seed, tints.length)];
 }
 
+/// The solid counterpart of [avatarTintFor] — 5.1.30's saturated swatch
+/// with white initials, the same hue for the same [seed]. For a wide
+/// entity-list row only ([InTheme.avatarSolids]).
+InAvatarTint avatarSolidFor(String seed) {
+  const solids = InTheme.avatarSolids;
+  return solids[avatarTintIndexFor(seed, solids.length)];
+}
+
 /// The palette slot [seed] hashes to, out of [length] — a pure function of
 /// the seed, so it is the same in every theme.
 int avatarTintIndexFor(String seed, int length) {

@@ -15,6 +15,7 @@ import 'package:admin/ui/core/adaptive.dart';
 import 'package:admin/ui/core/utils/calendar_week_start.dart';
 import 'package:admin/ui/core/utils/platform_modifier.dart';
 import 'package:admin/ui/core/widgets/app_selection_area.dart';
+import 'package:admin/ui/core/widgets/content_panel.dart';
 import 'package:admin/ui/core/widgets/empty_state.dart';
 import 'package:admin/ui/core/widgets/error_view.dart';
 import 'package:admin/ui/core/widgets/filter_icon_button.dart';
@@ -438,6 +439,15 @@ class _ActivityScreenState extends State<ActivityScreen> {
     // a range pick, and inside the region it would race text selection.
     final feed = AppSelectionArea(child: scrollable);
     final hasTimeline = _vm.timeline.buckets.isNotEmpty;
+    // The feed sits in the white panel a standalone list draws its rows in
+    // (docs/activity-timeline.md § The feed sits in a white panel) — while it
+    // loads too, so the skeleton rows do not jump into a card when the data
+    // lands. An error or an empty window keeps its bare state on the page, as
+    // an empty list does: a card around nothing reads as a broken one.
+    final paneled =
+        !(section.hasError && !section.hasData) &&
+        (section.data == null || _vm.entries.isNotEmpty);
+    final gutter = InSpacing.lg(context);
 
     if (rail) {
       // A rail pane is past every width gate and never drops the chart.
@@ -475,7 +485,21 @@ class _ActivityScreenState extends State<ActivityScreen> {
                               ),
                             ),
                           ),
-                        Expanded(child: feed),
+                        Expanded(
+                          child: paneled
+                              ? ContentPanel(
+                                  wide: true,
+                                  // The chart card's gutter, so the two cards'
+                                  // edges line up.
+                                  side: gutter,
+                                  top: gutter,
+                                  bottom:
+                                      gutter +
+                                      MediaQuery.paddingOf(context).bottom,
+                                  child: feed,
+                                )
+                              : feed,
+                        ),
                       ],
                     ),
                   ),
@@ -513,13 +537,14 @@ class _ActivityScreenState extends State<ActivityScreen> {
         return Column(
           children: [
             // The header strip is above the body's own `LayoutBuilder`, so it
-            // reads the decision that builder made — through the field.
+            // reads the decision that builder made — through the field. No
+            // rule under it: it is the caption over the panel below, the way a
+            // list's count sits over its rows.
             _HeaderStrip(
               vm: _vm,
               formatter: _formatter,
               chipsUnderChart: _chipsUnderChart,
             ),
-            Divider(height: 1, color: tokens.border),
             Expanded(
               child: LayoutBuilder(
                 builder: (context, c) {
@@ -527,14 +552,17 @@ class _ActivityScreenState extends State<ActivityScreen> {
                       hasTimeline &&
                       c.maxHeight >= kActivityTimelineMinBodyHeight;
                   _chipsUnderChart = showChart && wideEnough;
-                  return Column(
+                  // One panel holds the chart and the feed it draws: two
+                  // stacked cards would spend a phone's height on a second
+                  // pair of margins.
+                  final body = Column(
                     children: [
                       if (showChart) ...[
                         Padding(
                           padding: EdgeInsets.fromLTRB(
-                            InSpacing.lg(context),
-                            0,
-                            InSpacing.lg(context),
+                            gutter,
+                            InSpacing.md(context),
+                            gutter,
                             InSpacing.sm,
                           ),
                           child: _timelineWithChips(
@@ -546,6 +574,13 @@ class _ActivityScreenState extends State<ActivityScreen> {
                       ],
                       Expanded(child: feed),
                     ],
+                  );
+                  if (!paneled && !showChart) return body;
+                  return ContentPanel(
+                    wide: false,
+                    side: gutter,
+                    top: 0,
+                    child: body,
                   );
                 },
               ),

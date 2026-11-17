@@ -23,6 +23,11 @@ const double _kTaskCol = 240;
 const double _kDayCol = 92;
 const double _kTotalCol = 84;
 const double _kRowMinHeight = 56;
+
+/// The grid's full width — the task column, seven days and the total. The
+/// screen's panel hugs it rather than leaving a blank band of `surface` beside
+/// the Total column on a pane wider than the grid.
+const double kWeeklyGridWidth = _kTaskCol + _kDayCol * 7 + _kTotalCol;
 const _tabular = [FontFeature.tabularFigures()];
 
 /// The weekly timesheet grid: a 9-column table (task + 7 days + total) that
@@ -86,7 +91,7 @@ class WeeklyGrid extends StatelessWidget {
       0,
       (sum, t) => sum + vm.weekTotalFor(t.id),
     );
-    final totalWidth = _kTaskCol + _kDayCol * 7 + _kTotalCol;
+    const totalWidth = kWeeklyGridWidth;
 
     return Scrollbar(
       child: SingleChildScrollView(
@@ -315,11 +320,10 @@ class WeeklyGrid extends StatelessWidget {
       color: tokens.ink,
       fontFeatures: _tabular,
     );
+    // No rule of its own: it is the last thing in the screen's panel, whose
+    // border closes it — a bottom rule here drew that edge twice.
     return Container(
-      decoration: BoxDecoration(
-        color: tokens.surfaceAlt,
-        border: Border(bottom: BorderSide(color: tokens.border)),
-      ),
+      decoration: BoxDecoration(color: tokens.surfaceAlt),
       child: Row(
         children: [
           SizedBox(

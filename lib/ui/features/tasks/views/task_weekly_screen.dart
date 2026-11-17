@@ -14,6 +14,7 @@ import 'package:admin/ui/core/utils/calendar_week_start.dart';
 import 'package:admin/ui/core/utils/fab_clearance.dart';
 import 'package:admin/ui/core/list/master_detail_layout.dart';
 import 'package:admin/ui/features/shell/widgets/app_drawer.dart';
+import 'package:admin/ui/core/widgets/content_panel.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/features/tasks/view_models/task_weekly_view_model.dart';
 import 'package:admin/ui/features/tasks/views/task_list_screen.dart';
@@ -266,23 +267,53 @@ class _TaskWeeklyScreenState extends State<TaskWeeklyScreen> {
         // grid, not inside its scroll view: the totals row is pinned
         // *outside* that scroll so it stays at the bottom, and padding
         // the scroll could never lift it off the button. The whole grid
-        // rises instead, leaving page background under the totals row —
-        // which reads like a list scrolled to its end, where the
-        // alternative leaves the grand total permanently covered.
+        // rises instead — its panel ends above the button, leaving page
+        // background under it, which reads like a list scrolled to its end,
+        // where the alternative leaves the grand total permanently covered.
         Expanded(
-          child: Padding(
-            // No `+` for a user without `create_task`: then only the bottom
-            // safe inset, which the button's clearance otherwise carries.
-            padding: EdgeInsets.only(
-              bottom: _mayCreateTask
-                  ? fabScrollClearance(context)
-                  : MediaQuery.paddingOf(context).bottom,
-            ),
-            child: WeeklyGrid(
-              formatter: _formatter,
-              hoursMinutes: hoursMinutes,
-              onHoursMinutesChanged: _services.hoursFormat.setHoursMinutes,
-            ),
+          // Its own `context`: this method runs on the State's, above the
+          // provider, and the empty check has to follow the rows.
+          child: Builder(
+            builder: (context) {
+              final grid = WeeklyGrid(
+                formatter: _formatter,
+                hoursMinutes: hoursMinutes,
+                onHoursMinutesChanged: _services.hoursFormat.setHoursMinutes,
+              );
+              // An empty week keeps its bare `EmptyState`, as an empty list
+              // does — no panel around nothing.
+              if (context.watch<TaskWeeklyViewModel>().rows.isEmpty) {
+                return Padding(
+                  padding: EdgeInsets.only(
+                    bottom: _mayCreateTask
+                        ? fabScrollClearance(context)
+                        : MediaQuery.paddingOf(context).bottom,
+                  ),
+                  child: grid,
+                );
+              }
+              // The panel hugs the grid (docs/tasks-views.md § The time views
+              // sit in a white panel); on a pane narrower than the grid it
+              // fills the pane and the grid scrolls sideways inside it.
+              return Align(
+                alignment: AlignmentDirectional.topStart,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth:
+                        kWeeklyGridWidth +
+                        2 + // the panel's border
+                        2 * ContentPanel.sideOf(wide: wide),
+                  ),
+                  child: ContentPanel(
+                    wide: wide,
+                    // No `+` for a user without `create_task`: then the
+                    // panel's own gap and the safe inset.
+                    bottom: _mayCreateTask ? fabScrollClearance(context) : null,
+                    child: grid,
+                  ),
+                ),
+              );
+            },
           ),
         ),
       ],

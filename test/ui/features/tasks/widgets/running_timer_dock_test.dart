@@ -9,6 +9,7 @@ import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/data/db/app_database.dart';
 import 'package:admin/ui/core/widgets/toast_controller.dart';
+import 'package:admin/ui/features/tasks/widgets/running_duration_label.dart';
 import 'package:admin/ui/features/tasks/widgets/running_timer_pill.dart';
 
 import '../../../../_localization_helper.dart';
@@ -126,7 +127,7 @@ void main() {
     await _pump(tester, surface: _running());
     final bar = tester.getRect(
       find.byWidgetPredicate(
-        (w) => w is Material && w.color == InTheme.light.accentSoft,
+        (w) => w is Material && w.color == InTheme.light.inverseSurface,
       ),
     );
     // 48 px of bar plus the safe inset it paints beneath itself, flush with
@@ -237,6 +238,59 @@ void main() {
     expect(find.byTooltip('Stop'), findsNothing);
     await tester.tap(find.byTooltip('Start'));
     expect(started, 1);
+  });
+
+  testWidgets('the bar is inverted: ink fill, light text, a mono duration', (
+    tester,
+  ) async {
+    await _pump(tester, surface: _running());
+    const t = InTheme.light;
+    expect(
+      find.byWidgetPredicate(
+        (w) => w is Material && w.color == t.inverseSurface,
+      ),
+      findsOneWidget,
+    );
+    final label = tester.widget<Text>(find.text('Kitchen refit'));
+    expect(label.style?.color, t.onInverseMuted);
+    final duration = tester.widget<RunningDurationLabel>(
+      find.byType(RunningDurationLabel),
+    );
+    expect(duration.style?.fontFamily, kMonoFontFamily);
+    expect(duration.style?.color, t.onInverse);
+    final stop = tester.widget<IconButton>(
+      find.ancestor(
+        of: find.byTooltip('Stop'),
+        matching: find.byType(IconButton),
+      ),
+    );
+    expect(stop.color, t.onInverse);
+  });
+
+  testWidgets('due now keeps its warning cue on the inverted bar', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      surface: RunningTimerDockSurface.dueNow(
+        label: 'Boiler service',
+        onOpen: () {},
+        onStart: () {},
+      ),
+    );
+    const t = InTheme.light;
+    // A booked block is not a running timer: no ticking duration, and the
+    // label and the Start button take the caution colour, not the light ink.
+    expect(find.byType(RunningDurationLabel), findsNothing);
+    final due = tester.widget<Text>(find.text('Due now'));
+    expect(due.style?.color, t.warningOnInverse);
+    final start = tester.widget<IconButton>(
+      find.ancestor(
+        of: find.byTooltip('Start'),
+        matching: find.byType(IconButton),
+      ),
+    );
+    expect(start.color, t.warningOnInverse);
   });
 
   testWidgets('no edit permission: no Stop, the bar still opens the task', (

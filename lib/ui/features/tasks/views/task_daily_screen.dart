@@ -12,6 +12,7 @@ import 'package:admin/ui/core/adaptive.dart';
 import 'package:admin/ui/features/shell/widgets/app_drawer.dart';
 import 'package:admin/ui/core/list/master_detail_layout.dart';
 import 'package:admin/ui/core/utils/fab_clearance.dart';
+import 'package:admin/ui/core/widgets/content_panel.dart';
 import 'package:admin/ui/core/widgets/empty_state.dart';
 import 'package:admin/ui/features/tasks/view_models/task_daily_view_model.dart';
 import 'package:admin/ui/features/tasks/views/task_list_screen.dart';
@@ -176,6 +177,7 @@ class _TaskDailyScreenState extends State<TaskDailyScreen> {
                     formatter: _formatter,
                     companyId: _companyId,
                     mayCreate: _mayCreateTask,
+                    wide: wide,
                   ),
                 ),
               ],
@@ -191,11 +193,15 @@ class _DailyList extends StatelessWidget {
   const _DailyList({
     required this.companyId,
     required this.mayCreate,
+    required this.wide,
     this.formatter,
   });
 
   final String companyId;
   final Formatter? formatter;
+
+  /// The screen's pane bool — picks the panel's inset ([ContentPanel.wide]).
+  final bool wide;
 
   /// Whether the user holds `create_task`. Without it the screen has no `+`,
   /// so there is nothing to scroll clear of, and the empty day offers no
@@ -250,27 +256,35 @@ class _DailyList extends StatelessWidget {
       );
     }
     final tokens = context.inTheme;
-    return ListView.separated(
-      // Clear the screen's `+` (invoiceninja/flutter#167). Inside the scroll
-      // view rather than around it, so rows travel *through* the padded region
-      // instead of stopping short of it. `fabScrollClearance` carries the
-      // bottom safe inset, which a non-null padding turns off — so with no
-      // `+` it is `null`, never `EdgeInsets.zero`, and the list applies the
-      // inset itself.
-      padding: mayCreate
-          ? EdgeInsets.only(bottom: fabScrollClearance(context))
-          : null,
-      itemCount: rows.length,
-      separatorBuilder: (_, _) => Divider(height: 1, color: tokens.border),
-      itemBuilder: (context, i) {
-        final row = rows[i];
-        return TaskDailyEntryRow(
-          task: row.task,
-          entry: row.entry,
-          companyId: companyId,
-          formatter: formatter,
-        );
-      },
+    // The day's entries sit in the white panel a standalone entity list draws
+    // its rows in (docs/tasks-views.md § The time views sit in a white panel);
+    // an empty day keeps its bare `EmptyState` above, as an empty list does.
+    // The panel owns the bottom safe inset and hands the list none, so the
+    // clearance below is the `+` alone.
+    return ContentPanel(
+      wide: wide,
+      child: ListView.separated(
+        // Clear the screen's `+` (invoiceninja/flutter#167). Inside the scroll
+        // view rather than around it, so rows travel *through* the padded region
+        // instead of stopping short of it. `fabScrollClearance` carries the
+        // bottom safe inset — zero here, under the panel — which a non-null
+        // padding turns off, so with no `+` it is `null`, never
+        // `EdgeInsets.zero`.
+        padding: mayCreate
+            ? EdgeInsets.only(bottom: fabScrollClearance(context))
+            : null,
+        itemCount: rows.length,
+        separatorBuilder: (_, _) => Divider(height: 1, color: tokens.border),
+        itemBuilder: (context, i) {
+          final row = rows[i];
+          return TaskDailyEntryRow(
+            task: row.task,
+            entry: row.entry,
+            companyId: companyId,
+            formatter: formatter,
+          );
+        },
+      ),
     );
   }
 }

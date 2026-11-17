@@ -193,8 +193,10 @@ void main() {
     for (final line in data.lineBarsData) {
       // One point per slot, at the slot's centre: half a slot past each end.
       expect(line.spots.map((s) => s.x), [0, 1, 2]);
-      // Straight segments — no hump of money on a day that had none.
-      expect(line.isCurved, isFalse);
+      // Smooth, but the curve may not overshoot — no dip below the baseline
+      // or hump of money on a day that had none.
+      expect(line.isCurved, isTrue);
+      expect(line.preventCurveOverShooting, isTrue);
       // The quiet day sits on the floor, unmarked; a day with a value is
       // dotted.
       expect(line.spots.last.y, 0);

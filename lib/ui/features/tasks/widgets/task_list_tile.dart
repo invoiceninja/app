@@ -340,6 +340,8 @@ class _TaskListTileState extends State<TaskListTile> {
       defaultChild: UserAvatar(
         userId: w.task.assignedUserId,
         companyId: w.companyId,
+        // Solid on the wide table (5.1.30's look); the soft tint on a phone.
+        solid: w.wide,
       ),
     );
   }

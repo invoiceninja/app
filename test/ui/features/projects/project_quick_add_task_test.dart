@@ -2,6 +2,8 @@ import 'package:decimal/decimal.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:admin/app/design_tokens.dart';
+import 'package:admin/app/theme.dart';
 import 'package:admin/data/models/api/task_status_api_model.dart';
 import 'package:admin/data/models/domain/project.dart';
 import 'package:admin/data/models/domain/task.dart';
@@ -207,6 +209,63 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(milliseconds: 1));
   });
+
+  testWidgets(
+    'the field is the app\'s standard field, as tall as the '
+    'search field under it, and Start lines up with it',
+    (tester) async {
+      final fixture = await fixtureWithStatuses(tester);
+      addTearDown(fixture.dispose);
+      final project = emptyProject().copyWith(id: 'p1', name: 'Site');
+      tester.view.physicalSize = const Size(1200, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await tester.pumpWidget(
+        wrapWithShell(
+          fixture.services,
+          Theme(
+            data: buildInTheme(InTheme.light),
+            child: Scaffold(
+              body: SingleChildScrollView(
+                child: ProjectQuickAddTask(project: project, companyId: 'co1'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await settle(tester);
+
+      final field = find.byKey(const Key('project_quick_add_task'));
+      // Material's bare `OutlineInputBorder()` drew a dark radius-4 outline; the
+      // app's field border rests on `borderStrong` at the edit fields' radius.
+      final border = tester.widget<TextField>(field).decoration!.border!;
+      expect(border, isA<WidgetStateInputBorder>());
+      final resting =
+          (border as WidgetStateInputBorder).resolve(const {})
+              as OutlineInputBorder;
+      expect(resting.borderSide.color, InTheme.light.borderStrong);
+      expect(resting.borderSide.width, 1);
+      expect(resting.borderRadius, BorderRadius.circular(InRadii.r1));
+
+      final fieldBox = tester.getRect(
+        find.descendant(of: field, matching: find.byType(InputDecorator)),
+      );
+      final start = tester.getRect(
+        find.byKey(const Key('project_quick_add_start')),
+      );
+      expect(fieldBox.height, closeTo(InSizes.headerRow, 0.5));
+      expect(start.top, closeTo(fieldBox.top, 0.5));
+      expect(start.height, closeTo(fieldBox.height, 0.5));
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(milliseconds: 1));
+    },
+    variant: const TargetPlatformVariant({
+      TargetPlatform.android,
+      TargetPlatform.macOS,
+    }),
+  );
 
   test('offered only where a task could be created on the project', () {
     final project = emptyProject().copyWith(id: 'p1', name: 'Site');

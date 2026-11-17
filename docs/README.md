@@ -127,6 +127,7 @@ The full routing table, moved here from CLAUDE.md's Quick Index (which keeps a s
 | Changing a list's State (active / archived / deleted) filter | § List state filter · `docs/entity-lists.md` · `lib/domain/entity_state.dart` |
 | A list search that misses an umlaut / accented name, or a row found only through a contact | `docs/local-search-matching.md` · `lib/data/db/dao/_search_fold.dart` · `lib/utils/search_fold.dart` |
 | Adding a column to an entity list (or a custom-field column) | § List columns · `docs/entity-lists.md` · `lib/domain/columns/` |
+| A desktop list's header (New first, no title), its row height, the pencil + `⋮` slot or a solid row avatar | `docs/entity-lists.md` § A wide list's header is one toolbar row · `docs/list-density.md` § Comfortable wide rows are 5.1.30's 72 px · `docs/row-actions-and-values.md` § A wide row leads with the pencil and the menu |
 | Adding a report, its date field, grouping granularity, or the report chart | § Reports · `docs/reports.md` · `lib/domain/reports/report_registry.dart` |
 | Adding a dashboard panel, hiding empty ones, or the task-calendar panel's colours / month fetch | § Dashboard panels · `docs/dashboard-panels.md` · `lib/ui/features/dashboard/helpers/enabled_panel_kinds.dart` · `lib/ui/features/dashboard/widgets/hidden_empty_panels_builder.dart` |
 | An entry in the dashboard's `+` create sheet, who is offered it, or the running-timer pill sitting on a FAB | `docs/dashboard-panels.md` § The `+` is a FAB that opens a create sheet · `lib/domain/quick_create.dart` · `runningTimerPillBottom` |

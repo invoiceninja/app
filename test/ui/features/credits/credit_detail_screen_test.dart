@@ -74,7 +74,7 @@ void main() {
         ),
         findsOneWidget,
       );
-      expect(_inStanding('Amount'), findsOneWidget);
+      expect(_inStanding('AMOUNT'), findsOneWidget);
       expect(_inStanding('CREDIT REMAINING'), findsOneWidget);
       expect(_inStanding(r'$720.00'), findsOneWidget);
       // Applied is this document's "paid" — shown because it is not zero.
@@ -88,13 +88,16 @@ void main() {
   );
 
   _screenTest(
-    'a used-up credit leads with its amount and offers nothing to apply',
+    'a used-up credit shows Credit Remaining \$0.00 and offers nothing to '
+    'apply',
     docJson(status: '4', balance: '0', paid: '3720.00'),
     (tester, screen) async {
-      // Nothing remains, so the amount leads (one lead rule,
-      // `billingDocLeadsWithBalance`) — once: Applied equals it.
-      expect(_inStanding(r'$3,720.00'), findsOneWidget);
-      expect(_inStanding('Credit Remaining'), findsNothing);
+      // Amount and Credit Remaining side by side, as in 5.1.30; Applied
+      // beside them since it is not zero.
+      expect(_inStanding('CREDIT REMAINING'), findsOneWidget);
+      expect(_inStanding(r'$0.00'), findsOneWidget);
+      expect(_inStanding('Applied'), findsOneWidget);
+      expect(_inStanding(r'$3,720.00'), findsNWidgets(2));
       expect(_tiles(tester), isNot(contains('Apply')));
     },
   );

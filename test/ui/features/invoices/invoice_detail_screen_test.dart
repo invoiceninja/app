@@ -113,11 +113,12 @@ void main() {
       expect(_tiles(tester), ['+ Payment', 'Email', 'PDF', 'Mark Paid']);
 
       // The two figures that answer "where does this stand", and how long is
-      // left. Nothing has been paid, so there is no Paid figure.
-      expect(_inStanding('Amount'), findsOneWidget);
+      // left. Paid to Date prints at zero too, as in 5.1.30.
+      expect(_inStanding('AMOUNT'), findsOneWidget);
       expect(_inStanding('BALANCE DUE'), findsOneWidget);
       expect(_inStanding(r'$3,720.00'), findsNWidgets(2));
-      expect(_inStanding('Paid to Date'), findsNothing);
+      expect(_inStanding('Paid to Date'), findsOneWidget);
+      expect(_inStanding(r'$0.00'), findsOneWidget);
       final line = tester.widget<Text>(
         find.descendant(
           of: find.byType(BillingDocDueLine),
@@ -192,12 +193,13 @@ void main() {
       expect(_tiles(tester), ['Mark Sent', 'Email', 'PDF', 'Mark Paid']);
       // A draft has been sent to nobody who could be late.
       expect(find.byType(BillingDocDueLine), findsNothing);
-      // A draft owes nothing yet — the server keeps its balance at 0 — so
-      // its amount leads, never "Balance Due $0.00" (one lead rule,
-      // `billingDocLeadsWithBalance`).
-      expect(_inStanding(r'$3,720.00'), findsOneWidget);
-      expect(_inStanding(r'$0.00'), findsNothing);
-      expect(_inStanding('Balance Due'), findsNothing);
+      // The server keeps a draft's balance at 0; its Balance Due is its
+      // amount (v1's `balanceOrAmount`), never "Balance Due $0.00". The only
+      // zero is Paid to Date.
+      expect(_inStanding('BALANCE DUE'), findsOneWidget);
+      expect(_inStanding(r'$3,720.00'), findsNWidgets(2));
+      expect(_inStanding(r'$0.00'), findsOneWidget);
+      expect(_inStanding('Paid to Date'), findsOneWidget);
       expect(find.text('—'), findsNothing);
       // Not sent to anyone, so neither contact carries a delivery pill.
       expect(find.text('Sent'), findsNothing);
@@ -259,14 +261,17 @@ void main() {
   });
 
   _screenTest(
-    'paid: no payment tile, the amount leads once, nothing is due',
+    'paid: no payment tile; Amount, Balance Due \$0.00 and Paid to Date, '
+    'as 5.1.30 showed them; nothing is due',
     docJson(status: '4', balance: '0', paid: '3720.00', due: '2000-02-01'),
     (tester, screen) async {
       expect(_tiles(tester), ['Email', 'PDF', 'Download', 'Refund']);
-      // The balance is closed, so the amount leads — and Paid to Date, equal
-      // to it, is not printed beside it as a second $3,720.00.
-      expect(_inStanding(r'$3,720.00'), findsOneWidget);
-      expect(_inStanding('Paid to Date'), findsNothing);
+      // Hillel's 5.1.30 comparison: "make sure balance/paid is still shown".
+      expect(_inStanding('AMOUNT'), findsOneWidget);
+      expect(_inStanding('BALANCE DUE'), findsOneWidget);
+      expect(_inStanding(r'$0.00'), findsOneWidget);
+      expect(_inStanding('Paid to Date'), findsOneWidget);
+      expect(_inStanding(r'$3,720.00'), findsNWidgets(2));
       expect(find.byType(BillingDocDueLine), findsNothing);
     },
   );

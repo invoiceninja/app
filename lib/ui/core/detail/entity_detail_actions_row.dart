@@ -15,8 +15,9 @@ import 'package:admin/ui/core/widgets/back_dismissible_menu_anchor.dart';
 /// One row item in an [EntityDetailActionsRow].
 ///
 /// Whichever item carries `isPrimary: true` renders as a `FilledButton`
-/// (Edit, by convention) — outlined instead on a record screen whose
-/// quick-action strip already leads with an accent-filled tile. An item with `enabled: false` is **hidden** —
+/// (Edit, by convention) — the record screen's one filled button; its
+/// quick-action tiles are all outlined. An item with `enabled: false` is
+/// **hidden** —
 /// an action that isn't supported in the current context (e.g. "Refund
 /// Payment" while creating a new invoice) simply doesn't appear, rather
 /// than rendering greyed-out with a misleading "Coming soon" hint.
@@ -458,7 +459,8 @@ class EntityOverflowActionBar<A> extends StatelessWidget {
 ///
 ///  * **Wide** (full-screen detail, or a slide-over pane expanded to full
 ///    width) → reuses [EntityOverflowActionBar] with the primary action —
-///    usually **Edit**; Enter Payment on a sent invoice — pinned as `leading`: as many of the remaining actions as fit spread
+///    **Edit** whenever it can run ([editLeads]) — pinned as `leading`: as
+///    many of the remaining actions as fit spread
 ///    inline, the rest collapse into a labeled "More" menu — identical to the
 ///    edit-screen bar.
 ///  * **Narrow** (mobile, or the half-width master-detail / slide-over pane) →
@@ -475,8 +477,9 @@ class EntityDetailActionsRow<A> extends StatelessWidget {
   final List<EntityActionItem<A>> items;
 
   /// The compact cluster: the primary as a button, and a `⋮` with the rest.
-  /// A primary the quick-action strip already shows as a tile (a sent
-  /// invoice's Enter Payment, beside its "+ Payment" tile) goes into the `⋮`
+  /// A primary the quick-action strip already shows as a tile (Enter Payment
+  /// on a sent invoice the user may not edit, beside its "+ Payment" tile —
+  /// with Edit available, Edit leads instead, [editLeads]) goes into the `⋮`
   /// instead, so the pane does not offer the same act twice, a few pixels
   /// apart.
   Widget _compact(
@@ -494,13 +497,7 @@ class EntityDetailActionsRow<A> extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        if (button != null)
-          Flexible(
-            child: _ActionButton<A>(
-              item: button,
-              neutral: QuickActionKindsScope.hasTilesOf(context),
-            ),
-          ),
+        if (button != null) Flexible(child: _ActionButton<A>(item: button)),
         if (button != null && menu.isNotEmpty)
           SizedBox(width: InSpacing.md(context)),
         if (menu.isNotEmpty) _OverflowMenuButton<A>(items: menu),
@@ -508,10 +505,34 @@ class EntityDetailActionsRow<A> extends StatelessWidget {
     );
   }
 
+  /// [items] with **Edit as the record screen's primary** whenever it can run
+  /// — a sent invoice promotes Enter Payment to primary for its list row and
+  /// menu, but on the record screen that action is the "+ Payment" tile, and
+  /// the bar's one filled button is Edit, as in 5.1.30
+  /// (`docs/detail-screen-layout.md` § One accent per screen). The item it
+  /// displaces is demoted, so the bar never draws two filled buttons.
+  static List<EntityActionItem<A>> editLeads<A>(
+    List<EntityActionItem<A>> items,
+  ) {
+    final editIndex = items.indexWhere(
+      (i) => i.isEdit && i.enabled && i.isVisible,
+    );
+    if (editIndex == -1 || items[editIndex].isPrimary) return items;
+    return [
+      for (var i = 0; i < items.length; i++)
+        if (i == editIndex)
+          items[i].copyWith(isPrimary: true)
+        else if (items[i].isPrimary)
+          items[i].copyWith(isPrimary: false)
+        else
+          items[i],
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
     final visible = [
-      for (final item in items)
+      for (final item in editLeads<A>(items))
         if (item.isVisible) item,
     ];
     final primaryIndex = visible.indexWhere((item) => item.isPrimary);
@@ -554,10 +575,7 @@ class EntityDetailActionsRow<A> extends StatelessWidget {
                 child: EntityOverflowActionBar<A>(
                   leading: primary == null
                       ? null
-                      : _ActionButton<A>(
-                          item: primary,
-                          neutral: QuickActionKindsScope.hasTilesOf(context),
-                        ),
+                      : _ActionButton<A>(item: primary),
                   items: rest,
                   // What the quick-action strip shows stays out of the
                   // spread; it is still in More.
@@ -585,16 +603,8 @@ class EntityDetailActionsRow<A> extends StatelessWidget {
 }
 
 class _ActionButton<A> extends StatelessWidget {
-  const _ActionButton({required this.item, this.neutral = false});
+  const _ActionButton({required this.item});
   final EntityActionItem<A> item;
-
-  /// Draw a primary item outlined, like the rest of the bar: one accent per
-  /// screen. On a record screen whose quick-action strip is showing, the
-  /// strip's first tile is already the accent-filled action, and a filled
-  /// Edit a few pixels above it made the user choose between two. Edit keeps
-  /// its leading place and its `E` shortcut (`docs/detail-screen-layout.md`
-  /// § One accent per screen).
-  final bool neutral;
 
   @override
   Widget build(BuildContext context) {
@@ -618,25 +628,10 @@ class _ActionButton<A> extends StatelessWidget {
         ),
       );
     }
-    final Widget button = item.isPrimary && neutral
-        ? OutlinedButton.icon(
-            // `Size(0, 40)`, not the theme's infinite-width floor, so it can
-            // sit in a `Row` and still shorten to an ellipsis in the compact
-            // cluster, as the filled form does.
-            style: OutlinedButton.styleFrom(
-              minimumSize: const Size(0, 40),
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-            ),
-            icon: item.iconWidget(18),
-            label: Text(
-              item.label,
-              maxLines: 1,
-              softWrap: false,
-              overflow: TextOverflow.ellipsis,
-            ),
-            onPressed: item.enabled ? guardedOnTap<A>(context, item) : null,
-          )
-        : item.isPrimary
+    // The primary (Edit) is the screen's one filled button, beside a
+    // quick-action strip too: the tiles are all outlined
+    // (`docs/detail-screen-layout.md` § One accent per screen).
+    final Widget button = item.isPrimary
         ? FilledButton.icon(
             style: FilledButton.styleFrom(
               minimumSize: const Size(0, 40),

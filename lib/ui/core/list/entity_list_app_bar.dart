@@ -18,11 +18,11 @@ import 'package:admin/ui/features/shell/widgets/app_drawer.dart';
 /// search / columns) and, while the user is in multi-select, the selection
 /// chrome (Cancel-X, "N selected", bulk actions).
 ///
-/// Wide: a title row — the entity's plural name (and, on Clients and Invoices,
-/// the outstanding line under it) at the start, Columns / Views / "New X" at
-/// the end — over the token search field, which has the row below to itself.
-/// Narrow: hamburger + title + sort action, the optional [subtitle] line, and
-/// the token search field in a row below.
+/// Wide: one toolbar row — "New X" first, then the token search field filling
+/// the row, then Columns and Views — in the band the sidebar's company row
+/// lines up with (5.1.30's header, restored in Nov 2026; there is no title row
+/// on a wide list). Narrow: hamburger + title + sort action, the optional
+/// [subtitle] line, and the token search field in a row below.
 ///
 /// **It grows.** The search field wraps its filter chips, and this header is
 /// as tall as that needs — `InSizes.headerBand` is its floor, not its height.
@@ -73,18 +73,14 @@ class EntityListAppBar<T> extends StatelessWidget
   });
 
   /// The height the header takes with nothing wrapped — and never less. Wide
-  /// is the title row and the search row, each [InSizes.headerRow], with
-  /// 12 px above, [kWideRowGap] between and 12 px below.
-  static double minExtentFor({required bool wide}) => wide
-      ? InSizes.headerBand + kWideRowGap + InSizes.headerRow
-      : kToolbarHeight + kNarrowSearchRowHeight;
+  /// is the one toolbar row: [InSizes.headerBand].
+  static double minExtentFor({required bool wide}) =>
+      wide ? InSizes.headerBand : kToolbarHeight + kNarrowSearchRowHeight;
 
-  /// The wide header's gap between its title row and its search row.
-  static const double kWideRowGap = 8;
-
-  /// A line under the title — the outstanding totals on Clients and Invoices
-  /// (`ListOutstandingLine`). Null on every other list. It draws nothing while
-  /// its figure is unknown, so it may well take no height.
+  /// A line under the narrow title — the outstanding totals on Clients and
+  /// Invoices (`ListOutstandingLine`). Null on every other list, and ignored
+  /// by the wide header, which has no title. It draws nothing while its
+  /// figure is unknown, so it may well take no height.
   final Widget? subtitle;
 
   /// The ceiling to pass as [maxExtent]: under half of the [available] height,
@@ -181,53 +177,37 @@ class EntityListAppBar<T> extends StatelessWidget
 
   Widget _buildWide(BuildContext context) {
     return _HeaderSurface(
-      // The horizontal 24 aligns the rows' outer edges with the table below
-      // (also 24 px from the screen) — and, on the frameless desktop runners,
-      // is what the title bar's nav arrows align to. The 12 above puts the
-      // title row's buttons where the Tasks views' header puts its view
-      // toggle (`buildTasksViewAppBar`), so flipping views never moves it.
-      child: Padding(
-        padding: const EdgeInsetsDirectional.symmetric(
-          horizontal: 24,
-          vertical: 12,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            EntityListTitleRow<T>(
-              vm: vm,
-              title: context.tr(titleKey),
-              subtitle: subtitle,
-              newRoute: newRoute,
-              newLabelKey: newLabelKey,
-              extraActions: extraActions,
-              canCreate: canCreate,
-            ),
-            const SizedBox(height: kWideRowGap),
-            // `Flexible`: the header has a ceiling ([maxExtent]), and a
-            // search field that wraps a pile of chips must meet it and scroll
-            // rather than spill over the list.
-            Flexible(
-              // Only the search row swaps for the selection chrome: the title
-              // stays put, and the selection row is exactly as tall as the
-              // field it covers, wrapped chips included, so the rows under the
-              // pointer do not move when one is ticked.
-              child: IndexedStack(
-                index: selecting ? 1 : 0,
-                alignment: AlignmentDirectional.topStart,
-                children: [
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(
-                      minHeight: InSizes.headerRow,
-                    ),
-                    child: searchField,
-                  ),
-                  _wideSelectionRow(context),
-                ],
+      // The shared header band, so this lines up with the sidebar's company
+      // row across the seam — see InSizes.headerBand. A floor: the row below
+      // grows past it when the search field wraps.
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: InSizes.headerBand),
+        // The horizontal 24 aligns the row's outer edges with the table
+        // panel below (also 24 px from the screen) — and, on the frameless
+        // desktop runners, is what the title bar's nav arrows align to.
+        child: Padding(
+          padding: const EdgeInsetsDirectional.symmetric(
+            horizontal: 24,
+            vertical: 12,
+          ),
+          // The selection row is exactly as tall as the toolbar row it
+          // covers, wrapped chips included, so the rows under the pointer do
+          // not move when one is ticked.
+          child: IndexedStack(
+            index: selecting ? 1 : 0,
+            alignment: AlignmentDirectional.topStart,
+            children: [
+              EntityListTopRow<T>(
+                vm: vm,
+                newRoute: newRoute,
+                newLabelKey: newLabelKey,
+                searchField: searchField,
+                extraActions: extraActions,
+                canCreate: canCreate,
               ),
-            ),
-          ],
+              _wideSelectionRow(context),
+            ],
+          ),
         ),
       ),
     );
