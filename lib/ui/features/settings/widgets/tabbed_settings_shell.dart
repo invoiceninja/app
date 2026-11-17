@@ -72,7 +72,13 @@ class TabbedSettingsShell<V extends SettingsDraftHost> extends StatefulWidget {
     this.extraActions = const <Widget>[],
     this.resolveErrorTabSlug,
     this.banner,
+    this.companyOnly = true,
   }) : assert(tabs.length >= 2, 'TabbedSettingsShell needs at least two tabs');
+
+  /// Whether the VM edits the company, so the page must not render at group
+  /// or client scope ([SettingsCompanyScopedHost.companyOnlyTitleKey]). False
+  /// only for a page that edits something else (User Details: the user).
+  final bool companyOnly;
 
   /// Localization key for the AppBar title.
   final String titleKey;
@@ -232,6 +238,7 @@ class _TabbedSettingsShellState<V extends SettingsDraftHost>
 
     final tokens = context.inTheme;
     return SettingsCompanyScopedHost<V>(
+      companyOnlyTitleKey: widget.companyOnly ? widget.titleKey : null,
       create: (companyId) {
         final vm = widget.companyVmFactory(companyId);
         unawaited(vm.load());

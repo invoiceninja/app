@@ -12,6 +12,8 @@ import 'package:admin/ui/features/settings/widgets/overridable_switch_field.dart
 import 'package:admin/ui/features/settings/widgets/segmented_choice_field.dart';
 
 /// Online Payments — General tab. Field labels surfaced by the in-app search.
+/// The four setup-card labels (`PaymentSetupSection`) each render only in
+/// some states; the catalog's `keyGates` mirror them.
 const kOnlinePaymentsGeneralSearchKeys = <String>[
   'auto_bill_standard_invoices',
   'auto_bill_recurring_invoices',
@@ -20,6 +22,7 @@ const kOnlinePaymentsGeneralSearchKeys = <String>[
   'use_available_credits',
   'company_gateways',
   'add_gateway',
+  'gateway_display_order',
   'payment_types',
   'admin_initiated_payments',
   'client_initiated_payments',

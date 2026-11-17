@@ -327,6 +327,41 @@ void main() {
       vm.setSearch('fix');
       expect(vm.tasksFor('s1').map((t) => t.id), ['fix gate']);
     });
+
+    test(
+      'a quick-added card survives its create syncing under the search',
+      () async {
+        final emissions = StreamController<Map<String, List<Task>>>();
+        addTearDown(emissions.close);
+        final repo = _LiveTaskRepo(emissions.stream);
+        final vm = searchable(repo);
+        emissions.add({
+          's1': [_t('fix gate')],
+        });
+        await Future<void>.delayed(Duration.zero);
+        vm.setSearch('gate');
+        await vm.quickAdd(statusId: 's1', description: 'order hinges');
+        emissions.add({
+          's1': [_t('fix gate'), _t('tmp_1')],
+        });
+        await Future<void>.delayed(Duration.zero);
+        expect(vm.tasksFor('s1').map((t) => t.id), ['fix gate', 'tmp_1']);
+
+        // The create lands: the sync engine swaps the row to the server id in
+        // the same transaction that records `tmp_1 -> 42` in id_remap.
+        repo.remapped['tmp_1'] = '42';
+        emissions.add({
+          's1': [_t('fix gate'), _t('42')],
+        });
+        await Future<void>.delayed(Duration.zero);
+        await Future<void>.delayed(Duration.zero);
+        expect(
+          vm.tasksFor('s1').map((t) => t.id),
+          ['fix gate', '42'],
+          reason: 'the card must not vanish when its id goes from tmp_ to real',
+        );
+      },
+    );
   });
 }
 
@@ -361,4 +396,11 @@ class _LiveTaskRepo extends _FakeTaskRepo {
     created.add(draft);
     return SaveResult(entity: draft.copyWith(id: 'tmp_1'), outboxRowId: 1);
   }
+
+  /// What `id_remap` holds once a create has synced.
+  final remapped = <String, String>{};
+
+  @override
+  Future<String> resolveId(String maybeTempId) async =>
+      remapped[maybeTempId] ?? maybeTempId;
 }

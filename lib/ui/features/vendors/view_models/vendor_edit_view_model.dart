@@ -140,8 +140,13 @@ class VendorEditViewModel extends GenericEditViewModel<Vendor> {
   }
 
   /// The contact [addContact] last appended, for the Contacts card to bring
-  /// into view (`ContactEditRows.reveal`). Null until one is added.
+  /// into view (`ContactEditRows.reveal`). Null until one is added, and again
+  /// once it has been revealed ([contactRevealed]).
   ContactReveal? contactToReveal;
+
+  /// The Contacts card has scrolled to [contactToReveal]: a one-shot, so a
+  /// remount of the card does not scroll there again. Nothing to repaint.
+  void contactRevealed() => contactToReveal = null;
 
   /// Remove the contact at [index]. If that contact was primary, the new
   /// first contact gets promoted so the entity always carries one primary.

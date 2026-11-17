@@ -146,6 +146,19 @@ class _NoOverrides extends StatelessWidget {
   }
 }
 
+/// Sections the sidebar hides at group / client scope whose page is still
+/// cascade-aware, so opening it at group scope saves to the group: E-Invoicing
+/// is a `CascadeSettingsScaffold` whose company-only cards gate themselves on
+/// `isCompany`.
+const _kCascadePagesHiddenAtScope = {'e_invoice'};
+
+/// Whether [section]'s page, opened at group scope, saves to the group. A
+/// company-only page (Company Details) always edits the company — offering it
+/// from a group would write company-wide terms, footer and address.
+bool groupScopeEditable(SettingsSectionDef section) =>
+    section.clientEditable ||
+    _kCascadePagesHiddenAtScope.contains(section.slug);
+
 /// One card per settings page the group overrides something on, in the
 /// settings list's own order; anything no page binds goes last, under Other.
 class _Sections extends StatelessWidget {
@@ -167,10 +180,16 @@ class _Sections extends StatelessWidget {
     for (final k in keys) {
       bySection.putIfAbsent(settingOverrideSection(k), () => []).add(k);
     }
+    // A section with no group-scope page gets no route: its Configure is
+    // drawn disabled with the reason, never a link to the company's page.
     final ordered = <(String, String?, List<String>)>[
       for (final s in kSettingsSections)
         if (bySection.containsKey(s.slug))
-          (s.titleKey, s.route, bySection.remove(s.slug)!),
+          (
+            s.titleKey,
+            groupScopeEditable(s) ? s.route : null,
+            bySection.remove(s.slug)!,
+          ),
       // A slug with no section def (`other`) and anything left over.
       for (final e in bySection.entries) ('other', null, e.value),
     ];
@@ -184,13 +203,22 @@ class _Sections extends StatelessWidget {
           DashboardCardShell(
             key: ValueKey('group-overview-section-$titleKey'),
             title: context.tr(titleKey),
-            trailing: route == null
-                ? null
-                : TextButton(
+            trailing: route != null
+                ? TextButton(
                     onPressed: onConfigure == null
                         ? null
                         : () => onConfigure!(route),
                     child: Text(context.tr('configure')),
+                  )
+                : titleKey == 'other'
+                ? null
+                : Tooltip(
+                    message: context.tr('company_settings_only'),
+                    child: TextButton(
+                      key: ValueKey('group-overview-company-only-$titleKey'),
+                      onPressed: null,
+                      child: Text(context.tr('configure')),
+                    ),
                   ),
             child: DetailRowColumns(
               children: [

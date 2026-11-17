@@ -401,5 +401,17 @@ void main() {
     test('nothing to scale is a one-unit axis', () {
       expect(chartValueScale(0), (step: 1.0, max: 1.0));
     });
+
+    // The axis labels a step in whole units (`_valueTitle`), so a 2.5 step
+    // labelled 2.5 and 7.5 as $3 and $8.
+    test('a step is always a whole amount', () {
+      expect(chartValueScale(9), (step: 5.0, max: 10.0));
+      for (var raw = 0.5; raw <= 2000; raw += 0.5) {
+        final s = chartValueScale(raw);
+        expect(s.step, s.step.roundToDouble(), reason: '$raw');
+        expect(s.max, greaterThanOrEqualTo(raw), reason: '$raw');
+        expect(s.max / s.step, lessThanOrEqualTo(4), reason: '$raw');
+      }
+    });
   });
 }

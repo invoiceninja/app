@@ -163,6 +163,7 @@ class _CustomFieldsShellState extends State<CustomFieldsShell> {
   Widget build(BuildContext context) {
     final services = context.read<Services>();
     return SettingsCompanyScopedHost<CustomFieldsViewModel>(
+      companyOnlyTitleKey: 'custom_fields',
       create: (companyId) {
         final vm = CustomFieldsViewModel(
           repo: services.company,

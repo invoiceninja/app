@@ -606,6 +606,7 @@ class _CommandPaletteState extends State<_CommandPalette> {
         services.auth.session.value,
         services.settingsLevel,
         company: _company,
+        serverVersion: services.serverVersion.value,
       ),
     ).take(_kMaxSettingsHits);
     return [for (final hit in hits) _settingsRowFor(hit, l10n)];

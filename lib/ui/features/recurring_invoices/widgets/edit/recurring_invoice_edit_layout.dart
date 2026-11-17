@@ -94,8 +94,8 @@ Widget recurringInvoiceDraftPreviewButton(
   _draftPdfFetcher(context, vm),
 );
 
-/// The auto-bill mode (`off` / `always` / `optout` / `optin`), beside Discount
-/// on the desktop details panel and after it on the narrow Details tab. There is no
+/// The auto-bill mode (`off` / `always` / `optout` / `optin`), under Discount
+/// in the desktop number card and after it on the narrow Details tab. There is no
 /// separate `auto_bill_enabled` toggle: the server derives it from this
 /// field (`always` / `optout` → true) and overwrites it on save — see
 /// `RecurringInvoiceEditViewModel.setAutoBill`. Matches React.
@@ -109,6 +109,7 @@ class _AutoBillModeField extends StatelessWidget {
     return LabeledField(
       label: context.tr('auto_bill'),
       child: DropdownButtonFormField<String>(
+        isExpanded: true,
         initialValue: vm.draft.autoBill.isEmpty ? 'off' : vm.draft.autoBill,
         decoration: desktop
             ? billingFieldDecoration(context, label: context.tr('auto_bill'))
@@ -120,9 +121,10 @@ class _AutoBillModeField extends StatelessWidget {
   }
 }
 
-/// The schedule's fields on the desktop details panel, in the place the
-/// document and due dates take on the other documents, paired two to a row
-/// by the layout: Frequency | Next Send Date, Remaining Cycles | Due Date.
+/// The schedule's fields on the desktop details panel, in the dates card
+/// where the document and due dates sit on the other documents — stacked one
+/// per row, like every card field: Frequency, Next Send Date, Remaining
+/// Cycles, Due Date.
 List<Widget> _scheduleFieldsDesktop(
   BuildContext context,
   RecurringInvoiceEditViewModel vm,
@@ -132,6 +134,7 @@ List<Widget> _scheduleFieldsDesktop(
     LabeledField(
       label: context.tr('frequency'),
       child: DropdownButtonFormField<String>(
+        isExpanded: true,
         initialValue: vm.draft.frequencyId.isEmpty
             ? null
             : vm.draft.frequencyId,
@@ -187,6 +190,7 @@ class _ScheduleTab extends StatelessWidget {
             LabeledField(
               label: context.tr('frequency'),
               child: DropdownButtonFormField<String>(
+                isExpanded: true,
                 initialValue: vm.draft.frequencyId.isEmpty
                     ? null
                     : vm.draft.frequencyId,

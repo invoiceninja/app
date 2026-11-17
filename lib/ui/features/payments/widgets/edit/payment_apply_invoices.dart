@@ -310,12 +310,13 @@ class _PaymentApplyInvoicesSectionState
               ),
               const SizedBox(height: 12),
               if (showFilter) ...[
+                // A search box, not a form field: Enter never saves the
+                // payment (it did — 5.1.31 review), it only closes the
+                // keyboard. No `FormSaveScope`, like every list search.
                 TextField(
                   controller: _filter,
                   autocorrect: false,
-                  textInputAction: TextInputAction.done,
-                  onSubmitted: (_) =>
-                      FormSaveScope.maybeOf(context)?.trySubmit(),
+                  textInputAction: TextInputAction.search,
                   decoration: InputDecoration(
                     hintText: context.tr('filter'),
                     prefixIcon: const Icon(Icons.search, size: 20),

@@ -29,6 +29,8 @@ class UserDetailsShell extends StatelessWidget {
     return TabbedSettingsShell<UserDetailsViewModel>(
       titleKey: 'user_details',
       basePath: '/settings/user_details',
+      // The signed-in user's own record, the same at every settings scope.
+      companyOnly: false,
       initialTab: initialTab,
       companyVmFactory: (companyId) => UserDetailsViewModel(
         repo: services.user,

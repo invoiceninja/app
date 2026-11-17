@@ -19,6 +19,7 @@ import 'package:admin/ui/features/payments/view_models/payment_edit_view_model.d
 import 'package:admin/ui/features/payments/widgets/edit/payment_allocations_section.dart';
 import 'package:admin/ui/features/payments/widgets/edit/payment_apply_invoices.dart';
 import 'package:admin/ui/features/payments/widgets/edit/payment_invoice_checklist.dart';
+import 'package:admin/ui/core/widgets/form_save_scope.dart';
 import '../../../_localization_helper.dart';
 
 // The new payment's Apply to invoices table: the client's open invoices as
@@ -285,6 +286,7 @@ void main() {
       PaymentEditViewModel vm,
       _FakeInvoices invoices, {
       Size size = const Size(520, 900),
+      VoidCallback? onSave,
     }) async {
       tester.view.physicalSize = size;
       tester.view.devicePixelRatio = 1;
@@ -300,10 +302,13 @@ void main() {
               body: SingleChildScrollView(
                 child: ListenableBuilder(
                   listenable: vm,
-                  builder: (context, _) => PaymentApplyInvoicesSection(
-                    vm: vm,
-                    formatter: null,
-                    currencyId: '',
+                  builder: (context, _) => FormSaveScope(
+                    onSubmit: onSave ?? () {},
+                    child: PaymentApplyInvoicesSection(
+                      vm: vm,
+                      formatter: null,
+                      currencyId: '',
+                    ),
                   ),
                 ),
               ),
@@ -424,6 +429,33 @@ void main() {
         isTrue,
       );
       expect(find.text('Auto-apply oldest'), findsOneWidget);
+    });
+
+    // A filter is a search box, not a form field: Enter in it saved the
+    // whole payment (5.1.31 review).
+    testWidgets('Enter in the filter never saves the payment', (tester) async {
+      var saves = 0;
+      final vm = newVm();
+      await pump(
+        tester,
+        vm,
+        _FakeInvoices(open, fetch: UnpaidInvoicesFetch.incomplete),
+        onSave: () => saves++,
+      );
+      final filter = find.widgetWithText(TextField, 'Filter');
+      await tester.enterText(filter, 'I2');
+      await tester.testTextInput.receiveAction(
+        tester.widget<TextField>(filter).textInputAction!,
+      );
+      await tester.pumpAndSettle();
+      expect(saves, 0);
+      expect(
+        tester.widget<TextField>(filter).textInputAction,
+        TextInputAction.search,
+      );
+      // The filter still filters.
+      expect(find.text('#I2'), findsOneWidget);
+      expect(find.text('#I1'), findsNothing);
     });
 
     testWidgets('fits the 440 px slide-over panel without overflow', (

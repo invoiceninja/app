@@ -58,6 +58,7 @@ class ExpenseSettingsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final services = context.read<Services>();
     return SettingsCompanyScopedHost<ExpenseSettingsViewModel>(
+      companyOnlyTitleKey: 'expense_settings',
       create: (companyId) {
         final vm = ExpenseSettingsViewModel(
           repo: services.company,

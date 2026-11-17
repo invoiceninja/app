@@ -63,6 +63,7 @@ class ProductSettingsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final services = context.read<Services>();
     return SettingsCompanyScopedHost<ProductSettingsViewModel>(
+      companyOnlyTitleKey: 'product_settings',
       create: (companyId) {
         final vm = ProductSettingsViewModel(
           repo: services.company,

@@ -8,6 +8,8 @@ import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/theme.dart';
 import 'package:admin/data/models/domain/company.dart';
 import 'package:admin/data/models/domain/company_settings.dart';
+import 'package:admin/data/models/domain/enabled_modules.dart';
+import 'package:admin/ui/features/settings/settings_search_catalog.dart';
 import 'package:admin/ui/features/settings/state/settings_level_controller.dart';
 import 'package:admin/ui/features/settings/view_models/settings_draft_view_model.dart';
 import 'package:admin/ui/features/settings/views/basic/online_payments/payment_setup_card.dart';
@@ -228,6 +230,65 @@ void main() {
       Focus.of(tester.element(find.text('Payment Types'))).hasFocus,
       isTrue,
     );
+  });
+
+  group('search offers exactly the setup labels that render', () {
+    // A hit reveals its field by the label on screen, so a key offered in a
+    // state that draws a different label opens the page and flashes nothing.
+    const setupKeys = [
+      'company_gateways',
+      'add_gateway',
+      'gateway_display_order',
+      'payment_types',
+    ];
+    final l10n = bundledLocalization();
+    final allModules = kEnabledModulesOrder.fold<int>(
+      0,
+      (mask, m) => mask | m.bitmask,
+    );
+    Set<String> offered({required bool cascade, required int? gateways}) => {
+      for (final key in setupKeys)
+        for (final h in searchSettings(
+          l10n.lookup(key),
+          l10n,
+          scope: SettingsSearchScope(
+            enabledModules: allModules,
+            isAdminOrOwner: true,
+            isCascade: cascade,
+            isHosted: true,
+            activeGatewayCount: gateways,
+          ),
+        ))
+          if (h.route == '/settings/online_payments' && h.fieldKey == key) key,
+    };
+
+    // A count not known (the command palette) offers both gateway labels —
+    // fail open; the settings search watches it, so this is every state it
+    // can be in.
+    for (final (cascade, gateways) in [
+      (false, const <String>[]),
+      (false, const ['Stripe']),
+      (true, const <String>[]),
+      (true, const ['Stripe']),
+    ]) {
+      testWidgets('${cascade ? 'group' : 'company'} scope, '
+          '${gateways.length} gateways', (tester) async {
+        final level = SettingsLevelController();
+        if (cascade) {
+          level.setLevel(SettingsLevel.group, targetId: 'g1', targetName: 'G');
+        }
+        await _pump(tester, gateways: gateways, level: level);
+        final keys = offered(cascade: cascade, gateways: gateways.length);
+        expect(keys, isNotEmpty);
+        for (final key in setupKeys) {
+          expect(
+            find.text(l10n.lookup(key)),
+            keys.contains(key) ? findsOneWidget : findsNothing,
+            reason: '$key ${keys.contains(key) ? 'offered' : 'not offered'}',
+          );
+        }
+      });
+    }
   });
 
   for (final theme in [InTheme.light, InTheme.dark]) {

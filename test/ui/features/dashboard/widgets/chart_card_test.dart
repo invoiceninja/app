@@ -409,6 +409,37 @@ void main() {
     expect(colors, isNot(contains(t.overdue)));
   });
 
+  testWidgets('a negative slot extends the axis below zero, which stays the '
+      'solid baseline', (tester) async {
+    // A negative expense (a refund booked as one) or a credit-style invoice
+    // sums below zero; pinned at `minY: 0` it was drawn under the plot, into
+    // the date labels.
+    final json = seriesJson();
+    (json['999'] as Map<String, dynamic>)['expenses'] = [
+      {'date': '2026-04-01', 'total': '-150', 'currency': '1'},
+    ];
+    repo.chart.add(DashboardChartSeries.fromJson(json));
+    await tester.pump(const Duration(milliseconds: 10));
+    await tester.pumpWidget(host());
+    await tester.pump(const Duration(milliseconds: 400));
+
+    final data = chartData(tester);
+    final step = data.gridData.horizontalInterval!;
+    expect(rods(tester).first.last, -150);
+    expect(data.minY, lessThanOrEqualTo(-150));
+    expect(data.minY % step, 0, reason: 'the floor is a labelled step');
+    expect(data.maxY, greaterThanOrEqualTo(410));
+    expect(data.maxY % step, 0);
+    // Zero is drawn solid across the plot, so above and below read apart.
+    final zero = data.extraLinesData.horizontalLines.where((l) => l.y == 0);
+    expect(zero, hasLength(1));
+    expect(zero.single.dashArray, isNull);
+    // The lead series' shading runs to zero, not to the floor.
+    final fill = data.lineBarsData.first.belowBarData;
+    expect(fill.applyCutOffY, isTrue);
+    expect(fill.cutOffY, 0);
+  });
+
   testWidgets('gridlines are dashed, except the baseline', (tester) async {
     await pump(tester);
 

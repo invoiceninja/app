@@ -57,6 +57,7 @@ class ContactEditRows extends StatefulWidget {
     required this.onMakePrimary,
     required this.onDelete,
     this.reveal,
+    this.onRevealed,
   });
 
   final List<ContactRowData> contacts;
@@ -64,6 +65,12 @@ class ContactEditRows extends StatefulWidget {
   /// Scroll this row into view once it is laid out — on mount, and whenever
   /// a new [ContactReveal] arrives.
   final ContactReveal? reveal;
+
+  /// Called once [reveal]'s row has been scrolled to, so its owner can clear
+  /// it. A reveal still set when the rows mount again — the client edit
+  /// layout moves the card between its one- and two-column trees on a resize
+  /// — would otherwise pull the form back to that contact.
+  final VoidCallback? onRevealed;
 
   /// The open row's fields, for the contact at an index. The row adds its own
   /// header above and its Make primary / Remove buttons below.
@@ -124,6 +131,7 @@ class _ContactEditRowsState extends State<ContactEditRows> {
           curve: InMotion.move,
         ),
       );
+      widget.onRevealed?.call();
     });
   }
 

@@ -4,6 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:admin/data/models/domain/enabled_modules.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/features/settings/settings_search_catalog.dart';
+import 'package:admin/data/repositories/auth/auth_session.dart';
+import 'package:admin/ui/features/settings/state/settings_level_controller.dart';
 import 'package:admin/ui/features/settings/widgets/contacts_sync_section.dart';
 import 'package:admin/ui/features/settings/widgets/downloads_folder_section.dart';
 import 'package:admin/ui/features/settings/widgets/mobile_app_section.dart';
@@ -408,6 +410,32 @@ void main() {
         );
       });
 
+      test('Documents Public by Default only where the server applies it', () {
+        // `documentsPublicByDefaultSupported`: hosted, or self-hosted from
+        // 5.13.32 — the Documents tab hides the toggle elsewhere.
+        bool reaches(SettingsSearchScope scope) => searchSettings(
+          l10n.lookup('documents_public_by_default'),
+          l10n,
+          scope: scope,
+        ).any((h) => h.fieldKey == 'documents_public_by_default');
+        SettingsSearchScope selfHosted(String? version) =>
+            SettingsSearchScope.from(
+              const AuthSession(
+                baseUrl: 'https://in.example.com',
+                isHosted: false,
+                accountId: 'a1',
+                companies: [],
+                currentCompanyId: '',
+              ),
+              SettingsLevelController(),
+              serverVersion: version,
+            );
+        expect(reaches(_scope()), isTrue);
+        expect(reaches(selfHosted('5.13.32')), isTrue);
+        expect(reaches(selfHosted('5.13.31')), isFalse);
+        expect(reaches(selfHosted(null)), isFalse);
+      });
+
       test('with no scope the session- and company-bound gates fail open', () {
         final hits = searchSettings(
           l10n.lookup('hide_peppol_sent_status'),
@@ -590,6 +618,27 @@ void main() {
               h.section.slug == 'company_details',
         ),
         isEmpty,
+      );
+    });
+
+    test('Payment Types is company-only and follows its modules', () {
+      // Its page writes the company's `hidden_payment_types` at any scope.
+      final l10n = bundledLocalization();
+      const route = '/settings/online_payments/payment_types';
+      bool reaches(SettingsSearchScope scope) => searchSettings(
+        'payment types',
+        l10n,
+        scope: scope,
+      ).any((h) => h.route == route);
+      expect(reaches(_scope()), isTrue);
+      expect(reaches(_scope(isCascade: true)), isFalse);
+      expect(
+        reaches(_scope(enabledModules: EnabledModule.expenses.bitmask)),
+        isTrue,
+      );
+      expect(
+        reaches(_scope(enabledModules: EnabledModule.quotes.bitmask)),
+        isFalse,
       );
     });
 

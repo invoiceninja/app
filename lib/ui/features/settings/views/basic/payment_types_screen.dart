@@ -45,6 +45,7 @@ class PaymentTypesScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final services = context.read<Services>();
     return SettingsCompanyScopedHost<PaymentTypesSettingsViewModel>(
+      companyOnlyTitleKey: 'payment_types',
       create: (companyId) {
         final vm = PaymentTypesSettingsViewModel(
           repo: services.company,

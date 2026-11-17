@@ -111,10 +111,19 @@ void main() {
     ),
   );
 
-  /// A Sync that walked [entity] to the end — what makes the local sum a
-  /// total.
-  Future<void> markFullSync([String entity = 'quote']) =>
-      db.syncStateDao.markFullSync(companyId: co, entityType: entity, now: 1);
+  /// A Sync that walked [entities] to the end — what makes the local sum a
+  /// total. A quote's sum reads its client's currency, so both by default.
+  Future<void> markFullSync([
+    List<String> entities = const ['quote', 'client'],
+  ]) async {
+    for (final entity in entities) {
+      await db.syncStateDao.markFullSync(
+        companyId: co,
+        entityType: entity,
+        now: 1,
+      );
+    }
+  }
 
   /// Every value [stream] emits, for as long as the test runs.
   List<Map<String, Decimal>?> record(Stream<Map<String, Decimal>?> stream) {
@@ -334,6 +343,72 @@ void main() {
     expect(await repo.watch(EntityType.vendor, co).first, isNull);
     await repo.refresh(EntityType.product, co);
     expect(api.asked, isEmpty);
+  });
+
+  test('the local sum waits for the clients too: a quote whose client Drift '
+      'does not hold would be summed in the company currency', () async {
+    // A client in euros, its quote naming no currency of its own.
+    await db.quoteDao.upsert(
+      QuotesCompanion.insert(
+        id: 'q1',
+        companyId: co,
+        updatedAt: 1,
+        payload: '{}',
+        statusId: const Value('3'),
+        amount: const Value('7'),
+        clientId: const Value('c1'),
+      ),
+    );
+    api.answer = const ServerException(404, 'Route does not exist');
+    final seen = record(repo.watch(EntityType.quote, co));
+    await repo.refresh(EntityType.quote, co);
+    // The quotes list pulled to refresh: every quote, but not its client.
+    await markFullSync(['quote']);
+    await pumpEventQueue();
+    expect(seen.whereType<Map<String, Decimal>>(), isEmpty);
+
+    await db.clientDao.upsert(
+      ClientsCompanion.insert(
+        id: 'c1',
+        companyId: co,
+        updatedAt: 1,
+        name: 'Euro Co',
+        displayName: 'Euro Co',
+        number: '1',
+        email: '',
+        balance: '0',
+        payload: jsonEncode({
+          'settings': {'currency_id': '3'},
+        }),
+      ),
+    );
+    await markFullSync(['client']);
+    await pumpEventQueue();
+    expect(seen.last, dec({'3': '7'}));
+  });
+
+  test('a purchase order\'s sum waits for the vendors', () async {
+    await db.purchaseOrderDao.upsert(
+      PurchaseOrdersCompanion.insert(
+        id: 'po1',
+        companyId: co,
+        updatedAt: 1,
+        payload: '{}',
+        statusId: const Value('2'),
+        balance: const Value('9'),
+        vendorId: const Value('v1'),
+      ),
+    );
+    api.answer = const ServerException(404, 'Route does not exist');
+    final seen = record(repo.watch(EntityType.purchaseOrder, co));
+    await repo.refresh(EntityType.purchaseOrder, co);
+    await markFullSync(['purchase_order', 'client']);
+    await pumpEventQueue();
+    expect(seen.whereType<Map<String, Decimal>>(), isEmpty);
+
+    await markFullSync(['vendor']);
+    await pumpEventQueue();
+    expect(seen.last, dec({'': '9'}));
   });
 
   test('a Sync that resets the cursor hides the local line again until it '

@@ -123,7 +123,6 @@ class _QuickProductDialogState extends State<_QuickProductDialog> {
     required TextEditingController controller,
     required String labelKey,
     required bool autofocus,
-    required TextInputAction action,
   }) => LabeledField(
     label: context.tr(labelKey),
     child: TextField(
@@ -132,9 +131,11 @@ class _QuickProductDialogState extends State<_QuickProductDialog> {
       // is what the user just searched for.
       autofocus: autofocus,
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      textInputAction: action,
+      // Enter in either amount saves (as 5.1.30's one amount did); Tab moves
+      // between them. `next` on the first sent Enter to the second instead.
+      textInputAction: TextInputAction.done,
       decoration: InputDecoration(labelText: context.tr(labelKey)),
-      onSubmitted: action == TextInputAction.done ? (_) => _submit() : null,
+      onSubmitted: (_) => _submit(),
     ),
   );
 
@@ -146,9 +147,6 @@ class _QuickProductDialogState extends State<_QuickProductDialog> {
       controller: _price,
       labelKey: widget.vendorDoc ? 'cost' : 'price',
       autofocus: true,
-      action: widget.offerSecondary
-          ? TextInputAction.next
-          : TextInputAction.done,
     );
     if (!widget.offerSecondary) return primary;
     return Row(
@@ -162,7 +160,6 @@ class _QuickProductDialogState extends State<_QuickProductDialog> {
             controller: _secondary,
             labelKey: widget.vendorDoc ? 'price' : 'cost',
             autofocus: false,
-            action: TextInputAction.done,
           ),
         ),
       ],

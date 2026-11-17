@@ -834,13 +834,23 @@ class _CashFlowLineChartState extends State<_CashFlowLineChart> {
     final n = math.max(1, buckets.length);
 
     var rawMax = 0.0;
+    var rawMin = 0.0;
     for (final s in series) {
       for (final v in s.values) {
         if (v > rawMax) rawMax = v;
+        if (v < rawMin) rawMin = v;
       }
     }
-    final scale = chartValueScale(rawMax);
+    // A slot can sum below zero — a negative expense, a credit-style invoice
+    // — and cash flow shows it: the axis takes in both ends at one step, and
+    // zero stays a gridline. With nothing negative this is the plain scale.
+    final scale = chartValueScale(rawMax - rawMin);
     _step = scale.step;
+    final negative = rawMin < 0;
+    final minY = negative ? (rawMin / scale.step).floor() * scale.step : 0.0;
+    final maxY = negative
+        ? (rawMax / scale.step).ceil() * scale.step
+        : scale.max;
 
     final touched = _touched;
     final lines = <LineChartBarData>[
@@ -875,6 +885,10 @@ class _CashFlowLineChartState extends State<_CashFlowLineChart> {
                       s.color.withValues(alpha: 0),
                     ],
                   ),
+                  // Down to zero, not to a floor below it: under the axis the
+                  // fill would read as money.
+                  cutOffY: 0,
+                  applyCutOffY: negative,
                 )
               : BarAreaData(show: false),
           showingIndicators: touched == null ? const [] : [touched],
@@ -889,8 +903,8 @@ class _CashFlowLineChartState extends State<_CashFlowLineChart> {
         // slot each side so it is not drawn on the frame.
         minX: n == 1 ? -0.5 : 0,
         maxX: n == 1 ? 0.5 : n - 1.0,
-        minY: 0,
-        maxY: scale.max,
+        minY: minY,
+        maxY: maxY,
         showingTooltipIndicators: touched == null || lines.isEmpty
             ? const []
             : [
@@ -919,11 +933,15 @@ class _CashFlowLineChartState extends State<_CashFlowLineChart> {
         extraLinesData: ExtraLinesData(
           horizontalLines: [
             HorizontalLine(
-              y: scale.max,
+              y: maxY,
               color: tokens.border,
               strokeWidth: 1,
               dashArray: _kDash,
             ),
+            // With a slot below zero the floor is a negative step, so zero
+            // gets the baseline's solid rule in the middle of the plot.
+            if (negative)
+              HorizontalLine(y: 0, color: tokens.border, strokeWidth: 1),
           ],
         ),
         // rtl: physical — a time axis runs left to right in every locale (as

@@ -46,6 +46,37 @@ void main() {
     expect(c.bottomInset.value, 48);
   });
 
+  testWidgets('unmounting a bar never notifies while the tree is locked', (
+    tester,
+  ) async {
+    // The bar gives its height up from `dispose`, mid-frame; the shell's
+    // timer pill listens and calls `setState`. Published then, that is
+    // "setState() called when the widget tree was locked".
+    final c = ToastController();
+    addTearDown(c.dispose);
+    Widget app({required bool showBar}) => MaterialApp(
+      home: Column(
+        children: [
+          ListenableBuilder(
+            listenable: c.bottomInset,
+            builder: (_, _) => Text('inset ${c.bottomInset.value}'),
+          ),
+          const Spacer(),
+          if (showBar) ToastBottomInset(controller: c, child: bar(56)),
+        ],
+      ),
+    );
+    await tester.pumpWidget(app(showBar: true));
+    await tester.pump();
+    expect(find.text('inset 56.0'), findsOneWidget);
+
+    await tester.pumpWidget(app(showBar: false));
+    expect(tester.takeException(), isNull);
+    expect(c.bottomInset.value, 0);
+    await tester.pump();
+    expect(find.text('inset 0.0'), findsOneWidget);
+  });
+
   testWidgets('a bar that pays the safe inset reports only what is above it', (
     tester,
   ) async {

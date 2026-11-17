@@ -14,6 +14,8 @@ import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/features/tasks/widgets/running_duration_label.dart';
 import 'package:admin/ui/core/widgets/toast_controller.dart';
 import 'package:admin/ui/core/widgets/toast_host.dart';
+import 'package:admin/ui/core/widgets/ltr_value.dart';
+import 'package:admin/utils/formatting.dart';
 
 /// Persistent "running timer" surface that lets the user stop the active
 /// timer from anywhere — not just from the task edit screen.
@@ -787,61 +789,89 @@ class _DockBar extends StatelessWidget {
                   start: gutter,
                   end: InSpacing.xs,
                 ),
-                child: Row(
-                  children: [
-                    if (s.dueNow)
-                      const _DueNowLabel(fontSize: 14, dotSize: 8)
-                    else
-                      RunningDurationLabel(
-                        start: s.start!,
-                        dotSize: 8,
-                        style: _durationStyle(tokens, fontSize: 14),
-                      ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        s.label,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: tokens.onInverseMuted,
-                        ),
-                      ),
-                    ),
-                    if (s.runningCount > 1 && s.onStopAll != null)
-                      TextButton(
-                        onPressed: s.onStopAll,
-                        style: TextButton.styleFrom(
-                          minimumSize: const Size(0, 44),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: InSpacing.sm,
-                          ),
-                          foregroundColor: tokens.onInverse,
-                        ),
-                        child: Text(
-                          '${context.tr('stop_all')} (${s.runningCount})',
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
+                // Tight (a 320 px phone at 2x text, three timers, one past a
+                // day) the fixed children outgrew the row and pushed Stop off
+                // the screen. Stop stays the last child and never shrinks;
+                // "Stop all (N)" collapses to an icon with the count, and the
+                // duration scales down before anything overflows.
+                child: LayoutBuilder(
+                  builder: (context, box) {
+                    final stopAll = s.runningCount > 1 && s.onStopAll != null
+                        ? '${context.tr('stop_all')} (${s.runningCount})'
+                        : null;
+                    final compactStopAll =
+                        stopAll != null &&
+                        _dockStopAllIsTight(
+                          context,
+                          s,
+                          stopAll,
+                          box.maxWidth,
+                          tokens,
+                        );
+                    return Row(
+                      children: [
+                        Flexible(
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: AlignmentDirectional.centerStart,
+                            child: s.dueNow
+                                ? const _DueNowLabel(fontSize: 14, dotSize: 8)
+                                : RunningDurationLabel(
+                                    start: s.start!,
+                                    dotSize: 8,
+                                    style: _durationStyle(tokens, fontSize: 14),
+                                  ),
                           ),
                         ),
-                      ),
-                    if (s.onStop != null)
-                      _DockIconButton(
-                        tooltip: context.tr('stop'),
-                        icon: Icons.stop_circle_outlined,
-                        color: tokens.onInverse,
-                        onPressed: s.onStop!,
-                      ),
-                    if (s.onStart != null)
-                      _DockIconButton(
-                        tooltip: context.tr('start'),
-                        icon: Icons.play_circle_outlined,
-                        color: tokens.warningOnInverse,
-                        onPressed: s.onStart!,
-                      ),
-                  ],
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            s.label,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: tokens.onInverseMuted,
+                            ),
+                          ),
+                        ),
+                        if (stopAll != null && compactStopAll)
+                          _DockIconButton(
+                            tooltip: context.tr('stop_all'),
+                            icon: Icons.stop_circle,
+                            color: tokens.onInverse,
+                            badge: s.runningCount,
+                            onPressed: s.onStopAll!,
+                          )
+                        else if (stopAll != null)
+                          TextButton(
+                            onPressed: s.onStopAll,
+                            style: TextButton.styleFrom(
+                              minimumSize: const Size(0, 44),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: InSpacing.sm,
+                              ),
+                              foregroundColor: tokens.onInverse,
+                            ),
+                            child: Text(stopAll, style: _dockStopAllStyle),
+                          ),
+                        if (s.onStop != null)
+                          _DockIconButton(
+                            tooltip: context.tr('stop'),
+                            icon: Icons.stop_circle_outlined,
+                            color: tokens.onInverse,
+                            onPressed: s.onStop!,
+                          ),
+                        if (s.onStart != null)
+                          _DockIconButton(
+                            tooltip: context.tr('start'),
+                            icon: Icons.play_circle_outlined,
+                            color: tokens.warningOnInverse,
+                            onPressed: s.onStart!,
+                          ),
+                      ],
+                    );
+                  },
                 ),
               ),
             ),
@@ -850,6 +880,61 @@ class _DockBar extends StatelessWidget {
       ),
     );
   }
+}
+
+const _dockStopAllStyle = TextStyle(fontSize: 13, fontWeight: FontWeight.w600);
+
+/// The narrowest the dock lets the task's name get before "Stop all (N)"
+/// gives up its text.
+const double _dockMinLabelWidth = 64;
+
+/// Whether "Stop all (N)" as text leaves the name less than
+/// [_dockMinLabelWidth], measured with the real font and text scale: the
+/// duration as it reads now, the gap, the button and Stop.
+bool _dockStopAllIsTight(
+  BuildContext context,
+  RunningTimerDockSurface s,
+  String stopAll,
+  double maxWidth,
+  InTheme tokens,
+) {
+  final scaler = MediaQuery.textScalerOf(context);
+  final direction = Directionality.of(context);
+  double width(String text, TextStyle style) {
+    final painter = TextPainter(
+      text: TextSpan(text: text, style: style),
+      textDirection: direction,
+      textScaler: scaler,
+      maxLines: 1,
+    )..layout();
+    final w = painter.width;
+    painter.dispose();
+    return w;
+  }
+
+  final start = s.start;
+  final duration = start == null
+      ? 0.0
+      : 8 +
+            6 +
+            width(
+              formatDuration(
+                DateTime.now().difference(start),
+                compactDays: true,
+                showSeconds: true,
+              ),
+              _durationStyle(tokens, fontSize: 14),
+            );
+  final button =
+      width(
+        stopAll,
+        (Theme.of(context).textTheme.labelLarge ?? const TextStyle()).merge(
+          _dockStopAllStyle,
+        ),
+      ) +
+      2 * InSpacing.sm;
+  final stop = s.onStop != null ? InSizes.touchTarget : 0.0;
+  return duration + 12 + button + stop + _dockMinLabelWidth > maxWidth;
 }
 
 /// A 44 px target with no compact density — `VisualDensity.compact` would
@@ -861,6 +946,7 @@ class _DockIconButton extends StatelessWidget {
     required this.icon,
     required this.color,
     required this.onPressed,
+    this.badge,
   });
 
   final String tooltip;
@@ -868,17 +954,54 @@ class _DockIconButton extends StatelessWidget {
   final Color color;
   final VoidCallback onPressed;
 
+  /// A count drawn over the icon's top-end corner ("Stop all" collapsed).
+  final int? badge;
+
   @override
-  Widget build(BuildContext context) => IconButton(
-    tooltip: tooltip,
-    icon: Icon(icon, size: 24),
-    color: color,
-    onPressed: onPressed,
-    padding: EdgeInsets.zero,
-    constraints: const BoxConstraints.tightFor(
-      width: InSizes.touchTarget,
-      height: InSizes.touchTarget,
-    ),
-    style: const ButtonStyle(tapTargetSize: MaterialTapTargetSize.shrinkWrap),
-  );
+  Widget build(BuildContext context) {
+    final count = badge;
+    final tokens = context.inTheme;
+    return IconButton(
+      tooltip: tooltip,
+      icon: count == null
+          ? Icon(icon, size: 24)
+          : Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Icon(icon, size: 24),
+                PositionedDirectional(
+                  top: -6,
+                  end: -8,
+                  // Clamped: a count past 1.3x would cover the icon it labels.
+                  child: MediaQuery.withClampedTextScaling(
+                    maxScaleFactor: 1.3,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      decoration: BoxDecoration(
+                        color: tokens.accent,
+                        borderRadius: BorderRadius.circular(InRadii.r1),
+                      ),
+                      child: LtrText(
+                        '$count',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: tokens.onAccent,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+      color: color,
+      onPressed: onPressed,
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints.tightFor(
+        width: InSizes.touchTarget,
+        height: InSizes.touchTarget,
+      ),
+      style: const ButtonStyle(tapTargetSize: MaterialTapTargetSize.shrinkWrap),
+    );
+  }
 }

@@ -2098,21 +2098,27 @@ class _EntityListScreenScaffoldState<T, VM extends GenericListViewModel<T>>
   /// the home indicator, and the rows inside are told there is none, so the
   /// last row is not padded twice. See docs/entity-lists.md § A standalone
   /// list sits in a white panel.
+  ///
+  /// The inset is read inside the body (the [Builder]), never from the
+  /// [context] above the Scaffold: with the selection summary showing as its
+  /// `bottomNavigationBar`, the Scaffold has already taken the inset off the
+  /// body, and paying it again left a band above the bar on a notched phone.
   Widget _standalonePanel(BuildContext context, Widget list) {
-    final bottomInset = MediaQuery.paddingOf(context).bottom;
-    return Padding(
-      padding: EdgeInsetsDirectional.fromSTEB(
-        16,
-        InSpacing.md(context),
-        16,
-        InSpacing.md(context) + bottomInset,
-      ),
-      child: _embeddedListCard(
-        context,
-        MediaQuery.removePadding(
-          context: context,
-          removeBottom: true,
-          child: list,
+    return Builder(
+      builder: (context) => Padding(
+        padding: EdgeInsetsDirectional.fromSTEB(
+          16,
+          InSpacing.md(context),
+          16,
+          InSpacing.md(context) + MediaQuery.paddingOf(context).bottom,
+        ),
+        child: _embeddedListCard(
+          context,
+          MediaQuery.removePadding(
+            context: context,
+            removeBottom: true,
+            child: list,
+          ),
         ),
       ),
     );

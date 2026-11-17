@@ -73,6 +73,10 @@ class _FakeServices implements Services {
   @override
   final CompanyRepository company = _FakeCompanyRepo();
 
+  // The search's Documents Public by Default gate reads it.
+  @override
+  final ValueNotifier<String?> serverVersion = ValueNotifier<String?>(null);
+
   @override
   dynamic noSuchMethod(Invocation invocation) =>
       throw UnimplementedError(invocation.memberName.toString());

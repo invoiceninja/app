@@ -309,6 +309,73 @@ class ContactLocalTime extends StatefulWidget {
   final String? clientId;
   final bool header;
 
+  /// The widest [ContactLocalTime.header] can draw at [context], whatever
+  /// the hour — so a card deciding whether the clock fits decides once, not
+  /// again every minute as "9:59" turns into "10:00".
+  ///
+  /// Every hour is tried, in the clock the company reads, against the
+  /// widest minute the font can draw: its widest tens digit (0–5), then its
+  /// widest units digit.
+  static double headerWidthBound(BuildContext context) {
+    final style = DefaultTextStyle.of(
+      context,
+    ).style.merge(_style(context, header: true));
+    final painter = TextPainter(
+      textDirection: Directionality.of(context),
+      textScaler: MediaQuery.textScalerOf(context),
+      maxLines: 1,
+    );
+    double measure(String text) {
+      painter
+        ..text = TextSpan(text: text, style: style)
+        ..layout();
+      return painter.width;
+    }
+
+    String widest(int upTo) {
+      var digit = 0;
+      var width = 0.0;
+      for (var d = 0; d <= upTo; d++) {
+        final w = measure('$d');
+        if (w > width) (width, digit) = (w, d);
+      }
+      return '$digit';
+    }
+
+    try {
+      final minute = int.parse('${widest(5)}${widest(9)}');
+      final military = _military(context);
+      var bound = 0.0;
+      for (var hour = 0; hour < 24; hour++) {
+        final time = formatTimeOfDay(hour, minute, military: military);
+        final w = measure(context.tr('local_time_short', {'time': time}));
+        if (w > bound) bound = w;
+      }
+      return bound;
+    } finally {
+      painter.dispose();
+    }
+  }
+
+  /// The company's 24-hour clock setting; 12-hour until its formatter is up.
+  static bool _military(BuildContext context) {
+    final services = context.read<Services>();
+    final companyId = services.auth.currentCompanyId;
+    return (companyId == null
+            ? null
+            : services
+                  .formatterIfReady(companyId)
+                  ?.settings
+                  .enableMilitaryTime) ??
+        false;
+  }
+
+  static TextStyle? _style(BuildContext context, {required bool header}) =>
+      Theme.of(context).textTheme.bodySmall?.copyWith(
+        color: context.inTheme.ink3,
+        fontSize: header ? 12 : 11.5,
+      );
+
   @override
   State<ContactLocalTime> createState() => _ContactLocalTimeState();
 }
@@ -388,26 +455,13 @@ class _ContactLocalTimeState extends State<ContactLocalTime> {
   Widget build(BuildContext context) {
     if (!_shouldRender) return const SizedBox.shrink();
     final zone = _zone!;
-    final services = context.read<Services>();
-    final companyId = services.auth.currentCompanyId;
     final local = contactClock(zone).local;
-    final theme = Theme.of(context);
     final time = formatTimeOfDay(
       local.hour,
       local.minute,
-      military:
-          (companyId == null
-              ? null
-              : services
-                    .formatterIfReady(companyId)
-                    ?.settings
-                    .enableMilitaryTime) ??
-          false,
+      military: ContactLocalTime._military(context),
     );
-    final style = theme.textTheme.bodySmall?.copyWith(
-      color: context.inTheme.ink3,
-      fontSize: widget.header ? 12 : 11.5,
-    );
+    final style = ContactLocalTime._style(context, header: widget.header);
     if (widget.header) {
       final zoneName = zone.name.isEmpty ? zone.location : zone.name;
       Widget text = Text(

@@ -263,6 +263,9 @@ int _bucketIndex(List<ChartPeriod> buckets, Date d) {
 /// never under one unit of money) and the multiple of it at or above
 /// [rawMax], so the top gridline is a labelled amount and the tallest bar
 /// sits under it. At most [maxSteps] gridlines above the baseline.
+///
+/// Always a whole amount: the axis labels its steps in whole units, so 2.5 is
+/// skipped at the one-unit magnitude — it labelled 2.5 and 7.5 as $3 and $8.
 ({double step, double max}) chartValueScale(double rawMax, {int maxSteps = 4}) {
   if (!(rawMax > 0) || !rawMax.isFinite) return (step: 1, max: 1);
   final rough = rawMax / maxSteps;
@@ -272,6 +275,7 @@ int _bucketIndex(List<ChartPeriod> buckets, Date d) {
   );
   for (final m in const [1.0, 2.0, 2.5, 5.0, 10.0]) {
     final step = m * magnitude;
+    if (step != step.roundToDouble()) continue;
     if (rawMax / step <= maxSteps) {
       return (step: step, max: (rawMax / step).ceil() * step);
     }

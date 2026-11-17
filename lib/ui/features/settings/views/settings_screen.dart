@@ -326,14 +326,26 @@ class _SettingsListSidebarState extends State<SettingsListSidebar> {
             services.company.watchCompany(session?.currentCompanyId ?? ''),
         builder: (context, companySnap) {
           _company = companySnap.data;
-          return ListenableBuilder(
-            // The query is its own `Listenable`, so a keystroke rebuilds the
-            // hit list and nothing else. The old `onChanged: setState`
-            // rebuilt this whole pane — host-side it would have rebuilt the
-            // AppBar per character.
-            listenable: _search.query,
-            builder: (context, _) =>
-                _buildResults(context, Localization.of(context)),
+          // The active gateway count, which decides the Payment Settings
+          // row's label (Company Gateways or Add Payment Gateway).
+          return WatchBuilder<int>(
+            cacheKey: session?.currentCompanyId,
+            create: () =>
+                (Provider.of<SettingsHomeSources?>(context, listen: false) ??
+                        SettingsHomeSources.of(services))
+                    .gatewayCount(session?.currentCompanyId ?? ''),
+            builder: (context, gatewaySnap) {
+              _activeGateways = gatewaySnap.data;
+              return ListenableBuilder(
+                // The query is its own `Listenable`, so a keystroke rebuilds
+                // the hit list and nothing else. The old `onChanged:
+                // setState` rebuilt this whole pane — host-side it would have
+                // rebuilt the AppBar per character.
+                listenable: _search.query,
+                builder: (context, _) =>
+                    _buildResults(context, Localization.of(context)),
+              );
+            },
           );
         },
       ),
@@ -351,6 +363,8 @@ class _SettingsListSidebarState extends State<SettingsListSidebar> {
       context.read<Services>().auth.session.value,
       context.read<SettingsLevelController>(),
       company: _company,
+      serverVersion: context.read<Services>().serverVersion.value,
+      activeGatewayCount: _activeGateways,
     ),
   );
 
@@ -358,6 +372,10 @@ class _SettingsListSidebarState extends State<SettingsListSidebar> {
   /// ([_openSelected]) ranks the same rows the list shows. Null until it
   /// loads, which the scope reads as "fail open".
   Company? _company;
+
+  /// The active company's active gateways, kept beside [_company]; null until
+  /// Drift answers.
+  int? _activeGateways;
 
   Widget _buildResults(BuildContext context, Localization? l10n) {
     if (l10n == null) return const SizedBox.shrink();

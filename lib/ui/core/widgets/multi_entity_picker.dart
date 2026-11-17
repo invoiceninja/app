@@ -36,6 +36,7 @@ class MultiEntityPicker<T extends Object> extends StatelessWidget {
     required this.displayString,
     required this.onChanged,
     this.addHintKey = 'add_item',
+    this.emptyHintKey = 'none',
   });
 
   /// Localization key for the field title (e.g. `'clients'`).
@@ -56,6 +57,11 @@ class MultiEntityPicker<T extends Object> extends StatelessWidget {
 
   /// Localization key for the field's hint — what an empty field says to do.
   final String addHintKey;
+
+  /// What the disabled field says while [items] is empty. A caller fed by a
+  /// stream passes `'loading'` until it answers; an empty answer is then
+  /// `'none'`, never "Loading…" for good.
+  final String emptyHintKey;
 
   void _add(String id) {
     if (id.isEmpty || selectedIds.contains(id)) return;
@@ -81,7 +87,7 @@ class MultiEntityPicker<T extends Object> extends StatelessWidget {
           label: context.tr(labelKey),
           hintText: context.tr(addHintKey),
           // Every option already picked is not "Loading…".
-          emptyHintKey: items.isEmpty ? null : 'no_records_found',
+          emptyHintKey: items.isEmpty ? emptyHintKey : 'no_records_found',
           items: available,
           initialValue: null,
           displayString: displayString,

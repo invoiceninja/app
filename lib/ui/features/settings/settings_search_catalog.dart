@@ -612,6 +612,24 @@ bool _mobileAppShown(SettingsSearchScope? scope) =>
 bool _peppolStatusShown(SettingsSearchScope? scope) =>
     scope?.sendsPeppol ?? true;
 
+bool _documentsPublicByDefaultShown(SettingsSearchScope? scope) =>
+    scope?.supportsDocumentsPublicByDefault ?? true;
+
+/// Payment Settings' setup card (`PaymentSetupSection`): at company scope the
+/// gateways row reads Company Gateways — or Add Payment Gateway with none —
+/// beside a Payment Types row; at group / client scope it is one row, Gateway
+/// Display Order.
+bool _companyScope(SettingsSearchScope? scope) => !(scope?.isCascade ?? false);
+
+bool _gatewayDisplayOrderShown(SettingsSearchScope? scope) =>
+    scope?.isCascade ?? true;
+
+bool _companyGatewaysShown(SettingsSearchScope? scope) =>
+    _companyScope(scope) && (scope?.activeGatewayCount ?? 1) > 0;
+
+bool _addGatewayShown(SettingsSearchScope? scope) =>
+    _companyScope(scope) && (scope?.activeGatewayCount ?? 0) == 0;
+
 bool _wordPressPluginShown(SettingsSearchScope? scope) =>
     scope?.showsWordPressPlugin ?? true;
 
@@ -651,6 +669,7 @@ const kSettingsSearchCatalog = <String, List<SettingsSearchTab>>{
       'documents',
       kCompanyDetailsDocumentsSearchKeys,
       titleKey: 'documents',
+      keyGates: {'documents_public_by_default': _documentsPublicByDefaultShown},
     ),
   ],
   'user_details': [
@@ -703,6 +722,12 @@ const kSettingsSearchCatalog = <String, List<SettingsSearchTab>>{
       '',
       kOnlinePaymentsGeneralSearchKeys,
       titleKey: 'settings',
+      keyGates: {
+        'company_gateways': _companyGatewaysShown,
+        'add_gateway': _addGatewayShown,
+        'gateway_display_order': _gatewayDisplayOrderShown,
+        'payment_types': _companyScope,
+      },
     ),
     SettingsSearchTab(
       'defaults',
@@ -721,6 +746,9 @@ const kSettingsSearchCatalog = <String, List<SettingsSearchTab>>{
       'payment_types',
       kPaymentTypesSearchKeys,
       titleKey: 'payment_types',
+      // Payments ride the invoices bit; the expense picker uses the list too.
+      enabledBy: [EnabledModule.invoices, EnabledModule.expenses],
+      clientEditable: false,
     ),
   ],
   'tax_settings': [SettingsSearchTab('', kTaxSettingsSearchKeys)],
@@ -1286,15 +1314,22 @@ class SettingsSearchScope {
     this.sendsPeppol = true,
     this.showsWordPressPlugin = true,
     this.showsChromeExtension = true,
+    this.supportsDocumentsPublicByDefault = true,
+    this.activeGatewayCount,
   });
 
   /// [session] null (not loaded yet) fails open on hosted, matching
   /// `AccountManagementShell`. [company] is the active company's full record,
   /// which only the PEPPOL gate reads; null (not loaded yet) fails open.
+  /// [serverVersion] is `Services.serverVersion`, read exactly as the
+  /// Documents tab reads it (unknown on self-hosted hides the toggle).
+  /// [activeGatewayCount] is null until Drift answers.
   factory SettingsSearchScope.from(
     AuthSession? session,
     SettingsLevelController level, {
     Company? company,
+    required String? serverVersion,
+    int? activeGatewayCount,
   }) {
     final me = session?.currentCompany;
     return SettingsSearchScope(
@@ -1307,6 +1342,11 @@ class SettingsSearchScope {
       sendsPeppol: company == null || peppolStatusSectionShown(company),
       showsWordPressPlugin: wordPressPluginOffered(session),
       showsChromeExtension: chromeExtensionOffered(session),
+      supportsDocumentsPublicByDefault: documentsPublicByDefaultSupportedOn(
+        serverVersion,
+        isHosted: session?.isHosted ?? false,
+      ),
+      activeGatewayCount: activeGatewayCount,
     );
   }
 
@@ -1337,6 +1377,16 @@ class SettingsSearchScope {
   /// (`chromeExtensionOffered`) — the Integrations row and the Task Settings
   /// card.
   final bool showsChromeExtension;
+
+  /// Whether the server applies `documents_public_by_default`, the one case
+  /// the Documents tab shows its toggle (`documentsPublicByDefaultSupported`).
+  final bool supportsDocumentsPublicByDefault;
+
+  /// The company's active gateways, which decide the Payment Settings row's
+  /// label: Company Gateways, or Add Payment Gateway when there are none.
+  /// Null (not known — the command palette never asks, to hold no Drift
+  /// watch) offers both.
+  final int? activeGatewayCount;
 
   bool allowsSection(SettingsSectionDef section) =>
       (!isCascade || section.clientEditable) &&

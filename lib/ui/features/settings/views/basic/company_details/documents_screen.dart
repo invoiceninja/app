@@ -24,11 +24,21 @@ import 'package:admin/utils/formatting.dart';
 /// Whether the server applies `documents_public_by_default`: hosted always,
 /// self-hosted from [ServerFeatures.documentsPublicByDefault].
 bool documentsPublicByDefaultSupported(Services services) =>
-    ServerFeatures.supports(
+    documentsPublicByDefaultSupportedOn(
       services.serverVersion.value,
-      ServerFeatures.documentsPublicByDefault,
       isHosted: services.auth.session.value?.isHosted ?? false,
     );
+
+/// [documentsPublicByDefaultSupported] from its two facts, for the settings
+/// search's key gate (`SettingsSearchScope.from`).
+bool documentsPublicByDefaultSupportedOn(
+  String? serverVersion, {
+  required bool isHosted,
+}) => ServerFeatures.supports(
+  serverVersion,
+  ServerFeatures.documentsPublicByDefault,
+  isHosted: isHosted,
+);
 
 /// Searchable label keys rendered by this tab. See
 /// `kCompanyDetailsDetailsSearchKeys` for the colocation pattern.

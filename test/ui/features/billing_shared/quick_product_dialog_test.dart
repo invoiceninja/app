@@ -19,6 +19,7 @@ void main() {
     WidgetTester tester, {
     required bool vendorDoc,
     required Future<void> Function() fill,
+    Future<void> Function()? submit,
   }) async {
     Product? result;
     var closed = false;
@@ -47,7 +48,11 @@ void main() {
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
     await fill();
-    await tester.tap(find.text('Save'));
+    if (submit == null) {
+      await tester.tap(find.text('Save'));
+    } else {
+      await submit();
+    }
     await tester.pumpAndSettle();
     expect(closed, isTrue);
     return result;
@@ -83,4 +88,29 @@ void main() {
     expect(product!.price, Decimal.fromInt(65));
     expect(product.cost, Decimal.zero);
   });
+
+  // Enter in either amount saves, as in 5.1.30 — with the second amount shown
+  // the first was `TextInputAction.next`, so Enter only moved to the second
+  // (5.1.31 review). Tab still moves between them.
+  for (final label in ['Cost', 'Price']) {
+    testWidgets('Enter in the $label field saves the product', (tester) async {
+      final product = await open(
+        tester,
+        vendorDoc: true,
+        fill: () async {
+          await tester.enterText(find.widgetWithText(TextField, 'Price'), '65');
+          await tester.enterText(find.widgetWithText(TextField, 'Cost'), '40');
+        },
+        submit: () async {
+          final field = find.widgetWithText(TextField, label);
+          await tester.showKeyboard(field);
+          await tester.testTextInput.receiveAction(
+            tester.widget<TextField>(field).textInputAction!,
+          );
+        },
+      );
+      expect(product!.cost, Decimal.fromInt(40));
+      expect(product.price, Decimal.fromInt(65));
+    });
+  }
 }

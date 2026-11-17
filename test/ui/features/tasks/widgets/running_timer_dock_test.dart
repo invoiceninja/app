@@ -1,12 +1,15 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:drift/drift.dart' show Value;
 import 'package:material_ui/material_ui.dart';
+import 'package:flutter/services.dart' show FontLoader;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/services.dart';
+import 'package:admin/app/theme.dart';
 import 'package:admin/data/db/app_database.dart';
 import 'package:admin/ui/core/widgets/toast_controller.dart';
 import 'package:admin/ui/features/tasks/widgets/running_duration_label.dart';
@@ -220,7 +223,13 @@ void main() {
   ) async {
     var all = 0;
     await _pump(tester, surface: _running(count: 3, onStopAll: () => all++));
-    await tester.tap(find.textContaining('(3)'));
+    // The test font draws every glyph a square, so here the text is about
+    // twice its real width and the bar collapses it to the badged icon; the
+    // real-font group below pins which form shows when.
+    final text = find.textContaining('(3)');
+    await tester.tap(
+      text.evaluate().isNotEmpty ? text : find.byTooltip('Stop all'),
+    );
     expect(all, 1);
   });
 
@@ -306,6 +315,99 @@ void main() {
     );
     expect(find.text('Teammate task'), findsOneWidget);
     expect(find.byTooltip('Stop'), findsNothing);
+  });
+
+  group('a tight phone bar at 2x text', () {
+    // Real metrics, not the test font (a square per glyph): the overflow is a
+    // question of how wide the mono duration and "Stop all (N)" really are.
+    setUpAll(() async {
+      for (final font in const [
+        (kSansFontFamily, 'assets/fonts/InterTight.ttf'),
+        (kMonoFontFamily, 'assets/fonts/JetBrainsMono.ttf'),
+      ]) {
+        await (FontLoader(font.$1)..addFont(
+              Future.value(File(font.$2).readAsBytesSync().buffer.asByteData()),
+            ))
+            .load();
+      }
+    });
+
+    Future<void> pumpTight(
+      WidgetTester tester, {
+      required double width,
+      required Duration elapsed,
+      VoidCallback? onStop,
+      VoidCallback? onStopAll,
+    }) async {
+      final size = Size(width, 700);
+      tester.view.physicalSize = size;
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildInTheme(InTheme.light),
+          localizationsDelegates: kTestLocalizationsDelegates,
+          home: Builder(
+            builder: (context) => MediaQuery(
+              data: MediaQuery.of(
+                context,
+              ).copyWith(textScaler: const TextScaler.linear(2)),
+              child: RunningTimerDockLayout(
+                surface: RunningTimerDockSurface.running(
+                  label: 'Kitchen refit',
+                  start: DateTime.now().subtract(elapsed),
+                  runningCount: 3,
+                  onOpen: () {},
+                  onStop: onStop ?? () {},
+                  onStopAll: onStopAll ?? () {},
+                ),
+                child: const SizedBox.expand(),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+    }
+
+    for (final width in const [320.0, 360.0]) {
+      for (final elapsed in const [Duration(hours: 30), Duration(hours: 2)]) {
+        testWidgets('${width.toInt()} px, a ${elapsed.inHours} h timer: '
+            'Stop and Stop all stay on screen and tappable', (tester) async {
+          var stopped = 0;
+          var all = 0;
+          await pumpTight(
+            tester,
+            width: width,
+            elapsed: elapsed,
+            onStop: () => stopped++,
+            onStopAll: () => all++,
+          );
+          expect(tester.takeException(), isNull);
+          final stop = tester.getRect(find.byTooltip('Stop'));
+          expect(stop.left, greaterThanOrEqualTo(0));
+          expect(stop.right, lessThanOrEqualTo(width));
+          await tester.tap(find.byTooltip('Stop'));
+          expect(stopped, 1);
+          // Full text where it fits, an icon with the count where it does not
+          // — either way it is reachable.
+          final stopAll = find.byTooltip('Stop all').evaluate().isNotEmpty
+              ? find.byTooltip('Stop all')
+              : find.textContaining('(3)');
+          final r = tester.getRect(stopAll);
+          expect(r.left, greaterThanOrEqualTo(0));
+          expect(r.right, lessThanOrEqualTo(stop.left + 0.5));
+          await tester.tap(stopAll);
+          expect(all, 1);
+        });
+      }
+    }
+
+    testWidgets('a roomy bar keeps the "Stop all (N)" text', (tester) async {
+      await pumpTight(tester, width: 600, elapsed: const Duration(hours: 2));
+      expect(tester.takeException(), isNull);
+      expect(find.textContaining('(3)'), findsOneWidget);
+    });
   });
 
   group('RunningTimerDock over the real task streams', () {

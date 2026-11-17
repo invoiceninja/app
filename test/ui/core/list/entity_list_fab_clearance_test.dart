@@ -93,6 +93,8 @@ void main() {
     bool creatable = true,
     Size window = const Size(400, 800),
     FakeCompany company = const FakeCompany(id: 'co1', name: 'Acme'),
+    EntitySelectionSummaryBuilder<_Vm>? selectionSummaryBuilder,
+    void Function(_Vm vm)? onVm,
   }) async {
     // `tester.view`, not `setSurfaceSize`: the latter leaves `MediaQuery` at
     // 800x600, which would put the scaffold on its wide branch — where there
@@ -118,14 +120,19 @@ void main() {
           emptyTitleKey: 'no_quotes_yet',
           wantsFormatter: false,
           embedded: embedded,
-          buildVm: (services, companyId) => _Vm(
-            companyId: companyId,
-            navStateDao: services.db.navStateDao,
-            userSettings: services.userSettings,
-            searchDebounce: const Duration(milliseconds: 1),
-            persistDebounce: const Duration(milliseconds: 1),
-            rows: [for (var i = 0; i < rowCount; i++) _Row('q$i')],
-          ),
+          buildVm: (services, companyId) {
+            final vm = _Vm(
+              companyId: companyId,
+              navStateDao: services.db.navStateDao,
+              userSettings: services.userSettings,
+              searchDebounce: const Duration(milliseconds: 1),
+              persistDebounce: const Duration(milliseconds: 1),
+              rows: [for (var i = 0; i < rowCount; i++) _Row('q$i')],
+            );
+            onVm?.call(vm);
+            return vm;
+          },
+          selectionSummaryBuilder: selectionSummaryBuilder,
           sortOptions: (_) => const [],
           searchFieldBuilder: (_, _, _) => const SizedBox.shrink(),
           tileBuilder: (context, vm, row, index, options) =>
@@ -205,6 +212,42 @@ void main() {
     );
     final listContext = tester.element(find.byWidget(listOf(tester)));
     expect(MediaQuery.paddingOf(listContext).bottom, 0);
+    await _disposeTree(tester);
+  });
+
+  // The selection summary is the Scaffold's `bottomNavigationBar`, which
+  // pays the safe inset itself, so the Scaffold takes it off the body. Read
+  // from above the Scaffold, the panel paid it again: a 34 px band between
+  // the list and the bar on a notched phone.
+  testWidgets('with the selection summary showing, the panel pays no inset', (
+    tester,
+  ) async {
+    late _Vm vm;
+    await pumpList(
+      tester,
+      rowCount: 30,
+      bottomInset: 34,
+      onVm: (v) => vm = v,
+      selectionSummaryBuilder: (_, _, _) => const SafeArea(
+        top: false,
+        child: SizedBox(key: ValueKey('summary'), height: 48),
+      ),
+    );
+    vm.toggleSelected('q0');
+    await _pumpFrames(tester);
+
+    final bar = find.byKey(const ValueKey('summary'));
+    expect(bar, findsOneWidget);
+    final card = find
+        .ancestor(
+          of: find.byType(RefreshIndicator),
+          matching: find.byWidgetPredicate(
+            (w) => w is Container && w.clipBehavior == Clip.antiAlias,
+          ),
+        )
+        .first;
+    final gap = tester.getRect(bar).top - tester.getRect(card).bottom;
+    expect(gap, InSpacing.md(tester.element(card)));
     await _disposeTree(tester);
   });
 

@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -9,6 +11,7 @@ import 'package:admin/app/theme.dart';
 import 'package:admin/data/models/api/contact_api_model.dart';
 import 'package:admin/data/models/domain/company.dart';
 import 'package:admin/data/models/domain/contact.dart';
+import 'package:admin/ui/core/detail/profile_card_width.dart';
 import 'package:admin/ui/core/widgets/detail_info_row.dart';
 import 'package:admin/ui/core/widgets/phone_number_value.dart';
 import 'package:admin/ui/core/widgets/party_contact_row.dart';
@@ -697,5 +700,123 @@ void main() {
     // Inside the 1 px border, edge to edge.
     expect(footer.width, closeTo(card.width - 2, 0.5));
     expect(footer.height, greaterThanOrEqualTo(44));
+  });
+
+  group('a narrow card at large text', () {
+    // Real metrics, not the test font (a square per glyph): whether the
+    // count, "5:38 AM local" and "+ Add" fit beside the title is a question
+    // of how wide Inter Tight really draws them. Last in the file — a loaded
+    // family stays loaded for every test after it.
+    setUpAll(() async {
+      await (FontLoader(kSansFontFamily)..addFont(
+            Future.value(
+              File(
+                'assets/fonts/InterTight.ttf',
+              ).readAsBytesSync().buffer.asByteData(),
+            ),
+          ))
+          .load();
+    });
+
+    /// The card told it is [card] wide (`ProfileCardWidthScope`), as the
+    /// record layout tells it, inside a phone's 12 px gutters.
+    Future<int Function()> pumpAt(
+      WidgetTester tester, {
+      required double card,
+      required double scale,
+    }) async {
+      tester.view.physicalSize = Size(card + 24, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      var added = 0;
+      await tester.pumpWidget(
+        Provider<Services>.value(
+          value: services,
+          child: MaterialApp(
+            theme: buildInTheme(InTheme.light),
+            localizationsDelegates: kTestLocalizationsDelegates,
+            supportedLocales: kTestSupportedLocales,
+            home: Builder(
+              builder: (context) => MediaQuery(
+                data: MediaQuery.of(
+                  context,
+                ).copyWith(textScaler: TextScaler.linear(scale)),
+                child: Scaffold(
+                  body: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: ProfileCardWidthScope(
+                      width: card,
+                      child: ClientDetailContactsCard(
+                        // Two, so the header carries its count too.
+                        contacts: people(2),
+                        clientHash: 'hash',
+                        clientId: 'c1',
+                        countryId: '',
+                        onAdd: () => added++,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      // The local time resolves its zone a frame late.
+      await tester.pump();
+      await tester.pump();
+      return () => added;
+    }
+
+    final addButton = find.byTooltip('Add contact');
+    final localTime = find.textContaining(' local');
+
+    for (final scale in const [1.0, 2.0]) {
+      for (final card in const [240.0, 280.0, 296.0, 400.0]) {
+        testWidgets('${card.toInt()} px at ${scale}x: nothing overflows and '
+            'Add stays reachable', (tester) async {
+          final added = await pumpAt(tester, card: card, scale: scale);
+          expect(tester.takeException(), isNull);
+          expect(addButton.hitTestable(), findsOneWidget);
+          final target = tester.getSize(addButton);
+          expect(target.width, greaterThanOrEqualTo(44));
+          expect(target.height, greaterThanOrEqualTo(44));
+          await tester.tap(addButton);
+          expect(added(), 1);
+          // Where there is room the clock is said: at 1x on any phone's
+          // card. (240 px at 1x is 2 px short for "12:58 PM local", and the
+          // card budgets for the widest hour, not the current one.)
+          if (scale == 1.0 && card >= 280) {
+            expect(localTime, findsOneWidget);
+            expect(find.text('Add'), findsOneWidget);
+          }
+        });
+      }
+    }
+
+    testWidgets('the time goes before "+ Add" loses its label', (tester) async {
+      // 296 px at 2x: the clock is dropped, the labelled Add kept.
+      await pumpAt(tester, card: 296, scale: 2);
+      expect(tester.takeException(), isNull);
+      expect(localTime, findsNothing);
+      expect(find.text('Add'), findsOneWidget);
+    });
+
+    testWidgets('at 2x a wide card still says the time', (tester) async {
+      await pumpAt(tester, card: 480, scale: 2);
+      expect(tester.takeException(), isNull);
+      expect(localTime, findsOneWidget);
+      expect(find.text('Add'), findsOneWidget);
+    });
+
+    testWidgets('a card too narrow for even that keeps Add as an icon', (
+      tester,
+    ) async {
+      await pumpAt(tester, card: 200, scale: 2);
+      expect(tester.takeException(), isNull);
+      expect(localTime, findsNothing);
+      expect(find.text('Add'), findsNothing);
+      expect(addButton.hitTestable(), findsOneWidget);
+    });
   });
 }

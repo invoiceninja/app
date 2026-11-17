@@ -108,15 +108,14 @@ class BillingDocEditSlots {
   final bool Function()? autoBillEnabled;
   final ValueChanged<bool>? onAutoBillEnabledChanged;
 
-  /// The recurring invoice's schedule: fields on the desktop details panel,
-  /// in the dates' place and paired like them, and a narrow tab after
-  /// Details.
+  /// The recurring invoice's schedule: fields in the desktop dates card, in
+  /// the dates' place and stacked like them, and a narrow tab after Details.
   final List<Widget> Function(BuildContext context)? scheduleFields;
   final WidgetBuilder? scheduleTab;
 
-  /// The recurring invoice's auto-bill mode picker, beside Discount on the
-  /// desktop details panel ([desktop] true) and after it on the narrow
-  /// Details tab.
+  /// The recurring invoice's auto-bill mode picker, under Discount in the
+  /// desktop number card ([desktop] true) and after it on the narrow Details
+  /// tab.
   final Widget Function(BuildContext context, {required bool desktop})?
   autoBillMode;
 }
@@ -1170,8 +1169,10 @@ class _DiscountRow<T extends BillingDocFields> extends StatelessWidget {
     final touch = Env.isTouchPrimary;
     // The label sits above the pair, and the switch is exactly the field's
     // box: same top, same height, whatever the platform density, the list
-    // density and the text scale make that (36–54 px). `FieldWithSideControl`
-    // measures the field and the segments are sized to it — a
+    // density and the text scale make that (36–54 px) — the box alone, not a
+    // 422 error line under it. `FieldWithSideControl` measures the box and
+    // the segments are sized to it (and drops the switch under the field,
+    // full width, when large text leaves no room beside it) — a
     // `SegmentedButton` cannot be stretched to a height (it paints its
     // segments at their intrinsic one), which left a gap under the `$`.
     //
@@ -1186,8 +1187,15 @@ class _DiscountRow<T extends BillingDocFields> extends StatelessWidget {
         field: TextField(
           controller: controller,
           decoration: desktop
-              ? billingFieldDecoration(context, label: context.tr('discount'))
-              : InputDecoration(labelText: context.tr('discount')),
+              ? billingFieldDecoration(
+                  context,
+                  label: context.tr('discount'),
+                  errorText: vm.fieldErrorFor('discount'),
+                )
+              : InputDecoration(
+                  labelText: context.tr('discount'),
+                  errorText: vm.fieldErrorFor('discount'),
+                ),
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           onChanged: (v) =>
               vm.setDiscount(v, isAmount: vm.draft.isAmountDiscount),

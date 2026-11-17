@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:material_ui/material_ui.dart';
 
 import 'package:admin/app/design_tokens.dart';
@@ -511,6 +513,8 @@ class PartyContactPrimaryLabel extends StatelessWidget {
 /// only from two, since "1" beside one row says nothing — then [localTime]
 /// (a client's clock, said once for every contact), then [onAdd]'s "+ Add".
 /// [extraTrailing] follows the count: a billing document's shared send state.
+/// On a card too narrow for all of it the time goes first, then "+ Add"'s
+/// label ([_headerFit]).
 ///
 /// **The footer** is the whole width of the card, 44 px on touch and 36 with
 /// a pointer: "Show N more" while [hiddenCount] rows wait, "Show less" once
@@ -546,6 +550,91 @@ class PartyContactsCard extends StatelessWidget {
   final VoidCallback? onShowMore;
   final VoidCallback? onShowLess;
 
+  /// What of the header's facts fit beside the title: the local time first
+  /// to go, then "+ Add"'s label (the button stays, as a 44 px `+` with its
+  /// tooltip). Measured with `TextPainter` against the width the layout told
+  /// the card (`ProfileCardWidthScope`, or the rail's) — the card sits in a
+  /// row levelled with `IntrinsicHeight`, where a `LayoutBuilder` may not go.
+  ///
+  /// A host that says neither gets the window's width less a phone's 12 px
+  /// gutters — what a record column leaves a card on a phone — so a narrow
+  /// window still sheds what its card cannot hold. A host that places the
+  /// card narrower than that has to say so through the scope.
+  ///
+  /// [extraTrailing] is not measured: only a billing document passes it, and
+  /// a document has neither a clock nor "+ Add" to shed.
+  ({bool time, bool addLabel}) _headerFit(
+    BuildContext context, {
+    required bool touch,
+  }) {
+    const all = (time: true, addLabel: true);
+    final hasTime = localTime != null;
+    if (!hasTime && onAdd == null) return all;
+    final card =
+        ProfileCardWidthScope.of(context) ??
+        (RecordColumnScope.isRail(context) ? kRecordRailWidth : null) ??
+        MediaQuery.sizeOf(context).width - InSpacing.lg(context) * 2;
+    final theme = Theme.of(context);
+    final base = DefaultTextStyle.of(context).style;
+    final painter = TextPainter(
+      textDirection: Directionality.of(context),
+      textScaler: MediaQuery.textScalerOf(context),
+      maxLines: 1,
+    );
+    double measure(String text, TextStyle? style) {
+      painter
+        ..text = TextSpan(text: text, style: base.merge(style))
+        ..layout();
+      return painter.width;
+    }
+
+    try {
+      // The shell's header row: the 1 px border each side, its start inset,
+      // and an end inset that gives up 6 px to a touch-size button's slack.
+      final row =
+          card -
+          2 -
+          InSpacing.lg(context) -
+          (onAdd != null && touch
+              ? InSpacing.lg(context) - 6
+              : InSpacing.lg(context));
+      final title = measure(
+        context.tr('contacts'),
+        theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+      );
+      final countWidth = count >= 2
+          ? measure('$count', theme.textTheme.bodySmall)
+          : 0.0;
+      final time = hasTime
+          ? InSpacing.md(context) + ContactLocalTime.headerWidthBound(context)
+          : 0.0;
+      // `TextButton.icon`: its padding, the 16 px icon, the gap — 8 px,
+      // closing to 4 as the text scales to 2x (`_TextButtonWithIconChild`)
+      // — and the label; never under its 64 px minimum.
+      final labelStyle = _quietButtonText(context);
+      final grow =
+          (MediaQuery.textScalerOf(context).scale(labelStyle?.fontSize ?? 14) /
+                  14)
+              .clamp(1.0, 2.0) -
+          1;
+      final addLabel = onAdd == null
+          ? 0.0
+          : InSpacing.xs +
+                math.max(
+                  64.0,
+                  InSpacing.sm * 2 +
+                      16 +
+                      (8 - 4 * grow) +
+                      measure(context.tr('add'), labelStyle),
+                );
+      final room = row - title - countWidth;
+      if (time + addLabel <= room) return all;
+      return (time: false, addLabel: addLabel <= room);
+    } finally {
+      painter.dispose();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final tokens = context.inTheme;
@@ -560,6 +649,8 @@ class PartyContactsCard extends StatelessWidget {
         (hiddenCount > 0 && onShowMore != null) ||
         (expanded && onShowLess != null);
 
+    final fit = _headerFit(context, touch: touch);
+    final addTarget = touch ? InSizes.touchTarget : 32.0;
     final trailing = <Widget>[
       if (count >= 2)
         LtrText(
@@ -572,27 +663,46 @@ class PartyContactsCard extends StatelessWidget {
         const SizedBox(width: InSpacing.sm),
         w,
       ],
-      if (localTime != null) ...[
+      if (localTime != null && fit.time) ...[
         SizedBox(width: InSpacing.md(context)),
         localTime!,
       ],
       if (onAdd != null) ...[
         const SizedBox(width: InSpacing.xs),
-        Tooltip(
-          message: context.tr('add_contact'),
-          child: TextButton.icon(
+        if (fit.addLabel)
+          Tooltip(
+            message: context.tr('add_contact'),
+            child: TextButton.icon(
+              onPressed: onAdd,
+              icon: const Icon(Icons.add, size: 16),
+              label: Text(context.tr('add')),
+              style: TextButton.styleFrom(
+                foregroundColor: tokens.ink2,
+                textStyle: _quietButtonText(context),
+                minimumSize: Size(64, addTarget),
+                padding: const EdgeInsets.symmetric(horizontal: InSpacing.sm),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+            ),
+          )
+        else
+          IconButton(
             onPressed: onAdd,
-            icon: const Icon(Icons.add, size: 16),
-            label: Text(context.tr('add')),
-            style: TextButton.styleFrom(
-              foregroundColor: tokens.ink2,
-              textStyle: _quietButtonText(context),
-              minimumSize: Size(64, touch ? InSizes.touchTarget : 32),
-              padding: const EdgeInsets.symmetric(horizontal: InSpacing.sm),
+            tooltip: context.tr('add_contact'),
+            icon: const Icon(Icons.add, size: 18),
+            color: tokens.ink2,
+            padding: EdgeInsets.zero,
+            // Pinned, with no density and no padded tap target: either would
+            // move the square off the size `_headerFit` budgeted for it.
+            constraints: BoxConstraints.tightFor(
+              width: addTarget,
+              height: addTarget,
+            ),
+            visualDensity: VisualDensity.standard,
+            style: IconButton.styleFrom(
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
           ),
-        ),
       ],
     ];
 

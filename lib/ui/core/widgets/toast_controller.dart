@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:logging/logging.dart';
 
 final _log = Logger('ToastController');
@@ -118,6 +119,12 @@ class ToastController extends ChangeNotifier {
   final Map<Object, double> _bottomInsets = {};
 
   /// [owner] reserves [height] at the bottom, or gives it up (null, 0).
+  ///
+  /// Called mid-frame — a `ToastBottomInset` giving its height up from
+  /// `dispose`, while the tree is being finalized — the sum is published after
+  /// the frame instead: a listener that calls `setState` (the shell's timer
+  /// pill) would otherwise trip "setState() called when the widget tree was
+  /// locked".
   void setBottomInset(Object owner, double? height) {
     if (_disposed) return;
     if (height == null || height <= 0) {
@@ -126,6 +133,23 @@ class ToastController extends ChangeNotifier {
       if (_bottomInsets[owner] == height) return;
       _bottomInsets[owner] = height;
     }
+    if (SchedulerBinding.instance.schedulerPhase ==
+        SchedulerPhase.persistentCallbacks) {
+      if (_bottomInsetScheduled) return;
+      _bottomInsetScheduled = true;
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        _bottomInsetScheduled = false;
+        _publishBottomInset();
+      });
+      return;
+    }
+    _publishBottomInset();
+  }
+
+  bool _bottomInsetScheduled = false;
+
+  void _publishBottomInset() {
+    if (_disposed) return;
     _bottomInset.value = _bottomInsets.values.fold(0, (a, b) => a + b);
   }
 

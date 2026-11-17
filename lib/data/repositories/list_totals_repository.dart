@@ -136,11 +136,28 @@ class ListTotalsRepository implements ListTotalsSource {
     final local = localDaoFor(type)?.watchListTotals(companyId: companyId);
     final syncEntity = syncStateEntityFor(type);
     if (local == null || syncEntity == null) return Stream.value(null);
-    final complete = db.syncStateDao
-        .watchLastFullSyncAt(companyId: companyId, entityType: syncEntity)
-        .map((at) => at != null);
+    final complete = db.syncStateDao.watchAllFullySynced(
+      companyId: companyId,
+      entityTypes: {syncEntity, ...partySyncEntitiesFor(type)},
+    );
     return _watchEntity(spec, companyId, local, complete);
   }
+
+  /// The `sync_state.entity_type`s whose rows [type]'s local sum also reads:
+  /// the client or vendor a record takes its currency from when it names none
+  /// (`listTotalsCurrencyExpression`), and the clients whose archived or
+  /// deleted state drops a record (`clientActiveFilter`). A record whose
+  /// party Drift does not hold yet would be summed in the company's currency,
+  /// so those tables must be complete too.
+  static Set<String> partySyncEntitiesFor(EntityType type) => switch (type) {
+    EntityType.quote ||
+    EntityType.credit ||
+    EntityType.payment ||
+    EntityType.recurringInvoice ||
+    EntityType.expense => const {'client'},
+    EntityType.purchaseOrder => const {'vendor'},
+    _ => const {},
+  };
 
   @override
   Future<void> refresh(
@@ -285,7 +302,8 @@ class ListTotalsRepository implements ListTotalsSource {
   /// null (hidden) while the first fetch is still out or Drift holds only the
   /// pages browsed so far.
   ///
-  /// [complete] is whether a Sync has walked the entity to the end
+  /// [complete] is whether a Sync has walked the entity — and the clients or
+  /// vendors its sum reads ([partySyncEntitiesFor]) — to the end
   /// (`last_full_sync_at`). Nothing else proves it: a list that paged to its
   /// end (`hasMore` false) is view-model state, filtered by its search, tab
   /// and lifecycle states, and offset paging over minutes can skip a row a

@@ -236,9 +236,11 @@ class AgingBreakdownSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final tokens = context.inTheme;
     final gutter = InSpacing.lg(context);
+    // The bar's total: only buckets above zero are drawn in it, so a credit
+    // (a negative bucket) summed in here pushed the others past 100%.
     final total = segments.fold<double>(
       0,
-      (sum, s) => sum + s.amount.toDouble(),
+      (sum, s) => s.amount > Decimal.zero ? sum + s.amount.toDouble() : sum,
     );
     final textTheme = Theme.of(context).textTheme;
     return SingleChildScrollView(
@@ -282,7 +284,10 @@ class AgingBreakdownSheet extends StatelessWidget {
                     ),
                   ),
                   LtrText(
-                    total <= 0
+                    // A credit has no share of the bar: a dash, not 0%.
+                    s.amount < Decimal.zero
+                        ? '—'
+                        : total <= 0
                         ? '0%'
                         : '${(s.amount.toDouble() / total * 100).round()}%',
                     style: textTheme.bodySmall?.copyWith(color: tokens.ink2),

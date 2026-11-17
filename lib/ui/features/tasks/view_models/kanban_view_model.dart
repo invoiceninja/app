@@ -163,7 +163,44 @@ class KanbanViewModel extends ChangeNotifier with TaskFiltersMixin {
     if (!_disposed) notifyListeners();
   }
 
+  /// Bumped per board emission, so an emission held back by [_onTasks]
+  /// while it resolves ids never lands over a newer one.
+  int _tasksGeneration = 0;
+
+  /// A card [quickAdd] made under a search is kept by its `tmp_` id, and the
+  /// create syncing swaps the row to the server id — which the set did not
+  /// hold, so the card vanished behind the search. The swap and its `id_remap`
+  /// entry are one transaction, so an emission that has lost a kept `tmp_`
+  /// row can already resolve it: the set follows the id before the emission
+  /// is applied, and the card never blinks out.
   void _onTasks(Map<String, List<Task>> next) {
+    final generation = ++_tasksGeneration;
+    final present = {
+      for (final list in next.values)
+        for (final t in list) t.id,
+    };
+    final swapped = [
+      for (final id in _addedUnderSearch)
+        if (id.startsWith('tmp_') && !present.contains(id)) id,
+    ];
+    if (swapped.isEmpty) return _applyTasks(next);
+    unawaited(() async {
+      for (final tempId in swapped) {
+        String realId;
+        try {
+          realId = await repo.resolveId(tempId);
+        } catch (_) {
+          continue;
+        }
+        _addedUnderSearch.remove(tempId);
+        // Unresolved: the create was discarded, and its card is gone anyway.
+        if (realId != tempId) _addedUnderSearch.add(realId);
+      }
+      if (!_disposed && generation == _tasksGeneration) _applyTasks(next);
+    }());
+  }
+
+  void _applyTasks(Map<String, List<Task>> next) {
     _tasksByStatus = next;
     // The stream's emission is the persisted truth. Drop the optimistic
     // override; the board re-reads from `_tasksByStatus` on the next

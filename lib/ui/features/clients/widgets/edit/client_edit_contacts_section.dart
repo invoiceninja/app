@@ -191,6 +191,7 @@ class _ContactList extends StatelessWidget {
     final contacts = vm.draft.contacts;
     return ContactEditRows(
       reveal: vm.contactToReveal,
+      onRevealed: vm.contactRevealed,
       contacts: [
         for (final c in contacts)
           ContactRowData(

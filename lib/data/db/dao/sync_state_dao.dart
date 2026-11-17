@@ -112,6 +112,23 @@ class SyncStateDao extends DatabaseAccessor<AppDatabase>
           .map((row) => row?.lastFullSyncAt)
           .distinct();
 
+  /// Whether a Sync has walked every one of [entityTypes] in [companyId] to
+  /// the end ([watchLastFullSyncAt] set for each).
+  Stream<bool> watchAllFullySynced({
+    required String companyId,
+    required Set<String> entityTypes,
+  }) =>
+      (select(syncStateRows)..where(
+            (s) =>
+                s.companyId.equals(companyId) &
+                s.entityType.isIn(entityTypes) &
+                s.lastFullSyncAt.isNotNull(),
+          ))
+          .watch()
+          .map((rows) => rows.map((r) => r.entityType).toSet().length)
+          .map((n) => n == entityTypes.length)
+          .distinct();
+
   /// Clear the cursor — used by "Force full sync".
   Future<void> reset({required String companyId, required String entityType}) =>
       (delete(syncStateRows)..where(

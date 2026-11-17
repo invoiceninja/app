@@ -3441,3 +3441,7 @@ the document view and uploads still work with it off. **Fix:** the schema text (
 client's "Send Email" on a saved payment toasted success and sent nothing. **Client fix:** Send
 Email now queues `POST /payments/bulk {action: 'email'}` (as React does). Recorded so nobody
 "fixes" the server for it.
+
+### Product bulk `set_tax_id` has no edit check — **O (found in the v5.1.31 review; send privately)**
+
+`ProductController::bulk` (around line 479 on v5-develop) applies `set_tax_id` to every id in the request without the `$user->can('edit', $product)` check the other bulk actions use, so a user who may only view products can change their tax category. The app only offers the action with `edit_product`, so this is server-side only. Report it to David privately (permissions), with the one-line guard as the fix.

@@ -315,6 +315,42 @@ void main() {
     );
 
     recordScreenTest(
+      'offers no Configure for a section whose page edits only the company',
+      seed: (services) => _seedGroup(
+        services,
+        settings: const {'invoice_terms': 'x', 'enable_e_invoice': true},
+      ),
+      screen: () => const GroupSettingsDetailScreen(id: 'g1'),
+      ready: () => find.byType(GroupSettingsOverview),
+      body: (tester, screen) async {
+        // Company Details always saves the company: its Configure would
+        // write company-wide terms under the group's banner.
+        final companyOnly = find.byKey(
+          const ValueKey('group-overview-company-only-company_details'),
+        );
+        await screen.untilFound(companyOnly, 'the Company Details card');
+        expect(tester.widget<TextButton>(companyOnly).onPressed, isNull);
+        expect(
+          find.descendant(
+            of: find.byKey(
+              const ValueKey('group-overview-section-company_details'),
+            ),
+            matching: find.byWidgetPredicate(
+              (w) => w is TextButton && w.onPressed != null,
+            ),
+          ),
+          findsNothing,
+        );
+        // E-Invoicing's page is cascade-aware and saves to the group.
+        final eInvoice = find.descendant(
+          of: find.byKey(const ValueKey('group-overview-section-e_invoicing')),
+          matching: find.byType(TextButton),
+        );
+        expect(tester.widget<TextButton>(eInvoice).onPressed, isNotNull);
+      },
+    );
+
+    recordScreenTest(
       'says plainly when the group overrides nothing',
       seed: (services) => _seedGroup(services),
       screen: () => const GroupSettingsDetailScreen(id: 'g1'),

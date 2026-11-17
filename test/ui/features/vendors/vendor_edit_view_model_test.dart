@@ -54,6 +54,16 @@ void main() {
     return rows.length;
   }
 
+  test('the added contact is revealed once, then cleared', () {
+    final vm = editVm(existingVendor());
+    addTearDown(vm.dispose);
+    vm.addContact();
+    expect(vm.contactToReveal?.index, 0);
+    vm.contactRevealed();
+    // A remount of the Contacts card must not scroll to it again.
+    expect(vm.contactToReveal, isNull);
+  });
+
   group('validate (create)', () {
     test('blocks an empty name — inline error, no local write', () async {
       final vm = createVm();

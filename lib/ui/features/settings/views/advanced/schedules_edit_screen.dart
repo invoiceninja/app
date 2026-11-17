@@ -1370,6 +1370,9 @@ class _RepoMultiPickerState<T extends Object>
           idOf: widget.idOf,
           displayString: widget.displayString,
           onChanged: widget.onChanged,
+          // "Loading" only until the stream answers; an empty list then
+          // reads None.
+          emptyHintKey: snapshot.hasData ? 'none' : 'loading',
         );
       },
     );
