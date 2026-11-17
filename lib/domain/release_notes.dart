@@ -258,6 +258,83 @@ List<ReleaseNotes> releasesToShow({
 
 const List<ReleaseNotes> kReleaseNotes = [
   ReleaseNotes(
+    version: '5.1.31',
+    highlights: [
+      ReleaseHighlight(
+        icon: Icons.dashboard_outlined,
+        title: 'A refreshed design',
+        body:
+            'The dashboard, lists, records, editors and settings are cleaner '
+            'and easier to scan.',
+        target: ReleaseHighlightRoute(
+          '/dashboard',
+          permission: 'view_dashboard',
+        ),
+        major: true,
+      ),
+      ReleaseHighlight(
+        icon: Icons.receipt_outlined,
+        title: 'Totals on every list',
+        body:
+            'Money lists show what is outstanding, open or unapplied, per '
+            'currency.',
+        target: ReleaseHighlightRoute('/invoices', module: EntityType.invoice),
+      ),
+      ReleaseHighlight(
+        icon: Icons.receipt_long,
+        title: 'More bulk actions',
+        body:
+            'Change the category of many expenses at once, and more bulk '
+            'actions across the lists.',
+        target: ReleaseHighlightRoute('/expenses', module: EntityType.expense),
+      ),
+      ReleaseHighlight(
+        icon: Icons.devices_outlined,
+        title: 'Device Settings, redesigned',
+        body:
+            'Every preference on one tidy row, with the same pickers throughout.',
+        target: ReleaseHighlightRoute('/settings/device_settings'),
+        major: true,
+      ),
+    ],
+    items: [
+      ReleaseNoteItem(
+        'Updated: A refreshed design across the app: the dashboard, the '
+        'lists, record screens, editors and settings, with field labels above '
+        'the fields and money in a fixed-width font. Compact density keeps '
+        'everything tighter',
+      ),
+      ReleaseNoteItem(
+        'Added: Money lists show their total per currency (outstanding, '
+        'open, unapplied, uninvoiced), and a client balance is red only when '
+        'one of their invoices is overdue',
+      ),
+      ReleaseNoteItem(
+        'Added: Bulk actions to change the category of expenses, assign '
+        'clients to a group, set the tax category of products, cancel '
+        'invoices, convert quotes to projects, mark credits paid and email '
+        'payment receipts',
+      ),
+      ReleaseNoteItem(
+        'Updated: Device Settings are redesigned, Payment Settings opens with '
+        'your gateways and payment types, and a group opens on an overview of '
+        'the settings it overrides',
+      ),
+      ReleaseNoteItem(
+        'Updated: Contacts show the email and phone under each name, the '
+        "client's local time and a quick way to add a contact",
+      ),
+      ReleaseNoteItem(
+        'Added: Creating a product from a line item can set its cost',
+      ),
+      ReleaseNoteItem(
+        'Fixed: Many smaller issues, including payment link steps showing '
+        'blank, a gap in field borders, the record pane squeezing the list, '
+        'and settings that a free plan cannot save now saying so',
+      ),
+    ],
+  ),
+  ReleaseNotes(
     version: '5.1.30',
     items: [
       ReleaseNoteItem(

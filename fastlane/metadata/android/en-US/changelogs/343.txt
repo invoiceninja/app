@@ -1,0 +1,6 @@
+- A refreshed design: dashboard, lists, records, editors and settings
+- Money lists show their total per currency
+- More bulk actions, including changing the category of expenses
+- Device Settings redesigned; groups open on an overview of their settings
+- Contacts show email and phone under each name, with a quick add
+- Many smaller fixes
