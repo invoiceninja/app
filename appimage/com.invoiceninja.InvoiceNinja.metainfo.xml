@@ -89,6 +89,18 @@
     <control>touch</control>
   </supports>
   <releases>
+    <release version="5.1.31" date="2026-11-17">
+      <description>
+        <ul>
+          <li>A refreshed design: dashboard, lists, records, editors and settings</li>
+          <li>Money lists show their total per currency</li>
+          <li>More bulk actions, including changing the category of expenses</li>
+          <li>Device Settings redesigned; groups open on an overview of their settings</li>
+          <li>Contacts show email and phone under each name, with a quick add</li>
+          <li>Many smaller fixes</li>
+        </ul>
+      </description>
+    </release>
     <release version="5.1.30" date="2026-11-16">
       <description>
         <ul>
