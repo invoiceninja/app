@@ -52,6 +52,9 @@ Future<Vendor?> showMergeVendorDialog(
                       displayString: (v) => v.name,
                       idOf: (v) => v.id,
                       onChanged: (v) => setState(() => selected = v),
+                      // "Loading" only until the stream answers; an empty list then
+                      // reads None.
+                      emptyHintKey: snapshot.hasData ? 'none' : 'loading',
                     );
                   },
                 ),

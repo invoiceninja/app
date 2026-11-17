@@ -343,6 +343,9 @@ class _CreditCreateTabState extends State<_CreditCreateTab> {
                 setState(() => _selectedClient = c);
                 _bindInvoices(c);
               },
+              // "Loading" only until the stream answers; an empty list then
+              // reads None.
+              emptyHintKey: snapshot.hasData ? 'none' : 'loading',
             );
           },
         ),
@@ -490,6 +493,9 @@ class _CreditLinkTabState extends State<_CreditLinkTab> {
                 return '$num · $amount';
               },
               onChanged: (p) => setState(() => _selectedPayment = p),
+              // "Loading" only until the stream answers; an empty list then
+              // reads None.
+              emptyHintKey: snapshot.hasData ? 'none' : 'loading',
             );
           },
         ),

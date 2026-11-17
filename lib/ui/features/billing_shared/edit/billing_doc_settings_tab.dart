@@ -87,6 +87,9 @@ class BillingDocSettingsTab extends StatelessWidget {
           displayString: (d) => d.name,
           idOf: (d) => d.id,
           onChanged: (d) => onDesignChanged(d?.id ?? ''),
+          // "Loading" only until the stream answers; an empty list then
+          // reads None.
+          emptyHintKey: snap.hasData ? 'none' : 'loading',
         );
       },
     );
@@ -122,6 +125,9 @@ class BillingDocSettingsTab extends StatelessWidget {
           displayString: (p) => p.name,
           idOf: (p) => p.id,
           onChanged: (p) => onProjectChanged(p?.id ?? ''),
+          // "Loading" only until the stream answers; an empty list then
+          // reads None.
+          emptyHintKey: snap.hasData ? 'none' : 'loading',
         );
       },
     );
@@ -147,6 +153,9 @@ class BillingDocSettingsTab extends StatelessWidget {
           displayString: (v) => v.name,
           idOf: (v) => v.id,
           onChanged: (v) => onVendorChanged(v?.id ?? ''),
+          // "Loading" only until the stream answers; an empty list then
+          // reads None.
+          emptyHintKey: snap.hasData ? 'none' : 'loading',
         );
       },
     );

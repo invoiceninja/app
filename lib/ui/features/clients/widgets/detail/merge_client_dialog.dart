@@ -60,6 +60,9 @@ Future<Client?> showMergeClientDialog(
                           c.displayName.isEmpty ? c.name : c.displayName,
                       idOf: (c) => c.id,
                       onChanged: (c) => setState(() => selected = c),
+                      // "Loading" only until the stream answers; an empty list then
+                      // reads None.
+                      emptyHintKey: snapshot.hasData ? 'none' : 'loading',
                     );
                   },
                 ),

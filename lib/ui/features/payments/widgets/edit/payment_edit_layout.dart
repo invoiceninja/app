@@ -423,6 +423,9 @@ class _ClientPicker extends StatelessWidget {
           idOf: (c) => c.id,
           onChanged: (c) => _onClientChanged(context, c),
           errorText: vm.fieldErrorFor('client_id'),
+          // "Loading" only until the stream answers; an empty list then
+          // reads None.
+          emptyHintKey: snapshot.hasData ? 'none' : 'loading',
         );
       },
     );

@@ -124,6 +124,8 @@ class _GroupPicker extends StatelessWidget {
           idOf: (g) => g.id,
           onChanged: (g) => vm.setGroupId(g?.id ?? ''),
           errorText: vm.fieldErrorFor('group_id'),
+          // "Loading" only until the stream answers; no groups reads None.
+          emptyHintKey: snapshot.hasData ? 'none' : 'loading',
         );
       },
     );

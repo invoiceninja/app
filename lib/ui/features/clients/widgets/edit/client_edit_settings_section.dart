@@ -239,6 +239,9 @@ class _GroupPicker extends StatelessWidget {
           displayString: (g) => g.name.isEmpty ? g.id : g.name,
           idOf: (g) => g.id,
           onChanged: (g) => vm.setGroupSettingsId(g?.id ?? ''),
+          // An empty list is "Loading" only until the stream answers; a
+          // company with no groups then reads None, not Loading forever.
+          emptyHintKey: snapshot.hasData ? 'none' : 'loading',
         );
       },
     );

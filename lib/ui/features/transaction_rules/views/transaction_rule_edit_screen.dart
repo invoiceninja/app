@@ -388,6 +388,9 @@ class _VendorPicker extends StatelessWidget {
           idOf: (v) => v.id,
           onChanged: (v) => vm.setVendorId(v?.id ?? ''),
           errorText: vm.fieldErrorFor('vendor_id'),
+          // "Loading" only until the stream answers; an empty list then
+          // reads None.
+          emptyHintKey: snapshot.hasData ? 'none' : 'loading',
         );
       },
     );
@@ -422,6 +425,9 @@ class _CategoryPicker extends StatelessWidget {
           idOf: (c) => c.id,
           onChanged: (c) => vm.setCategoryId(c?.id ?? ''),
           errorText: vm.fieldErrorFor('category_id'),
+          // "Loading" only until the stream answers; an empty list then
+          // reads None.
+          emptyHintKey: snapshot.hasData ? 'none' : 'loading',
         );
       },
     );
