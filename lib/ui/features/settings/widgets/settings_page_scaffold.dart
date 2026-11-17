@@ -318,10 +318,17 @@ Future<void> runSettingsSave(
   }
   final successText = context.tr('saved_settings');
   final errorFallback = context.tr('error_refresh_page');
+  final needsPlanText = context.tr('upgrade_to_paid_plan');
   final result = await viewModel.save();
   if (!context.mounted) return;
   if (result != null) {
     Notify.success(context, successText);
+    return;
+  }
+  // The server took the save and dropped a setting the account's plan cannot
+  // keep; the draft still holds the user's choice.
+  if (viewModel.submitNeedsPaidPlan) {
+    Notify.error(context, needsPlanText);
     return;
   }
   // The VM stashes the raw exception text on `submitError`; surface it as

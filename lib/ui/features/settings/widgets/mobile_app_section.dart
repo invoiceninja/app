@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 
-import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/data/repositories/auth/auth_session.dart';
 import 'package:admin/domain/mobile_app_promo.dart';
@@ -42,11 +41,8 @@ class MobileAppSection extends StatelessWidget {
     }
     return FormSection(
       title: context.tr('mobile_app_promo_section'),
+      description: context.tr('mobile_app_promo_settings_body'),
       children: [
-        Text(
-          context.tr('mobile_app_promo_settings_body'),
-          style: TextStyle(color: context.inTheme.ink2, height: 1.4),
-        ),
         Align(
           alignment: AlignmentDirectional.centerStart,
           child: OutlinedButton.icon(

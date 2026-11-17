@@ -426,7 +426,7 @@ class _LocationFormDialogState extends State<_LocationFormDialog> {
         },
         decoration: InputDecoration(
           labelText: context.tr(labelKey),
-          border: const OutlineInputBorder(),
+          border: const InFieldOutlineBorder(),
           isDense: true,
         ),
       ),

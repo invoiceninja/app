@@ -1,5 +1,6 @@
 import 'package:material_ui/material_ui.dart';
 
+import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/features/settings/views/basic/backup_restore/widgets/backup_tab.dart';
 import 'package:admin/ui/features/settings/views/basic/backup_restore/widgets/restore_tab.dart';
 import 'package:admin/ui/features/settings/widgets/settings_form_shell.dart';
@@ -54,6 +55,7 @@ class _BackupRestoreShellState extends State<BackupRestoreShell> {
     return SettingsScreenScaffold(
       titleKey: 'backup_restore',
       body: SettingsFormShell(
+        subtitle: context.tr('backup_restore_subtitle'),
         sections: [
           const BackupSection(),
           KeyedSubtree(key: _restoreKey, child: const RestoreSection()),

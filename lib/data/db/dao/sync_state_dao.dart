@@ -76,8 +76,8 @@ class SyncStateDao extends DatabaseAccessor<AppDatabase>
   /// dashboard's Billing Pipeline `All` tab and a saved-view apply). So the
   /// column recorded a full sync that had fetched fifty rows.
   ///
-  /// Harmless today only because nothing reads it back; the point of fixing it is
-  /// that the next consumer would inherit the lie.
+  /// `ListTotalsRepository` reads it back ([watchLastFullSyncAt]): a money
+  /// list's local totals line is drawn only once this is set.
   Future<void> markFullSync({
     required String companyId,
     required String entityType,
@@ -89,6 +89,28 @@ class SyncStateDao extends DatabaseAccessor<AppDatabase>
       lastFullSyncAt: Value(now),
     ),
   );
+
+  /// `last_full_sync_at` for [entityType] in [companyId] — when a Sync last
+  /// walked that entity to the end ([markFullSync]) — and null until one has,
+  /// or again once [reset] clears the row for the next full sweep.
+  ///
+  /// Read by `ListTotalsRepository`: a local sum of the rows Drift holds is a
+  /// total only once this is set (docs/entity-lists.md § A money list's totals
+  /// line).
+  Stream<int?> watchLastFullSyncAt({
+    required String companyId,
+    required String entityType,
+  }) =>
+      (select(syncStateRows)
+            ..where(
+              (s) =>
+                  s.companyId.equals(companyId) &
+                  s.entityType.equals(entityType),
+            )
+            ..limit(1))
+          .watchSingleOrNull()
+          .map((row) => row?.lastFullSyncAt)
+          .distinct();
 
   /// Clear the cursor — used by "Force full sync".
   Future<void> reset({required String companyId, required String entityType}) =>

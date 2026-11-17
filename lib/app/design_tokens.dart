@@ -711,11 +711,106 @@ InputBorder inFieldBorder(InTheme tokens, {double radius = InRadii.r2}) {
     } else {
       color = tokens.borderStrong;
     }
-    return OutlineInputBorder(
+    return InFieldOutlineBorder(
       borderRadius: BorderRadius.circular(radius),
       borderSide: BorderSide(color: color, width: focused ? 1.5 : 1),
     );
   });
+}
+
+/// The narrowest label gap [InFieldOutlineBorder] cuts. A real floating label
+/// is several pixels wide even for one character at Compact's 12 px; the
+/// label `LabeledField` hides at Comfortable measures 0, or `FLT_MIN`.
+const double kMinFieldLabelGap = 1.0;
+
+/// An [OutlineInputBorder] that cuts its label notch only for a label with
+/// real width: a gap narrower than [kMinFieldLabelGap] draws the whole top
+/// edge.
+///
+/// `LabeledField` draws a field's label above the box at the Comfortable
+/// density and hides the decoration's own label at font size 0. The engine
+/// (SkParagraph, native and CanvasKit alike) lays out a zero-size label that
+/// holds a space at `FLT_MIN` (1.18e-38) wide rather than 0, and Material's
+/// border cuts a notch for any extent above 0 — plus `gapPadding` on each
+/// side, so every two-word label left an 8 px nick in the top edge near the
+/// start (`docs/form-fields.md` § A label above the box cuts no notch in its
+/// border). Under Compact the label floats inside the border and is wide, so
+/// it keeps its notch.
+///
+/// Every outlined field in `lib/` uses this class, never a bare
+/// [OutlineInputBorder] (`test/lint/field_outline_border_test.dart`): a
+/// decoration's own `border` wins over the theme's.
+class InFieldOutlineBorder extends OutlineInputBorder {
+  const InFieldOutlineBorder({
+    super.borderSide,
+    super.borderRadius,
+    super.gapPadding,
+  });
+
+  @override
+  InFieldOutlineBorder copyWith({
+    BorderSide? borderSide,
+    BorderRadius? borderRadius,
+    double? gapPadding,
+  }) {
+    return InFieldOutlineBorder(
+      borderSide: borderSide ?? this.borderSide,
+      borderRadius: borderRadius ?? this.borderRadius,
+      gapPadding: gapPadding ?? this.gapPadding,
+    );
+  }
+
+  @override
+  InFieldOutlineBorder scale(double t) {
+    return InFieldOutlineBorder(
+      borderSide: borderSide.scale(t),
+      borderRadius: borderRadius * t,
+      gapPadding: gapPadding * t,
+    );
+  }
+
+  // The focus and hover transitions lerp between two borders; the base class
+  // returns a plain OutlineInputBorder, which would bring the nick back for
+  // the length of the animation.
+  @override
+  ShapeBorder? lerpFrom(ShapeBorder? a, double t) {
+    final lerped = super.lerpFrom(a, t);
+    return lerped is OutlineInputBorder ? _of(lerped) : lerped;
+  }
+
+  @override
+  ShapeBorder? lerpTo(ShapeBorder? b, double t) {
+    final lerped = super.lerpTo(b, t);
+    return lerped is OutlineInputBorder ? _of(lerped) : lerped;
+  }
+
+  static InFieldOutlineBorder _of(OutlineInputBorder border) =>
+      border is InFieldOutlineBorder
+      ? border
+      : InFieldOutlineBorder(
+          borderSide: border.borderSide,
+          borderRadius: border.borderRadius,
+          gapPadding: border.gapPadding,
+        );
+
+  @override
+  void paint(
+    Canvas canvas,
+    Rect rect, {
+    double? gapStart,
+    double gapExtent = 0.0,
+    double gapPercentage = 0.0,
+    TextDirection? textDirection,
+  }) {
+    super.paint(
+      canvas,
+      rect,
+      gapStart: gapStart,
+      gapExtent: gapExtent < kMinFieldLabelGap ? 0.0 : gapExtent,
+      gapPercentage: gapPercentage,
+      textDirection: textDirection,
+    );
+  }
 }
 
 /// Reads the brightness-appropriate tokens from the current [Theme].

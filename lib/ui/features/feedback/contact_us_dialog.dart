@@ -420,7 +420,7 @@ class _ContactUsDialogState extends State<_ContactUsDialog> {
                       textInputAction: TextInputAction.newline,
                       decoration: InputDecoration(
                         labelText: context.tr('message'),
-                        border: const OutlineInputBorder(),
+                        border: const InFieldOutlineBorder(),
                       ),
                     ),
                   ),

@@ -49,7 +49,8 @@ flutter drive \
   --browser-name=chrome \
   --browser-dimension=1600x1000 \
   --dart-define=IN_DEMO_API_TOKEN="$demo_token" \
-  --dart-define=IN_DEMO_API_URL="$demo_url"
+  --dart-define=IN_DEMO_API_URL="$demo_url" \
+  --dart-define=IN_DEMO_MODE=true
 
 echo "==> done. Wrote:"
 ls -1 samples/screenshots/

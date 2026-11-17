@@ -15,6 +15,7 @@ import 'package:admin/ui/core/dialogs/confirm_action_dialog.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
 import 'package:admin/ui/features/settings/widgets/form_section.dart';
+import 'package:admin/ui/features/settings/widgets/setting_row.dart';
 import 'package:admin/ui/features/settings/widgets/segmented_setting_row.dart';
 import 'package:admin/utils/formatting.dart';
 
@@ -103,6 +104,7 @@ class _ContactsSyncSectionState extends State<ContactsSyncSection> {
         final controller = services.contactsSync;
         return FormSection(
           title: context.tr('contacts'),
+          description: context.tr('contacts_section_help'),
           children: [
             _ToggleTile(
               enabled: controller.enabled,
@@ -332,23 +334,17 @@ class _ToggleTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SwitchListTile(
-      secondary: const Icon(Icons.contacts_outlined),
-      title: Text(context.tr('sync_contacts_to_device')),
+    return SettingRow.toggle(
+      icon: const Icon(Icons.contacts_outlined),
+      title: context.tr('sync_contacts_to_device'),
       // Two lines, not one: `sync_contacts_to_device_help` is in the settings
       // search catalog, which renders a key's raw translation with no params —
       // so it has to stay placeholder-free (`settings_search_catalog_test`
       // fails the build otherwise). The label name is what the user goes
       // looking for in the Contacts app, so it keeps its own parameterised
       // line rather than being dropped.
-      subtitle: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(context.tr('sync_contacts_to_device_help')),
-          const SizedBox(height: InSpacing.xs),
-          Text(context.tr('contacts_sync_label_name', {'label': label})),
-        ],
-      ),
+      subtitle: context.tr('sync_contacts_to_device_help'),
+      details: Text(context.tr('contacts_sync_label_name', {'label': label})),
       value: enabled,
       onChanged: busy ? null : onChanged,
     );

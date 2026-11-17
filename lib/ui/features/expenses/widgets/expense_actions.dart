@@ -168,18 +168,14 @@ class ExpenseActions {
           enabled: !expense.id.startsWith('tmp_'),
           onTap: () => onTap(ExpenseAction.runTemplate),
         ),
-        EntityActionItem(
+        addCommentActionItem(
+          context: context,
           kind: ExpenseAction.addComment,
-          icon: Icons.chat_bubble_outline,
-          label: context.tr('add_comment'),
-          enabled: true,
           onTap: () => onTap(ExpenseAction.addComment),
         ),
-        EntityActionItem(
+        logCallActionItem(
+          context: context,
           kind: ExpenseAction.logCall,
-          icon: Icons.phone_in_talk_outlined,
-          label: context.tr('log_call'),
-          enabled: true,
           onTap: () => onTap(ExpenseAction.logCall),
         ),
       ],

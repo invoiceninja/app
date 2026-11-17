@@ -341,7 +341,7 @@ class _CreatePaymentScheduleDialogState
                 onChanged: (_) => setState(() {}),
                 decoration: InputDecoration(
                   labelText: context.tr('amount'),
-                  border: const OutlineInputBorder(),
+                  border: const InFieldOutlineBorder(),
                   isDense: true,
                 ),
               ),
@@ -407,7 +407,7 @@ class _CreatePaymentScheduleDialogState
                     onChanged: (_) => setState(() {}),
                     decoration: InputDecoration(
                       labelText: context.tr('number_of_payments'),
-                      border: const OutlineInputBorder(),
+                      border: const InFieldOutlineBorder(),
                       isDense: true,
                     ),
                   ),
@@ -420,7 +420,7 @@ class _CreatePaymentScheduleDialogState
                     isExpanded: true,
                     decoration: InputDecoration(
                       labelText: context.tr('frequency'),
-                      border: const OutlineInputBorder(),
+                      border: const InFieldOutlineBorder(),
                       isDense: true,
                     ),
                     onChanged: _busy

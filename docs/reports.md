@@ -92,6 +92,18 @@ Four separate things were wrong with the totals, and each was a number on screen
 
 **Numbers arrive formatted, in the company's notation.** `parseFormattedMoney` is given the company currency's separators and precision (`FormattedNumberStyle`); without them `1.234` is ambiguous, and a client balance of 3,125.00 was read as 3. Cells then render through `Formatter` from their typed value — the server's string is shown only for text.
 
+## A report is read in the company's currency, whatever order its rows arrive in
+
+**The view currency is the reader's choice, else the company's, else the currency with the most rows, a tie broken by currency id (compared as strings) — and nothing in that depends on the order of the server's rows.** `resolveViewCurrency` sorts the per-currency row counts in full before it falls back, and `reportCurrencies` (the picker) sorts the same way, so one result and one company currency give one answer. The chart, the summary figures and the table all read `ReportView.currencyId`; none picks its own. React has no currency selection here at all (it shows the server's formatted strings), so there is nothing to mirror.
+
+**The company currency is the view model's when the screen's is not there yet.** `ReportScreen` passes `FormatterScope`'s `settings.currencyId`, and `ReportsHost` loads that `Formatter` asynchronously; `ReportsViewModel` resolves the same currency itself before its first run (`companyCurrencyId`, also what the numbers are parsed with). `buildView` / `buildCompareView` take the caller's, else the view model's (`_companyCurrencyFor`). Before that, a result painted while the host's `Formatter` was still loading (a remembered one, on opening) fell back to the currency with the most rows, then jumped to the company's when it landed.
+
+**What the "USD in one run, EUR in the next" screenshots were.** 2026-11-17, store screenshots of `/reports/invoice` against the demo: the same 17 invoices (13 USD, 3 EUR, 1 GBP, `client.currency_id`) came up in USD on the Linux and laptop passes and in EUR on a later phone pass. The demo company's `settings.currency_id` had been changed from 1 (USD) to 3 (EUR) between them — `GET /companies` showed `updated_at` 18:53:30 UTC, between the passes, and each pass's dashboard says so ("Converted to USD", then "Converted to EUR"). The app followed the company currency both times, which is the rule. The demo is shared and writable: a screenshot that names a currency depends on what the demo company's currency is at that moment.
+
+**What is still read once.** The host's `Formatter` and the view model's company currency are read when the host mounts (and again on a company switch). A currency changed on the server mid-session is picked up by a company switch or a restart, not by a report re-run.
+
+Tests: `test/domain/reports/report_view_currency_test.dart` (the demo's mix in eight row orders, flat and grouped by month: company currency, reader's choice, no company currency, a tie, the picker's order) and `test/ui/features/reports/report_view_currency_test.dart` (the view model in six row orders, with and without the screen's currency).
+
 ## The table is slivers of the page
 
 The report has **one vertical scroll**: the summary scrolls away, the header and the totals line pin (`PinnedHeaderSliver`), and the rows are a `SliverFixedExtentList` beneath them, so a result of fifty thousand rows is laid out by arithmetic. A table with its own scroll inside a scrolling page is the arrangement where the wheel stops working halfway down.

@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:admin/app/design_tokens.dart';
@@ -233,6 +234,25 @@ void main() {
         tester.getSize(find.byWidget(e.widget)).height,
     };
     expect(heights, hasLength(1), reason: 'heights: $heights');
+  });
+
+  // The desktop theme's compact density takes 8 px off a button's minimum
+  // height but not its maximum, so a ▾ half that expanded to its box stood
+  // taller than New Invoice beside it.
+  testWidgets('the split halves are one height on desktop', (tester) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+    try {
+      await pumpStrip(tester, width: 600);
+      final heights = {
+        for (final e in find.byType(FilledButton).evaluate())
+          tester.getSize(find.byWidget(e.widget)).height,
+        for (final e in find.byType(OutlinedButton).evaluate())
+          tester.getSize(find.byWidget(e.widget)).height,
+      };
+      expect(heights, hasLength(1), reason: 'heights: $heights');
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
   });
 
   testWidgets('a tap on a button creates that entity', (tester) async {

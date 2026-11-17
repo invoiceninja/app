@@ -5,6 +5,7 @@ import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/theme_controller.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/features/settings/widgets/accent_swatch_grid.dart';
+import 'package:admin/ui/features/settings/widgets/setting_row.dart';
 import 'package:admin/ui/features/settings/widgets/theme_tile.dart';
 
 /// Collapsible "Customize colors" section — four device-local colour
@@ -64,19 +65,22 @@ class _CustomizeColorsSectionState extends State<CustomizeColorsSection> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        ListTile(
-          leading: const Icon(Icons.palette_outlined),
-          title: Text(context.tr('customize_colors')),
-          trailing: Icon(_expanded ? Icons.expand_less : Icons.expand_more),
-          onTap: () => setState(() => _expanded = !_expanded),
+        Semantics(
+          expanded: _expanded,
+          child: SettingRow(
+            icon: const Icon(Icons.format_color_fill_outlined),
+            title: context.tr('customize_colors'),
+            subtitle: context.tr('customize_colors_help'),
+            stackWhenNarrow: false,
+            control: Icon(
+              _expanded ? Icons.expand_less : Icons.expand_more,
+              color: context.inTheme.ink3,
+            ),
+            onTap: () => setState(() => _expanded = !_expanded),
+          ),
         ),
         if (_expanded)
-          Padding(
-            padding: EdgeInsets.only(
-              left: InSpacing.md(context),
-              right: InSpacing.md(context),
-              bottom: InSpacing.md(context),
-            ),
+          SettingBlock(
             child: ListenableBuilder(
               listenable: widget.controller,
               builder: (context, _) {

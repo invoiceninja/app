@@ -153,18 +153,14 @@ class RecurringExpenseActions {
             enabled: true,
             onTap: () => onTap(RecurringExpenseAction.cloneToExpense),
           ),
-        EntityActionItem(
+        addCommentActionItem(
+          context: context,
           kind: RecurringExpenseAction.addComment,
-          icon: Icons.chat_bubble_outline,
-          label: context.tr('add_comment'),
-          enabled: true,
           onTap: () => onTap(RecurringExpenseAction.addComment),
         ),
-        EntityActionItem(
+        logCallActionItem(
+          context: context,
           kind: RecurringExpenseAction.logCall,
-          icon: Icons.phone_in_talk_outlined,
-          label: context.tr('log_call'),
-          enabled: true,
           onTap: () => onTap(RecurringExpenseAction.logCall),
         ),
       ],

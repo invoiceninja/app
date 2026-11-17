@@ -23,7 +23,7 @@ the Flutter app) so they are explicitly **out of scope** here.
 - Dashboard net (ex-tax) chart totals — chart endpoints have no `net` param (**O**, feature request flutter#4).
 - Purchase-order PDF line-item currency — a PO with an attached client prints line items in the *client's* currency while totals stay in the *vendor's* (**R**, PDF correctness).
 - Company setting `documents_public_by_default` — no server-side default for a new document's `is_public` (**SHIPPED** 2026-09-08; the prop, its cast and the `SavesDocuments` fallback all landed, so the v2 toggle should now persist).
-- `GET /api/v1/activities` — accepts **no filters at all**, incl. `user_id` (**O**, § F3; caused flutter#45, client now works around it); its `reactv2` window has **no cursor**, so Load more re-sends every row; the `user_id` filter, the restricted-user 500 and a `before` cursor are **In PR** (`fix/email-and-activity-gaps`, § F3, § F3f).
+- `GET /api/v1/activities` — accepted **no filters at all**, incl. `user_id` (§ F3; caused flutter#45, client works around it); its `reactv2` window had **no cursor**, so Load more re-sent every row; the `user_id` filter, the restricted-user 500 and a `before` cursor are **SHIPPED** in v5.13.50 ([invoiceninja#13368](https://github.com/invoiceninja/invoiceninja/pull/13368), merged 2026-10-20; § F3, § F3f).
 - `users.email_verified_at` — the only per-user verification signal, and it conflates four states, so no client can render a true "pending invite" (**O**, § F4; caused flutter#47, client now under-claims instead).
 - `last_login` never means "last login" — `Carbon::parse(null)` reports **now**, and `UserFactory` seeds the column at creation (**SHIPPED** 2026-09-08, § F5; both halves fixed, but the transformer emits `0` rather than `null` for "never").
 - `POST /api/v1/activities/entity` has **no notes filter** and its `rows` window covers all activity for the record, so a comment can fall out of it entirely (**SHIPPED** 2026-10-19 ([invoiceninja#13365](https://github.com/invoiceninja/invoiceninja/pull/13365)), 2026-10-18, § F3b — the client already sends the filter when the window is full); it **narrows by user instead of 403-ing**, so a restricted user silently sees only their own (**R**, § F3c); a note can never be **edited or deleted** (**O**, § F3d — [flutter#123](https://github.com/invoiceninja/flutter/issues/123)); and adding one **notifies nobody** (**O**, § F3e — [flutter#121](https://github.com/invoiceninja/flutter/issues/121)).
@@ -329,7 +329,7 @@ public function company_gateway_id(string $v=''): Builder
   `client_gateway_tokens?company_gateway_id=` listing would also unblock the
   "clients with token billing" tile.
 
-### F3. `GET /api/v1/activities` — no filters at all — **O** (client now works around it)
+### F3. `GET /api/v1/activities` — no filters at all — **SHIPPED** in v5.13.50 (client works around it on older servers)
 
 `ActivityController::index` takes a **bare `Illuminate\Http\Request`**, not a
 filters class — unlike every other index controller. There is no
@@ -349,7 +349,7 @@ This caused **invoiceninja/flutter#45** — the v2 client's per-user activity lo
 with the viewed user's name. Every user's Activity section listed every action
 in the company, attributed to whoever was on screen.
 
-**In PR** (`fix/email-and-activity-gaps`, 2026-10-19), but **not** as sketched
+**SHIPPED** in v5.13.50 ([invoiceninja#13368](https://github.com/invoiceninja/invoiceninja/pull/13368), `ebf1f17cfd`, merged 2026-10-20), but **not** as sketched
 below: `QueryFilters::apply` ends in `withTrashed()` and `Activity` has no
 `SoftDeletes`, so `Filterable` would throw. The PR applies `user_id` inline on
 both branches, after the non-admin clamp, decoding each comma-separated id and
@@ -387,7 +387,7 @@ stop over-fetching (and would fix the one residual: a rarely-active user in a
 very busy account can fall outside the window).
 
 **Adjacent bug spotted in the same path (not client-visible after the above) —
-In PR (`fix/email-and-activity-gaps`), confirmed by a test that hit `Unknown
+SHIPPED in v5.13.50 (invoiceninja#13368, `6789b0452e`), confirmed by a test that hit `Unknown
 column 'assigned_user_id'`; `Activity` joins the tables-without-that-column list.**
 `BaseController::listResponse` (`app/Http/Controllers/BaseController.php:1018`)
 has no special case for `Activity`, so it falls through to the generic branch
@@ -494,7 +494,7 @@ company's users (excluding the author), and — if "external" is ever wanted —
 opt-in flag, since these notes are internal by every current definition and none of the existing UI
 warns otherwise.
 
-### F3f. `GET /activities?reactv2` has no cursor, so a bigger window re-sends every row — **In PR** (branch `fix/email-and-activity-gaps`; client already uses it)
+### F3f. `GET /activities?reactv2` has no cursor, so a bigger window re-sends every row — **SHIPPED** in v5.13.50 ([invoiceninja#13368](https://github.com/invoiceninja/invoiceninja/pull/13368), `6ad717d58e`; client already uses it)
 
 The `reactv2` branch is `orderBy('created_at','DESC')->take($rows)` and nothing
 else: no `page`, no offset, no cursor. Without one, the `/activity` screen's
@@ -504,7 +504,7 @@ each step re-downloads every row before it, which is why that window is capped
 at `kActivityWindowMax` (1000). The flat branch *does* page (`per_page` /
 `page` through `listResponse`), but it carries no labels.
 
-**The fix (in the PR).** Optional `before` — the **hashed id of an activity**
+**The fix (shipped in v5.13.50).** Optional `before` — the **hashed id of an activity**
 of the company — returns only the activities after it in feed order. The
 server loads that row and compares its **stored** `created_at` exactly
 (`created_at < X OR (created_at = X AND id < id)`), so there is no time-zone

@@ -37,6 +37,7 @@ library;
 import 'dart:io';
 import 'dart:ui' as ui;
 
+import 'package:drift/drift.dart' show OrderingTerm, OrderingMode;
 import 'package:flutter/foundation.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/rendering.dart';
@@ -53,7 +54,9 @@ import 'package:admin/data/db/app_database.dart';
 import 'package:admin/data/services/connectivity_watcher.dart';
 import 'package:admin/data/services/token_storage.dart';
 import 'package:admin/main.dart';
+import 'package:admin/ui/core/widgets/offline_banner.dart';
 import 'package:admin/ui/features/dashboard/views/dashboard_screen.dart';
+import 'package:admin/ui/features/reports/widgets/report_summary_card.dart';
 
 import 'support/in_memory_executor.dart';
 
@@ -100,6 +103,13 @@ const String kOutDir = String.fromEnvironment('UX_OUT_DIR');
 /// Native runs only: device pixels per logical pixel in the PNG. 2 gives a
 /// HiDPI capture (a 1000x700 window → 2000x1400, Flathub's ceiling).
 const int kPixelRatio = int.fromEnvironment('UX_PIXEL_RATIO', defaultValue: 2);
+
+/// `true` keeps the demo build's "Demo mode" strip. The tour runs on the
+/// demo token, so `Env.isDemoBuild` is on and the strip would sit across the
+/// top of every capture — including the store listings made from this sweep,
+/// which show the app a user installs. Off by default: the strip is
+/// dismissed (in memory, as a visitor's ✕ does) before the app is pumped.
+const bool kShowDemoStrip = bool.fromEnvironment('UX_DEMO_STRIP');
 
 late Services _services;
 
@@ -278,6 +288,52 @@ Future<void> _dashboardBelowTheFold(
   }
 }
 
+/// The invoice the record and editor stops open: the highest-numbered sent
+/// (2) or partial (3) one in the cache, else the highest-numbered of any.
+Future<String?> _showcaseInvoiceId(AppDatabase db) async {
+  final open =
+      await (db.select(db.invoices)
+            ..where((t) => t.statusId.isIn(const ['2', '3']))
+            ..orderBy([
+              (t) =>
+                  OrderingTerm(expression: t.number, mode: OrderingMode.desc),
+            ])
+            ..limit(1))
+          .getSingleOrNull();
+  return open?.id ?? _firstId(db, client: false);
+}
+
+/// The client of [invoiceId], or null.
+Future<String?> _clientIdOf(AppDatabase db, String? invoiceId) async {
+  if (invoiceId == null) return null;
+  final row = await (db.select(
+    db.invoices,
+  )..where((t) => t.id.equals(invoiceId))).getSingleOrNull();
+  final id = row?.clientId ?? '';
+  return id.isEmpty ? null : id;
+}
+
+/// The first id in the clients (or invoices) cache, by name (or number).
+Future<String?> _firstId(AppDatabase db, {required bool client}) async {
+  if (client) {
+    final row =
+        await (db.select(db.clients)
+              ..orderBy([(t) => OrderingTerm(expression: t.name)])
+              ..limit(1))
+            .getSingleOrNull();
+    return row?.id;
+  }
+  final row =
+      await (db.select(db.invoices)
+            ..orderBy([
+              (t) =>
+                  OrderingTerm(expression: t.number, mode: OrderingMode.desc),
+            ])
+            ..limit(1))
+          .getSingleOrNull();
+  return row?.id;
+}
+
 // --- The sweep --------------------------------------------------------------
 
 void main() {
@@ -355,6 +411,8 @@ Future<void> _sweep(
     );
   }
 
+  if (!kShowDemoStrip) OfflineBanner.demoBannerDismissed.value = true;
+
   await tester.pumpWidget(
     InvoiceNinjaApp(
       services: services,
@@ -379,7 +437,38 @@ Future<void> _sweep(
   await _dashboardBelowTheFold(tester, binding);
   await _stop(tester, binding, 'clients-list', route: '/clients');
   await _stop(tester, binding, 'invoices-list', route: '/invoices');
+  // A record and its editor, on the newest open invoice the list loaded (a
+  // sent or part-paid one shows a balance; any invoice if there is none).
+  final invoiceId = await _showcaseInvoiceId(db);
+  if (invoiceId != null) {
+    await _stop(
+      tester,
+      binding,
+      'invoice-view',
+      route: '/invoices/$invoiceId',
+      action: () => _settle(tester, frames: 16),
+    );
+    await _stop(
+      tester,
+      binding,
+      'invoice-edit',
+      route: '/invoices/$invoiceId/edit',
+    );
+  }
   await _stop(tester, binding, 'invoice-new', route: '/invoices/new');
+  // That invoice's client, so the record shows a balance (a client picked by
+  // name was as likely to show zeros); the first client by name otherwise.
+  final clientId =
+      await _clientIdOf(db, invoiceId) ?? await _firstId(db, client: true);
+  if (clientId != null) {
+    await _stop(
+      tester,
+      binding,
+      'client-view',
+      route: '/clients/$clientId',
+      action: () => _settle(tester, frames: 16),
+    );
+  }
   await _stop(tester, binding, 'products-list', route: '/products');
   await _stop(tester, binding, 'tasks-list', route: '/tasks');
   await _stop(tester, binding, 'tasks-kanban', route: '/tasks?view=kanban');
@@ -396,7 +485,11 @@ Future<void> _sweep(
     binding,
     'report-invoices',
     route: '/reports/invoice',
-    action: () => _settle(tester, frames: 48),
+    // The summary card replaces the skeleton once the job lands; on a slow
+    // run that is well past any fixed settle (the web phone pass captured
+    // the skeleton at 12 s).
+    waitFor: find.byType(ReportSummaryCard),
+    action: () => _settle(tester, frames: 8),
   );
   await _stop(tester, binding, 'settings', route: '/settings');
   await _stop(

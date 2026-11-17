@@ -6,6 +6,7 @@ import 'package:admin/data/models/domain/product.dart';
 import 'package:admin/domain/product_tax_categories.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/detail/custom_field_detail_rows.dart';
+import 'package:admin/ui/core/detail/record_details_cards.dart';
 import 'package:admin/ui/core/detail/record_profile_layout.dart';
 import 'package:admin/ui/core/detail/record_timestamps.dart';
 import 'package:admin/ui/core/utils/external_url.dart';
@@ -17,8 +18,10 @@ import 'package:admin/utils/formatting.dart';
 
 /// A product's reference fields. Always shown, above the tabs.
 ///
-/// Two cards — Details and Taxes — side by side as equal cards on a wide
-/// window and stacked below it. What the product sells for, what it costs
+/// Details and Taxes side by side as equal cards on a wide window and
+/// stacked below it. A product with no taxes splits Details in two instead —
+/// Details and Additional Info (`recordDetailsCards`) — so it is not one
+/// full-width card running its rows in two columns. What the product sells for, what it costs
 /// and how much is in stock are on the standing card; its description is the
 /// line under its name.
 ///
@@ -47,15 +50,19 @@ class ProductDetailProfile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final details = detailsRows(context, product, company, formatter);
+    final facts = factRows(context, product, company);
+    final bookkeeping = bookkeepingRows(context, product, company, formatter);
     final taxes = taxRows(context, product);
     return RecordProfileLayout(
       lead: [
-        if (details.isNotEmpty)
-          DashboardCardShell(
-            title: context.tr('details'),
-            child: DetailRowColumns(children: details),
-          ),
+        // Beside Taxes, Details keeps every row; alone, it splits in two
+        // rather than run one card's rows in two columns.
+        ...recordDetailsCards(
+          context,
+          facts: facts,
+          bookkeeping: bookkeeping,
+          split: taxes.isEmpty,
+        ),
         if (taxes.isNotEmpty)
           DashboardCardShell(
             title: context.tr('taxes'),
@@ -65,15 +72,27 @@ class ProductDetailProfile extends StatelessWidget {
     );
   }
 
-  /// The Details rows, in the edit form's order. Every field the form can set
-  /// and the standing card does not already show has a row here, when it is
-  /// set.
+  /// The Details rows, in the edit form's order: [factRows] then
+  /// [bookkeepingRows]. Every field the form can set and the standing card
+  /// does not already show has a row here, when it is set.
   @visibleForTesting
   static List<Widget> detailsRows(
     BuildContext context,
     Product p,
     Company? company,
     Formatter? formatter,
+  ) => [
+    ...factRows(context, p, company),
+    ...bookkeepingRows(context, p, company, formatter),
+  ];
+
+  /// What the product is: the quantities a line starts with, its image, its
+  /// stock settings.
+  @visibleForTesting
+  static List<Widget> factRows(
+    BuildContext context,
+    Product p,
+    Company? company,
   ) {
     final imageUri = _parseUrl(p.productImage);
     final tracksInventory = company?.trackInventory ?? false;
@@ -102,13 +121,6 @@ class ProductDetailProfile extends StatelessWidget {
               ? null
               : () => openExternalUrl(context, imageUri.toString()),
         ),
-      if (p.assignedUserId.isNotEmpty)
-        DetailInfoRow(
-          label: context.tr('assigned_user'),
-          value: '',
-          copyable: false,
-          child: UserNameLabel(userId: p.assignedUserId),
-        ),
       // The stock *settings*; the stock itself is on the standing card. Yes
       // or No where the company tracks inventory — there "No" is an answer —
       // and otherwise only a setting somebody turned on.
@@ -124,15 +136,33 @@ class ProductDetailProfile extends StatelessWidget {
           value: '${p.stockNotificationThreshold}',
           monospace: true,
         ),
-      ..._customRows(context, p, company, formatter),
-      ...recordTimestampRows(
-        context,
-        createdAt: p.createdAt,
-        updatedAt: p.updatedAt,
-        formatter: formatter,
-      ),
     ];
   }
+
+  /// What is kept about the product: who it is assigned to, the custom
+  /// fields, created and updated.
+  @visibleForTesting
+  static List<Widget> bookkeepingRows(
+    BuildContext context,
+    Product p,
+    Company? company,
+    Formatter? formatter,
+  ) => [
+    if (p.assignedUserId.isNotEmpty)
+      DetailInfoRow(
+        label: context.tr('assigned_user'),
+        value: '',
+        copyable: false,
+        child: UserNameLabel(userId: p.assignedUserId),
+      ),
+    ..._customRows(context, p, company, formatter),
+    ...recordTimestampRows(
+      context,
+      createdAt: p.createdAt,
+      updatedAt: p.updatedAt,
+      formatter: formatter,
+    ),
+  ];
 
   /// The Taxes rows: the tax category, then each tax that is set.
   ///

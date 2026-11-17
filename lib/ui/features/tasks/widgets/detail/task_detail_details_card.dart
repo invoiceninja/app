@@ -52,23 +52,27 @@ class TaskDetailDetailsCard extends StatelessWidget {
     Formatter? formatter,
   }) => rowsFor(context, task, company, formatter: formatter).isNotEmpty;
 
-  /// The rows, in display order.
+  /// The rows, in display order: [factRows] then [bookkeepingRows].
   static List<Widget> rowsFor(
     BuildContext context,
     Task task,
     Company? company, {
     Formatter? formatter,
+  }) => [
+    ...factRows(context, task, formatter: formatter),
+    ...bookkeepingRows(context, task, company, formatter: formatter),
+  ];
+
+  /// What the task is: when it is due, and the invoice that billed it. The
+  /// Details card when the profile splits (`recordDetailsCards`).
+  static List<Widget> factRows(
+    BuildContext context,
+    Task task, {
+    Formatter? formatter,
   }) {
     final t = task;
     final due = t.dueDate;
     return [
-      if (t.assignedUserId.isNotEmpty)
-        DetailInfoRow(
-          label: context.tr('assigned_user'),
-          value: '',
-          copyable: false,
-          child: UserNameLabel(userId: t.assignedUserId),
-        ),
       // The day the work is promised for. A date only — the booked *time*
       // lives in the time log (`docs/task-scheduling.md`).
       // Not until the formatter is here: a raw ISO date is not how this
@@ -83,6 +87,26 @@ class TaskDetailDetailsCard extends StatelessWidget {
       // locked it. The row used to read just "Invoiced", which says that and
       // not which.
       if (t.isInvoiced) _InvoiceRow(invoiceId: t.invoiceId),
+    ];
+  }
+
+  /// What is kept about the task: who it is assigned to, the custom fields,
+  /// created and updated. The Additional Info card when the profile splits.
+  static List<Widget> bookkeepingRows(
+    BuildContext context,
+    Task task,
+    Company? company, {
+    Formatter? formatter,
+  }) {
+    final t = task;
+    return [
+      if (t.assignedUserId.isNotEmpty)
+        DetailInfoRow(
+          label: context.tr('assigned_user'),
+          value: '',
+          copyable: false,
+          child: UserNameLabel(userId: t.assignedUserId),
+        ),
       ..._customRows(context, t, company, formatter),
       ...recordTimestampRows(
         context,

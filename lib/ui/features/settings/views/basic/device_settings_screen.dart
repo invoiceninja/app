@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -15,6 +16,7 @@ import 'package:admin/app/text_scale_controller.dart';
 import 'package:admin/data/models/domain/company.dart';
 import 'package:admin/domain/sidebar_badge_modes.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/core/widgets/in_segmented.dart';
 import 'package:admin/ui/core/widgets/spell_check.dart';
 import 'package:admin/ui/core/widgets/watch_builder.dart';
 import 'package:admin/ui/features/settings/settings_actions.dart';
@@ -33,8 +35,7 @@ import 'package:admin/ui/features/settings/widgets/list_status_tabs_section.dart
 import 'package:admin/ui/features/settings/widgets/local_data_copies.dart';
 import 'package:admin/ui/features/settings/widgets/mobile_app_section.dart';
 import 'package:admin/ui/features/settings/widgets/phone_actions_section.dart';
-import 'package:admin/ui/features/settings/widgets/plain_radio_field.dart';
-import 'package:admin/ui/features/settings/widgets/segmented_setting_row.dart';
+import 'package:admin/ui/features/settings/widgets/setting_row.dart';
 import 'package:admin/ui/features/settings/widgets/settings_form_shell.dart';
 import 'package:admin/ui/features/settings/widgets/settings_screen_scaffold.dart';
 import 'package:admin/ui/features/settings/widgets/sidebar_counters_section.dart';
@@ -54,10 +55,14 @@ import 'package:admin/ui/features/settings/widgets/settings_tab_strip.dart';
 /// Appearance tab (the bare URL): theme, what a list shows, the dashboard and
 /// the rail.
 const kDeviceSettingsAppearanceSearchKeys = <String>[
+  'appearance_help',
   'theme',
+  'palette',
   'font_size',
   'display_density',
   'customize_colors',
+  'lists_and_dashboard',
+  'lists_and_dashboard_help',
   ...kListStatusTabsSearchKeys,
   'show_seconds',
   'hide_peppol_sent_status',
@@ -69,6 +74,8 @@ const kDeviceSettingsAppearanceSearchKeys = <String>[
 
 /// Security tab: the guard rails, and the certificates trusted past a refusal.
 const kDeviceSettingsSecuritySearchKeys = <String>[
+  'safeguards',
+  'safeguards_help',
   'confirm_actions',
   'confirm_actions_help',
   'biometric_authentication',
@@ -87,6 +94,7 @@ const kDeviceSettingsPhoneSearchKeys = <String>[
 
 /// Forms tab: what an edit screen offers.
 const kDeviceSettingsFormsSearchKeys = <String>[
+  'items_section_help',
   'default_tab',
   'spell_check',
   ...kAssignedUsersSearchKeys,
@@ -251,9 +259,20 @@ class _DeviceSettingsScreenState extends State<DeviceSettingsScreen>
   }
 }
 
-/// How the app looks and what its screens show: theme, the list switches, the
-/// dashboard, and the rail. Sidebar counters closes the tab — it alone can
-/// render 14 rows, so anything after it is a long way down on a phone.
+/// The page's one line: where these settings live. Worded so it stays true of
+/// every key on the page — some are forgotten at a sign-out
+/// (`PrefScope.account`, docs/device-preferences.md), so it promises where
+/// they are kept, never for how long.
+String deviceSettingsSubtitle(BuildContext context) => context.tr(
+  kIsWeb ? 'device_settings_subtitle_web' : 'device_settings_subtitle',
+);
+
+/// How the app looks and what its screens show, in three sections:
+/// Appearance (theme, palette, font size, density, custom colours), Lists &
+/// dashboard (the switches about what a list or the dashboard shows), and
+/// Main menu (its layout and order, then its counters). Main menu closes the
+/// tab — its counters alone can render 14 rows, so anything after them is a
+/// long way down on a phone.
 class _AppearanceTab extends StatelessWidget {
   const _AppearanceTab();
 
@@ -261,22 +280,23 @@ class _AppearanceTab extends StatelessWidget {
   Widget build(BuildContext context) {
     final services = context.read<Services>();
     return SettingsFormShell(
+      subtitle: deviceSettingsSubtitle(context),
       sections: [
         FormSection(
-          title: context.tr('theme'),
-          spacing: 0,
+          title: context.tr('appearance'),
+          description: context.tr('appearance_help'),
+          flush: true,
           children: [
             ThemeTile(controller: services.theme),
+            const SettingRowDivider(),
             _FontSizeRow(controller: services.textScale),
+            const SettingRowDivider(),
             _ListDensityRow(controller: services.listDensity),
-            const Divider(height: 1),
+            const SettingRowDivider(),
             CustomizeColorsSection(controller: services.theme),
           ],
         ),
         const _ListsSection(),
-        const DashboardPanelsSection(),
-        // Both are about the rail, but one is what the rows *are* and the
-        // other is what their numbers count — see ListStatusTabsTile.
         const SidebarMenuSection(),
         const SidebarCountersSection(),
       ],
@@ -309,13 +329,15 @@ class _SecurityTabState extends State<_SecurityTab> {
       future: _biometricAvailable,
       builder: (context, snap) => SettingsFormShell(
         sections: [
-          // Untitled: "Security" would only repeat the tab.
+          // Not "Security": that would only repeat the tab.
           FormSection(
-            title: null,
-            children: [
+            title: context.tr('safeguards'),
+            description: context.tr('safeguards_help'),
+            flush: true,
+            children: withSettingDividers([
               const ConfirmActionsTile(),
               if (snap.data == true) const BiometricToggleTile(),
-            ],
+            ]),
           ),
           // Hides itself unless a server certificate has been trusted — and
           // always on web, where the browser owns certificates.
@@ -397,72 +419,86 @@ class _ItemsSection extends StatelessWidget {
     final spellCheck = context.read<SpellCheckController?>();
     return FormSection(
       title: context.tr('items'),
-      children: [
+      description: context.tr('items_section_help'),
+      flush: true,
+      children: withSettingDividers([
         // "Default tab": which items tab (Products / Tasks) an invoice, quote
         // or recurring invoice opens on when its own lines don't decide. Two
-        // choices, so a radio (CLAUDE.md § Two-choice fields).
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              context.tr('default_tab'),
-              style: Theme.of(context).textTheme.bodyLarge,
+        // choices, so both stay in view (CLAUDE.md § Two-choice fields).
+        ValueListenableBuilder<String>(
+          valueListenable: defaultTab,
+          builder: (context, _, _) => SettingRow(
+            icon: const Icon(Icons.tab_outlined),
+            title: context.tr('default_tab'),
+            subtitle: context.tr('default_tab_help'),
+            control: InSegmented<String>(
+              segments: [
+                InSegment(
+                  value: kItemsTabProducts,
+                  label: context.tr('products'),
+                ),
+                InSegment(value: kItemsTabTasks, label: context.tr('tasks')),
+              ],
+              // Derived from `prefersTasks`, so a stored value this build
+              // doesn't know still selects a choice (Products) rather than
+              // none.
+              selected: defaultTab.prefersTasks
+                  ? kItemsTabTasks
+                  : kItemsTabProducts,
+              onChanged: defaultTab.set,
             ),
-            ValueListenableBuilder<String>(
-              valueListenable: defaultTab,
-              builder: (context, _, _) => PlainRadioField<String>(
-                label: context.tr('default_tab_help'),
-                // Derived from `prefersTasks`, so a stored value this build
-                // doesn't know still selects a choice (Products) rather than
-                // none.
-                value: defaultTab.prefersTasks
-                    ? kItemsTabTasks
-                    : kItemsTabProducts,
-                options: [
-                  (value: kItemsTabProducts, label: context.tr('products')),
-                  (value: kItemsTabTasks, label: context.tr('tasks')),
-                ],
-                onChanged: defaultTab.set,
-              ),
-            ),
-          ],
+          ),
         ),
         // Only where the platform has a checker (not Linux, not web) —
         // elsewhere the switch would toggle nothing.
         if (spellCheck != null && platformSupportsSpellCheck)
           ValueListenableBuilder<bool>(
             valueListenable: spellCheck,
-            builder: (context, enabled, _) => SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              secondary: const Icon(Icons.spellcheck_outlined),
-              title: Text(context.tr('spell_check')),
-              subtitle: Text(context.tr('spell_check_help')),
+            builder: (context, enabled, _) => SettingRow.toggle(
+              icon: const Icon(Icons.spellcheck_outlined),
+              title: context.tr('spell_check'),
+              subtitle: context.tr('spell_check_help'),
               value: enabled,
               onChanged: spellCheck.set,
             ),
           ),
-      ],
+      ]),
     );
   }
 }
 
-/// "Lists": the switches about what a list shows — the status tab strip,
-/// seconds on the task surfaces, and (for a PEPPOL company) the sent mark on
-/// the invoice and credit lists. They used to be three cards of one control
-/// each.
+/// "Lists & dashboard": the switches about what a list or the dashboard
+/// shows — the status tab strip, seconds on the task surfaces, (for a PEPPOL
+/// company) the sent mark on the invoice and credit lists, and hiding empty
+/// dashboard panels.
+///
+/// The company is watched here, around the card, rather than inside the
+/// PEPPOL row: a row that renders nothing would still cost the card a divider.
 class _ListsSection extends StatelessWidget {
   const _ListsSection();
 
   @override
   Widget build(BuildContext context) {
+    final services = context.read<Services>();
+    final companyId = services.auth.session.value?.currentCompanyId ?? '';
+    if (companyId.isEmpty) return _card(context, peppol: false);
+    return WatchBuilder<Company?>(
+      cacheKey: companyId,
+      create: () => services.company.watchCompany(companyId),
+      builder: (context, snapshot) =>
+          _card(context, peppol: peppolStatusSectionShown(snapshot.data)),
+    );
+  }
+
+  Widget _card(BuildContext context, {required bool peppol}) {
+    final services = context.read<Services>();
     final showSeconds = context.read<ShowSecondsController?>();
+    final hidePeppol = services.hidePeppolStatus;
     return FormSection(
-      title: context.tr('lists'),
-      // Row-tiles carry their own padding, and the PEPPOL row renders nothing
-      // for most companies — with a gap per child it would still cost one.
-      spacing: 0,
-      children: [
+      title: context.tr('lists_and_dashboard'),
+      description: context.tr('lists_and_dashboard_help'),
+      flush: true,
+      children: withSettingDividers([
         const ListStatusTabsTile(),
         // "Show Seconds": add seconds where the Tasks surfaces leave them out
         // — the kanban cards, a timer past a day, a time entry's start and end
@@ -470,90 +506,73 @@ class _ListsSection extends StatelessWidget {
         if (showSeconds != null)
           ValueListenableBuilder<bool>(
             valueListenable: showSeconds,
-            builder: (context, enabled, _) => SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              secondary: const Icon(Icons.timer_outlined),
-              title: Text(context.tr('show_seconds')),
-              subtitle: Text(context.tr('show_seconds_help')),
+            builder: (context, enabled, _) => SettingRow.toggle(
+              icon: const Icon(Icons.timer_outlined),
+              title: context.tr('show_seconds'),
+              subtitle: context.tr('show_seconds_help'),
               value: enabled,
               onChanged: showSeconds.set,
             ),
           ),
-        const _PeppolStatusTile(),
-      ],
-    );
-  }
-}
-
-/// "Hide Peppol Sent Status": the sent / failed mark beside the status on the
-/// invoice and credit lists (React ui#3410). The row shows only while the
-/// active company sends by PEPPOL, the one case where there is a mark to hide.
-class _PeppolStatusTile extends StatelessWidget {
-  const _PeppolStatusTile();
-
-  @override
-  Widget build(BuildContext context) {
-    final services = context.read<Services>();
-    final companyId = services.auth.session.value?.currentCompanyId;
-    if (companyId == null || companyId.isEmpty) return const SizedBox.shrink();
-    return WatchBuilder<Company?>(
-      cacheKey: companyId,
-      create: () => services.company.watchCompany(companyId),
-      builder: (context, snapshot) {
-        if (!peppolStatusSectionShown(snapshot.data)) {
-          return const SizedBox.shrink();
-        }
-        final controller = services.hidePeppolStatus;
-        return ValueListenableBuilder<bool>(
-          valueListenable: controller,
-          builder: (context, hidden, _) => SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            secondary: const Icon(Icons.send_outlined),
-            title: Text(context.tr('hide_peppol_sent_status')),
-            value: hidden,
-            onChanged: controller.set,
+        // "Hide Peppol Sent Status": the sent / failed mark beside the status
+        // on the invoice and credit lists (React ui#3410). Only while the
+        // active company sends by PEPPOL, the one case where there is a mark
+        // to hide.
+        if (peppol)
+          ValueListenableBuilder<bool>(
+            valueListenable: hidePeppol,
+            builder: (context, hidden, _) => SettingRow.toggle(
+              icon: const Icon(Icons.send_outlined),
+              title: context.tr('hide_peppol_sent_status'),
+              value: hidden,
+              onChanged: hidePeppol.set,
+            ),
           ),
-        );
-      },
+        const HideEmptyPanelsTile(),
+      ]),
     );
   }
 }
 
-/// Device-local UI text-scale picker (Small / Normal / Large / Extra Large).
-/// A compact dropdown in the trailing slot of a [ListTile], matching the
-/// leading-icon + title shape of the theme mode/palette rows above it.
+/// Device-local UI text-scale picker: four "A"s of increasing size, one per
+/// [kTextScaleOptions] step (Small / Normal / Large / Extra Large), each
+/// named for a screen reader; the step in effect is the row's subtitle, as
+/// the Theme row names its mode.
 class _FontSizeRow extends StatelessWidget {
   const _FontSizeRow({required this.controller});
 
   final TextScaleController controller;
+
+  /// The glyph's size per step, relative to the text around it.
+  static const _glyphSizes = <double>[11, 13, 15, 17];
 
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder<double>(
       valueListenable: controller,
       builder: (context, scale, _) {
-        return ListTile(
-          leading: const Icon(Icons.format_size_outlined),
-          title: Text(context.tr('font_size')),
-          trailing: DropdownButton<double>(
-            // Snap to the nearest preset so an off-by-epsilon stored value
-            // can't trip DropdownButton's "exactly one matching item" assert
-            // (the labels are threshold-matched for the same float-drift
-            // reason — see textScaleLabelKey).
-            value: _nearestTextScaleOption(scale),
-            isDense: true,
-            // Borderless — sits flush in the trailing slot like the rows above.
-            underline: const SizedBox.shrink(),
-            onChanged: (value) {
-              if (value != null) controller.set(value);
-            },
-            items: [
-              for (final option in kTextScaleOptions)
-                DropdownMenuItem(
-                  value: option,
-                  child: Text(context.tr(textScaleLabelKey(option))),
+        final current = nearestTextScaleOption(scale);
+        return SettingRow(
+          icon: const Icon(Icons.format_size_outlined),
+          title: context.tr('font_size'),
+          subtitle: context.tr(textScaleLabelKey(current)),
+          control: InSegmented<double>(
+            segmentWidth: 52,
+            segments: [
+              for (var i = 0; i < kTextScaleOptions.length; i++)
+                InSegment(
+                  value: kTextScaleOptions[i],
+                  label: context.tr(textScaleLabelKey(kTextScaleOptions[i])),
+                  glyph: Text(
+                    'A',
+                    style: TextStyle(fontSize: _glyphSizes[i], height: 1),
+                  ),
                 ),
             ],
+            // Snapped to the nearest preset, so an off-by-epsilon stored
+            // value still selects a step.
+            selected: current,
+            onChanged: controller.set,
           ),
         );
       },
@@ -565,10 +584,9 @@ class _FontSizeRow extends StatelessWidget {
 /// and the dashboard pack their content. Labelled "Density" rather than "List
 /// density" since it reaches past lists; the pref key and the `ListDensity*`
 /// names are historical. Next to Font Size, the other "how much fits on
-/// screen" control, and the same control the first-run Welcome offers. Same
-/// shape as the theme rows above so the segments line up; the subtitle says
-/// what the setting is for, since the selected segment already says which one
-/// is on. See `docs/list-density.md`.
+/// screen" control, and the same control the first-run Welcome offers. The
+/// subtitle says what the setting is for, since the selected segment already
+/// says which one is on. See `docs/list-density.md`.
 class _ListDensityRow extends StatelessWidget {
   const _ListDensityRow({required this.controller});
 
@@ -578,29 +596,29 @@ class _ListDensityRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return ValueListenableBuilder<String>(
       valueListenable: controller,
-      builder: (context, _, _) => SegmentedSettingRow(
-        leading: const Icon(Icons.density_medium_outlined),
+      builder: (context, _, _) => SettingRow(
+        icon: const Icon(Icons.density_medium_outlined),
         title: context.tr('display_density'),
         subtitle: context.tr('display_density_help'),
-        control: SegmentedButton<bool>(
-          showSelectedIcon: false,
+        control: InSegmented<bool>(
           segments: [
-            ButtonSegment(value: false, label: segmentLabel(context, 'normal')),
-            ButtonSegment(value: true, label: segmentLabel(context, 'compact')),
+            InSegment(value: false, label: context.tr('normal')),
+            InSegment(value: true, label: context.tr('compact')),
           ],
           // Derived from `isCompact`, so a stored value this build doesn't
           // know still selects a segment (Normal) rather than none.
-          selected: {controller.isCompact},
-          onSelectionChanged: (s) => controller.setCompact(s.first),
+          selected: controller.isCompact,
+          onChanged: controller.setCompact,
         ),
       ),
     );
   }
 }
 
-/// The [kTextScaleOptions] entry closest to [scale] — guards the dropdown
+/// The [kTextScaleOptions] entry closest to [scale] — guards the picker
 /// against a stored value that isn't exactly one of the four presets.
-double _nearestTextScaleOption(double scale) => kTextScaleOptions.reduce(
+@visibleForTesting
+double nearestTextScaleOption(double scale) => kTextScaleOptions.reduce(
   (a, b) => (scale - a).abs() <= (scale - b).abs() ? a : b,
 );
 
@@ -665,96 +683,66 @@ class _DataSectionState extends State<_DataSection> {
 
   @override
   Widget build(BuildContext context) {
-    final tokens = context.inTheme;
     final lastSync = _lastSyncAt;
     final companyId =
         context.read<Services>().auth.session.value?.currentCompanyId ?? '';
-    // Untitled: "Data" would only repeat the tab. "Force full sync" leads it.
+    // Not "Data": that would only repeat the tab. Not flush, either: the kept
+    // copies after the row render nothing at all when there are none, and in
+    // a flush card they would need padding of their own that an empty list
+    // would still cost (§ A card that hides itself still costs a gap).
     return FormSection(
-      title: null,
+      title: context.tr('sync'),
+      // App-local key, not Transifex's `download_data` ("Press button below
+      // to download the data."): en.json can't be overridden from
+      // `_app_pending.json`, and that wording no longer describes the action,
+      // which uploads queued edits first.
+      description: context.tr('sync_data_help'),
+      spacing: 0,
       children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Names the action the button performs. Absorbed from the
-            // duplicate Data card on Account Management → Overview, which
-            // fired the same `forceResync` from a second place
-            // (invoiceninja/flutter#71).
-            Text(
-              context.tr('force_full_sync'),
-              style: Theme.of(
-                context,
-              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
-            ),
-            SizedBox(height: InSpacing.xs),
-            Text(
-              // App-local key, not Transifex's `download_data` ("Press button
-              // below to download the data."): en.json can't be overridden
-              // from `_app_pending.json`, and that wording no longer describes
-              // the action, which uploads queued edits first.
-              context.tr('sync_data_help'),
-              style: Theme.of(
-                context,
-              ).textTheme.bodyMedium?.copyWith(color: tokens.ink2),
-            ),
-            if (lastSync != null && lastSync > 0) ...[
-              SizedBox(height: InSpacing.sm),
-              Text(
-                '${context.tr('last_updated')}: '
-                '${formatRelativeTime(context, DateTime.now().difference(DateTime.fromMillisecondsSinceEpoch(lastSync)))}',
-                style: Theme.of(
-                  context,
-                ).textTheme.bodySmall?.copyWith(color: tokens.ink3),
-              ),
-            ],
-          ],
+        // Names the action the button performs. Absorbed from the duplicate
+        // Data card on Account Management → Overview, which fired the same
+        // `forceResync` from a second place (invoiceninja/flutter#71).
+        SettingRow(
+          icon: const Icon(Icons.cloud_sync_outlined),
+          title: context.tr('force_full_sync'),
+          subtitle: lastSync != null && lastSync > 0
+              ? '${context.tr('last_updated')}: '
+                    '${formatRelativeTime(context, DateTime.now().difference(DateTime.fromMillisecondsSinceEpoch(lastSync)))}'
+              : null,
+          stackWhenNarrow: false,
+          control: ValueListenableBuilder<ResyncProgress>(
+            valueListenable: _resync,
+            builder: (context, p, _) {
+              // Shared with the sidebar Sync button, so a pass started there
+              // shows here too — and tapping can't start a competing one.
+              final running = p.isRunningFor(companyId);
+              return FilledButton.icon(
+                // Content-sized: the themed `Size.fromHeight(44)` default is
+                // an infinite min-width, which a `Row` cannot lay out.
+                style: FilledButton.styleFrom(minimumSize: const Size(64, 44)),
+                onPressed: running ? null : _run,
+                icon: running
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.sync),
+                label: Text(
+                  running && p.total > 0
+                      ? context.tr('syncing_progress', {
+                          'count': '${p.completed}',
+                          'total': '${p.total}',
+                        })
+                      : context.tr('sync'),
+                ),
+              );
+            },
+          ),
         ),
-        // One child, not two: the kept copies render nothing when there are
-        // none, and as a child of their own they would still cost the card a
-        // gap (§ A card that hides itself still costs a gap).
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Align(
-              alignment: AlignmentDirectional.centerEnd,
-              child: ValueListenableBuilder<ResyncProgress>(
-                valueListenable: _resync,
-                builder: (context, p, _) {
-                  // Shared with the sidebar Sync button, so a pass started there
-                  // shows here too — and tapping can't start a competing one.
-                  final running = p.isRunningFor(companyId);
-                  return FilledButton.icon(
-                    // Compact, content-sized button. Without this the themed
-                    // `Size.fromHeight(44)` default (= infinite min-width) would
-                    // make the button fill the stretched FormSection column,
-                    // defeating the centerRight alignment and rendering
-                    // edge-to-edge.
-                    style: FilledButton.styleFrom(
-                      minimumSize: const Size(64, 44),
-                    ),
-                    onPressed: running ? null : _run,
-                    icon: running
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.sync),
-                    label: Text(
-                      running && p.total > 0
-                          ? context.tr('syncing_progress', {
-                              'count': '${p.completed}',
-                              'total': '${p.total}',
-                            })
-                          : context.tr('sync'),
-                    ),
-                  );
-                },
-              ),
-            ),
-            const LocalDataCopies(),
-          ],
-        ),
+        // Last, and inside this card: it renders nothing when there are no
+        // copies, which as a card of its own would leave a gap.
+        const LocalDataCopies(),
       ],
     );
   }

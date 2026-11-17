@@ -785,7 +785,7 @@ class _ConnectedState extends State<_Connected> {
                 onChanged: (_) => setState(() => _settingsDirty = true),
                 decoration: InputDecoration(
                   labelText: context.tr('default_taxable_code'),
-                  border: const OutlineInputBorder(),
+                  border: const InFieldOutlineBorder(),
                   isDense: true,
                 ),
               ),
@@ -798,7 +798,7 @@ class _ConnectedState extends State<_Connected> {
                 onChanged: (_) => setState(() => _settingsDirty = true),
                 decoration: InputDecoration(
                   labelText: context.tr('default_exempt_code'),
-                  border: const OutlineInputBorder(),
+                  border: const InFieldOutlineBorder(),
                   isDense: true,
                 ),
               ),

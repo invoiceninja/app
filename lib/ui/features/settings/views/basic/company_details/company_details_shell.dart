@@ -37,6 +37,7 @@ class CompanyDetailsShell extends StatelessWidget {
         companyVmFactory: (companyId) => CompanyDetailsViewModel(
           repo: services.company,
           companyId: companyId,
+          sendNow: () => services.sync.drainOnce(companyId: companyId),
         ),
         tabs: [
           TabbedSettingsTab(

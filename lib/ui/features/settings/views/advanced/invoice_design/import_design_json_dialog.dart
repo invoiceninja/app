@@ -47,7 +47,7 @@ class _ImportDesignJsonDialogState extends State<_ImportDesignJsonDialog> {
         textDirection: TextDirection.ltr,
         decoration: InputDecoration(
           hintText: context.tr('paste_design_json'),
-          border: const OutlineInputBorder(),
+          border: const InFieldOutlineBorder(),
         ),
         style: const TextStyle(fontFamily: kMonoFontFamily, fontSize: 12),
       ),

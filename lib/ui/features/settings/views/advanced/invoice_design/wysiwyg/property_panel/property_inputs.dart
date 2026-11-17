@@ -829,15 +829,15 @@ class _PxInputState extends State<PxInput> {
                   horizontal: 4,
                   vertical: 8,
                 ),
-                border: OutlineInputBorder(
+                border: InFieldOutlineBorder(
                   borderRadius: BorderRadius.zero,
                   borderSide: BorderSide(color: tokens.border),
                 ),
-                enabledBorder: OutlineInputBorder(
+                enabledBorder: InFieldOutlineBorder(
                   borderRadius: BorderRadius.zero,
                   borderSide: BorderSide(color: tokens.border),
                 ),
-                focusedBorder: OutlineInputBorder(
+                focusedBorder: InFieldOutlineBorder(
                   borderRadius: BorderRadius.zero,
                   borderSide: BorderSide(color: tokens.accent, width: 1.5),
                 ),

@@ -117,7 +117,7 @@ double _minTableWidth(BuildContext context, LineItemColumnConfig config) {
 /// focused. Resting cells had no border at all, so a row of them read as
 /// text, not as places to type, and an empty row barely showed.
 OutlineInputBorder _cellBorder(InTheme tokens, {bool focused = false}) =>
-    OutlineInputBorder(
+    InFieldOutlineBorder(
       borderRadius: BorderRadius.circular(InRadii.r1),
       borderSide: BorderSide(
         color: focused ? tokens.accent : tokens.border,

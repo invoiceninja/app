@@ -1,5 +1,6 @@
 import 'package:material_ui/material_ui.dart';
 
+import 'package:admin/app/design_tokens.dart';
 import 'package:admin/data/models/domain/design.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/field_label.dart';
@@ -72,7 +73,7 @@ class _SignatureBlockPropertiesState extends State<SignatureBlockProperties> {
             controller: _label,
             decoration: InputDecoration(
               labelText: context.tr('label'),
-              border: const OutlineInputBorder(),
+              border: const InFieldOutlineBorder(),
             ),
             onChanged: (v) => _write('label', v),
           ),

@@ -5,6 +5,7 @@ import 'package:admin/app/services.dart';
 import 'package:admin/data/repositories/auth/auth_session.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
+import 'package:admin/ui/features/settings/widgets/setting_row.dart';
 
 /// Settings → Device Settings → Security → Biometric Authentication toggle.
 ///
@@ -55,10 +56,10 @@ class _BiometricToggleTileState extends State<BiometricToggleTile> {
       valueListenable: context.read<Services>().auth.session,
       builder: (context, session, _) {
         final enabled = session?.biometricEnabled ?? false;
-        return SwitchListTile(
-          secondary: const Icon(Icons.fingerprint),
-          title: Text(context.tr('biometric_authentication')),
-          subtitle: Text(context.tr('enable_biometric_description')),
+        return SettingRow.toggle(
+          icon: const Icon(Icons.fingerprint),
+          title: context.tr('biometric_authentication'),
+          subtitle: context.tr('enable_biometric_description'),
           value: enabled,
           onChanged: _busy ? null : _onChanged,
         );

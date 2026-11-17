@@ -211,7 +211,7 @@ class _AccountManagementSecuritySettingsScreenState
                 initialValue: passwordTimeoutValue,
                 decoration: InputDecoration(
                   labelText: context.tr('password_timeout'),
-                  border: const OutlineInputBorder(),
+                  border: const InFieldOutlineBorder(),
                 ),
                 items: [
                   for (final o in opts)
@@ -237,7 +237,7 @@ class _AccountManagementSecuritySettingsScreenState
                   // say so where the phone and desktop apps show the setting.
                   helperText: context.tr('web_session_timeout_help'),
                   helperMaxLines: 3,
-                  border: const OutlineInputBorder(),
+                  border: const InFieldOutlineBorder(),
                 ),
                 items: [
                   for (final o in opts)

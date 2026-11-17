@@ -42,6 +42,7 @@ class UserDetailsDetailsScreen extends StatelessWidget {
           return const Center(child: CircularProgressIndicator());
         }
         return SettingsFormShell(
+          subtitle: context.tr('user_details_subtitle'),
           sections: [
             FormSection(
               title: context.tr('profile'),

@@ -52,7 +52,7 @@ void main() {
     );
     await _pumpFrames(tester);
 
-    expect(find.text('Sidebar counters'), findsOneWidget);
+    expect(find.text('Menu counters'), findsOneWidget);
     expect(find.text('Invoices'), findsOneWidget);
     expect(find.text('Clients'), findsOneWidget);
     // Every row starts on its actionable default: Invoices on Overdue, and a
@@ -86,7 +86,7 @@ void main() {
       expect(_invoiceBadgeCount(tester), 2);
       final invoicesRow = find.ancestor(
         of: find.text('Invoices'),
-        matching: find.byType(ListTile),
+        matching: _counterRow,
       );
       await tester.tap(
         find.descendant(
@@ -119,10 +119,7 @@ void main() {
 
       final badge = tester.widget<SidebarBadge>(
         find.descendant(
-          of: find.ancestor(
-            of: find.text('Invoices'),
-            matching: find.byType(ListTile),
-          ),
+          of: find.ancestor(of: find.text('Invoices'), matching: _counterRow),
           matching: find.byType(SidebarBadge),
         ),
       );
@@ -224,7 +221,7 @@ void main() {
 
       final productsRow = find.ancestor(
         of: find.text('Products'),
-        matching: find.byType(ListTile),
+        matching: _counterRow,
       );
       final dropdown = find.descendant(
         of: productsRow,
@@ -262,10 +259,7 @@ Future<void> _disposeTree(WidgetTester tester) async {
 /// rendered (which is what a blink through `AsyncSnapshot.nothing` looks like).
 int? _invoiceBadgeCount(WidgetTester tester) {
   final badges = find.descendant(
-    of: find.ancestor(
-      of: find.text('Invoices'),
-      matching: find.byType(ListTile),
-    ),
+    of: find.ancestor(of: find.text('Invoices'), matching: _counterRow),
     matching: find.byType(SidebarBadge),
   );
   if (badges.evaluate().isEmpty) return null;
@@ -276,10 +270,7 @@ int? _invoiceBadgeCount(WidgetTester tester) {
 String? _rowDropdownValue(WidgetTester tester, String label) => tester
     .widget<DropdownButton<String>>(
       find.descendant(
-        of: find.ancestor(
-          of: find.text(label),
-          matching: find.byType(ListTile),
-        ),
+        of: find.ancestor(of: find.text(label), matching: _counterRow),
         matching: find.byType(DropdownButton<String>),
       ),
     )
@@ -290,11 +281,16 @@ String? _rowDropdownValue(WidgetTester tester, String label) => tester
 Stream<int>? _invoiceBadgeStream(WidgetTester tester) => tester
     .widget<StreamBuilder<int>>(
       find.descendant(
-        of: find.ancestor(
-          of: find.text('Invoices'),
-          matching: find.byType(ListTile),
-        ),
+        of: find.ancestor(of: find.text('Invoices'), matching: _counterRow),
         matching: find.byType(StreamBuilder<int>),
       ),
     )
     .stream;
+
+/// A counter row, keyed `menu_counter_<entity>`.
+final Finder _counterRow = find.byWidgetPredicate(
+  (w) =>
+      w.key is ValueKey<String> &&
+      (w.key! as ValueKey<String>).value.startsWith('menu_counter_'),
+  description: 'a menu counter row',
+);

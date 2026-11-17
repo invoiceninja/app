@@ -108,14 +108,17 @@ class LabeledField extends StatelessWidget {
   /// The inside label, drawn at no size. `always` with a zero-width label is
   /// the combination that works: the label counts as withdrawn, so an empty
   /// field shows its hint (with `never` the unseen label keeps the hint's
-  /// slot), and `OutlineInputBorder` cuts no notch for a gap of zero extent.
-  /// The `labelText` itself stays on the decoration, which is where a text
-  /// field takes its screen-reader name from.
+  /// slot). The `labelText` itself stays on the decoration, which is where a
+  /// text field takes its screen-reader name from.
   ///
-  /// The negative letter spacing is what makes the width zero everywhere: on
-  /// the web a font size of 0 still measured a pixel or two, and any width at
-  /// all gets the border's 8 px of gap padding on top, which showed as a nick
-  /// in the top edge of every field.
+  /// The negative spacing keeps the width under a pixel (on the web a font
+  /// size of 0 alone once measured a pixel or two), but it is not zero: a
+  /// label holding a space lays out at `FLT_MIN` wide on every engine, and
+  /// any width at all gets a bare `OutlineInputBorder`'s 8 px of gap padding,
+  /// a nick in the top edge. The whole edge is kept by the border
+  /// (`InFieldOutlineBorder` ignores a gap under a pixel), not by this style
+  /// (`docs/form-fields.md` § A label above the box cuts no notch in its
+  /// border).
   static const _hidden = TextStyle(
     color: Color(0x00000000),
     fontSize: 0,

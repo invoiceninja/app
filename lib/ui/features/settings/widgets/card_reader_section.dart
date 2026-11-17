@@ -14,6 +14,7 @@ import 'package:admin/l10n/localization.dart';
 import 'package:admin/l10n/tap_to_pay_names.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/features/settings/widgets/form_section.dart';
+import 'package:admin/ui/features/settings/widgets/setting_row.dart';
 import 'package:admin/ui/features/terminal/how_to_tap.dart';
 import 'package:admin/ui/features/settings/widgets/tap_to_pay_tile.dart';
 import 'package:admin/ui/features/terminal/tap_to_pay_icon.dart';
@@ -269,6 +270,7 @@ class _CardReaderSectionState extends State<CardReaderSection> {
             : 'terminal_setup_help';
         return FormSection(
           title: context.tr('card_readers'),
+          description: context.tr('card_readers_help'),
           spacing: 0,
           children: [
             // On an iPhone that can: where Tap to Pay on iPhone stands, and
@@ -293,24 +295,20 @@ class _CardReaderSectionState extends State<CardReaderSection> {
                 ),
               )
             else if (rowShown)
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: iPhone
+              SettingRow(
+                icon: iPhone
                     ? const TapToPayIcon()
                     : const Icon(Icons.contactless_outlined),
                 // The words a settings search hit for it reveals.
-                title: Text(
-                  iPhone
-                      ? context.tr('tap_to_pay_on_iphone')
-                      : context.tr('tap_to_pay'),
-                ),
-                subtitle: Text(
-                  context.tr(subtitle, {
-                    'name': tapToPayNameFor(context, subtitle),
-                  }),
-                ),
+                title: iPhone
+                    ? context.tr('tap_to_pay_on_iphone')
+                    : context.tr('tap_to_pay'),
+                subtitle: context.tr(subtitle, {
+                  'name': tapToPayNameFor(context, subtitle),
+                }),
+                stackWhenNarrow: false,
                 // Apple wants its "How to Tap" reachable after the first time.
-                trailing:
+                control:
                     tapToPay &&
                         !kIsWeb &&
                         defaultTargetPlatform == TargetPlatform.iOS
@@ -321,16 +319,14 @@ class _CardReaderSectionState extends State<CardReaderSection> {
                     : null,
               ),
             if (kCardPresentBluetooth)
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.point_of_sale_outlined),
-                title: Text(context.tr('bluetooth_card_reader')),
-                subtitle: Text(
-                  bluetoothReader
-                      ? reader.label
-                      : context.tr('terminal_no_reader'),
-                ),
-                trailing: _busy
+              SettingRow(
+                icon: const Icon(Icons.point_of_sale_outlined),
+                title: context.tr('bluetooth_card_reader'),
+                subtitle: bluetoothReader
+                    ? reader.label
+                    : context.tr('terminal_no_reader'),
+                stackWhenNarrow: false,
+                control: _busy
                     ? const SizedBox.square(
                         dimension: 20,
                         child: CircularProgressIndicator(strokeWidth: 2),

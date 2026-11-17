@@ -179,19 +179,15 @@ class VendorActions {
           enabled: hasPortalLink,
           onTap: () => onTap(VendorAction.vendorPortal),
         ),
-        EntityActionItem(
+        addCommentActionItem(
+          context: context,
           kind: VendorAction.addComment,
-          icon: Icons.add_comment_outlined,
-          label: context.tr('add_comment'),
-          enabled: true,
           startsGroup: true,
           onTap: () => onTap(VendorAction.addComment),
         ),
-        EntityActionItem(
+        logCallActionItem(
+          context: context,
           kind: VendorAction.logCall,
-          icon: Icons.phone_in_talk_outlined,
-          label: context.tr('log_call'),
-          enabled: true,
           onTap: () => onTap(VendorAction.logCall),
         ),
         if (createChildren.isNotEmpty)

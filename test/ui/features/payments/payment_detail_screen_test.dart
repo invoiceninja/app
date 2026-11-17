@@ -11,6 +11,9 @@ import 'package:http/testing.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/data/models/api/client_api_model.dart';
 import 'package:admin/data/models/api/payment_api_model.dart';
+import 'package:admin/data/models/api/project_api_model.dart';
+import 'package:admin/ui/core/detail/record_details_cards.dart';
+import 'package:admin/ui/features/dashboard/widgets/card_shell.dart';
 import 'package:admin/ui/core/detail/entity_quick_actions.dart';
 import 'package:admin/ui/core/detail/standing_card.dart';
 import 'package:admin/ui/features/payments/views/payment_detail_screen.dart';
@@ -28,8 +31,10 @@ Map<String, dynamic> _json({
   bool isDeleted = false,
   int archivedAt = 0,
   bool withAllocations = true,
+  String projectId = '',
 }) => {
   'id': id,
+  'project_id': projectId,
   'number': '0042',
   'status_id': '4',
   'client_id': 'c1',
@@ -91,6 +96,16 @@ class _Server {
 }
 
 Future<void> _seed(Services services, Map<String, dynamic> payment) async {
+  await services.projects.applyUpdateResponse(
+    companyId: 'co1',
+    serverResponse: const ProjectApi(
+      id: 'pr1',
+      name: 'Website Redesign',
+      clientId: 'c1',
+      updatedAt: 1710000000,
+      createdAt: 1700000000,
+    ),
+  );
   await services.clients.applyUpdateResponse(
     companyId: 'co1',
     serverResponse: const ClientApi(
@@ -115,6 +130,7 @@ void _screenTest(
   _Server? server,
   bool online = false,
   FakeCompany company = const FakeCompany(id: 'co1', name: 'Co'),
+  Size size = const Size(480, 2000),
 }) => recordScreenTest(
   description,
   seed: (services) => _seed(services, payment),
@@ -124,7 +140,16 @@ void _screenTest(
   httpClient: server?.client,
   online: online,
   company: company,
+  size: size,
 );
+
+/// A profile card, by its title.
+Finder _card(String title) =>
+    find.byWidgetPredicate((w) => w is RecordRowsCard && w.title == title);
+
+/// Text inside the profile card titled [title].
+Finder _inCard(String title, String text) =>
+    find.descendant(of: _card(title), matching: find.text(text));
 
 Finder _tiles() => find.byType(EntityQuickActions<PaymentAction>);
 
@@ -305,6 +330,87 @@ void main() {
     server: unsynced,
     online: true,
   );
+
+  group('profile', () {
+    _screenTest(
+      'wide: Details and Additional Info side by side, ending level, and a '
+      'blank field has no row',
+      _json(),
+      (tester, screen) async {
+        await screen.untilFound(_card('Additional Info'), 'the profile');
+        // What the payment is, on the left…
+        expect(_inCard('Details', 'Number'), findsOneWidget);
+        expect(_inCard('Details', 'Payment Date'), findsOneWidget);
+        expect(_inCard('Details', 'ch_3PqR8sLkd'), findsOneWidget);
+        // …what is kept about it, on the right.
+        expect(_inCard('Additional Info', 'Date Created'), findsOneWidget);
+        expect(_inCard('Additional Info', 'Updated'), findsOneWidget);
+        expect(_inCard('Details', 'Date Created'), findsNothing);
+
+        final details = tester.getRect(_card('Details'));
+        final info = tester.getRect(_card('Additional Info'));
+        expect(info.top, details.top);
+        expect(info.bottom, details.bottom, reason: 'the two end level');
+        expect(info.left, greaterThan(details.right));
+        expect(info.width, moreOrLessEquals(details.width, epsilon: 0.5));
+
+        // No type, gateway, conversion, project or assignee on this payment:
+        // no row, and no dash standing in for one.
+        for (final label in [
+          'Payment Type',
+          'Gateway',
+          'Exchange Rate',
+          'Project',
+          'Assigned User',
+        ]) {
+          expect(find.text(label), findsNothing, reason: label);
+        }
+        expect(_inCard('Details', '—'), findsNothing);
+        expect(_inCard('Additional Info', '—'), findsNothing);
+
+        // The note is a full-width tail card beneath both.
+        final notes = tester.getRect(
+          find.ancestor(
+            of: find.text('Paid over the phone.'),
+            matching: find.byType(DashboardCardShell),
+          ),
+        );
+        expect(notes.top, greaterThan(details.bottom));
+        expect(notes.left, details.left);
+        expect(notes.right, info.right);
+      },
+      size: const Size(1440, 2000),
+    );
+
+    _screenTest(
+      'phone: the two cards stack, Details first, and the dates are the line '
+      'under the profile rather than rows',
+      _json(projectId: 'pr1'),
+      (tester, screen) async {
+        await screen.untilFound(
+          _inCard('Additional Info', 'Website Redesign'),
+          'the project row',
+        );
+        final details = tester.getRect(_card('Details'));
+        final info = tester.getRect(_card('Additional Info'));
+        expect(info.top, greaterThan(details.bottom));
+        expect(info.left, details.left);
+        expect(info.width, details.width);
+        expect(find.text('Date Created'), findsNothing);
+      },
+      size: const Size(390, 2000),
+    );
+
+    _screenTest(
+      'phone, nothing kept about it: one Details card, no Additional Info',
+      _json(),
+      (tester, screen) async {
+        expect(_card('Details'), findsOneWidget);
+        expect(_card('Additional Info'), findsNothing);
+      },
+      size: const Size(390, 2000),
+    );
+  });
 
   group('refresh', () {
     final server = _Server()..record = _json();

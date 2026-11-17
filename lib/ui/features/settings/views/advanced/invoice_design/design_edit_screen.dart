@@ -562,7 +562,7 @@ class _StartFromField extends StatelessWidget {
               isExpanded: true,
               decoration: InputDecoration(
                 labelText: context.tr('start_from'),
-                border: const OutlineInputBorder(),
+                border: const InFieldOutlineBorder(),
               ),
               items: [
                 DropdownMenuItem(
@@ -820,7 +820,7 @@ class _VariablesPaneState extends State<_VariablesPane> {
             isDense: true,
             prefixIcon: const Icon(Icons.search, size: 18),
             hintText: context.tr('search'),
-            border: const OutlineInputBorder(),
+            border: const InFieldOutlineBorder(),
           ),
           onChanged: (v) => setState(() => _query = v),
         ),

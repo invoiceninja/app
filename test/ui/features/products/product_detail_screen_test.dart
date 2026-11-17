@@ -71,6 +71,12 @@ ProductApi _bare({num stock = 0}) => ProductApi.fromJson({
   'updated_at': 1710000000,
 });
 
+/// The stocked product with no tax category and no taxes.
+ProductApi _untaxed({String assignedUserId = ''}) => ProductApi.fromJson({
+  ..._json()..removeWhere((k, _) => k.startsWith('tax_')),
+  'assigned_user_id': assignedUserId,
+});
+
 /// Turns inventory tracking on for the fixture's company, with a company-wide
 /// low-stock threshold.
 Future<void> _trackInventory(Services s) =>
@@ -366,7 +372,71 @@ void main() {
       inventory: true,
       size: const Size(1300, 1600),
     );
+
+    _screenTest(
+      'with no taxes, Details splits: Details and Additional Info side by '
+      'side, ending level',
+      _untaxed(),
+      (tester, screen) async {
+        await screen.untilFound(_card('Additional Info'), 'the profile');
+        expect(_card('Taxes'), findsNothing);
+        Finder inCard(String title, String text) =>
+            find.descendant(of: _card(title), matching: find.text(text));
+        expect(inCard('Details', 'Default Quantity'), findsOneWidget);
+        expect(inCard('Additional Info', 'Date Created'), findsOneWidget);
+        expect(inCard('Details', 'Date Created'), findsNothing);
+        // Nobody assigned: no row.
+        expect(find.text('Assigned User'), findsNothing);
+
+        final details = tester.getRect(_card('Details'));
+        final info = tester.getRect(_card('Additional Info'));
+        expect(info.top, details.top);
+        expect(info.bottom, details.bottom, reason: 'the two end level');
+        expect(info.left, greaterThan(details.right));
+        expect(info.width, moreOrLessEquals(details.width, epsilon: 0.5));
+      },
+      size: const Size(1440, 1600),
+    );
+
+    _screenTest(
+      'with taxes, Details keeps its dates beside Taxes — no third card',
+      _product(),
+      (tester, screen) async {
+        expect(_card('Additional Info'), findsNothing);
+        expect(
+          find.descendant(
+            of: _card('Details'),
+            matching: find.text('Date Created'),
+          ),
+          findsOneWidget,
+        );
+      },
+      size: const Size(1440, 1600),
+    );
   });
+
+  _screenTest(
+    'phone, no taxes: Details and Additional Info stack, Details first',
+    _untaxed(assignedUserId: 'u9'),
+    (tester, screen) async {
+      await screen.untilFound(_card('Additional Info'), 'the profile');
+      final details = tester.getRect(_card('Details'));
+      final info = tester.getRect(_card('Additional Info'));
+      expect(info.top, greaterThan(details.bottom));
+      expect(info.left, details.left);
+      expect(info.width, details.width);
+      expect(
+        find.descendant(
+          of: _card('Additional Info'),
+          matching: find.text('Assigned User'),
+        ),
+        findsOneWidget,
+      );
+      // The dates are the line under the profile on a phone.
+      expect(find.text('Date Created'), findsNothing);
+    },
+    size: const Size(390, 2400),
+  );
 
   group('refresh', () {
     final recheck = _Server()..record = _json(updatedAt: 1710009999);

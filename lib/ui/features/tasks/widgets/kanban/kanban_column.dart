@@ -430,7 +430,7 @@ class _CreateFooterState extends State<_CreateFooter> {
                 decoration: InputDecoration(
                   isDense: true,
                   hintText: context.tr('new_task'),
-                  border: const OutlineInputBorder(),
+                  border: const InFieldOutlineBorder(),
                 ),
               ),
             ),

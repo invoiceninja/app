@@ -53,8 +53,8 @@ On a phone, the two-line tile goes from 72 px to about 57 px per row.
   - A flip rebuilds only the widgets that read it, never `MaterialApp`.
   - With no scope above (most widget tests), every reader gets Normal. That is why the
     lint test pins that `main.dart` mounts it: nothing else would notice it was missing.
-- **The one control.** Device Settings → Theme → **Density** (`display_density`), a
-  `SegmentedSettingRow` under Font Size, the other "how much fits on screen" control. It
+- **The one control.** Device Settings → Appearance → **Density** (`display_density`), an
+  `InSegmented` row under Font Size, the other "how much fits on screen" control. It
   is searchable and works at every width.
   - It was "List density" until Compact reached past lists. The pref key
     (`list_density`) and the `ListDensity*` names are historical and stay: renaming the

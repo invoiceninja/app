@@ -287,19 +287,15 @@ class ClientActions {
           menuOnly: true,
           onTap: () => onTap(ClientAction.settings),
         ),
-        EntityActionItem(
+        addCommentActionItem(
+          context: context,
           kind: ClientAction.addComment,
-          icon: Icons.add_comment_outlined,
-          label: context.tr('add_comment'),
-          enabled: true,
           startsGroup: true,
           onTap: () => onTap(ClientAction.addComment),
         ),
-        EntityActionItem(
+        logCallActionItem(
+          context: context,
           kind: ClientAction.logCall,
-          icon: Icons.phone_in_talk_outlined,
-          label: context.tr('log_call'),
-          enabled: true,
           onTap: () => onTap(ClientAction.logCall),
         ),
         if (createChildren.isNotEmpty)

@@ -116,6 +116,7 @@ class _GeneratedNumbersSettingsBodyState
     // dropdown — a null `onChanged` disables it per `OverridableDropdownField`.
     final isVerifactu = host.settings.eInvoiceType == kEInvoiceTypeVERIFACTU;
     return SettingsFormShell(
+      subtitle: context.tr('generated_numbers_subtitle'),
       sections: [
         FormSection(
           title: context.tr('settings'),

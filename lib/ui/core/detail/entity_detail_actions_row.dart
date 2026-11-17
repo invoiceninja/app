@@ -47,6 +47,7 @@ class EntityActionItem<A> {
     this.confirmSubject,
     this.iconBuilder,
     this.menuOnly = false,
+    this.needsSavedRecord = false,
   });
 
   final A kind;
@@ -107,6 +108,17 @@ class EntityActionItem<A> {
   /// action's own navigation. A verb that only navigates must never be able
   /// to trigger a save the user did not ask for.
   final bool isNavigationOnly;
+
+  /// The action writes onto a record that already exists — Add comment and
+  /// Log call, which post an activity note against the record's id.
+  ///
+  /// Set it so [filterForEditScreen] drops the item from a **create** screen:
+  /// there is no record yet, and `EntityEditScaffold._onAction` would create
+  /// one first (an after-save action) only to hand the note a `tmp_` id that
+  /// `requireSynced` then refuses. Set by `addCommentActionItem` /
+  /// `logCallActionItem`; an existing record keeps the item, and an unsynced
+  /// one is answered at tap time by `requireSynced`.
+  final bool needsSavedRecord;
 
   /// Gate this action behind an "Are you sure?" dialog when the user has
   /// **Confirm actions** on (Settings → Device Settings → Security; on by
@@ -188,6 +200,7 @@ class EntityActionItem<A> {
     confirmSubject: confirmSubject,
     iconBuilder: iconBuilder,
     menuOnly: menuOnly,
+    needsSavedRecord: needsSavedRecord,
   );
 
   /// Whether this item is rendered at all. An unsupported action

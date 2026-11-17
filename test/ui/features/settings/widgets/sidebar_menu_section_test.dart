@@ -2,6 +2,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:admin/domain/sidebar_menu.dart';
+import 'package:admin/ui/core/widgets/in_segmented.dart';
 import 'package:admin/ui/features/settings/widgets/sidebar_menu_section.dart';
 import 'package:admin/data/prefs/device_pref_keys.dart';
 
@@ -35,16 +36,16 @@ void main() {
     await setUpFixture();
     await pumpCard(tester);
 
-    expect(find.text('Menu'), findsOneWidget);
+    expect(find.text('Main menu'), findsOneWidget);
     expect(find.text('Layout'), findsOneWidget);
-    // "Menu order", never the bundled `order` key — that one is the invoicing
-    // noun and renders as the *purchase order* in de / fr / nl / ja.
-    expect(find.text('Menu order'), findsOneWidget);
+    // "Item order & visibility", never the bundled `order` key — that one is
+    // the invoicing noun and renders as the *purchase order* in de / fr / nl
+    // / ja.
+    expect(find.text('Item order & visibility'), findsOneWidget);
     expect(find.text('Order'), findsNothing);
-    // The current layout is echoed as the row's subtitle, so "List" appears
-    // twice: once as the segment, once as the subtitle.
-    expect(find.text('List'), findsNWidgets(2));
+    expect(find.text('List'), findsOneWidget);
     expect(find.text('Grid'), findsOneWidget);
+    expect(_selectedLayout(tester), SidebarMenuLayout.list);
     expect(fixture.services.sidebarMenu.layout, SidebarMenuLayout.list);
     await _disposeTree(tester);
   });
@@ -61,8 +62,8 @@ void main() {
     expect(fixture.services.sidebarMenu.layout, SidebarMenuLayout.grid);
     final rows = await fixture.db.devicePrefsDao.readAll();
     expect(rows[DevicePrefKeys.sidebarMenu.name], contains('grid'));
-    // The subtitle follows, so the card shows its own effect.
-    expect(find.text('Grid'), findsNWidgets(2));
+    // The segment follows, so the card shows its own effect.
+    expect(_selectedLayout(tester), SidebarMenuLayout.grid);
     await _disposeTree(tester);
   });
 
@@ -92,7 +93,7 @@ void main() {
     await fixture.services.devicePrefs.load();
     await pumpCard(tester);
 
-    expect(find.text('Grid'), findsNWidgets(2));
+    expect(_selectedLayout(tester), SidebarMenuLayout.grid);
     await _disposeTree(tester);
   });
 }
@@ -112,3 +113,9 @@ Future<void> _disposeTree(WidgetTester tester) async {
   await tester.pumpWidget(const SizedBox.shrink());
   await tester.pump(const Duration(milliseconds: 1));
 }
+
+SidebarMenuLayout _selectedLayout(WidgetTester tester) => tester
+    .widget<InSegmented<SidebarMenuLayout>>(
+      find.byType(InSegmented<SidebarMenuLayout>),
+    )
+    .selected;

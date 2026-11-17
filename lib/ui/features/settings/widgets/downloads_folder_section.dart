@@ -65,6 +65,7 @@ class _DownloadsFolderSectionState extends State<DownloadsFolderSection> {
     final editable = downloadsFolderEditable();
     return FormSection(
       title: context.tr('downloads_folder'),
+      description: context.tr('downloads_folder_help'),
       children: [
         FutureBuilder<String?>(
           future: _defaultFolder,

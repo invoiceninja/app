@@ -49,6 +49,7 @@ class PaymentTypesScreen extends StatelessWidget {
         final vm = PaymentTypesSettingsViewModel(
           repo: services.company,
           companyId: companyId,
+          sendNow: () => services.sync.drainOnce(companyId: companyId),
         );
         unawaited(vm.load());
         return vm;
@@ -58,6 +59,7 @@ class PaymentTypesScreen extends StatelessWidget {
             titleKey: 'payment_types',
             viewModel: vm,
             body: SettingsFormShell(
+              subtitle: context.tr('payment_types_subtitle'),
               sections: [
                 FormSection(
                   title: context.tr('payment_types'),
@@ -96,9 +98,11 @@ class _PaymentTypesDialogState extends State<_PaymentTypesDialog> {
   @override
   void initState() {
     super.initState();
+    final services = context.read<Services>();
     _vm = PaymentTypesSettingsViewModel(
-      repo: context.read<Services>().company,
+      repo: services.company,
       companyId: widget.companyId,
+      sendNow: () => services.sync.drainOnce(companyId: widget.companyId),
     );
     unawaited(_vm.load());
   }
@@ -112,9 +116,16 @@ class _PaymentTypesDialogState extends State<_PaymentTypesDialog> {
   Future<void> _save() async {
     final saved = context.tr('saved_settings');
     final failed = context.tr('error_refresh_page');
+    final needsPlan = context.tr('upgrade_to_paid_plan');
     final result = await _vm.save();
     if (!mounted) return;
     if (result == null) {
+      // The server took the save and dropped the change: the dialog stays
+      // open on the user's choice.
+      if (_vm.submitNeedsPaidPlan) {
+        Notify.error(context, needsPlan);
+        return;
+      }
       Notify.error(context, failed, detail: _vm.submitError);
       return;
     }

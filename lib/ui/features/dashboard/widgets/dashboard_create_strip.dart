@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:material_ui/material_ui.dart';
 import 'package:overflow_view/overflow_view.dart';
 
@@ -289,10 +291,18 @@ class _SplitCreateButton extends StatelessWidget {
           message: context.tr('more'),
           // The seam: the filled button's own ink, faint, so the two halves
           // read as one control with two targets. It is drawn inside this
-          // half at half its rendered height — a free-standing divider at
-          // the nominal height stood taller than the buttons, which the
-          // desktop's compact visual density draws 8 px shorter.
-          child: SizedBox.expand(
+          // half at half its height — a free-standing divider at the nominal
+          // height stood taller than the buttons.
+          // Sized to the height the main half actually renders at: the
+          // theme's visual density takes 8 px off a button's minimum height
+          // on desktop but not its maximum, so an expanding child made this
+          // half taller than New Invoice.
+          child: SizedBox(
+            width: _splitSegmentWidth(),
+            height: math.max(
+              0,
+              height + Theme.of(context).visualDensity.baseSizeAdjustment.dy,
+            ),
             child: Stack(
               children: [
                 Align(

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import 'package:admin/app/services.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/features/settings/widgets/setting_row.dart';
 
 /// Search keys for the settings sidebar search. Colocated with the section so
 /// adding a field updates both ends in one place (see
@@ -11,7 +12,7 @@ const kListStatusTabsSearchKeys = <String>['status_tabs', 'status_tabs_help'];
 
 /// Device Settings switch for the status tab strip above entity lists
 /// (invoiceninja/flutter#98) — the first row of Device Settings → Appearance →
-/// Lists, beside the other switches about what a list shows.
+/// Lists & dashboard, beside the other switches about what a list shows.
 ///
 /// A row, not a card of its own any more, and still not folded into Sidebar
 /// counters: the two share a vocabulary — both surface the same per-entity
@@ -29,11 +30,10 @@ class ListStatusTabsTile extends StatelessWidget {
     final controller = context.read<Services>().statusTabs;
     return ValueListenableBuilder<bool>(
       valueListenable: controller,
-      builder: (context, enabled, _) => SwitchListTile(
-        contentPadding: EdgeInsets.zero,
-        secondary: const Icon(Icons.tab_outlined),
-        title: Text(context.tr('status_tabs')),
-        subtitle: Text(context.tr('status_tabs_help')),
+      builder: (context, enabled, _) => SettingRow.toggle(
+        icon: const Icon(Icons.tab_outlined),
+        title: context.tr('status_tabs'),
+        subtitle: context.tr('status_tabs_help'),
         value: enabled,
         onChanged: controller.set,
       ),

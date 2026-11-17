@@ -164,6 +164,7 @@ class ClientPortalScreen extends StatelessWidget {
         : section;
 
     return SettingsFormShell(
+      subtitle: context.tr('client_portal_subtitle'),
       sections: [
         if (level == SettingsLevel.company)
           _PortalConfigurationSection(

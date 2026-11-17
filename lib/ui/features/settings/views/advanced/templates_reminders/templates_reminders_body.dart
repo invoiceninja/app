@@ -22,6 +22,7 @@ import 'package:admin/ui/features/settings/widgets/form_section.dart';
 import 'package:admin/ui/features/settings/widgets/overridable_markdown_field.dart';
 import 'package:admin/ui/features/settings/widgets/overridable_text_field.dart';
 import 'package:admin/ui/features/settings/widgets/plan_gate_banner.dart';
+import 'package:admin/ui/features/settings/widgets/settings_form_shell.dart';
 import 'package:admin/utils/formatting.dart';
 
 /// Localization keys surfaced by the in-app settings search. Spread into
@@ -249,12 +250,6 @@ class _TemplatesRemindersBodyState extends State<TemplatesRemindersBody> {
 
     final pickerCard = FormSection(
       title: context.tr('template'),
-      // Without the side-by-side preview, the way to it sits in this card's
-      // header — the template it previews is picked right below — instead of
-      // costing a row of its own above the page.
-      trailing: showInlinePreview
-          ? null
-          : _ShowPreviewButton(controller: _preview),
       children: [
         _TemplatePicker(
           options: options,
@@ -309,27 +304,31 @@ class _TemplatesRemindersBodyState extends State<TemplatesRemindersBody> {
       child: body,
     );
 
+    // The page's intro sentence, and — without the side-by-side pane —
+    // Preview at the end of the same row: it previews the whole page's
+    // template, so it is a page action, not the Template card's
+    // (`docs/settings-screens.md` § A page's intro and its actions share one
+    // row). The shell is also what lets a settings search hit reveal a field
+    // here.
+    final subtitle = context.tr('templates_and_reminders_subtitle');
+
     if (showInlinePreview) {
-      // Side-by-side: editor column on the left (max 720 to mirror the
-      // form-shell width cap), preview column on the right.
-      return Padding(
-        padding: EdgeInsets.symmetric(
-          horizontal: InSpacing.lg(context),
-          vertical: InSpacing.lg(context),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              flex: 5,
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 720),
-                child: SingleChildScrollView(child: body),
+      // Side-by-side: the editor column at the start (the shell caps it at
+      // 720), the preview beside it, level with the intro row.
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            flex: 5,
+            child: SettingsFormShell(subtitle: subtitle, child: body),
+          ),
+          Expanded(
+            flex: 4,
+            child: Padding(
+              padding: const EdgeInsetsDirectional.only(
+                top: InSpacing.xl,
+                end: InSpacing.xl,
               ),
-            ),
-            SizedBox(width: InSpacing.lg(context)),
-            Expanded(
-              flex: 4,
               child: SizedBox(
                 // Stick to viewport height so the preview stays visible
                 // while the editor scrolls underneath. Clamp to non-negative
@@ -342,21 +341,19 @@ class _TemplatesRemindersBodyState extends State<TemplatesRemindersBody> {
                 child: TemplatePreviewPanel(controller: _preview),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       );
     }
 
-    // Preview sits in the Template card's header, the first thing on the page,
-    // so it is reachable without scrolling the whole template past
-    // (invoiceninja/flutter#83, which superseded the in-body ordering fix from
-    // #77) — and it no longer spends a row of its own above the content.
-    return SingleChildScrollView(
-      padding: EdgeInsets.all(InSpacing.lg(context)),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 720),
-        child: body,
-      ),
+    // Preview sits on the intro row, the first thing on the page, so it is
+    // reachable without scrolling the whole template past
+    // (invoiceninja/flutter#83, which superseded the in-body ordering fix
+    // from #77) — and it costs no row of its own.
+    return SettingsFormShell(
+      subtitle: subtitle,
+      actions: [_ShowPreviewButton(controller: _preview)],
+      child: body,
     );
   }
 }
@@ -469,10 +466,11 @@ class _ViewDocsButton extends StatelessWidget {
   }
 }
 
-/// Pinned preview bar. Deliberately the same shape, padding and alignment as
-/// `_PreviewBarButton` in `cascade_tabbed_settings_shell.dart`, which is what
-/// Invoice Design shows in the same position — the two screens sit next to
-/// each other in the sidebar and should not disagree about where Preview is.
+/// The page's Preview action, on the intro row. Deliberately the same shape
+/// as Invoice Design's Preview (`_PreviewButton` in
+/// `cascade_tabbed_settings_shell.dart`), which sits in the same place — the
+/// two screens are neighbours in the sidebar and should not disagree about
+/// where Preview is.
 class _ShowPreviewButton extends StatelessWidget {
   const _ShowPreviewButton({required this.controller});
 

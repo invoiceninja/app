@@ -33,9 +33,43 @@ Three widgets own the shell and take no `Services`, and one controller owns the 
 
 `RecordProfileLayout` (`record_profile_layout.dart`) is that arrangement for everyone else: `lead` cards in level rows of at most three (four are two and two, never three and a stray), `tail` cards full width beneath, one stack below 1000 px. Two rules it cannot enforce: **pass only cards that will draw something** (the gap is paid per entry), and **a lead card may not contain a `LayoutBuilder`** — the row is levelled with `IntrinsicHeight`, which a `LayoutBuilder` cannot answer; that is why notes, which clamp with one, are always a tail card.
 
-**A lead card with the row to itself takes the width, and runs its rows in two columns.** A sparse record — a task, a vendor with nothing but a currency — has one card, and this case was built three ways on three screens before it was one: held to the header's column with a blank under the standing card, two columns decided by the host, and a single column against a window of empty card. Whoever places the card wraps it in `DetailRowColumnsScope(columns: 2)`, and a card that draws its rows through `DetailRowColumns` (`lib/ui/core/widgets/detail_row_columns.dart`) splits them — the card measures nothing, so it stays legal in the level row. Fewer than four rows stay one column: two rows side by side read as a table with a missing header.
+**A lead card with the row to itself takes the width, and runs its rows in two columns.** That is now the fallback, not the shape: a record whose only lead card would be Details splits it into two cards first (§ A record whose Details card is alone splits it in two), so this applies to what is left — a Details card holding only one kind of row, a vendor with nothing but a currency. A sparse record has one card, and this case was built three ways on three screens before it was one: held to the header's column with a blank under the standing card, two columns decided by the host, and a single column against a window of empty card. Whoever places the card wraps it in `DetailRowColumnsScope(columns: 2)`, and a card that draws its rows through `DetailRowColumns` (`lib/ui/core/widgets/detail_row_columns.dart`) splits them — the card measures nothing, so it stays legal in the level row. Fewer than four rows stay one column: two rows side by side read as a table with a missing header.
 
 Once the header has scrolled away, the scaffold's fixed bar shows `compactTitleForItem` — the name and the one figure that matters — so a long invoice list still says whose it is. It fades in past `kDetailCompactTitleRevealOffset` (72 px) and tapping it scrolls to the top. How it shares the bar depends on the form the action cluster takes. **Beside the spread bar** (a wide window) its width is reserved whether or not it is showing: the spread bar counts how many buttons fit the width it is given, so a title that only took room while visible would reshuffle them each time the user scrolled past the threshold. **Beside the compact cluster** (a pane or a phone — one primary button and `⋮`, a fixed size) the cluster is laid out first, at its own width, and the title gets what is left, or is not offered below 120 px. The reservation used to apply here too, sized for a primary that reads "Edit"; an invoice's reads "Enter Payment", and on a 360 px phone at large text the reserve pushed it off the bar. The cluster is told its form through `ActionBarLayoutScope` rather than asked to measure a width it is not being given, and its primary shortens to an ellipsis on a bar narrower than the cluster itself, so `⋮` — which holds every other action — never leaves the edge.
+
+## A record whose Details card is alone splits it in two
+
+**A record whose only lead card would be Details splits it into Details and Additional Info (`recordDetailsCards`), never one full-width card running its rows in two columns.**
+
+Seen on the payment record (Hillel, Nov 2026: "the details panel should be two panels/columns"): one full-width Details card, its rows split by `DetailRowColumns` into two columns — Number, Payment Date and Transaction Reference on the left, Date Created and Updated starting at the card's midpoint with a wide gap before them. Every other record shows its profile as separate cards that sit side by side and end level (client, vendor, expense, product with taxes), and against those the single split card read as lopsided rather than dense.
+
+`recordDetailsCards` (`lib/ui/core/detail/record_details_cards.dart`) takes the rows in two lists, by meaning:
+
+| | What goes in it | Card |
+|---|---|---|
+| `facts` | what the record *is* — a payment's number, date, type, reference, gateway, conversion; a task's due date and invoice; a product's quantities and stock settings; a bank account's provider, type, integration, status, currency | Details |
+| `bookkeeping` | what is kept *about* it — project (payment), assigned user, custom fields, created, updated; a bank account's Sync From and Auto Sync | Additional Info |
+
+and returns the cards for `RecordProfileLayout.lead`, which levels them on a wide row and stacks them below 1000 px. Three cases return one Details card instead, facts first:
+
+- **One half is empty.** A task with nothing but its dates is one Details card, not a card titled "Additional Info" beside nothing. It then has the row to itself and takes § The record layout's lone-card treatment (two columns from four rows).
+- **`split: false`** — the record already has another lead card. A product with taxes keeps Details · Taxes; splitting there would make three narrow cards out of two.
+- **A phone.** Not a rule of the helper, a consequence: `recordTimestampRows` is empty on a phone (the dates are `RecordTimestampsLine`), so the bookkeeping half is often empty there and the profile is one card.
+
+The bank account is the one host that does not call the helper: its second card also holds the Auto Sync switch, so it always exists, and the switch sits under Sync From where the dates alone would have left that card's lower half blank beside five rows of Details.
+
+Applied to payment, task, product (without taxes) and bank account. Left alone, and why:
+
+| Record | Why not |
+|---|---|
+| Expense, recurring expense | Details shares its row with Invoicing / Payment / Taxes on nearly every record; the lone case (number, currency, dates) is an even two-and-two |
+| Invoice, quote, credit, recurring invoice, purchase order | Contacts · Details in the 5/11 record column beside the PDF — a single stack below ~2,200 px |
+| Project | The rail (§ The rail: a hub record on a wide page) — the profile stacks in a third of the page |
+| Transaction | Details · the match panel already |
+| Expense category, gateway, payment link | `SettingsRecordBody` caps them at 720 px, below the breakpoint: always one stack |
+| Client, vendor | Contacts · Details · Address |
+
+Tests: `test/ui/core/detail/record_details_cards_test.dart` (the four cases), and a `profile` group in the payment, task, product and bank-account `*_detail_screen_test.dart` — side by side at 1440 px with tops and bottoms level, stacked at 390 px (and the bank account at an 800 px pane), blank rows absent.
 
 ## The rail: a hub record on a wide page
 
@@ -269,14 +303,14 @@ Every entity's record screen is on the layout. What each does with each slot:
 | Client | place · # | Invoice, Payment, Email, Call, Statement, Portal, … | Balance, Paid to Date; credit and unapplied when non-zero; past-due line when proven | Contacts · Details · Address; Payment Methods, Notes | Comments, Activity, eight related lists (counted), Ledger, Locations, Documents |
 | Vendor | place · # | Expense, Order, Email, Call, Recurring, Portal | Total Expenses (proven), Last Expense | Contacts · Details · Address; Notes | Comments, Activity, Purchase Orders, Expenses, Recurring Expenses (counted), Ledger, Documents |
 | Project | client · # | Task, Invoice, Expense, Quote, Add To Invoice, Clone | Logged, Uninvoiced (proven); Budgeted, Projected; a budget bar with the verdict | Details · Progress chart; Notes | Comments, Activity, Tasks / Invoices / Expenses (counted, three keys), Quotes, Documents, Analytics |
-| Task | client · project · # | Stop / Resume / Start (`busy`), Invoice, Add To Invoice, Clone | Duration, Amount at the cascaded rate; Rate, Booked; status and estimate | Details; Description when the header truncates it | Comments, Activity, Time Log, Documents |
+| Task | client · project · # | Stop / Resume / Start (`busy`), Invoice, Add To Invoice, Clone | Duration, Amount at the cascaded rate; Rate, Booked; status and estimate | Details (due date, invoice) · Additional Info; Description when the header truncates it | Comments, Activity, Time Log, Documents |
 | Expense | vendor, client, category, date (icon-led) | Invoice, Add To Invoice, Clone, Recurring, Run Template | Amount; Gross or Net when taxed; status; Tax and Converted when non-zero | Details · Invoicing · Payment · Taxes; Notes | Comments, Activity, Documents |
 | Recurring expense | as an expense, ending in the frequency | Start / Stop, Clone, Expense | Amount, Next Send Date; status; Tax, Remaining Cycles | as an expense | Documents, Schedule |
-| Product | description, clamped | Invoice, Quote, Order, Clone, Tax Category | Price; Cost when entered; stock when tracked | Details · Taxes | Documents |
-| Payment | client · date · type | Apply, Email, Refund, Client | Amount, Applied; Unapplied and Refunded when non-zero | Details; Private Notes | Comments, Activity, Invoices (from the record), Documents |
+| Product | description, clamped | Invoice, Quote, Order, Clone, Tax Category | Price; Cost when entered; stock when tracked | Details · Taxes, or Details · Additional Info with no taxes | Documents |
+| Payment | client · date · type | Apply, Email, Refund, Client | Amount, Applied; Unapplied and Refunded when non-zero | Details · Additional Info; Private Notes | Comments, Activity, Invoices (from the record), Documents |
 | Invoice, quote, credit, recurring invoice, purchase order | type, #, status, party, dates, `Viewed:` | by status — Payment, Email, Mark Paid, Download, Clone; Approve / Convert; Apply; Start / Stop | Amount and what is owed / remains / comes next; a deadline line | Contacts · Details; Private Notes | Comments, Activity, Overview, History, Documents, and the document's own |
 | Transaction | bank account · date | Convert, the payment or expense it became, Unlink | signed Deposit / Withdrawal; status | Details · the match panel | none |
-| Bank account | provider · type · integration | View All, Refresh | Balance | Details, with Auto Sync | Transactions (counted) |
+| Bank account | provider · type · integration | View All, Refresh | Balance | Details · Additional Info, with Auto Sync | Transactions (counted) |
 | Expense category, gateway, payment link | what identifies it | gateway: Import, Verify (Stripe); link: Copy Link, Open, Clone | payment link: Price | Details (and the gateway's methods, required fields, logs) | none |
 
 Where a screen departs from the client's, and why:

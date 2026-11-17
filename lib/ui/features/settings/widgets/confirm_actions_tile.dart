@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import 'package:admin/app/services.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/features/settings/widgets/setting_row.dart';
 
 /// Settings → Device Settings → Security → Confirm actions toggle.
 ///
@@ -19,10 +20,10 @@ class ConfirmActionsTile extends StatelessWidget {
     final controller = context.read<Services>().confirmActions;
     return ValueListenableBuilder<bool>(
       valueListenable: controller,
-      builder: (context, enabled, _) => SwitchListTile(
-        secondary: const Icon(Icons.help_outline),
-        title: Text(context.tr('confirm_actions')),
-        subtitle: Text(context.tr('confirm_actions_help')),
+      builder: (context, enabled, _) => SettingRow.toggle(
+        icon: const Icon(Icons.help_outline),
+        title: context.tr('confirm_actions'),
+        subtitle: context.tr('confirm_actions_help'),
         value: enabled,
         onChanged: controller.set,
       ),

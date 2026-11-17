@@ -53,12 +53,15 @@ class KeyboardShortcutsScreen extends StatelessWidget {
               .where((d) => d.group == ShortcutGroup.create)
               .toList(growable: false);
           return SettingsFormShell(
+            subtitle: context.tr('keyboard_shortcuts_subtitle'),
+            // Resets both cards, so it belongs to the page: the end of the
+            // intro row, not the General card's header.
+            actions: [_ResetAllButton(controller: controller)],
             sections: [
-              _HintCard(),
               FormSection(
                 title: context.tr('shortcuts_general'),
+                description: context.tr('customize_shortcuts_hint'),
                 spacing: 0,
-                trailing: _ResetAllButton(controller: controller),
                 children: [
                   for (final def in general)
                     _ShortcutRow(
@@ -83,29 +86,6 @@ class KeyboardShortcutsScreen extends StatelessWidget {
             ],
           );
         },
-      ),
-    );
-  }
-}
-
-class _HintCard extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final tokens = context.inTheme;
-    return Padding(
-      padding: EdgeInsets.only(bottom: InSpacing.lg(context)),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(Icons.info_outline, size: 16, color: tokens.ink3),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              context.tr('customize_shortcuts_hint'),
-              style: TextStyle(color: tokens.ink3, fontSize: 13),
-            ),
-          ),
-        ],
       ),
     );
   }

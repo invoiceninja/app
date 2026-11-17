@@ -121,4 +121,30 @@ void main() {
     kept.first.onTap!();
     expect(tapped, isTrue);
   });
+
+  // Enter Payment drew Add Comment and Log Call beside Save on a payment that
+  // did not exist yet. The flag, not a per-entity `isLifecycle` entry, is
+  // what drops them — so a new entity that builds the pair through the
+  // shared factories is covered without listing it anywhere.
+  test('a needs-saved-record action is dropped on create only', () {
+    final note = EntityActionItem(
+      kind: _Action.sendEmail,
+      icon: Icons.circle,
+      label: 'note',
+      enabled: true,
+      needsSavedRecord: true,
+    );
+    expect(
+      filterForEditScreen([note], isCreate: true, isLifecycle: _isLifecycle),
+      isEmpty,
+    );
+    final kept = filterForEditScreen(
+      [note],
+      isCreate: false,
+      isLifecycle: _isLifecycle,
+    );
+    expect(kept, hasLength(1));
+    // The flag survives the primary demotion's copy.
+    expect(note.copyWith(isPrimary: true).needsSavedRecord, isTrue);
+  });
 }

@@ -302,18 +302,14 @@ class CreditActions {
           enabled: true,
           onTap: () => onTap(CreditAction.runTemplate),
         ),
-        EntityActionItem(
+        addCommentActionItem(
+          context: context,
           kind: CreditAction.addComment,
-          icon: Icons.chat_bubble_outline,
-          label: context.tr('add_comment'),
-          enabled: true,
           onTap: () => onTap(CreditAction.addComment),
         ),
-        EntityActionItem(
+        logCallActionItem(
+          context: context,
           kind: CreditAction.logCall,
-          icon: Icons.phone_in_talk_outlined,
-          label: context.tr('log_call'),
-          enabled: true,
           onTap: () => onTap(CreditAction.logCall),
         ),
       ],

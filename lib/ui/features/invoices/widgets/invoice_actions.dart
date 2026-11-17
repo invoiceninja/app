@@ -523,18 +523,14 @@ class InvoiceActions {
           enabled: true,
           onTap: () => onTap(InvoiceAction.runTemplate),
         ),
-        EntityActionItem(
+        addCommentActionItem(
+          context: context,
           kind: InvoiceAction.addComment,
-          icon: Icons.chat_bubble_outline,
-          label: context.tr('add_comment'),
-          enabled: true,
           onTap: () => onTap(InvoiceAction.addComment),
         ),
-        EntityActionItem(
+        logCallActionItem(
+          context: context,
           kind: InvoiceAction.logCall,
-          icon: Icons.phone_in_talk_outlined,
-          label: context.tr('log_call'),
-          enabled: true,
           onTap: () => onTap(InvoiceAction.logCall),
         ),
       ],

@@ -178,6 +178,7 @@ final List<_TabUnderTest> _tabsUnderTest = [
     // Every badge-mode label is a `labelKey:` literal in the domain catalog.
     sourcePaths: [
       'lib/ui/features/settings/views/basic/device_settings_screen.dart',
+      'lib/ui/features/settings/widgets/theme_tile.dart',
       'lib/ui/features/settings/widgets/customize_colors_section.dart',
       'lib/ui/features/settings/widgets/list_status_tabs_section.dart',
       'lib/ui/features/settings/widgets/dashboard_panels_section.dart',

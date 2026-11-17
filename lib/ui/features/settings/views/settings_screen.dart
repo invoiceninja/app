@@ -633,7 +633,7 @@ class SettingsSearchField extends StatelessWidget {
                   )
                 : null,
             filled: true,
-            border: OutlineInputBorder(
+            border: InFieldOutlineBorder(
               borderRadius: BorderRadius.circular(8),
               borderSide: BorderSide.none,
             ),

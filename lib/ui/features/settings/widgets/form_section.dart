@@ -28,6 +28,7 @@ class FormSection extends StatelessWidget {
     this.trailing,
     this.spacing,
     this.elevated = true,
+    this.flush = false,
   });
 
   /// Section heading. When null, the header row + divider are omitted
@@ -55,6 +56,17 @@ class FormSection extends StatelessWidget {
   /// Gap interleaved between adjacent children. Null falls back to the
   /// responsive `InSpacing.lg(context)` (12 narrow / 16 wide).
   final double? spacing;
+
+  /// True for a card of `SettingRow`s: the body has no padding of its own
+  /// (each row pads itself, so its hover tint and its divider can reach the
+  /// card's edges), no gap between children, and the card clips to its
+  /// corners. A child that is not a row pads itself — `SettingBlock`.
+  /// `FormSection.isFlush` tells a row which card it is in.
+  final bool flush;
+
+  /// Whether the nearest card around [context] is [flush] — false outside any.
+  static bool isFlush(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<_FlushScope>()?.flush ?? false;
 
   @override
   Widget build(BuildContext context) {
@@ -107,7 +119,8 @@ class FormSection extends StatelessWidget {
                 InSpacing.lg(context),
                 InSpacing.lg(context),
                 InSpacing.lg(context),
-                InSpacing.md(context),
+                // A flush card's first row brings its own top padding.
+                flush ? InSpacing.xs : InSpacing.md(context),
               ),
               child: titleBlock,
             );
@@ -202,6 +215,14 @@ class FormSection extends StatelessWidget {
       // this Container's background would hide the ink.
       child: Material(
         type: MaterialType.transparency,
+        // A flush card's rows paint their hover tint edge to edge; keep it
+        // inside the rounded corners.
+        shape: flush
+            ? RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(InRadii.r3 - 1),
+              )
+            : null,
+        clipBehavior: flush ? Clip.antiAlias : Clip.none,
         child: formCardListTileTheme(
           context,
           Column(
@@ -215,24 +236,29 @@ class FormSection extends StatelessWidget {
                 // Keyed: a header arriving or leaving above it must not
                 // re-inflate the fields.
                 key: const ValueKey('form-section-body'),
-                padding: EdgeInsetsDirectional.fromSTEB(
-                  InSpacing.lg(context),
-                  topPad ? InSpacing.lg(context) : 0,
-                  InSpacing.lg(context),
-                  InSpacing.lg(context),
-                ),
+                padding: flush
+                    ? const EdgeInsets.symmetric(vertical: InSpacing.xs)
+                    : EdgeInsetsDirectional.fromSTEB(
+                        InSpacing.lg(context),
+                        topPad ? InSpacing.lg(context) : 0,
+                        InSpacing.lg(context),
+                        InSpacing.lg(context),
+                      ),
                 // A section nested in a card never splits again.
                 child: FormSectionSideLayout(
                   enabled: false,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: _interleave(
-                      children,
-                      // `sm`: a labelled field brings 8 px above and below
-                      // itself (`kFieldVerticalGap`), so `lg` here made the
-                      // settings pages' fields half again further apart than
-                      // the edit forms'.
-                      spacing ?? InSpacing.sm,
+                  child: _FlushScope(
+                    flush: flush,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: _interleave(
+                        children,
+                        // `sm`: a labelled field brings 8 px above and below
+                        // itself (`kFieldVerticalGap`), so `lg` here made the
+                        // settings pages' fields half again further apart
+                        // than the edit forms'.
+                        spacing ?? (flush ? 0 : InSpacing.sm),
+                      ),
                     ),
                   ),
                 ),
@@ -282,4 +308,14 @@ class FormSectionSideLayout extends InheritedWidget {
   @override
   bool updateShouldNotify(FormSectionSideLayout old) =>
       old.startWidth != startWidth || old.gap != gap || old.enabled != enabled;
+}
+
+/// Which kind of card a `SettingRow` sits in — see [FormSection.flush].
+class _FlushScope extends InheritedWidget {
+  const _FlushScope({required this.flush, required super.child});
+
+  final bool flush;
+
+  @override
+  bool updateShouldNotify(_FlushScope old) => old.flush != flush;
 }

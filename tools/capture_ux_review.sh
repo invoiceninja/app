@@ -31,6 +31,14 @@ set -euo pipefail
 # VIEWPORT may end in @DPR ("360x800@3"): Chrome then emulates a phone at that
 # pixel ratio, so the PNGs are full-resolution (1080x2400 here) — what the
 # F-Droid listing's screenshots are made with (docs/fdroid.md).
+#
+# Optional environment:
+#   UX_WEB_PORT     fixed port for the app's web server (default: a random
+#                   one). Set it when the browser runs elsewhere, e.g. in a
+#                   container that forwards this port back to the host.
+#   UX_DRIVE_ARGS   extra `flutter drive` arguments, split on spaces, e.g.
+#                   "--web-browser-flag=--use-angle=swiftshader" for a Linux
+#                   Chromium with no GPU.
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$repo_root"
@@ -38,6 +46,15 @@ cd "$repo_root"
 demo_token="${IN_DEMO_API_TOKEN:-TOKEN}"
 demo_url="${IN_DEMO_API_URL:-https://demo.invoiceninja.com}"
 export UX_OUT_DIR="${UX_OUT_DIR:-build/ux-review}"
+
+extra_args=()
+if [ -n "${UX_WEB_PORT:-}" ]; then
+  extra_args+=("--web-port=$UX_WEB_PORT")
+fi
+if [ -n "${UX_DRIVE_ARGS:-}" ]; then
+  read -r -a drive_args <<< "$UX_DRIVE_ARGS"
+  extra_args+=("${drive_args[@]}")
+fi
 
 if ! curl -s -m 3 -o /dev/null "http://localhost:4444/status"; then
   echo "!! chromedriver is not reachable on :4444." >&2
@@ -101,6 +118,7 @@ for pass in "${passes[@]}"; do
     --dart-define=UX_THEME="$theme" \
     --dart-define=UX_TEXT_SCALE_X100="$scale" \
     --dart-define=UX_LOCALE="$locale" \
+    ${extra_args[@]+"${extra_args[@]}"} \
     || echo "!! pass failed: $pass (continuing)"
 done
 

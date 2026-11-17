@@ -55,6 +55,7 @@ class _HomeWidgetsSectionState extends State<HomeWidgetsSection> {
     final android = defaultTargetPlatform == TargetPlatform.android;
     return FormSection(
       title: context.tr('widget_settings_section'),
+      description: context.tr('widget_settings_section_help'),
       children: [
         Text(
           context.tr(switch (defaultTargetPlatform) {

@@ -13,11 +13,13 @@ import 'package:admin/app/services.dart';
 import 'package:admin/data/models/api/bank_account_api_model.dart';
 import 'package:admin/data/models/api/bank_transaction_api_model.dart';
 import 'package:admin/ui/core/detail/entity_quick_actions.dart';
+import 'package:admin/ui/core/detail/record_details_cards.dart';
 import 'package:admin/ui/core/detail/standing_card.dart';
 import 'package:admin/ui/features/bank_accounts/views/bank_account_detail_screen.dart';
 import 'package:admin/ui/features/bank_accounts/widgets/bank_account_actions.dart';
 import 'package:admin/ui/features/bank_accounts/widgets/detail/bank_account_detail_header.dart';
 import 'package:admin/ui/features/bank_accounts/widgets/reconnect_banner.dart';
+import 'package:admin/ui/features/dashboard/widgets/card_shell.dart';
 
 import '../../../_support/record_screen_harness.dart';
 import '../shell/_shell_test_helpers.dart';
@@ -127,8 +129,10 @@ void _screenTest(
   _Server? server,
   bool online = false,
   FakeCompany company = const FakeCompany(id: 'co1', name: 'Co'),
+  Size size = const Size(480, 2000),
 }) => recordScreenTest(
   description,
+  size: size,
   seed: (services) => _seed(services, account),
   screen: () => BankAccountDetailScreen(id: account.id),
   ready: () => find.byType(StandingCard),
@@ -406,6 +410,74 @@ void main() {
       },
       server: server,
       online: true,
+    );
+  });
+
+  group('profile', () {
+    Finder details() => find.byWidgetPredicate(
+      (w) => w is RecordRowsCard && w.title == 'Details',
+    );
+    Finder info() => find.widgetWithText(DashboardCardShell, 'Additional Info');
+
+    _screenTest(
+      'wide: Details and Additional Info (with Auto Sync) side by side, '
+      'ending level',
+      _account(),
+      (tester, screen) async {
+        await screen.untilFound(info(), 'the profile');
+        expect(
+          find.descendant(of: info(), matching: find.text('Auto Sync')),
+          findsOneWidget,
+        );
+        expect(
+          find.descendant(of: info(), matching: find.text('Date Created')),
+          findsOneWidget,
+        );
+        expect(
+          find.descendant(of: details(), matching: find.text('Provider')),
+          findsOneWidget,
+        );
+        // No import date on this account: no row.
+        expect(find.text('Sync From'), findsNothing);
+        final a = tester.getRect(details());
+        final b = tester.getRect(info());
+        expect(b.top, a.top);
+        expect(b.bottom, a.bottom, reason: 'the two end level');
+        expect(b.left, greaterThan(a.right));
+      },
+      size: const Size(1440, 2000),
+    );
+
+    _screenTest(
+      'a narrow pane: the two cards stack, Details first',
+      _account(),
+      (tester, screen) async {
+        await screen.untilFound(info(), 'the profile');
+        final a = tester.getRect(details());
+        final b = tester.getRect(info());
+        expect(b.top, greaterThan(a.bottom));
+        expect(b.left, a.left);
+        expect(b.width, a.width);
+      },
+      size: const Size(800, 2000),
+    );
+
+    _screenTest(
+      'phone: the cards stack, and the dates are the line under the profile',
+      _account(),
+      (tester, screen) async {
+        await screen.untilFound(info(), 'the profile');
+        final a = tester.getRect(details());
+        final b = tester.getRect(info());
+        expect(b.top, greaterThan(a.bottom));
+        expect(b.left, a.left);
+        expect(
+          find.descendant(of: info(), matching: find.text('Auto Sync')),
+          findsOneWidget,
+        );
+        expect(find.text('Date Created'), findsNothing);
+      },
+      size: const Size(390, 2000),
     );
   });
 }

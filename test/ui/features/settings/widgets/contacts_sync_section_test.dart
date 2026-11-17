@@ -134,7 +134,7 @@ void main() {
     final device = _FakeDeviceContacts(canSync: false);
     final fixture = await pump(tester, device);
 
-    expect(find.byType(SwitchListTile), findsNothing);
+    expect(find.byType(Switch), findsNothing);
     expect(find.text('Sync contacts to this device'), findsNothing);
 
     await teardown(tester, fixture);
@@ -147,10 +147,7 @@ void main() {
     final fixture = await pump(tester, device);
 
     expect(find.text('Sync contacts to this device'), findsOneWidget);
-    expect(
-      tester.widget<SwitchListTile>(find.byType(SwitchListTile)).value,
-      isFalse,
-    );
+    expect(tester.widget<Switch>(find.byType(Switch)).value, isFalse);
     // Nothing below the toggle until it is switched on.
     expect(find.text('Sync now'), findsNothing);
     expect(find.text('All Clients'), findsNothing);
@@ -302,10 +299,7 @@ void main() {
     final fixture = await pump(tester, device, hasRun: true);
 
     // Toggle is off...
-    expect(
-      tester.widget<SwitchListTile>(find.byType(SwitchListTile)).value,
-      isFalse,
-    );
+    expect(tester.widget<Switch>(find.byType(Switch)).value, isFalse);
     // ...but Remove is still reachable, and the sync controls are not.
     expect(find.text('Remove synced contacts'), findsOneWidget);
     expect(find.text('Sync now'), findsNothing);

@@ -17,6 +17,7 @@ import 'package:admin/data/models/api/task_api_model.dart';
 import 'package:admin/data/models/api/task_status_api_model.dart';
 import 'package:admin/data/models/domain/task.dart';
 import 'package:admin/ui/core/detail/entity_quick_actions.dart';
+import 'package:admin/ui/core/detail/record_details_cards.dart';
 import 'package:admin/ui/core/detail/standing_card.dart';
 import 'package:admin/ui/core/widgets/link_text.dart';
 import 'package:admin/ui/features/dashboard/widgets/card_shell.dart';
@@ -49,6 +50,8 @@ TaskApi _task({
   String invoiceId = '',
   bool isDeleted = false,
   int archivedAt = 0,
+  String dueDate = '',
+  String assignedUserId = '',
 }) => TaskApi(
   id: id,
   number: '0101',
@@ -57,6 +60,8 @@ TaskApi _task({
   projectId: 'p1',
   statusId: 'st2',
   invoiceId: invoiceId,
+  dueDate: dueDate,
+  assignedUserId: assignedUserId,
   timeLog: timeLog ?? _worked,
   isDeleted: isDeleted,
   archivedAt: archivedAt,
@@ -504,4 +509,62 @@ void main() {
     },
     size: const Size(1400, 2000),
   );
+
+  group('profile', () {
+    Finder card(String title) =>
+        find.byWidgetPredicate((w) => w is RecordRowsCard && w.title == title);
+    Finder inCard(String title, String text) =>
+        find.descendant(of: card(title), matching: find.text(text));
+
+    _screenTest(
+      'wide, with a due date: Details and Additional Info side by side, '
+      'ending level',
+      _task(dueDate: '2001-03-20'),
+      (tester, screen) async {
+        await screen.untilFound(card('Additional Info'), 'the profile');
+        expect(inCard('Details', 'Due Date'), findsOneWidget);
+        expect(inCard('Additional Info', 'Date Created'), findsOneWidget);
+        expect(inCard('Additional Info', 'Updated'), findsOneWidget);
+        // Not invoiced, not assigned: no row for either.
+        expect(inCard('Details', 'Invoice'), findsNothing);
+        expect(find.text('Assigned User'), findsNothing);
+
+        final details = tester.getRect(card('Details'));
+        final info = tester.getRect(card('Additional Info'));
+        expect(info.top, details.top);
+        expect(info.bottom, details.bottom, reason: 'the two end level');
+        expect(info.left, greaterThan(details.right));
+        expect(info.width, moreOrLessEquals(details.width, epsilon: 0.5));
+      },
+      size: const Size(1440, 2000),
+    );
+
+    _screenTest(
+      'wide, nothing but dates: one Details card, not "Additional" to nothing',
+      _task(),
+      (tester, screen) async {
+        await screen.untilFound(card('Details'), 'the profile');
+        expect(card('Additional Info'), findsNothing);
+        expect(inCard('Details', 'Date Created'), findsOneWidget);
+      },
+      size: const Size(1440, 2000),
+    );
+
+    _screenTest(
+      'phone: the two cards stack, Details first',
+      _task(dueDate: '2001-03-20', assignedUserId: 'u9'),
+      (tester, screen) async {
+        await screen.untilFound(card('Additional Info'), 'the profile');
+        expect(inCard('Additional Info', 'Assigned User'), findsOneWidget);
+        final details = tester.getRect(card('Details'));
+        final info = tester.getRect(card('Additional Info'));
+        expect(info.top, greaterThan(details.bottom));
+        expect(info.left, details.left);
+        expect(info.width, details.width);
+        // The dates are the line under the profile on a phone.
+        expect(find.text('Date Created'), findsNothing);
+      },
+      size: const Size(390, 2000),
+    );
+  });
 }

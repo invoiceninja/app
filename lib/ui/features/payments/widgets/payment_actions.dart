@@ -135,18 +135,14 @@ class PaymentActions {
         enabled: !payment.isDeleted,
         onTap: () => onTap(PaymentAction.sendEmail),
       ),
-      EntityActionItem(
+      addCommentActionItem(
+        context: context,
         kind: PaymentAction.addComment,
-        icon: Icons.chat_bubble_outline,
-        label: context.tr('add_comment'),
-        enabled: true,
         onTap: () => onTap(PaymentAction.addComment),
       ),
-      EntityActionItem(
+      logCallActionItem(
+        context: context,
         kind: PaymentAction.logCall,
-        icon: Icons.phone_in_talk_outlined,
-        label: context.tr('log_call'),
-        enabled: true,
         onTap: () => onTap(PaymentAction.logCall),
       ),
       if (payment.clientId.isNotEmpty && canViewClient)

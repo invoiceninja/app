@@ -339,18 +339,14 @@ class PurchaseOrderActions {
           enabled: true,
           onTap: () => onTap(PurchaseOrderAction.runTemplate),
         ),
-        EntityActionItem(
+        addCommentActionItem(
+          context: context,
           kind: PurchaseOrderAction.addComment,
-          icon: Icons.chat_bubble_outline,
-          label: context.tr('add_comment'),
-          enabled: true,
           onTap: () => onTap(PurchaseOrderAction.addComment),
         ),
-        EntityActionItem(
+        logCallActionItem(
+          context: context,
           kind: PurchaseOrderAction.logCall,
-          icon: Icons.phone_in_talk_outlined,
-          label: context.tr('log_call'),
-          enabled: true,
           onTap: () => onTap(PurchaseOrderAction.logCall),
         ),
       ],

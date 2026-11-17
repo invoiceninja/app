@@ -1,5 +1,6 @@
 import 'package:material_ui/material_ui.dart';
 
+import 'package:admin/app/design_tokens.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
 
@@ -81,7 +82,7 @@ class _AddCommentDialogState extends State<_AddCommentDialog> {
           keyboardType: TextInputType.multiline,
           decoration: InputDecoration(
             hintText: context.tr('comment'),
-            border: const OutlineInputBorder(),
+            border: const InFieldOutlineBorder(),
             // Said here because it can be said nowhere else honestly. The API
             // exposes no update or delete route for an activity note and the
             // `activities` table has no soft-delete column, so a saved comment

@@ -98,6 +98,13 @@ preferences go with it. The idle timeout runs on the web only
 A key's scope is pinned in `device_pref_keys_test.dart`, because changing it
 changes what a sign-out does.
 
+Copy about these settings has to stay true of both scopes. Device Settings'
+page subtitle (`device_settings_subtitle`, and `_web`) says they are stored on
+this device (this browser) and never synced, and promises nothing about how
+long they last: the account keys on its own Appearance tab go at a sign-out
+(`docs/settings-screens.md` § Device Settings is tabbed, and every tab opens
+with a card that always renders).
+
 ## The store is the one writer, and the controllers follow it
 
 `DevicePrefsStore` (`lib/data/prefs/device_prefs_store.dart`) mirrors the table

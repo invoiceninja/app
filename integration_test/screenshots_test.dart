@@ -31,6 +31,7 @@ import 'package:admin/data/db/app_database.dart';
 import 'package:admin/data/services/connectivity_watcher.dart';
 import 'package:admin/data/services/token_storage.dart';
 import 'package:admin/main.dart';
+import 'package:admin/ui/core/widgets/offline_banner.dart';
 import 'package:admin/ui/features/dashboard/views/dashboard_screen.dart';
 import 'package:admin/ui/features/dashboard/widgets/dashboard_figures.dart';
 import 'package:admin/ui/features/invoices/views/invoice_detail_screen.dart';
@@ -99,6 +100,11 @@ void main() {
       isHosted: false,
       token: Env.demoApiToken,
     );
+
+    // The demo token makes this the demo build, whose "Demo mode" strip would
+    // sit across the top of every marketing shot. Dismiss it as a visitor's ✕
+    // does (in memory only).
+    OfflineBanner.demoBannerDismissed.value = true;
 
     await tester.pumpWidget(
       InvoiceNinjaApp(

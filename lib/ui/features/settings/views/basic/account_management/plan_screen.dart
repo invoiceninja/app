@@ -97,6 +97,7 @@ class AccountManagementPlanScreen extends StatelessWidget {
           return const Center(child: CircularProgressIndicator());
         }
         return SettingsFormShell(
+          subtitle: context.tr('account_management_subtitle'),
           sections: [
             _PlanStatusCard(session: value),
             // Self-hosted only, and mutually exclusive with the hosted card
@@ -484,7 +485,7 @@ class _LicenseKeyDialogState extends State<_LicenseKeyDialog> {
               autofocus: true,
               decoration: InputDecoration(
                 labelText: context.tr('license'),
-                border: const OutlineInputBorder(),
+                border: const InFieldOutlineBorder(),
               ),
               textInputAction: TextInputAction.done,
               onSubmitted: (_) => _submit(),

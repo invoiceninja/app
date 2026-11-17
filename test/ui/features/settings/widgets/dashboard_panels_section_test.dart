@@ -63,7 +63,7 @@ void main() {
             child: inner!,
           ),
           home: const Scaffold(
-            body: SingleChildScrollView(child: DashboardPanelsSection()),
+            body: SingleChildScrollView(child: HideEmptyPanelsTile()),
           ),
         ),
       ),
@@ -72,15 +72,14 @@ void main() {
   }
 
   bool switchValue(WidgetTester tester) =>
-      tester.widget<SwitchListTile>(find.byType(SwitchListTile)).value;
+      tester.widget<Switch>(find.byType(Switch)).value;
 
-  testWidgets('renders under a Dashboard heading with its explanation', (
+  testWidgets('names the dashboard in its own title, with its explanation', (
     tester,
   ) async {
     await pump(tester, window: phone);
 
-    expect(find.text('Dashboard'), findsOneWidget);
-    expect(find.text('Hide empty panels'), findsOneWidget);
+    expect(find.text('Hide empty dashboard panels'), findsOneWidget);
     expect(find.textContaining('On by default on phones'), findsOneWidget);
   });
 
@@ -115,7 +114,7 @@ void main() {
     tester,
   ) async {
     await pump(tester, window: phone);
-    await tester.tap(find.byType(SwitchListTile));
+    await tester.tap(find.byType(Switch));
     await tester.pump();
 
     // Off — explicitly, which is the one answer automatic can't give a phone.
@@ -124,7 +123,7 @@ void main() {
 
     // Back on is what the phone would pick anyway: automatic again, so the
     // device keeps its own default rather than a frozen copy of it.
-    await tester.tap(find.byType(SwitchListTile));
+    await tester.tap(find.byType(Switch));
     await tester.pump();
     expect(pref.value, isNull);
     expect(switchValue(tester), isTrue);

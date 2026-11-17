@@ -526,7 +526,7 @@ class _CustomCssFieldState extends State<_CustomCssField> {
           enableSuggestions: false,
           style: const TextStyle(fontFamily: kMonoFontFamily, fontSize: 12),
           decoration: const InputDecoration(
-            border: OutlineInputBorder(),
+            border: InFieldOutlineBorder(),
             hintText: '.invoice-widget--total { … }',
           ),
           onChanged: widget.vm.setCustomCss,
@@ -749,7 +749,7 @@ class _ContentEditorState extends State<_ContentEditor> {
         minLines: 3,
         decoration: InputDecoration(
           labelText: context.tr('content'),
-          border: const OutlineInputBorder(),
+          border: const InFieldOutlineBorder(),
         ),
         onChanged: (v) {
           final next = Map<String, dynamic>.from(widget.block.properties);

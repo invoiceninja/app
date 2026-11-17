@@ -307,7 +307,7 @@ class _InDateFieldState extends State<InDateField> {
     widget.onChanged(picked);
   }
 
-  OutlineInputBorder _border(BuildContext context) => OutlineInputBorder(
+  OutlineInputBorder _border(BuildContext context) => InFieldOutlineBorder(
     borderRadius: BorderRadius.circular(InRadii.r1),
     borderSide: BorderSide(color: context.inTheme.border),
   );

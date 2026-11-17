@@ -30,11 +30,8 @@ void main() {
 
       // Visible immediately from the session — not gated behind an async
       // isAvailable() round-trip. No biometric flag persisted → off.
-      expect(find.byType(SwitchListTile), findsOneWidget);
-      expect(
-        tester.widget<SwitchListTile>(find.byType(SwitchListTile)).value,
-        isFalse,
-      );
+      expect(find.byType(Switch), findsOneWidget);
+      expect(tester.widget<Switch>(find.byType(Switch)).value, isFalse);
       expect(find.text('Biometric Authentication'), findsOneWidget);
 
       fixture.services.recentlyViewed.dispose();

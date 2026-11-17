@@ -90,6 +90,7 @@ class _ProductSettingsBody extends StatelessWidget {
     if (draft == null) return const SizedBox.shrink();
 
     return SettingsFormShell(
+      subtitle: context.tr('product_settings_subtitle'),
       sections: [
         // Inventory. Title-less cards (like the legacy 3-card layout and the
         // React divider groups) — clean section-title keys don't exist yet.

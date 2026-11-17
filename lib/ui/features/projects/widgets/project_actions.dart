@@ -227,18 +227,14 @@ class ProjectActions {
         ),
         // A note writes nothing on the project itself, so it is offered to
         // anyone who can see the record — the server asks only `can('view')`.
-        EntityActionItem(
+        addCommentActionItem(
+          context: context,
           kind: ProjectAction.addComment,
-          icon: Icons.chat_bubble_outline,
-          label: context.tr('add_comment'),
-          enabled: true,
           onTap: () => onTap(ProjectAction.addComment),
         ),
-        EntityActionItem(
+        logCallActionItem(
+          context: context,
           kind: ProjectAction.logCall,
-          icon: Icons.phone_in_talk_outlined,
-          label: context.tr('log_call'),
-          enabled: true,
           onTap: () => onTap(ProjectAction.logCall),
         ),
         // Cloning opens a new project: a create.

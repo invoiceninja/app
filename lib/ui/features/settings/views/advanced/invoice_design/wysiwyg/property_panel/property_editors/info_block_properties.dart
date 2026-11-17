@@ -186,7 +186,7 @@ class _InfoBlockPropertiesState extends State<InfoBlockProperties> {
                 initialValue: title,
                 decoration: InputDecoration(
                   labelText: context.tr('title'),
-                  border: const OutlineInputBorder(),
+                  border: const InFieldOutlineBorder(),
                 ),
                 onChanged: (v) => _updateProperty('title', v),
               ),
@@ -413,7 +413,7 @@ class _ExpandedFieldEditor extends StatelessWidget {
                 initialValue: (field['label'] as String?) ?? '',
                 decoration: InputDecoration(
                   labelText: context.tr('label'),
-                  border: const OutlineInputBorder(),
+                  border: const InFieldOutlineBorder(),
                 ),
                 onChanged: (v) => onFieldChanged('label', v),
               ),
@@ -426,7 +426,7 @@ class _ExpandedFieldEditor extends StatelessWidget {
                   initialValue: (field['prefix'] as String?) ?? '',
                   decoration: InputDecoration(
                     labelText: context.tr('prefix'),
-                    border: const OutlineInputBorder(),
+                    border: const InFieldOutlineBorder(),
                   ),
                   onChanged: (v) => onFieldChanged('prefix', v),
                   autocorrect: false,
@@ -439,7 +439,7 @@ class _ExpandedFieldEditor extends StatelessWidget {
                   initialValue: (field['suffix'] as String?) ?? '',
                   decoration: InputDecoration(
                     labelText: context.tr('suffix'),
-                    border: const OutlineInputBorder(),
+                    border: const InFieldOutlineBorder(),
                   ),
                   onChanged: (v) => onFieldChanged('suffix', v),
                   autocorrect: false,

@@ -21,6 +21,10 @@ import 'package:admin/ui/core/detail/entity_detail_actions_row.dart';
 ///    per-entity tear-off over the action enum). The clone *group* parent
 ///    is dropped as a whole — its kind should satisfy [isLifecycle] — so
 ///    no empty submenu is left behind.
+///  * **On create**, an action that writes onto the record itself
+///    ([EntityActionItem.needsSavedRecord] — Add comment, Log call) is
+///    dropped on every entity: a record that does not exist yet cannot take a
+///    note.
 ///
 /// On an existing record (`isCreate == false`) the full set is kept (minus
 /// Edit), matching the detail screen.
@@ -38,7 +42,7 @@ List<EntityActionItem<A>> filterForEditScreen<A>(
     for (final item in items)
       if (!item.isEdit &&
           !item.isNavigationOnly &&
-          !(isCreate && isLifecycle(item.kind)))
+          !(isCreate && (isLifecycle(item.kind) || item.needsSavedRecord)))
         item.isPrimary ? item.copyWith(isPrimary: false) : item,
   ];
 }

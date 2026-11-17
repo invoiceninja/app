@@ -132,10 +132,7 @@ void main() {
 
   testWidgets('the switch renders off by default', (tester) async {
     await pump(tester, roster: [_user('u1', first: 'Ada')]);
-    expect(
-      tester.widget<SwitchListTile>(find.byType(SwitchListTile)).value,
-      isFalse,
-    );
+    expect(tester.widget<Switch>(find.byType(Switch)).value, isFalse);
   });
 
   testWidgets('an all-verified roster shows no count line', (tester) async {
@@ -148,7 +145,7 @@ void main() {
         _user('u2', first: 'Bob'),
       ],
     );
-    expect(find.byType(SwitchListTile), findsOneWidget);
+    expect(find.byType(Switch), findsOneWidget);
     expect(find.byType(TextButton), findsNothing);
   });
 
@@ -157,7 +154,7 @@ void main() {
     // the rule: a control worth seeing renders anyway, because a disappearing
     // one reads as a bug.
     await pump(tester, roster: const []);
-    expect(find.byType(SwitchListTile), findsOneWidget);
+    expect(find.byType(Switch), findsOneWidget);
   });
 
   testWidgets('off — the count describes what the switch would do', (
@@ -202,7 +199,7 @@ void main() {
 
   testWidgets('no company means no count line', (tester) async {
     await pump(tester, roster: [_invitee('u1')], companyId: '');
-    expect(find.byType(SwitchListTile), findsOneWidget);
+    expect(find.byType(Switch), findsOneWidget);
     expect(find.byType(TextButton), findsNothing);
   });
   testWidgets('tapping the switch writes through the controller', (
@@ -214,7 +211,7 @@ void main() {
     await pump(tester, roster: [_user('u1', first: 'Ada')]);
     expect(controller.value, isFalse);
 
-    await tester.tap(find.byType(SwitchListTile));
+    await tester.tap(find.byType(Switch));
     await tester.pumpAndSettle();
 
     expect(controller.value, isTrue);

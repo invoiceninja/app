@@ -439,7 +439,7 @@ class _LogCallFormState extends State<_LogCallForm> {
                         keyboardType: TextInputType.multiline,
                         decoration: InputDecoration(
                           labelText: context.tr('summary'),
-                          border: const OutlineInputBorder(),
+                          border: const InFieldOutlineBorder(),
                         ),
                       ),
                     ),

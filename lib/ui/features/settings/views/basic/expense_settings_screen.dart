@@ -91,6 +91,7 @@ class _ExpenseSettingsBody extends StatelessWidget {
     final formatter = services.formatterIfReady(vm.companyId);
 
     return SettingsFormShell(
+      subtitle: context.tr('expense_settings_subtitle'),
       sections: [
         // Untitled: "Settings" under the Expense Settings title said nothing.
         FormSection(

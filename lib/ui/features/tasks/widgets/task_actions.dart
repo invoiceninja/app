@@ -336,18 +336,14 @@ class TaskActions {
       // A note writes nothing on the task itself, so it is offered to anyone
       // who can see the record — the server asks only `can('view')`.
       if (live) ...[
-        EntityActionItem(
+        addCommentActionItem(
+          context: context,
           kind: TaskAction.addComment,
-          icon: Icons.chat_bubble_outline,
-          label: context.tr('add_comment'),
-          enabled: true,
           onTap: () => onTap(TaskAction.addComment),
         ),
-        EntityActionItem(
+        logCallActionItem(
+          context: context,
           kind: TaskAction.logCall,
-          icon: Icons.phone_in_talk_outlined,
-          label: context.tr('log_call'),
-          enabled: true,
           onTap: () => onTap(TaskAction.logCall),
         ),
       ],

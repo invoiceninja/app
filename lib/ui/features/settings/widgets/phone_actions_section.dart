@@ -8,6 +8,7 @@ import 'package:admin/domain/phone/phone_actions_settings.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/in_time_field.dart';
 import 'package:admin/ui/features/settings/widgets/form_section.dart';
+import 'package:admin/ui/features/settings/widgets/setting_row.dart';
 
 /// Search keys for the settings sidebar search. Colocated with the section so
 /// adding a field updates both ends in one place (see
@@ -45,61 +46,61 @@ class PhoneActionsSection extends StatelessWidget {
       listenable: controller,
       builder: (context, _) {
         final prefs = controller.value;
-        final theme = Theme.of(context);
         return FormSection(
           title: context.tr('phone_numbers'),
-          spacing: 0,
-          children: [
-            Padding(
-              padding: EdgeInsets.only(bottom: InSpacing.sm),
-              child: Text(
-                context.tr('phone_numbers_help'),
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: context.inTheme.ink3,
-                ),
-              ),
-            ),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              secondary: const Icon(Icons.call_outlined),
-              title: Text(context.tr('tap_to_call')),
+          description: context.tr('phone_numbers_help'),
+          flush: true,
+          children: withSettingDividers([
+            SettingRow.toggle(
+              icon: const Icon(Icons.call_outlined),
+              title: context.tr('tap_to_call'),
               value: prefs.tapToCall,
               onChanged: controller.setTapToCall,
             ),
             // The guards and the log-call offer are always editable: the
             // record screen's Call action dials with tap-to-call off too
             // (docs/tap-to-call.md § The preference), and they apply to it.
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              secondary: const Icon(Icons.help_outline),
-              title: Text(context.tr('confirm_before_calling')),
-              subtitle: Text(context.tr('confirm_before_calling_help')),
+            SettingRow.toggle(
+              icon: const Icon(Icons.help_outline),
+              title: context.tr('confirm_before_calling'),
+              subtitle: context.tr('confirm_before_calling_help'),
               value: prefs.confirmBeforeCall,
               onChanged: controller.setConfirmBeforeCall,
             ),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              secondary: const Icon(Icons.bedtime_outlined),
-              title: Text(context.tr('warn_outside_business_hours')),
-              subtitle: Text(context.tr('warn_outside_business_hours_help')),
-              value: prefs.warnOutsideBusinessHours,
-              onChanged: controller.setWarnOutsideBusinessHours,
+            // The hours sit under their switch, inside the same divider
+            // band: they are its detail, not a row of their own.
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SettingRow.toggle(
+                  icon: const Icon(Icons.bedtime_outlined),
+                  title: context.tr('warn_outside_business_hours'),
+                  subtitle: context.tr('warn_outside_business_hours_help'),
+                  value: prefs.warnOutsideBusinessHours,
+                  onChanged: controller.setWarnOutsideBusinessHours,
+                ),
+                if (prefs.warnOutsideBusinessHours)
+                  SettingBlock(
+                    child: _BusinessHoursRow(
+                      controller: controller,
+                      prefs: prefs,
+                    ),
+                  ),
+              ],
             ),
-            if (prefs.warnOutsideBusinessHours)
-              _BusinessHoursRow(controller: controller, prefs: prefs),
             // Last, because it is about what happens *after* a call rather
             // than before it. Native mobile only in effect (see
             // `PhoneActionsSettings.offerToLogCalls`); the row still renders
             // everywhere so the state is visible.
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              secondary: const Icon(Icons.phone_in_talk_outlined),
-              title: Text(context.tr('offer_to_log_calls')),
-              subtitle: Text(context.tr('offer_to_log_calls_help')),
+            SettingRow.toggle(
+              icon: const Icon(Icons.phone_in_talk_outlined),
+              title: context.tr('offer_to_log_calls'),
+              subtitle: context.tr('offer_to_log_calls_help'),
               value: prefs.offerToLogCalls,
               onChanged: controller.setOfferToLogCalls,
             ),
-          ],
+          ]),
         );
       },
     );
@@ -124,49 +125,46 @@ class _BusinessHoursRow extends StatelessWidget {
     final formatter = companyId == null
         ? null
         : services.formatterIfReady(companyId);
-    return Padding(
-      padding: EdgeInsets.only(top: InSpacing.sm),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(bottom: InSpacing.xs),
-            child: Text(
-              context.tr('business_hours'),
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: context.inTheme.ink3),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(bottom: InSpacing.xs),
+          child: Text(
+            context.tr('business_hours'),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: context.inTheme.ink3),
+          ),
+        ),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: InTimeField(
+                labelText: context.tr('from'),
+                formatter: formatter,
+                value: _toTimeOfDay(prefs.startMinutes),
+                onChanged: (v) => controller.setBusinessHours(
+                  startMinutes: _toMinutes(v, prefs.startMinutes),
+                ),
+              ),
             ),
-          ),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: InTimeField(
-                  labelText: context.tr('from'),
-                  formatter: formatter,
-                  value: _toTimeOfDay(prefs.startMinutes),
-                  onChanged: (v) => controller.setBusinessHours(
-                    startMinutes: _toMinutes(v, prefs.startMinutes),
-                  ),
+            SizedBox(width: InSpacing.md(context)),
+            Expanded(
+              child: InTimeField(
+                labelText: context.tr('to'),
+                formatter: formatter,
+                value: _toTimeOfDay(prefs.endMinutes),
+                onChanged: (v) => controller.setBusinessHours(
+                  endMinutes: _toMinutes(v, prefs.endMinutes),
                 ),
               ),
-              SizedBox(width: InSpacing.md(context)),
-              Expanded(
-                child: InTimeField(
-                  labelText: context.tr('to'),
-                  formatter: formatter,
-                  value: _toTimeOfDay(prefs.endMinutes),
-                  onChanged: (v) => controller.setBusinessHours(
-                    endMinutes: _toMinutes(v, prefs.endMinutes),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 

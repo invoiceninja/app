@@ -21,6 +21,7 @@ class CustomFieldsCompanyScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SettingsFormShell(
+    subtitle: context.tr('custom_fields_subtitle'),
     sections: [
       CustomFieldSlotsSection(
         prefix: 'company',

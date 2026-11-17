@@ -50,11 +50,13 @@ abstract interface class ListTotalsSource {
 ///   `dashboard_cache` under [kListTotalsCacheKind]. A server without the
 ///   route (404 / 400 / 405) is remembered for the session, per company, and
 ///   the figure is summed from the rows Drift holds instead
-///   (`BaseEntityDao.watchListTotals`) — exact on a small account,
-///   under-reporting on a large one until a Sync, like the sidebar counters.
-///   So does a fetch that failed with nothing cached (offline), and a 422 (a
-///   server that does not know this entity). A 403 — a user whose figure is
-///   hidden — draws no line at all.
+///   (`BaseEntityDao.watchListTotals`) — but only once a Sync has walked that
+///   entity to the end (`sync_state.last_full_sync_at`,
+///   `SyncStateDao.markFullSync`). Before that Drift holds only the pages
+///   browsed so far, and a sum of them is a confidently wrong total, so the
+///   line hides. So does a fetch that failed with nothing cached (offline),
+///   and a 422 (a server that does not know this entity). A 403 — a user
+///   whose figure is hidden — draws no line at all.
 class ListTotalsRepository implements ListTotalsSource {
   ListTotalsRepository({
     required this.db,
@@ -132,8 +134,12 @@ class ListTotalsRepository implements ListTotalsSource {
           .map(outstandingTotalsOf);
     }
     final local = localDaoFor(type)?.watchListTotals(companyId: companyId);
-    if (local == null) return Stream.value(null);
-    return _watchEntity(spec, companyId, local);
+    final syncEntity = syncStateEntityFor(type);
+    if (local == null || syncEntity == null) return Stream.value(null);
+    final complete = db.syncStateDao
+        .watchLastFullSyncAt(companyId: companyId, entityType: syncEntity)
+        .map((at) => at != null);
+    return _watchEntity(spec, companyId, local, complete);
   }
 
   @override
@@ -262,8 +268,28 @@ class ListTotalsRepository implements ListTotalsSource {
     _ => null,
   };
 
+  /// [type]'s `sync_state.entity_type` — its repository's `entityTypeName`.
+  static String? syncStateEntityFor(EntityType type) => switch (type) {
+    EntityType.quote => 'quote',
+    EntityType.credit => 'credit',
+    EntityType.payment => 'payment',
+    EntityType.recurringInvoice => 'recurring_invoice',
+    EntityType.purchaseOrder => 'purchase_order',
+    EntityType.expense => 'expense',
+    EntityType.recurringExpense => 'recurring_expense',
+    _ => null,
+  };
+
   /// The server row while it is the answer, the local sum while the server
-  /// cannot give one, and null (hidden) while the first fetch is still out.
+  /// cannot give one and Drift is known to hold every row ([complete]), and
+  /// null (hidden) while the first fetch is still out or Drift holds only the
+  /// pages browsed so far.
+  ///
+  /// [complete] is whether a Sync has walked the entity to the end
+  /// (`last_full_sync_at`). Nothing else proves it: a list that paged to its
+  /// end (`hasMore` false) is view-model state, filtered by its search, tab
+  /// and lifecycle states, and offset paging over minutes can skip a row a
+  /// create shifted — so it is not accepted.
   ///
   /// The local query is subscribed only while it is the answer: it re-runs on
   /// every write to its table, which a Sync makes a page at a time.
@@ -271,21 +297,28 @@ class ListTotalsRepository implements ListTotalsSource {
     ListTotalsSpec spec,
     String companyId,
     Stream<Map<String, Decimal>> local,
+    Stream<bool> complete,
   ) {
     final key = '$companyId|${spec.wireEntity}';
     late final StreamController<CurrencyTotals?> out;
     StreamSubscription<Object?>? cacheSub;
     StreamSubscription<Object?>? changesSub;
     StreamSubscription<Object?>? localSub;
+    StreamSubscription<Object?>? completeSub;
     CurrencyTotals? server;
     var serverSeen = false;
+    var isComplete = false;
+
+    void dropLocal() {
+      if (localSub != null) {
+        unawaited(localSub!.cancel());
+        localSub = null;
+      }
+    }
 
     void decide() {
       if (_denied.contains(key)) {
-        if (localSub != null) {
-          unawaited(localSub!.cancel());
-          localSub = null;
-        }
+        dropLocal();
         out.add(null);
         return;
       }
@@ -293,19 +326,28 @@ class ListTotalsRepository implements ListTotalsSource {
           _answersLocally(companyId, key) ||
           (serverSeen && server == null && _failed.contains(key));
       if (useLocal) {
+        // A sum of the pages browsed so far is not a total: hidden until a
+        // Sync has walked the entity to the end.
+        if (!isComplete) {
+          dropLocal();
+          out.add(null);
+          return;
+        }
         localSub ??= local.listen(out.add, onError: out.addError);
         return;
       }
-      if (localSub != null) {
-        unawaited(localSub!.cancel());
-        localSub = null;
-      }
+      dropLocal();
       if (serverSeen) out.add(server);
     }
 
     out = StreamController<CurrencyTotals?>(
       onListen: () {
         changesSub = _changes.stream.listen((_) => decide());
+        completeSub = complete.listen((done) {
+          if (done == isComplete) return;
+          isComplete = done;
+          decide();
+        }, onError: out.addError);
         cacheSub = db.dashboardCacheDao
             .watch(
               companyId: companyId,
@@ -327,6 +369,7 @@ class ListTotalsRepository implements ListTotalsSource {
       onCancel: () async {
         await cacheSub?.cancel();
         await changesSub?.cancel();
+        await completeSub?.cancel();
         await localSub?.cancel();
       },
     );

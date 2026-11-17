@@ -820,7 +820,7 @@ class _LineItemPickerBodyState extends State<LineItemPickerBody>
             horizontal: 12,
             vertical: 14,
           ),
-          border: const OutlineInputBorder(),
+          border: const InFieldOutlineBorder(),
           suffixIcon: _filter.isEmpty
               ? null
               : IconButton(

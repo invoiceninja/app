@@ -460,7 +460,7 @@ class _ImportExportScreenState extends State<ImportExportScreen> {
             isExpanded: true,
             decoration: InputDecoration(
               labelText: context.tr('export_type'),
-              border: const OutlineInputBorder(),
+              border: const InFieldOutlineBorder(),
               isDense: true,
             ),
             onChanged: _exporting
@@ -496,7 +496,7 @@ class _ImportExportScreenState extends State<ImportExportScreen> {
               isExpanded: true,
               decoration: InputDecoration(
                 labelText: context.tr('date'),
-                border: const OutlineInputBorder(),
+                border: const InFieldOutlineBorder(),
                 isDense: true,
               ),
               onChanged: _exporting
@@ -528,7 +528,7 @@ class _ImportExportScreenState extends State<ImportExportScreen> {
               isExpanded: true,
               decoration: InputDecoration(
                 labelText: context.tr('date_range'),
-                border: const OutlineInputBorder(),
+                border: const InFieldOutlineBorder(),
                 isDense: true,
               ),
               onChanged: _exporting
@@ -757,6 +757,7 @@ class _ImportExportScreenState extends State<ImportExportScreen> {
     return SettingsScreenScaffold(
       titleKey: 'import_export',
       body: SettingsFormShell(
+        subtitle: context.tr('import_export_subtitle'),
         sections: [
           switch (_step) {
             _Step.pick => _pickSection(context),
@@ -810,7 +811,7 @@ class _ImportExportScreenState extends State<ImportExportScreen> {
               isExpanded: true,
               decoration: InputDecoration(
                 labelText: context.tr('bank_account'),
-                border: const OutlineInputBorder(),
+                border: const InFieldOutlineBorder(),
                 isDense: true,
               ),
               onChanged: _busy
@@ -841,7 +842,7 @@ class _ImportExportScreenState extends State<ImportExportScreen> {
             isExpanded: true,
             decoration: InputDecoration(
               labelText: context.tr('import_type'),
-              border: const OutlineInputBorder(),
+              border: const InFieldOutlineBorder(),
               isDense: true,
             ),
             onChanged: _busy

@@ -280,18 +280,14 @@ class RecurringInvoiceActions {
         // toasted success then 422'd into a dead outbox row. See BACKEND.md.
         // (The RecurringInvoiceAction.runTemplate enum/handler stay as
         // unreachable no-ops.)
-        EntityActionItem(
+        addCommentActionItem(
+          context: context,
           kind: RecurringInvoiceAction.addComment,
-          icon: Icons.chat_bubble_outline,
-          label: context.tr('add_comment'),
-          enabled: true,
           onTap: () => onTap(RecurringInvoiceAction.addComment),
         ),
-        EntityActionItem(
+        logCallActionItem(
+          context: context,
           kind: RecurringInvoiceAction.logCall,
-          icon: Icons.phone_in_talk_outlined,
-          label: context.tr('log_call'),
-          enabled: true,
           onTap: () => onTap(RecurringInvoiceAction.logCall),
         ),
       ],

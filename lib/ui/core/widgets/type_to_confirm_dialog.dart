@@ -125,7 +125,7 @@ class _TypeToConfirmDialogState extends State<_TypeToConfirmDialog> {
                       : TextInputAction.next,
                   decoration: InputDecoration(
                     labelText: hint,
-                    border: const OutlineInputBorder(),
+                    border: const InFieldOutlineBorder(),
                   ),
                 ),
               ),
@@ -138,7 +138,7 @@ class _TypeToConfirmDialogState extends State<_TypeToConfirmDialog> {
                     maxLines: 4,
                     decoration: InputDecoration(
                       labelText: widget.reasonLabel,
-                      border: const OutlineInputBorder(),
+                      border: const InFieldOutlineBorder(),
                     ),
                   ),
                 ),

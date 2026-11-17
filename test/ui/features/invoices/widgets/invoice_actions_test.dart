@@ -592,4 +592,30 @@ void main() {
       }
     });
   });
+
+  // The create screen's bar is `filterForEditScreen(itemsFor(...))`: a new
+  // invoice cannot take a note, an existing one still can.
+  group('the edit screen\'s Add Comment / Log Call', () {
+    testWidgets('dropped on a new invoice', (tester) async {
+      final items = await resolveItems(tester, _invoice(id: ''));
+      final onEditor = filterForEditScreen(
+        items,
+        isCreate: true,
+        isLifecycle: InvoiceActions.isLifecycle,
+      ).map((i) => i.kind);
+      expect(onEditor, isNot(contains(InvoiceAction.addComment)));
+      expect(onEditor, isNot(contains(InvoiceAction.logCall)));
+    });
+
+    testWidgets('kept on an existing invoice', (tester) async {
+      final items = await resolveItems(tester, _invoice());
+      final onEditor = filterForEditScreen(
+        items,
+        isCreate: false,
+        isLifecycle: InvoiceActions.isLifecycle,
+      ).map((i) => i.kind);
+      expect(onEditor, contains(InvoiceAction.addComment));
+      expect(onEditor, contains(InvoiceAction.logCall));
+    });
+  });
 }

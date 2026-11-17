@@ -6,6 +6,7 @@ import 'package:admin/data/models/api/contact_api_model.dart';
 import 'package:admin/data/models/domain/client.dart';
 import 'package:admin/ui/core/detail/entity_detail_actions_row.dart';
 import 'package:admin/ui/core/detail/entity_quick_actions.dart';
+import 'package:admin/ui/core/edit/edit_action_filter.dart';
 import 'package:admin/ui/features/clients/widgets/client_actions.dart';
 
 import '../shell/_shell_test_helpers.dart';
@@ -470,6 +471,36 @@ void main() {
       ClientAction.addComment,
       ClientAction.newGroup,
       ClientAction.assignGroup,
+    });
+  });
+
+  // The create screen's bar is `filterForEditScreen(itemsFor(...))`: a new
+  // client cannot take a note, an existing one still can.
+  group('the edit screen\'s Add Comment / Log Call', () {
+    testWidgets('dropped on a new client', (tester) async {
+      final items = await resolveItems(tester, client: _client(id: ''));
+      final onEditor = kindsOf(
+        filterForEditScreen(
+          items,
+          isCreate: true,
+          isLifecycle: ClientActions.isLifecycle,
+        ),
+      );
+      expect(onEditor, isNot(contains(ClientAction.addComment)));
+      expect(onEditor, isNot(contains(ClientAction.logCall)));
+    });
+
+    testWidgets('kept on an existing client', (tester) async {
+      final items = await resolveItems(tester, client: _client());
+      final onEditor = kindsOf(
+        filterForEditScreen(
+          items,
+          isCreate: false,
+          isLifecycle: ClientActions.isLifecycle,
+        ),
+      );
+      expect(onEditor, contains(ClientAction.addComment));
+      expect(onEditor, contains(ClientAction.logCall));
     });
   });
 }

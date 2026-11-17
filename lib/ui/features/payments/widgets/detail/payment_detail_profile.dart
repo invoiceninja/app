@@ -8,12 +8,12 @@ import 'package:admin/data/models/domain/company.dart';
 import 'package:admin/data/models/domain/company_gateway.dart';
 import 'package:admin/data/models/domain/payment.dart';
 import 'package:admin/l10n/localization.dart';
-import 'package:admin/ui/core/adaptive.dart';
 import 'package:admin/ui/core/detail/custom_field_detail_rows.dart';
+import 'package:admin/ui/core/detail/record_details_cards.dart';
+import 'package:admin/ui/core/detail/record_profile_layout.dart';
 import 'package:admin/ui/core/detail/record_timestamps.dart';
 import 'package:admin/ui/core/widgets/clamped_text.dart';
 import 'package:admin/ui/core/widgets/detail_info_row.dart';
-import 'package:admin/ui/core/widgets/detail_row_columns.dart';
 import 'package:admin/ui/core/widgets/user_name_label.dart';
 import 'package:admin/ui/core/widgets/watch_builder.dart';
 import 'package:admin/ui/features/dashboard/widgets/card_shell.dart';
@@ -30,12 +30,17 @@ import 'package:admin/domain/payment_types.dart';
 /// transaction reference and the note could only be read by opening the
 /// payment for editing.
 ///
+/// **Two cards, side by side and level on a wide window**
+/// (`RecordProfileLayout`): Details — what the payment is (number, date, type,
+/// reference, gateway, conversion) — and Additional Info — what is kept
+/// about it (project, assigned user, custom fields, created, updated). It was
+/// one full-width card running its rows in two columns, which read as one
+/// card with the dates floating in its right half. Below the breakpoint they
+/// stack; when only one half has rows it is a single Details card
+/// (`recordDetailsCards`). The note stays full width beneath.
+///
 /// **Each card is gated on having content**, derived from the rows it draws,
 /// so a card that would be a title over nothing is not given a gap.
-///
-/// Details is the only lead card a payment has, so on a wide window it runs
-/// its rows in two columns rather than leaving four fifths of a full-width
-/// card blank. The note stays full width beneath it.
 class PaymentDetailProfile extends StatelessWidget {
   const PaymentDetailProfile({
     super.key,
@@ -53,8 +58,8 @@ class PaymentDetailProfile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // The gateway's name is a stream (the payment carries only its id), and
-    // whether there is a Gateway row decides whether there is a Details card
-    // at all — so it is resolved here, once, and handed to both.
+    // whether there is a Gateway row decides which cards there are — so it
+    // is resolved here, once, and handed to the rows.
     if (payment.companyGatewayId.isEmpty) return _build(context, '');
     final services = context.read<Services>();
     final companyId = services.auth.session.value?.currentCompanyId ?? '';
@@ -80,90 +85,38 @@ class PaymentDetailProfile extends StatelessWidget {
   }
 
   Widget _build(BuildContext context, String gatewayName) {
-    final hasDetails = PaymentDetailDetailsCard.hasContent(
-      context,
-      payment,
-      company,
-      formatter: formatter,
-      gatewayName: gatewayName,
-    );
-    final hasNotes = PaymentDetailNotesCard.hasContent(payment);
-    final gap = SizedBox(height: InSpacing.md(context));
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final wide = constraints.maxWidth >= Breakpoints.entityFormMultiColumn;
-        final cards = <Widget>[
-          if (hasDetails)
-            PaymentDetailDetailsCard(
-              payment: payment,
-              company: company,
-              formatter: formatter,
-              gatewayName: gatewayName,
-              columns: wide ? 2 : 1,
-            ),
-          if (hasNotes) PaymentDetailNotesCard(payment: payment),
-        ];
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (var i = 0; i < cards.length; i++) ...[
-              if (i > 0) gap,
-              cards[i],
-            ],
-          ],
-        );
-      },
+    return RecordProfileLayout(
+      lead: recordDetailsCards(
+        context,
+        facts: PaymentDetailRows.facts(
+          context,
+          payment,
+          formatter: formatter,
+          gatewayName: gatewayName,
+        ),
+        bookkeeping: PaymentDetailRows.bookkeeping(
+          context,
+          payment,
+          company,
+          formatter: formatter,
+        ),
+      ),
+      tail: [
+        if (PaymentDetailNotesCard.hasContent(payment))
+          PaymentDetailNotesCard(payment: payment),
+      ],
     );
   }
 }
 
-/// "Details" on the payment record — number, date, type, reference, gateway,
-/// conversion, custom fields. Blank rows are left out, and a card with no rows
-/// builds nothing.
-class PaymentDetailDetailsCard extends StatelessWidget {
-  const PaymentDetailDetailsCard({
-    super.key,
-    required this.payment,
-    this.company,
-    this.formatter,
-    this.gatewayName = '',
-    this.columns = 1,
-  });
-
-  final Payment payment;
-  final Company? company;
-  final Formatter? formatter;
-
-  /// The gateway that took the payment, by name — resolved by the profile.
-  /// Empty (a manual payment, or one whose gateway is gone) draws no row.
-  final String gatewayName;
-
-  /// How many columns the rows run in — 2 when this card has a wide window's
-  /// full width to itself. See `DetailRowColumns`.
-  final int columns;
-
-  /// Derived from [rowsFor], the list [build] renders, so the two cannot
-  /// drift.
-  static bool hasContent(
+/// The payment record's label / value rows, in display order. Blank rows are
+/// left out.
+abstract final class PaymentDetailRows {
+  /// What the payment is — number, date, type, reference, gateway,
+  /// conversion. The Details card.
+  static List<Widget> facts(
     BuildContext context,
-    Payment payment,
-    Company? company, {
-    Formatter? formatter,
-    String gatewayName = '',
-  }) => rowsFor(
-    context,
-    payment,
-    company,
-    formatter: formatter,
-    gatewayName: gatewayName,
-  ).isNotEmpty;
-
-  /// The rows, in display order.
-  static List<Widget> rowsFor(
-    BuildContext context,
-    Payment payment,
-    Company? company, {
+    Payment payment, {
     Formatter? formatter,
     String gatewayName = '',
   }) {
@@ -230,6 +183,21 @@ class PaymentDetailDetailsCard extends StatelessWidget {
             copyable: false,
           ),
       ],
+    ];
+  }
+
+  /// What is kept about the payment — the project it is filed under, who it
+  /// is assigned to, the custom fields, created and updated. The Additional
+  /// Info card. Created / updated are left out on a phone, where
+  /// `RecordTimestampsLine` says them.
+  static List<Widget> bookkeeping(
+    BuildContext context,
+    Payment payment,
+    Company? company, {
+    Formatter? formatter,
+  }) {
+    final p = payment;
+    return [
       if (p.projectId.isNotEmpty)
         DetailInfoRow(
           label: context.tr('project'),
@@ -255,7 +223,7 @@ class PaymentDetailDetailsCard extends StatelessWidget {
         context,
         createdAt: p.createdAt,
         updatedAt: p.updatedAt,
-        formatter: f,
+        formatter: formatter,
       ),
     ];
   }
@@ -295,22 +263,6 @@ class PaymentDetailDetailsCard extends StatelessWidget {
     return [
       for (final r in rows) DetailInfoRow(label: r.label, value: r.value),
     ];
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final rows = rowsFor(
-      context,
-      payment,
-      company,
-      formatter: formatter,
-      gatewayName: gatewayName,
-    );
-    if (rows.isEmpty) return const SizedBox.shrink();
-    return DashboardCardShell(
-      title: context.tr('details'),
-      child: DetailRowColumns(columns: columns, children: rows),
-    );
   }
 }
 

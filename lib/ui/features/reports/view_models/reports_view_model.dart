@@ -898,6 +898,7 @@ class ReportsViewModel extends ChangeNotifier {
     int firstDayOfWeek = 0,
     Map<String, Decimal>? exchangeRatesOverride,
   }) {
+    companyCurrencyId = _companyCurrencyFor(companyCurrencyId);
     final preview = _run.preview ?? ReportPreview.empty;
     final rates =
         exchangeRatesOverride ??
@@ -952,6 +953,18 @@ class ReportsViewModel extends ChangeNotifier {
     return _memoView!;
   }
 
+  /// The company currency a view is read in: the caller's (the screen's
+  /// `Formatter`), else the one this view model resolved before its first run
+  /// ([companyCurrencyId]). Both come from the same `Formatter`, but the
+  /// screen's lands a frame or more later, and a result painted in that
+  /// window (a remembered one, on opening) fell back to the currency with the
+  /// most rows and then jumped to the company's (`docs/reports.md` § A report
+  /// is read in the company's currency, whatever order its rows arrive in).
+  String? _companyCurrencyFor(String? fromCaller) =>
+      fromCaller == null || fromCaller.isEmpty
+      ? _companyCurrencyId
+      : fromCaller;
+
   /// The previous period cut exactly as [buildView] cuts the current one —
   /// same columns, filters, search, grouping and granularity — or null when
   /// there is no comparison on screen. A drill is not carried over: it names
@@ -961,6 +974,7 @@ class ReportsViewModel extends ChangeNotifier {
     int firstMonthOfYear = 1,
     int firstDayOfWeek = 0,
   }) {
+    companyCurrencyId = _companyCurrencyFor(companyCurrencyId);
     final preview = _comparePreview;
     if (preview == null) return null;
     final ui = ReportUiState(

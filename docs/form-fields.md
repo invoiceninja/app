@@ -131,7 +131,7 @@ Why above: the floating label is the field's placeholder until the field has a v
 How the inside label is hidden, and why the call site is not edited. `LabeledField` puts a local `InputDecorationTheme` over its child with `floatingLabelBehavior: always` and a label style of font size 0:
 
 - **`always`, not `never`.** `InputDecorator` shows the hint only when `isEmpty && !_hasInlineLabel`, and with `never` the unseen label never withdraws, so an empty field lost its hint. With `always` the label counts as withdrawn.
-- **Font size 0, not a transparent colour alone.** `OutlineInputBorder` cuts its notch from the label's width (`borderGap.extent = label.size.width * 0.75`) and paints none when that is 0. Any width at all gets the 8 px of `gapPadding` as well.
+- **Font size 0, not a transparent colour alone.** `OutlineInputBorder` cuts its notch from the label's width (`borderGap.extent = label.size.width * 0.75`) and paints none when that is 0. Any width at all gets the 8 px of `gapPadding` as well — and a font size of 0 does not get every label to 0, so the border has to ignore it too (§ A label above the box cuts no notch in its border).
 - **The `labelText` stays** because a text field takes its screen-reader name from the decoration (measured: the semantics node's label is the `labelText`, empty or filled), because Compact then needs no second code path, and because tests that find a field by its label still do. The line above is a `RichText` under `ExcludeSemantics`, so it is neither read twice nor matched twice by `find.text`.
 - **A child that is not a text field** (a dropdown, a read-only `InputDecorator`) is given `Semantics(label:)`, since its inside label is the only name it had.
 
@@ -142,6 +142,22 @@ Two things defeat the hiding, and neither fails a test: an explicit `labelStyle`
 **One text size, so one height.** A plain `TextField` draws its value in `bodyLarge` (16 px) and a `DropdownButtonFormField` in `titleMedium`, while the shared fields pass `bodyMedium` (14). Side by side that was two sizes of text and two heights of box, which is what put the labels of the three invoice cards on different lines and made Invoice Number taller than Invoice Date. `LabeledField` puts a derived theme over its child that sets both styles to `bodyMedium`'s metrics (one copy per app theme, cached in an `Expando`), at either density. The height that results is not a constant: it is twice the padding plus a line of text, less what the platform's visual density takes (about 36 px on desktop). So a control that sits beside a field is stretched to it, never given a number: the Discount field and its Percent / Amount toggle share one `LabeledField` over an `IntrinsicHeight` row.
 
 Pinned by `test/ui/core/widgets/labeled_field_test.dart`.
+
+## A label above the box cuts no notch in its border
+
+**Every outlined field is drawn by `InFieldOutlineBorder` (`lib/app/design_tokens.dart`), never a bare `OutlineInputBorder`: it cuts its label notch only for a gap of at least `kMinFieldLabelGap` (1 px), so a Comfortable field's top edge is whole and a Compact floating label keeps its notch.** `inFieldBorder` returns it, so the theme and the four shared decorations have it; every call site that set its own `OutlineInputBorder(...)` was switched to it, and `test/lint/field_outline_border_test.dart` fails on a new one (`// lint: allow-outline-input-border <reason>` opts out).
+
+The failure: every Comfortable field whose label holds a space (PO Number, Invoice Number, Invoice Date, Due Date — most of them) showed an 8 px gap in its top edge, about 10 px in from the start, where a floating label would sit. It shipped on every platform: the 2026-11-17 store screenshots show it on Linux (16 device px at 2x) and on the web, phone and laptop alike.
+
+The mechanism. `LabeledField` hides the decoration's own label with font size 0 (above), and `InputDecorator` sets `borderGap.extent = label.size.width * 0.75`. SkParagraph — native and CanvasKit both, measured with `TextPainter` under `flutter test` and `flutter test --platform chrome` — lays out a zero-size text that contains a space at **`FLT_MIN` (1.1754943508222875e-38) wide**, not 0; "Name" measures 0, "PO Number" `FLT_MIN`, whatever the letter or word spacing. `OutlineInputBorder.paint` skips the gap only when `gapExtent <= 0`, and otherwise cuts `gapExtent + 2 × gapPadding` = 8 px. No text style reaches exactly 0, so the threshold lives in the border, which is the one thing that can tell a real label (several pixels even for one character at Compact's 12 px) from a hidden one.
+
+Three things keep it whole:
+
+- **The subclass keeps its type through every copy.** `InputDecorator` calls `border.copyWith(borderSide:)` on a border with a default side, and tweens between the resting and focused borders with `ShapeBorder.lerp`; `OutlineInputBorder`'s `copyWith`, `scale`, `lerpFrom` and `lerpTo` return the base class, which would bring the nick back for the length of the focus animation. All four are overridden.
+- **A decoration's own `border` wins over the theme's,** so one bare `OutlineInputBorder()` at a call site brings the nick back for that field and nothing else fails — hence the lint rather than a theme setting.
+- **The hidden label must stay under a pixel.** A label style that measured even 1 px would be notched again; `labeled_field_border_test` asserts the hidden label is narrower than `kMinFieldLabelGap`.
+
+Pinned by `test/ui/core/widgets/labeled_field_border_test.dart`, which reads the painted pixels of the box's top edge: whole at Comfortable (empty, with a value, focused, with an error, disabled; light and dark; Android and macOS), notched at Compact (with a value, and focused while empty), and the border class on its own (a `FLT_MIN` and a 0.5 px gap draw the whole edge, a 30 px one cuts 38 px, the type survives `copyWith` / `scale` / `lerp`). With the plain `OutlineInputBorder` every Comfortable case reads an 8 px gap.
 
 ## A field answers the mouse with its border, never its fill
 

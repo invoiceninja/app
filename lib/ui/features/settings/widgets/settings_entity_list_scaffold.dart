@@ -9,6 +9,7 @@ import 'package:admin/data/repositories/auth_repository.dart';
 import 'package:admin/domain/entity_type.dart';
 import 'package:admin/domain/quick_create.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/core/widgets/empty_state.dart';
 import 'package:admin/ui/core/widgets/watch_builder.dart';
 import 'package:admin/ui/features/settings/widgets/form_section.dart';
 import 'package:admin/ui/features/settings/widgets/settings_form_shell.dart';
@@ -53,6 +54,8 @@ class SettingsEntityListScaffold<T> extends StatefulWidget {
     this.extraAppBarActions = const <Widget>[],
     this.starters,
     this.banner,
+    this.subtitle,
+    this.pageActions = const <Widget>[],
     this.footer,
     this.canCreate = true,
     this.createEntityType,
@@ -152,6 +155,17 @@ class SettingsEntityListScaffold<T> extends StatefulWidget {
   /// AppBar and the first FormSection). Used by plan-gated screens to
   /// render a `PlanGateBanner`.
   final Widget? banner;
+
+  /// The page's one-line purpose, on the intro row above the card
+  /// (`SettingsFormShell.subtitle`).
+  final String? subtitle;
+
+  /// Page-level controls on the intro row, at its end — Tags' record-type
+  /// picker, which decides what the whole list shows and so belongs to the
+  /// page, not to a row of its own above the column (a [banner] sits outside
+  /// the 720 px cap). See `docs/settings-screens.md` § A page's intro and its
+  /// actions share one row.
+  final List<Widget> pageActions;
 
   /// Optional card drawn after the list — or after the empty state — in the
   /// same column, so it scrolls with the rows. API Tokens uses it for the
@@ -344,15 +358,17 @@ class _SettingsEntityListScaffoldState<T>
     // toggle off, a company whose only rows are archived still gets the
     // empty state (and, now, a Show archived button to go find them).
     //
-    // The empty state is a compact block at the top of the settings column,
-    // where the first row will appear — not an `EmptyState` floating in the
-    // middle of a tall page, below the fold on a phone. Starters, when a
-    // screen has them, ARE the empty state: the hint, then one row per
-    // starting point, then the blank "+ New" row.
+    // The empty state is the shared `EmptyStateBody`, centred inside the
+    // list card at the top of the settings column — where the first row will
+    // appear, never floating in the middle of a tall page (below the fold on a
+    // phone). Starters, when a screen has them, ARE the empty state: the
+    // hint, then one row per starting point, then the blank "+ New" row.
     if (active.isEmpty && (!_showArchived || archived.isEmpty)) {
       final starters = widget.starters;
       final showStarters = starters != null && starters.isNotEmpty && mayCreate;
       final emptyBody = SettingsFormShell(
+        subtitle: widget.subtitle,
+        actions: widget.pageActions,
         sections: [
           FormSection(
             title: _sectionTitle(context),
@@ -364,7 +380,7 @@ class _SettingsEntityListScaffoldState<T>
                 const Divider(height: 1),
                 _NewRow(labelKey: widget.newLabelKey, onTap: newAction()),
               ] else
-                _CompactEmptyState(
+                _CardEmptyState(
                   icon: widget.emptyIcon,
                   title: context.tr(widget.emptyTitleKey),
                   hint: context.tr(widget.emptyHintKey),
@@ -393,6 +409,8 @@ class _SettingsEntityListScaffoldState<T>
     return _withBanner(
       widget.banner,
       SettingsFormShell(
+        subtitle: widget.subtitle,
+        actions: widget.pageActions,
         sections: [
           FormSection(
             title: _sectionTitle(context),
@@ -501,10 +519,13 @@ class _EmptyHint extends StatelessWidget {
   }
 }
 
-/// A list with nothing in it yet: icon, title, one line on what the rows are
-/// for and the create button, start-aligned at the top of the card.
-class _CompactEmptyState extends StatelessWidget {
-  const _CompactEmptyState({
+/// A list with nothing in it yet, inside its card: the app's shared empty
+/// state ([EmptyStateBody] — icon, title, one line on what the rows are for,
+/// the create button), centred as on the entity lists. The body, not
+/// `EmptyState`: the settings column already scrolls, and `EmptyState`'s own
+/// scroll view would be handed an unbounded height there.
+class _CardEmptyState extends StatelessWidget {
+  const _CardEmptyState({
     required this.icon,
     required this.title,
     required this.hint,
@@ -518,27 +539,15 @@ class _CompactEmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final tokens = context.inTheme;
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: InSpacing.sm),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          ExcludeSemantics(child: Icon(icon, size: 32, color: tokens.ink3)),
-          const SizedBox(height: InSpacing.sm),
-          Text(title, style: theme.textTheme.titleMedium),
-          const SizedBox(height: InSpacing.xs),
-          Text(
-            hint,
-            style: theme.textTheme.bodyMedium?.copyWith(color: tokens.ink3),
-          ),
-          if (action != null) ...[
-            SizedBox(height: InSpacing.lg(context)),
-            action!,
-          ],
-        ],
+      padding: EdgeInsets.symmetric(vertical: InSpacing.lg(context)),
+      child: Center(
+        child: EmptyStateBody(
+          icon: icon,
+          title: title,
+          subtitle: hint,
+          action: action,
+        ),
       ),
     );
   }

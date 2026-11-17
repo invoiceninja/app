@@ -137,6 +137,13 @@ abstract class SettingsDraftHost extends ChangeNotifier {
   /// line in the "save failed" toast.
   String? get submitError;
 
+  /// True when the most recent [save] reached the server but the server's
+  /// copy no longer holds an edit it carried, because the account's plan
+  /// cannot save it — a free hosted plan keeps only the server's
+  /// `CompanySettings::$free_plan_casts` (`PlanGatedSettingsCheck`). The save
+  /// toast then asks for a paid plan instead of saying "Saved".
+  bool get submitNeedsPaidPlan => false;
+
   /// Restore the draft to the last-loaded baseline. Called from the
   /// unsaved-changes guard's Discard path.
   void reset();

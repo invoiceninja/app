@@ -321,5 +321,23 @@ void main() {
       final items = await editItems(tester, isCreate: false);
       expect(present(items, PaymentAction.sendEmail), isTrue);
     });
+
+    // Regression: Enter Payment offered Add Comment and Log Call on a payment
+    // that did not exist yet.
+    testWidgets('a new payment offers no Add Comment or Log Call', (
+      tester,
+    ) async {
+      final items = await editItems(tester, isCreate: true);
+      expect(present(items, PaymentAction.addComment), isFalse);
+      expect(present(items, PaymentAction.logCall), isFalse);
+    });
+
+    testWidgets('an existing payment keeps Add Comment and Log Call', (
+      tester,
+    ) async {
+      final items = await editItems(tester, isCreate: false);
+      expect(present(items, PaymentAction.addComment), isTrue);
+      expect(present(items, PaymentAction.logCall), isTrue);
+    });
   });
 }

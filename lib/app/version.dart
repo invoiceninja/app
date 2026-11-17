@@ -128,6 +128,12 @@ class ServerFeatures {
   /// attachments there (docs/feedback-screenshots.md).
   static const String supportAttachments = '5.13.53';
 
+  /// `settings.documents_public_by_default` — the company's default
+  /// `is_public` for every new attachment (`621c6111ab`). An older server
+  /// stores the key and ignores it, so Company Details → Documents offers no
+  /// toggle there.
+  static const String documentsPublicByDefault = '5.13.32';
+
   /// `POST /charts/project_analytics/{id}` and `/charts/project_burnup/{id}`
   /// (`0f649ea6dc`). Before it, the project's Analytics tab has nothing to ask.
   static const String projectAnalytics = '5.13.27';

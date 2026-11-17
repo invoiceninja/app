@@ -181,7 +181,7 @@ class _MultiPickSheetState<T> extends State<_MultiPickSheet<T>> {
                 prefixIcon: const Icon(Icons.search, size: 18),
                 hintText: context.tr('search'),
                 isDense: true,
-                border: OutlineInputBorder(
+                border: InFieldOutlineBorder(
                   borderRadius: BorderRadius.circular(InRadii.r2),
                 ),
               ),

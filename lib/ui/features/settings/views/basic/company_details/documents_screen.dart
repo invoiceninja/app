@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/services.dart';
+import 'package:admin/app/version.dart';
 import 'package:admin/data/models/domain/company.dart';
 import 'package:admin/data/services/upload_source.dart';
 import 'package:admin/l10n/localization.dart';
@@ -19,6 +20,15 @@ import 'package:admin/ui/features/settings/widgets/overridable_switch_field.dart
 import 'package:admin/ui/features/settings/widgets/settings_form_shell.dart';
 import 'package:admin/utils/document_upload_validation.dart';
 import 'package:admin/utils/formatting.dart';
+
+/// Whether the server applies `documents_public_by_default`: hosted always,
+/// self-hosted from [ServerFeatures.documentsPublicByDefault].
+bool documentsPublicByDefaultSupported(Services services) =>
+    ServerFeatures.supports(
+      services.serverVersion.value,
+      ServerFeatures.documentsPublicByDefault,
+      isHosted: services.auth.session.value?.isHosted ?? false,
+    );
 
 /// Searchable label keys rendered by this tab. See
 /// `kCompanyDetailsDetailsSearchKeys` for the colocation pattern.
@@ -38,14 +48,18 @@ const kCompanyDetailsDocumentsSearchKeys = <String>[
 /// the company's own). It renders with `defaultValue: true` because the
 /// server's historical behavior for an unset key is public.
 ///
-/// **The server shipped this prop on 2026-09-08, so the toggle now persists.**
-/// It previously *reverted on screen* right after the "Saved" toast:
-/// `CompanySettingsSaver` drops any settings key absent from
-/// `CompanySettings::$casts`, and `CompanyRepository.applyUpdateResponse`
-/// replaces the whole blob with the server's echo, so the key was gone from
-/// Drift on the next frame and `defaultValue: true` re-rendered the switch ON.
-/// `CompanySettings.php:549` now declares the prop and `:552` registers its
-/// cast, so the key survives the round trip. Never a client bug; see
+/// **The server reads the prop from 5.13.32** (`621c6111ab`,
+/// `CompanySettings.php:549` / `:552`), so an older self-hosted server gets no
+/// toggle ([ServerFeatures.documentsPublicByDefault]; hosted is exempt as
+/// usual). An older server would store the key and never apply it:
+/// `CompanySettingsSaver` keeps a settings key `CompanySettings::$casts` does
+/// not declare. What does drop it is the free hosted plan:
+/// `UpdateCompanyRequest::filterSaveableSettings` keeps only
+/// `$free_plan_casts`, which gains this key only in invoiceninja#13462, and
+/// `CompanyRepository.applyUpdateResponse` writes the server's echo over the
+/// blob — so the switch flipped back right after "Saved". A save that changes
+/// it now reads the echo back first (`CompanyDetailsViewModel`,
+/// `PlanGatedSettingsCheck`) and asks for a paid plan instead. See
 /// `BACKEND.md` § `documents_public_by_default` for the original ask.
 ///
 /// The document list reads [CompanyDetailsViewModel.initialValue], not the
@@ -58,6 +72,15 @@ class CompanyDetailsDocumentsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Rebuilt on the first response's `x-app-version`, so an unknown version
+    // (hidden) gives way to the toggle once the server has said who it is.
+    return ValueListenableBuilder<String?>(
+      valueListenable: context.read<Services>().serverVersion,
+      builder: (context, _, _) => _body(context),
+    );
+  }
+
+  Widget _body(BuildContext context) {
     final vm = context.watch<CompanyDetailsViewModel>();
     final services = context.read<Services>();
     final tokens = context.inTheme;
@@ -68,12 +91,15 @@ class CompanyDetailsDocumentsScreen extends StatelessWidget {
         FormSection(
           title: context.tr('documents'),
           children: [
-            OverridableSwitchField(
-              label: context.tr('documents_public_by_default'),
-              apiKey: 'documents_public_by_default',
-              subtitle: context.trIfDefined('documents_public_by_default_help'),
-              defaultValue: true,
-            ),
+            if (documentsPublicByDefaultSupported(services))
+              OverridableSwitchField(
+                label: context.tr('documents_public_by_default'),
+                apiKey: 'documents_public_by_default',
+                subtitle: context.trIfDefined(
+                  'documents_public_by_default_help',
+                ),
+                defaultValue: true,
+              ),
             FileDropZone(
               allowedExtensions: kDocumentAllowedExtensions,
               allowMultiple: true,

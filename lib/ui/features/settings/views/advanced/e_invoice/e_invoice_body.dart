@@ -101,6 +101,11 @@ class EInvoiceBody extends StatelessWidget {
     );
 
     return SettingsFormShell(
+      subtitle: context.tr('e_invoice_subtitle'),
+      // The user guide covers the whole page, so it is a page action on the
+      // intro row — not a row of its own above the first card. Same
+      // affordance React ships at the top of EInvoice.tsx.
+      actions: const [_HelpLink()],
       sections: [
         // E-invoice is Enterprise on hosted (React `EInvoice.tsx` gates the
         // whole page at `enterprisePlan()`). Trial-aware; auto-hides on
@@ -110,10 +115,6 @@ class EInvoiceBody extends StatelessWidget {
           style: PlanGateStyle.inset,
           level: PlanGateLevel.enterprise,
         ),
-        // Help link — small, deliberate, sits above the first card. Same
-        // affordance React ships at the top of EInvoice.tsx.
-        const _HelpLinkRow(),
-
         // ── E-Invoicing: the switch, then the format it uses ────────────
         // One card, switch first: two cards titled "E-Invoice Type" and
         // "Enable E-Invoice" each repeated their only field's label, and the
@@ -250,34 +251,32 @@ Future<bool?> _confirmSwitchAwayFromPeppol(BuildContext context) {
   );
 }
 
-/// Single-row link to the e-invoicing user guide. Sits above the first
-/// `FormSection` and renders inside the `SettingsFormShell`'s outer
-/// padding. Reuses the project's `LinkText` for hover + cursor behavior.
-class _HelpLinkRow extends StatelessWidget {
-  const _HelpLinkRow();
+/// Link to the e-invoicing user guide, at the end of the page's intro row
+/// (`docs/settings-screens.md` § A page's intro and its actions share one
+/// row). Reuses the project's `LinkText` for hover + cursor behavior.
+class _HelpLink extends StatelessWidget {
+  const _HelpLink();
 
   @override
   Widget build(BuildContext context) {
     final tokens = context.inTheme;
     final theme = Theme.of(context);
-    return Padding(
-      padding: EdgeInsets.only(bottom: InSpacing.lg(context)),
-      child: Row(
-        children: [
-          Icon(Icons.help_outline, size: 18, color: tokens.ink2),
-          SizedBox(width: InSpacing.sm),
-          // Flexible so a long localized label wraps instead of overflowing
-          // the Row on a narrow phone.
-          Flexible(
-            child: LinkText(
-              label: context.tr('e_invoice_settings'),
-              color: tokens.accent,
-              style: theme.textTheme.bodyMedium,
-              onTap: launchEInvoiceHelpUrl,
-            ),
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(Icons.help_outline, size: 18, color: tokens.ink2),
+        SizedBox(width: InSpacing.sm),
+        // Flexible so a long localized label wraps instead of overflowing
+        // the intro row on a narrow phone.
+        Flexible(
+          child: LinkText(
+            label: context.tr('e_invoice_settings'),
+            color: tokens.accent,
+            style: theme.textTheme.bodyMedium,
+            onTap: launchEInvoiceHelpUrl,
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

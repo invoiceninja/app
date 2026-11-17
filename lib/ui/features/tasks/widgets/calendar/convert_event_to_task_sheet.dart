@@ -173,7 +173,7 @@ class _ConvertEventSheetState extends State<_ConvertEventSheet> {
               maxLines: 5,
               decoration: InputDecoration(
                 labelText: context.tr('description'),
-                border: const OutlineInputBorder(),
+                border: const InFieldOutlineBorder(),
               ),
             ),
           ),

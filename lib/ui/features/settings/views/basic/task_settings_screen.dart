@@ -96,6 +96,7 @@ class _TaskSettingsBody extends StatelessWidget {
     final settings = host.settings;
 
     return SettingsFormShell(
+      subtitle: context.tr('task_settings_subtitle'),
       sections: [
         FormSection(
           title: context.tr('tasks'),

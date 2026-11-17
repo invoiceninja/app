@@ -545,7 +545,7 @@ class _ExpandedColumnEditor extends StatelessWidget {
               initialValue: (column['header'] as String?) ?? '',
               decoration: InputDecoration(
                 labelText: context.tr('header'),
-                border: const OutlineInputBorder(),
+                border: const InFieldOutlineBorder(),
               ),
               onChanged: (v) => onColumnChanged('header', v),
             ),

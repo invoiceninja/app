@@ -1,5 +1,6 @@
 import 'package:material_ui/material_ui.dart';
 
+import 'package:admin/app/design_tokens.dart';
 import 'package:admin/data/models/value/date.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/field_label.dart';
@@ -71,7 +72,7 @@ class _WeeklyCellNoteDialogState extends State<_WeeklyCellNoteDialog> {
                 autofocus: true,
                 decoration: InputDecoration(
                   labelText: context.tr('description'),
-                  border: const OutlineInputBorder(),
+                  border: const InFieldOutlineBorder(),
                 ),
               ),
             ),

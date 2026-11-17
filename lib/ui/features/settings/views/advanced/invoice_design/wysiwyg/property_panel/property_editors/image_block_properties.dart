@@ -163,7 +163,7 @@ class _ImageBlockPropertiesState extends State<ImageBlockProperties> {
             decoration: InputDecoration(
               labelText: context.tr('image_url'),
               hintText: r'$company.logo  or  https://…',
-              border: const OutlineInputBorder(),
+              border: const InFieldOutlineBorder(),
               helperText: src.startsWith('data:')
                   ? context.tr('uploaded_image_data_url')
                   : null,
@@ -200,7 +200,7 @@ class _ImageBlockPropertiesState extends State<ImageBlockProperties> {
           child: DropdownButtonFormField<String>(
             decoration: InputDecoration(
               labelText: context.tr('object_fit'),
-              border: const OutlineInputBorder(),
+              border: const InFieldOutlineBorder(),
             ),
             initialValue: (props['objectFit'] as String?) ?? 'contain',
             // CSS object-fit values. The stored `value` stays the CSS keyword;

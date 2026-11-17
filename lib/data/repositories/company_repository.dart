@@ -157,6 +157,18 @@ class CompanyRepository extends BaseEntityRepository<Company, CompanyApi>
     return _fromRow(row);
   }
 
+  /// Whether a change to [companyId]'s own fields is still in the outbox in
+  /// any state — queued, in flight, unconfirmed or failed — so the cached
+  /// company is not yet the server's copy. A document upload does not count
+  /// (`OutboxDao.watchHasUnacceptedRecordEdit`).
+  Future<bool> hasUnacceptedEdit(String companyId) => db.outboxDao
+      .watchHasUnacceptedRecordEdit(
+        companyId: companyId,
+        entityType: entityTypeName,
+        entityId: companyId,
+      )
+      .first;
+
   /// Persist a settings change. Writes the new settings JSON to Drift
   /// (optimistic) and enqueues a `PUT /companies/{id}` outbox row.
   ///

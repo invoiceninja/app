@@ -42,13 +42,8 @@ class TrustedCertificatesSection extends StatelessWidget {
             fallbackCertificateFormatter();
         return FormSection(
           title: context.tr('trusted_certificates'),
+          description: context.tr('trusted_certificates_help'),
           children: [
-            Text(
-              context.tr('trusted_certificates_help'),
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: context.inTheme.ink2),
-            ),
             for (final pin in pins)
               _TrustedCertificateRow(
                 key: ValueKey('trusted_certificate_${pin.key}'),

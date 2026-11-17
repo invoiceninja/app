@@ -431,7 +431,7 @@ class _ExpandedTotalEditor extends StatelessWidget {
                 initialValue: (item['label'] as String?) ?? '',
                 decoration: InputDecoration(
                   labelText: context.tr('label'),
-                  border: const OutlineInputBorder(),
+                  border: const InFieldOutlineBorder(),
                 ),
                 onChanged: (v) => onItemChanged('label', v),
               ),

@@ -10,6 +10,7 @@ import 'package:admin/domain/assignable_users.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/watch_builder.dart';
 import 'package:admin/ui/features/settings/widgets/form_section.dart';
+import 'package:admin/ui/features/settings/widgets/setting_row.dart';
 
 /// Search keys for the settings sidebar search. Colocated with the section so
 /// adding a field updates both ends in one place (see
@@ -56,27 +57,18 @@ class AssignedUsersSection extends StatelessWidget {
     final controller = context.read<Services>().hideUnverifiedUsers;
     return FormSection(
       title: context.tr('users'),
-      spacing: 0,
+      description: context.tr('hide_unverified_users_help'),
+      flush: true,
       children: [
-        Padding(
-          padding: EdgeInsets.only(bottom: InSpacing.sm),
-          child: Text(
-            context.tr('hide_unverified_users_help'),
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: context.inTheme.ink3),
-          ),
-        ),
         ValueListenableBuilder<bool>(
           valueListenable: controller,
           builder: (context, enabled, _) => Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             mainAxisSize: MainAxisSize.min,
             children: [
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                secondary: const Icon(Icons.person_off_outlined),
-                title: Text(context.tr('hide_unverified_users')),
+              SettingRow.toggle(
+                icon: const Icon(Icons.person_off_outlined),
+                title: context.tr('hide_unverified_users'),
                 value: enabled,
                 onChanged: controller.set,
               ),
@@ -143,46 +135,50 @@ class _HiddenCount extends StatelessWidget {
                 : (count == 1
                       ? 'would_be_hidden_count_singular'
                       : 'would_be_hidden_count_plural');
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // The switch announces its own flip; the count changing
-                // afterwards is silent, and for a screen-reader user that count
-                // is the entire legibility story. Same device
-                // `save_failed_banner.dart` uses.
-                Semantics(
-                  liveRegion: true,
-                  child: Text(
-                    context.tr(key, {'count': '$count'}),
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: context.inTheme.ink3,
+            // Under the switch's text, and only when there is a count: an
+            // empty block would still cost the card its padding.
+            return SettingBlock(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // The switch announces its own flip; the count changing
+                  // afterwards is silent, and for a screen-reader user that count
+                  // is the entire legibility story. Same device
+                  // `save_failed_banner.dart` uses.
+                  Semantics(
+                    liveRegion: true,
+                    child: Text(
+                      context.tr(key, {'count': '$count'}),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: context.inTheme.ink3,
+                      ),
                     ),
                   ),
-                ),
-                SizedBox(height: InSpacing.sm),
-                // Not a `ListTile` trailing: a trailing widget is laid out in
-                // the row's leftover width, which is what turned a 72 px
-                // `_UserRow` into a 410 px one in User Management. `Wrap` keeps
-                // the button on its own line and end-aligned at any width.
-                //
-                // The destination is load-bearing rather than a signpost: User
-                // Management's paged `GET /users` is the only path in `lib/`
-                // that upserts fresh user rows, so this is the repair for a
-                // roster whose `email_verified_at` has gone stale (the delta
-                // `/refresh` doesn't carry `company.users`, and users are not
-                // in the Sync pass).
-                Align(
-                  alignment: AlignmentDirectional.centerEnd,
-                  child: TextButton(
-                    style: TextButton.styleFrom(
-                      minimumSize: const Size(64, 44),
+                  SizedBox(height: InSpacing.sm),
+                  // Not a `ListTile` trailing: a trailing widget is laid out in
+                  // the row's leftover width, which is what turned a 72 px
+                  // `_UserRow` into a 410 px one in User Management. `Wrap` keeps
+                  // the button on its own line and end-aligned at any width.
+                  //
+                  // The destination is load-bearing rather than a signpost: User
+                  // Management's paged `GET /users` is the only path in `lib/`
+                  // that upserts fresh user rows, so this is the repair for a
+                  // roster whose `email_verified_at` has gone stale (the delta
+                  // `/refresh` doesn't carry `company.users`, and users are not
+                  // in the Sync pass).
+                  Align(
+                    alignment: AlignmentDirectional.centerEnd,
+                    child: TextButton(
+                      style: TextButton.styleFrom(
+                        minimumSize: const Size(64, 44),
+                      ),
+                      onPressed: () => context.go('/settings/users'),
+                      child: Text(context.tr('user_management')),
                     ),
-                    onPressed: () => context.go('/settings/users'),
-                    child: Text(context.tr('user_management')),
                   ),
-                ),
-              ],
+                ],
+              ),
             );
           },
         );

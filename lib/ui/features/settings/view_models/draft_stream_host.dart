@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:logging/logging.dart';
 
 import 'package:admin/data/services/api_exception.dart';
@@ -97,6 +98,18 @@ abstract class DraftStreamHost<T> extends SettingsDraftHost {
     if (draft == null) return;
     _draft = edit(draft);
     if (_fieldErrors.isNotEmpty) _fieldErrors = const {};
+    notifyListeners();
+  }
+
+  /// Keep [draft] as the in-progress edit over [baseline], the copy the
+  /// server just wrote back: the page goes on showing what the user chose,
+  /// dirty, instead of silently reverting to the server's copy. For a save the
+  /// server accepted without keeping an edit (`PlanGatedSettingsCheck`).
+  @protected
+  void keepDraftOver({required T baseline, required T draft}) {
+    if (_disposed) return;
+    _initial = baseline;
+    _draft = draft;
     notifyListeners();
   }
 

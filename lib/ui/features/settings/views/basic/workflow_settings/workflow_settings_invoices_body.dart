@@ -52,6 +52,7 @@ class WorkflowSettingsInvoicesBody extends StatelessWidget {
         host.settings.lockInvoices ?? (isVerifactu ? 'when_sent' : 'off');
 
     return SettingsFormShell(
+      subtitle: context.tr('workflow_settings_subtitle'),
       sections: [
         FormSection(
           title: context.tr('invoice_workflow'),

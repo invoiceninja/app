@@ -1,10 +1,13 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:decimal/decimal.dart';
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 
 import 'package:admin/data/db/app_database.dart';
 import 'package:admin/data/repositories/dashboard_repository.dart';
@@ -20,7 +23,9 @@ import 'package:admin/domain/entity_type.dart';
 /// The server half of a money list's totals line (docs/entity-lists.md § A
 /// money list's totals line): `charts/entity_totals` where the server has it,
 /// cached in `dashboard_cache`; the Drift sum where it answers 404 / 400 /
-/// 405 (remembered for the session) or a fetch fails with nothing cached.
+/// 405 (remembered for the session) or a fetch fails with nothing cached —
+/// but only once a Sync has walked the entity to the end
+/// (`last_full_sync_at`), and nothing before.
 
 final ApiClient _dummyClient = ApiClient(
   credentials: ValueNotifier<ApiCredentials?>(
@@ -106,6 +111,11 @@ void main() {
     ),
   );
 
+  /// A Sync that walked [entity] to the end — what makes the local sum a
+  /// total.
+  Future<void> markFullSync([String entity = 'quote']) =>
+      db.syncStateDao.markFullSync(companyId: co, entityType: entity, now: 1);
+
   /// Every value [stream] emits, for as long as the test runs.
   List<Map<String, Decimal>?> record(Stream<Map<String, Decimal>?> stream) {
     final seen = <Map<String, Decimal>?>[];
@@ -163,7 +173,8 @@ void main() {
 
   for (final status in [404, 400, 405]) {
     test('a $status is "no such route": remembered for the session, and the '
-        'line sums Drift instead', () async {
+        'line sums Drift instead — once a Sync has walked the entity to the '
+        'end, and hidden before', () async {
       await seedQuote();
       api.answer = ServerException(status, 'Route does not exist');
       final seen = record(repo.watch(EntityType.quote, co));
@@ -171,7 +182,24 @@ void main() {
       await repo.refresh(EntityType.quote, co);
       await pumpEventQueue();
       expect(repo.isUnsupported(co), isTrue);
+      // Drift holds only the pages browsed so far: not a total.
+      expect(seen, isNotEmpty);
+      expect(seen.whereType<Map<String, Decimal>>(), isEmpty);
+
+      await markFullSync();
+      await pumpEventQueue();
       expect(seen.last, dec({'': '7'}));
+
+      // Another entity's Sync proves nothing about this one, and another
+      // company's proves nothing about this company.
+      final payments = record(repo.watch(EntityType.payment, co));
+      await db.syncStateDao.markFullSync(
+        companyId: 'other',
+        entityType: 'payment',
+        now: 1,
+      );
+      await pumpEventQueue();
+      expect(payments.whereType<Map<String, Decimal>>(), isEmpty);
 
       // Once per company per session: no list asks again.
       await repo.refresh(EntityType.payment, co);
@@ -193,6 +221,7 @@ void main() {
   test('a failed fetch with nothing cached falls back to the local sum, '
       'and a later success replaces it', () async {
     await seedQuote();
+    await markFullSync();
     api.answer = const NetworkException('offline');
     final seen = record(repo.watch(EntityType.quote, co));
 
@@ -236,6 +265,7 @@ void main() {
   test('a 422 — a server that does not know this entity — sums that list '
       'locally and leaves the others on the server', () async {
     await seedQuote();
+    await markFullSync();
     api.answer = const ValidationException('The selected entity is invalid.', {
       'entity': ['The selected entity is invalid.'],
     });
@@ -304,6 +334,63 @@ void main() {
     expect(await repo.watch(EntityType.vendor, co).first, isNull);
     await repo.refresh(EntityType.product, co);
     expect(api.asked, isEmpty);
+  });
+
+  test('a Sync that resets the cursor hides the local line again until it '
+      'walks to the end', () async {
+    await seedQuote();
+    await markFullSync();
+    api.answer = const ServerException(404, 'Route does not exist');
+    final seen = record(repo.watch(EntityType.quote, co));
+    await repo.refresh(EntityType.quote, co);
+    await pumpEventQueue();
+    expect(seen.last, dec({'': '7'}));
+
+    await db.syncStateDao.reset(companyId: co, entityType: 'quote');
+    await pumpEventQueue();
+    expect(seen.last, isNull);
+
+    await markFullSync();
+    await pumpEventQueue();
+    expect(seen.last, dec({'': '7'}));
+  });
+
+  test('the live servers\' 404 — "Method not supported for this route" — '
+      'read through ApiClient is "no such route"', () async {
+    final requests = <http.Request>[];
+    final client = ApiClient(
+      credentials: ValueNotifier<ApiCredentials?>(
+        const ApiCredentials(baseUrl: 'https://test', token: 't'),
+      ),
+      passwordCache: PasswordCache(),
+      onUnauthorized: () async {},
+      httpClient: MockClient((req) async {
+        requests.add(req);
+        return http.Response(
+          jsonEncode({'message': 'Method not supported for this route'}),
+          404,
+          headers: const {'content-type': 'application/json'},
+        );
+      }),
+    );
+    final live = ListTotalsRepository(
+      db: db,
+      api: EntityTotalsApi(client),
+      dashboard: DashboardRepository(db: db, api: dashboardApi),
+      now: () => now,
+    );
+    await seedQuote();
+    final seen = record(live.watch(EntityType.quote, co));
+
+    await live.refresh(EntityType.quote, co);
+    await pumpEventQueue();
+    expect(requests.single.url.path, '/api/v1/charts/entity_totals');
+    expect(live.isUnsupported(co), isTrue);
+    expect(seen.whereType<Map<String, Decimal>>(), isEmpty);
+
+    await markFullSync();
+    await pumpEventQueue();
+    expect(seen.last, dec({'': '7'}));
   });
 
   test('a company switch under the fetch writes nothing', () async {

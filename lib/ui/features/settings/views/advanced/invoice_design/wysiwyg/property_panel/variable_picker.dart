@@ -207,7 +207,7 @@ class _VariablePickerBodyState extends State<_VariablePickerBody> {
                 isDense: true,
                 prefixIcon: const Icon(Icons.search, size: 18),
                 hintText: context.tr('search_fields'),
-                border: const OutlineInputBorder(),
+                border: const InFieldOutlineBorder(),
               ),
               onChanged: (_) => setState(() {}),
             ),

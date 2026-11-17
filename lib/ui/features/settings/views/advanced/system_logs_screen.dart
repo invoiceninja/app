@@ -690,7 +690,7 @@ class _FilterDropdown<T> extends StatelessWidget {
             decoration: InputDecoration(
               labelText: context.tr(labelKey),
               isDense: true,
-              border: const OutlineInputBorder(),
+              border: const InFieldOutlineBorder(),
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 12,
                 vertical: 10,

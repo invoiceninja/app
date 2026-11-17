@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 
+import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/data/models/domain/company.dart';
 import 'package:admin/l10n/localization.dart';
@@ -144,6 +145,7 @@ class _IntegrationsAnalyticsScreenState
                     _syncFromCompany(company);
 
                     return SettingsFormShell(
+                      subtitle: context.tr('analytics_subtitle'),
                       sections: [
                         if (!ready) const CompanySettingsLockedBanner(),
                         FormSection(
@@ -159,7 +161,7 @@ class _IntegrationsAnalyticsScreenState
                                   labelText: context.tr(
                                     'google_analytics_tracking_id',
                                   ),
-                                  border: const OutlineInputBorder(),
+                                  border: const InFieldOutlineBorder(),
                                 ),
                                 keyboardType: TextInputType.text,
                                 textInputAction: TextInputAction.next,
@@ -174,7 +176,7 @@ class _IntegrationsAnalyticsScreenState
                                 onChanged: (_) => _markDirty(),
                                 decoration: InputDecoration(
                                   labelText: context.tr('matomo_id'),
-                                  border: const OutlineInputBorder(),
+                                  border: const InFieldOutlineBorder(),
                                 ),
                                 keyboardType: TextInputType.text,
                                 textInputAction: TextInputAction.next,
@@ -189,7 +191,7 @@ class _IntegrationsAnalyticsScreenState
                                 onChanged: (_) => _markDirty(),
                                 decoration: InputDecoration(
                                   labelText: context.tr('matomo_url'),
-                                  border: const OutlineInputBorder(),
+                                  border: const InFieldOutlineBorder(),
                                 ),
                                 keyboardType: TextInputType.url,
                                 autocorrect: false,

@@ -518,7 +518,7 @@ class _WeeklyDurationCellState extends State<WeeklyDurationCell> {
             horizontal: 6,
             vertical: 8,
           ),
-          border: OutlineInputBorder(
+          border: InFieldOutlineBorder(
             borderRadius: BorderRadius.circular(InRadii.r1),
           ),
           suffixIcon: widget.readOnly

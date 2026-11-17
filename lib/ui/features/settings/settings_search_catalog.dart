@@ -79,6 +79,7 @@ import 'package:admin/ui/features/settings/widgets/contacts_sync_section.dart';
 import 'package:admin/ui/features/settings/widgets/downloads_folder_section.dart';
 import 'package:admin/ui/features/settings/widgets/mobile_app_section.dart';
 import 'package:admin/ui/features/settings/widgets/home_widgets_section.dart';
+import 'package:admin/ui/features/settings/widgets/sidebar_counters_section.dart';
 import 'package:admin/utils/search_fold.dart';
 
 // Single source of truth for the settings sidebar layout and the in-app
@@ -577,7 +578,16 @@ const _kDeviceSettingsKeyGates = <String, bool Function(SettingsSearchScope?)>{
   // kDownloadsFolderSearchKeys
   'downloads_folder': _downloadsFolderShown,
   'hide_peppol_sent_status': _peppolStatusShown,
+  // kSidebarCountersSearchKeys: the tip names the input this device has.
+  'menu_counters_help_pointer': _menuCountersPointerHelpShown,
+  'menu_counters_help_touch': _menuCountersTouchHelpShown,
 };
+
+bool _menuCountersPointerHelpShown(SettingsSearchScope? _) =>
+    menuCountersHelpKey() == 'menu_counters_help_pointer';
+
+bool _menuCountersTouchHelpShown(SettingsSearchScope? _) =>
+    menuCountersHelpKey() == 'menu_counters_help_touch';
 
 bool _spellCheckShown(SettingsSearchScope? _) => platformSupportsSpellCheck;
 

@@ -19,7 +19,7 @@ import 'package:admin/ui/features/settings/widgets/settings_entity_list_scaffold
 const kTagsSearchKeys = <String>['name', 'color'];
 
 /// `/settings/tags` — manage tags, scoped to one tag-bearing entity type via
-/// the picker in the banner. Tags are polymorphic (each tag belongs to exactly
+/// the picker on the page's intro row. Tags are polymorphic (each tag belongs to exactly
 /// one entity type), so the picker also fixes the type on "+ New". Tap a row to
 /// edit. Admin/owner-gated for create. (Widened from the original Task/Project
 /// toggle to all 14 tag-bearing types — React #3242.)
@@ -52,10 +52,16 @@ class _TagsScreenState extends State<TagsScreen> {
       emptyHintKey: 'no_tags_hint',
       supportsArchive: true,
       canCreate: isAdminOrOwner,
-      banner: _EntityTypeToggle(
-        value: _entityType,
-        onChanged: (v) => setState(() => _entityType = v),
-      ),
+      // The type decides what the whole list shows, so it is the page's
+      // control: on the intro row beside the page's sentence, inside the
+      // 720 px column — not a banner floating above it on its own.
+      subtitle: context.tr('tags_subtitle'),
+      pageActions: [
+        _EntityTypeToggle(
+          value: _entityType,
+          onChanged: (v) => setState(() => _entityType = v),
+        ),
+      ],
       refreshAll: () async {
         if (companyId.isEmpty) return;
         await repo.refreshAll(companyId: companyId);
@@ -79,7 +85,7 @@ class _TagsScreenState extends State<TagsScreen> {
   }
 }
 
-/// Entity-type picker rendered above the list. Widened from the original
+/// Entity-type picker on the page's intro row. Widened from the original
 /// Task/Project segmented toggle to a searchable dropdown over all 14
 /// tag-bearing types (too many for a `SegmentedButton`). Labels + ordering
 /// come from the entity registry so a new tag-bearing entity shows up here for
@@ -99,31 +105,22 @@ class _EntityTypeToggle extends StatelessWidget {
         context.tr(registry.byWireName(type)?.effectiveLabelKey ?? type);
     final types = kTagEntityTypes.toList()
       ..sort((a, b) => labelFor(a).compareTo(labelFor(b)));
-    return Padding(
-      padding: EdgeInsets.fromLTRB(
-        InSpacing.lg(context),
-        InSpacing.md(context),
-        InSpacing.lg(context),
-        0,
-      ),
-      child: Align(
-        alignment: AlignmentDirectional.centerStart,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 320),
-          child: SearchableDropdownField<String>(
-            label: context.tr('type'),
-            items: types,
-            initialValue: value,
-            idOf: (t) => t,
-            displayString: labelFor,
-            // Always one type: a cleared picker kept listing the old type's
-            // tags under a blank field.
-            clearable: false,
-            onChanged: (t) {
-              if (t != null) onChanged(t);
-            },
-          ),
-        ),
+    // A fixed width: the intro row lays its actions out at their own width,
+    // and the longest label ("Recurring Expenses") fits with the ▾.
+    return SizedBox(
+      width: 240,
+      child: SearchableDropdownField<String>(
+        label: context.tr('type'),
+        items: types,
+        initialValue: value,
+        idOf: (t) => t,
+        displayString: labelFor,
+        // Always one type: a cleared picker kept listing the old type's
+        // tags under a blank field.
+        clearable: false,
+        onChanged: (t) {
+          if (t != null) onChanged(t);
+        },
       ),
     );
   }

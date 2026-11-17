@@ -601,7 +601,7 @@ class _LabeledFieldState extends State<_LabeledField> {
             labelText:
                 context.tr(widget.labelKey) + (widget.required ? ' *' : ''),
             errorText: widget.errorText,
-            border: const OutlineInputBorder(),
+            border: const InFieldOutlineBorder(),
           ),
           keyboardType: widget.keyboardType,
           textCapitalization: widget.textCapitalization,

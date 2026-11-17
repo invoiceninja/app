@@ -444,7 +444,7 @@ class _ValueFieldState extends State<_ValueField> {
         onSubmitted: widget.onSubmit,
         decoration: InputDecoration(
           isDense: true,
-          border: const OutlineInputBorder(),
+          border: const InFieldOutlineBorder(),
           hintText: context.tr('change_value'),
         ),
       ),

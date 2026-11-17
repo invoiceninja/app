@@ -3,8 +3,9 @@ import 'package:material_ui/material_ui.dart';
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/data/models/domain/bank_account.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/core/detail/record_details_cards.dart';
+import 'package:admin/ui/core/detail/record_profile_layout.dart';
 import 'package:admin/ui/core/detail/record_timestamps.dart';
-import 'package:admin/ui/core/adaptive.dart';
 import 'package:admin/ui/core/widgets/detail_info_row.dart';
 import 'package:admin/ui/core/widgets/detail_row_columns.dart';
 import 'package:admin/ui/features/dashboard/widgets/card_shell.dart';
@@ -12,6 +13,12 @@ import 'package:admin/utils/formatting.dart';
 
 /// A bank account's reference fields, with the one setting worth changing
 /// from here: Auto Sync.
+///
+/// Details — what the account is — and Additional Info — Sync From, created,
+/// updated and the Auto Sync switch — as two level cards on a wide window
+/// (`RecordProfileLayout`), stacked below it. It was one full-width card
+/// running its rows in two columns, with the dates floating in its right
+/// half.
 ///
 /// **Auto Sync is a switch, on the record.** It is by far the most-flipped
 /// field on a bank account, and a trip through the edit form for one boolean
@@ -35,14 +42,13 @@ class BankAccountDetailProfile extends StatelessWidget {
   /// For the dates. Null (still loading) leaves them out.
   final Formatter? formatter;
 
-  /// The rows above the switch, in display order. Blank fields are left out.
+  /// What the account is — provider, type, integration, status, currency.
+  /// Blank fields are left out.
   static List<Widget> rowsFor(
     BuildContext context,
     BankAccount account, {
     Formatter? formatter,
   }) {
-    final f = formatter;
-    final from = account.fromDate;
     return [
       if (account.provider.trim().isNotEmpty)
         DetailInfoRow(
@@ -73,17 +79,30 @@ class BankAccountDetailProfile extends StatelessWidget {
           value: account.currency.trim().toUpperCase(),
           copyable: false,
         ),
-      if (from != null && f != null)
+    ];
+  }
+
+  /// The date transactions are imported from, then created and updated —
+  /// the rows of the Additional Info card, above its switch. Created /
+  /// updated are left out on a phone, where `RecordTimestampsLine` says them.
+  static List<Widget> bookkeepingRows(
+    BuildContext context,
+    BankAccount account, {
+    Formatter? formatter,
+  }) {
+    final from = account.fromDate;
+    return [
+      if (from != null && formatter != null)
         DetailInfoRow(
           label: context.tr('sync_from'),
-          value: f.date(from.toIso()),
+          value: formatter.date(from.toIso()),
           copyable: false,
         ),
       ...recordTimestampRows(
         context,
         createdAt: account.createdAt,
         updatedAt: account.updatedAt,
-        formatter: f,
+        formatter: formatter,
       ),
     ];
   }
@@ -91,25 +110,29 @@ class BankAccountDetailProfile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final rows = rowsFor(context, account, formatter: formatter);
-    // Details is the only card an account has, so on a wide window its rows
-    // run in two columns rather than leaving most of a full-width card blank.
-    // The switch keeps the full width under them.
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final wide = constraints.maxWidth >= Breakpoints.entityFormMultiColumn;
-        return DashboardCardShell(
-          title: context.tr('details'),
+    final bookkeeping = bookkeepingRows(context, account, formatter: formatter);
+    // Two cards, level on a wide window and stacked below it: what the
+    // account is, and what is kept about it with the one setting — Auto
+    // Sync sits under its Sync From date, and the switch evens the two
+    // cards' heights where the dates alone would leave the second half
+    // blank. Additional Info always exists: it holds the switch.
+    return RecordProfileLayout(
+      lead: [
+        if (rows.isNotEmpty)
+          RecordRowsCard(title: context.tr('details'), rows: rows),
+        DashboardCardShell(
+          title: context.tr('additional_info'),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             mainAxisSize: MainAxisSize.min,
             children: [
-              DetailRowColumns(columns: wide ? 2 : 1, children: rows),
-              if (rows.isNotEmpty) const DetailRowDivider(),
+              DetailRowColumns(children: bookkeeping),
+              if (bookkeeping.isNotEmpty) const DetailRowDivider(),
               _AutoSyncRow(account: account, onChanged: onAutoSyncChanged),
             ],
           ),
-        );
-      },
+        ),
+      ],
     );
   }
 }

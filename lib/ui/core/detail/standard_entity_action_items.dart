@@ -219,3 +219,41 @@ EntityActionItem<A>? copyLinkActionItem<A>({
     onTap: onTap,
   );
 }
+
+/// "Add comment" — posts an activity note onto the record. One of the pair
+/// with [logCallActionItem], on every entity that takes notes.
+///
+/// Tagged [EntityActionItem.needsSavedRecord], so `filterForEditScreen` drops
+/// it from every create screen: a record that does not exist yet takes no
+/// note. An unsynced (`tmp_`) record keeps it, and the tap is answered by
+/// `requireSynced` in `promptAddCommentFor` — the comment's `entity_id` is
+/// never remapped, so it cannot be queued ahead of the create.
+EntityActionItem<A> addCommentActionItem<A>({
+  required BuildContext context,
+  required A kind,
+  required VoidCallback onTap,
+  bool startsGroup = false,
+}) => EntityActionItem(
+  kind: kind,
+  icon: Icons.add_comment_outlined,
+  label: context.tr('add_comment'),
+  enabled: true,
+  startsGroup: startsGroup,
+  needsSavedRecord: true,
+  onTap: onTap,
+);
+
+/// "Log call" — composes a call note onto the record; see
+/// [addCommentActionItem] for the create-screen gate it shares.
+EntityActionItem<A> logCallActionItem<A>({
+  required BuildContext context,
+  required A kind,
+  required VoidCallback onTap,
+}) => EntityActionItem(
+  kind: kind,
+  icon: Icons.phone_in_talk_outlined,
+  label: context.tr('log_call'),
+  enabled: true,
+  needsSavedRecord: true,
+  onTap: onTap,
+);

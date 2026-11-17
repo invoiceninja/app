@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/ui/core/widgets/in_time_field.dart';
 import 'package:admin/ui/features/settings/widgets/phone_actions_section.dart';
+import 'package:admin/ui/features/settings/widgets/setting_row.dart';
 
 import '../../../../_responsive_helper.dart';
 import '../../../../_support/phone_actions_test_services.dart';
@@ -43,10 +44,13 @@ void main() {
     ]) {
       expect(
         tester
-            .widget<SwitchListTile>(
-              find.ancestor(
-                of: find.text(label),
-                matching: find.byType(SwitchListTile),
+            .widget<Switch>(
+              find.descendant(
+                of: find.ancestor(
+                  of: find.text(label),
+                  matching: find.byType(SettingRow),
+                ),
+                matching: find.byType(Switch),
               ),
             )
             .onChanged,

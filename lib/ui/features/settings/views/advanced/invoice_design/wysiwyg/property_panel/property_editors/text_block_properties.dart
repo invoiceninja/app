@@ -191,7 +191,7 @@ class _TextBlockPropertiesState extends State<TextBlockProperties> {
           focusNode: _contentFocus,
           minLines: 3,
           maxLines: null,
-          decoration: const InputDecoration(border: OutlineInputBorder()),
+          decoration: const InputDecoration(border: InFieldOutlineBorder()),
           onChanged: _writeContentDebounced,
         ),
         const SectionDivider(labelKey: 'typography'),

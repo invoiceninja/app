@@ -1507,7 +1507,7 @@ class _DesignNameFieldState extends State<DesignNameField> {
   Widget build(BuildContext context) {
     final tokens = context.inTheme;
     OutlineInputBorder border(Color color, [double width = 1]) =>
-        OutlineInputBorder(
+        InFieldOutlineBorder(
           borderRadius: BorderRadius.circular(InRadii.r2),
           borderSide: BorderSide(color: color, width: width),
         );
