@@ -399,7 +399,7 @@ When an upstream fix ships: follow the revert, verify, then **delete the entry**
 - Issue / waiting on: none filed yet • Found: 2026-11-18 • Flutter: 3.50.0, material_ui 1.11.0 (the `Scaffold` the app uses)
 - Symptom: every top-level screen passes `drawer: globalNav ? null : const AppDrawer()`. Unfolding a foldable (or widening a window) with the drawer out crosses 600, which removes the drawer; folding back brought it back already open (docs/foldables.md).
 - Root cause: `ScaffoldState._drawerOpened` is only reset by the drawer's own close animation; removing the `drawer:` disposes the `DrawerController` without resetting it, `closeDrawer()` is a no-op while there is no drawer, and the next `DrawerController` is built from the stale `true`.
-- Commit ref: not yet committed
+- Commit ref: f32d10d6
 - Change(s):
   - `lib/ui/core/widgets/stale_drawer_guard.dart` — **MUST-REVERT**: notes a drawer disposed while its Scaffold says open, and closes the drawer that comes back (it animates shut rather than snapping).
   - `lib/ui/features/shell/widgets/app_drawer.dart` — **MUST-REVERT**: wraps the `Drawer` in `StaleDrawerGuard`.

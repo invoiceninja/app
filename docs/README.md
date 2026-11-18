@@ -35,6 +35,7 @@ read-it-first orientation for a new developer.
 - [`file-downloads.md`](file-downloads.md) — **Where a download lands.** Why Download PDF used to just open the file on Windows / Linux (`Printing.sharePdf` writes a temp copy and opens it), where each platform now puts a download, the Downloads Folder setting and why macOS can't change it, the Containers / snap path traps, and the `PdfPreview` Share gate.
 - [`first-run-welcome.md`](first-run-welcome.md) — **First-run welcome.** Who gets the setup wizard, the dashboard checklist or the Welcome; how a first run is told from a restored session or an update; why the wizard writes once and the logo after the PUT; the hold order with What's New, the promo and the review prompt; the motion tokens.
 - [`flatpak.md`](flatpak.md) — **The Flatpak (Flathub).** How Flathub builds the Linux app from the release tag with flatpak-flutter and the FOSS graph, the sqlite3 and pdfium pins, why no agent may write the Flathub-side files (Flathub's AI policy), how Deploy to all follows each release onto Flathub, the release notes in the metainfo, submitting at GA and retiring v1's listing.
+- [`foldables.md`](foldables.md) — **Foldables and the iPhone Duo.** What the device reports when it opens, closes or is held half-open, the state a resize used to cost and what now keeps it, the book-posture split at the fold, where every dialog anchors, and what waits on Flutter reporting the Duo's hinge.
 - [`form-fields.md`](form-fields.md) — **Form field input types.** Every text input declares the keyboard, capitalization and autofill its data needs, and none of it is visible under `flutter test` — a soft keyboard never renders.
 - [`going-live.md`](going-live.md) — **Going live.** The checklist for taking the app out of beta on every store: the app changes in the one launch release, each store's console step, and the decisions outside the code.
 - [`home-screen-widgets.md`](home-screen-widgets.md) — **Home-screen widgets.** The snapshot the app writes for the iOS, macOS and Android widgets and why no token or Dart ever reaches them, the queued Stop command and its guards, the debounce / reload budget, and why every session end leaves the snapshot signed out.
@@ -100,6 +101,7 @@ The full routing table, moved here from CLAUDE.md's Quick Index (which keeps a s
 
 | When you're doing… | Look at |
 |---|---|
+| A foldable / iPhone Duo: state lost on fold or unfold, book posture, a dialog on the wrong side of the fold | `docs/foldables.md` · `lib/ui/core/fold_geometry.dart` |
 | Adding a new entity, or one with no create screen (the Documents list) | § Adding a new entity + `docs/adding-an-entity.md` · `docs/documents-list.md` |
 | Adding / editing a settings screen, or anything in the visual invoice designer | § Settings screens + `docs/settings-screens.md` · § Visual invoice designer + `docs/invoice-designer.md` |
 | Wiring a form field, picker, or Enter-to-save | § Forms · `docs/pickers.md` · `docs/form-fields.md` |

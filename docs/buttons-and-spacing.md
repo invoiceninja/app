@@ -2,6 +2,10 @@
 
 Companion to CLAUDE.md § Design system (v2). Why a button stretches edge to edge, why dialog actions stack, what `PrimaryDialogAction` bakes in, and how the responsive spacing tokens and bordered-card padding are sized. CLAUDE.md keeps one line per rule; the mechanism and the reference call sites are here.
 
+## Always rounded rectangles (`InRadii.r1`–`r3`), never pills; new component themes go in `theme.dart`
+
+Use `RoundedRectangleBorder(borderRadius: BorderRadius.circular(InRadii.r2))` (or `.r1` / `.r3` per size) — never `StadiumBorder`, never `BorderRadius.circular(999)`. Material 3 defaults `SegmentedButton` / `Chip` / `FloatingActionButton.extended` to pills, so `theme.dart` registers the rounded shape on every relevant component theme; new widgets inherit it. Add new component themes to `theme.dart` rather than overriding inline. (Moved here from CLAUDE.md § Design system (v2), which keeps the one-line rule.)
+
 ## Pair related action buttons side-by-side
 
 **Pair related action buttons side-by-side**, not stacked — a `Row` with `SizedBox(width: InSpacing.md(context))` between them. Cancel sits next to the primary action, never above it.

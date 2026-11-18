@@ -46,6 +46,7 @@ Plus two non-negotiables carried from admin-portal:
 | A dashboard panel, hiding empty ones, the `+` create sheet | § Dashboard panels · `docs/dashboard-panels.md` · `lib/domain/quick_create.dart` |
 | Tasks: a layout view, the kanban board, a booked-but-not-started task | § Tasks layout view · `docs/tasks-views.md` · `docs/task-scheduling.md` |
 | Content too wide for its pane: filter bar, tab strip, Tasks header, FAB over a list | `docs/pane-width-and-overflow.md` · `lib/ui/core/utils/fab_clearance.dart` |
+| A foldable / iPhone Duo: fold, unfold, book posture, a dialog's side of the fold | `docs/foldables.md` · `lib/ui/core/fold_geometry.dart` |
 | A billing-doc edit screen, or its History tab | `lib/ui/features/billing_shared/edit/billing_doc_edit_layout.dart` · `BillingDocType` · § Document version history |
 | A list row: one tap target, zero vs dash, screen-reader action, pull-to-refresh | `docs/row-actions-and-values.md` · `docs/pull-to-refresh.md` · `lib/ui/core/list/cell_slot.dart` |
 | A record screen's layout, comments, activity rows, a `Viewed` pill | § Detail screens · `docs/detail-screen-layout.md` · `docs/comments-and-activity.md` |
@@ -163,7 +164,8 @@ When styling a page: read `design_tokens.dart`, reuse `InTheme`, prefer `Theme.o
 - **Every decorative animation runs through `InMotion.of(context)`, so reduced motion is zero, and the device buzzes only through `InHaptics`.** → `docs/motion-and-haptics.md`
 - **An animation that repeats forever runs only while the app is `resumed` and motion is not reduced — a Wayland window is never told it is hidden, so nothing else stops its frames.** → `docs/motion-and-haptics.md`
 
-**Always rounded rectangles, never pills.** Use `RoundedRectangleBorder(borderRadius: BorderRadius.circular(InRadii.r2))` (or `.r1` / `.r3` per size) — never `StadiumBorder`, never `BorderRadius.circular(999)`. Material 3 defaults `SegmentedButton` / `Chip` / `FloatingActionButton.extended` to pills, so `theme.dart` registers the rounded shape on every relevant component theme; new widgets inherit it. Add new component themes to `theme.dart` rather than overriding inline.
+- **Always rounded rectangles (`InRadii.r1`–`r3`), never pills; new component themes go in `theme.dart`.** → `docs/buttons-and-spacing.md`
+- **A fold resizes the app in place: what moves between breakpoint branches keeps one key, a fold is read only through `fold_geometry.dart`, and every `showDialog` passes `anchorPoint`.** → `docs/foldables.md`
 
 - **Always the vertical `⋮`, never the horizontal `⋯`.** → `docs/popup-dismissal.md`
 - **Touch targets are gated on the platform, not the viewport** — and five traps each silently produce the wrong size (full text of each: `docs/touch-targets.md`):

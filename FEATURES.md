@@ -1878,6 +1878,8 @@ Field-level breakdown of every option under each advanced settings panel. Source
 | App-icon quick actions, iOS 18 Control Center controls, Siri / Shortcuts actions | — | — | ✅ | | New Invoice / Task / Expense on both platforms' icons; Control Center New Invoice / New Task; Siri / Shortcuts: new invoice, task, expense, unpaid invoices |
 | OS deep links (custom scheme) | — | ❌ | ✅ | ✅ | `invoiceninja://app/…`, now the fallback behind the https form; v1 registers a scheme for Google OAuth only |
 | Universal / App Links (https) | — | ❌ | 🟡 | | client side done (`/app/` claim + shims); 🟡 until the server's `.well-known` routes deploy and the Apple capability is enabled — see `APP_LINKS.md` |
+| Foldables: state survives a fold / unfold (list scroll and search, the field being typed in, an open record, the command palette, the drawer) | — | — | ✅ | | Android foldables and iPad windows today; the iPhone Duo once built with the iOS 27.1 SDK (CI `apple-ios` on Xcode 27.1) — `docs/foldables.md` |
+| Foldables: book posture splits the list and the record (and settings) at the fold; dialogs open on their side of it | — | — | 🟡 | | works on Android foldables; the iPhone Duo waits on Flutter reporting its hinge (flutter/flutter#193025). Debug Panel → Simulate fold shows it anywhere — `docs/foldables.md` |
 | Native window-state persistence (macOS + Windows) | — | ❌ | ✅ | ✅ | |
 | Frameless app-painted title bar (macOS + Windows + Linux) | — | ❌ | ✅ | | nav arrows share the window caption band; band follows the light/dark theme |
 | OAuth deep-link handler (callback URL) | — | ✅ | ✅ | ✅ | |
