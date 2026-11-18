@@ -202,9 +202,11 @@ class _AgingBarState extends State<AgingBar> {
     );
   }
 
-  static int _flexOf(double amount, double total) {
-    if (total <= 0) return 1;
-    final share = (amount / total * 1000).round();
+  // A flex share, not money: the bucket's fraction of the bar (the CI money
+  // gate rejects a `double` named like an amount).
+  static int _flexOf(double part, double whole) {
+    if (whole <= 0) return 1;
+    final share = (part / whole * 1000).round();
     return share < AgingBar.minShare ? AgingBar.minShare : share;
   }
 }

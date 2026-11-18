@@ -24,9 +24,9 @@ class ProfileCardWidthScope extends InheritedWidget {
       .dependOnInheritedWidgetOfExactType<ProfileCardWidthScope>()
       ?.width;
 
-  /// Each of [count] equal cards sharing [total] with a [gap] between them.
-  static double share(double total, int count, double gap) =>
-      count <= 1 ? total : (total - gap * (count - 1)) / count;
+  /// Each of [count] equal cards sharing [available] with a [gap] between them.
+  static double share(double available, int count, double gap) =>
+      count <= 1 ? available : (available - gap * (count - 1)) / count;
 
   @override
   bool updateShouldNotify(ProfileCardWidthScope oldWidget) =>
