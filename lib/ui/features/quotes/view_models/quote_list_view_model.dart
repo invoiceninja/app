@@ -253,15 +253,14 @@ class QuoteListViewModel extends GenericListViewModel<Quote> {
         );
       },
     ),
+    // Selection-level: the list screen's onSelection runs one server job
+    // over the whole selection (one merged PDF). Unsynced records are
+    // left out — the server doesn't know their ids.
     BulkAction<Quote>(
       id: 'run_template',
       labelKey: 'run_template',
-      eligible: (q) => !isDeleted(q),
-      applyArg: (id, arg) => repo.runTemplate(
-        companyId: companyId,
-        id: id,
-        templateId: arg as String,
-      ),
+      eligible: (q) => !isDeleted(q) && !q.id.startsWith('tmp_') && !q.isDirty,
+      apply: (_) async {},
     ),
     // Selection-level PDF actions — the list screen's onSelection does the real
     // work (server-merged print / async zip+email download). `eligible` drives

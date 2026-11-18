@@ -208,5 +208,14 @@ class ExpenseListViewModel extends GenericListViewModel<Expense> {
       eligible: (e) => !e.isDeleted,
       apply: (_) async {},
     ),
+    // Selection-level: the list screen's onSelection runs one server job
+    // over the whole selection (one merged PDF). Unsynced records are
+    // left out — the server doesn't know their ids.
+    BulkAction<Expense>(
+      id: 'run_template',
+      labelKey: 'run_template',
+      eligible: (e) => !e.isDeleted && !e.id.startsWith('tmp_') && !e.isDirty,
+      apply: (_) async {},
+    ),
   ];
 }

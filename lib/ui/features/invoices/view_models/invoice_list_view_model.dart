@@ -237,16 +237,14 @@ class InvoiceListViewModel extends GenericListViewModel<Invoice>
         );
       },
     ),
+    // Selection-level: the list screen's onSelection runs one server job
+    // over the whole selection (one merged PDF). Unsynced records are
+    // left out — the server doesn't know their ids.
     BulkAction<Invoice>(
       id: 'run_template',
       labelKey: 'run_template',
-      eligible: (i) => !i.isDeleted,
-      // `arg` is the chosen design id from showRunTemplateDialog (prepare).
-      applyArg: (id, arg) => repo.runTemplate(
-        companyId: companyId,
-        id: id,
-        templateId: arg as String,
-      ),
+      eligible: (i) => !i.isDeleted && !i.id.startsWith('tmp_') && !i.isDirty,
+      apply: (_) async {},
     ),
     // Selection-level PDF actions — the list screen's onSelection does the real
     // work (server-merged print / async zip+email download). `eligible` drives

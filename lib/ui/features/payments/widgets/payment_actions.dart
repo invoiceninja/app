@@ -6,6 +6,7 @@ import 'package:admin/app/router.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/data/models/domain/payment.dart';
 import 'package:admin/domain/entity_type.dart';
+import 'package:admin/domain/run_template.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/detail/activity_note_actions.dart';
 import 'package:admin/ui/core/detail/copy_entity_link.dart';
@@ -17,6 +18,7 @@ import 'package:admin/ui/core/edit/edit_action_filter.dart';
 import 'package:admin/ui/core/sync/require_synced.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/features/billing_shared/email/recipient_email_fix.dart';
+import 'package:admin/ui/features/invoices/widgets/detail/run_template_dialog.dart';
 import 'package:admin/ui/features/payments/widgets/payment_apply.dart';
 
 /// Action set surfaced for a payment. Refund opens a dedicated sub-route at
@@ -31,6 +33,7 @@ enum PaymentAction {
   apply,
   refund,
   sendEmail,
+  runTemplate,
   addComment,
   logCall,
   viewClient,
@@ -51,6 +54,8 @@ class PaymentActions {
       case PaymentAction.archive:
       case PaymentAction.restore:
       case PaymentAction.delete:
+      // Nothing to render until the server has the payment.
+      case PaymentAction.runTemplate:
         return true;
       default:
         return false;
@@ -135,6 +140,15 @@ class PaymentActions {
         enabled: !payment.isDeleted,
         onTap: () => onTap(PaymentAction.sendEmail),
       ),
+      if (!payment.isDeleted)
+        EntityActionItem(
+          kind: PaymentAction.runTemplate,
+          icon: Icons.auto_awesome_outlined,
+          label: context.tr('run_template'),
+          enabled: !payment.id.startsWith('tmp_'),
+          menuOnly: true,
+          onTap: () => onTap(PaymentAction.runTemplate),
+        ),
       addCommentActionItem(
         context: context,
         kind: PaymentAction.addComment,
@@ -307,6 +321,14 @@ class PaymentActions {
         if (context.mounted) {
           Notify.success(context, context.tr('emailed_payment'));
         }
+      case PaymentAction.runTemplate:
+        if (!requireSynced(context, payment.id)) return;
+        await runTemplate(
+          context,
+          entity: RunTemplateEntity.payment,
+          ids: [payment.id],
+          hasUnsyncedEdits: payment.isDirty,
+        );
       case PaymentAction.logCall:
         await promptLogCallFor(
           context,

@@ -9,6 +9,7 @@ import 'package:admin/data/models/domain/project.dart';
 import 'package:admin/data/models/domain/task.dart';
 import 'package:admin/domain/entity_type.dart';
 import 'package:admin/domain/quick_create.dart';
+import 'package:admin/domain/run_template.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/detail/activity_note_actions.dart';
 import 'package:admin/ui/core/detail/copy_entity_link.dart';
@@ -512,15 +513,12 @@ class ProjectActions {
         await addProjectsToInvoice(context, services, companyId, [project]);
       case ProjectAction.runTemplate:
         if (!requireSynced(context, project.id)) return;
-        final templateId = await showRunTemplateDialog(context);
-        if (templateId == null || !context.mounted) return;
-        await services.projects.runTemplate(
-          companyId: companyId,
-          id: project.id,
-          templateId: templateId,
+        await runTemplate(
+          context,
+          entity: RunTemplateEntity.project,
+          ids: [project.id],
+          hasUnsyncedEdits: project.isDirty,
         );
-        if (!context.mounted) return;
-        Notify.success(context, context.tr('template_queued'));
     }
   }
 

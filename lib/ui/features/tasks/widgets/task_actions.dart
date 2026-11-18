@@ -18,6 +18,7 @@ import 'package:admin/data/models/domain/task_status.dart';
 import 'package:admin/data/models/domain/time_entry.dart';
 import 'package:admin/domain/entity_type.dart';
 import 'package:admin/domain/quick_create.dart';
+import 'package:admin/domain/run_template.dart';
 import 'package:admin/domain/tasks/task_day.dart';
 import 'package:admin/domain/tasks/task_schedule.dart';
 import 'package:admin/l10n/localization.dart';
@@ -36,6 +37,7 @@ import 'package:admin/ui/features/billing_shared/add_unbilled/invoice_append_con
 import 'package:admin/ui/features/billing_shared/add_unbilled/unbilled_line_items.dart';
 import 'package:admin/ui/features/billing_shared/seed_billing_create_defaults.dart';
 import 'package:admin/ui/features/invoices/view_models/invoice_edit_view_model.dart';
+import 'package:admin/ui/features/invoices/widgets/detail/run_template_dialog.dart';
 import 'package:admin/utils/formatting.dart';
 
 /// Action set surfaced for a task. Mirrors `ProductAction` — only the
@@ -51,6 +53,7 @@ enum TaskAction {
   resume,
   newInvoice,
   addToInvoice,
+  runTemplate,
   addComment,
   logCall,
   viewClient,
@@ -73,6 +76,8 @@ class TaskActions {
       case TaskAction.archive:
       case TaskAction.restore:
       case TaskAction.delete:
+      // Nothing to render until the server has the task.
+      case TaskAction.runTemplate:
         return true;
       default:
         return false;
@@ -333,6 +338,15 @@ class TaskActions {
               !task.isRunning,
           onTap: () => onTap(TaskAction.addToInvoice),
         ),
+      if (live)
+        EntityActionItem(
+          kind: TaskAction.runTemplate,
+          icon: Icons.auto_awesome_outlined,
+          label: context.tr('run_template'),
+          enabled: !task.id.startsWith('tmp_'),
+          menuOnly: true,
+          onTap: () => onTap(TaskAction.runTemplate),
+        ),
       // A note writes nothing on the task itself, so it is offered to anyone
       // who can see the record — the server asks only `can('view')`.
       if (live) ...[
@@ -498,6 +512,14 @@ class TaskActions {
             entityId: task.id,
             text: text,
           ),
+        );
+      case TaskAction.runTemplate:
+        if (!requireSynced(context, task.id)) return;
+        await runTemplate(
+          context,
+          entity: RunTemplateEntity.task,
+          ids: [task.id],
+          hasUnsyncedEdits: task.isDirty,
         );
       case TaskAction.logCall:
         await promptLogCallFor(

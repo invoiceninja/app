@@ -212,15 +212,15 @@ class PurchaseOrderListViewModel extends GenericListViewModel<PurchaseOrder> {
         );
       },
     ),
+    // Selection-level: the list screen's onSelection runs one server job
+    // over the whole selection (one merged PDF). Unsynced records are
+    // left out — the server doesn't know their ids.
     BulkAction<PurchaseOrder>(
       id: 'run_template',
       labelKey: 'run_template',
-      eligible: (po) => !isDeleted(po),
-      applyArg: (id, arg) => repo.runTemplate(
-        companyId: companyId,
-        id: id,
-        templateId: arg as String,
-      ),
+      eligible: (po) =>
+          !isDeleted(po) && !po.id.startsWith('tmp_') && !po.isDirty,
+      apply: (_) async {},
     ),
     // Selection-level PDF actions — the list screen's onSelection does the real
     // work (server-merged print / async zip+email download). `eligible` drives

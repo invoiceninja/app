@@ -5,10 +5,12 @@ import 'package:admin/app/router.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/data/models/domain/client.dart';
 import 'package:admin/domain/columns/client_columns.dart';
+import 'package:admin/domain/run_template.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/list/entity_list_screen_scaffold.dart';
 import 'package:admin/ui/core/list/entity_sort_filter_sheet.dart';
 import 'package:admin/ui/core/list/master_detail_layout.dart';
+import 'package:admin/ui/features/invoices/widgets/detail/run_template_dialog.dart';
 import 'package:admin/ui/features/clients/view_models/client_edit_view_model.dart';
 import 'package:admin/ui/features/clients/view_models/client_list_view_model.dart';
 import 'package:admin/ui/features/clients/widgets/client_actions.dart';
@@ -140,8 +142,8 @@ class ClientListScreen extends StatelessWidget {
                   ),
           );
         },
-        bulkActions: const [
-          EntityListBulkAction(
+        bulkActions: [
+          const EntityListBulkAction(
             actionId: 'archive',
             icon: Icons.archive_outlined,
             tooltipKey: 'archive',
@@ -149,7 +151,7 @@ class ClientListScreen extends StatelessWidget {
             pluralSuccessKey: 'archived_clients',
             nothingKey: 'nothing_to_archive',
           ),
-          EntityListBulkAction(
+          const EntityListBulkAction(
             actionId: 'restore',
             icon: Icons.unarchive_outlined,
             tooltipKey: 'restore',
@@ -157,7 +159,7 @@ class ClientListScreen extends StatelessWidget {
             pluralSuccessKey: 'restored_clients',
             nothingKey: 'nothing_to_restore',
           ),
-          EntityListBulkAction(
+          const EntityListBulkAction(
             actionId: 'delete',
             icon: Icons.delete_outline,
             tooltipKey: 'delete',
@@ -165,7 +167,7 @@ class ClientListScreen extends StatelessWidget {
             pluralSuccessKey: 'deleted_clients',
             nothingKey: 'nothing_to_delete',
           ),
-          EntityListBulkAction(
+          const EntityListBulkAction(
             actionId: 'bulk_update',
             icon: Icons.edit_outlined,
             tooltipKey: 'bulk_update',
@@ -174,7 +176,7 @@ class ClientListScreen extends StatelessWidget {
             nothingKey: 'nothing_to_update',
             prepare: _showClientBulkUpdate,
           ),
-          EntityListBulkAction(
+          const EntityListBulkAction(
             actionId: 'assign_group',
             icon: Icons.group_outlined,
             tooltipKey: 'assign_group',
@@ -182,6 +184,20 @@ class ClientListScreen extends StatelessWidget {
             pluralSuccessKey: 'updated_clients',
             nothingKey: 'nothing_to_update',
             prepare: showBulkAssignGroupDialog,
+          ),
+          EntityListBulkAction(
+            actionId: 'run_template',
+            icon: Icons.dashboard_customize_outlined,
+            tooltipKey: 'run_template',
+            singleSuccessKey: 'run_template', // unused for onSelection
+            pluralSuccessKey: 'run_template', // unused for onSelection
+            nothingKey: 'nothing_to_update',
+            onSelection: (ctx, sel) => runTemplateOnSelection<Client>(
+              ctx,
+              sel,
+              entity: RunTemplateEntity.client,
+              idOf: (r) => r.id,
+            ),
           ),
         ],
       ),

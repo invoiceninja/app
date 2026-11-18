@@ -49,17 +49,6 @@ class RecurringInvoicesApi
     idempotencyKey: idempotencyKey,
   );
 
-  Future<RecurringInvoiceItemApi?> runTemplate({
-    required String id,
-    required String templateId,
-    required String idempotencyKey,
-  }) => bulkActionOne(
-    id: id,
-    action: 'template',
-    idempotencyKey: idempotencyKey,
-    extra: {'template_id': templateId},
-  );
-
   Future<RecurringInvoiceItemApi?> updatePrices({
     required String id,
     required String idempotencyKey,

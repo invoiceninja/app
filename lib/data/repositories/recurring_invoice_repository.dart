@@ -349,17 +349,6 @@ class RecurringInvoiceRepository
     payload: {'id': id, 'target': targetType},
   );
 
-  Future<void> runTemplate({
-    required String companyId,
-    required String id,
-    required String templateId,
-  }) => enqueueMutation(
-    companyId: companyId,
-    entityId: id,
-    kind: MutationKind.runTemplate,
-    payload: {'id': id, 'template_id': templateId},
-  );
-
   /// Mass-update one whitelisted column on [recurringInvoice] — the
   /// `bulk_update` bulk action, fired once per selected record by the list
   /// view model. Writes the patched row to Drift (`is_dirty=true`) so the

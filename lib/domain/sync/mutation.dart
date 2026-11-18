@@ -123,9 +123,12 @@ enum MutationKind {
   /// share the same kind.
   cancelEntity,
 
-  /// `POST /<billing_doc>/bulk` with `action: template` — apply a design or
-  /// email template to one or more entities. Payload carries `template_id`
-  /// + entity id. Routed via `customActions`.
+  /// Legacy — nothing enqueues this any more. `POST /<entities>/bulk` with
+  /// `action: template` only queues a server job whose PDF has to be polled
+  /// by the caller, so Run Template is a synchronous flow (`RunTemplateApi`,
+  /// `docs/running-a-template.md`). The kind stays so a row an older build
+  /// queued still decodes; `legacyRunTemplateHandler` settles it without a
+  /// request instead of letting it dead-letter.
   runTemplate,
 
   /// `POST /recurring_invoices/bulk` with `action: update_prices` — recompute

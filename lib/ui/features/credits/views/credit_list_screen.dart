@@ -8,6 +8,7 @@ import 'package:admin/data/db/dao/credit_dao.dart';
 import 'package:admin/data/models/domain/billing/billing_doc_fields.dart';
 import 'package:admin/data/models/domain/credit.dart';
 import 'package:admin/domain/billing/selection_totals.dart';
+import 'package:admin/domain/run_template.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/list/entity_list_screen_scaffold.dart';
 import 'package:admin/ui/core/list/entity_sort_filter_sheet.dart';
@@ -212,10 +213,15 @@ class CreditListScreen extends StatelessWidget {
           actionId: 'run_template',
           icon: Icons.dashboard_customize_outlined,
           tooltipKey: 'run_template',
-          singleSuccessKey: 'ran_template_credit',
-          pluralSuccessKey: 'ran_template_credits',
+          singleSuccessKey: 'run_template', // unused for onSelection
+          pluralSuccessKey: 'run_template', // unused for onSelection
           nothingKey: 'nothing_to_update',
-          prepare: showRunTemplateDialog,
+          onSelection: (ctx, sel) => runTemplateOnSelection<Credit>(
+            ctx,
+            sel,
+            entity: RunTemplateEntity.credit,
+            idOf: (r) => r.id,
+          ),
         ),
         EntityListBulkAction(
           actionId: 'download_pdf',

@@ -152,6 +152,7 @@ import 'package:admin/data/services/statics_service.dart';
 import 'package:admin/data/services/support_api.dart';
 import 'package:admin/data/services/system_api.dart';
 import 'package:admin/data/services/system_logs_api.dart';
+import 'package:admin/data/services/run_template_api.dart';
 import 'package:admin/data/services/templates_api.dart';
 import 'package:admin/data/services/tls/certificate_trust_store.dart';
 import 'package:admin/data/services/token_storage.dart';
@@ -371,6 +372,7 @@ class Services implements SidebarBadgeContext {
     required this.support,
     required this.smtp,
     required this.templates,
+    required this.runTemplate,
     required this.activities,
     required this.documentVersions,
     required this.emails,
@@ -527,7 +529,7 @@ class Services implements SidebarBadgeContext {
   /// `LineItem` value type is shared with future Quote / Credit /
   /// PurchaseOrder / RecurringInvoice. Custom actions (markSent / markPaid
   /// / email / scheduleEmail / cloneTo{Invoice|Quote|Credit|Recurring|PO}
-  /// / autoBill / cancel / runTemplate) ride dedicated `MutationKind`
+  /// / autoBill / cancel) ride dedicated `MutationKind`
   /// values routed through `customActions` in `services_entity_wiring`.
   final InvoiceRepository invoices;
 
@@ -709,6 +711,11 @@ class Services implements SidebarBadgeContext {
   /// the server runs variable substitution, and the preview panel renders
   /// the returned HTML.
   final TemplatesApi templates;
+
+  /// Run Template: queues the server's `template` bulk job and polls its
+  /// PDF. Online-only and outside the outbox — it writes no record; see
+  /// [RunTemplateApi] and `docs/running-a-template.md`.
+  final RunTemplateApi runTemplate;
 
   final SyncRepository sync;
 
@@ -2682,6 +2689,7 @@ class Services implements SidebarBadgeContext {
       support: supportApi,
       smtp: smtpApi,
       templates: templatesApi,
+      runTemplate: RunTemplateApi(apiClient),
       activities: activitiesApi,
       documentVersions: documentVersionsApi,
       emails: emailsApi,

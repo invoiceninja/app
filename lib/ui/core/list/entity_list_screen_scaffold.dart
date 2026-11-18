@@ -205,6 +205,12 @@ class EntityListTileOptions {
 /// loop (email compose sheet, group picker, template picker). Returns the
 /// value to thread into the matching `BulkAction.applyArg`; returning `null`
 /// cancels the whole action (selection untouched, no toast).
+/// What an [EntityListBulkAction.onSelection] handler can report back.
+enum SelectionActionOutcome {
+  /// The user cancelled before anything ran; the selection stays.
+  cancelled,
+}
+
 @immutable
 class EntityListBulkAction {
   const EntityListBulkAction({
@@ -279,7 +285,12 @@ class EntityListBulkAction {
   /// supplies `eligible` (so the empty-selection guard works) and may use a
   /// no-op `apply`. Items arrive as `List<Object?>` (covariant) — cast to the
   /// entity type in the handler.
-  final Future<void> Function(BuildContext context, List<Object?> selected)?
+  ///
+  /// The selection is cleared afterwards, unless the handler completes with
+  /// [SelectionActionOutcome.cancelled] — the user backed out of its own
+  /// picker, which leaves the selection as it was, like a [prepare] that
+  /// returns null.
+  final Future<Object?> Function(BuildContext context, List<Object?> selected)?
   onSelection;
 
   /// Whether the server can take this action at all, asked each time the bulk
@@ -935,9 +946,13 @@ class _EntityListScreenScaffoldState<T, VM extends GenericListViewModel<T>>
       final selected = _vm.items
           .where((i) => eligibleIds.contains(_vm.idOf(i)))
           .toList();
-      await _vm.runSelectionAction(
-        () => action.onSelection!(context, selected),
-      );
+      Object? outcome;
+      await _vm.runSelectionAction(() async {
+        outcome = await action.onSelection!(context, selected);
+      });
+      // Backed out of the handler's own picker: keep the selection, as a
+      // cancelled `prepare` does.
+      if (identical(outcome, SelectionActionOutcome.cancelled)) return;
       // Exit multiselect (React parity, `setSelected([])`) and close the
       // double-tap window — the handler ran once on this selection.
       if (mounted) _vm.clearSelection();

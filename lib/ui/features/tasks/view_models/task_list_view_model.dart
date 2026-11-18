@@ -359,6 +359,15 @@ class TaskListViewModel extends GenericListViewModel<Task> {
       eligible: (t) => _billable(t) && t.clientId.isNotEmpty,
       apply: (_) async {},
     ),
+    // Selection-level: the list screen's onSelection runs one server job
+    // over the whole selection (one merged PDF). Unsynced records are
+    // left out — the server doesn't know their ids.
+    BulkAction<Task>(
+      id: 'run_template',
+      labelKey: 'run_template',
+      eligible: (t) => !t.isDeleted && !t.id.startsWith('tmp_') && !t.isDirty,
+      apply: (_) async {},
+    ),
   ];
 
   static bool _billable(Task t) =>

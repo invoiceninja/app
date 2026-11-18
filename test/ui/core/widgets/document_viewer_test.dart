@@ -126,6 +126,24 @@ void main() {
     expect(find.byType(PdfPreview), findsOneWidget);
   });
 
+  testWidgets('a refused fetch shows its own sentence and no Retry', (
+    tester,
+  ) async {
+    var calls = 0;
+    await _pump(
+      tester,
+      doc: _pdfDoc,
+      fetch: () async {
+        calls++;
+        throw const DocumentFetchRefused('Ask for it by email instead.');
+      },
+    );
+
+    expect(find.text('Ask for it by email instead.'), findsOneWidget);
+    expect(find.text('Retry'), findsNothing);
+    expect(calls, 1);
+  });
+
   testWidgets('an empty body is an error, not a file to save', (tester) async {
     // The server streams before it reads the file, so a file missing from
     // storage arrives as an empty 200.

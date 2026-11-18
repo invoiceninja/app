@@ -166,6 +166,7 @@ the honest default.
 | Client — clone | ✅ | ❌ | ✅ | ✅ | |
 | Client — merge two clients | ✅ | ❌ | ✅ | ✅ | |
 | Client — statement PDF | ✅ | ✅ | ✅ | ✅ | |
+| Client — run template (one client or a list selection; the PDF opens in the app or is emailed to you; a `##statement##` template renders statements) | ✅ | ✅ | ✅ | | docs/running-a-template.md |
 | Client — comments / internal notes | ✅ | ✅ | ✅ | ✅ | |
 | Client — documents / attachments | ✅ | ✅ | ✅ | ✅ | |
 | Client — activity / audit feed | ✅ | ✅ | ✅ | ✅ | |
@@ -253,6 +254,7 @@ the honest default.
 | Invoice — email to client | ✅ | ✅ | ✅ | ✅ | |
 | Invoice — schedule email (delayed send) | ✅ | ❌ | ✅ | ✅ | |
 | Invoice — change template / design | ✅ | ✅ | ✅ | ✅ | |
+| Invoice — run template (one invoice or a list selection; the PDF opens in the app or is emailed to you) | ✅ | ✅ | ✅ | | docs/running-a-template.md |
 | Invoice — auto-bill with gateway | ✅ | ✅ | ✅ | ✅ | |
 | Invoice — view / download PDF | ✅ | ✅ | ✅ | ✅ | |
 | Invoice — PDF version history (older versions) | ✅ | ✅ | ✅ | | |
@@ -300,6 +302,7 @@ the honest default.
 | Quote — past its valid-until date: Mark Sent / Email not offered, and a past date can't be saved | ❌ | — | ✅ | | The server rejects all three (5.13.44); React offers them and shows the error |
 | Quote — schedule email | ✅ | ❌ | ✅ | ✅ | |
 | Quote — change template / design | ✅ | ✅ | ✅ | ✅ | |
+| Quote — run template (one quote or a list selection; the PDF opens in the app or is emailed to you) | ✅ | ✅ | ✅ | | docs/running-a-template.md |
 | Quote — view / download PDF | ✅ | ✅ | ✅ | ✅ | |
 | Quote — PDF version history (older versions) | ✅ | ✅ | ✅ | | |
 | Quote — activities | ✅ | ✅ | ✅ | ✅ | |
@@ -336,6 +339,7 @@ the honest default.
 | Credit — email bounce indicator + reactivate | ✅ | ✅ | ✅ | | |
 | Credit — list bounce status badge | 🟡 | ✅ | ✅ | | |
 | Credit — change template / design | ✅ | ✅ | ✅ | ✅ | |
+| Credit — run template (one credit or a list selection; the PDF opens in the app or is emailed to you) | ✅ | ✅ | ✅ | | docs/running-a-template.md |
 | Credit — view / download PDF | ✅ | ✅ | ✅ | ✅ | |
 | Credit — PDF version history (older versions) | ✅ | ✅ | ✅ | | |
 | Credit — activities | ✅ | ✅ | ✅ | ✅ | |
@@ -409,6 +413,7 @@ the honest default.
 | Payment — delete hidden when it is applied to a deleted invoice (the server refuses it) | ✅ | — | ✅ | | |
 | Payment — bulk actions | ✅ | ✅ | ✅ | ✅ | |
 | Payment — bulk email receipt | ✅ | ✅ | ✅ | | docs/bulk-actions.md |
+| Payment — run template (one payment or a list selection; the PDF opens in the app or is emailed to you) | ✅ | ✅ | ✅ | | docs/running-a-template.md |
 | Payment — import (CSV) | ✅ | 🟡 | ✅ | ✅ | |
 | Payment — custom fields | ✅ | ✅ | ✅ | ✅ | |
 | Payment — list column for private notes | ✅ | ✅ | ✅ | | |
@@ -523,6 +528,7 @@ the honest default.
 | Task — archive / restore / delete / purge | ✅ | ✅ | ✅ | ✅ | |
 | Task — bulk actions | ✅ | ✅ | ✅ | ✅ | |
 | Task — bulk update (mass-edit status, client, project, assigned user; invoiced tasks skipped) | ✅ | ❌ | ✅ | | Hosted, or self-hosted ≥ 5.13.44 (task `bulk_update` 500'd before) |
+| Task — run template (one task or a list selection; the PDF opens in the app or is emailed to you) | ✅ | ✅ | ✅ | | docs/running-a-template.md |
 | Task — import (CSV) | ✅ | 🟡 | ✅ | ✅ | |
 
 ---
@@ -578,6 +584,7 @@ the honest default.
 | Purchase order — vendor portal link | ✅ | ✅ | ✅ | ✅ | |
 | Purchase order — download e-purchase-order (e-invoice) | ✅ | ❌ | ✅ | | |
 | Purchase order — change template / design | ✅ | ✅ | ✅ | ✅ | |
+| Purchase order — run template (one purchase order or a list selection; the PDF opens in the app or is emailed to you) | ✅ | ✅ | ✅ | | docs/running-a-template.md |
 | Purchase order — view / download PDF | ✅ | ✅ | ✅ | ✅ | |
 | Purchase order — PDF version history (older versions) | ✅ | ✅ | ✅ | | |
 | Purchase order — activities | ✅ | ✅ | ✅ | ✅ | |

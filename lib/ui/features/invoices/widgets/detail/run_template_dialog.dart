@@ -1,65 +1,251 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 
+import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/data/models/domain/design.dart';
+import 'package:admin/data/models/domain/document.dart';
+import 'package:admin/data/services/api_exception.dart';
+import 'package:admin/data/services/run_template_api.dart';
+import 'package:admin/domain/run_template.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
+import 'package:admin/ui/core/list/entity_list_screen_scaffold.dart';
+import 'package:admin/ui/core/widgets/document_viewer.dart';
+import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
 import 'package:admin/ui/core/widgets/searchable_dropdown_field.dart';
-import 'package:admin/ui/core/fold_geometry.dart';
 
-/// Modal picker for the Run Template action. Lets the user pick a design
-/// template; on Save returns the chosen `design.id` to the caller, which
-/// enqueues `MutationKind.runTemplate` against the server.
+/// Run Template on [ids] — one record from its actions menu, or a list
+/// selection (the server merges them into one PDF).
 ///
-/// Templates today are sourced from the company's `designs` bundle — same
-/// list the Invoice Design picker uses. Email templates (reminder1/2/3,
-/// endless, custom1..3) are kept distinct on the server and land in a
-/// follow-up alongside the bulk-email run-template variant.
-Future<String?> showRunTemplateDialog(BuildContext context) async {
+/// Asks for the template and whether to email it, then either opens the
+/// rendered PDF in the document viewer (with Download) or asks the server to
+/// email it to the user. Online-only and outside the outbox: nothing here
+/// writes a record, and the PDF comes back only to the caller that started
+/// the job (`RunTemplateApi`, `docs/running-a-template.md`).
+///
+/// [hasUnsyncedEdits] stops a record whose own save is still queued: the
+/// server would render its older copy. (The outbox row this replaced waited
+/// behind that save; a direct call does not.)
+///
+/// Returns false when the user backed out — the list bulk bar keeps its
+/// selection then ([SelectionActionOutcome.cancelled], via
+/// [runTemplateOnSelection]).
+Future<bool> runTemplate(
+  BuildContext context, {
+  required RunTemplateEntity entity,
+  required List<String> ids,
+  bool hasUnsyncedEdits = false,
+}) async {
+  if (ids.isEmpty) return false;
+  if (hasUnsyncedEdits) {
+    Notify.error(context, context.tr('sync_first_generic'));
+    return false;
+  }
+  final services = context.read<Services>();
+  final session = services.auth.session.value;
+  final pdfBlock = session == null
+      ? null
+      : runTemplatePdfBlock(
+          canViewReports: session.currentCompany?.can('view_reports') ?? false,
+          isHosted: session.isHosted,
+          isPaidPlanSlug: session.isPaidPlanSlug,
+          isPlanExpired: session.isPlanExpired,
+        );
+  final choice = await showRunTemplateDialog(
+    context,
+    entity: entity,
+    count: ids.length,
+    pdfBlock: pdfBlock,
+  );
+  if (choice == null || !context.mounted) return false;
+  final api = services.runTemplate;
+
+  if (choice.sendEmail) {
+    try {
+      await api.start(
+        entityPath: entity.path,
+        ids: ids,
+        templateId: choice.template.id,
+        sendEmail: true,
+      );
+      if (!context.mounted) return true;
+      Notify.success(context, context.tr('run_template_emailed'));
+    } catch (e) {
+      if (!context.mounted) return true;
+      Notify.error(context, context.tr('run_template'), error: e);
+    }
+    return true;
+  }
+
+  // The viewer shows the spinner, the error with Retry, and the PDF with
+  // Download. Closing it stops the polling; a Retry starts a fresh job,
+  // because the server deletes a finished PDF once it has been read.
+  var closed = false;
+  final timedOut = context.tr('run_template_timed_out');
+  final refused = context.tr('run_template_pdf_refused');
+  await showDocumentViewer(
+    context,
+    doc: Document(name: choice.template.name, type: 'pdf'),
+    fetch: () async {
+      try {
+        final hash = await api.start(
+          entityPath: entity.path,
+          ids: ids,
+          templateId: choice.template.id,
+          sendEmail: false,
+        );
+        return await api.fetchPdf(hash!, isCancelled: () => closed);
+      } on RunTemplateTimeout {
+        throw _RunTemplateMessage(timedOut);
+      } on PlanRequiredException {
+        throw DocumentFetchRefused(refused);
+      } on ServerException catch (e) {
+        // `ReportPreviewRequest` refused this user the file. Asking again
+        // would only queue another job nobody can read.
+        if (e.statusCode == 403) throw DocumentFetchRefused(refused);
+        rethrow;
+      }
+    },
+  );
+  closed = true;
+  return true;
+}
+
+/// [runTemplate] as a list bulk bar's `onSelection`: [records] are the
+/// eligible selection, and backing out keeps it selected.
+Future<Object?> runTemplateOnSelection<T>(
+  BuildContext context,
+  List<Object?> records, {
+  required RunTemplateEntity entity,
+  required String Function(T record) idOf,
+}) async {
+  final ran = await runTemplate(
+    context,
+    entity: entity,
+    ids: [for (final r in records.cast<T>()) idOf(r)],
+  );
+  return ran ? null : SelectionActionOutcome.cancelled;
+}
+
+/// What the picker returns.
+typedef RunTemplateChoice = ({Design template, bool sendEmail});
+
+/// The picker on its own: the templates whose `entities` include [entity]
+/// (`templatesFor`), and a Send Email switch — locked on when [pdfBlock] says
+/// the PDF can't be opened here. Null when cancelled.
+Future<RunTemplateChoice?> showRunTemplateDialog(
+  BuildContext context, {
+  required RunTemplateEntity entity,
+  int count = 1,
+  RunTemplatePdfBlock? pdfBlock,
+}) async {
   final services = context.read<Services>();
   final companyId = services.auth.session.value!.currentCompanyId;
   final allDesigns = await services.designs
       .watchAll(companyId: companyId)
       .first;
-  final designs = allDesigns.where((d) => d.isTemplate).toList();
   if (!context.mounted) return null;
-  return showDialog<String>(
+  return showDialog<RunTemplateChoice>(
     context: context,
     anchorPoint: foldAnchorPoint(context),
-    builder: (_) => _RunTemplateDialog(designs: designs),
+    builder: (_) => RunTemplateDialog(
+      designs: templatesFor(allDesigns, entity),
+      count: count,
+      pdfBlock: pdfBlock,
+    ),
   );
 }
 
-class _RunTemplateDialog extends StatefulWidget {
-  const _RunTemplateDialog({required this.designs});
+/// Public so a test can pump it without `Services`.
+class RunTemplateDialog extends StatefulWidget {
+  const RunTemplateDialog({
+    super.key,
+    required this.designs,
+    this.count = 1,
+    this.pdfBlock,
+  });
 
+  /// Already filtered to the record type — see [templatesFor].
   final List<Design> designs;
 
+  /// How many records the template runs on; shown when more than one.
+  final int count;
+
+  /// Set when the server won't hand this user the PDF ([runTemplatePdfBlock]):
+  /// Send Email is then on, locked, and says why.
+  final RunTemplatePdfBlock? pdfBlock;
+
   @override
-  State<_RunTemplateDialog> createState() => _RunTemplateDialogState();
+  State<RunTemplateDialog> createState() => _RunTemplateDialogState();
 }
 
-class _RunTemplateDialogState extends State<_RunTemplateDialog> {
+class _RunTemplateDialogState extends State<RunTemplateDialog> {
   Design? _selected;
+  late bool _sendEmail = widget.pdfBlock != null;
+
+  @override
+  void initState() {
+    super.initState();
+    // One template is the whole choice — don't make the user pick it.
+    if (widget.designs.length == 1) _selected = widget.designs.single;
+  }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final selected = _selected;
+    final emailOnly = widget.pdfBlock != null;
     return AlertDialog(
       title: Text(context.tr('run_template')),
       content: SizedBox(
         width: 360,
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SearchableDropdownField<Design>(
-              label: context.tr('template'),
-              items: widget.designs,
-              initialValue: _selected,
-              displayString: (d) => d.name,
-              idOf: (d) => d.id,
-              onChanged: (d) => setState(() => _selected = d),
-            ),
+            if (widget.count > 1) ...[
+              Text(
+                context.tr('count_records_selected', {
+                  'count': '${widget.count}',
+                }),
+                style: theme.textTheme.bodyMedium,
+              ),
+              SizedBox(height: InSpacing.md(context)),
+            ],
+            if (widget.designs.isEmpty)
+              Text(
+                context.tr('run_template_none_available'),
+                style: theme.textTheme.bodyMedium,
+              )
+            else ...[
+              SearchableDropdownField<Design>(
+                label: context.tr('template'),
+                items: widget.designs,
+                initialValue: _selected,
+                displayString: (d) => d.name,
+                idOf: (d) => d.id,
+                onChanged: (d) => setState(() => _selected = d),
+              ),
+              const SizedBox(height: InSpacing.sm),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                value: _sendEmail,
+                title: Text(context.tr('send_email')),
+                subtitle: Text(
+                  context.tr(switch (widget.pdfBlock) {
+                    null => 'run_template_send_email_help',
+                    RunTemplatePdfBlock.permission =>
+                      'run_template_email_only_permission',
+                    RunTemplatePdfBlock.plan => 'run_template_email_only_plan',
+                  }),
+                ),
+                onChanged: emailOnly
+                    ? null
+                    : (v) => setState(() => _sendEmail = v),
+              ),
+            ],
           ],
         ),
       ),
@@ -71,21 +257,38 @@ class _RunTemplateDialogState extends State<_RunTemplateDialog> {
             OutlinedButton(
               style: OutlinedButton.styleFrom(minimumSize: const Size(64, 40)),
               onPressed: () => Navigator.of(context).pop(),
-              child: Text(context.tr('cancel')),
+              child: Text(
+                context.tr(widget.designs.isEmpty ? 'close' : 'cancel'),
+              ),
             ),
-            const SizedBox(width: 8),
-            PrimaryDialogAction(
-              label: context.tr('run'),
-              onPressed: () => Navigator.of(context).pop(_selected!.id),
-              enabled: _selected != null,
-              // Disabled until a template is picked + dropdown eats Enter —
-              // so no Enter hint.
-              autofocus: false,
-              showEnterHint: false,
-            ),
+            if (widget.designs.isNotEmpty) ...[
+              SizedBox(width: InSpacing.md(context)),
+              PrimaryDialogAction(
+                label: context.tr('run'),
+                onPressed: () => Navigator.of(context).pop<RunTemplateChoice>((
+                  template: selected!,
+                  sendEmail: _sendEmail,
+                )),
+                enabled: selected != null,
+                // The dropdown eats Enter, and Run starts disabled unless
+                // there is a single template — so no Enter hint.
+                autofocus: false,
+                showEnterHint: false,
+              ),
+            ],
           ],
         ),
       ],
     );
   }
+}
+
+/// A failure whose text is already the user-facing sentence — the viewer
+/// prints `toString()` behind its "failed to load" lead.
+class _RunTemplateMessage implements Exception {
+  const _RunTemplateMessage(this.message);
+  final String message;
+
+  @override
+  String toString() => message;
 }

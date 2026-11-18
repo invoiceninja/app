@@ -5,9 +5,11 @@ import 'package:admin/app/router.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/domain/bulk_update_columns.dart';
 import 'package:admin/ui/features/bulk_update/bulk_update_dialog.dart';
+import 'package:admin/ui/features/invoices/widgets/detail/run_template_dialog.dart';
 import 'package:admin/data/db/dao/expense_dao.dart';
 import 'package:admin/data/models/domain/expense.dart';
 import 'package:admin/domain/entity_type.dart';
+import 'package:admin/domain/run_template.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/list/entity_list_screen_scaffold.dart';
 import 'package:admin/ui/core/list/entity_sort_filter_sheet.dart';
@@ -222,6 +224,20 @@ class ExpenseListScreen extends StatelessWidget {
             },
           ),
         ],
+        EntityListBulkAction(
+          actionId: 'run_template',
+          icon: Icons.dashboard_customize_outlined,
+          tooltipKey: 'run_template',
+          singleSuccessKey: 'run_template', // unused for onSelection
+          pluralSuccessKey: 'run_template', // unused for onSelection
+          nothingKey: 'nothing_to_update',
+          onSelection: (ctx, sel) => runTemplateOnSelection<Expense>(
+            ctx,
+            sel,
+            entity: RunTemplateEntity.expense,
+            idOf: (r) => r.id,
+          ),
+        ),
       ],
     );
   }

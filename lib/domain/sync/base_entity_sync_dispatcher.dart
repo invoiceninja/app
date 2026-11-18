@@ -17,6 +17,17 @@ typedef CustomMutationHandler<TInner> =
       required Map<String, dynamic> payload,
     });
 
+/// The handler for [MutationKind.runTemplate], which nothing enqueues any
+/// more: Run Template is a synchronous call whose PDF only its caller can
+/// poll (`RunTemplateApi`, `docs/running-a-template.md`). A row an older build
+/// queued is settled here without a request — sending it would only render a
+/// PDF nobody reads, or 422 for a recurring invoice — rather than left to
+/// dead-letter for want of a handler.
+Future<TInner?> legacyRunTemplateHandler<TInner>({
+  required OutboxRow row,
+  required Map<String, dynamic> payload,
+}) async => null;
+
 /// Generic CRUD-list dispatcher. Drives every entity whose API extends
 /// `BaseEntityApi<TList, TItem>` and whose repository extends
 /// `BaseEntityRepository<TDomain, TInner>`. `TItem` is the envelope returned

@@ -13,6 +13,7 @@ import 'package:admin/domain/email_candidates.dart';
 import 'package:admin/domain/entity_type.dart';
 import 'package:admin/domain/phone/phone_candidates.dart';
 import 'package:admin/domain/quick_create.dart';
+import 'package:admin/domain/run_template.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/detail/activity_note_actions.dart';
 import 'package:admin/ui/core/detail/copy_entity_link.dart';
@@ -31,6 +32,7 @@ import 'package:admin/ui/features/clients/widgets/detail/merge_client_dialog.dar
 import 'package:admin/ui/features/clients/widgets/detail/purge_client_dialog.dart';
 import 'package:admin/ui/features/credits/view_models/credit_edit_view_model.dart';
 import 'package:admin/ui/features/expenses/view_models/expense_edit_view_model.dart';
+import 'package:admin/ui/features/invoices/widgets/detail/run_template_dialog.dart';
 import 'package:admin/ui/features/invoices/view_models/invoice_edit_view_model.dart';
 import 'package:admin/ui/features/payments/view_models/payment_edit_view_model.dart';
 import 'package:admin/ui/features/projects/view_models/project_edit_view_model.dart';
@@ -47,6 +49,7 @@ import 'package:admin/ui/features/tasks/view_models/task_edit_view_model.dart';
 enum ClientAction {
   edit,
   viewStatement,
+  runTemplate,
   clientPortal,
   settings,
   assignGroup,
@@ -102,6 +105,7 @@ class ClientActions {
       case ClientAction.merge:
       case ClientAction.assignGroup:
       case ClientAction.viewStatement:
+      case ClientAction.runTemplate:
         return true;
       default:
         return false;
@@ -268,6 +272,16 @@ class ClientActions {
           label: context.tr('view_statement'),
           enabled: true,
           onTap: () => onTap(ClientAction.viewStatement),
+        ),
+        // A template whose design reads `##statement##` renders the client's
+        // statement; any other renders the client (`TemplateAction`).
+        EntityActionItem(
+          kind: ClientAction.runTemplate,
+          icon: Icons.auto_awesome_outlined,
+          label: context.tr('run_template'),
+          enabled: !client.id.startsWith('tmp_'),
+          menuOnly: true,
+          onTap: () => onTap(ClientAction.runTemplate),
         ),
         EntityActionItem(
           kind: ClientAction.clientPortal,
@@ -491,6 +505,14 @@ class ClientActions {
         // `payment_actions.dart` refund pattern. Offline is surfaced inside
         // the screen by `ClientStatementViewModel`.
         context.go('/clients/${client.id}/statement');
+      case ClientAction.runTemplate:
+        if (!requireSynced(context, client.id)) return;
+        await runTemplate(
+          context,
+          entity: RunTemplateEntity.client,
+          ids: [client.id],
+          hasUnsyncedEdits: client.isDirty,
+        );
       case ClientAction.clientPortal:
         if (!requireSynced(context, client.id)) return;
         // Open the primary contact's portal (falling back to the first),

@@ -5,10 +5,12 @@ import 'package:admin/app/router.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/data/db/dao/project_dao.dart';
 import 'package:admin/data/models/domain/project.dart';
+import 'package:admin/domain/run_template.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/list/entity_list_screen_scaffold.dart';
 import 'package:admin/ui/core/list/entity_sort_filter_sheet.dart';
 import 'package:admin/ui/core/list/master_detail_layout.dart';
+import 'package:admin/ui/features/invoices/widgets/detail/run_template_dialog.dart';
 import 'package:admin/ui/features/projects/view_models/project_edit_view_model.dart';
 import 'package:admin/ui/features/projects/view_models/project_list_view_model.dart';
 import 'package:admin/ui/features/projects/widgets/project_actions.dart';
@@ -192,6 +194,20 @@ class ProjectListScreen extends StatelessWidget {
             ctx,
             ctx.read<Services>(),
             sel.cast<Project>(),
+          ),
+        ),
+        EntityListBulkAction(
+          actionId: 'run_template',
+          icon: Icons.dashboard_customize_outlined,
+          tooltipKey: 'run_template',
+          singleSuccessKey: 'run_template', // unused for onSelection
+          pluralSuccessKey: 'run_template', // unused for onSelection
+          nothingKey: 'nothing_to_update',
+          onSelection: (ctx, sel) => runTemplateOnSelection<Project>(
+            ctx,
+            sel,
+            entity: RunTemplateEntity.project,
+            idOf: (r) => r.id,
           ),
         ),
       ],

@@ -104,17 +104,6 @@ class CreditsApi extends BaseEntityApi<CreditListApi, CreditItemApi> {
     idempotencyKey: idempotencyKey,
   );
 
-  Future<CreditItemApi?> runTemplate({
-    required String id,
-    required String templateId,
-    required String idempotencyKey,
-  }) => bulkActionOne(
-    id: id,
-    action: 'template',
-    idempotencyKey: idempotencyKey,
-    extra: {'template_id': templateId},
-  );
-
   /// Server-rendered PDF: the stored render when [storedPdfKey] allows it
   /// (`fetchStoredPdf`), else `POST /api/v1/live_preview?entity=credit
   /// [&entity_id=<id>]` with the full credit entity (`Credit.toApiJson()`) as

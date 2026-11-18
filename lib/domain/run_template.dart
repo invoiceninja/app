@@ -1,0 +1,78 @@
+import 'package:admin/data/models/domain/design.dart';
+
+/// The record types Run Template is offered on, each carrying the two names
+/// the server knows it by (`docs/running-a-template.md`).
+///
+/// Every controller that dispatches `TemplateAction`. Recurring invoices have
+/// no `template` bulk action (`BulkRecurringInvoiceRequest`), so they are not
+/// here.
+enum RunTemplateEntity {
+  invoice('invoice', 'invoices'),
+  quote('quote', 'quotes'),
+  credit('credit', 'credits'),
+  purchaseOrder('purchase_order', 'purchase_orders'),
+  project('project', 'projects'),
+  expense('expense', 'expenses'),
+  client('client', 'clients'),
+  payment('payment', 'payments'),
+  task('task', 'tasks');
+
+  const RunTemplateEntity(this.designEntity, this.path);
+
+  /// The value a template design lists in its `entities` (the Design editor's
+  /// checkboxes; `StoreDesignRequest::$valid_entities`).
+  final String designEntity;
+
+  /// The plural route segment whose `/bulk` takes `action: template`.
+  final String path;
+}
+
+/// The designs Run Template can offer for [entity]: templates the user ticked
+/// that record type on, that still exist, and that the server knows about.
+///
+/// A design's `entities` is the server's own filter (`DesignFilters::entities`
+/// is `FIND_IN_SET` on it), and React and v1 both ask for exactly this list —
+/// offering every template on every record is invoiceninja/app#197.
+List<Design> templatesFor(Iterable<Design> designs, RunTemplateEntity entity) {
+  final list = [
+    for (final d in designs)
+      if (d.isTemplate &&
+          !d.isDeleted &&
+          d.archivedAt == null &&
+          !d.id.startsWith('tmp_') &&
+          d.entities.any((e) => e.trim() == entity.designEntity))
+        d,
+  ];
+  list.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+  return list;
+}
+
+/// Why the rendered PDF can't be opened in the app — only emailed.
+enum RunTemplatePdfBlock {
+  /// `ReportPreviewRequest` admits only an admin or a `view_reports` holder.
+  permission,
+
+  /// …and refuses a free hosted account (`isFreeHostedClient`).
+  plan,
+}
+
+/// Whether this user may read a finished template back, or why not.
+///
+/// The PDF is served by `templates/preview/<hash>`, which the server guards
+/// with `ReportPreviewRequest` — a stricter gate than the bulk `template`
+/// action's `can('view')`. Without this, a user allowed to start a job is
+/// shown a 403 for a PDF they could only ever have had emailed. The plan test
+/// is the server's `isFreeHostedClient()`: a free / empty plan slug or a plan
+/// expired, with no trial exemption.
+RunTemplatePdfBlock? runTemplatePdfBlock({
+  required bool canViewReports,
+  required bool isHosted,
+  required bool isPaidPlanSlug,
+  required bool isPlanExpired,
+}) {
+  if (isHosted && (!isPaidPlanSlug || isPlanExpired)) {
+    return RunTemplatePdfBlock.plan;
+  }
+  if (!canViewReports) return RunTemplatePdfBlock.permission;
+  return null;
+}

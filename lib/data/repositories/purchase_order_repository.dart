@@ -350,17 +350,6 @@ class PurchaseOrderRepository
     payload: {'id': id},
   );
 
-  Future<void> runTemplate({
-    required String companyId,
-    required String id,
-    required String templateId,
-  }) => enqueueMutation(
-    companyId: companyId,
-    entityId: id,
-    kind: MutationKind.runTemplate,
-    payload: {'id': id, 'template_id': templateId},
-  );
-
   // ── Documents ──────────────────────────────────────────────────────
 
   @override

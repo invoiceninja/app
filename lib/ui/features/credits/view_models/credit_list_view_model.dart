@@ -183,15 +183,14 @@ class CreditListViewModel extends GenericListViewModel<Credit>
         );
       },
     ),
+    // Selection-level: the list screen's onSelection runs one server job
+    // over the whole selection (one merged PDF). Unsynced records are
+    // left out — the server doesn't know their ids.
     BulkAction<Credit>(
       id: 'run_template',
       labelKey: 'run_template',
-      eligible: (c) => !isDeleted(c),
-      applyArg: (id, arg) => repo.runTemplate(
-        companyId: companyId,
-        id: id,
-        templateId: arg as String,
-      ),
+      eligible: (c) => !isDeleted(c) && !c.id.startsWith('tmp_') && !c.isDirty,
+      apply: (_) async {},
     ),
     // Selection-level PDF actions — the list screen's onSelection does the real
     // work (server-merged print / async zip+email download). `eligible` drives

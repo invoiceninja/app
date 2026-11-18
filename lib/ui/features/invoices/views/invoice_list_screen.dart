@@ -7,6 +7,7 @@ import 'package:admin/app/services.dart';
 import 'package:admin/data/db/dao/invoice_dao.dart';
 import 'package:admin/data/models/domain/billing/billing_doc_fields.dart';
 import 'package:admin/data/models/domain/invoice.dart';
+import 'package:admin/domain/run_template.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/list/entity_list_screen_scaffold.dart';
 import 'package:admin/ui/core/list/entity_sort_filter_sheet.dart';
@@ -268,10 +269,15 @@ class InvoiceListScreen extends StatelessWidget {
           actionId: 'run_template',
           icon: Icons.dashboard_customize_outlined,
           tooltipKey: 'run_template',
-          singleSuccessKey: 'ran_template_invoice',
-          pluralSuccessKey: 'ran_template_invoices',
+          singleSuccessKey: 'run_template', // unused for onSelection
+          pluralSuccessKey: 'run_template', // unused for onSelection
           nothingKey: 'nothing_to_update',
-          prepare: showRunTemplateDialog,
+          onSelection: (ctx, sel) => runTemplateOnSelection<Invoice>(
+            ctx,
+            sel,
+            entity: RunTemplateEntity.invoice,
+            idOf: (r) => r.id,
+          ),
         ),
         EntityListBulkAction(
           actionId: 'download_pdf',

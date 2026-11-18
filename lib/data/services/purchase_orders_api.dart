@@ -97,17 +97,6 @@ class PurchaseOrdersApi
     return null;
   }
 
-  Future<PurchaseOrderItemApi?> runTemplate({
-    required String id,
-    required String templateId,
-    required String idempotencyKey,
-  }) => bulkActionOne(
-    id: id,
-    action: 'template',
-    idempotencyKey: idempotencyKey,
-    extra: {'template_id': templateId},
-  );
-
   /// Server-rendered PDF: the stored render when [storedPdfKey] allows it
   /// (`fetchStoredPdf` — the only path that carries the vendor's DocuNinja
   /// signature), else the purchase-order sub-path

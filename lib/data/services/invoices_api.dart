@@ -85,7 +85,7 @@ Future<EInvoiceValidation> validateEInvoiceEntity(
 /// Concrete API for `/api/v1/invoices`. The base class handles list/get/
 /// create/update/delete/action; this subclass supplies the path, the
 /// parsers, custom action endpoints (markSent / markPaid / email /
-/// scheduleEmail / cloneTo / autoBill / cancel / runTemplate), and the
+/// scheduleEmail / cloneTo / autoBill / cancel), and the
 /// multipart document upload.
 ///
 /// Named `InvoicesApi` (plural) to avoid collision with `InvoiceApi` (the
@@ -215,20 +215,6 @@ class InvoicesApi extends BaseEntityApi<InvoiceListApi, InvoiceItemApi> {
     required String id,
     required String idempotencyKey,
   }) => bulkActionOne(id: id, action: 'cancel', idempotencyKey: idempotencyKey);
-
-  /// `POST /api/v1/invoices/bulk {action:'template', ids:[id], template_id}` —
-  /// apply a design/email template. The server dispatches an async job and
-  /// returns a `{message}` (no entity), so [bulkActionOne] yields null.
-  Future<InvoiceItemApi?> runTemplate({
-    required String id,
-    required String templateId,
-    required String idempotencyKey,
-  }) => bulkActionOne(
-    id: id,
-    action: 'template',
-    idempotencyKey: idempotencyKey,
-    extra: {'template_id': templateId},
-  );
 
   /// Fetch a server-rendered PDF for this invoice.
   ///

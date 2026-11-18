@@ -11,6 +11,7 @@ import 'package:admin/domain/entity_type.dart';
 import 'package:admin/domain/expense_invoice_line_item.dart';
 import 'package:admin/domain/expense_recurring_conversion.dart';
 import 'package:admin/domain/quick_create.dart';
+import 'package:admin/domain/run_template.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/detail/activity_note_actions.dart';
 import 'package:admin/ui/core/detail/copy_entity_link.dart';
@@ -403,15 +404,12 @@ class ExpenseActions {
         goEntityCreateFullWidth(context, '/invoices', extra: draft);
       case ExpenseAction.runTemplate:
         if (!requireSynced(context, expense.id)) return;
-        final templateId = await showRunTemplateDialog(context);
-        if (templateId == null || !context.mounted) return;
-        await services.expenses.runTemplate(
-          companyId: companyId,
-          id: expense.id,
-          templateId: templateId,
+        await runTemplate(
+          context,
+          entity: RunTemplateEntity.expense,
+          ids: [expense.id],
+          hasUnsyncedEdits: expense.isDirty,
         );
-        if (!context.mounted) return;
-        Notify.success(context, context.tr('template_queued'));
       case ExpenseAction.addToInvoice:
         if (!requireSynced(context, expense.id)) return;
         if (expense.invoiceId.isNotEmpty) {

@@ -24,6 +24,7 @@ import 'package:admin/domain/billing/invoice_lock.dart';
 import 'package:admin/domain/entity_type.dart';
 import 'package:admin/domain/terminal/terminal_eligibility.dart';
 import 'package:admin/domain/upgrade/upgrade_launcher.dart';
+import 'package:admin/domain/run_template.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/l10n/tap_to_pay_names.dart';
 import 'package:admin/ui/core/detail/activity_note_actions.dart';
@@ -1230,15 +1231,12 @@ class InvoiceActions {
 
       case InvoiceAction.runTemplate:
         if (tmpGate()) return;
-        final templateId = await showRunTemplateDialog(context);
-        if (templateId == null || !context.mounted) return;
-        await services.invoices.runTemplate(
-          companyId: companyId,
-          id: invoice.id,
-          templateId: templateId,
+        await runTemplate(
+          context,
+          entity: RunTemplateEntity.invoice,
+          ids: [invoice.id],
+          hasUnsyncedEdits: invoice.isDirty,
         );
-        if (!context.mounted) return;
-        Notify.success(context, context.tr('template_queued'));
     }
   }
 }

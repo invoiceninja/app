@@ -9,6 +9,7 @@ import 'package:admin/data/db/dao/purchase_order_dao.dart';
 import 'package:admin/data/models/domain/billing/billing_doc_fields.dart';
 import 'package:admin/data/models/domain/purchase_order.dart';
 import 'package:admin/domain/billing/selection_totals.dart';
+import 'package:admin/domain/run_template.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/list/entity_list_screen_scaffold.dart';
 import 'package:admin/ui/core/list/entity_sort_filter_sheet.dart';
@@ -245,10 +246,15 @@ class PurchaseOrderListScreen extends StatelessWidget {
           actionId: 'run_template',
           icon: Icons.dashboard_customize_outlined,
           tooltipKey: 'run_template',
-          singleSuccessKey: 'ran_template_purchase_order',
-          pluralSuccessKey: 'ran_template_purchase_orders',
+          singleSuccessKey: 'run_template', // unused for onSelection
+          pluralSuccessKey: 'run_template', // unused for onSelection
           nothingKey: 'nothing_to_update',
-          prepare: showRunTemplateDialog,
+          onSelection: (ctx, sel) => runTemplateOnSelection<PurchaseOrder>(
+            ctx,
+            sel,
+            entity: RunTemplateEntity.purchaseOrder,
+            idOf: (r) => r.id,
+          ),
         ),
         EntityListBulkAction(
           actionId: 'download_pdf',

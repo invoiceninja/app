@@ -6,10 +6,12 @@ import 'package:admin/app/router.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/data/db/dao/payment_dao.dart';
 import 'package:admin/data/models/domain/payment.dart';
+import 'package:admin/domain/run_template.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/list/entity_list_screen_scaffold.dart';
 import 'package:admin/ui/core/list/entity_sort_filter_sheet.dart';
 import 'package:admin/ui/core/list/master_detail_layout.dart';
+import 'package:admin/ui/features/invoices/widgets/detail/run_template_dialog.dart';
 import 'package:admin/ui/features/payments/view_models/payment_edit_view_model.dart';
 import 'package:admin/ui/features/payments/view_models/payment_list_view_model.dart';
 import 'package:admin/ui/features/payments/widgets/payment_actions.dart';
@@ -105,8 +107,8 @@ class PaymentListScreen extends StatelessWidget {
                 ),
         );
       },
-      bulkActions: const [
-        EntityListBulkAction(
+      bulkActions: [
+        const EntityListBulkAction(
           actionId: 'archive',
           icon: Icons.archive_outlined,
           tooltipKey: 'archive',
@@ -114,7 +116,7 @@ class PaymentListScreen extends StatelessWidget {
           pluralSuccessKey: 'archived_payments',
           nothingKey: 'nothing_to_archive',
         ),
-        EntityListBulkAction(
+        const EntityListBulkAction(
           actionId: 'restore',
           icon: Icons.unarchive_outlined,
           tooltipKey: 'restore',
@@ -122,7 +124,7 @@ class PaymentListScreen extends StatelessWidget {
           pluralSuccessKey: 'restored_payments',
           nothingKey: 'nothing_to_restore',
         ),
-        EntityListBulkAction(
+        const EntityListBulkAction(
           actionId: 'delete',
           icon: Icons.delete_outline,
           tooltipKey: 'delete',
@@ -130,13 +132,27 @@ class PaymentListScreen extends StatelessWidget {
           pluralSuccessKey: 'deleted_payments',
           nothingKey: 'nothing_to_delete',
         ),
-        EntityListBulkAction(
+        const EntityListBulkAction(
           actionId: 'email',
           icon: Icons.mail_outline,
           tooltipKey: 'send_email',
           singleSuccessKey: 'emailed_payment',
           pluralSuccessKey: 'emailed_payments',
           nothingKey: 'nothing_to_email',
+        ),
+        EntityListBulkAction(
+          actionId: 'run_template',
+          icon: Icons.dashboard_customize_outlined,
+          tooltipKey: 'run_template',
+          singleSuccessKey: 'run_template', // unused for onSelection
+          pluralSuccessKey: 'run_template', // unused for onSelection
+          nothingKey: 'nothing_to_update',
+          onSelection: (ctx, sel) => runTemplateOnSelection<Payment>(
+            ctx,
+            sel,
+            entity: RunTemplateEntity.payment,
+            idOf: (r) => r.id,
+          ),
         ),
       ],
     );

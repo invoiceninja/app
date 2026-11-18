@@ -17,6 +17,7 @@ import 'package:admin/data/models/domain/quote_status.dart';
 import 'package:admin/data/models/value/date.dart';
 import 'package:admin/data/repositories/auth/auth_session.dart';
 import 'package:admin/domain/entity_type.dart';
+import 'package:admin/domain/run_template.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/detail/activity_note_actions.dart';
 import 'package:admin/ui/core/detail/copy_entity_link.dart';
@@ -741,15 +742,12 @@ class QuoteActions {
 
       case QuoteAction.runTemplate:
         if (tmpGate()) return;
-        final templateId = await showRunTemplateDialog(context);
-        if (templateId == null || !context.mounted) return;
-        await services.quotes.runTemplate(
-          companyId: companyId,
-          id: quote.id,
-          templateId: templateId,
+        await runTemplate(
+          context,
+          entity: RunTemplateEntity.quote,
+          ids: [quote.id],
+          hasUnsyncedEdits: quote.isDirty,
         );
-        if (!context.mounted) return;
-        Notify.success(context, context.tr('template_queued'));
     }
   }
 }

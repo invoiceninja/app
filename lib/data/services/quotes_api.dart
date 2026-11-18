@@ -8,7 +8,7 @@ import 'package:admin/data/services/stored_pdf.dart';
 
 /// Concrete API for `/api/v1/quotes`. Mirrors `InvoicesApi` — same custom
 /// actions where they apply (markSent / email / scheduleEmail / cloneTo /
-/// cancel / runTemplate / uploadDocument), plus quote-specific
+/// cancel / uploadDocument), plus quote-specific
 /// `approve` / `convertToInvoice` / `convertToProject`.
 ///
 /// Quotes have **no** mark-paid / auto-bill (those are payment-side
@@ -127,17 +127,6 @@ class QuotesApi extends BaseEntityApi<QuoteListApi, QuoteItemApi> {
     required String id,
     required String idempotencyKey,
   }) => bulkActionOne(id: id, action: 'cancel', idempotencyKey: idempotencyKey);
-
-  Future<QuoteItemApi?> runTemplate({
-    required String id,
-    required String templateId,
-    required String idempotencyKey,
-  }) => bulkActionOne(
-    id: id,
-    action: 'template',
-    idempotencyKey: idempotencyKey,
-    extra: {'template_id': templateId},
-  );
 
   /// Server-rendered PDF: the stored render when [storedPdfKey] allows it
   /// (`fetchStoredPdf` — the only path that carries the client's signature

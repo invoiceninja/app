@@ -305,6 +305,15 @@ class ClientListViewModel extends GenericListViewModel<Client> {
         );
       },
     ),
+    // Selection-level: the list screen's onSelection runs one server job
+    // over the whole selection (one merged PDF). Unsynced records are
+    // left out — the server doesn't know their ids.
+    BulkAction<Client>(
+      id: 'run_template',
+      labelKey: 'run_template',
+      eligible: (c) => !c.isDeleted && !c.id.startsWith('tmp_') && !c.isDirty,
+      apply: (_) async {},
+    ),
   ];
 
   /// Convenience wrappers for the multiselect AppBar — the same calls

@@ -30,7 +30,6 @@ import 'package:admin/ui/core/sync/require_synced.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/features/billing_shared/billing_cross_clone.dart';
 import 'package:admin/ui/features/billing_shared/email/recipient_email_fix.dart';
-import 'package:admin/ui/features/invoices/widgets/detail/run_template_dialog.dart';
 import 'package:admin/utils/file_names.dart';
 
 /// RecurringInvoice action set. Mirrors invoice actions but drops markPaid
@@ -51,7 +50,6 @@ enum RecurringInvoiceAction {
   cloneToQuote,
   cloneToCredit,
   cloneToPurchaseOrder,
-  runTemplate,
   addComment,
   logCall,
   viewClient,
@@ -275,11 +273,9 @@ class RecurringInvoiceActions {
           ],
         ),
       if (canEdit) ...[
-        // 'Run template' removed: the recurring-invoice bulk endpoint's action
-        // whitelist has no 'template' (BulkRecurringInvoiceRequest), so it only
-        // toasted success then 422'd into a dead outbox row. See BACKEND.md.
-        // (The RecurringInvoiceAction.runTemplate enum/handler stay as
-        // unreachable no-ops.)
+        // No 'Run template': the recurring-invoice bulk endpoint's action
+        // whitelist has no 'template' (BulkRecurringInvoiceRequest). See
+        // BACKEND.md.
         addCommentActionItem(
           context: context,
           kind: RecurringInvoiceAction.addComment,
@@ -616,18 +612,6 @@ class RecurringInvoiceActions {
             id: ri.id,
           ),
         );
-
-      case RecurringInvoiceAction.runTemplate:
-        if (tmpGate()) return;
-        final templateId = await showRunTemplateDialog(context);
-        if (templateId == null || !context.mounted) return;
-        await services.recurringInvoices.runTemplate(
-          companyId: companyId,
-          id: ri.id,
-          templateId: templateId,
-        );
-        if (!context.mounted) return;
-        Notify.success(context, context.tr('template_queued'));
     }
   }
 }

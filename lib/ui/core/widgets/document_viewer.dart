@@ -46,6 +46,18 @@ class DocumentViewer extends StatefulWidget {
   State<DocumentViewer> createState() => _DocumentViewerState();
 }
 
+/// A `fetch` failure that asking again cannot fix — the server refused this
+/// user the file. The viewer shows [message] as it is (a finished,
+/// translated sentence) and offers no Retry.
+class DocumentFetchRefused implements Exception {
+  const DocumentFetchRefused(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
+}
+
 /// A 200 with nothing in it: the server starts streaming before it reads the
 /// file, so a file missing from storage arrives as an empty body rather than
 /// an error status.
@@ -199,11 +211,16 @@ class _DocumentPreviewBodyState extends State<DocumentPreviewBody> {
             ? context.tr('document_file_empty')
             : err is NotFoundException
             ? context.tr('document_not_found')
+            : err is DocumentFetchRefused
+            ? err.message
             : context.tr('failed_to_load_with_error', {
                 'error': formatNotifyError(err),
               }),
-        // Retrying a file the server has deleted can only fail again.
-        onRetry: err is NotFoundException ? null : _load,
+        // Retrying a file the server has deleted, or one it refuses this user,
+        // can only fail again.
+        onRetry: err is NotFoundException || err is DocumentFetchRefused
+            ? null
+            : _load,
       );
     }
     final noPreview = _NoPreview(onDownload: _download);

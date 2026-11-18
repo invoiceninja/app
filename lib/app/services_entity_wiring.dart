@@ -819,14 +819,7 @@ List<DocumentParentSlice> _documentParentSlices(
         reg.ctx.activitiesApi,
         entity: 'projects',
       ),
-      MutationKind.runTemplate: ({required row, required payload}) async {
-        final response = await projectsApi.runTemplate(
-          id: payload['id'] as String,
-          templateId: payload['template_id'] as String,
-          idempotencyKey: row.idempotencyKey,
-        );
-        return response?.data;
-      },
+      MutationKind.runTemplate: legacyRunTemplateHandler,
       ...documentMutationHandlers<ProjectApi>(
         documentsApi: reg.ctx.documentsApi,
         mirror: reg.documents,
@@ -920,14 +913,7 @@ List<DocumentParentSlice> _documentParentSlices(
         reg.ctx.activitiesApi,
         entity: 'expenses',
       ),
-      MutationKind.runTemplate: ({required row, required payload}) async {
-        final response = await expensesApi.runTemplate(
-          id: payload['id'] as String,
-          templateId: payload['template_id'] as String,
-          idempotencyKey: row.idempotencyKey,
-        );
-        return response?.data;
-      },
+      MutationKind.runTemplate: legacyRunTemplateHandler,
       // POST /expenses/bulk action:bulk_update — the list's Bulk Update.
       MutationKind.bulkUpdate: bulkUpdateHandler<ExpenseItemApi, ExpenseApi>(
         expensesApi,
@@ -1405,14 +1391,7 @@ _wireRecurringExpense(_EntityWiring reg) {
         );
         return response?.data;
       },
-      MutationKind.runTemplate: ({required row, required payload}) async {
-        final response = await invoicesApi.runTemplate(
-          id: payload['id'] as String,
-          templateId: payload['template_id'] as String,
-          idempotencyKey: row.idempotencyKey,
-        );
-        return response?.data;
-      },
+      MutationKind.runTemplate: legacyRunTemplateHandler,
       ...addCommentHandlers<InvoiceApi>(
         reg.ctx.activitiesApi,
         entity: 'invoices',
@@ -1531,14 +1510,7 @@ _wireRecurringExpense(_EntityWiring reg) {
         );
         return response?.data;
       },
-      MutationKind.runTemplate: ({required row, required payload}) async {
-        final response = await quotesApi.runTemplate(
-          id: payload['id'] as String,
-          templateId: payload['template_id'] as String,
-          idempotencyKey: row.idempotencyKey,
-        );
-        return response?.data;
-      },
+      MutationKind.runTemplate: legacyRunTemplateHandler,
       ...addCommentHandlers<QuoteApi>(reg.ctx.activitiesApi, entity: 'quotes'),
       ...reactivateEmailHandlers<QuoteApi>(reg.ctx.emailsApi),
       ...documentMutationHandlers<QuoteApi>(
@@ -1806,14 +1778,7 @@ _wireRecurringExpense(_EntityWiring reg) {
             ))?.data.id,
         refreshCloneTarget: reg.refreshCloneTarget,
       ),
-      MutationKind.runTemplate: ({required row, required payload}) async {
-        final response = await creditsApi.runTemplate(
-          id: payload['id'] as String,
-          templateId: payload['template_id'] as String,
-          idempotencyKey: row.idempotencyKey,
-        );
-        return response?.data;
-      },
+      MutationKind.runTemplate: legacyRunTemplateHandler,
       ...addCommentHandlers<CreditApi>(
         reg.ctx.activitiesApi,
         entity: 'credits',
@@ -1912,14 +1877,7 @@ _wireRecurringExpense(_EntityWiring reg) {
         );
         return response?.data;
       },
-      MutationKind.runTemplate: ({required row, required payload}) async {
-        final response = await purchaseOrdersApi.runTemplate(
-          id: payload['id'] as String,
-          templateId: payload['template_id'] as String,
-          idempotencyKey: row.idempotencyKey,
-        );
-        return response?.data;
-      },
+      MutationKind.runTemplate: legacyRunTemplateHandler,
       ...addCommentHandlers<PurchaseOrderApi>(
         reg.ctx.activitiesApi,
         entity: 'purchase_orders',
@@ -1987,14 +1945,7 @@ _wireRecurringInvoice(_EntityWiring reg) {
             ))?.data.id,
         refreshCloneTarget: reg.refreshCloneTarget,
       ),
-      MutationKind.runTemplate: ({required row, required payload}) async {
-        final response = await recurringInvoicesApi.runTemplate(
-          id: payload['id'] as String,
-          templateId: payload['template_id'] as String,
-          idempotencyKey: row.idempotencyKey,
-        );
-        return response?.data;
-      },
+      MutationKind.runTemplate: legacyRunTemplateHandler,
       MutationKind.updatePrices: ({required row, required payload}) async {
         final response = await recurringInvoicesApi.updatePrices(
           id: payload['id'] as String,

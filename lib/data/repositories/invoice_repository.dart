@@ -654,17 +654,6 @@ class InvoiceRepository extends BaseEntityRepository<Invoice, InvoiceApi>
         payload: {'id': id},
       );
 
-  Future<void> runTemplate({
-    required String companyId,
-    required String id,
-    required String templateId,
-  }) => enqueueMutation(
-    companyId: companyId,
-    entityId: id,
-    kind: MutationKind.runTemplate,
-    payload: {'id': id, 'template_id': templateId},
-  );
-
   // -------------------- documents --------------------
 
   @override

@@ -144,5 +144,14 @@ class ProjectListViewModel extends GenericListViewModel<Project> {
       eligible: (p) => p.documents.isNotEmpty,
       apply: (_) async {},
     ),
+    // Selection-level: the list screen's onSelection runs one server job
+    // over the whole selection (one merged PDF). Unsynced records are
+    // left out — the server doesn't know their ids.
+    BulkAction<Project>(
+      id: 'run_template',
+      labelKey: 'run_template',
+      eligible: (p) => !p.isDeleted && !p.id.startsWith('tmp_') && !p.isDirty,
+      apply: (_) async {},
+    ),
   ];
 }
