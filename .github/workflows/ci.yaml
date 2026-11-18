@@ -350,14 +350,54 @@ jobs:
       - name: Build Windows (compile gate, --release)
         run: flutter build windows --release
 
-  # The only macOS runner (10x billed) — the iOS + macOS release-build gate.
+  # The macOS runners (10x billed) — the iOS and macOS release-build gates, one
+  # job each because they need different Xcodes. iOS links the iOS 27.1 SDK,
+  # which only the separate `xcode-27` image carries: an iOS-26-SDK build is
+  # letterboxed on the iPhone Duo's inner display, and only 27.1 lays out edge
+  # to edge (docs/foldables.md). macOS stays on Xcode 26.4.1 on `macos-26` so a
+  # macOS-SDK change never rides along with that move.
   # The macOS-desktop integration suite is NOT run here: a headless hosted
   # runner has no Metal device (MTLCreateSystemDefaultDevice() is nil), so the
   # desktop app can't launch — it runs locally via tools/run_integration_local.sh
   # (see docs/integration-tests.md). Gated behind the cheap Linux checks so a
   # lint slip or failing test never burns 10x minutes here (a failing gate skips
-  # this job — and its Apple build signal).
-  apple:
+  # these jobs — and their Apple build signal).
+  apple-ios:
+    runs-on: xcode-27
+    needs: [invariants, analyze, unit-tests]
+    timeout-minutes: 80
+    steps:
+      - uses: actions/checkout@v5
+
+      # Pinned — keep in lockstep with the analyze job.
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ inputs.flutter_version || '3.50.0' }}
+          cache: true
+
+      # Pinned, not the image default: the `xcode-27` image carries 27.0, 27.1
+      # and 27.2, and its default moves. Keep in lockstep with appstore-ios.yml.
+      - name: Select Xcode 27.1
+        run: sudo xcode-select -s /Applications/Xcode_27.1.app
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Generate code
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      # The Swift half of the home-screen widgets' app/widget contract test:
+      # the extension's decoder against the golden snapshots the Dart builder
+      # writes (docs/home-screen-widgets.md). Android's half runs in
+      # build-android-foss.
+      - name: Widget snapshot contract (Swift)
+        run: tools/widget_snapshot_contract.sh
+
+      - name: Build iOS (no codesign)
+        run: flutter build ios --no-codesign
+
+  apple-macos:
     runs-on: macos-26
     needs: [invariants, analyze, unit-tests]
     timeout-minutes: 80
@@ -379,16 +419,6 @@ jobs:
 
       - name: Generate code
         run: dart run build_runner build --delete-conflicting-outputs
-
-      # The Swift half of the home-screen widgets' app/widget contract test:
-      # the extension's decoder against the golden snapshots the Dart builder
-      # writes (docs/home-screen-widgets.md). Android's half runs in
-      # build-android-foss.
-      - name: Widget snapshot contract (Swift)
-        run: tools/widget_snapshot_contract.sh
-
-      - name: Build iOS (no codesign)
-        run: flutter build ios --no-codesign
 
       - name: Build macOS (unsigned)
         run: |

@@ -8,7 +8,7 @@ name: Deploy to TestFlight (macOS)
 # (writes the IN_SENTRY_DSN dart-define into the generated xcconfig) ->
 # xcodebuild archive (signed) -> -exportArchive method=app-store (emits a signed
 # .pkg) -> altool upload. This is the same --config-only + explicit-xcodebuild
-# seam the unsigned `apple` gate in ci.yaml uses, inverted to real signing.
+# seam the unsigned `apple-macos` gate in ci.yaml uses, inverted to real signing.
 on:
   workflow_dispatch:
   # Also called by deploy-all.yml, whose release job has already run the

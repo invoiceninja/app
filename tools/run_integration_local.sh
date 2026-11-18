@@ -21,9 +21,9 @@ set -euo pipefail
 # moves on, recording the file as TIMEOUT. No `timeout(1)` dependency
 # (macOS lacks it) — a background watcher does the kill.
 #
-# CI uses THIS script — the `apple` job in .github/workflows/ci.yaml runs
-# `run_integration_local.sh --include-demo` — so #135673 can't bite there
-# regardless of demo reachability: every file is its own invocation. The
+# No CI job runs this script — the macOS suite is local-only (a hosted runner
+# has no Metal device; docs/integration-tests.md). Every file is its own
+# invocation, so #135673 can't bite regardless of demo reachability. The
 # integration_test/demo/* live files self-skip (skipIfUnreachable, see
 # integration_test/support/demo_harness.dart) when demo.invoiceninja.com is
 # unreachable, and otherwise run + write to the shared demo account on each
