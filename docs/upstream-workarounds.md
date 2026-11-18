@@ -394,6 +394,19 @@ When an upstream fix ships: follow the revert, verify, then **delete the entry**
 - Revert: delete `_untilFrame`, `_untilNextFrame`, the `untilFrame` parameter and the two lines in `fetchSpellCheckSuggestions` (fold `_check` back in), and the `untilFrame:` arguments in `spell_check_test.dart`, on the first Flutter whose `_performSpellCheck` no longer assigns `renderEditable.text` directly.
 - Recheck trigger: any Flutter bump. Read `EditableTextState._performSpellCheck` in `packages/flutter/lib/src/widgets/editable_text.dart`, then run the race test with the wait removed.
 
+## 29. material_ui: a `Scaffold` whose drawer is removed while open still thinks it is open
+
+- Issue / waiting on: none filed yet • Found: 2026-11-18 • Flutter: 3.50.0, material_ui 1.11.0 (the `Scaffold` the app uses)
+- Symptom: every top-level screen passes `drawer: globalNav ? null : const AppDrawer()`. Unfolding a foldable (or widening a window) with the drawer out crosses 600, which removes the drawer; folding back brought it back already open (docs/foldables.md).
+- Root cause: `ScaffoldState._drawerOpened` is only reset by the drawer's own close animation; removing the `drawer:` disposes the `DrawerController` without resetting it, `closeDrawer()` is a no-op while there is no drawer, and the next `DrawerController` is built from the stale `true`.
+- Commit ref: not yet committed
+- Change(s):
+  - `lib/ui/core/widgets/stale_drawer_guard.dart` — **MUST-REVERT**: notes a drawer disposed while its Scaffold says open, and closes the drawer that comes back (it animates shut rather than snapping).
+  - `lib/ui/features/shell/widgets/app_drawer.dart` — **MUST-REVERT**: wraps the `Drawer` in `StaleDrawerGuard`.
+  - `test/ui/core/widgets/stale_drawer_guard_test.dart` — **MUST-REVERT** the "without the guard the drawer comes back open (the bug)" case; **KEEP** "with the guard it comes back closed" (rewritten without the guard) and "a drawer the user opens normally stays open".
+- Revert: drop the `StaleDrawerGuard` wrapper in `AppDrawer`, delete the widget and the "without the guard" case, and run the "comes back closed" case against a bare drawer.
+- Recheck trigger: any Flutter or material_ui bump — run `stale_drawer_guard_test`; the "without the guard" case fails once the `Scaffold` resets itself.
+
 ## Considered but NOT tracked (permanent adaptations — do not revert)
 
 These look workaround-shaped but are correct-forever (or inherent), not "waiting on an upstream fix". Listed so they aren't re-litigated:

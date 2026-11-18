@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:admin/app/entity_modules.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/core/widgets/stale_drawer_guard.dart';
 import 'package:admin/ui/features/shell/branch_company_gate.dart';
 import 'package:admin/ui/features/shell/widgets/in_sidebar.dart';
 
@@ -27,41 +28,45 @@ class AppDrawer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final nav = context.read<StatefulNavigationShell>();
-    return Drawer(
-      width: 280,
-      child: InSidebar(
-        // Null = stretch to fill the drawer's 280 instead of the desktop 232.
-        width: null,
-        currentBranch: nav.currentIndex,
-        onBeforeModal: () => Navigator.pop(context),
-        onSelectBranch: (index) async {
-          // Drawer's BuildContext is destroyed by `Navigator.pop`, so resolve
-          // every context-dependent value *before* the pop. The dialog is
-          // shown from the root navigator (passed via the captured navState),
-          // which survives the drawer dismissal.
-          final services = context.read<Services>();
-          final guard = services.unsavedChangesGuard;
-          final branchGate = context.read<BranchCompanyGate>();
-          final rootContext = Navigator.of(
-            context,
-            rootNavigator: true,
-          ).context;
-          Navigator.pop(context);
-          if (!await guard.confirmIfDirty(rootContext)) return;
-          // Re-entering a branch last visited under a different company must
-          // drop its preserved stack (see [BranchCompanyGate]).
-          final staleCompanyStack = branchGate.shouldResetOnEnter(
-            index: index,
-            companyId: services.auth.session.value?.currentCompanyId ?? '',
-          );
-          nav.goBranch(
-            index,
-            initialLocation:
-                staleCompanyStack ||
-                index == nav.currentIndex ||
-                entersAtInitialLocation(kBranchOrder.elementAtOrNull(index)),
-          );
-        },
+    // Closes a drawer the Scaffold still thinks is open after an unfold took
+    // it away (docs/foldables.md).
+    return StaleDrawerGuard(
+      child: Drawer(
+        width: 280,
+        child: InSidebar(
+          // Null = stretch to fill the drawer's 280 instead of the desktop 232.
+          width: null,
+          currentBranch: nav.currentIndex,
+          onBeforeModal: () => Navigator.pop(context),
+          onSelectBranch: (index) async {
+            // Drawer's BuildContext is destroyed by `Navigator.pop`, so resolve
+            // every context-dependent value *before* the pop. The dialog is
+            // shown from the root navigator (passed via the captured navState),
+            // which survives the drawer dismissal.
+            final services = context.read<Services>();
+            final guard = services.unsavedChangesGuard;
+            final branchGate = context.read<BranchCompanyGate>();
+            final rootContext = Navigator.of(
+              context,
+              rootNavigator: true,
+            ).context;
+            Navigator.pop(context);
+            if (!await guard.confirmIfDirty(rootContext)) return;
+            // Re-entering a branch last visited under a different company must
+            // drop its preserved stack (see [BranchCompanyGate]).
+            final staleCompanyStack = branchGate.shouldResetOnEnter(
+              index: index,
+              companyId: services.auth.session.value?.currentCompanyId ?? '',
+            );
+            nav.goBranch(
+              index,
+              initialLocation:
+                  staleCompanyStack ||
+                  index == nav.currentIndex ||
+                  entersAtInitialLocation(kBranchOrder.elementAtOrNull(index)),
+            );
+          },
+        ),
       ),
     );
   }
