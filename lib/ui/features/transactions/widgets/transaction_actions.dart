@@ -16,6 +16,7 @@ import 'package:admin/ui/core/list/master_detail_layout.dart'
 import 'package:admin/ui/core/sync/require_synced.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Row + detail-screen actions for a bank transaction. Edit + the standard
 /// archive/restore/delete trio plus two transaction-specific actions:
@@ -311,6 +312,7 @@ class TransactionActions {
   }) {
     return showDialog<bool>(
       context: context,
+      anchorPoint: foldAnchorPoint(context),
       builder: (ctx) => AlertDialog(
         title: Text(ctx.tr('convert')),
         content: Text(

@@ -7,6 +7,7 @@ import 'package:admin/domain/entity_type.dart';
 import 'package:admin/domain/quick_create.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/icon_label_tile.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// A create entry that is more than a blank form.
 enum QuickCreateAction {
@@ -118,6 +119,7 @@ Future<QuickCreateOption?> showQuickCreateSheet(
 }) {
   return showModalBottomSheet<QuickCreateOption>(
     context: context,
+    anchorPoint: foldAnchorPoint(context),
     useRootNavigator: true,
     useSafeArea: true,
     isScrollControlled: true,

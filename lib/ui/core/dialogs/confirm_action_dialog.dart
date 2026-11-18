@@ -6,6 +6,7 @@ import 'package:admin/app/services.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/detail/entity_detail_actions_row.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// The app's generic "Are you sure?" gate, shown in front of an action the
 /// user could plausibly have hit by accident.
@@ -28,6 +29,7 @@ Future<bool> showConfirmActionDialog(
 }) async {
   final confirmed = await showDialog<bool>(
     context: context,
+    anchorPoint: foldAnchorPoint(context),
     builder: (ctx) {
       final tokens = ctx.inTheme;
       final cancelLabel = ctx.tr('cancel');

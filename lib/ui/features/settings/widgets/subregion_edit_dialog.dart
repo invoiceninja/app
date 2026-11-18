@@ -8,6 +8,7 @@ import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/form_save_scope.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
 import 'package:admin/utils/formatting.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Edit a single [TaxSubregionApi] entry from Settings → Tax Settings →
 /// Calculate Taxes. Mirrors React `EditSubRegionModal.tsx` — four typed
@@ -51,6 +52,7 @@ class SubregionEditDialog extends StatefulWidget {
   }) {
     return showDialog<TaxSubregionApi>(
       context: context,
+      anchorPoint: foldAnchorPoint(context),
       builder: (_) => SubregionEditDialog(
         subregionKey: subregionKey,
         initial: initial,

@@ -1101,6 +1101,13 @@ class Services implements SidebarBadgeContext {
   /// RTL without reading Arabic. In-memory, resets every launch.
   final ValueNotifier<bool> forceRtl = ValueNotifier<bool>(false);
 
+  /// Debug Panel "Simulate fold": lays a half-open vertical fold down the
+  /// middle of the window (`FoldSimulator`), so the book-posture layout can be
+  /// reviewed on a device that reports none — iOS until Flutter reports the
+  /// iPhone Duo's hinge, iPad, desktop, web (docs/foldables.md). In-memory,
+  /// resets every launch.
+  final ValueNotifier<bool> simulateFold = ValueNotifier<bool>(false);
+
   /// Whether `ScaffoldWithNav` is on screen. Written only by the shell's
   /// initState/dispose; read by `WindowFrame`, which paints the frameless
   /// Windows/Linux title bar from ABOVE the router and so cannot see the shell

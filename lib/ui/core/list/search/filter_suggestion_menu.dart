@@ -18,6 +18,7 @@ import 'package:admin/ui/core/list/search/filter_suggestion_controller.dart';
 import 'package:admin/ui/core/list/search/filter_token.dart';
 import 'package:admin/ui/core/widgets/key_cap.dart';
 import 'package:admin/ui/features/dashboard/widgets/filters/date_range_picker_button.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Horizontal padding applied to every menu row's content (key / value /
 /// operator / search-for). Exposed so the field's overlay positioning can
@@ -2208,6 +2209,7 @@ class _DateValueRowsState extends State<_DateValueRows> {
       final now = DateTime.now();
       final picked = await showDatePicker(
         context: context,
+        anchorPoint: foldAnchorPoint(context),
         initialDate: now,
         firstDate: DateTime(2000),
         lastDate: DateTime(now.year + 5),

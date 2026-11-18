@@ -5,6 +5,7 @@ import 'package:admin/data/models/domain/client.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
 import 'package:admin/ui/core/widgets/searchable_dropdown_field.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Pick the **survivor** client to merge [source] into. Returns the chosen
 /// client (kept; [source] is absorbed + deleted server-side) or null on
@@ -19,6 +20,7 @@ Future<Client?> showMergeClientDialog(
 }) {
   return showDialog<Client?>(
     context: context,
+    anchorPoint: foldAnchorPoint(context),
     builder: (ctx) {
       Client? selected;
       return StatefulBuilder(

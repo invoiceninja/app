@@ -18,6 +18,7 @@ import 'package:admin/ui/features/activity/widgets/activity_period_labels.dart';
 import 'package:admin/ui/features/dashboard/helpers/activity_formatter.dart';
 import 'package:admin/ui/features/dashboard/widgets/filters/date_range_picker_button.dart';
 import 'package:admin/utils/formatting.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// One activity-type option for the multi-select.
 typedef ActivityTypeOption = ({String id, String name});
@@ -76,6 +77,7 @@ Future<void> openActivityFilters(
   if (MediaQuery.sizeOf(context).width >= 600) {
     return showDialog<void>(
       context: context,
+      anchorPoint: foldAnchorPoint(context),
       builder: (_) => Dialog(
         clipBehavior: Clip.antiAlias,
         child: ConstrainedBox(

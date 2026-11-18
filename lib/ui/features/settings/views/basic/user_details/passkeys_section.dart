@@ -20,6 +20,7 @@ import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
 import 'package:admin/ui/features/settings/views/basic/user_details/view_models/passkeys_view_model.dart';
 import 'package:admin/ui/features/settings/widgets/form_section.dart';
 import 'package:admin/utils/formatting.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// The Passkeys card on Settings → User Details → Two-Factor
 /// (docs/passkeys.md): the user's passkeys, each removable, and a way to add
@@ -171,6 +172,7 @@ class _PasskeysSectionState extends State<PasskeysSection>
   Future<void> _add(BuildContext context) async {
     final name = await showDialog<String>(
       context: context,
+      anchorPoint: foldAnchorPoint(context),
       builder: (_) => _PasskeyNameDialog(initialName: _platformLabel()),
     );
     if (name == null || !context.mounted) return;

@@ -17,6 +17,7 @@ import 'package:admin/ui/core/widgets/feature_row.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
 import 'package:admin/ui/features/mobile_promo/mobile_app_promo_dialog.dart';
 import 'package:admin/ui/features/feedback/contact_us_dialog.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// How the dialog was closed. Every close means "seen"; the last three also
 /// ask for something, done by [followWhatsNewResult] once the dialog is gone.
@@ -58,6 +59,7 @@ Future<WhatsNewResult?> showWhatsNewDialog(
   final session = context.read<Services>().auth.session.value;
   return showDialog<WhatsNewResult>(
     context: context,
+    anchorPoint: foldAnchorPoint(context),
     // A stray click beside the card isn't an answer; ✕, Esc and the footer
     // are — the same as the mobile-app promo.
     barrierDismissible: false,

@@ -13,6 +13,7 @@ import 'package:admin/ui/core/widgets/empty_state.dart';
 import 'package:admin/ui/core/widgets/notify_async.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
 import 'package:admin/ui/features/clients/widgets/edit/client_edit_country_field.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Client detail → Locations tab. Lists the client's read-embedded
 /// `locations[]` and manages them through the standalone `/api/v1/locations`
@@ -165,6 +166,7 @@ Future<void> _confirmDelete(
   final companyId = services.auth.session.value?.currentCompanyId ?? '';
   final confirmed = await showDialog<bool>(
     context: context,
+    anchorPoint: foldAnchorPoint(context),
     builder: (ctx) => AlertDialog(
       title: Text(ctx.tr('delete_location')),
       content: Text(ctx.tr('are_you_sure')),
@@ -209,6 +211,7 @@ void _showLocationDialog(
 ) {
   showDialog<bool>(
     context: context,
+    anchorPoint: foldAnchorPoint(context),
     builder: (ctx) => _LocationFormDialog(client: client, existing: existing),
   );
 }

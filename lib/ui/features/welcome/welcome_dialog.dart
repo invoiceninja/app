@@ -117,6 +117,7 @@ Future<WelcomeResult?> showWelcomeDialog(
       builder: (_) => card(true),
     );
   }
+  // fold: the first-run Welcome, shown once over the whole app at sign-in.
   return showGeneralDialog<WelcomeResult>(
     context: context,
     barrierDismissible: false,

@@ -6,6 +6,7 @@ import 'package:admin/ui/core/detail/copy_entity_link.dart';
 import 'package:admin/ui/core/detail/entity_detail_actions_row.dart';
 import 'package:admin/ui/core/widgets/ltr_value.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// The app hands out two kinds of link, and each is named for who can open it
 /// — everywhere, in the same words:
@@ -97,6 +98,7 @@ Future<void> sharePortalLink(
   if (linked.length > 1) {
     final picked = await showDialog<PortalLinkTarget>(
       context: context,
+      anchorPoint: foldAnchorPoint(context),
       builder: (dialogContext) => SimpleDialog(
         title: Semantics(header: true, headingLevel: 1, child: Text(noun)),
         children: [

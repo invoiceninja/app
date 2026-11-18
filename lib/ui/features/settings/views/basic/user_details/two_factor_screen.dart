@@ -15,6 +15,7 @@ import 'package:admin/ui/features/settings/views/basic/user_details/passkeys_sec
 import 'package:admin/ui/features/settings/views/basic/user_details/view_models/two_factor_view_model.dart';
 import 'package:admin/ui/features/settings/widgets/form_section.dart';
 import 'package:admin/ui/features/settings/widgets/settings_form_shell.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Settings → User Details → Two-Factor Authentication.
 ///
@@ -239,6 +240,7 @@ class _DisableSection extends StatelessWidget {
   Future<void> _confirmDisable(BuildContext context) async {
     final ok = await showDialog<bool>(
       context: context,
+      anchorPoint: foldAnchorPoint(context),
       builder: (ctx) => AlertDialog(
         title: Text(ctx.tr('disable_two_factor_question')),
         content: Text(ctx.tr('disable_two_factor_warning')),
@@ -282,6 +284,7 @@ class _DisableSection extends StatelessWidget {
   Future<String?> _promptForPassword(BuildContext context) =>
       showDialog<String>(
         context: context,
+        anchorPoint: foldAnchorPoint(context),
         builder: (_) => const _ConfirmPasswordDialog(),
       );
 

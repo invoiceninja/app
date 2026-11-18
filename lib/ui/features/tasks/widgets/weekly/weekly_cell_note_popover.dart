@@ -6,6 +6,7 @@ import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
 import 'package:admin/ui/features/tasks/view_models/task_weekly_view_model.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Edit a weekly cell's description + billable flag. Routes through
 /// `vm.editCell`, so a note edit collapses into the same per-task debounce as a
@@ -19,6 +20,7 @@ Future<void> showWeeklyCellNote(
   Date day,
 ) => showDialog<void>(
   context: context,
+  anchorPoint: foldAnchorPoint(context),
   builder: (_) => _WeeklyCellNoteDialog(vm: vm, taskId: taskId, day: day),
 );
 

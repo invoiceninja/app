@@ -7,6 +7,7 @@ import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/adaptive.dart';
 import 'package:admin/ui/core/widgets/template_variables/template_variable_chip.dart';
 import 'package:admin/utils/search_fold.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// What the user chose in [showTemplateVariablePicker].
 sealed class TemplateVariablePick {
@@ -58,6 +59,7 @@ Future<TemplateVariablePick?> showTemplateVariablePicker(
   if (MediaQuery.sizeOf(context).width >= Breakpoints.wide) {
     return showDialog<TemplateVariablePick>(
       context: context,
+      anchorPoint: foldAnchorPoint(context),
       builder: (_) => Dialog(
         clipBehavior: Clip.antiAlias,
         child: ConstrainedBox(

@@ -10,6 +10,7 @@ import 'package:admin/ui/features/settings/view_models/settings_draft_view_model
 import 'package:admin/ui/features/settings/widgets/overridable_field.dart';
 import 'package:admin/ui/features/settings/widgets/settings_field_bindings.dart';
 import 'package:admin/utils/search_fold.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Cascade-aware multi-select list with drag-to-reorder, backing one slice
 /// of `company.settings.pdf_variables` (e.g. `pdf_variables.client_details`).
@@ -233,6 +234,7 @@ class _AddVariableButton extends StatelessWidget {
   Future<void> _open(BuildContext context) async {
     final picked = await showDialog<String>(
       context: context,
+      anchorPoint: foldAnchorPoint(context),
       builder: (ctx) => _AddVariableDialog(available: available),
     );
     if (picked != null && picked.isNotEmpty) onPicked(picked);

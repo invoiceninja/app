@@ -8,6 +8,7 @@ import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/form_save_scope.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
 import 'package:admin/utils/formatting.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// The few fields a product needs to be added to a document straight from the
 /// Add-items picker (invoiceninja/ui#3384): its key — prefilled with what the
@@ -41,6 +42,7 @@ Future<Product?> showQuickProductDialog(
   if (!context.mounted) return null;
   return showDialog<Product>(
     context: context,
+    anchorPoint: foldAnchorPoint(context),
     builder: (_) => _QuickProductDialog(
       initialKey: initialKey,
       useCommaAsDecimalPlace: useCommaAsDecimalPlace,

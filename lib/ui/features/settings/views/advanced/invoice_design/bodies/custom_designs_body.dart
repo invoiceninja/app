@@ -21,6 +21,7 @@ import 'package:admin/ui/features/settings/views/advanced/invoice_design/wysiwyg
 import 'package:admin/ui/features/settings/views/advanced/invoice_design/wysiwyg/wysiwyg_design_view_model.dart';
 import 'package:admin/ui/features/settings/widgets/plan_gate_banner.dart';
 import 'package:admin/ui/features/settings/widgets/settings_form_shell.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Custom Designs tab body — second tab on the Invoice Design shell
 /// (`/settings/invoice_design/custom_designs`).
@@ -139,6 +140,7 @@ Future<void> showDesignDetailScreen(BuildContext context, Design design) {
 Future<void> _showNewDesignChooser(BuildContext context) async {
   await showDialog<void>(
     context: context,
+    anchorPoint: foldAnchorPoint(context),
     builder: (ctx) => SimpleDialog(
       title: Text(ctx.tr('new_design')),
       children: [

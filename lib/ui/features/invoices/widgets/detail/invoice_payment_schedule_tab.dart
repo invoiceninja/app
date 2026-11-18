@@ -16,6 +16,7 @@ import 'package:admin/ui/core/widgets/notify_async.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
 import 'package:admin/utils/formatting.dart';
 import 'package:admin/ui/core/widgets/ltr_value.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Invoice detail → Payment Schedule tab. Mirrors React: the schedule is a
 /// read-only projection embedded on the invoice (`invoice.schedule[]`,
@@ -116,6 +117,7 @@ class InvoicePaymentScheduleTab extends StatelessWidget {
     final companyId = services.auth.session.value?.currentCompanyId ?? '';
     final ok = await showDialog<bool>(
       context: context,
+      anchorPoint: foldAnchorPoint(context),
       builder: (ctx) => AlertDialog(
         title: Text(ctx.tr('remove')),
         content: Text(ctx.tr('are_you_sure')),
@@ -156,6 +158,7 @@ class InvoicePaymentScheduleTab extends StatelessWidget {
 Future<void> _showCreateDialog(BuildContext context, Invoice invoice) {
   return showDialog<void>(
     context: context,
+    anchorPoint: foldAnchorPoint(context),
     builder: (_) => _CreatePaymentScheduleDialog(invoice: invoice),
   );
 }

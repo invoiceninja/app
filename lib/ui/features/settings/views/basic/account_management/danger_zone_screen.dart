@@ -27,6 +27,7 @@ import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
 import 'package:admin/ui/features/settings/widgets/form_section.dart';
 import 'package:admin/ui/features/settings/widgets/settings_form_shell.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 const kAccountManagementDangerZoneSearchKeys = <String>[
   'purge_data',
@@ -267,6 +268,7 @@ Future<void> _openDangerDialog(
   } else {
     await showDialog<void>(
       context: context,
+      anchorPoint: foldAnchorPoint(context),
       barrierDismissible: false,
       builder: (ctx) => _DangerDialogShell(kind: kind, services: services),
     );

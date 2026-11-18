@@ -29,6 +29,7 @@ import 'package:admin/ui/features/tasks/view_models/task_edit_view_model.dart'
 import 'package:admin/ui/features/tasks/widgets/task_status_picker_field.dart';
 import 'package:admin/utils/formatting.dart';
 import 'package:admin/ui/core/widgets/example_hint.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// "Create Task" from an invoice / quote line item — schedule the work a line
 /// describes onto a day, without leaving the document (invoiceninja/flutter#88).
@@ -74,6 +75,7 @@ Future<void> showCreateTaskFromLineItemSheet(
   if (MediaQuery.sizeOf(context).width >= 600) {
     return showDialog<void>(
       context: context,
+      anchorPoint: foldAnchorPoint(context),
       builder: (_) => Dialog(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 520),

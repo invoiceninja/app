@@ -32,6 +32,7 @@ import 'package:admin/utils/search_fold.dart';
 import 'package:admin/ui/core/utils/external_url.dart';
 import 'package:admin/ui/features/feedback/contact_us_dialog.dart';
 import 'package:admin/ui/features/shell/widgets/sidebar_footer_actions.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Search-result group key for a pasted record deep link. Renders as its own
 /// header via `context.tr` — `link` is an existing translated key.
@@ -246,8 +247,14 @@ String recordIdForSearchHit(SearchResult r) {
 /// per build also keeps the palette adapting to a live resize (Android
 /// split-screen, iPad Slide Over).
 Future<void> showCommandPalette(BuildContext context) {
+  // One key for both presentations: a foldable opening or closing while the
+  // palette is up flips `isPhone`, and without it the swap between the page
+  // and the card remounted the palette, losing the query and its results
+  // (docs/foldables.md).
+  final paletteKey = GlobalKey(debugLabel: 'CommandPalette');
   return showDialog<void>(
     context: context,
+    anchorPoint: foldAnchorPoint(context),
     // A tablet reaches the card from the same sidebar Search box and had the
     // same two-fields-at-once problem, just less acutely — the 0.18 Spotlight
     // scrim was tuned for a small popover anchored on a big desktop window.
@@ -259,7 +266,7 @@ Future<void> showCommandPalette(BuildContext context) {
     useSafeArea: false,
     builder: (ctx) {
       if (Breakpoints.isPhone(ctx)) {
-        return const Dialog.fullscreen(child: _CommandPalette());
+        return Dialog.fullscreen(child: _CommandPalette(key: paletteKey));
       }
       final tokens = ctx.inTheme;
       final isDark = Theme.of(ctx).brightness == Brightness.dark;
@@ -291,7 +298,7 @@ Future<void> showCommandPalette(BuildContext context) {
                     borderRadius: BorderRadius.circular(InRadii.r4),
                     boxShadow: tokens.shadow2,
                   ),
-                  child: const _CommandPalette(),
+                  child: _CommandPalette(key: paletteKey),
                 ),
               ),
             ),
@@ -303,7 +310,7 @@ Future<void> showCommandPalette(BuildContext context) {
 }
 
 class _CommandPalette extends StatefulWidget {
-  const _CommandPalette();
+  const _CommandPalette({super.key});
 
   @override
   State<_CommandPalette> createState() => _CommandPaletteState();

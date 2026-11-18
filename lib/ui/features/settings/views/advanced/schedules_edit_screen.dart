@@ -38,6 +38,7 @@ import 'package:admin/ui/features/settings/widgets/form_section.dart';
 import 'package:admin/ui/features/settings/widgets/settings_entity_edit_scaffold.dart';
 import 'package:admin/ui/features/settings/widgets/settings_text_field.dart';
 import 'package:admin/utils/formatting.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// `/settings/schedules/new` and `/settings/schedules/:id`.
 ///
@@ -405,6 +406,7 @@ class _TemplateDisplayField extends StatelessWidget {
     }
     final confirmed = await showDialog<bool>(
       context: context,
+      anchorPoint: foldAnchorPoint(context),
       builder: (dialogContext) => AlertDialog(
         title: Text(dialogContext.tr('discard_changes_question')),
         content: Text(dialogContext.tr('discard_changes_warning')),

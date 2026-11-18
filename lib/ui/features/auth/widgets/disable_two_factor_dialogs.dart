@@ -7,6 +7,7 @@ import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
 import 'package:admin/ui/features/auth/view_models/login_view_model.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// The login screen's lost-authenticator reset — React's `Disable2faModal`:
 /// text a code to the phone on file, then verify it, which turns 2FA off.
@@ -34,6 +35,7 @@ Future<String?> showSendTwoFactorResetCodeDialog(
   required LoginViewModel vm,
 }) => showDialog<String>(
   context: context,
+  anchorPoint: foldAnchorPoint(context),
   barrierDismissible: false,
   builder: (_) => _SendCodeDialog(vm: vm),
 );
@@ -47,6 +49,7 @@ Future<bool> showConfirmTwoFactorResetDialog(
 }) async =>
     await showDialog<bool>(
       context: context,
+      anchorPoint: foldAnchorPoint(context),
       barrierDismissible: false,
       builder: (_) => _VerifyCodeDialog(vm: vm, email: email),
     ) ??

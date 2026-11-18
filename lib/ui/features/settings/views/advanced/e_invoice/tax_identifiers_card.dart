@@ -17,6 +17,7 @@ import 'package:admin/ui/core/widgets/searchable_dropdown_field.dart';
 import 'package:admin/ui/features/settings/view_models/settings_draft_view_model.dart';
 import 'package:admin/ui/features/settings/views/advanced/e_invoice/e_invoice_constants.dart';
 import 'package:admin/ui/features/settings/widgets/form_section.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Settings → E-Invoice — Additional Tax Identifiers card. Company-scope
 /// only. Lists per-country VAT identifiers already configured under
@@ -97,6 +98,7 @@ class TaxIdentifiersCard extends StatelessWidget {
 
     final result = await showDialog<({String country, String vatNumber})>(
       context: context,
+      anchorPoint: foldAnchorPoint(context),
       builder: (ctx) => _AddIdentifierDialog(countries: countries),
     );
     if (result == null) return;
@@ -171,6 +173,7 @@ class _IdentifierRow extends StatelessWidget {
 
     final removed = await showDialog<bool>(
       context: context,
+      anchorPoint: foldAnchorPoint(context),
       builder: (ctx) => AlertDialog(
         title: Text(context.tr('delete_identifier')),
         content: Text(context.tr('delete_identifier_description')),

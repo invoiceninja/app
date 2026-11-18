@@ -15,6 +15,7 @@ import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
 import 'package:admin/utils/formatting.dart';
 import 'package:admin/ui/core/widgets/ltr_value.dart';
 import 'package:admin/ui/features/invoices/widgets/invoice_actions.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Applies [payment]'s unapplied funds to the client's oldest unpaid invoice.
 ///
@@ -53,6 +54,7 @@ Future<void> applyPaymentToOldestInvoice(
     if (!context.mounted) return;
     final confirmed = await showDialog<bool>(
       context: context,
+      anchorPoint: foldAnchorPoint(context),
       builder: (_) => _ApplyPaymentDialog(
         invoice: target,
         amount: amount,

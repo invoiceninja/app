@@ -10,6 +10,7 @@ import 'package:admin/ui/core/widgets/form_save_scope.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
 import 'package:admin/ui/features/billing_shared/email/recipient_email_state.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Loads the contacts of a document's client ([clientId]) or vendor
 /// ([vendorId]) from the local cache, hydrating the party first when it was
@@ -49,6 +50,7 @@ Future<String?> showAddContactEmailDialog(
   required String contactLabel,
 }) => showDialog<String>(
   context: context,
+  anchorPoint: foldAnchorPoint(context),
   builder: (ctx) => _AddContactEmailDialog(contactLabel: contactLabel),
 );
 
@@ -291,6 +293,7 @@ Future<bool> _ensureRecipientEmail(
   final canAdd = contactToAddEmailTo(invitations, contacts) != null;
   final choice = await showDialog<_NoEmailChoice>(
     context: context,
+    anchorPoint: foldAnchorPoint(context),
     builder: (ctx) => AlertDialog(
       title: Text(
         ctx.tr(isVendor ? 'vendor_email_not_set' : 'client_email_not_set'),
@@ -394,6 +397,7 @@ Future<List<Object?>?> preflightRecipientEmails<T>(
   }
   final proceed = await showDialog<bool>(
     context: context,
+    anchorPoint: foldAnchorPoint(context),
     builder: (ctx) => AlertDialog(
       title: Text(ctx.tr('no_email_on_file')),
       content: SizedBox(
@@ -434,6 +438,7 @@ Future<bool> _confirmUnaddressed<T>(
 ) async {
   final go = await showDialog<bool>(
     context: context,
+    anchorPoint: foldAnchorPoint(context),
     builder: (ctx) => AlertDialog(
       title: Text(ctx.tr('no_email_on_file')),
       content: SizedBox(

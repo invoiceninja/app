@@ -16,6 +16,7 @@ import 'package:admin/ui/core/widgets/in_time_field.dart';
 import 'package:admin/ui/core/widgets/party_call_button.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
 import 'package:admin/utils/formatting.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Capture form for a manually-logged phone call (invoiceninja/flutter#120).
 /// Resolves with the composed note body — ready to hand straight to
@@ -74,6 +75,7 @@ Future<String?> showLogCallSheet(
   if (isWide) {
     return showDialog<String>(
       context: context,
+      anchorPoint: foldAnchorPoint(context),
       builder: (ctx) => Dialog(
         child: ConstrainedBox(
           constraints: BoxConstraints(

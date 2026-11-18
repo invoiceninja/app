@@ -19,6 +19,7 @@ import 'package:admin/ui/core/widgets/searchable_dropdown_field.dart';
 import 'package:admin/ui/features/clients/view_models/client_edit_view_model.dart';
 import 'package:admin/ui/features/clients/widgets/edit/client_edit_country_field.dart';
 import 'package:admin/ui/features/settings/widgets/plain_radio_field.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Quick "New Client" form, opened from a billing document's client picker so
 /// the user never has to abandon a half-written invoice to add a client.
@@ -38,6 +39,7 @@ Future<Client?> showClientCreateDialog(
 }) {
   return showDialog<Client>(
     context: context,
+    anchorPoint: foldAnchorPoint(context),
     // Twenty-odd fields of typed input — a stray barrier tap must not bin it.
     barrierDismissible: false,
     builder: (_) =>

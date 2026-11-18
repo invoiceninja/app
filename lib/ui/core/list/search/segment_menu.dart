@@ -10,6 +10,7 @@ import 'package:admin/ui/core/list/search/date_column_filter_key.dart';
 import 'package:admin/ui/core/list/search/filter_key.dart';
 import 'package:admin/ui/core/list/search/filter_token.dart';
 import 'package:admin/ui/features/dashboard/widgets/filters/date_range_picker_button.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Which segment of a chip the [SegmentMenu] is editing.
 enum SegmentKind { comparator, value, field }
@@ -320,6 +321,7 @@ class SegmentMenu extends StatelessWidget {
             );
             final picked = await showDatePicker(
               context: context,
+              anchorPoint: foldAnchorPoint(context),
               initialDate:
                   current != null &&
                       !current.isBefore(first) &&

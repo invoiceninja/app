@@ -6,6 +6,7 @@ import 'package:admin/ui/core/adaptive.dart';
 import 'package:admin/ui/features/tasks/view_models/task_filters_mixin.dart';
 import 'package:admin/ui/features/tasks/widgets/task_filter_bar.dart';
 import 'package:admin/ui/features/tasks/widgets/task_filter_controls.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Opens the task filter surface — a centered dialog on a wide window, a
 /// bottom sheet on a narrow one — holding the same three pickers
@@ -46,6 +47,7 @@ Future<void> openTaskFilters(
   if (MediaQuery.sizeOf(context).width >= Breakpoints.wide) {
     return showDialog<void>(
       context: context,
+      anchorPoint: foldAnchorPoint(context),
       builder: (_) => Dialog(
         clipBehavior: Clip.antiAlias,
         // A cap, not a target: three fields make a ~340 px dialog.

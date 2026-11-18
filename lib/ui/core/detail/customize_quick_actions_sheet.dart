@@ -9,6 +9,7 @@ import 'package:admin/ui/core/adaptive.dart';
 import 'package:admin/ui/core/detail/entity_detail_actions_row.dart';
 import 'package:admin/ui/core/detail/entity_quick_actions.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// What the editor needs to draw one action: the tile's own icon and short
 /// label, and the menu's full label for the row.
@@ -56,6 +57,7 @@ Future<void> openCustomizeQuickActions(
   if (MediaQuery.sizeOf(context).width >= Breakpoints.wide) {
     return showDialog<void>(
       context: context,
+      anchorPoint: foldAnchorPoint(context),
       builder: (ctx) => Dialog(
         clipBehavior: Clip.antiAlias,
         child: ConstrainedBox(

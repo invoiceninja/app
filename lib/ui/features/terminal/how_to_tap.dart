@@ -5,6 +5,7 @@ import 'package:admin/app/design_tokens.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/l10n/tap_to_pay_names.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Regions where Tap to Pay on iPhone has no PIN entry, so the education
 /// leaves it out (the guide's Regional Requirements: "PIN Entry in
@@ -28,6 +29,7 @@ Future<bool> showHowToTap(
   final pin = !kNoPinEducationCountries.contains(accountCountry.toUpperCase());
   await showDialog<void>(
     context: context,
+    anchorPoint: foldAnchorPoint(context),
     builder: (context) {
       String sentence(String key) =>
           context.tr(key, {'name': tapToPayNameFor(context, key)});

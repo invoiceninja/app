@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// The one prompt in front of claiming a booking the user is **not** standing
 /// in front of (invoiceninja/flutter#149).
@@ -31,6 +32,7 @@ Future<bool> showConfirmStartScheduledDialog(
 }) async {
   final confirmed = await showDialog<bool>(
     context: context,
+    anchorPoint: foldAnchorPoint(context),
     builder: (ctx) {
       final tokens = ctx.inTheme;
       return AlertDialog(

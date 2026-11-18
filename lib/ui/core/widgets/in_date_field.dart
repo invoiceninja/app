@@ -7,6 +7,7 @@ import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/example_hint.dart';
 import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/utils/formatting.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Single-date input with typed shortcuts + a calendar-picker fallback.
 ///
@@ -297,6 +298,7 @@ class _InDateFieldState extends State<InDateField> {
     if (initial.isAfter(last)) initial = last;
     final picked = await showDatePicker(
       context: context,
+      anchorPoint: foldAnchorPoint(context),
       initialDate: initial,
       firstDate: first,
       lastDate: last,

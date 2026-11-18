@@ -44,6 +44,8 @@ import 'package:admin/ui/features/shell/widgets/in_sidebar.dart'
 import 'package:admin/ui/features/sync/views/outbox_screen.dart';
 import 'package:admin/ui/features/tasks/views/calendar_connection_complete_screen.dart';
 import 'package:admin/ui/core/utils/router_state.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
+import 'package:admin/app/sidebar_controller.dart';
 
 // `entityRecordPath` lives in the `entity_links` leaf so link building can
 // reach it without importing this file (and, transitively, every screen).
@@ -213,10 +215,17 @@ String? legacyV1Redirect(Uri uri, Iterable<String> listRoutes) {
 /// (redirected past the `/settings` list, but below the width that shows the
 /// sidebar). [kInSidebarWidth] / [kInSidebarCollapsedWidth] must match the inset
 /// `ScaffoldWithNav` applies to the routed content in its wide layout.
+///
+/// [foldStartHalf] is the width a foldable in book posture leaves the settings
+/// list before the fold (`settingsFoldStartHalf`), or null when there is no
+/// such fold. `SettingsShell` splits at the fold whenever that half holds the
+/// list, so this must answer the same way from the same number.
 String? settingsIndexRedirect({
   required double screenWidth,
   required bool sidebarCollapsed,
+  double? foldStartHalf,
 }) {
+  if (settingsSplitsAtFold(foldStartHalf)) return '/settings/company_details';
   final sidebarWidth = sidebarCollapsed
       ? kInSidebarCollapsedWidth
       : kInSidebarWidth;
@@ -224,6 +233,38 @@ String? settingsIndexRedirect({
   return shellWidth >= Breakpoints.settingsTwoPane
       ? '/settings/company_details'
       : null;
+}
+
+/// How wide the settings list's half is before a foldable's book-posture
+/// fold, or null with no such fold — the number [settingsIndexRedirect] and
+/// `SettingsShell` must both split on (docs/foldables.md). Book posture is the
+/// debounced [SidebarController.foldCollapsed]; the fold rect is the live one.
+///
+/// Always measured from the **window**: the root navigator's `MediaQuery`,
+/// read without a dependency, whatever [context] is. Inside the shell the fold
+/// has been re-based past the rail, and inside half of a split removed
+/// altogether — a list there that asked its own `MediaQuery` got null while
+/// the router split settings, and pointed its back arrow at a `/settings` that
+/// redirects away. The caller's own rebuild comes from book posture and the
+/// window size, which it already depends on.
+double? settingsFoldStartHalf(BuildContext context, SidebarController sidebar) {
+  if (!sidebar.foldCollapsed) return null;
+  final windowContext =
+      Navigator.maybeOf(context, rootNavigator: true)?.context ?? context;
+  final window = windowContext
+      .getInheritedWidgetOfExactType<MediaQuery>()
+      ?.data;
+  if (window == null) return null;
+  final split = separatingFold(window);
+  if (split == null || split.axis != FoldAxis.vertical) return null;
+  final rail = sidebar.effectiveValue
+      ? kInSidebarCollapsedWidth
+      : kInSidebarWidth;
+  // rtl: physical — the rail sits at the right in RTL, so the content starts
+  // at x = 0 and the settings list's (start) half is the right-hand one.
+  final rtl = Directionality.maybeOf(context) == TextDirection.rtl;
+  final contentWidth = window.size.width - rail;
+  return rtl ? contentWidth - (split.fold.right) : split.fold.left - rail;
 }
 
 /// Top-level route paths whose backing module is disabled for a company with
@@ -355,6 +396,7 @@ ShellRoute buildEntityRouteBlock({
   required GoRouterWidgetBuilder detail,
   required GoRouterWidgetBuilder edit,
   List<RouteBase> extraChildRoutes = const [],
+  EntityType? entityType,
 }) {
   return ShellRoute(
     pageBuilder: (context, state, child) => NoTransitionPage<void>(
@@ -372,9 +414,12 @@ ShellRoute buildEntityRouteBlock({
           // stays intact for J/K nav + keep-in-view auto-scroll. Slide-over
           // editors (products, transactions, payments) keep the highlight:
           // their list stays visible beside the form.
+          // A foldable's book-posture split never covers the list: the
+          // editor takes the half after the fold (docs/foldables.md).
           final editorCoversList =
               state.matchedLocation.endsWith('/edit') &&
-              editOpensFullWidth(basePath);
+              editOpensFullWidth(basePath) &&
+              bookFoldOf(ctx) == null;
           // The pane is visible iff the URL has navigated past the bare
           // list path. We can't `is`-check `child` against
           // `_NoPaneSentinel` here — go_router's `ShellRoute.pageBuilder`
@@ -388,6 +433,7 @@ ShellRoute buildEntityRouteBlock({
           final viewMode = state.uri.queryParameters['view'];
           return MasterDetailLayout(
             basePath: basePath,
+            entityType: create == null ? null : entityType,
             list: _SelectedIdScope(
               selectedId: selectedId,
               hasPane: hasPane,
@@ -915,6 +961,7 @@ StatefulShellBranch _buildBranch(BranchSpec spec, EntityRegistry registry) {
             detail: h.detailBuilder!,
             edit: h.editBuilder!,
             extraChildRoutes: h.extraChildRoutes,
+            entityType: spec.type,
           ),
         ],
       );
@@ -951,9 +998,11 @@ StatefulShellBranch _buildFixedBranch(FixedBranchKind kind) {
                 // rationale live in [settingsIndexRedirect].
                 redirect: (context, state) {
                   if (state.uri.path != '/settings') return null;
+                  final sidebar = context.read<Services>().sidebar;
                   return settingsIndexRedirect(
                     screenWidth: MediaQuery.sizeOf(context).width,
-                    sidebarCollapsed: context.read<Services>().sidebar.value,
+                    sidebarCollapsed: sidebar.effectiveValue,
+                    foldStartHalf: settingsFoldStartHalf(context, sidebar),
                   );
                 },
                 builder: (context, state) => const SettingsScreen(),

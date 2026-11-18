@@ -41,20 +41,25 @@ class FormFieldPair extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        if (constraints.maxWidth >= minPairWidth) {
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(child: left),
-              SizedBox(width: InSpacing.md(context)),
-              Expanded(child: right),
-            ],
-          );
-        }
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisSize: MainAxisSize.min,
-          children: [left, right],
+        final paired = constraints.maxWidth >= minPairWidth;
+        // One `Flex` whose direction flips, with the two fields in the same
+        // `Flexible` slots either way — never a `Row` of `Expanded`s in one
+        // branch and a `Column` of bare children in the other. A foldable
+        // opening or closing moves the card across [minPairWidth] while a
+        // field is being typed in; with two tree shapes that field remounted
+        // and lost its focus, caret and keyboard (docs/foldables.md). A flex
+        // of 0 lays a child out as an ordinary, unflexed one in the column.
+        return Flex(
+          direction: paired ? Axis.horizontal : Axis.vertical,
+          crossAxisAlignment: paired
+              ? CrossAxisAlignment.start
+              : CrossAxisAlignment.stretch,
+          mainAxisSize: paired ? MainAxisSize.max : MainAxisSize.min,
+          children: [
+            Flexible(flex: paired ? 1 : 0, fit: FlexFit.tight, child: left),
+            SizedBox(width: paired ? InSpacing.md(context) : 0),
+            Flexible(flex: paired ? 1 : 0, fit: FlexFit.tight, child: right),
+          ],
         );
       },
     );

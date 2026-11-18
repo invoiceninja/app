@@ -12,6 +12,7 @@ import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
 import 'package:admin/ui/core/widgets/qr_code_image.dart';
 import 'package:admin/utils/file_names.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Below this pane width the action buttons move under the URL.
 const double _kStackedBelow = 480;
@@ -139,6 +140,7 @@ class PortalUrlDisplay extends StatelessWidget {
 
   Future<void> _showQrCode(BuildContext context) => showDialog<void>(
     context: context,
+    anchorPoint: foldAnchorPoint(context),
     builder: (_) => PortalUrlQrDialog(label: label, url: url),
   );
 }

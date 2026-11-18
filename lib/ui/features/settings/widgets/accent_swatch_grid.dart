@@ -4,6 +4,7 @@ import 'package:admin/app/color_hex.dart';
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Default accent palette. Hex values are stored as `#RRGGBB` on
 /// `company_user.settings.accent_color` — same wire format admin-portal and
@@ -220,6 +221,7 @@ class _CustomSwatch extends StatelessWidget {
   Future<void> _open(BuildContext context) async {
     final picked = await showDialog<String>(
       context: context,
+      anchorPoint: foldAnchorPoint(context),
       builder: (_) => _HexPickerDialog(seed: seed),
     );
     if (picked != null) onPicked(picked);

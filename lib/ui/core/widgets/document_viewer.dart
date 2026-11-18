@@ -13,6 +13,7 @@ import 'package:admin/ui/core/widgets/empty_state.dart';
 import 'package:admin/ui/core/widgets/error_view.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/utils/document_preview.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Opens [doc] in the in-app viewer: a PDF in `printing`'s [PdfPreview], an
 /// image in an [InteractiveViewer], anything else as a "no preview" state with
@@ -28,6 +29,7 @@ Future<void> showDocumentViewer(
   required Future<Uint8List> Function() fetch,
 }) => showDialog<void>(
   context: context,
+  anchorPoint: foldAnchorPoint(context),
   builder: (_) => DocumentViewer(doc: doc, fetch: fetch),
 );
 

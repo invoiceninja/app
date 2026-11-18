@@ -2,6 +2,7 @@ import 'package:material_ui/material_ui.dart';
 
 import 'package:admin/domain/billing/invoice_lock.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Reason-specific "this invoice is locked" message dialog. Mirrors
 /// admin-portal's `editEntity()` behaviour: instead of opening the editor on a
@@ -14,6 +15,7 @@ Future<void> showInvoiceLockedDialog(
 ) {
   return showDialog<void>(
     context: context,
+    anchorPoint: foldAnchorPoint(context),
     builder: (context) => AlertDialog(
       title: Text(context.tr('locked')),
       content: Text(context.tr(invoiceLockMessageKey(reason))),

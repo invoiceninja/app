@@ -5,6 +5,7 @@ import 'package:admin/data/models/domain/vendor.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
 import 'package:admin/ui/core/widgets/searchable_dropdown_field.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Pick the **survivor** vendor to merge [source] into. Returns the chosen
 /// vendor (kept; [source] is absorbed + deleted server-side) or null on
@@ -18,6 +19,7 @@ Future<Vendor?> showMergeVendorDialog(
 }) {
   return showDialog<Vendor?>(
     context: context,
+    anchorPoint: foldAnchorPoint(context),
     builder: (ctx) {
       Vendor? selected;
       return StatefulBuilder(

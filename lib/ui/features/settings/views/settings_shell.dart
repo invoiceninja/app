@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:admin/ui/core/widgets/hidden_shell_navigator.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/adaptive.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 import 'package:admin/ui/features/settings/views/settings_screen.dart';
 import 'package:admin/ui/features/settings/widgets/settings_scope_banner.dart';
 import 'package:admin/ui/features/settings/widgets/settings_two_pane_scope.dart';
@@ -15,6 +16,18 @@ import 'package:admin/ui/core/utils/router_state.dart';
 /// the reclaimed 280 px. Not persisted — auto-resets on pop via the
 /// callers' try/finally wrappers.
 final ValueNotifier<bool> hideSettingsListSidebar = ValueNotifier(false);
+
+/// The settings list's width in the two-pane layout.
+const double kSettingsListWidth = 280;
+
+/// Whether a foldable in book posture splits settings at the fold: the list in
+/// the half before it, the section in the half after. Only when that half
+/// holds the list — with the rail collapsed (as book posture leaves it) every
+/// foldable's half does; with the rail expanded none do. [startHalf] comes from
+/// `settingsFoldStartHalf` (the router) or the shell's own measurement, the
+/// same span in two coordinate systems (docs/foldables.md).
+bool settingsSplitsAtFold(double? startHalf) =>
+    startHalf != null && startHalf >= kSettingsListWidth;
 
 /// Master-detail shell for `/settings/*` on wide screens.
 ///
@@ -41,7 +54,41 @@ class SettingsShell extends StatelessWidget {
         // breakpoint: a fixed 280 px sidebar leaves the form pane cramped on
         // tablets, so gate the split at [Breakpoints.settingsTwoPane]. Below
         // it we pass through to single-pane full-screen navigation.
-        final wide = constraints.maxWidth >= Breakpoints.settingsTwoPane;
+        // A foldable in book posture splits at the fold instead: the list in
+        // the half before it, the section after, nothing on the fold. The
+        // fold is in content coordinates here (the shell re-based it past the
+        // rail), so the start half is measured from this box's own edge.
+        // rtl: physical — the list's (start) half is the right one in RTL.
+        final fold = bookFoldOf(context);
+        final rtl = Directionality.of(context) == TextDirection.rtl;
+        final foldStartHalf = fold == null
+            ? null
+            : rtl
+            ? constraints.maxWidth - fold.fold.right
+            : fold.fold.left;
+        final atFold = settingsSplitsAtFold(foldStartHalf);
+        final wide =
+            atFold || constraints.maxWidth >= Breakpoints.settingsTwoPane;
+        final listWidth = atFold ? foldStartHalf! : kSettingsListWidth;
+        // Each half is its own screen to what it holds, as in the
+        // master-detail split: without this the section's Navigator, which
+        // starts after the fold, still saw the fold — a menu opened from it
+        // landed off-screen and a sheet came out zero-wide.
+        // rtl: physical — the halves are physical; the menu's is the right
+        // one in RTL.
+        Rect? listHalf;
+        Rect? sectionHalf;
+        if (atFold) {
+          final w = constraints.maxWidth;
+          final h = constraints.maxHeight;
+          final split = fold!.fold;
+          listHalf = rtl
+              ? Rect.fromLTRB(split.right, 0, w, h)
+              : Rect.fromLTRB(0, 0, split.left, h);
+          sectionHalf = rtl
+              ? Rect.fromLTRB(0, 0, split.left, h)
+              : Rect.fromLTRB(split.right, 0, w, h);
+        }
         // Both branches publish, even though the narrow one's value matches
         // the absent-default: a page reading `false` because nothing published
         // and a page reading `false` because the shell said so are the same
@@ -97,23 +144,39 @@ class SettingsShell extends StatelessWidget {
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 300),
                         curve: Curves.easeInOutCubic,
-                        width: hidden ? 0 : 280,
+                        width: hidden ? 0 : listWidth,
                         color: Theme.of(context).colorScheme.surface,
                         child: ClipRect(
                           child: OverflowBox(
                             alignment: AlignmentDirectional.centerEnd,
-                            minWidth: 280,
-                            maxWidth: 280,
+                            minWidth: listWidth,
+                            maxWidth: listWidth,
                             child: Material(
                               color: Theme.of(context).colorScheme.surface,
-                              child: const SettingsListSidebar(),
+                              child: FoldHalf(
+                                half: hidden ? null : listHalf,
+                                boxWidth: constraints.maxWidth,
+                                child: const SettingsListSidebar(),
+                              ),
                             ),
                           ),
                         ),
                       ),
                     ),
-                    if (!hidden) const VerticalDivider(width: 1, thickness: 1),
-                    Expanded(child: rightPane),
+                    if (!hidden)
+                      atFold
+                          // The fold itself: nothing is drawn on it.
+                          ? SizedBox(width: fold!.fold.width)
+                          : const VerticalDivider(width: 1, thickness: 1),
+                    Expanded(
+                      child: FoldHalf(
+                        // The menu hidden (the invoice designer), the section
+                        // spans the fold: the whole screen, fold included.
+                        half: hidden ? null : sectionHalf,
+                        boxWidth: constraints.maxWidth,
+                        child: rightPane,
+                      ),
+                    ),
                   ],
                 );
               },

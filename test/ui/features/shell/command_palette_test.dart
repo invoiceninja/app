@@ -562,6 +562,33 @@ void main() {
       );
     });
 
+    // A foldable opening while the palette is up flips `isPhone`, and the
+    // swap from the page to the card remounted the palette — the query and its
+    // results went with it (docs/foldables.md). One key holds it across both.
+    testWidgets('keeps its query when a fold flips page ⇄ card', (
+      tester,
+    ) async {
+      await withPalette(
+        tester,
+        size: phone,
+        platform: TargetPlatform.android,
+        body: () async {
+          await tester.enterText(find.byType(TextField), 'acme');
+          await tester.pump();
+          for (final size in const [Size(951, 669), phone]) {
+            tester.view.physicalSize = size;
+            await tester.pumpAndSettle();
+            expect(find.byType(Dialog), findsOneWidget);
+            expect(
+              tester.widget<TextField>(find.byType(TextField)).controller?.text,
+              'acme',
+              reason: 'the palette remounted at $size',
+            );
+          }
+        },
+      );
+    });
+
     // #103: the field's `⌘ /` chip was a bordered mono keycap while the row
     // directly under it was flat sans text joined by `·` — two treatments of
     // one idea ~40 px apart. These pin the footer's new shape, and the gate

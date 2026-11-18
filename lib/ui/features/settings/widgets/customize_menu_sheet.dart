@@ -12,6 +12,7 @@ import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/adaptive.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
 import 'package:admin/ui/features/shell/widgets/sidebar_menu_entries.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Open the main-menu editor: drag to reorder, switch to hide
 /// (invoiceninja/flutter#125).
@@ -31,6 +32,7 @@ Future<void> openCustomizeMenu(BuildContext context) {
   if (wide) {
     return showDialog<void>(
       context: context,
+      anchorPoint: foldAnchorPoint(context),
       builder: (_) => Dialog(
         clipBehavior: Clip.antiAlias,
         child: ConstrainedBox(

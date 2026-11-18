@@ -24,6 +24,7 @@ import 'package:admin/ui/features/settings/widgets/form_section.dart';
 import 'package:admin/ui/features/settings/widgets/settings_form_shell.dart';
 import 'package:admin/ui/features/settings/widgets/settings_screen_scaffold.dart';
 import 'package:admin/utils/formatting.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Read-only User detail screen. Reached from `/settings/users/:id`.
 ///
@@ -380,6 +381,7 @@ class _UserDetailScreenState extends State<UserDetailScreen> {
     };
     final result = await showDialog<bool>(
       context: context,
+      anchorPoint: foldAnchorPoint(context),
       builder: (ctx) => AlertDialog(
         title: Text(ctx.tr(title)),
         content: Text(ctx.tr(body, params)),

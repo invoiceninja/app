@@ -18,6 +18,7 @@ import 'package:admin/ui/features/settings/widgets/plan_gate_banner.dart';
 import 'package:admin/ui/features/settings/widgets/settings_form_shell.dart';
 import 'package:admin/ui/features/settings/widgets/settings_screen_scaffold.dart';
 import 'package:admin/domain/entity_state.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Settings → User Management.
 ///
@@ -92,6 +93,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     if (destructive) {
       final confirmed = await showDialog<bool>(
         context: context,
+        anchorPoint: foldAnchorPoint(context),
         builder: (ctx) => AlertDialog(
           title: Text(ctx.tr('delete_user')),
           content: Text(ctx.tr('are_you_sure')),

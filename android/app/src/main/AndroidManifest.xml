@@ -28,13 +28,20 @@
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
+        <!-- configChanges: everything Flutter redraws for itself, so a change
+             resizes the running engine instead of recreating the activity —
+             which would restart the engine and lose an unsaved form. A
+             foldable opening or closing is screenSize|smallestScreenSize|
+             screenLayout; attaching a keyboard or mouse, or a DeX switch, adds
+             navigation|touchscreen; an HDR / wide-gamut display colorMode.
+             See docs/foldables.md. -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
             android:launchMode="singleTop"
             android:taskAffinity=""
             android:theme="@style/LaunchTheme"
-            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode|navigation|touchscreen|colorMode"
             android:hardwareAccelerated="true"
             android:windowSoftInputMode="adjustResize">
             <!-- Specifies an Android theme to apply to this Activity as soon as

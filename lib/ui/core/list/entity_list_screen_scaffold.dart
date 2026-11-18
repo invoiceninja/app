@@ -8,6 +8,7 @@ import 'package:admin/app/router.dart'
         highlightSelectedIdFromRoute,
         paneIsOpenForList,
         selectedIdFromRoute,
+        settingsFoldStartHalf,
         settingsIndexRedirect;
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
@@ -66,6 +67,7 @@ import 'package:admin/ui/features/settings/widgets/settings_two_pane_scope.dart'
 import 'package:admin/ui/features/shell/widgets/app_drawer.dart';
 import 'package:admin/utils/formatting.dart';
 import 'package:admin/ui/core/utils/router_state.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 // ─── Callbacks ───────────────────────────────────────────────────────────
 
@@ -475,6 +477,37 @@ class _EntityListScreenScaffoldState<T, VM extends GenericListViewModel<T>>
   /// The width class of the last layout, for the scroll-to-row estimate,
   /// which runs from a callback and cannot ask the constraints again.
   bool _lastBuiltWide = false;
+
+  /// Whether the last build saw a foldable in book posture.
+  bool _lastBuiltBookPosture = false;
+
+  /// Whether [_lastBuiltWide] holds a real layout yet (false before the first).
+  bool _widthClassKnown = false;
+
+  /// Keep the user's place when the list changes width class — a foldable
+  /// opening or closing, a window dragged across [Breakpoints.wide]. The table
+  /// and the narrow cards are different scroll views with different row
+  /// heights, so the new one used to start at the top. Carry the position
+  /// across as a fraction of the whole scroll extent: it needs no row-height
+  /// estimate (a card's real height is well over its 52 px floor), and lands
+  /// near the same rows (docs/foldables.md).
+  void _carryTopRowAcrossWidthClass() {
+    if (widget.embedded || !_vScroll.hasClients) return;
+    final from = _vScroll.position;
+    if (from.pixels <= 0) return;
+    final fraction =
+        from.pixels / (from.maxScrollExtent + from.viewportDimension);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_vScroll.hasClients) return;
+      final to = _vScroll.position;
+      _vScroll.jumpTo(
+        (fraction * (to.maxScrollExtent + to.viewportDimension)).clamp(
+          to.minScrollExtent,
+          to.maxScrollExtent,
+        ),
+      );
+    });
+  }
 
   /// Whether this entity is created from its list at all — see
   /// [EntityListScreenScaffold.newRoute] — by this user. Drives the FAB, its
@@ -1352,6 +1385,12 @@ class _EntityListScreenScaffoldState<T, VM extends GenericListViewModel<T>>
             _lastSelectedId = selectedId;
             _lastSelectedSeen = false;
           }
+          // A foldable entering book posture brings the list back beside the
+          // open record (it was covered by the full-page pane), so bring the
+          // record's row into view too (docs/foldables.md).
+          final book = FoldPostureScope.bookPostureOf(context);
+          if (book && !_lastBuiltBookPosture) _lastSelectedSeen = false;
+          _lastBuiltBookPosture = book;
           if (selectedId != null && !_lastSelectedSeen) {
             final idx = _vm.items.indexWhere((e) => _vm.idOf(e) == selectedId);
             if (idx >= 0) {
@@ -1377,6 +1416,10 @@ class _EntityListScreenScaffoldState<T, VM extends GenericListViewModel<T>>
         return LayoutBuilder(
           builder: (context, constraints) {
             final wide = Breakpoints.isWide(constraints);
+            if (_widthClassKnown && wide != _lastBuiltWide) {
+              _carryTopRowAcrossWidthClass();
+            }
+            _widthClassKnown = true;
             _lastBuiltWide = wide;
             final globalNav = Breakpoints.isGlobalNavVisible(context);
             // The token search field uses the inline desktop chrome (chip
@@ -1514,7 +1557,11 @@ class _EntityListScreenScaffoldState<T, VM extends GenericListViewModel<T>>
               menuVisible:
                   settingsIndexRedirect(
                     screenWidth: MediaQuery.sizeOf(context).width,
-                    sidebarCollapsed: _services.sidebar.value,
+                    sidebarCollapsed: _services.sidebar.effectiveValue,
+                    foldStartHalf: settingsFoldStartHalf(
+                      context,
+                      _services.sidebar,
+                    ),
                   ) ==
                   null,
             );

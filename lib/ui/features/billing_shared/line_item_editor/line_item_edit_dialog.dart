@@ -14,6 +14,7 @@ import 'package:admin/ui/core/widgets/spell_check.dart';
 import 'package:admin/ui/features/billing_shared/edit/tax_rate_tier_picker.dart';
 import 'package:admin/ui/features/billing_shared/line_item_editor/line_item_column_config.dart';
 import 'package:admin/utils/formatting.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Modal editor for a single line item. The mobile card list opens this
 /// for every tap AND for `Add Item`; the desktop table can also open it when
@@ -64,6 +65,7 @@ Future<LineItem?> showLineItemEditDialog(
 }) {
   return showDialog<LineItem>(
     context: context,
+    anchorPoint: foldAnchorPoint(context),
     builder: (_) => _LineItemEditDialog(
       initial: initial,
       config: config,

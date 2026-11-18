@@ -16,6 +16,7 @@ import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
 import 'package:admin/ui/features/settings/widgets/form_section.dart';
 import 'package:admin/ui/features/settings/widgets/settings_form_shell.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Search keys for the Plan tab, spread into `kSettingsSearchCatalog` so this
 /// list is the single source (it used to be duplicated there by hand, and had
@@ -438,6 +439,7 @@ class _SelfHostedLicenseCardState extends State<_SelfHostedLicenseCard> {
 /// place ever needs it, lift to `lib/ui/core/widgets/`.
 Future<String?> _promptLicenseKey(BuildContext context) => showDialog<String>(
   context: context,
+  anchorPoint: foldAnchorPoint(context),
   builder: (_) => const _LicenseKeyDialog(),
 );
 

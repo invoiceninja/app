@@ -29,6 +29,7 @@ import 'package:admin/ui/features/reports/widgets/report_cell_text.dart';
 import 'package:admin/ui/features/reports/widgets/report_states.dart';
 import 'package:admin/utils/file_names.dart';
 import 'package:admin/utils/formatting.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// What a report can be turned into, and how. One place, used by the wide
 /// header's Export button and the narrow app bar's overflow alike.
@@ -229,6 +230,7 @@ class ReportExportActions {
     final entity = _definition.rowRecordWire ?? vm.reportIdentifier;
     final picked = await showDialog<String>(
       context: context,
+      anchorPoint: foldAnchorPoint(context),
       builder: (context) => _TemplateDialog(
         designs: services.designs.watchAll(companyId: companyId),
         entity: entity,
@@ -243,6 +245,7 @@ class ReportExportActions {
     final tr = context.tr;
     final choice = await showDialog<(bool, bool)>(
       context: context,
+      anchorPoint: foldAnchorPoint(context),
       builder: (context) => _EmailDialog(
         offerPdfs: _offersPdfAttachment,
         offerDocuments: _offersDocumentAttachment,

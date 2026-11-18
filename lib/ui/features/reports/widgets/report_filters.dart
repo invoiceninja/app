@@ -14,6 +14,7 @@ import 'package:admin/ui/core/adaptive.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
 import 'package:admin/ui/features/reports/view_models/reports_view_model.dart';
 import 'package:admin/utils/search_fold.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// One choice a filter offers.
 typedef ReportFilterChoice = ({String id, String name});
@@ -214,6 +215,7 @@ Future<void> editReportFilter(
   if (wide) {
     picked = await showDialog<Set<String>>(
       context: context,
+      anchorPoint: foldAnchorPoint(context),
       builder: (context) => Dialog(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 420, maxHeight: 560),

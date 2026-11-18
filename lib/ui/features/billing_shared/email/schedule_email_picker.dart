@@ -6,6 +6,7 @@ import 'package:admin/ui/core/widgets/in_date_field.dart';
 import 'package:admin/ui/core/widgets/in_time_field.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
 import 'package:admin/utils/formatting.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Modal that lets the user pick a future date + time at which to send an
 /// email. Returns the chosen `DateTime` (local time) or null if cancelled.
@@ -20,6 +21,7 @@ Future<DateTime?> showScheduleEmailPicker(
 }) {
   return showDialog<DateTime>(
     context: context,
+    anchorPoint: foldAnchorPoint(context),
     builder: (_) =>
         _ScheduleEmailDialog(formatter: formatter, initial: initial),
   );

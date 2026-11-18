@@ -2,6 +2,7 @@ import 'package:material_ui/material_ui.dart';
 
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Shows the standard "Discard changes?" prompt.
 ///
@@ -11,6 +12,7 @@ import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
 Future<bool> showDiscardChangesDialog(BuildContext context) async {
   final discard = await showDialog<bool>(
     context: context,
+    anchorPoint: foldAnchorPoint(context),
     builder: (ctx) => AlertDialog(
       title: Text(ctx.tr('discard_changes_question')),
       content: Text(ctx.tr('discard_changes_warning')),

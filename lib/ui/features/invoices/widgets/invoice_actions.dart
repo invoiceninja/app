@@ -54,6 +54,7 @@ import 'package:admin/ui/features/payments/view_models/payment_edit_view_model.d
 import 'package:admin/ui/features/settings/views/advanced/e_invoice/e_invoice_constants.dart'
     show kEInvoiceTypePEPPOL;
 import 'package:admin/utils/file_names.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Action set surfaced for an invoice.
 ///
@@ -732,6 +733,7 @@ class InvoiceActions {
     if (recorded) {
       await showDialog<void>(
         context: context,
+        anchorPoint: foldAnchorPoint(context),
         builder: (ctx) => AlertDialog(
           title: Text(ctx.tr('terminal_pending_recorded_title')),
           content: Text(ctx.tr('terminal_pending_recorded')),

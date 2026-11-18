@@ -10,6 +10,7 @@ import 'package:admin/ui/core/utils/external_url.dart';
 import 'package:admin/ui/core/widgets/copyable_value.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/utils/email_address.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// The `mailto:` URI for a stored email address, or null when the string is
 /// not exactly one address.
@@ -113,6 +114,7 @@ Future<EmailCandidate?> _showEmailCandidatePicker(
   if (Env.isTouchPrimary) {
     return showModalBottomSheet<EmailCandidate>(
       context: context,
+      anchorPoint: foldAnchorPoint(context),
       useRootNavigator: true,
       showDragHandle: true,
       isScrollControlled: true,
@@ -131,6 +133,7 @@ Future<EmailCandidate?> _showEmailCandidatePicker(
   }
   return showDialog<EmailCandidate>(
     context: context,
+    anchorPoint: foldAnchorPoint(context),
     builder: (ctx) => Dialog(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 420),

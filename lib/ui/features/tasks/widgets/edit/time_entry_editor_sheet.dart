@@ -9,6 +9,7 @@ import 'package:admin/ui/core/widgets/in_time_field.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
 import 'package:admin/utils/formatting.dart';
 import 'package:admin/ui/core/widgets/example_hint.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Full editor for a single `TimeEntry`. Modal — opens as a bottom sheet on
 /// narrow screens (`<600 px`) and an `AlertDialog` on wide. Returns the
@@ -78,6 +79,7 @@ class TimeEntryEditorSheet extends StatefulWidget {
     if (isWide) {
       result = await showDialog<TimeEntry>(
         context: context,
+        anchorPoint: foldAnchorPoint(context),
         builder: (ctx) => Dialog(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 480),

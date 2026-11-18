@@ -336,7 +336,10 @@ class _InSidebarState extends State<InSidebar> {
         if (session == null) return const SizedBox.shrink();
         _syncStreams(services, session);
         return ValueListenableBuilder<bool>(
-          valueListenable: services.sidebar,
+          // Effective, not the stored preference: book posture on a foldable
+          // collapses the rail too, and the content inset reads the same
+          // value (docs/foldables.md).
+          valueListenable: services.sidebar.effective,
           builder: (context, collapsedPref, _) {
             // The drawer passes `width: null` to fill its own container —
             // the collapse toggle is wide-layout-only, so ignore the

@@ -17,6 +17,7 @@ import 'package:admin/ui/core/sync/require_synced.dart';
 import 'package:admin/ui/core/widgets/confirm_password_sheet.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/core/widgets/notify_async.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Action set surfaced for a company gateway. Mirrors `ProjectAction` —
 /// edit / archive / restore / delete are wired today; `disconnect`
@@ -366,6 +367,7 @@ class CompanyGatewayActions {
   ) {
     return showDialog<void>(
       context: context,
+      anchorPoint: foldAnchorPoint(context),
       builder: (ctx) => AlertDialog(
         title: Text(ctx.tr('customer_count')),
         content: Column(

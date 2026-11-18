@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// "Paste design JSON" prompt. Returns the raw text, or null on cancel.
 ///
@@ -16,6 +17,7 @@ import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
 Future<String?> showImportDesignJsonDialog(BuildContext context) =>
     showDialog<String>(
       context: context,
+      anchorPoint: foldAnchorPoint(context),
       builder: (_) => const _ImportDesignJsonDialog(),
     );
 

@@ -10,6 +10,7 @@ import 'package:admin/ui/core/widgets/copyable_value.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
 import 'package:admin/utils/formatting.dart';
 import 'package:admin/utils/local_network_host.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Explains a server certificate this device refused and, when [canTrust],
 /// offers to trust that exact certificate for [host]:[port]
@@ -39,6 +40,7 @@ Future<bool> showUntrustedCertificateDialog(
 }) async {
   final trusted = await showDialog<bool>(
     context: context,
+    anchorPoint: foldAnchorPoint(context),
     builder: (_) => UntrustedCertificateDialog(
       host: host,
       port: port,

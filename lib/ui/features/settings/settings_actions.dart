@@ -18,6 +18,7 @@ import 'package:admin/ui/core/dialogs/confirm_sign_out_dialog.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
 import 'package:admin/ui/features/shell/widgets/confirm_pending_outbox.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Shared user-flow helpers for settings screens. Keeps the confirmation
 /// dialogs / error toasts consistent across the surfaces that expose them —
@@ -130,6 +131,7 @@ class SettingsActions {
 
     final confirmed = await showDialog<bool>(
       context: context,
+      anchorPoint: foldAnchorPoint(context),
       builder: (ctx) => AlertDialog(
         title: Text(ctx.tr('add_company')),
         content: Text(ctx.tr('add_company_confirm')),
@@ -168,6 +170,7 @@ class SettingsActions {
     final dialogContext = navState.context;
     if (!dialogContext.mounted) return;
     unawaited(
+      // fold: an app-level progress dialog with no caller on either side.
       showDialog<void>(
         context: dialogContext,
         barrierDismissible: false,

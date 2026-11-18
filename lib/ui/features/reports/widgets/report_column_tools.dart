@@ -17,6 +17,7 @@ import 'package:admin/ui/features/dashboard/widgets/filters/date_range_picker_bu
 import 'package:admin/ui/features/reports/view_models/reports_view_model.dart';
 import 'package:admin/utils/formatting.dart';
 import 'package:admin/utils/search_fold.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// The age buckets a column of invoice ages filters by, as the engine names
 /// them (`ReportEngine._matchAge`), with what each is called on screen.
@@ -74,6 +75,7 @@ Future<void> editReportColumnFilter(
     case ReportColumnType.duration:
       final result = await showDialog<String>(
         context: context,
+        anchorPoint: foldAnchorPoint(context),
         builder: (context) =>
             _RangeDialog(title: column.displayLabel, initial: current),
       );
@@ -102,6 +104,7 @@ Future<void> editReportColumnFilter(
     case ReportColumnType.string:
       final picked = await showDialog<Set<String>>(
         context: context,
+        anchorPoint: foldAnchorPoint(context),
         builder: (context) => _ValuesDialog(
           title: column.displayLabel,
           values: _distinctValues(vm, column),
@@ -192,6 +195,7 @@ Future<String?> _pickOne(
 }) {
   return showDialog<String>(
     context: context,
+    anchorPoint: foldAnchorPoint(context),
     builder: (context) => SimpleDialog(
       title: Text(title),
       children: [
@@ -460,6 +464,7 @@ Future<void> openReportColumns(
   final result =
       await showDialog<(Set<String>, List<String>, bool, Set<String>)>(
         context: context,
+        anchorPoint: foldAnchorPoint(context),
         builder: (context) => _ColumnsDialog(vm: vm, preview: preview),
       );
   if (result == null) return;

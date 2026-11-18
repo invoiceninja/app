@@ -2,6 +2,7 @@ import 'package:material_ui/material_ui.dart';
 
 import 'package:admin/data/services/invoices_api.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Shows an e-invoice pre-flight result (`einvoice/validateEntity`): "passed",
 /// or the server's issues as a bulleted list. Shared by the invoice and credit
@@ -11,6 +12,7 @@ Future<void> showEInvoiceValidationDialog(
   EInvoiceValidation result,
 ) => showDialog<void>(
   context: context,
+  anchorPoint: foldAnchorPoint(context),
   builder: (d) {
     final flat = result.messages.where((s) => s.isNotEmpty).toList();
     final ok = result.passes && flat.isEmpty;

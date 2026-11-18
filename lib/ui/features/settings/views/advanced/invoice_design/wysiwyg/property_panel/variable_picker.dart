@@ -7,6 +7,7 @@ import 'package:admin/ui/features/settings/views/advanced/invoice_design/wysiwyg
 import 'package:admin/ui/features/settings/views/advanced/invoice_design/wysiwyg/variables/variable_replacer.dart';
 import 'package:admin/utils/formatting.dart';
 import 'package:admin/utils/search_fold.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// A field the user picked: its `$token`, and the name it was listed under.
 class VariablePick {
@@ -56,6 +57,7 @@ Future<VariablePick?> showVariablePicker(
   if (MediaQuery.sizeOf(context).width >= 600) {
     return showDialog<VariablePick>(
       context: context,
+      anchorPoint: foldAnchorPoint(context),
       builder: (_) => Dialog(
         clipBehavior: Clip.antiAlias,
         child: ConstrainedBox(

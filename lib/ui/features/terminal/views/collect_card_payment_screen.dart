@@ -34,6 +34,7 @@ import 'package:admin/ui/features/terminal/widgets/location_pre_alert.dart';
 import 'package:admin/ui/features/terminal/widgets/pay_another_way.dart';
 import 'package:admin/ui/features/terminal/widgets/reader_picker_sheet.dart';
 import 'package:admin/utils/formatting.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// "Collect card payment" for one invoice (docs/in-person-payments.md): a
 /// full-screen step on the root navigator, never part of the saved route.
@@ -399,6 +400,7 @@ class _CollectCardPaymentScreenState extends State<CollectCardPaymentScreen> {
     if (!mounted) return false;
     final ok = await showDialog<bool>(
       context: context,
+      anchorPoint: foldAnchorPoint(context),
       builder: (_) => const LocationPreAlertDialog(),
     );
     return ok ?? false;
@@ -633,6 +635,7 @@ class _CollectCardPaymentScreenState extends State<CollectCardPaymentScreen> {
   Future<void> _acknowledgeSurcharge() async {
     final ok = await showDialog<bool>(
       context: context,
+      anchorPoint: foldAnchorPoint(context),
       builder: (context) => AlertDialog(
         title: Text(context.tr('terminal_surcharge_rules_title')),
         content: SingleChildScrollView(

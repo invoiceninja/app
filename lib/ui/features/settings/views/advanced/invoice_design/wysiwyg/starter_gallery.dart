@@ -6,6 +6,7 @@ import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/features/settings/views/advanced/invoice_design/wysiwyg/canvas/design_page_thumbnail.dart';
 import 'package:admin/ui/features/settings/views/advanced/invoice_design/wysiwyg/sample/sample_data.dart';
 import 'package:admin/ui/features/settings/views/advanced/invoice_design/wysiwyg/templates.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Pick a layout to start from: an empty page, or one of the starters, each
 /// shown as the page it makes. Returns its blocks (empty for Blank), or null
@@ -22,6 +23,7 @@ Future<List<DesignBlock>?> showStarterGallery(
 }) {
   return showDialog<List<DesignBlock>>(
     context: context,
+    anchorPoint: foldAnchorPoint(context),
     builder: (dialogContext) {
       final starters = buildStarterTemplates(accent: accent);
       return Dialog(

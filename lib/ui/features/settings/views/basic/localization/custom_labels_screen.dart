@@ -20,6 +20,7 @@ import 'package:admin/ui/features/settings/widgets/form_section.dart';
 import 'package:admin/ui/features/settings/widgets/overridable_field.dart';
 import 'package:admin/ui/features/settings/widgets/settings_field_bindings.dart';
 import 'package:admin/ui/features/settings/widgets/settings_form_shell.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Predefined Custom Labels — the React `defaultLabels` list. Each value is a
 /// localization key (e.g. `'invoice'` → "Invoice"); selecting one from the
@@ -261,6 +262,7 @@ class _AddRow extends StatelessWidget {
     final duplicateMessage = context.tr('label_already_added');
     final key = await showDialog<String>(
       context: context,
+      anchorPoint: foldAnchorPoint(context),
       builder: (_) => const _AddCustomLabelDialog(),
     );
     if (key == null || key.isEmpty) return;
@@ -277,6 +279,7 @@ class _AddRow extends StatelessWidget {
       ..sort((a, b) => a.name.compareTo(b.name));
     final country = await showDialog<Country>(
       context: context,
+      anchorPoint: foldAnchorPoint(context),
       builder: (dialogContext) => _AddCountryDialog(countries: countries),
     );
     if (country == null) return;

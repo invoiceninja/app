@@ -15,6 +15,7 @@ import 'package:admin/ui/core/widgets/copyable_value.dart';
 import 'package:admin/ui/core/widgets/ltr_value.dart';
 import 'package:admin/ui/core/widgets/notify.dart' show formatNotifyError;
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Opens the self-hosted server update dialog — admin-portal's
 /// `UpdateDialog`, reached from the sidebar's Update Available card and the
@@ -23,6 +24,7 @@ import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
 Future<void> showSelfUpdateDialog(BuildContext context) {
   return showDialog<void>(
     context: context,
+    anchorPoint: foldAnchorPoint(context),
     barrierDismissible: false,
     builder: (_) => const SelfUpdateDialog(),
   );

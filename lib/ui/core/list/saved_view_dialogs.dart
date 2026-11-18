@@ -9,6 +9,7 @@ import 'package:admin/ui/core/list/saved_view_icons.dart';
 import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Prompt the user to rename [view] and write the change through
 /// `services.savedViews.rename`. Reused by the bookmark sheet's per-row
@@ -23,6 +24,7 @@ Future<void> showRenameSavedViewDialog(
 ) async {
   final result = await showDialog<String>(
     context: context,
+    anchorPoint: foldAnchorPoint(context),
     builder: (_) => _RenameSavedViewDialog(initialName: view.name),
   );
   if (result == null || result.isEmpty || result == view.name) return;
@@ -110,6 +112,7 @@ Future<void> showDeleteSavedViewDialog(
   final messenger = ScaffoldMessenger.maybeOf(context);
   final confirmed = await showDialog<bool>(
     context: context,
+    anchorPoint: foldAnchorPoint(context),
     builder: (ctx) => AlertDialog(
       title: Text(ctx.tr('delete_view')),
       content: Text(ctx.tr('confirm_delete_view')),
@@ -163,6 +166,7 @@ Future<SavedViewIconChoice?> showSavedViewIconPicker(
 }) {
   return showDialog<SavedViewIconChoice>(
     context: context,
+    anchorPoint: foldAnchorPoint(context),
     builder: (ctx) {
       final tokens = ctx.inTheme;
       Widget tile({

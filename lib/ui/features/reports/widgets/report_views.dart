@@ -12,6 +12,7 @@ import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/form_save_scope.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
 import 'package:admin/ui/features/reports/view_models/reports_view_model.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// The saved views of a report: open one, save the report as it stands as a
 /// new one, or bring the one it came from up to date.
@@ -167,6 +168,7 @@ class _ReportViewsButtonState extends State<ReportViewsButton> {
     final views = context.read<Services>().savedViews;
     final name = await showDialog<String>(
       context: context,
+      anchorPoint: foldAnchorPoint(context),
       builder: (context) => const _NameDialog(),
     );
     if (name == null || name.trim().isEmpty) return;

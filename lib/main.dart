@@ -81,6 +81,7 @@ import 'package:admin/ui/features/settings/state/settings_reveal_controller.dart
 import 'package:admin/ui/features/boot/local_data_unavailable_app.dart';
 import 'package:admin/ui/features/boot/local_data_recovery_notice.dart';
 import 'package:admin/data/db/salvage.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Bootstrap entry point.
 ///
@@ -1061,6 +1062,7 @@ class _InvoiceNinjaAppState extends State<InvoiceNinjaApp> {
           widget.services.accentColor,
           widget.services.textScale,
           widget.services.forceRtl,
+          widget.services.simulateFold,
         ]),
         builder: (context, _) => ValueListenableBuilder<Locale?>(
           // Resolved locale: device override → active company's
@@ -1196,7 +1198,8 @@ class _InvoiceNinjaAppState extends State<InvoiceNinjaApp> {
                               child: WindowFrame(
                                 screenshotWindow:
                                     widget.services.screenshotWindow,
-                                railCollapsed: widget.services.sidebar,
+                                railCollapsed:
+                                    widget.services.sidebar.effective,
                                 shellMounted: widget.services.shellMounted,
                                 // List row density (Settings → Device
                                 // Settings), above the router's Navigator so
@@ -1283,7 +1286,12 @@ class _InvoiceNinjaAppState extends State<InvoiceNinjaApp> {
               // not material_ui's; see `LegacyMaterialTheme`.
               final traversable = FocusTraversalGroup(
                 policy: _traversalPolicy,
-                child: LegacyMaterialTheme(child: app),
+                // Debug Panel → Simulate fold: a half-open fold down the
+                // middle, where no device reports one (docs/foldables.md).
+                child: FoldSimulator(
+                  enabled: widget.services.simulateFold.value,
+                  child: LegacyMaterialTheme(child: app),
+                ),
               );
               // Debug Panel → Force right-to-left: overrides the direction
               // `Localizations` derived from the locale, for every route.

@@ -4,6 +4,7 @@ import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/form_save_scope.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Ask for the name of a record about to be created inline — the empty-query
 /// path of a picker's "New Vendor" / "New Expense Category" row.
@@ -19,6 +20,7 @@ Future<String?> showEntityNameDialog(
 }) async {
   final name = await showDialog<String>(
     context: context,
+    anchorPoint: foldAnchorPoint(context),
     builder: (_) =>
         _EntityNameDialog(titleKey: titleKey, initialName: initialName),
   );

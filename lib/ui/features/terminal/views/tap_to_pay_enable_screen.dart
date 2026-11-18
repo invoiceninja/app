@@ -19,6 +19,7 @@ import 'package:admin/ui/features/terminal/terminal_error_text.dart';
 import 'package:admin/ui/features/terminal/view_models/tap_to_pay_enable_view_model.dart';
 import 'package:admin/ui/features/terminal/widgets/location_pre_alert.dart';
 import 'package:admin/ui/features/terminal/widgets/collect_stage_layout.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Opens [TapToPayEnableScreen] over everything: a full-screen step on the
 /// root navigator, never part of the saved route (like the collect screen).
@@ -150,6 +151,7 @@ class _TapToPayEnableScreenState extends State<TapToPayEnableScreen> {
     if (!mounted) return false;
     final ok = await showDialog<bool>(
       context: context,
+      anchorPoint: foldAnchorPoint(context),
       builder: (_) => const LocationPreAlertDialog(),
     );
     return ok ?? false;

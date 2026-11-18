@@ -19,6 +19,7 @@ import 'package:admin/ui/core/widgets/detail_info_row.dart';
 import 'package:admin/ui/core/widgets/party_contact_row.dart';
 import 'package:admin/ui/core/widgets/phone_number_value.dart';
 import 'package:admin/ui/features/clients/widgets/client_portal.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// "Contacts" card on the client detail screen (`PartyContactsCard`). Shows
 /// the first 3 contacts inline. Extra contacts surface via "Show N more":
@@ -166,6 +167,7 @@ Future<void> showClientContactsSheet(
   final services = context.read<Services>();
   return showModalBottomSheet<void>(
     context: context,
+    anchorPoint: foldAnchorPoint(context),
     useRootNavigator: true,
     showDragHandle: true,
     isScrollControlled: true,

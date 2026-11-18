@@ -10,6 +10,7 @@ import 'package:admin/ui/features/settings/views/advanced/invoice_design/wysiwyg
 import 'package:admin/ui/features/settings/views/advanced/invoice_design/wysiwyg/property_panel/property_inputs.dart';
 import 'package:admin/ui/features/settings/views/advanced/invoice_design/wysiwyg/variables/variable_replacer.dart';
 import 'package:admin/ui/features/settings/views/advanced/invoice_design/wysiwyg/wysiwyg_design_view_model.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Property editor for the `total` block. Reorderable items + per-row
 /// expansion (Phase 7c) for label / fontSize / fontWeight / color /
@@ -136,6 +137,7 @@ class _TotalBlockPropertiesState extends State<TotalBlockProperties> {
   Future<void> _addRow(List<Map<String, dynamic>> items) async {
     final picked = await showDialog<(String, String)>(
       context: context,
+      anchorPoint: foldAnchorPoint(context),
       builder: (ctx) => SimpleDialog(
         title: Text(ctx.tr('add_row')),
         children: [

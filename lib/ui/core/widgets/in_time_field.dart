@@ -4,6 +4,7 @@ import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/example_hint.dart';
 import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/utils/formatting.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Single time-of-day input with typed shortcuts + a clock-picker
 /// fallback.
@@ -161,6 +162,7 @@ class _InTimeFieldState extends State<InTimeField> {
     if (!widget.enabled) return;
     final picked = await showTimePicker(
       context: context,
+      anchorPoint: foldAnchorPoint(context),
       initialTime: widget.value ?? TimeOfDay.now(),
     );
     if (picked == null) return;

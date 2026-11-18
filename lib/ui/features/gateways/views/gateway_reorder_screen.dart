@@ -15,6 +15,7 @@ import 'package:admin/ui/core/widgets/status_pill.dart';
 import 'package:admin/ui/features/gateways/gateway_order_writer.dart';
 import 'package:admin/ui/features/settings/state/settings_level_controller.dart';
 import 'package:admin/ui/features/settings/widgets/settings_scope_banner.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Read-only, inline-reorder gateway list shown at non-company scopes.
 /// Company scope continues to use `CompanyGatewayListScreen`'s CRUD list.
@@ -167,6 +168,7 @@ class _GatewayReorderScreenState extends State<GatewayReorderScreen> {
   Future<void> _onReset() async {
     final confirmed = await showDialog<bool>(
       context: context,
+      anchorPoint: foldAnchorPoint(context),
       builder: (ctx) => AlertDialog(
         title: Text(ctx.tr('reset_gateway_order')),
         content: Text(ctx.tr('reset_gateway_order_confirm')),

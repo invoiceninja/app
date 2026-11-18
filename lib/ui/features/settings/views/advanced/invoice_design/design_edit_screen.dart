@@ -23,6 +23,7 @@ import 'package:admin/ui/features/settings/widgets/plan_gate_banner.dart';
 import 'package:admin/ui/features/settings/widgets/settings_entity_edit_scaffold.dart';
 import 'package:admin/ui/features/settings/widgets/settings_text_field.dart';
 import 'package:admin/utils/search_fold.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Wide-window breakpoint: at or above this the editor and the live preview
 /// sit side-by-side; below it the editor is full-width and the preview is a
@@ -314,6 +315,7 @@ class _DesignWorkspaceState extends State<_DesignWorkspace> {
   ) {
     showDialog<void>(
       context: context,
+      anchorPoint: foldAnchorPoint(context),
       builder: (dialogContext) {
         return Dialog.fullscreen(
           child: Scaffold(

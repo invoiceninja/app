@@ -7,6 +7,7 @@ import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
 import 'package:admin/ui/features/settings/view_models/design_update_all_mixin.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// The document types a design can be the default for.
 const List<String> kDesignDocumentTypes = [
@@ -106,6 +107,7 @@ Future<void> showUseDesignDialog(
 
   final choice = await showDialog<UseDesignChoice>(
     context: context,
+    anchorPoint: foldAnchorPoint(context),
     builder: (_) => UseDesignDialog(
       entities: designDefaultTypes(entities),
       alreadyUsing: entitiesUsingDesign(company.settings, id).toSet(),

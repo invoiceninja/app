@@ -38,6 +38,7 @@ import 'package:admin/ui/features/docuninja/widgets/docuninja_filter_dialog.dart
 import 'package:admin/ui/features/docuninja/widgets/docuninja_inline_error.dart';
 import 'package:admin/ui/features/docuninja/widgets/docuninja_states.dart';
 import 'package:admin/ui/features/docuninja/widgets/docuninja_return_refresh.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 final _log = Logger('DocuNinjaTemplatesScreen');
 
@@ -635,6 +636,7 @@ class _DocuNinjaTemplatesScreenState extends State<DocuNinjaTemplatesScreen> {
   Future<void> _options(DocuNinjaTemplatesViewModel vm, DnBlueprint t) async {
     final saved = await showDialog<bool>(
       context: context,
+      anchorPoint: foldAnchorPoint(context),
       builder: (_) => _TemplateOptionsDialog(
         template: t,
         api: context.read<DocuNinjaApi>(),
@@ -652,6 +654,7 @@ class _DocuNinjaTemplatesScreenState extends State<DocuNinjaTemplatesScreen> {
     if (loginApi == null || companyId == null) return;
     final id = await showDialog<String>(
       context: context,
+      anchorPoint: foldAnchorPoint(context),
       builder: (_) => _TemplateWizard(api: api, loginApi: loginApi),
     );
     if (id == null || !mounted) return;

@@ -330,6 +330,20 @@ void main() {
   ScaffoldState scaffold(WidgetTester tester) =>
       tester.state<ScaffoldState>(find.byType(Scaffold).last);
 
+  // An iPhone Duo resizes the app in place (docs/foldables.md): closed it is a
+  // phone; open it is 669×951 or 951×669 with the rail taking 232 of the
+  // width — widths the 400 / 1200 cases here never visit.
+  for (final (label, window, height, pane) in const [
+    ('closed', 375.0, 812.0, 375.0),
+    ('open portrait', 669.0, 951.0, 437.0),
+    ('open landscape', 951.0, 669.0, 719.0),
+  ]) {
+    testWidgets('iPhone Duo $label: lays out without overflow', (tester) async {
+      await pumpScreen(tester, window: window, pane: pane, height: height);
+      expect(tester.takeException(), isNull);
+    }, variant: TargetPlatformVariant.only(TargetPlatform.iOS));
+  }
+
   testWidgets('phone: mobile bar, hamburger, and a drawer to open', (
     tester,
   ) async {

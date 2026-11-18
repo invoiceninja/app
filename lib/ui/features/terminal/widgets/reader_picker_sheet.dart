@@ -9,6 +9,7 @@ import 'package:admin/l10n/localization.dart';
 import 'package:admin/l10n/tap_to_pay_names.dart';
 import 'package:admin/ui/core/widgets/ltr_value.dart';
 import 'package:admin/ui/features/terminal/terminal_error_text.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Lists the Bluetooth card readers in range as they're found; a tap picks
 /// one. Closing the sheet stops the scan (docs/in-person-payments.md).
@@ -17,6 +18,7 @@ Future<TerminalReader?> showReaderPickerSheet(
   required Stream<List<TerminalReader>> Function() readers,
 }) => showModalBottomSheet<TerminalReader>(
   context: context,
+  anchorPoint: foldAnchorPoint(context),
   useRootNavigator: true,
   showDragHandle: true,
   builder: (_) => _ReaderPickerSheet(readers: readers),

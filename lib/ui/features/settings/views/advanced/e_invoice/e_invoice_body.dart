@@ -22,6 +22,7 @@ import 'package:admin/ui/features/settings/widgets/overridable_searchable_dropdo
 import 'package:admin/ui/features/settings/widgets/overridable_switch_field.dart';
 import 'package:admin/ui/features/settings/widgets/plan_gate_banner.dart';
 import 'package:admin/ui/features/settings/widgets/settings_form_shell.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Field labels exposed by the in-app settings search for the E-Invoice
 /// page. Keep in sync with `kSettingsSearchCatalog['e_invoice']`. Every key
@@ -232,6 +233,7 @@ class EInvoiceBody extends StatelessWidget {
 Future<bool?> _confirmSwitchAwayFromPeppol(BuildContext context) {
   return showDialog<bool>(
     context: context,
+    anchorPoint: foldAnchorPoint(context),
     builder: (ctx) => AlertDialog(
       title: Text(context.tr('switch_away_from_peppol_title')),
       content: Text(context.tr('switch_away_from_peppol_message')),

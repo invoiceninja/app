@@ -20,6 +20,7 @@ import 'package:admin/ui/features/settings/widgets/tax_rate_picker.dart';
 import 'package:admin/ui/features/settings/widgets/tax_worked_example.dart';
 import 'package:admin/utils/formatting.dart';
 import 'package:admin/utils/tax_regions.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Field labels exposed by the in-app settings search for the Tax Settings
 /// page. Keep in sync with `kSettingsSearchCatalog['tax_settings']` —
@@ -335,6 +336,7 @@ class _CalculateTaxesToggle extends StatelessWidget {
     // between actions would be a no-op.
     return showDialog<bool>(
       context: context,
+      anchorPoint: foldAnchorPoint(context),
       builder: (ctx) => AlertDialog(
         title: Text(context.tr('calculate_taxes')),
         content: Text(context.tr('calculate_taxes_warning')),

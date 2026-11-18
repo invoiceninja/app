@@ -26,6 +26,7 @@ import 'package:admin/ui/core/widgets/searchable_dropdown_field.dart';
 import 'package:admin/ui/features/tasks/widgets/task_status_picker_field.dart';
 import 'package:admin/utils/formatting.dart';
 import 'package:admin/utils/notes_html.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Result of the Bulk Update dialog: one server `column` and the `new_value`
 /// to set on every selected record.
@@ -110,6 +111,7 @@ Future<BulkUpdate?> showBulkUpdateDialog(
   if (!context.mounted) return null;
   return showDialog<BulkUpdate>(
     context: context,
+    anchorPoint: foldAnchorPoint(context),
     builder: (_) => _BulkUpdateDialog(
       entity: entity,
       companyId: companyId,

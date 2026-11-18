@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Open the Add Comment dialog. Returns the trimmed comment text on save,
 /// or null when the user cancels. The caller is responsible for the actual
@@ -20,6 +21,7 @@ import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
 Future<String?> showAddCommentDialog(BuildContext context) {
   return showDialog<String>(
     context: context,
+    anchorPoint: foldAnchorPoint(context),
     // A stray tap outside would otherwise destroy a typed comment with no
     // confirmation — the worst failure a note surface can have, and the most
     // likely one on a phone. Cancel, Esc and system back still close it.

@@ -6,6 +6,7 @@ import 'package:admin/app/design_tokens.dart';
 import 'package:admin/ui/features/billing_shared/line_item_picker/line_item_picker_body.dart';
 import 'package:admin/ui/features/billing_shared/line_item_picker/line_item_picker_result.dart';
 import 'package:admin/utils/formatting.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Tabbed multi-select picker for adding many products / tasks / expenses to
 /// a billing-doc draft in one go. Returns the converted line items + an
@@ -30,43 +31,53 @@ Future<LineItemPickerResult?> showLineItemPickerSheet(
   bool partyTaxExempt = false,
   bool vendorDoc = false,
 }) {
-  final size = MediaQuery.of(context).size;
-  final wide = size.width >= 720;
+  // Dialog vs sheet is chosen once, at open; the dialog's size is measured in
+  // its builder, so a foldable closing under an open dialog shrinks it to the
+  // new window instead of leaving a 720-wide box in a ~400 one
+  // (docs/foldables.md).
+  final wide = MediaQuery.sizeOf(context).width >= 720;
   if (wide) {
-    final tokens = context.inTheme;
-    final dialogWidth = math.min<double>(720, size.width - 48);
-    // Cap, not target: the body sizes to the active tab's content and
-    // grows only as needed up to this height; short lists produce a
-    // compact dialog instead of ⅔ of empty space.
-    final maxDialogHeight = math.min<double>(700, size.height * 0.85);
     return showDialog<LineItemPickerResult>(
       context: context,
-      builder: (_) => Dialog(
-        backgroundColor: tokens.surface,
-        clipBehavior: Clip.antiAlias,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(InRadii.r3),
-        ),
-        // No fixed `height:` — width stays pinned at 720, height is
-        // driven by `LineItemPickerBody`'s `maxHeight` constraint.
-        child: SizedBox(
-          width: dialogWidth,
-          child: LineItemPickerBody(
-            companyId: companyId,
-            clientId: clientId,
-            showTasksAndExpenses: showTasksAndExpenses,
-            invoiceInclusive: invoiceInclusive,
-            excludedTaskIds: excludedTaskIds,
-            excludedExpenseIds: excludedExpenseIds,
-            headedProjectIds: headedProjectIds,
-            formatter: formatter,
-            showStockQuantity: showStockQuantity,
-            partyTaxExempt: partyTaxExempt,
-            vendorDoc: vendorDoc,
-            maxHeight: maxDialogHeight,
+      anchorPoint: foldAnchorPoint(context),
+      builder: (ctx) {
+        final size = MediaQuery.sizeOf(ctx);
+        final tokens = ctx.inTheme;
+        final dialogWidth = math.max<double>(
+          0,
+          math.min<double>(720, size.width - 48),
+        );
+        // Cap, not target: the body sizes to the active tab's content and
+        // grows only as needed up to this height; short lists produce a
+        // compact dialog instead of ⅔ of empty space.
+        final maxDialogHeight = math.min<double>(700, size.height * 0.85);
+        return Dialog(
+          backgroundColor: tokens.surface,
+          clipBehavior: Clip.antiAlias,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(InRadii.r3),
           ),
-        ),
-      ),
+          // No fixed `height:` — width stays pinned at 720, height is
+          // driven by `LineItemPickerBody`'s `maxHeight` constraint.
+          child: SizedBox(
+            width: dialogWidth,
+            child: LineItemPickerBody(
+              companyId: companyId,
+              clientId: clientId,
+              showTasksAndExpenses: showTasksAndExpenses,
+              invoiceInclusive: invoiceInclusive,
+              excludedTaskIds: excludedTaskIds,
+              excludedExpenseIds: excludedExpenseIds,
+              headedProjectIds: headedProjectIds,
+              formatter: formatter,
+              showStockQuantity: showStockQuantity,
+              partyTaxExempt: partyTaxExempt,
+              vendorDoc: vendorDoc,
+              maxHeight: maxDialogHeight,
+            ),
+          ),
+        );
+      },
     );
   }
   // Narrow window — slide up from the bottom; cap at 0.85·screen so the

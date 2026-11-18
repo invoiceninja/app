@@ -4,6 +4,7 @@ import 'package:admin/app/design_tokens.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/adaptive.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// The table's lifecycle states, React's DataTable order.
 const kDocuNinjaStateFilters = <String>['active', 'archived', 'deleted'];
@@ -35,6 +36,7 @@ Future<DnFilterPick?> showDnFilterPicker(
   if (Breakpoints.isPhone(context)) {
     return showModalBottomSheet<DnFilterPick>(
       context: context,
+      anchorPoint: foldAnchorPoint(context),
       useRootNavigator: true,
       useSafeArea: true,
       isScrollControlled: true,
@@ -49,6 +51,7 @@ Future<DnFilterPick?> showDnFilterPicker(
   }
   return showDialog<DnFilterPick>(
     context: context,
+    anchorPoint: foldAnchorPoint(context),
     builder: (_) => DnFilterDialog(
       states: states,
       statuses: statuses,

@@ -5,6 +5,7 @@ import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
 import 'package:admin/utils/formatting.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Prompt for the Increase Prices bulk action: asks for a percentage and
 /// returns it (canonical dot-decimal string) to the caller, which enqueues
@@ -20,6 +21,7 @@ Future<String?> showIncreasePricesDialog(
 }) {
   return showDialog<String>(
     context: context,
+    anchorPoint: foldAnchorPoint(context),
     builder: (_) =>
         _IncreasePricesDialog(useCommaAsDecimalPlace: useCommaAsDecimalPlace),
   );

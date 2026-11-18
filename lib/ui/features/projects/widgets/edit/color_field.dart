@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/edit/entity_edit_field.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Hex color input with a live 24×24 swatch preview to the left. Tapping the
 /// swatch opens a 12-preset palette dialog so users don't have to type a
@@ -42,6 +43,7 @@ class _ColorFieldState extends State<ColorField> {
   Future<void> _pickFromPresets() async {
     final picked = await showDialog<String>(
       context: context,
+      anchorPoint: foldAnchorPoint(context),
       builder: (ctx) => AlertDialog(
         title: Text(context.tr('color')),
         content: SizedBox(

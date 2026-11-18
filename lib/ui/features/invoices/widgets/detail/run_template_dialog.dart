@@ -6,6 +6,7 @@ import 'package:admin/data/models/domain/design.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
 import 'package:admin/ui/core/widgets/searchable_dropdown_field.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Modal picker for the Run Template action. Lets the user pick a design
 /// template; on Save returns the chosen `design.id` to the caller, which
@@ -25,6 +26,7 @@ Future<String?> showRunTemplateDialog(BuildContext context) async {
   if (!context.mounted) return null;
   return showDialog<String>(
     context: context,
+    anchorPoint: foldAnchorPoint(context),
     builder: (_) => _RunTemplateDialog(designs: designs),
   );
 }

@@ -9,6 +9,7 @@ import 'package:admin/data/repositories/sync_repository.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Result of the confirm-before-switch / confirm-before-logout flow.
 enum OutboxConfirmResult { proceed, cancelled }
@@ -134,6 +135,7 @@ Future<OutboxConfirmResult> _confirmFailedRows(
 
   final choice = await showDialog<_ReviewChoice>(
     context: context,
+    anchorPoint: foldAnchorPoint(context),
     builder: (ctx) => AlertDialog(
       title: Text(ctx.tr('unsynced_changes')),
       content: Text(
@@ -251,6 +253,7 @@ Future<_PendingChoice> _confirmPendingRows(
 
   final choice = await showDialog<_Choice>(
     context: context,
+    anchorPoint: foldAnchorPoint(context),
     builder: (ctx) => AlertDialog(
       title: Text(ctx.tr('unsynced_changes')),
       content: Text(

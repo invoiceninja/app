@@ -4,6 +4,7 @@ import 'package:admin/app/design_tokens.dart';
 import 'package:admin/domain/sync/sync_event.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Resolution chosen by the user when [showConflictResolutionSheet] returns.
 ///
@@ -46,6 +47,7 @@ Future<ConflictResolution> showConflictResolutionSheet(
   final deleted = event.isDeletedServerSide;
   final result = await showDialog<ConflictResolution>(
     context: context,
+    anchorPoint: foldAnchorPoint(context),
     barrierDismissible: true,
     builder: (ctx) {
       final tokens = ctx.inTheme;

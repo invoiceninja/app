@@ -17,6 +17,7 @@ import 'package:admin/ui/features/settings/widgets/form_section.dart';
 import 'package:admin/ui/features/settings/widgets/plan_gate_banner.dart';
 import 'package:admin/ui/features/settings/widgets/settings_form_shell.dart';
 import 'package:admin/ui/features/settings/widgets/settings_screen_scaffold.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Search keys for QuickBooks. Colocated with the screen so the search
 /// catalog stays in sync via spread.
@@ -173,6 +174,7 @@ class _QuickbooksScreenState extends State<QuickbooksScreen> {
     final services = context.read<Services>();
     final confirm = await showDialog<bool>(
       context: context,
+      anchorPoint: foldAnchorPoint(context),
       builder: (ctx) => AlertDialog(
         title: Text(ctx.tr('disconnect')),
         content: Text(ctx.tr('are_you_sure')),

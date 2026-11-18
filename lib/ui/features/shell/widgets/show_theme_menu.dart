@@ -9,6 +9,8 @@ import 'package:admin/app/services.dart';
 import 'package:admin/app/theme_controller.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/adaptive.dart';
+import 'package:admin/ui/core/widgets/dismiss_on_window_resize.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Opens the quick theme switcher in the right form factor for the layout.
 ///
@@ -26,6 +28,7 @@ Future<void> showThemeMenu(BuildContext context, {GlobalKey? anchorKey}) {
   if (!isWide) {
     return showModalBottomSheet<void>(
       context: context,
+      anchorPoint: foldAnchorPoint(context),
       isScrollControlled: true,
       useRootNavigator: true,
       useSafeArea: true,
@@ -90,7 +93,11 @@ class _ThemeMenuRoute extends PopupRoute<void> {
     Animation<double> animation,
     Animation<double> secondaryAnimation,
   ) {
-    return _PositionedThemeMenu(topLeft: topLeft, anchorSize: anchorSize);
+    // Anchored to a rail button by a global position taken at open; a fold
+    // (or any resize) moves or removes that anchor, so close instead.
+    return DismissOnWindowResize(
+      child: _PositionedThemeMenu(topLeft: topLeft, anchorSize: anchorSize),
+    );
   }
 
   @override

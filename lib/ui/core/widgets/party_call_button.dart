@@ -18,6 +18,7 @@ import 'package:admin/ui/core/widgets/copyable_value.dart';
 import 'package:admin/ui/core/widgets/detail_info_row.dart';
 import 'package:admin/ui/core/widgets/phone_number_value.dart';
 import 'package:admin/ui/core/widgets/watch_builder.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Height of the [PhoneCallButtonVariant.inline] trigger's layout box: the
 /// `bodyMedium` line box of the name row it sits in, at text scale 1.0.
@@ -568,6 +569,7 @@ Future<PhoneCandidate?> showPhoneCandidatePicker(
   }
   return showDialog<PhoneCandidate>(
     context: context,
+    anchorPoint: foldAnchorPoint(context),
     builder: (ctx) => Dialog(
       child: ConstrainedBox(
         constraints: BoxConstraints(

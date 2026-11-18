@@ -8,6 +8,7 @@ import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
 import 'package:admin/ui/features/tasks/view_models/calendar_connection_view_model.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Toolbar control for connecting / disconnecting a calendar. Renders nothing
 /// unless calendar connect is available (hosted, non-demo — mirrors React's
@@ -220,6 +221,7 @@ class CalendarConnectMenu extends StatelessWidget {
   ) async {
     final ok = await showDialog<bool>(
       context: context,
+      anchorPoint: foldAnchorPoint(context),
       builder: (dialogContext) => AlertDialog(
         title: Text(dialogContext.tr('are_you_sure')),
         content: Text(dialogContext.tr('disconnect_calendar_confirmation')),

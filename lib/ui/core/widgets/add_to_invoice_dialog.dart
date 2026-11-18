@@ -8,6 +8,7 @@ import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
 import 'package:admin/ui/core/widgets/searchable_dropdown_field.dart';
 import 'package:admin/utils/formatting.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Pick an existing editable invoice for the active [clientId] so a task /
 /// expense / project's line items can be appended to it. Returns the chosen
@@ -28,6 +29,7 @@ Future<Invoice?> showAddToInvoiceDialog(
 }) {
   return showDialog<Invoice?>(
     context: context,
+    anchorPoint: foldAnchorPoint(context),
     builder: (ctx) => _AddToInvoiceDialog(
       services: services,
       companyId: companyId,

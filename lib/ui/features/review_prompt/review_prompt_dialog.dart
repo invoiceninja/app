@@ -8,6 +8,7 @@ import 'package:admin/domain/review_prompt.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/features/review_prompt/review_listing.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Opens the review card — the builds no store review system covers (web,
 /// Linux, F-Droid, Windows; docs/review-prompt.md). Never on a store build:
@@ -25,6 +26,7 @@ Future<ReviewCardResult?> showReviewPromptDialog(
   assert(channel.usesCard, 'a store build asks only through the OS sheet');
   return showDialog<ReviewCardResult>(
     context: context,
+    anchorPoint: foldAnchorPoint(context),
     // A stray click beside the card isn't an answer; ✕, Esc and the buttons
     // are.
     barrierDismissible: false,

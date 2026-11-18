@@ -6,6 +6,7 @@ import 'package:admin/ui/features/settings/view_models/settings_draft_view_model
 import 'package:admin/ui/features/settings/widgets/overridable_field.dart';
 import 'package:admin/ui/features/settings/widgets/settings_field_bindings.dart';
 import 'package:admin/utils/formatting.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Time-of-day counterpart of [OverridableTextField]. Stores `"HH:MM"`
 /// in 24-hour wire form so the cascade is portable across the user's
@@ -64,6 +65,7 @@ class OverridableTimeField extends StatelessWidget {
               final initial = parsed ?? TimeOfDay.fromDateTime(DateTime.now());
               final picked = await showTimePicker(
                 context: context,
+                anchorPoint: foldAnchorPoint(context),
                 initialTime: initial,
               );
               if (picked == null) return;

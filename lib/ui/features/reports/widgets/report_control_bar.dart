@@ -18,6 +18,7 @@ import 'package:admin/ui/features/reports/widgets/report_column_tools.dart';
 import 'package:admin/ui/features/reports/widgets/report_filters.dart';
 import 'package:admin/utils/formatting.dart';
 import 'package:admin/utils/search_fold.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// The controls that decide what a report covers and how it is cut — sitting
 /// directly above the figures, chart and table they all change.
@@ -483,6 +484,7 @@ List<Widget> reportShapeControls(
 Future<void> _pickGroup(BuildContext context, ReportsViewModel vm) async {
   final picked = await showDialog<String>(
     context: context,
+    anchorPoint: foldAnchorPoint(context),
     builder: (context) => _GroupDialog(vm: vm),
   );
   // Null is a dismissal; the empty string is "no grouping".

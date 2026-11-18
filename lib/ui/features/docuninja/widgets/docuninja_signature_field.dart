@@ -18,6 +18,7 @@ import 'package:admin/ui/core/widgets/document_capture.dart';
 import 'package:admin/ui/core/widgets/file_drop_zone.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 final _log = Logger('DocuNinjaSignatureField');
 
@@ -122,6 +123,7 @@ class _DnSignatureFieldState extends State<DnSignatureField> {
     _changed(
       await showDialog<String>(
         context: context,
+        anchorPoint: foldAnchorPoint(context),
         // The full-screen page's AppBar and body take the insets themselves.
         useSafeArea: !fullScreen,
         builder: (_) => _DrawDialog(
@@ -136,6 +138,7 @@ class _DnSignatureFieldState extends State<DnSignatureField> {
   Future<void> _generate() async => _changed(
     await showDialog<String>(
       context: context,
+      anchorPoint: foldAnchorPoint(context),
       builder: (_) =>
           _GenerateDialog(kind: widget.kind, initialText: widget.suggestedText),
     ),

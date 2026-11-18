@@ -26,6 +26,13 @@ import '_support/phone_actions_test_services.dart';
 /// medium (split), wide (desktop).
 const kResponsiveWidths = <double>[500, 800, 1050, 1200];
 
+/// The content widths a foldable hands the app that [kResponsiveWidths] never
+/// visits (docs/foldables.md). On an open iPhone Duo (951×669 / 669×951 pt):
+/// 391 is the list half beside a book-posture split, 437 is open-portrait
+/// content beside the 232 px rail, 455 is the pane half of a book-posture
+/// split, and 719 is open-landscape content beside the rail.
+const kFoldablePaneWidths = <double>[391, 437, 455, 719];
+
 /// The app's own text-scale settings (`kTextScaleOptions`). 1.4 is the
 /// maximum a user can pick in Device Settings — and `composeTextScaler`
 /// multiplies it by the OS scaler, so real users exceed it. Anything wrapping

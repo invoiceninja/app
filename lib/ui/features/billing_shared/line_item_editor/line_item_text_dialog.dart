@@ -8,6 +8,7 @@ import 'package:admin/ui/core/dialogs/discard_changes_dialog.dart';
 import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
 import 'package:admin/ui/core/widgets/spell_check.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// What [showLineItemTextDialog] hands back: the edited line, and whether the
 /// user asked to carry on in the full line-item editor (`More Fields`).
@@ -35,6 +36,7 @@ Future<LineItemTextResult?> showLineItemTextDialog(
 }) {
   return showDialog<LineItemTextResult>(
     context: context,
+    anchorPoint: foldAnchorPoint(context),
     builder: (_) => _LineItemTextDialog(
       initial: initial,
       label: label,

@@ -2,6 +2,7 @@ import 'package:material_ui/material_ui.dart';
 
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/adaptive.dart';
+import 'package:admin/ui/core/widgets/dismiss_on_window_resize.dart';
 import 'package:admin/ui/features/shell/widgets/company_picker.dart';
 
 /// Mounts a [CompanyPicker] in the right form factor for the current layout.
@@ -86,7 +87,11 @@ class _CompanyPickerRoute extends PopupRoute<void> {
     Animation<double> animation,
     Animation<double> secondaryAnimation,
   ) {
-    return _PositionedPicker(topLeft: topLeft, anchorSize: anchorSize);
+    // Anchored to a rail button by a global position taken at open; a fold
+    // (or any resize) moves or removes that anchor, so close instead.
+    return DismissOnWindowResize(
+      child: _PositionedPicker(topLeft: topLeft, anchorSize: anchorSize),
+    );
   }
 
   @override

@@ -61,8 +61,9 @@ class WindowFrame extends StatelessWidget {
   /// Watched so the drawn buttons vanish for a clean screenshot.
   final ScreenshotWindowController screenshotWindow;
 
-  /// `services.sidebar` — the rail's collapsed preference, which sets the
-  /// width of the bar's leading segment.
+  /// `services.sidebar.effective` — whether the rail renders collapsed (the
+  /// preference, or a foldable's book posture), which sets the width of the
+  /// bar's leading segment.
   final ValueListenable<bool> railCollapsed;
 
   /// `services.shellMounted` — whether there is a sidebar rail below at all.

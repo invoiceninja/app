@@ -34,6 +34,7 @@ import 'package:admin/ui/features/payments/widgets/payment_type_picker_field.dar
 import 'package:admin/utils/formatting.dart';
 import 'package:admin/ui/core/edit/create_form_documents.dart';
 import 'package:admin/ui/features/billing_shared/email/recipient_email_fix.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Edit + create form body for a Payment. Two-column on wide widths
 /// (Expanded main + 360 px sidebar @ 1000 px), single centered column (≤820 px)
@@ -452,6 +453,7 @@ class _ClientPicker extends StatelessWidget {
     if (vm.draft.paymentables.isNotEmpty) {
       final ok = await showDialog<bool>(
         context: context,
+        anchorPoint: foldAnchorPoint(context),
         builder: (ctx) => AlertDialog(
           title: Text(ctx.tr('change_client')),
           content: Text(ctx.tr('change_client_clears_allocations')),

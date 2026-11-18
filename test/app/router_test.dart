@@ -4,6 +4,8 @@ import 'package:admin/data/repositories/auth_repository.dart';
 import 'package:admin/domain/docuninja/docuninja_settings_tabs.dart';
 import 'package:admin/domain/entity_registry.dart';
 import 'package:admin/domain/entity_type.dart';
+import 'package:admin/ui/features/settings/views/settings_shell.dart'
+    show settingsSplitsAtFold;
 import 'package:material_ui/material_ui.dart' show Icons;
 import 'package:flutter_test/flutter_test.dart';
 
@@ -659,6 +661,32 @@ void main() {
         settingsIndexRedirect(screenWidth: 1111, sidebarCollapsed: false),
         isNull,
       );
+    });
+
+    // A foldable in book posture splits settings at the fold whenever the
+    // half before it holds the 280 px menu — `SettingsShell` measures the same
+    // span (docs/foldables.md). A Pixel Fold beside a collapsed rail: 777 of
+    // content (< 880), the fold ~356 in.
+    test('book posture redirects when the half holds the menu', () {
+      expect(
+        settingsIndexRedirect(
+          screenWidth: 841,
+          sidebarCollapsed: true,
+          foldStartHalf: 356,
+        ),
+        '/settings/company_details',
+      );
+      expect(
+        settingsIndexRedirect(
+          screenWidth: 841,
+          sidebarCollapsed: false,
+          foldStartHalf: 188, // the rail expanded: 420 − 232
+        ),
+        isNull,
+      );
+      expect(settingsSplitsAtFold(280), isTrue);
+      expect(settingsSplitsAtFold(279), isFalse);
+      expect(settingsSplitsAtFold(null), isFalse);
     });
 
     test('collapsed sidebar frees width, so it redirects sooner', () {

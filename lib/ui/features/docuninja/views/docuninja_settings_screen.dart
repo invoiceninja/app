@@ -30,6 +30,7 @@ import 'package:admin/ui/core/widgets/ltr_value.dart';
 import 'package:admin/ui/features/docuninja/widgets/docuninja_states.dart';
 import 'package:admin/ui/features/docuninja/widgets/docuninja_table.dart';
 import 'package:admin/ui/features/settings/widgets/form_section.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 final _log = Logger('DocuNinjaSettingsScreen');
 
@@ -1142,6 +1143,7 @@ class _ReminderSchedulesTabState extends State<_ReminderSchedulesTab>
   Future<void> _edit([DnReminderSchedule? schedule]) async {
     final saved = await showDialog<bool>(
       context: context,
+      anchorPoint: foldAnchorPoint(context),
       builder: (_) =>
           _ReminderScheduleDialog(api: widget.api, schedule: schedule),
     );

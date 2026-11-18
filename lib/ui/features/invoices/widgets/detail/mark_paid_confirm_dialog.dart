@@ -2,6 +2,7 @@ import 'package:material_ui/material_ui.dart';
 
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Confirmation dialog for the "Mark paid" action. Issues a simple
 /// `PUT /api/v1/invoices/{id}?paid=true` (handled by the dispatcher's
@@ -15,6 +16,7 @@ import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
 Future<bool> showMarkPaidConfirmDialog(BuildContext context) async {
   final result = await showDialog<bool>(
     context: context,
+    anchorPoint: foldAnchorPoint(context),
     builder: (ctx) {
       return AlertDialog(
         title: Text(ctx.tr('mark_paid')),

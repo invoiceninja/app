@@ -19,6 +19,7 @@ import 'package:admin/ui/features/dashboard/view_models/dashboard_view_model.dar
 import 'package:admin/ui/features/dashboard/widgets/delta_chip.dart';
 import 'package:admin/ui/features/dashboard/widgets/hidden_empty_panels_builder.dart';
 import 'package:admin/ui/features/dashboard/widgets/kpi_card.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Which tab the manage-dashboard surface opens on.
 enum ManagePane { cards, panels }
@@ -43,6 +44,7 @@ Future<void> openManageDashboardCards(
   if (wide) {
     return showDialog<void>(
       context: context,
+      anchorPoint: foldAnchorPoint(context),
       builder: (_) => Dialog(
         clipBehavior: Clip.antiAlias,
         child: ConstrainedBox(

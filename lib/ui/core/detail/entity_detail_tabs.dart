@@ -10,6 +10,7 @@ import 'package:admin/ui/core/detail/detail_tab_navigator.dart';
 import 'package:admin/ui/core/list/master_detail_nav_scope.dart';
 import 'package:admin/ui/core/widgets/back_dismissible_menu_anchor.dart';
 import 'package:admin/ui/core/widgets/tab_count_badge.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// One tab in an [EntityDetailTabs] strip. `label` is the rendered string
 /// (already localized); the body is built lazily via [bodyBuilder] so per-tab
@@ -1076,6 +1077,7 @@ class _AllTabsButton extends StatelessWidget {
     // pane's own, and the sheet would be a slab pinned under a ~500 px column.
     final picked = await showModalBottomSheet<int>(
       context: context,
+      anchorPoint: foldAnchorPoint(context),
       useRootNavigator: true,
       showDragHandle: true,
       isScrollControlled: true,

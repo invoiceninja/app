@@ -8,13 +8,17 @@
 // bounces the user off the index while wide, but it only runs on *navigation*:
 // resizing narrow → wide while sitting on `/settings` lands here.
 
+import 'dart:ui' show DisplayFeature, DisplayFeatureState, DisplayFeatureType;
+
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/search_focus_registry.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/app/theme.dart';
 import 'package:admin/data/repositories/auth_repository.dart';
 import 'package:admin/ui/core/adaptive.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 import 'package:admin/ui/features/settings/state/settings_level_controller.dart';
+import 'package:admin/ui/features/settings/views/settings_screen.dart';
 import 'package:admin/ui/features/settings/views/settings_shell.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -47,7 +51,11 @@ class _FakeServices implements Services {
 }
 
 void main() {
-  Future<GoRouter> pumpApp(WidgetTester tester, {required Size size}) async {
+  Future<GoRouter> pumpApp(
+    WidgetTester tester, {
+    required Size size,
+    double? foldAt,
+  }) async {
     tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
@@ -65,6 +73,20 @@ void main() {
               // still mounted even when the hint pane is showing instead.
               builder: (_, _) =>
                   const SizedBox.shrink(key: ValueKey('settings_route_probe')),
+            ),
+            GoRoute(
+              path: '/settings/section',
+              builder: (_, _) => Scaffold(
+                body: Builder(
+                  builder: (context) => TextButton(
+                    onPressed: () => showModalBottomSheet<void>(
+                      context: context,
+                      builder: (_) => const SizedBox(height: 120),
+                    ),
+                    child: const Text('open sheet'),
+                  ),
+                ),
+              ),
             ),
           ],
         ),
@@ -88,9 +110,26 @@ void main() {
           localizationsDelegates: kTestLocalizationsDelegates,
           supportedLocales: kTestSupportedLocales,
           routerConfig: router,
+          // A zero-width half-open fold at [foldAt] (an Android foldable in
+          // book posture), behind the posture debounce.
+          builder: (context, inner) => foldAt == null
+              ? inner!
+              : MediaQuery(
+                  data: MediaQuery.of(context).copyWith(
+                    displayFeatures: [
+                      DisplayFeature(
+                        bounds: Rect.fromLTWH(foldAt, 0, 0, size.height),
+                        type: DisplayFeatureType.fold,
+                        state: DisplayFeatureState.postureHalfOpened,
+                      ),
+                    ],
+                  ),
+                  child: FoldPostureHost(child: inner!),
+                ),
         ),
       ),
     );
+    await tester.pump(const Duration(milliseconds: 400));
     await tester.pumpAndSettle();
     return router;
   }
@@ -124,5 +163,46 @@ void main() {
       findsOneWidget,
       reason: 'single-pane renders the route itself, nothing hidden',
     );
+  });
+
+  // A foldable in book posture splits settings at the fold even below the
+  // 880 px two-pane width: the menu in the half before the fold, the section
+  // after (docs/foldables.md). A Pixel Fold's content beside a collapsed rail
+  // is ~777 wide, with the fold at ~356.
+  testWidgets('book posture splits settings at the fold', (tester) async {
+    await pumpApp(tester, size: const Size(777, 700), foldAt: 356);
+    final menu = tester.getRect(find.byType(SettingsListSidebar));
+    expect(menu.left, 0);
+    expect(menu.right, 356);
+    expect(
+      find.byKey(const ValueKey('settings_route_probe'), skipOffstage: false),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('a half too narrow for the menu stays single-pane', (
+    tester,
+  ) async {
+    await pumpApp(tester, size: const Size(600, 700), foldAt: 200);
+    expect(find.byType(SettingsListSidebar), findsNothing);
+  });
+
+  // The section's Navigator starts after the fold; seeing the fold in its own
+  // MediaQuery, a sheet from it came out zero-wide (and a menu off-screen).
+  testWidgets('a sheet from the section fills the section half', (
+    tester,
+  ) async {
+    final router = await pumpApp(
+      tester,
+      size: const Size(777, 700),
+      foldAt: 356,
+    );
+    router.go('/settings/section');
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('open sheet'));
+    await tester.pumpAndSettle();
+    final sheet = tester.getRect(find.byType(BottomSheet));
+    expect(sheet.left, greaterThanOrEqualTo(356));
+    expect(sheet.right, 777);
   });
 }

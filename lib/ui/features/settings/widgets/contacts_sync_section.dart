@@ -18,6 +18,7 @@ import 'package:admin/ui/features/settings/widgets/form_section.dart';
 import 'package:admin/ui/features/settings/widgets/setting_row.dart';
 import 'package:admin/ui/features/settings/widgets/segmented_setting_row.dart';
 import 'package:admin/utils/formatting.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Search keys for the settings sidebar search. Colocated with the section so
 /// adding a field updates both ends in one place (see
@@ -212,6 +213,7 @@ class _ContactsSyncSectionState extends State<ContactsSyncSection> {
   Future<bool> _confirmPreflight(int count, String label) async {
     final result = await showDialog<bool>(
       context: context,
+      anchorPoint: foldAnchorPoint(context),
       builder: (ctx) => AlertDialog(
         title: Text(ctx.tr('sync_contacts_to_device')),
         content: Text(

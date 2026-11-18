@@ -21,6 +21,7 @@ import 'package:admin/ui/core/widgets/form_save_scope.dart';
 import 'package:admin/ui/core/widgets/icon_label_tile.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 final _log = Logger('DocuNinjaCreateDialog');
 
@@ -33,6 +34,7 @@ Future<DnDocument?> showDocuNinjaCreateDialog(
   VoidCallback? onMaybeCreated,
 }) => showDialog<DnDocument>(
   context: context,
+  anchorPoint: foldAnchorPoint(context),
   builder: (_) => _CreateDialog(api: api, onMaybeCreated: onMaybeCreated),
 );
 
@@ -287,6 +289,7 @@ Future<List<DnUploadPart>?> dnUploadParts(
       if (!context.mounted) return null;
       final password = await showDialog<String>(
         context: context,
+        anchorPoint: foldAnchorPoint(context),
         builder: (context) => _PasswordDialog(fileName: f.fileName),
       );
       if (password == null) return null;
@@ -470,6 +473,7 @@ enum DnCreateSource { camera, photos, files, named }
 Future<DnCreateSource?> showDocuNinjaCreateSheet(BuildContext context) =>
     showModalBottomSheet<DnCreateSource>(
       context: context,
+      anchorPoint: foldAnchorPoint(context),
       // Over the shell's running-timer pill, as the dashboard's sheet.
       useRootNavigator: true,
       useSafeArea: true,

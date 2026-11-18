@@ -24,6 +24,7 @@ import 'package:admin/ui/features/review_prompt/review_prompt_host.dart';
 import 'package:admin/ui/features/tokens/widgets/token_created_dialog.dart';
 import 'package:admin/ui/features/welcome/welcome_host.dart';
 import 'package:admin/ui/features/whats_new/whats_new_host.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 final _log = Logger('SyncEventListener');
 
@@ -389,6 +390,7 @@ class _SyncEventListenerState extends State<SyncEventListener> {
     try {
       final view = await showDialog<bool>(
         context: context,
+        anchorPoint: foldAnchorPoint(context),
         builder: (ctx) => AlertDialog(
           title: Text(ctx.tr('could_not_save')),
           content: event.message.isEmpty ? null : Text(event.message),
@@ -432,6 +434,7 @@ class _SyncEventListenerState extends State<SyncEventListener> {
     try {
       final view = await showDialog<bool>(
         context: context,
+        anchorPoint: foldAnchorPoint(context),
         builder: (ctx) => AlertDialog(
           title: Text(ctx.tr('may_have_been_sent_title')),
           content: Column(

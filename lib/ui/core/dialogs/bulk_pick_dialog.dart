@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Builds the one picker a [showBulkPickDialog] holds: render [selectedId]
 /// and report each pick through [onPicked] (an empty id = nothing picked).
@@ -27,6 +28,7 @@ Future<String?> showBulkPickDialog(
   required BulkPickerBuilder pickerBuilder,
 }) => showDialog<String>(
   context: context,
+  anchorPoint: foldAnchorPoint(context),
   builder: (_) =>
       BulkPickDialog(titleKey: titleKey, pickerBuilder: pickerBuilder),
 );

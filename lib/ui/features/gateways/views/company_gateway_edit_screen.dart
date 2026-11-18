@@ -26,6 +26,7 @@ import 'package:admin/ui/features/gateways/widgets/edit/gateway_type_picker.dart
 import 'package:admin/ui/features/gateways/widgets/edit/oauth_stub_card.dart';
 import 'package:admin/ui/features/terminal/tap_to_pay_offer.dart';
 import 'package:admin/ui/features/settings/widgets/settings_tab_strip.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Labels surfaced on the edit screen for the in-app settings search index.
 const kCompanyGatewayEditSearchKeys = <String>[
@@ -109,6 +110,7 @@ class _CompanyGatewayEditScreenState extends State<CompanyGatewayEditScreen> {
         if (!mounted) return;
         final proceed = await showDialog<bool>(
           context: context,
+          anchorPoint: foldAnchorPoint(context),
           builder: (ctx) => AlertDialog(
             title: Text(ctx.tr('existing_gateway')),
             content: Text(ctx.tr('confirm_duplicate_gateway')),

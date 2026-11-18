@@ -9,6 +9,7 @@ import 'package:admin/data/models/api/health_check_api_model.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/copyable_value.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 const String _kDocsUrl = 'https://invoiceninja.github.io/docs';
 
@@ -21,6 +22,7 @@ enum _HealthCheckLevel { info, warning }
 Future<void> showHealthCheckDialog(BuildContext context) {
   return showDialog<void>(
     context: context,
+    anchorPoint: foldAnchorPoint(context),
     builder: (_) => const _HealthCheckDialog(),
   );
 }
@@ -161,6 +163,7 @@ class _HealthCheckBody extends StatelessWidget {
         buttonLabel: context.tr('view_last_error'),
         buttonCallback: () => showDialog<void>(
           context: context,
+          anchorPoint: foldAnchorPoint(context),
           builder: (_) => const _LastErrorDialog(),
         ),
       ),
@@ -193,6 +196,7 @@ class _HealthCheckBody extends StatelessWidget {
           buttonCallback: response.queueData.lastError.isNotEmpty
               ? () => showDialog<void>(
                   context: context,
+                  anchorPoint: foldAnchorPoint(context),
                   builder: (_) => _LastQueueErrorDialog(
                     message: response.queueData.lastError,
                   ),

@@ -13,6 +13,7 @@ import 'package:admin/ui/core/dialogs/discard_changes_dialog.dart';
 import 'package:admin/ui/core/utils/text_input_focus.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
 import 'package:admin/ui/features/feedback/markup_painter.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// The tool the editor opens on — the last one used this session, Box at
 /// first.
@@ -33,6 +34,7 @@ Future<List<MarkupMark>?> showMarkupEditor(
   final fullScreen = Breakpoints.isPhone(context);
   return showDialog<List<MarkupMark>>(
     context: context,
+    anchorPoint: foldAnchorPoint(context),
     // Esc and a barrier tap pop through maybePop → the PopScope guard. A
     // non-dismissible route ignores Esc entirely (`_DismissModalAction`).
     barrierDismissible: true,

@@ -12,6 +12,7 @@ import 'package:admin/ui/features/payments/widgets/edit/open_amount.dart';
 import 'package:admin/ui/features/payments/widgets/edit/payment_allocations_section.dart';
 import 'package:admin/utils/formatting.dart'
     show decimalInputText, Formatter, parseDecimal;
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Modal editor used by the narrow-mode card list. Picker + amount in one
 /// dialog so phone users edit a single allocation without juggling a
@@ -29,6 +30,7 @@ Future<Paymentable?> showPaymentAllocationEditDialog(
 }) {
   return showDialog<Paymentable>(
     context: context,
+    anchorPoint: foldAnchorPoint(context),
     builder: (ctx) => _PaymentAllocationEditDialog(
       kind: kind,
       initial: initial,

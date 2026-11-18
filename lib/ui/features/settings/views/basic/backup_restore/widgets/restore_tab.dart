@@ -15,6 +15,7 @@ import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
 import 'package:admin/ui/features/settings/widgets/form_section.dart';
 import 'package:admin/utils/formatting.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Search keys rendered by this card.
 const kRestoreTabSearchKeys = <String>[
@@ -115,6 +116,7 @@ class _RestoreSectionState extends State<RestoreSection> {
     }
     final confirmed = await showDialog<bool>(
       context: context,
+      anchorPoint: foldAnchorPoint(context),
       builder: (ctx) => AlertDialog(
         title: Text(ctx.tr('restore')),
         // Import data purges every record before it loads the backup's, so

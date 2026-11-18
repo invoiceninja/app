@@ -11,6 +11,7 @@ import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/form_save_scope.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
 import 'package:admin/ui/core/widgets/searchable_dropdown_field.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Outcome of [showAssignGroupDialog].
 class AssignGroupResult {
@@ -38,6 +39,7 @@ Future<AssignGroupResult> showAssignGroupDialog(
 }) async {
   final result = await showDialog<AssignGroupResult>(
     context: context,
+    anchorPoint: foldAnchorPoint(context),
     builder: (_) => _AssignGroupDialog(
       client: client,
       services: services,

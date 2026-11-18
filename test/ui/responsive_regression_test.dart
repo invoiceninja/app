@@ -43,7 +43,7 @@ import '../_responsive_helper.dart';
 
 void main() {
   group('no overflow across breakpoints', () {
-    for (final width in kResponsiveWidths) {
+    for (final width in [...kResponsiveWidths, ...kFoldablePaneWidths]) {
       testWidgets('ClientDetailProfile @ ${width.toInt()}px', (tester) async {
         final client = Client.fromApi(
           ClientApi(

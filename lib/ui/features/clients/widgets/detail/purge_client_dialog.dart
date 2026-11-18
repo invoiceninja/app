@@ -2,6 +2,7 @@ import 'package:material_ui/material_ui.dart';
 
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Two-step purge confirmation. Returns true when the user taps Continue;
 /// the caller then enqueues the purge mutation (which goes through the
@@ -14,6 +15,7 @@ Future<bool> showPurgeClientDialog(
 }) async {
   final confirmed = await showDialog<bool>(
     context: context,
+    anchorPoint: foldAnchorPoint(context),
     builder: (ctx) => AlertDialog(
       title: Text(ctx.tr('purge_client')),
       content: ConstrainedBox(

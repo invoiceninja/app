@@ -5,6 +5,7 @@ import 'package:admin/data/static/pdf_catalogs.dart';
 import 'package:admin/domain/custom_field_pdf_offer.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// What the user chose in [showCustomFieldsPdfOfferDialog]: the fields to
 /// print, and whether to open the design afterwards to put them in order.
@@ -21,6 +22,7 @@ Future<PdfOfferChoice?> showCustomFieldsPdfOfferDialog(
   List<PdfFieldOffer> offers,
 ) => showDialog<PdfOfferChoice>(
   context: context,
+  anchorPoint: foldAnchorPoint(context),
   builder: (_) => _PdfOfferDialog(offers: offers),
 );
 

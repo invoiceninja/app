@@ -121,6 +121,7 @@ Future<void> showContactUsDialog(
       releaseSources: (sources) =>
           releaseCapturedPhotos(services.sharedIntakeFiles, sources),
     );
+    // fold: an app-wide form opened from the navigator, not from a record.
     final shown = showDialog<void>(
       context: rootNavigator.context,
       // A send in flight must complete (or fail) before the dialog can go.

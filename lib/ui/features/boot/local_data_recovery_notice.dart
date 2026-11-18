@@ -245,6 +245,7 @@ class _LocalDataRecoveryNoticeState extends State<LocalDataRecoveryNotice> {
       return;
     }
     final (titleKey, bodyKey) = dialog;
+    // fold: a boot notice shown from the navigator, not from a record.
     showDialog<void>(
       context: target,
       builder: (dialogContext) => AlertDialog(

@@ -9,6 +9,7 @@ import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/form_save_scope.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Debug Panel toolbar control: a menu of App Store / Play Store screenshot
 /// sizes (plus custom + restore) that resizes the native window so a window
@@ -159,6 +160,7 @@ class ScreenshotCustomSizeDialog extends StatefulWidget {
   }) {
     return showDialog<({int width, int height})>(
       context: context,
+      anchorPoint: foldAnchorPoint(context),
       builder: (_) => ScreenshotCustomSizeDialog(initial: initial),
     );
   }

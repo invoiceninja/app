@@ -9,6 +9,7 @@ import 'package:admin/ui/core/utils/external_url.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/features/bank_accounts/views/bank_account_list_screen.dart'
     show connectBankUrl;
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// The aggregator's hosted connect page, launched in the system browser.
 ///
@@ -97,6 +98,7 @@ Future<String?> _pickProvider(BuildContext context) async {
   if (session?.isSelfHosted ?? false) return 'nordigen';
   return showDialog<String>(
     context: context,
+    anchorPoint: foldAnchorPoint(context),
     builder: (d) => SimpleDialog(
       title: Text(d.tr('connect_accounts')),
       children: [

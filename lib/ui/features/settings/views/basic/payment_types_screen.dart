@@ -18,6 +18,7 @@ import 'package:admin/ui/features/settings/widgets/form_section.dart';
 import 'package:admin/ui/features/settings/widgets/settings_company_scoped_host.dart';
 import 'package:admin/ui/features/settings/widgets/settings_form_shell.dart';
 import 'package:admin/ui/features/settings/widgets/settings_page_scaffold.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Searchable label keys rendered by this screen, aggregated into
 /// `kSettingsSearchCatalog['payment_types']`. `search_catalog_consistency_test`
@@ -81,6 +82,7 @@ Future<void> showPaymentTypesDialog(
   required String companyId,
 }) => showDialog<void>(
   context: context,
+  anchorPoint: foldAnchorPoint(context),
   builder: (_) => _PaymentTypesDialog(companyId: companyId),
 );
 
@@ -241,6 +243,7 @@ class _PaymentTypesEditorState extends State<PaymentTypesEditor> {
     };
     final result = await showDialog<String>(
       context: context,
+      anchorPoint: foldAnchorPoint(context),
       builder: (_) => _RenameDialog(
         stockName: type.name,
         currentName: _customName(type),

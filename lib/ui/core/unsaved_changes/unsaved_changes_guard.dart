@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/dialogs/discard_changes_dialog.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Tracks every visible editor that has unsaved in-memory edits, and gates
 /// navigation that would discard them.
@@ -68,6 +69,7 @@ class UnsavedChangesGuard extends ChangeNotifier {
     if (blocked != null) {
       await showDialog<void>(
         context: context,
+        anchorPoint: foldAnchorPoint(context),
         builder: (ctx) => AlertDialog(
           content: Text(blocked.blockedMessage!(ctx)),
           actions: [

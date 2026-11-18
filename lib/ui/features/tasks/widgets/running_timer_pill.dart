@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import 'package:admin/app/design_tokens.dart';
+import 'package:admin/app/env.dart';
 import 'package:admin/ui/core/adaptive.dart';
 import 'package:admin/ui/features/tasks/widgets/task_actions.dart';
 import 'package:admin/domain/tasks/task_day.dart';
@@ -107,8 +108,49 @@ class _RunningTimerPillState extends State<RunningTimerPill>
     if (state == AppLifecycleState.resumed && mounted) setState(() {});
   }
 
+  /// Whether the on-screen keyboard is up on a touch device. The pill floats
+  /// over the wide shell's content, and an unfolded foldable (or a tablet in
+  /// landscape) with the keyboard up has ~330 pt left — the pill would sit on
+  /// the field being typed in. The narrow dock already steps aside for the
+  /// keyboard (`RunningTimerDock`); this is the wide twin (docs/foldables.md).
+  ///
+  /// Read from the `View`, not `MediaQuery`: the pill lives in the shell
+  /// `Scaffold`'s body, whose `MediaQuery` has the keyboard inset removed.
+  bool _keyboardUp = false;
+
+  /// Above the ~55–70 pt shortcut bar an iPad shows over a focused field with
+  /// a hardware keyboard attached, and the IME toolbar some Android keyboards
+  /// keep up beside a hardware one (up to ~100 dp) — neither covers what the
+  /// pill sits on. A soft keyboard is 250 pt and up.
+  static const double _softKeyboardMinInset = 150;
+
+  bool _readKeyboardUp() {
+    if (!Env.isTouchPrimary) return false;
+    final view = View.of(context);
+    return view.viewInsets.bottom / view.devicePixelRatio >
+        _softKeyboardMinInset;
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _keyboardUp = _readKeyboardUp();
+  }
+
+  @override
+  void didChangeMetrics() {
+    if (!mounted) return;
+    final up = _readKeyboardUp();
+    if (up != _keyboardUp) setState(() => _keyboardUp = up);
+  }
+
   @override
   Widget build(BuildContext context) {
+    // Offstage, not removed: the streams below keep their subscriptions.
+    return Offstage(offstage: _keyboardUp, child: _buildPill(context));
+  }
+
+  Widget _buildPill(BuildContext context) {
     final services = context.read<Services>();
     // Listen to the session so the pill REBUILDS + re-subscribes when the
     // active company changes. `Provider<Services>.value` never notifies and

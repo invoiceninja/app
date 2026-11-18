@@ -7,6 +7,7 @@ import 'package:admin/data/models/domain/dashboard/dashboard_aging.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/ltr_value.dart';
 import 'package:admin/utils/formatting.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// One bucket of the aging bar: what it is called, how much is in it, and
 /// the tone it is drawn in.
@@ -217,6 +218,7 @@ Future<void> showAgingBreakdown(
 }) {
   return showModalBottomSheet<void>(
     context: context,
+    anchorPoint: foldAnchorPoint(context),
     useRootNavigator: true,
     useSafeArea: true,
     isScrollControlled: true,

@@ -15,6 +15,7 @@ import 'package:admin/ui/features/settings/views/advanced/e_invoice/peppol_buy_c
 import 'package:admin/ui/features/settings/widgets/form_section.dart';
 import 'package:admin/ui/features/settings/widgets/overridable_switch_field.dart';
 import 'package:admin/ui/features/settings/widgets/overridable_text_field.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Settings → E-Invoice — PEPPOL Preferences card. Rendered when the
 /// active company has a non-zero `legalEntityId` (i.e. setup has
@@ -246,6 +247,7 @@ class _PeppolPreferencesCardState extends State<PeppolPreferencesCard> {
 
     final ok = await showDialog<bool>(
       context: context,
+      anchorPoint: foldAnchorPoint(context),
       builder: (ctx) => AlertDialog(
         title: Text(context.tr('peppol_disconnect')),
         content: Text(context.tr('peppol_disconnect_long')),

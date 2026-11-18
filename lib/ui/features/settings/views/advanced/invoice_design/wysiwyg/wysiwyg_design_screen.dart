@@ -45,6 +45,7 @@ import 'package:admin/ui/features/settings/views/advanced/invoice_design/wysiwyg
 import 'package:admin/ui/features/settings/views/advanced/invoice_design/wysiwyg/wysiwyg_design_view_model.dart';
 import 'package:admin/ui/features/settings/widgets/settings_entity_edit_scaffold.dart';
 import 'package:admin/utils/formatting.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// The visual invoice designer — sibling to the HTML editor
 /// [DesignEditScreen]. Opened from the Custom Designs list: "New design →
@@ -1244,6 +1245,7 @@ class DesignerToolbar extends StatelessWidget {
     if (vm.blocks.isNotEmpty) {
       final ok = await showDialog<bool>(
         context: context,
+        anchorPoint: foldAnchorPoint(context),
         builder: (ctx) => AlertDialog(
           title: Text(ctx.tr('replace_layout')),
           content: Text(ctx.tr('replace_layout_confirm')),
@@ -1308,6 +1310,7 @@ class DesignerToolbar extends StatelessWidget {
     if (vm.blocks.isNotEmpty) {
       final ok = await showDialog<bool>(
         context: context,
+        anchorPoint: foldAnchorPoint(context),
         builder: (ctx) => AlertDialog(
           title: Text(ctx.tr('import_design')),
           content: Text(ctx.tr('import_design_overwrite_confirm')),

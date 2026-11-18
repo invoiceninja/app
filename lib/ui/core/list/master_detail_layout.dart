@@ -15,6 +15,11 @@ import 'package:admin/ui/core/utils/text_input_focus.dart';
 import 'package:admin/ui/core/widgets/hidden_shell_navigator.dart';
 import 'package:admin/ui/core/widgets/shortcut_tooltip.dart';
 import 'package:admin/ui/core/utils/router_state.dart';
+import 'package:admin/domain/entity_type.dart';
+import 'package:admin/domain/quick_create.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
+import 'package:admin/ui/core/utils/session_permissions.dart';
+import 'package:admin/ui/core/widgets/empty_state.dart';
 
 // Re-exported so existing `master_detail_layout.dart` imports of these two
 // keep working; they live in their own leaf so the detail scaffold and tab
@@ -47,6 +52,7 @@ class MasterDetailLayout extends StatefulWidget {
     required this.rightPane,
     required this.hasPane,
     this.viewMode,
+    this.entityType,
   });
 
   /// Base entity URL — `/transactions`, `/clients`, etc. Used by the
@@ -75,6 +81,11 @@ class MasterDetailLayout extends StatefulWidget {
   /// `?view=full` flag from the URL. Null = slide-over. `'full'` =
   /// list hidden, pane fills window.
   final String? viewMode;
+
+  /// The entity this block lists — only for the empty half of a foldable's
+  /// book-posture split, which offers "New `entity`" when the user may create
+  /// one. Null offers none (an entity with no create screen).
+  final EntityType? entityType;
 
   @override
   State<MasterDetailLayout> createState() => _MasterDetailLayoutState();
@@ -152,6 +163,63 @@ class _MasterDetailLayoutState extends State<MasterDetailLayout>
     with TickerProviderStateMixin {
   final MasterDetailNavController _navController = MasterDetailNavController();
 
+  /// One key each for the list and the pane root, used in **every** branch
+  /// below. A breakpoint flip (a foldable opening or closing, a window
+  /// crossing [Breakpoints.slideOver], a phone opening a record) changes the
+  /// tree's shape — `Stack` ⇄ `LayoutBuilder`, a bare list ⇄ an `Offstage`
+  /// one, `Material` ⇄ `Scaffold` around the pane — and without a key every
+  /// such flip remounts the subtree: the list loses its scroll offset, search
+  /// text and selection, the pane its focus and shortcut scope. With one key
+  /// the element is reparented instead (docs/foldables.md).
+  final GlobalKey _listKey = GlobalKey(debugLabel: 'MasterDetailLayout.list');
+  final GlobalKey _paneKey = GlobalKey(debugLabel: 'MasterDetailLayout.pane');
+
+  /// Whether anything in the list holds focus — see [_keyedList].
+  final FocusNode _listFocus = FocusNode(
+    debugLabel: 'MasterDetailLayout.list',
+    canRequestFocus: false,
+    skipTraversal: true,
+  );
+
+  /// [MasterDetailLayout.list] under its stable key, hidden while [offstage].
+  /// The `Offstage` is always present (never a bare list in one branch and a
+  /// wrapped one in another), so the key's parent chain differs only above it.
+  ///
+  /// [ExcludeFocus] too: kept alive, the list also kept keyboard focus when a
+  /// record covered it — a search field focused beside the record in a
+  /// foldable's split stayed focused once the device went flat, with the
+  /// keyboard up over the record and every keystroke filtering the invisible
+  /// list. A remount used to drop that focus for free.
+  ///
+  /// `ExcludeFocus` only stops new focus: a field focused beside the record in
+  /// the split and then reparented here keeps its focus, so hiding the list
+  /// also drops whatever focus is inside it ([_listFocus]).
+  Widget _keyedList({required bool offstage}) {
+    if (offstage && _listFocus.hasFocus) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _listFocus.hasFocus) {
+          FocusManager.instance.primaryFocus?.unfocus();
+        }
+      });
+    }
+    return Offstage(
+      offstage: offstage,
+      child: ExcludeFocus(
+        excluding: offstage,
+        child: KeyedSubtree(
+          key: _listKey,
+          // Tracks focus anywhere in the list; takes none itself.
+          child: Focus(
+            focusNode: _listFocus,
+            canRequestFocus: false,
+            skipTraversal: true,
+            child: widget.list,
+          ),
+        ),
+      ),
+    );
+  }
+
   /// Tracks whether we've already fired the sticky-mode redirect for
   /// the *current* (basePath, selectedId) tuple. Reset whenever either
   /// changes so each new pane entry gets one redirect attempt — without
@@ -177,6 +245,10 @@ class _MasterDetailLayoutState extends State<MasterDetailLayout>
   /// animating — the user didn't click anything, so the slide-in would
   /// feel unmotivated. Subsequent opens animate.
   bool _didFirstSync = false;
+
+  /// Whether the last build laid out the book-posture split, where the pane
+  /// never slides — so closing it has no slide-out to wait for.
+  bool _inFoldSplit = false;
 
   bool get _hasPane => widget.hasPane;
   bool get _isFullScreen => widget.viewMode == 'full';
@@ -259,9 +331,39 @@ class _MasterDetailLayoutState extends State<MasterDetailLayout>
     _syncSlideVisibility();
   }
 
+  /// Close a drawer left open on the list when a record covers it.
+  ///
+  /// The list keeps its State under the pane now ([_listKey]) — before, opening
+  /// a record on a phone remounted it, which threw an open drawer away. Kept,
+  /// that drawer sat open and invisible behind the record: the first Android
+  /// back press closed it instead of the record, and the list came back with
+  /// it still out. A record opens over an open drawer by a deep link, a widget
+  /// tap or a keyboard jump — a drawer tap closes it first.
+  void _closeCoveredListDrawer() {
+    // Only a window under the rail breakpoint gives the list a drawer.
+    if (Breakpoints.isGlobalNavVisible(context)) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ScaffoldState? scaffold;
+      void visit(Element e) {
+        if (scaffold != null) return;
+        if (e is StatefulElement && e.state is ScaffoldState) {
+          scaffold = e.state as ScaffoldState;
+          return;
+        }
+        e.visitChildren(visit);
+      }
+
+      (_listKey.currentContext as Element?)?.visitChildren(visit);
+      final found = scaffold;
+      if (found != null && found.isDrawerOpen) found.closeDrawer();
+    });
+  }
+
   @override
   void didUpdateWidget(MasterDetailLayout oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (widget.hasPane && !oldWidget.hasPane) _closeCoveredListDrawer();
     // Sticky-mode writes are explicit — they only fire from
     // [_toggleFullScreenInUrl]. URL changes here (opening a row,
     // clicking the X, switching entities) reflect routing state and
@@ -273,6 +375,7 @@ class _MasterDetailLayoutState extends State<MasterDetailLayout>
 
   @override
   void dispose() {
+    _listFocus.dispose();
     _slide.dispose();
     _expand.dispose();
     super.dispose();
@@ -393,7 +496,9 @@ class _MasterDetailLayoutState extends State<MasterDetailLayout>
     if (closingToList) {
       final reduceMotion =
           MediaQuery.maybeDisableAnimationsOf(context) ?? false;
-      if (!reduceMotion && _slide.status != AnimationStatus.dismissed) {
+      if (!reduceMotion &&
+          !_inFoldSplit &&
+          _slide.status != AnimationStatus.dismissed) {
         await _slide.reverse();
       }
       if (!mounted) return;
@@ -438,6 +543,15 @@ class _MasterDetailLayoutState extends State<MasterDetailLayout>
     // keeps the pane mounted (`_hasPane` stays true) so it never loops.
     if (!_hasPane) _lastRedirectKey = null;
 
+    // A foldable in book posture: the list in the half before the fold, the
+    // pane in the half after, nothing on the fold — whatever the width, and
+    // whatever `?view=full` or the edit-opens-full-width default say, because
+    // a centred full-width form at ~950 pt sits exactly on the hinge
+    // (docs/foldables.md).
+    final fold = bookFoldOf(context);
+    _inFoldSplit = fold != null;
+    if (fold != null) return _buildFoldSplit(context, fold);
+
     // Desired-mode redirect: every URL with a pane gets one chance to
     // be promoted to full-screen, based on the per-screen-type default
     // (Edit / Create default to full for every entity except products
@@ -463,16 +577,18 @@ class _MasterDetailLayoutState extends State<MasterDetailLayout>
       }
     }
 
-    // Narrow viewport: full-page navigation, exactly today's behavior.
-    // The list is wrapped in `Offstage` so its State survives a
-    // resize back to wide.
+    // Narrow viewport: full-page navigation. The list keeps its slot (and its
+    // key) whether or not a pane covers it, so opening a record on a phone, or
+    // a resize back to wide, reparents it rather than remounting it.
     if (!isWide) {
       if (!_hasPane) {
-        return Stack(children: [widget.list, _hiddenPaneHost()]);
+        return Stack(
+          children: [_keyedList(offstage: false), _hiddenPaneHost()],
+        );
       }
       return Stack(
         children: [
-          Offstage(offstage: true, child: widget.list),
+          _keyedList(offstage: true),
           // Full-page pane on narrow. This IS the full-page screen at this
           // viewport, so it owns the `Scaffold` — `ScaffoldWithNav`'s narrow
           // branch is a deliberate passthrough with no outer one, and the list's
@@ -510,6 +626,7 @@ class _MasterDetailLayoutState extends State<MasterDetailLayout>
             body: SafeArea(
               bottom: false,
               child: _PaneRoot(
+                key: _paneKey,
                 basePath: widget.basePath,
                 isFullScreen: true,
                 isNarrow: true,
@@ -526,8 +643,8 @@ class _MasterDetailLayoutState extends State<MasterDetailLayout>
     // pane floats on top via a Stack and animates its geometry between
     // the slide-over rect (pinned to the end edge) and the
     // full-screen rect (fills the layout area) via [_expand]. Only ONE
-    // `_PaneRoot` (it carries the Navigator's GlobalKey) is ever
-    // mounted, so the edit-form State survives the grow / shrink and
+    // `_PaneRoot` (keyed by [_paneKey]; the Navigator inside carries its own
+    // GlobalKey) is ever mounted, so the edit-form State survives the grow / shrink and
     // there is no key collision. The list stays painted until the pane
     // is fully settled full-screen AND docked, so it is visibly
     // revealed as the pane grows, shrinks, or slides away on close.
@@ -548,16 +665,11 @@ class _MasterDetailLayoutState extends State<MasterDetailLayout>
                 _slide.value >= 1;
             return Stack(
               children: [
-                Positioned.fill(
-                  child: Offstage(
-                    offstage: listHidden,
-                    // The pane floats over the list's end, as in 5.1.30; the
-                    // list keeps its full width so nothing reflows when a
-                    // record opens or closes (Hillel preferred it to the
-                    // Nov 2026 inset: "less stuff needs to move around").
-                    child: widget.list,
-                  ),
-                ),
+                // The pane floats over the list's end, as in 5.1.30; the
+                // list keeps its full width so nothing reflows when a
+                // record opens or closes (Hillel preferred it to the
+                // Nov 2026 inset: "less stuff needs to move around").
+                Positioned.fill(child: _keyedList(offstage: listHidden)),
                 // *Positioned*, so this Stack keeps sizing itself from
                 // `constraints.biggest`: a non-positioned child would flip it
                 // to sizing from its children and collapse the layout.
@@ -582,6 +694,7 @@ class _MasterDetailLayoutState extends State<MasterDetailLayout>
                         elevation: _lerp(8, 0, t),
                         color: context.inTheme.bg,
                         child: _PaneRoot(
+                          key: _paneKey,
                           basePath: widget.basePath,
                           isFullScreen: _isFullScreen,
                           isNarrow: false,
@@ -595,6 +708,92 @@ class _MasterDetailLayoutState extends State<MasterDetailLayout>
               ],
             );
           },
+        );
+      },
+    );
+  }
+
+  /// The book-posture split: the list in the start half, the pane (or, with
+  /// no record open, an empty half offering a new one) in the end half, and
+  /// nothing drawn on the fold. The fold arrives in this box's coordinates —
+  /// the shell re-based it past the rail (`rebaseDisplayFeatures`).
+  ///
+  /// The list and the pane keep their keys, so entering or leaving the split
+  /// (opening the device flat, folding it closed) reparents rather than
+  /// remounts them. No custom animation: the OS animates the resize.
+  Widget _buildFoldSplit(BuildContext context, FoldSplit fold) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        final height = constraints.maxHeight;
+        // rtl: physical — the fold is where it is on the device; in a
+        // right-to-left locale the list takes the right-hand (start) half.
+        final rtl = Directionality.of(context) == TextDirection.rtl;
+        final foldLeft = fold.fold.left.clamp(0.0, width);
+        final foldRight = fold.fold.right.clamp(foldLeft, width);
+        final leftHalf = Rect.fromLTWH(0, 0, foldLeft, height);
+        final rightHalf = Rect.fromLTWH(
+          foldRight,
+          0,
+          width - foldRight,
+          height,
+        );
+        final tokens = context.inTheme;
+        final listHalf = rtl ? rightHalf : leftHalf;
+        final paneHalf = rtl ? leftHalf : rightHalf;
+        // Each half is its own screen to what it holds: a sheet opened from
+        // the record fills the record's half, never the list's.
+        final mq = MediaQuery.of(context);
+        return Stack(
+          children: [
+            Positioned.fromRect(
+              rect: listHalf,
+              child: MediaQuery(
+                data: foldHalfMediaQuery(mq, listHalf, width),
+                child: _keyedList(offstage: false),
+              ),
+            ),
+            Positioned.fromRect(
+              rect: paneHalf,
+              child: MediaQuery(
+                data: foldHalfMediaQuery(mq, paneHalf, width),
+                child: _hasPane
+                    // The pane owns its Scaffold here, as on a narrow viewport:
+                    // keyboard avoidance and the Material its body needs.
+                    ? Scaffold(
+                        resizeToAvoidBottomInset: true,
+                        backgroundColor: tokens.bg,
+                        body: SafeArea(
+                          bottom: false,
+                          child: _PaneRoot(
+                            key: _paneKey,
+                            basePath: widget.basePath,
+                            isFullScreen: false,
+                            isNarrow: false,
+                            inFoldSplit: true,
+                            navController: _navController,
+                            onClose: () => _closePaneAnimated(toParent: true),
+                            child: widget.rightPane,
+                          ),
+                        ),
+                      )
+                    : ColoredBox(
+                        color: tokens.bg,
+                        child: Stack(
+                          children: [
+                            Positioned.fill(
+                              child: _FoldEmptyHalf(
+                                basePath: widget.basePath,
+                                entityType: widget.entityType,
+                              ),
+                            ),
+                            Positioned.fill(child: _hiddenPaneHost()),
+                          ],
+                        ),
+                      ),
+              ),
+            ),
+          ],
         );
       },
     );
@@ -621,16 +820,23 @@ class _MasterDetailLayoutState extends State<MasterDetailLayout>
 /// new subtrees simultaneously, colliding the key.
 class _PaneRoot extends StatelessWidget {
   const _PaneRoot({
+    super.key,
     required this.basePath,
     required this.isFullScreen,
     required this.isNarrow,
     required this.navController,
     required this.child,
     this.onClose,
+    this.inFoldSplit = false,
   });
 
   final String basePath;
   final bool isFullScreen;
+
+  /// The pane is the end half of a foldable's book-posture split: the list is
+  /// beside it, so the chrome is an X (no back arrow), and there is no
+  /// full-screen to toggle — full width would put the form on the fold.
+  final bool inFoldSplit;
 
   /// Narrow viewport (`< Breakpoints.slideOver`): the pane is rendered
   /// full-page, so the chrome is a mobile-standard leading back arrow
@@ -702,6 +908,7 @@ class _PaneRoot extends StatelessWidget {
         : _PaneActionsRow(
             basePath: basePath,
             isFullScreen: isFullScreen,
+            showFullScreenToggle: !inFoldSplit,
             onClose: () => _close(context),
             steps: showSteps
                 ? _PaneStepButtons(
@@ -756,6 +963,7 @@ class _PaneRoot extends StatelessWidget {
             _PaneToggleFullScreenIntent:
                 GuardedShortcutAction<_PaneToggleFullScreenIntent>(
                   onInvoke: (_) {
+                    if (inFoldSplit) return null;
                     _toggleFullScreenInUrl(context, isFullScreen: isFullScreen);
                     return null;
                   },
@@ -798,12 +1006,17 @@ class _PaneActionsRow extends StatelessWidget {
     required this.basePath,
     required this.isFullScreen,
     required this.onClose,
+    this.showFullScreenToggle = true,
     this.steps,
   });
 
   final String basePath;
   final bool isFullScreen;
   final VoidCallback onClose;
+
+  /// False in a foldable's book-posture split, where full width would put the
+  /// form on the fold.
+  final bool showFullScreenToggle;
 
   /// Previous / next, drawn before the full-screen toggle; null hides them.
   final Widget? steps;
@@ -820,18 +1033,19 @@ class _PaneActionsRow extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             ?steps,
-            IconButton(
-              tooltip: isFullScreen
-                  ? context.tr('exit_full_screen')
-                  : context.tr('open_in_full_screen'),
-              icon: Icon(
-                isFullScreen ? Icons.close_fullscreen : Icons.open_in_full,
-                size: 18,
+            if (showFullScreenToggle)
+              IconButton(
+                tooltip: isFullScreen
+                    ? context.tr('exit_full_screen')
+                    : context.tr('open_in_full_screen'),
+                icon: Icon(
+                  isFullScreen ? Icons.close_fullscreen : Icons.open_in_full,
+                  size: 18,
+                ),
+                onPressed: () =>
+                    _toggleFullScreenInUrl(context, isFullScreen: isFullScreen),
+                splashRadius: 18,
               ),
-              onPressed: () =>
-                  _toggleFullScreenInUrl(context, isFullScreen: isFullScreen),
-              splashRadius: 18,
-            ),
             IconButton(
               tooltip: context.tr('close'),
               icon: const Icon(Icons.close, size: 18),
@@ -1120,4 +1334,32 @@ class _PaneNextIntent extends Intent {
 
 class _PanePrevIntent extends Intent {
   const _PanePrevIntent();
+}
+
+/// The end half of a book-posture split with no record open: says so, and
+/// offers a new record where the user may create one. Never auto-selects a
+/// row — that would fetch, and open, something nobody asked for.
+class _FoldEmptyHalf extends StatelessWidget {
+  const _FoldEmptyHalf({required this.basePath, required this.entityType});
+
+  final String basePath;
+  final EntityType? entityType;
+
+  @override
+  Widget build(BuildContext context) {
+    final type = entityType;
+    final mayCreate = type != null && sessionMayCreate(context, type);
+    return EmptyState(
+      icon: Icons.vertical_split_outlined,
+      title: context.tr('no_record_selected'),
+      action: mayCreate
+          ? FilledButton.icon(
+              style: FilledButton.styleFrom(minimumSize: const Size(64, 44)),
+              onPressed: () => GoRouter.of(context).go('$basePath/new'),
+              icon: const Icon(Icons.add),
+              label: Text(context.tr(quickCreateLabelKey(type))),
+            )
+          : null,
+    );
+  }
 }

@@ -10,6 +10,7 @@ import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/form_save_scope.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Whether a hosted account still needs the signed-in user's first and last
 /// name (React #3341 — the hosted billing side wants both). Never on
@@ -40,6 +41,7 @@ Future<bool> promptForUserName(
   if (session == null) return false;
   final names = await showDialog<({String first, String last})>(
     context: context,
+    anchorPoint: foldAnchorPoint(context),
     builder: (_) => _NameDialog(
       first: session.userFirstName,
       last: session.userLastName,

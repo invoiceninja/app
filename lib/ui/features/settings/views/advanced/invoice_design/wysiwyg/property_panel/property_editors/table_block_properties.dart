@@ -9,6 +9,7 @@ import 'package:admin/ui/features/settings/views/advanced/invoice_design/wysiwyg
 import 'package:admin/ui/features/settings/views/advanced/invoice_design/wysiwyg/property_panel/property_inputs.dart';
 import 'package:admin/ui/features/settings/views/advanced/invoice_design/wysiwyg/table_header_label.dart';
 import 'package:admin/ui/features/settings/views/advanced/invoice_design/wysiwyg/wysiwyg_design_view_model.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Property editor for `table` (products) and `tasks-table`. Phase 7c
 /// adds per-column inline expansion (header / field / width / align +
@@ -193,6 +194,7 @@ class _TableBlockPropertiesState extends State<TableBlockProperties> {
     if (available.isEmpty) return;
     final picked = await showDialog<Map<String, dynamic>>(
       context: context,
+      anchorPoint: foldAnchorPoint(context),
       builder: (ctx) => SimpleDialog(
         title: Text(ctx.tr('add_column')),
         children: [

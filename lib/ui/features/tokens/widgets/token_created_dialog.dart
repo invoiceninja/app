@@ -4,6 +4,7 @@ import 'package:admin/app/design_tokens.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/copyable_value.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Display of a freshly-minted API token's raw bearer secret, shown when the
 /// create syncs. The local row only ever carries the masked form; after
@@ -16,6 +17,7 @@ class TokenCreatedDialog extends StatelessWidget {
   static Future<void> show(BuildContext context, String secret) =>
       showDialog<void>(
         context: context,
+        anchorPoint: foldAnchorPoint(context),
         barrierDismissible: false,
         builder: (_) => TokenCreatedDialog(secret: secret),
       );

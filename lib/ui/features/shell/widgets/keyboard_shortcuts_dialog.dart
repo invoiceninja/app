@@ -11,6 +11,7 @@ import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/utils/platform_modifier.dart';
 import 'package:admin/ui/core/widgets/key_cap.dart';
 import 'package:admin/ui/features/shell/widgets/nav_history_buttons.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Opens the Keyboard Shortcuts helper dialog. Lists every non-obvious
 /// shortcut wired into the shell, master-detail pane, token search, and
@@ -18,6 +19,7 @@ import 'package:admin/ui/features/shell/widgets/nav_history_buttons.dart';
 Future<void> showKeyboardShortcutsDialog(BuildContext context) {
   return showDialog<void>(
     context: context,
+    anchorPoint: foldAnchorPoint(context),
     builder: (_) => const _KeyboardShortcutsDialog(),
   );
 }

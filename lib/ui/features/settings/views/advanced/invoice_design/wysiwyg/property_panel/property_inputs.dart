@@ -6,6 +6,7 @@ import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/features/settings/views/advanced/invoice_design/wysiwyg/block_renderers/_shared.dart'
     show parseCssColor;
 import 'package:admin/ui/features/settings/widgets/accent_swatch_grid.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// The designer's property controls.
 ///
@@ -538,6 +539,7 @@ Future<String?> showDesignerColorPicker(
   if (MediaQuery.sizeOf(context).width >= 600) {
     return showDialog<String>(
       context: context,
+      anchorPoint: foldAnchorPoint(context),
       builder: (_) => Dialog(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 360),

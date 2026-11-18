@@ -45,6 +45,7 @@ import 'package:admin/ui/features/docuninja/widgets/docuninja_states.dart';
 import 'package:admin/ui/features/docuninja/widgets/docuninja_status_pill.dart';
 import 'package:admin/utils/bidi.dart';
 import 'package:admin/utils/formatting.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// One DocuNinja document (`/docuninja/:id`), as React's `show/Document.tsx`
 /// lays it out: the title with its status, the signers beside the timeline,
@@ -756,6 +757,7 @@ class _DocuNinjaDocumentScreenState extends State<DocuNinjaDocumentScreen> {
   ) async {
     final ok = await showDialog<bool>(
       context: context,
+      anchorPoint: foldAnchorPoint(context),
       builder: (context) => AlertDialog(
         // One line per signer: long lists scroll instead of overflowing.
         scrollable: true,
@@ -816,6 +818,7 @@ class _DocuNinjaDocumentScreenState extends State<DocuNinjaDocumentScreen> {
   ) async {
     final saved = await showDialog<bool>(
       context: context,
+      anchorPoint: foldAnchorPoint(context),
       builder: (context) =>
           _OptionsDialog(document: doc, formatter: _formatter, vm: vm),
     );

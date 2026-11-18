@@ -10,6 +10,7 @@ import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
 import 'package:admin/ui/features/settings/views/advanced/e_invoice/e_invoice_constants.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Invoice "rectify" (Verifactu *factura rectificativa*). Mirrors React's
 /// `useRectifyInvoiceModal` / `useCloneToNegativeInvoice` — a purely
@@ -110,6 +111,7 @@ Invoice rectifiedDraft(Invoice invoice, String reason) {
 Future<String?> showRectifyReasonDialog(BuildContext context) =>
     showDialog<String>(
       context: context,
+      anchorPoint: foldAnchorPoint(context),
       builder: (_) => const _RectifyReasonDialog(),
     );
 

@@ -27,6 +27,7 @@ import 'package:admin/ui/features/settings/views/advanced/debug_panel_window_con
 import 'package:admin/ui/features/settings/widgets/card_reader_section.dart';
 import 'package:admin/utils/formatting.dart';
 import 'package:admin/utils/search_fold.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Hidden Debug Panel revealed from the About dialog's "Debug Panel" button.
 /// Renders as a Chrome DevTools-style band pinned to the bottom of the
@@ -47,12 +48,16 @@ class DebugPanelSection extends StatelessWidget {
     required this.windowController,
     required this.onHide,
     this.forceRtl,
+    this.simulateFold,
   });
 
   final DebugCaptureStore store;
 
   /// `Services.forceRtl` — the Force right-to-left toggle. Null hides it.
   final ValueNotifier<bool>? forceRtl;
+
+  /// `Services.simulateFold` — the Simulate fold toggle. Null hides it.
+  final ValueNotifier<bool>? simulateFold;
 
   /// Screenshot tools state (window size presets + hidden traffic lights).
   /// Lives on `Services` so it survives hiding the panel for the capture.
@@ -103,6 +108,7 @@ class DebugPanelSection extends StatelessWidget {
                           onHide: onHide,
                           isNarrow: isNarrow,
                           forceRtl: forceRtl,
+                          simulateFold: simulateFold,
                         ),
                         Divider(height: 1, thickness: 1, color: tokens.border),
                         TabBar(
@@ -162,6 +168,7 @@ class _Toolbar extends StatelessWidget {
     required this.onHide,
     required this.isNarrow,
     this.forceRtl,
+    this.simulateFold,
   });
 
   final DebugCaptureStore store;
@@ -169,6 +176,7 @@ class _Toolbar extends StatelessWidget {
   final VoidCallback onHide;
   final bool isNarrow;
   final ValueNotifier<bool>? forceRtl;
+  final ValueNotifier<bool>? simulateFold;
 
   @override
   Widget build(BuildContext context) {
@@ -256,6 +264,21 @@ class _Toolbar extends StatelessWidget {
             ),
           );
 
+    // A half-open fold down the middle of the window, so the book-posture
+    // layout can be reviewed where no device reports one (docs/foldables.md).
+    final fold = simulateFold;
+    final foldButton = fold == null
+        ? null
+        : ValueListenableBuilder<bool>(
+            valueListenable: fold,
+            builder: (context, on, _) => IconButton(
+              icon: const Icon(Icons.vertical_split_outlined),
+              tooltip: context.tr('simulate_fold'),
+              isSelected: on,
+              onPressed: () => fold.value = !on,
+            ),
+          );
+
     // Stripe's simulated card reader (docs/in-person-payments.md), in every
     // build so a Play or TestFlight build can be tested without a card; the
     // controller honours it only on a test-mode gateway.
@@ -306,6 +329,7 @@ class _Toolbar extends StatelessWidget {
                 ),
                 ...screenshotControls,
                 ?rtlButton,
+                ?foldButton,
                 ?simulatedReaderButton,
                 ...reviewButtons,
                 cameraButton,
@@ -334,6 +358,7 @@ class _Toolbar extends StatelessWidget {
                 children: [
                   ...screenshotControls,
                   ?rtlButton,
+                  ?foldButton,
                   ?simulatedReaderButton,
                   ...reviewButtons,
                   cameraButton,
@@ -909,6 +934,7 @@ class _ErrorRow extends StatelessWidget {
 void _showDetail(BuildContext context, Object entry) {
   showDialog<void>(
     context: context,
+    anchorPoint: foldAnchorPoint(context),
     builder: (context) => _DetailDialog(entry: entry),
   );
 }

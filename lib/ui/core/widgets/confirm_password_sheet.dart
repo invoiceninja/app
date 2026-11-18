@@ -13,6 +13,7 @@ import 'package:admin/ui/core/widgets/microsoft_logo.dart';
 import 'package:admin/ui/core/widgets/form_save_scope.dart';
 import 'package:admin/ui/core/widgets/notify.dart' show formatNotifyError;
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Modal that captures the user's password for destructive server endpoints
 /// (`delete`, `purge`, …). Writes to [PasswordCache] on Confirm; the sync
@@ -53,6 +54,7 @@ Future<bool> showConfirmPasswordSheet(
   if (!hasPassword && reauth == null) {
     final goSet = await showDialog<bool>(
       context: context,
+      anchorPoint: foldAnchorPoint(context),
       builder: (ctx) => const _SetPasswordDialog(),
     );
     if (goSet == true && context.mounted) {
@@ -62,6 +64,7 @@ Future<bool> showConfirmPasswordSheet(
   }
   final confirmed = await showDialog<bool>(
     context: context,
+    anchorPoint: foldAnchorPoint(context),
     barrierDismissible: false,
     builder: (ctx) {
       return _ConfirmPasswordDialog(

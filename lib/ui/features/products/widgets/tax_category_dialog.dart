@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:admin/domain/product_tax_categories.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Pick a product tax category. Short fixed enum → a simple radio list
 /// (no search). Returns the chosen id, or null on cancel. [current] is the
@@ -13,6 +14,7 @@ Future<String?> showTaxCategoryDialog(
 }) {
   return showDialog<String?>(
     context: context,
+    anchorPoint: foldAnchorPoint(context),
     builder: (ctx) {
       var selected = current.isEmpty ? '1' : current;
       return StatefulBuilder(

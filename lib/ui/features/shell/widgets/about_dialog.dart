@@ -21,6 +21,7 @@ import 'package:admin/ui/features/shell/widgets/self_update_dialog.dart';
 import 'package:admin/ui/features/welcome/welcome_dialog.dart';
 import 'package:admin/ui/features/whats_new/whats_new_dialog.dart';
 import 'package:admin/ui/features/feedback/contact_us_dialog.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Pushes Flutter's bundled `LicensePage`. Modal sub-flow (not page
 /// navigation) — see the routing rule in `docs/architecture.md` § Navigation.
@@ -52,6 +53,7 @@ Future<void> showAppAboutDialog(BuildContext context) async {
   final reviewPrompt = context.read<ReviewPromptController?>();
   await showDialog<void>(
     context: context,
+    anchorPoint: foldAnchorPoint(context),
     builder: (ctx) => _AboutDialog(
       serverVersion: services.serverVersion,
       isSelfHosted: session?.isSelfHosted,

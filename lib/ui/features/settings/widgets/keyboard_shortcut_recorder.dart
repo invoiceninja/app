@@ -6,6 +6,7 @@ import 'package:admin/app/shortcuts/key_binding.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/utils/platform_modifier.dart';
 import 'package:admin/ui/core/widgets/key_cap.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Capture a keyboard chord for [label] and return it as a [KeyBinding], or
 /// null if the user cancels. The recorder produces a **logical-key** binding
@@ -18,6 +19,7 @@ Future<KeyBinding?> showShortcutRecorderDialog(
 }) {
   return showDialog<KeyBinding>(
     context: context,
+    anchorPoint: foldAnchorPoint(context),
     builder: (_) => _ShortcutRecorderDialog(label: label),
   );
 }

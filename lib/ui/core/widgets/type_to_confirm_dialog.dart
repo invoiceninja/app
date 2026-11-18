@@ -5,6 +5,7 @@ import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/form_save_scope.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Result of [showTypeToConfirmDialog]: whether the user confirmed, and the
 /// optional reason text they entered (empty when no reason field was shown,
@@ -37,6 +38,7 @@ Future<TypeToConfirmResult> showTypeToConfirmDialog(
 }) async {
   final result = await showDialog<TypeToConfirmResult>(
     context: context,
+    anchorPoint: foldAnchorPoint(context),
     barrierDismissible: false,
     builder: (ctx) => _TypeToConfirmDialog(
       title: title,

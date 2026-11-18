@@ -15,6 +15,7 @@ import 'package:admin/ui/core/widgets/copyable_value.dart';
 import 'package:admin/ui/core/widgets/feature_row.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
 import 'package:admin/ui/core/widgets/qr_code_image.dart';
+import 'package:admin/ui/core/fold_geometry.dart';
 
 /// How the promo was closed — the host snoozes the schedule only on
 /// [snoozed], and on a bare `null` while it is still mounted (Esc).
@@ -46,6 +47,7 @@ Future<MobilePromoResult?> showMobileAppPromoDialog(
   final router = GoRouter.maybeOf(context);
   return showDialog<MobilePromoResult>(
     context: context,
+    anchorPoint: foldAnchorPoint(context),
     // A stray click beside the card isn't an answer; ✕, Esc and the footer
     // are.
     barrierDismissible: false,
