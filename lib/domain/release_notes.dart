@@ -322,10 +322,16 @@ const List<ReleaseNotes> kReleaseNotes = [
       ),
       ReleaseNoteItem(
         'Updated: Contacts show the email and phone under each name, the '
-        "client's local time and a quick way to add a contact",
+        "client's local time and a quick way to add a contact, and creating "
+        'a product from a line item can set its cost',
       ),
       ReleaseNoteItem(
-        'Added: Creating a product from a line item can set its cost',
+        'Fixed: On Linux with NVIDIA graphics the window showed the app in '
+        'its lower-left quarter, and WOFF fonts went missing when the app '
+        'rebuilt its font cache '
+        '[#196](https://github.com/invoiceninja/flutter/issues/196) '
+        '[#194](https://github.com/invoiceninja/flutter/issues/194)',
+        hiddenOn: {ReleaseNoteSurface.appleStore},
       ),
       ReleaseNoteItem(
         'Fixed: Many smaller issues, including payment link steps showing '

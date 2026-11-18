@@ -89,7 +89,7 @@
     <control>touch</control>
   </supports>
   <releases>
-    <release version="5.1.31" date="2026-11-17">
+    <release version="5.1.31" date="2026-11-18">
       <description>
         <ul>
           <li>A refreshed design: dashboard, lists, records, editors and settings</li>
@@ -97,6 +97,7 @@
           <li>More bulk actions, including changing the category of expenses</li>
           <li>Device Settings redesigned; groups open on an overview of their settings</li>
           <li>Contacts show email and phone under each name, with a quick add</li>
+          <li>Linux: the window draws correctly on NVIDIA graphics, and WOFF fonts no longer go missing</li>
           <li>Many smaller fixes</li>
         </ul>
       </description>

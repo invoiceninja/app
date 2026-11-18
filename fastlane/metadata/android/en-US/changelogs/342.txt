@@ -3,4 +3,5 @@
 - More bulk actions, including changing the category of expenses
 - Device Settings redesigned; groups open on an overview of their settings
 - Contacts show email and phone under each name, with a quick add
+- Linux: the window draws correctly on NVIDIA graphics, and WOFF fonts no longer go missing
 - Many smaller fixes
