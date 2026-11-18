@@ -59,6 +59,24 @@ else
   echo "    (docs/upstream-workarounds.md entry 23)."
 fi
 
+# While printing's libpdfium.so exports FreeType, the executable must load the
+# system libfreetype.so.6 itself, or fontconfig, cairo and Pango bind to
+# PDFium's copy (docs/upstream-workarounds.md entry 26).
+pdfium="$bundle/lib/libpdfium.so"
+if [[ -f "$pdfium" ]] && readelf --dyn-syms --wide "$pdfium" | grep -E ' FUNC +GLOBAL +DEFAULT +[0-9]+ FT_Init_FreeType' >/dev/null; then
+  if ! readelf -d "$exe" | grep -F '[libfreetype.so.6]' >/dev/null; then
+    echo "ERROR: $pdfium exports FreeType, and $exe does not load" >&2
+    echo "  libfreetype.so.6 itself, so fontconfig, cairo and Pango will use PDFium's copy." >&2
+    echo "  See linux/runner/CMakeLists.txt and docs/upstream-workarounds.md entry 26." >&2
+    exit 1
+  fi
+  echo "==> link order: the system FreeType is loaded ahead of PDFium's"
+elif [[ -f "$pdfium" ]]; then
+  echo "==> link order: libpdfium.so no longer exports FreeType."
+  echo "    The -lfreetype link option in linux/runner/CMakeLists.txt can go"
+  echo "    (docs/upstream-workarounds.md entry 26)."
+fi
+
 # --- 2. Launch with no keyring ----------------------------------------------
 work="$(mktemp -d)"
 log="$work/app.log"

@@ -40,6 +40,21 @@ add_definitions(-DLEGACY_APPLICATION_ID="${KEYRING_APPLICATION_ID}")
 target_link_options(${BINARY_NAME} PRIVATE
   "LINKER:--push-state,--no-as-needed,-lgcc_s,--pop-state")
 
+# The system FreeType among the executable's own DT_NEEDED entries
+# (docs/upstream-workarounds.md entry 26, invoiceninja/app#194). printing's
+# prebuilt libpdfium.so (bblanchon/pdfium-binaries, every release up to
+# chromium/8165) exports its bundled FreeType's ~154 `FT_*` functions. It is
+# loaded through libprinting_plugin.so, ahead of the system libfreetype.so.6
+# that fontconfig, cairo, HarfBuzz and Pango pull in, so without this line every
+# one of them binds to PDFium's copy. That copy cannot read WOFF / WOFF2: when
+# the app rebuilds the fontconfig cache itself, those folders are recorded as
+# empty. A direct dependency of the executable is searched before any plugin's,
+# so with this line both they and PDFium (whose calls into FreeType are
+# interposable) use the system library, as a distro build of PDFium does.
+pkg_check_modules(FREETYPE REQUIRED freetype2)
+target_link_options(${BINARY_NAME} PRIVATE
+  "LINKER:--push-state,--no-as-needed,-lfreetype,--pop-state")
+
 # Add dependency libraries. Add any application-specific dependencies here.
 target_link_libraries(${BINARY_NAME} PRIVATE flutter)
 target_link_libraries(${BINARY_NAME} PRIVATE PkgConfig::GTK)

@@ -40,6 +40,25 @@ void main() {
     expect(option, lessThan(firstLibrary));
   });
 
+  // printing's prebuilt libpdfium.so exports its bundled FreeType, and it loads
+  // ahead of the system libfreetype.so.6, so without this line fontconfig,
+  // cairo and Pango bind to PDFium's copy, which cannot read WOFF / WOFF2
+  // (invoiceninja/app#194, docs/upstream-workarounds.md entry 26). Nothing
+  // fails if it goes: the app builds and runs, and the fonts quietly change.
+  test('the Linux runner loads the system FreeType ahead of PDFium', () {
+    final cmake = File('linux/runner/CMakeLists.txt').readAsStringSync();
+    expect(
+      cmake,
+      contains(
+        'target_link_options(\${BINARY_NAME} PRIVATE\n'
+        '  "LINKER:--push-state,--no-as-needed,-lfreetype,--pop-state")',
+      ),
+      reason:
+          'linux/runner/CMakeLists.txt must link the system FreeType with '
+          '--no-as-needed (docs/upstream-workarounds.md entry 26).',
+    );
+  });
+
   // The source line above only says what was asked of the linker. What proves
   // it is `tools/check_linux_keyring_failure.sh`, which launches the built
   // bundle with no keyring and fails unless the app survives. It has to run
