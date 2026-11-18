@@ -36,6 +36,7 @@ the Flutter app) so they are explicitly **out of scope** here.
 - Entity **revisions** — `Backup` stores a rendered HTML document, never an entity snapshot, and only for the five billing docs, so no client can offer client revisions or field-level diffs (**O**, § Entity revisions — [flutter#168](https://github.com/invoiceninja/flutter/issues/168)); the version list is also capped at 50 activities with no pagination, and free/trialing hosted accounts get no backups at all with no wire signal.
 - Visual (block) designs — five renderer gaps the client now works around: no `tasks-table` renderer, an empty `blocks` list read as a block design, unguarded `properties`, a lone block's width ignored, unknown page sizes dropping the orientation; plus an archived design never reaching the refresh bundle (**O**, § Visual designer).
 - Documents list — `GET /api/v1/documents` names no parent record, a deleted document leaves no trace a delta can see, `status=archived|deleted` reads a column the table doesn't have, and `type=` ANDs its values (the parent is **SHIPPED** 2026-10-19 ([invoiceninja#13365](https://github.com/invoiceninja/invoiceninja/pull/13365)), the rest **O**, § Documents list; the client fills "Linked to" from the records it has cached, and reads the parent once a server sends it).
+- Run Template — the PDF is behind the *reports* permission while the job needs only `view`, a failed job polls as "still working" forever, and eight of the nine controllers authorize only the first record (**O**, § Run Template; found fixing [app#197](https://github.com/invoiceninja/app/issues/197)).
 
 **Shipped since this file was written** (kept for the record, no action left):
 - **§§ A–E, E2, E3** — the list filter/sort PR, merged upstream 2026-05-17 (`db4aed2c5c`) + `tag_ids` 2026-06-01.
@@ -3445,3 +3446,53 @@ Email now queues `POST /payments/bulk {action: 'email'}` (as React does). Record
 ### Product bulk `set_tax_id` has no edit check — **O (found in the v5.1.31 review; send privately)**
 
 `ProductController::bulk` (around line 479 on v5-develop) applies `set_tax_id` to every id in the request without the `$user->can('edit', $product)` check the other bulk actions use, so a user who may only view products can change their tax category. The app only offers the action with `edit_product`, so this is server-side only. Report it to David privately (permissions), with the one-line guard as the fix.
+
+## Run Template — a job the caller may start but not read back, a failure that looks like progress, and a first-record-only permission check — **O (found fixing [app#197](https://github.com/invoiceninja/app/issues/197), verified 2026-11-18 against v5-develop)**
+
+Run Template is `POST /api/v1/<entities>/bulk {action: template, ids, template_id, send_email}`,
+which dispatches `App\Services\Template\TemplateAction` and answers `{message: <uuid>}`; the PDF
+is then polled from `POST /api/v1/templates/preview/<uuid>` (`TemplatePreviewController`: 409
+"Still working....." until `templates/<uuid>.pdf` exists, then streamed once and deleted). The
+client contract and why it is no longer an outbox mutation: `docs/running-a-template.md`.
+
+### 1. The PDF is guarded by the *reports* gate, the job only by `can('view')`
+
+`TemplatePreviewController::__invoke` takes a `ReportPreviewRequest`, whose `checkAuthority()`
+admits only `isAdmin() || hasPermission('view_reports')` and refuses `isFreeHostedClient()`. The
+bulk `template` branch only asks `can('view')`. So a staff user without View Reports — or anyone on
+a free hosted plan — can start the job, and the server renders the PDF, writes it to storage and
+then refuses to hand it over: a 403 for a file nobody will ever read. **Fix:** a
+`TemplatePreviewRequest` that authorizes the user who started the job (cache `hash → user_id` at
+dispatch, as reports could too), or at most `can('view')` on the records. **Client:** reads the
+same gate up front (`runTemplatePdfBlock`); without it Send Email is locked on and the dialog says
+why, and a 403 that gets through is shown once, with no Retry.
+
+### 2. A failed job looks exactly like a running one
+
+`TemplateAction` has `$tries = 1` and no `failed()`; when it throws — a deleted template, an id list
+that resolves to no rows (`$first_entity->client` on null), a Twig error in the design — no file is
+written, and `templates/preview/<uuid>` answers 409 "Still working" forever. The client can only
+time out (it gives up after two minutes and says the template is taking too long). **Fix:** in
+`failed()`, put the error under the hash (e.g. `Cache::put($hash, ['error' => …])`) and have the
+preview route return it as a 422, as the report preview could.
+
+### 3. Every controller but `InvoiceController` authorizes the first record only — **send privately**
+
+`Quote`, `Credit`, `PurchaseOrder`, `Client`, `Payment`, `Task`, `Project` and `Expense`
+controllers all guard the branch with `$user->can('view', $<entities>->first())`, then dispatch
+every requested id (`QuoteController` passes the raw request `$ids`). A user who may view one record
+can render — or email to themselves — others they may not. `InvoiceController` filters the
+collection with `can('view')` per record first, and is the pattern to copy. **Client:** no change;
+it only ever sends records the user can see.
+
+### 4. Smaller
+
+- `TemplateAction` loads the design with `Design::withTrashed()->find(…)` — no `company_id` scope
+  and no `is_template` check, so a deleted template still renders, and an id from another company
+  is not refused. **Fix:** scope to the company (and to templates), skip trashed.
+- `send_email: true` mails the PDF to the user who ran it (`sendEmail()` addresses
+  `$user->email`), never to a client, and the subject/body reuse "Please see attached file to check
+  your report." — worth a template-specific string. Not a bug; recorded because "Send Email" on a
+  billing document reads as "send to the client".
+- Recurring invoices still have no `template` action (§ Recurring-invoice `template` bulk action
+  unsupported, above); the client no longer offers it anywhere.
