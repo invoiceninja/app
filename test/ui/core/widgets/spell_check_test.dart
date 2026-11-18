@@ -81,7 +81,10 @@ void main() {
           },
         ];
       });
-      final service = NativeSpellCheckService(channel: channel);
+      final service = NativeSpellCheckService(
+        channel: channel,
+        untilFrame: () async {},
+      );
 
       final spans = await service.fetchSpellCheckSuggestions(
         const Locale('en', 'GB'),
@@ -101,7 +104,10 @@ void main() {
         calls++;
         return const [];
       });
-      final service = NativeSpellCheckService(channel: channel);
+      final service = NativeSpellCheckService(
+        channel: channel,
+        untilFrame: () async {},
+      );
 
       expect(
         await service.fetchSpellCheckSuggestions(const Locale('en'), '  '),
@@ -111,7 +117,10 @@ void main() {
     });
 
     test('an older runner with no handler latches unavailable', () async {
-      final service = NativeSpellCheckService(channel: channel);
+      final service = NativeSpellCheckService(
+        channel: channel,
+        untilFrame: () async {},
+      );
 
       expect(
         await service.fetchSpellCheckSuggestions(const Locale('en'), 'teh'),
@@ -125,7 +134,10 @@ void main() {
       messenger.setMockMethodCallHandler(channel, (_) async {
         throw PlatformException(code: code);
       });
-      final service = NativeSpellCheckService(channel: channel);
+      final service = NativeSpellCheckService(
+        channel: channel,
+        untilFrame: () async {},
+      );
 
       expect(
         await service.fetchSpellCheckSuggestions(const Locale('en'), 'teh'),
@@ -148,7 +160,10 @@ void main() {
         if (language == 'en') throw PlatformException(code: 'no_dictionary');
         return const [];
       });
-      final service = NativeSpellCheckService(channel: channel);
+      final service = NativeSpellCheckService(
+        channel: channel,
+        untilFrame: () async {},
+      );
 
       expect(
         await service.fetchSpellCheckSuggestions(const Locale('en'), 'teh'),
@@ -191,7 +206,10 @@ void main() {
       messenger.setMockMethodCallHandler(channel, (_) async {
         throw PlatformException(code: 'unavailable');
       });
-      final service = NativeSpellCheckService(channel: channel);
+      final service = NativeSpellCheckService(
+        channel: channel,
+        untilFrame: () async {},
+      );
       expect(
         platformSpellCheckConfiguration(desktopService: service),
         isNotNull,

@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -134,12 +137,32 @@ bool get platformSupportsSpellCheck {
 ///
 /// The runner replies `[{start, end, suggestions}]` in UTF-16 code units,
 /// which is what a Dart string indexes in.
+///
+/// A reply is handed back only in the next frame's transient-callback phase
+/// (upstream-workarounds entry 28). `EditableText._performSpellCheck` assigns
+/// `RenderEditable.text` as soon as the future completes; completed by a
+/// platform-channel reply, that is outside a frame, and a mouse move before
+/// the next layout hit tests a `TextPainter` with no layout and crashes
+/// (Sentry FLUTTER-ADMIN-Y, -10; flutter/flutter#191881). Completed in a frame,
+/// the assignment runs as a mid-frame microtask and layout follows in the
+/// same frame, so no pointer event can land in between.
 class NativeSpellCheckService implements SpellCheckService {
   NativeSpellCheckService({
     MethodChannel channel = const MethodChannel('invoice_ninja/spell_check'),
-  }) : _channel = channel;
+    @visibleForTesting Future<void> Function()? untilFrame,
+  }) : _channel = channel,
+       _untilFrame = untilFrame ?? _untilNextFrame;
 
   final MethodChannel _channel;
+  final Future<void> Function() _untilFrame;
+
+  static Future<void> _untilNextFrame() {
+    final inFrame = Completer<void>();
+    SchedulerBinding.instance
+      ..scheduleFrameCallback((_) => inFrame.complete())
+      ..scheduleFrame();
+    return inFrame.future;
+  }
 
   /// Latched once the runner has no handler, or says it has no checker:
   /// [platformSpellCheckConfiguration] then stops handing the service out,
@@ -157,6 +180,13 @@ class NativeSpellCheckService implements SpellCheckService {
     Locale locale,
     String text,
   ) async {
+    final spans = await _check(locale, text);
+    // Null leaves the render object alone, so only a result waits.
+    if (spans != null) await _untilFrame();
+    return spans;
+  }
+
+  Future<List<SuggestionSpan>?> _check(Locale locale, String text) async {
     if (_unavailable) return null;
     final language = locale.toLanguageTag();
     if (_noDictionary.contains(language)) return null;

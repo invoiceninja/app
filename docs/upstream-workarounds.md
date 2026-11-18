@@ -380,6 +380,20 @@ When an upstream fix ships: follow the revert, verify, then **delete the entry**
 - Revert: delete `egl_vendor_is_nvidia`, `choose_renderer` and the call (with its `g_unsetenv`), plus the `<dlfcn.h>`, `<gdk/gdkx.h>`, `<gdk/gdkwayland.h>` and `<cstring>` includes if nothing else uses them, in the same commit that moves every workflow to Flutter 3.50.1 or later. Then post on #196 and #194.
 - Recheck trigger: any Flutter bump. Read `composite_layer()` in that tag's `engine/src/flutter/shell/platform/linux/fl_compositor_opengl.cc`: the offset must no longer subtract `1.0`.
 
+## 28. Flutter: a spell-check result is applied outside a frame, and a mouse move before the next one crashes the hit test
+
+- Issue / waiting on: [flutter/flutter#191881](https://github.com/flutter/flutter/issues/191881) (open); our report [#196223](https://github.com/flutter/flutter/issues/196223) and PR [#196219](https://github.com/flutter/flutter/pull/196219), whose hit-test fix the maintainer rejected (layout must never be marked dirty after the layout phase). The proposed upstream fix is `_performSpellCheck` going through `setState`. • Found: 2026-11-04 (Sentry FLUTTER-ADMIN-Y, -10, macOS, 5.1.21; spell check shipped in 5.1.20) • Flutter: 3.47.7, still present in 3.50.0
+- Symptom: release `Null check operator used on a null value` in `TextPainter.getClosestGlyphForOffset` ← `RenderEditable.hitTestChildren` ← `GestureBinding._handlePointerEventImmediately`; debug `Text layout not available`, invalidated by `RenderEditable.text=` ← `EditableTextState._performSpellCheck`.
+- Root cause: `_performSpellCheck` assigns `renderEditable.text` as soon as the service's future completes. Completed by a platform-channel reply, that is the idle phase, so a pointer event before the next frame hit tests a `TextPainter` with no layout.
+- Commit ref: not yet committed
+- Change(s):
+  - `lib/ui/core/widgets/spell_check.dart` — **MUST-REVERT**: `NativeSpellCheckService.fetchSpellCheckSuggestions` awaits `_untilFrame` (a `scheduleFrameCallback`) before returning a non-null result, so the assignment runs as a mid-frame microtask and layout follows in the same frame. The `untilFrame` constructor parameter exists only for the unit tests.
+  - `test/ui/core/widgets/spell_check_test.dart` — **MUST-REVERT**: the service tests pass `untilFrame: () async {}`.
+  - `test/ui/core/widgets/spell_check_hit_test_race_test.dart` — **KEEP**: hovers the field between the runner's reply and the next frame. It reproduces the crash without the workaround, and must keep passing once Flutter fixes it.
+- Not covered: iOS and Android use Flutter's own `DefaultSpellCheckService`, inferred per field, which the app cannot wrap without breaking the configuration equality `EditableText` re-checks on. A touch landing in the same gap could still crash there; no reports so far.
+- Revert: delete `_untilFrame`, `_untilNextFrame`, the `untilFrame` parameter and the two lines in `fetchSpellCheckSuggestions` (fold `_check` back in), and the `untilFrame:` arguments in `spell_check_test.dart`, on the first Flutter whose `_performSpellCheck` no longer assigns `renderEditable.text` directly.
+- Recheck trigger: any Flutter bump. Read `EditableTextState._performSpellCheck` in `packages/flutter/lib/src/widgets/editable_text.dart`, then run the race test with the wait removed.
+
 ## Considered but NOT tracked (permanent adaptations — do not revert)
 
 These look workaround-shaped but are correct-forever (or inherent), not "waiting on an upstream fix". Listed so they aren't re-litigated:

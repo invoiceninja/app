@@ -94,6 +94,23 @@ So `desktopSpellCheckService` is a top-level `final`, and the mobile configurati
 `const SpellCheckConfiguration()`. The same comparison is what makes the switch work: flipping it
 turns null into a configuration or back, which re-runs or clears the check.
 
+## A desktop spell-check reply is handed back only inside a frame, or a mouse move crashes the field
+
+`EditableTextState._performSpellCheck` assigns `renderEditable.text` the moment the service's
+future completes. A platform-channel reply completes it in the idle phase, between frames, and
+that marks the text layout dirty. A mouse move over the field before the next frame is hit tested
+against a `TextPainter` with no layout. In debug that is `Text layout not available` (invalidated by
+`RenderEditable.text=` ← `_performSpellCheck`), and in release a null check in
+`TextPainter.getClosestGlyphForOffset`. It shipped in 5.1.21 as Sentry FLUTTER-ADMIN-Y and -10
+(macOS), the first release after spell check.
+
+So `NativeSpellCheckService` waits for the next frame's transient-callback phase
+(`scheduleFrameCallback`) before returning a result. The assignment then runs as a mid-frame
+microtask and layout follows in the same frame. A null reply returns at once, since
+`_performSpellCheck` leaves the render object alone for it. This is a workaround for
+flutter/flutter#191881 (`docs/upstream-workarounds.md` entry 28), and
+`test/ui/core/widgets/spell_check_hit_test_race_test.dart` pins it.
+
 ## What Flutter checks, and when
 
 - **A check runs when the configuration arrives** (one frame after mount, through
@@ -113,9 +130,10 @@ turns null into a configuration or back, which re-runs or clears the check.
   language. A German description under an English UI is checked as English, except where macOS
   identifies the language itself.
 
-Tests: `test/ui/core/widgets/spell_check_test.dart` (seam, parse, platform matrix, switch) and
+Tests: `test/ui/core/widgets/spell_check_test.dart` (seam, parse, platform matrix, switch),
 `test/ui/features/billing_shared/line_item_spell_check_test.dart` (which fields, the switch, the
-right-click fix).
+right-click fix) and `test/ui/core/widgets/spell_check_hit_test_race_test.dart` (the reply waits for
+a frame).
 
 Not done yet: "Learn spelling" / "Ignore" in the menu (NSSpellChecker `learnWord`, ISpellChecker
 `Add`), the obvious next step for SKUs.
