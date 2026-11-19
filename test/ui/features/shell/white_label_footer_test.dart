@@ -22,6 +22,7 @@ import 'package:admin/app/services.dart';
 import 'package:admin/app/theme.dart';
 import 'package:admin/data/repositories/auth/auth_session.dart';
 import 'package:admin/data/repositories/auth_repository.dart';
+import 'package:admin/domain/upgrade/store_build.dart';
 import 'package:admin/ui/features/shell/widgets/trial_footer.dart';
 import 'package:admin/ui/features/shell/widgets/white_label_footer.dart';
 
@@ -108,10 +109,22 @@ Future<void> _pump(
 }
 
 void main() {
+  // The license is sold on the web, so a store build shows none of this
+  // (`isStoreBillingBuild`). These cases are the desktop / web / F-Droid
+  // builds; `flutter test` alone would read as a Play build.
+  setUp(() => debugStoreBillingOverride = false);
+  tearDown(() => debugStoreBillingOverride = null);
+
   group('WhiteLabelFooter', () {
     testWidgets('shown to an unlicensed self-hosted owner', (tester) async {
       await _pump(tester, _session(isHosted: false));
       expect(find.text('Purchase White Label'), findsOneWidget);
+    });
+
+    testWidgets('hidden on a store build', (tester) async {
+      debugStoreBillingOverride = true;
+      await _pump(tester, _session(isHosted: false));
+      expect(find.text('Purchase White Label'), findsNothing);
     });
 
     testWidgets('hidden once a license is applied', (tester) async {

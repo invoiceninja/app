@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:logging/logging.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -8,6 +9,7 @@ import 'package:admin/app/services.dart';
 import 'package:admin/data/repositories/docuninja/docuninja_session.dart';
 import 'package:admin/domain/docuninja/docuninja_create.dart';
 import 'package:admin/domain/docuninja/docuninja_embed.dart';
+import 'package:admin/domain/upgrade/store_build.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/dialogs/discard_changes_dialog.dart';
 import 'package:admin/ui/core/unsaved_changes/unsaved_changes_scope.dart';
@@ -22,6 +24,20 @@ import 'package:admin/ui/features/docuninja/widgets/docuninja_embed_surface.dart
 /// (docs/docuninja.md § The field builder runs embedded where a web view
 /// can). The app draws the title and Back; the page draws the builder and
 /// its Send / Save for later buttons.
+final _log = Logger('DocuNinjaBuilderScreen');
+
+/// A link off the web app, in the browser. On a store build a page that sells
+/// something outside the store (a Stripe checkout, the billing portal) is
+/// refused instead: a store build may not send anyone to an external purchase
+/// (App Store 3.1.1(a), Play Payments 4), and the embed hands us any link.
+void _openOffApp(Uri uri) {
+  if (isStoreBillingBuild && isExternalPurchaseUri(uri)) {
+    _log.info('Not opening a purchase page on a store build: ${uri.host}');
+    return;
+  }
+  unawaited(launchExternalUri(uri));
+}
+
 class DocuNinjaBuilderScreen extends StatefulWidget {
   const DocuNinjaBuilderScreen({
     super.key,
@@ -77,7 +93,7 @@ class _DocuNinjaBuilderScreenState extends State<DocuNinjaBuilderScreen> {
       onClose: () {
         if (mounted) context.go(_exitRoute);
       },
-      openExternal: launchExternalUri,
+      openExternal: _openOffApp,
       // A page of the web app opens here, keeping this page's sign-in (the
       // browser has none).
       openInPlace: (uri) => web.load(uri),
@@ -89,7 +105,7 @@ class _DocuNinjaBuilderScreenState extends State<DocuNinjaBuilderScreen> {
         },
         onPageStarted: vm.pageStarted,
         onLoadFailed: vm.loadFailed,
-        openExternal: launchExternalUri,
+        openExternal: _openOffApp,
       ),
     );
     _web = web;

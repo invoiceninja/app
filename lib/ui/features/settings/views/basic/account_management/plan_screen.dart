@@ -1,12 +1,12 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/data/repositories/auth/auth_session.dart';
+import 'package:admin/domain/upgrade/store_build.dart';
 import 'package:admin/domain/upgrade/upgrade_launcher.dart';
 import 'package:admin/domain/upgrade/white_label.dart';
 import 'package:admin/l10n/localization.dart';
@@ -241,16 +241,51 @@ class _HostedActionsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = context.inTheme;
-    final hasPortalUrl = session.ninjaPortalUrl.isNotEmpty;
-    // On iOS / Android the button drives in-app purchase and needs no portal
-    // URL; everywhere else it opens the hosted billing portal, so with no URL
-    // there's nowhere to send the user (launchUpgrade would otherwise fall
-    // back to this same screen). Disable it in that dead-end case.
-    final isStore =
-        !kIsWeb &&
-        (defaultTargetPlatform == TargetPlatform.iOS ||
-            defaultTargetPlatform == TargetPlatform.android);
-    final canUpgrade = isStore || hasPortalUrl;
+    final storeBilling = isStoreBillingBuild;
+    final hint = TextStyle(color: tokens.ink2);
+
+    // Bought in a store: managed only in that store's subscription settings
+    // (mirrors admin-portal's `isProPlan && hasIapPlan` branch). A store build
+    // links there; desktop and the web can't (the subscription is on someone's
+    // Apple ID or Google account, not this device), so they say how it's billed.
+    if (session.hasIapPlan && session.isPaidPlanSlug) {
+      return FormSection(
+        title: context.tr('change_plan'),
+        children: [
+          Text(context.tr('plan_billed_in_app_store'), style: hint),
+          if (storeBilling)
+            Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size(160, 40),
+                ),
+                icon: const Icon(Icons.open_in_new, size: 18),
+                label: Text(context.tr('manage_subscription')),
+                onPressed: () => unawaited(openManageSubscriptions()),
+              ),
+            ),
+        ],
+      );
+    }
+
+    // A store build may not link to the web billing portal (App Store
+    // 3.1.1(a), Play Payments 4), and selling a store plan on top of a
+    // web-billed one (a trial runs on a card too) would bill twice.
+    if (storeBilling &&
+        !session.hasIapPlan &&
+        (session.isPaidPlanSlug || session.isTrial)) {
+      return FormSection(
+        title: context.tr('change_plan'),
+        children: [Text(context.tr('plan_billed_on_web'), style: hint)],
+      );
+    }
+
+    // A store build sells in-app and needs no portal URL; everywhere else the
+    // button opens the hosted billing portal, so with no URL there's nowhere
+    // to send the user (launchUpgrade would otherwise fall back to this same
+    // screen). Disable it in that dead-end case.
+    final canUpgrade = storeBilling || session.ninjaPortalUrl.isNotEmpty;
     // Decide button label: free → "Upgrade Plan"; paid → "Change Plan";
     // trial → "Upgrade Plan" so the user knows they're paying.
     final labelKey = session.isPaidPlanSlug && !session.isTrial
@@ -260,46 +295,37 @@ class _HostedActionsCard extends StatelessWidget {
     return FormSection(
       title: context.tr('change_plan'),
       children: [
-        if (session.hasIapPlan)
-          // Plan was purchased via in-app purchase — it can only be managed in
-          // the store's subscription settings, not here. Show guidance and no
-          // action button (mirrors admin-portal's `isProPlan && hasIapPlan`
-          // branch). Showing this unconditionally would tell every web/desktop
-          // and non-IAP user to "use their phone", which is wrong.
-          Text(
-            context.tr('use_mobile_to_manage_plan'),
-            style: TextStyle(color: tokens.ink2),
-          )
-        else ...[
-          Align(
-            alignment: AlignmentDirectional.centerStart,
-            child: Wrap(
-              spacing: InSpacing.md(context),
-              runSpacing: InSpacing.sm,
-              children: [
-                FilledButton.icon(
-                  style: FilledButton.styleFrom(
-                    minimumSize: const Size(160, 44),
-                  ),
-                  icon: const Icon(Icons.open_in_new, size: 18),
-                  label: Text(context.tr(labelKey)),
-                  // Store IAP on iOS/Android; hosted portal on web/desktop.
-                  // Disabled only on the web/desktop dead-end where no portal
-                  // URL is available yet (transient pre-refresh state).
-                  onPressed: canUpgrade ? () => launchUpgrade(context) : null,
+        Align(
+          alignment: AlignmentDirectional.centerStart,
+          child: Wrap(
+            spacing: InSpacing.md(context),
+            runSpacing: InSpacing.sm,
+            children: [
+              FilledButton.icon(
+                style: FilledButton.styleFrom(minimumSize: const Size(160, 44)),
+                // The store's own sheet opens in place; the portal is a page
+                // in the browser.
+                icon: Icon(
+                  storeBilling ? Icons.upgrade : Icons.open_in_new,
+                  size: 18,
                 ),
-              ],
+                label: Text(context.tr(labelKey)),
+                // Store purchase on a store build; the hosted portal
+                // elsewhere. Disabled only on the portal dead-end where no
+                // URL is available yet (transient pre-refresh state).
+                onPressed: canUpgrade ? () => launchUpgrade(context) : null,
+              ),
+            ],
+          ),
+        ),
+        if (!canUpgrade)
+          Padding(
+            padding: EdgeInsets.only(top: InSpacing.sm),
+            child: Text(
+              context.tr('error_refresh_page'),
+              style: TextStyle(color: tokens.ink3),
             ),
           ),
-          if (!canUpgrade)
-            Padding(
-              padding: EdgeInsets.only(top: InSpacing.sm),
-              child: Text(
-                context.tr('error_refresh_page'),
-                style: TextStyle(color: tokens.ink3),
-              ),
-            ),
-        ],
       ],
     );
   }

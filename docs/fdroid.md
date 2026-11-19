@@ -29,8 +29,11 @@ the check — is `tools/foss/com.invoiceninja.admin.yml` plus `tools/fdroid_buil
   stubs:
   - `GoogleSignInClient.isSupported` is false, so the login and Connect screens hide their Google
     buttons.
-  - `StoreBilling.isAvailable` is false, so `showUpgradeSheet` falls back to the web portal. That
-    fallback already existed for a Play device whose billing is down.
+  - `StoreReview.isStoreBuild` is false, so `isStoreBillingBuild` (`lib/domain/upgrade/store_build.dart`)
+    is false and the F-Droid and GitHub APKs never open the purchase sheet: `resolveUpgradeRoute`
+    sends Upgrade to the web portal, and the White Label, PEPPOL credit and DocuNinja billing links
+    stay. A store build whose billing is down gets an error with Retry instead, never the portal
+    (App Store 3.1.1(a), Play Payments 4). `StoreBilling.isAvailable` is false here too.
   - `runWithCrashReporting` just runs the app.
 
   Its pubspec depends on nothing but Flutter, and the lint test keeps it that way.

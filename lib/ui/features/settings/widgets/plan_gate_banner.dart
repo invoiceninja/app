@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/data/repositories/auth/auth_session.dart';
+import 'package:admin/domain/upgrade/store_build.dart';
 import 'package:admin/domain/upgrade/upgrade_launcher.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/link_text.dart';
@@ -71,7 +72,12 @@ class PlanGateBanner extends StatelessWidget {
     // certain the user can't act on the upgrade.
     final me = session.currentCompany;
     final isOwner = me == null ? true : me.isOwner;
-    final copy = _gateCopy(level, session, isOwner: isOwner);
+    final copy = planGateCopy(
+      level,
+      session,
+      isOwner: isOwner,
+      storeBilling: isStoreBillingBuild,
+    );
     switch (style) {
       case PlanGateStyle.inset:
         return _InsetCard(copy: copy, isOwner: isOwner);
@@ -82,15 +88,20 @@ class PlanGateBanner extends StatelessWidget {
 }
 
 /// Resolved banner message: localization key + optional substitution params.
-typedef _GateCopy = ({String key, Map<String, String>? params});
+typedef PlanGateCopy = ({String key, Map<String, String>? params});
 
 /// State-aware copy. A used-trial or expired-paid user must never be told to
 /// "start a free trial" (a dead-end lie). Order matters: trial countdown and
 /// expiry-renewal take precedence over the generic upgrade nudge.
-_GateCopy _gateCopy(
+///
+/// Nor is anyone on a store build ([storeBilling]): a hosted trial starts on
+/// the web with a card, and the store sheet the button opens sells a paid plan.
+@visibleForTesting
+PlanGateCopy planGateCopy(
   PlanGateLevel level,
   AuthSession s, {
   required bool isOwner,
+  required bool storeBilling,
 }) {
   if (!isOwner) return (key: 'owner_upgrade_to_paid_plan', params: null);
   if (s.isTrial) {
@@ -109,14 +120,14 @@ _GateCopy _gateCopy(
     // is placeholder-free, translated, and matches the sibling copy's length.
     return (key: 'requires_an_enterprise_plan', params: null);
   }
-  if (s.isEligibleForTrial) {
+  if (s.isEligibleForTrial && !storeBilling) {
     return (key: 'start_free_trial_message', params: null);
   }
   return (key: 'upgrade_to_paid_plan', params: null);
 }
 
 /// Opens the user's upgrade flow. Delegates to the single platform-conditional
-/// [launchUpgrade] seam (store IAP on iOS/Android, portal on web/desktop) so
+/// [launchUpgrade] seam (store IAP on store builds, portal elsewhere) so
 /// the App Store payment-steering rule is enforced in one place. Kept as a
 /// thin alias so existing banner call sites don't change.
 Future<void> openUpgradeFlow(BuildContext context) => launchUpgrade(context);
@@ -124,7 +135,7 @@ Future<void> openUpgradeFlow(BuildContext context) => launchUpgrade(context);
 class _InsetCard extends StatelessWidget {
   const _InsetCard({required this.copy, required this.isOwner});
 
-  final _GateCopy copy;
+  final PlanGateCopy copy;
   final bool isOwner;
 
   @override
@@ -179,7 +190,7 @@ class _InsetCard extends StatelessWidget {
 class _StripeBar extends StatelessWidget {
   const _StripeBar({required this.copy, required this.isOwner});
 
-  final _GateCopy copy;
+  final PlanGateCopy copy;
   final bool isOwner;
 
   @override

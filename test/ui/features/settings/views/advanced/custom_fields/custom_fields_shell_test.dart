@@ -18,6 +18,7 @@ import 'package:admin/data/repositories/client_repository.dart';
 import 'package:admin/data/repositories/company_repository.dart';
 import 'package:admin/data/services/clients_api.dart';
 import 'package:admin/data/services/companies_api.dart';
+import 'package:admin/domain/upgrade/store_build.dart';
 import 'package:admin/ui/core/unsaved_changes/unsaved_changes_guard.dart';
 import 'package:admin/ui/features/settings/state/settings_level_controller.dart';
 import 'package:admin/ui/features/settings/view_models/custom_fields_view_model.dart';
@@ -304,6 +305,10 @@ void main() {
   testWidgets(
     'free plan → upgrade banner shows with a tappable "Manage Plan" link',
     (tester) async {
+      // A desktop / web / F-Droid build: a store build offers no free trial
+      // (`planGateCopy`; plan_gate_copy_test).
+      debugStoreBillingOverride = false;
+      addTearDown(() => debugStoreBillingOverride = null);
       final services = makeServices(
         company: Company(id: 'co-A', enabledModules: _allModules()),
         plan: '', // free account

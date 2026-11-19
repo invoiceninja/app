@@ -379,8 +379,11 @@ class _PeppolOnboardingCardState extends State<PeppolOnboardingCard> {
             onChanged: (v) => setState(() => _actsAsReceiver = v),
           ),
           // New tenants need credits before their first send — surface the
-          // purchase links here (hosted-only, self-gates otherwise).
-          const PeppolBuyCreditsLinks(),
+          // purchase links here (hosted-only, and never on a store build).
+          if (PeppolBuyCreditsLinks.shownFor(
+            context.read<Services>().auth.session.value,
+          ))
+            const PeppolBuyCreditsLinks(),
         ],
       ),
     );

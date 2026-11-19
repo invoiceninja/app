@@ -11,6 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 
 import 'package:admin/data/repositories/auth/auth_session.dart';
+import 'package:admin/domain/upgrade/store_build.dart';
 import 'package:admin/domain/upgrade/white_label.dart';
 import 'package:admin/ui/core/widgets/toast_controller.dart';
 
@@ -43,11 +44,35 @@ AuthSession _session({
 );
 
 void main() {
+  // The license is sold on the web, so a store build shows none of this
+  // (`isStoreBillingBuild`). These cases are the desktop / web / F-Droid
+  // builds; `flutter test` alone would read as a Play build.
+  setUp(() => debugStoreBillingOverride = false);
+  tearDown(() => debugStoreBillingOverride = null);
+
   test('checkout URL is the live subscription both reference apps use', () {
     expect(
       kWhiteLabelPurchaseUrl,
       'https://invoiceninja.invoicing.co/client/subscriptions/O5xe7Rwd7r/purchase',
     );
+  });
+
+  group('store builds (App Store 3.1.1(a), Play Payments 4)', () {
+    test('never show the card, offer the license or nag', () {
+      final s = _session(isHosted: false, isOwner: true);
+      expect(showWhiteLabelCard(s, storeBilling: true), isFalse);
+      expect(canPurchaseWhiteLabel(s, storeBilling: true), isFalse);
+      expect(shouldNagForWhiteLabel(s, storeBilling: true), isFalse);
+      // The same session on desktop, the web or F-Droid keeps all three.
+      expect(showWhiteLabelCard(s, storeBilling: false), isTrue);
+      expect(canPurchaseWhiteLabel(s, storeBilling: false), isTrue);
+      expect(shouldNagForWhiteLabel(s, storeBilling: false), isTrue);
+    });
+
+    test('read the running build by default', () {
+      debugStoreBillingOverride = true;
+      expect(showWhiteLabelCard(_session(isHosted: false)), isFalse);
+    });
   });
 
   group('canPurchaseWhiteLabel', () {

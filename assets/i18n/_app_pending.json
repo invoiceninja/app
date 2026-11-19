@@ -2259,5 +2259,10 @@
   "deleted_transactions": "Successfully deleted :count transactions",
   "in_app_purchases_unavailable": "In-app purchases aren't available yet. Please try again later.",
   "store_billing_continues_after_delete": "Your plan is billed through the App Store or Google Play. Deleting here doesn't cancel that subscription; cancel it in your store's subscription settings.",
-  "manage_subscription": "Manage subscription"
+  "manage_subscription": "Manage subscription",
+  "app_store_subscription_ended": "Your app store subscription has ended. Renew it in your store's subscription settings.",
+  "store_billing_unreachable": "The app store isn't reachable right now. Please try again.",
+  "restore_purchases_help": "Restore brings back purchases made in this app.",
+  "plan_billed_in_app_store": "Your plan is billed through the app store you subscribed in.",
+  "plan_billed_on_web": "Your plan is billed on the web."
 }

@@ -5,6 +5,8 @@ import 'package:provider/provider.dart';
 
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/services.dart';
+import 'package:admin/data/repositories/auth/auth_session.dart';
+import 'package:admin/domain/upgrade/store_build.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/link_text.dart';
 import 'package:admin/ui/features/gateways/oauth_setup_launcher.dart'
@@ -18,16 +20,24 @@ import 'package:admin/ui/features/settings/views/advanced/e_invoice/e_invoice_co
 /// billing portal (PEPPOL 500 / PEPPOL 1000). The links reflow with [Wrap] so
 /// they don't overflow on narrow widths.
 ///
-/// **Hosted-only.** The subscription URLs are invoicing.co billing links that
-/// don't apply to self-hosted installs, so the widget renders nothing when the
-/// session isn't hosted — callers can drop it in unconditionally.
+/// **Hosted-only, and never on a store build.** The subscription URLs are
+/// invoicing.co billing links that don't apply to self-hosted installs, and a
+/// store build may not link to an external purchase (App Store 3.1.1(a), Play
+/// Payments 4). Callers gate on [shownFor] rather than dropping it in bare: a
+/// card's `spacing` still pays a gap for a child that renders nothing.
 class PeppolBuyCreditsLinks extends StatelessWidget {
   const PeppolBuyCreditsLinks({super.key});
+
+  /// Whether the links show for [session]. [storeBilling] is for tests.
+  static bool shownFor(AuthSession? session, {bool? storeBilling}) =>
+      session != null &&
+      session.isHosted &&
+      !(storeBilling ?? isStoreBillingBuild);
 
   @override
   Widget build(BuildContext context) {
     final session = context.read<Services>().auth.session.value;
-    if (session == null || !session.isHosted) return const SizedBox.shrink();
+    if (!shownFor(session)) return const SizedBox.shrink();
 
     final tokens = context.inTheme;
     final theme = Theme.of(context);

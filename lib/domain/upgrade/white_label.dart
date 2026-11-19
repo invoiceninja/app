@@ -2,6 +2,7 @@ import 'package:material_ui/material_ui.dart';
 
 import 'package:admin/app/env.dart';
 import 'package:admin/data/repositories/auth/auth_session.dart';
+import 'package:admin/domain/upgrade/store_build.dart';
 import 'package:admin/ui/core/utils/external_url.dart';
 
 /// Hosted-billing checkout for the self-hosted white-label license.
@@ -29,8 +30,15 @@ const String kWhiteLabelPurchaseUrl =
 /// 'whitelabel'`). Gating on a bare `isWhiteLabeled` rendered this card on
 /// hosted beside the upgrade card, where its Apply License would POST
 /// `claim_license` — which the server hard-gates to self-host and 400s.
-bool showWhiteLabelCard(AuthSession? session) {
+///
+/// Never on a store build ([isStoreBillingBuild]): the license is sold on the
+/// web, and a store build may not link to an external purchase (App Store
+/// 3.1.1(a), Play Payments 4). Apply License goes with it, so the card would
+/// be empty; a license bought on the web is applied from the web or desktop.
+/// [storeBilling] is for tests.
+bool showWhiteLabelCard(AuthSession? session, {bool? storeBilling}) {
   if (session == null || session.isHosted) return false;
+  if (storeBilling ?? isStoreBillingBuild) return false;
   // The demo bootstrap logs in with `isHosted: false` (`main.dart`), so the
   // public GitHub Pages build satisfies `isSelfHosted`. Suppress the whole
   // card there, not just the checkout button: a demo account has no server of
@@ -44,8 +52,9 @@ bool showWhiteLabelCard(AuthSession? session) {
 /// True when this session should be *offered* a license — [showWhiteLabelCard]
 /// minus the installs that already hold one. Drives the purchase button and
 /// (via [shouldNagForWhiteLabel]) the sidebar CTA.
-bool canPurchaseWhiteLabel(AuthSession? session) =>
-    showWhiteLabelCard(session) && !session!.isWhiteLabeled;
+bool canPurchaseWhiteLabel(AuthSession? session, {bool? storeBilling}) =>
+    showWhiteLabelCard(session, storeBilling: storeBilling) &&
+    !session!.isWhiteLabeled;
 
 /// [canPurchaseWhiteLabel] plus the role check that only persistent chrome
 /// needs: a user who can't act on the purchase shouldn't carry the nag on
@@ -54,8 +63,10 @@ bool canPurchaseWhiteLabel(AuthSession? session) =>
 ///
 /// The settings card deliberately skips this — someone who navigated to
 /// Account Management → Plan asked to see their license state.
-bool shouldNagForWhiteLabel(AuthSession? session) {
-  if (!canPurchaseWhiteLabel(session)) return false;
+bool shouldNagForWhiteLabel(AuthSession? session, {bool? storeBilling}) {
+  if (!canPurchaseWhiteLabel(session, storeBilling: storeBilling)) {
+    return false;
+  }
   final me = session!.currentCompany;
   // Fail closed on a not-yet-loaded company: an unsolicited upsell is worse
   // than a missing one, and the Plan tab still offers the purchase.
@@ -71,6 +82,8 @@ bool shouldNagForWhiteLabel(AuthSession? session) {
 /// helper rather than `oauth_setup_launcher.dart`'s `openExternal` — reaching
 /// into another feature package for it would be the wrong direction.
 Future<void> launchWhiteLabelPurchase(BuildContext context) async {
+  // Belt and braces: every caller is gated by [showWhiteLabelCard].
+  if (isStoreBillingBuild) return;
   // Toasts on failure — no browser, or a sandbox restriction.
   await openExternalUrl(context, kWhiteLabelPurchaseUrl);
 }

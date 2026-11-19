@@ -181,8 +181,11 @@ class _PeppolPreferencesCardState extends State<PeppolPreferencesCard> {
               ),
             ],
           ),
-        // Top up PEPPOL credits — hosted-only, self-gates to nothing otherwise.
-        const PeppolBuyCreditsLinks(),
+        // Top up PEPPOL credits — hosted-only, and never on a store build.
+        if (PeppolBuyCreditsLinks.shownFor(
+          context.read<Services>().auth.session.value,
+        ))
+          const PeppolBuyCreditsLinks(),
       ],
     );
   }

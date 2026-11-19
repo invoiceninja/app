@@ -20,6 +20,7 @@ import 'package:admin/app/services.dart';
 import 'package:admin/app/theme.dart';
 import 'package:admin/data/repositories/auth_repository.dart';
 import 'package:admin/data/repositories/auth/auth_session.dart';
+import 'package:admin/domain/upgrade/store_build.dart';
 import 'package:admin/ui/features/settings/views/basic/account_management/plan_screen.dart';
 import 'package:admin/utils/formatting.dart';
 
@@ -83,6 +84,12 @@ Future<void> _pump(WidgetTester tester, AuthSession session) async {
 }
 
 void main() {
+  // The license is sold on the web, so a store build shows none of this
+  // (`isStoreBillingBuild`). These cases are the desktop / web / F-Droid
+  // builds; `flutter test` alone would read as a Play build.
+  setUp(() => debugStoreBillingOverride = false);
+  tearDown(() => debugStoreBillingOverride = null);
+
   testWidgets('self-hosted license in its last fortnight keeps the expiry and '
       'is never called a trial', (tester) async {
     await _pump(
@@ -173,6 +180,17 @@ void main() {
     expect(find.text('Apply License'), findsOneWidget);
     // Nothing about renewing something they never had.
     expect(find.text('Renew License'), findsNothing);
+  });
+
+  testWidgets('a store build shows no license card: no Purchase, no Apply', (
+    tester,
+  ) async {
+    debugStoreBillingOverride = true;
+    await _pump(tester, _session(isHosted: false));
+
+    expect(find.text('Purchase White Label'), findsNothing);
+    expect(find.text('Renew License'), findsNothing);
+    expect(find.text('Apply License'), findsNothing);
   });
 
   testWidgets('a licensed self-host can re-apply but has nothing to buy', (

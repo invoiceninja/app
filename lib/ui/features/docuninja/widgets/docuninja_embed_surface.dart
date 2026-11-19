@@ -118,7 +118,9 @@ class _FlutterSurface implements DnEmbedSurface {
             // goes only to the main frame on the web app's origin.
             if (!request.isMainFrame) return NavigationDecision.navigate;
             // Anything else (a help page, a payment page) opens in the
-            // browser; the web view only ever shows the web app.
+            // browser; the web view only ever shows the web app. A store
+            // build refuses a purchase page there (the builder screen's
+            // `openExternal`).
             if (uri != null &&
                 (uri.scheme == 'https' || uri.scheme == 'http')) {
               events.openExternal(uri);

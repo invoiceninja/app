@@ -46,8 +46,9 @@ const Set<String> kProductPlans = {
 /// the session (and every `PlanGateBanner` auto-clears).
 ///
 /// The SDK itself sits behind [StoreBilling] (`package:store_services`), so
-/// the F-Droid build can drop Play Billing — there it reports unavailable and
-/// [showUpgradeSheet] falls back to the portal (docs/fdroid.md).
+/// the F-Droid build can drop Play Billing — there it reports unavailable, and
+/// the F-Droid build never opens the sheet: `resolveUpgradeRoute` sends it to
+/// the billing portal (docs/fdroid.md).
 ///
 /// NOTE: requires App Store Connect / Play Console product configuration
 /// (the `kProductPlans` IDs) and sandbox testing — that store-side setup is
