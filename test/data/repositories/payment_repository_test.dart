@@ -160,22 +160,23 @@ void main() {
       expect(failed.calculatedStatusId, kPaymentStatusFailed);
     });
 
-    test(
-      'refundable + unapplied getters reflect amount minus refunded/applied',
-      () {
-        final p = Payment.fromApi(
-          const PaymentApi(
-            id: 'p_6',
-            amount: '100',
-            applied: '60',
-            refunded: '30',
-          ),
-        );
-        expect(p.refundable, Decimal.parse('70'));
-        expect(p.unapplied, Decimal.parse('40'));
-        expect(p.hasUnappliedFunds, true);
-      },
-    );
+    test('refundable is amount less refunded; a refund on an invoice leaves '
+        'unapplied at amount less applied', () {
+      final p = Payment.fromApi(
+        const PaymentApi(
+          id: 'p_6',
+          amount: '100',
+          applied: '60',
+          refunded: '30',
+          paymentables: [
+            PaymentableApi(invoiceId: 'i_1', amount: '60', refunded: '30'),
+          ],
+        ),
+      );
+      expect(p.refundable, Decimal.parse('70'));
+      expect(p.unapplied, Decimal.parse('40'));
+      expect(p.hasUnappliedFunds, true);
+    });
 
     test('paymentables list round-trips through fromApi as PaymentableEntity '
         'rows with the per-row refunded amount preserved', () {

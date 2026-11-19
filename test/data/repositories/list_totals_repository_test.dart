@@ -411,6 +411,31 @@ void main() {
     expect(seen.last, dec({'': '9'}));
   });
 
+  test('a recurring expense\'s sum waits for the clients its active-client '
+      'filter reads', () async {
+    await db.recurringExpenseDao.upsert(
+      RecurringExpensesCompanion.insert(
+        id: 're1',
+        companyId: co,
+        updatedAt: 1,
+        payload: '{}',
+        statusId: const Value('2'),
+        amount: const Value('4'),
+        remainingCycles: const Value(-1),
+      ),
+    );
+    api.answer = const ServerException(404, 'Route does not exist');
+    final seen = record(repo.watch(EntityType.recurringExpense, co));
+    await repo.refresh(EntityType.recurringExpense, co);
+    await markFullSync(['recurring_expense']);
+    await pumpEventQueue();
+    expect(seen.whereType<Map<String, Decimal>>(), isEmpty);
+
+    await markFullSync(['client']);
+    await pumpEventQueue();
+    expect(seen.last, dec({'': '4'}));
+  });
+
   test('a Sync that resets the cursor hides the local line again until it '
       'walks to the end', () async {
     await seedQuote();

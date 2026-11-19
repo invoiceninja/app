@@ -104,13 +104,20 @@ class PurchaseOrderDao
   /// Open purchase orders (docs/entity-lists.md § A money list's totals line):
   /// the balance of sent and accepted orders, in the vendor's currency, else
   /// the company's — never `purchase_orders.currency_id`, which the server's
-  /// `VendorHtmlEngine`, React and this app all ignore.
+  /// `VendorHtmlEngine`, React and this app all ignore. An archived or deleted
+  /// vendor's orders are left out, as the server's `without_deleted_vendors`
+  /// lists do.
   @override
   ListTotalsQuery? listTotalsQuery(String companyId) => ListTotalsQuery(
-    where: purchaseOrders.statusId.isIn([
-      PurchaseOrderStatus.sent.wireId,
-      PurchaseOrderStatus.accepted.wireId,
-    ]),
+    where:
+        purchaseOrders.statusId.isIn([
+          PurchaseOrderStatus.sent.wireId,
+          PurchaseOrderStatus.accepted.wireId,
+        ]) &
+        vendorActiveFilter(
+          vendorId: purchaseOrders.vendorId,
+          companyId: companyId,
+        ),
     amount: purchaseOrders.balance,
     vendorId: purchaseOrders.vendorId,
   );

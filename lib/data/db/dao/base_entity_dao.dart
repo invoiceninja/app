@@ -183,7 +183,12 @@ abstract class BaseEntityDao<TableT extends Table, RowT>
       query,
     );
     final q = selectOnly(table)
-      ..addColumns([query.amount, ...query.less, currency])
+      ..addColumns([
+        query.amount,
+        ...query.less,
+        ...?query.figure?.reads,
+        currency,
+      ])
       ..where(badgeBaseFilter(companyId) & query.where);
     return q.watch().map((rows) => sumListTotalsRows(rows, query, currency));
   }
@@ -348,6 +353,23 @@ abstract class BaseEntityDao<TableT extends Table, RowT>
             (clients.isDeleted.equals(true) | clients.archivedAt.isNotNull()),
       );
     return clientId.equals('') | clientId.isNotInQuery(inactiveClientIds);
+  }
+
+  /// [clientActiveFilter] for a vendor: the rows the server's
+  /// `without_deleted_vendors=true` returns — those with no vendor, or whose
+  /// vendor is neither deleted nor archived.
+  Expression<bool> vendorActiveFilter({
+    required GeneratedColumn<String> vendorId,
+    required String companyId,
+  }) {
+    final vendors = attachedDatabase.vendors;
+    final inactiveVendorIds = selectOnly(vendors)
+      ..addColumns([vendors.id])
+      ..where(
+        vendors.companyId.equals(companyId) &
+            (vendors.isDeleted.equals(true) | vendors.archivedAt.isNotNull()),
+      );
+    return vendorId.equals('') | vendorId.isNotInQuery(inactiveVendorIds);
   }
 
   /// Predicate matching rows whose client's name matches the free-text

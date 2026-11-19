@@ -14,6 +14,7 @@ class ListTotalsQuery {
     required this.where,
     required this.amount,
     this.less = const [],
+    this.figure,
     this.positiveOnly = false,
     this.currency,
     this.clientId,
@@ -30,6 +31,10 @@ class ListTotalsQuery {
   /// `refunded`).
   final List<GeneratedColumn<String>> less;
 
+  /// Each row's figure worked out in Dart, in place of [amount] less [less]
+  /// — a payment's unapplied money, which needs its `paymentables` JSON.
+  final ListTotalsFigure? figure;
+
   /// Leave out a row whose figure is zero or below (a payment applied in full).
   final bool positiveOnly;
 
@@ -44,6 +49,13 @@ class ListTotalsQuery {
   /// before [clientId].
   final GeneratedColumn<String>? vendorId;
 }
+
+/// [ListTotalsQuery.figure]: the row's figure, from the [reads] columns
+/// (selected alongside [ListTotalsQuery.amount]).
+typedef ListTotalsFigure = ({
+  List<GeneratedColumn<String>> reads,
+  Decimal Function(TypedResult row) of,
+});
 
 /// The currency a row of [table] is in, as SQL: its own [ListTotalsQuery.currency],
 /// else its vendor's, else its client's (the client's own setting, else its
@@ -93,8 +105,9 @@ Expression<String> listTotalsCurrencyExpression(
 }
 
 /// Sums [rows] by currency: each row's amount less its [ListTotalsQuery.less]
-/// columns, in `Decimal`, skipping non-positive figures when
-/// [ListTotalsQuery.positiveOnly]. Currencies keep their first-seen order.
+/// columns — or its [ListTotalsQuery.figure] — in `Decimal`, skipping
+/// non-positive figures when [ListTotalsQuery.positiveOnly]. Currencies keep
+/// their first-seen order.
 Map<String, Decimal> sumListTotalsRows(
   Iterable<TypedResult> rows,
   ListTotalsQuery query,
@@ -102,10 +115,13 @@ Map<String, Decimal> sumListTotalsRows(
 ) {
   final out = <String, Decimal>{};
   for (final row in rows) {
-    var amount = parseMoney(row.read(query.amount));
-    for (final column in query.less) {
-      amount -= parseMoney(row.read(column));
-    }
+    final amount = switch (query.figure) {
+      final figure? => figure.of(row),
+      null => query.less.fold(
+        parseMoney(row.read(query.amount)),
+        (sum, column) => sum - parseMoney(row.read(column)),
+      ),
+    };
     if (query.positiveOnly && amount <= Decimal.zero) continue;
     final id = row.read(currency) ?? '';
     out[id] = (out[id] ?? Decimal.zero) + amount;

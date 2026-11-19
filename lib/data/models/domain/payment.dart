@@ -141,6 +141,51 @@ abstract class Paymentable with _$Paymentable {
   );
 }
 
+/// The part of a payment's `refunded` that refunded money applied to an
+/// invoice, so [PaymentStatusExt.unapplied] does not take it off again. The
+/// server records each invoice refund on its invoice paymentable, returns the
+/// payment's credits first (raising their `refunded`, not the payment's), and
+/// on deleting a reversal credit adds a credit paymentable with no amount
+/// whose `refunded` is cash (`CreditService::deleteCredit`).
+///
+/// The API omits a soft-deleted paymentable, so after an invoice is deleted
+/// this can read low (its refunds are gone) or high (a credit paymentable
+/// deleted with it took its returned credit along) — [unappliedAmount]
+/// bounds the figure it feeds.
+Decimal refundsOfAppliedAmounts(Iterable<Paymentable> paymentables) {
+  var total = Decimal.zero;
+  for (final p in paymentables) {
+    if (p.invoiceId.isNotEmpty) {
+      total += p.refunded;
+    } else if (p.creditId.isNotEmpty) {
+      total += p.amount == Decimal.zero ? p.refunded : -p.refunded;
+    }
+  }
+  return total;
+}
+
+/// A payment's money not yet applied to an invoice and not refunded: its
+/// `amount − applied` (the most the server lets Apply allocate,
+/// `PaymentAppliedValidAmount`) less the refunds of that money — `refunded`
+/// less [refundsOfAppliedAmounts] — and never below zero. The server's
+/// `getPaymentTotalsQuery` (invoiceninja/invoiceninja#13465) reads the same,
+/// and sees the soft-deleted paymentables the API leaves out, so the bounds
+/// only bite on the device (docs/entity-lists.md § A money list's totals
+/// line).
+Decimal unappliedAmount({
+  required Decimal amount,
+  required Decimal applied,
+  required Decimal refunded,
+  required Iterable<Paymentable> paymentables,
+}) {
+  final available = amount - applied;
+  if (available <= Decimal.zero) return Decimal.zero;
+  final refundedOfIt = refunded - refundsOfAppliedAmounts(paymentables);
+  if (refundedOfIt <= Decimal.zero) return available;
+  final left = available - refundedOfIt;
+  return left > Decimal.zero ? left : Decimal.zero;
+}
+
 /// Lightweight invoice reference for the refund flow.
 @freezed
 abstract class PaymentInvoiceRef with _$PaymentInvoiceRef {
@@ -221,8 +266,14 @@ extension PaymentStatusExt on Payment {
   /// user can't see is worse than an odd one.
   bool get hasRefund => refunded != Decimal.zero;
 
-  /// Funds present but not yet allocated to an invoice.
-  Decimal get unapplied => amount - applied;
+  /// Funds present but not yet allocated to an invoice, less what was
+  /// refunded of them — [unappliedAmount].
+  Decimal get unapplied => unappliedAmount(
+    amount: amount,
+    applied: applied,
+    refunded: refunded,
+    paymentables: paymentables,
+  );
 
   bool get hasUnappliedFunds => unapplied > Decimal.zero;
 

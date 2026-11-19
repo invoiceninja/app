@@ -96,12 +96,17 @@ class RecurringExpenseDao
   /// What the active schedules cost per cycle (docs/entity-lists.md § A money
   /// list's totals line): the amount of active recurring expenses — the Active
   /// and Pending tabs together, so never one whose cycles have run out — in
-  /// the expense's own currency.
+  /// the expense's own currency; an archived or deleted client's are left
+  /// out, as the server's `without_deleted_clients` lists do.
   @override
   ListTotalsQuery? listTotalsQuery(String companyId) => ListTotalsQuery(
     where:
         recurringExpenses.statusId.equals(kRecurringExpenseStatusActive) &
-        recurringExpenses.remainingCycles.equals(0).not(),
+        recurringExpenses.remainingCycles.equals(0).not() &
+        clientActiveFilter(
+          clientId: recurringExpenses.clientId,
+          companyId: companyId,
+        ),
     amount: recurringExpenses.amount,
     currency: recurringExpenses.currencyId,
   );

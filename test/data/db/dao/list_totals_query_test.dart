@@ -39,7 +39,8 @@ void main() {
   // Parties: a client in EUR ('3'), one inheriting GBP ('2') from its group,
   // one naming nothing (the company's), a deleted and an archived one in EUR
   // (whose records never count — the server's `without_deleted_clients`); a
-  // vendor in GBP and one naming nothing.
+  // vendor in GBP, one naming nothing, and a deleted and an archived one in GBP
+  // (`without_deleted_vendors`).
   Future<void> client(
     String id, {
     Map<String, Object?> settings = const {},
@@ -64,7 +65,12 @@ void main() {
     ),
   );
 
-  Future<void> vendor(String id, String currencyId) => db.vendorDao.upsert(
+  Future<void> vendor(
+    String id,
+    String currencyId, {
+    bool deleted = false,
+    int? archivedAt,
+  }) => db.vendorDao.upsert(
     VendorsCompanion.insert(
       id: id,
       companyId: co,
@@ -79,6 +85,8 @@ void main() {
       currencyId: currencyId,
       phone: '',
       displayName: id,
+      isDeleted: Value(deleted),
+      archivedAt: Value(archivedAt),
     ),
   );
 
@@ -102,6 +110,8 @@ void main() {
     );
     await vendor('v-gbp', '2');
     await vendor('v-none', '');
+    await vendor('v-gone', '2', deleted: true);
+    await vendor('v-shelved', '2', archivedAt: 5);
   }
 
   test(
@@ -199,8 +209,8 @@ void main() {
     );
   });
 
-  test('payments: amount less applied — never less refunded — of completed '
-      'and partially refunded payments, only where above zero; the '
+  test('payments: amount less applied and the refunds of unapplied money, of '
+      'completed and partially refunded payments, only where above zero; the '
       'payment\'s own currency first, else its client\'s', () async {
     await parties();
     Future<void> payment(
@@ -209,6 +219,7 @@ void main() {
       required String amount,
       String applied = '0',
       String refunded = '0',
+      List<Map<String, Object>>? paymentables,
       String currency = '',
       String client = 'c-eur',
       int? archivedAt,
@@ -224,25 +235,71 @@ void main() {
         amount: Value(amount),
         applied: Value(applied),
         refunded: Value(refunded),
+        paymentables: Value(
+          paymentables == null ? null : jsonEncode(paymentables),
+        ),
         currencyId: Value(currency),
         clientId: Value(client),
         archivedAt: Value(archivedAt),
         isDeleted: Value(deleted),
       ),
     );
+    // 10 refunded of the 40 on an invoice: a refund never lowers `applied`,
+    // so 60 is still unapplied.
     await payment(
       'p-done',
-      status: kPaymentStatusCompleted,
+      status: kPaymentStatusPartiallyRefunded,
       amount: '100',
       applied: '40',
       refunded: '10',
+      paymentables: [
+        {'invoice_id': 'i-1', 'amount': 40, 'refunded': 10},
+      ],
       currency: '1',
     );
+    await payment(
+      'p-completed',
+      status: kPaymentStatusCompleted,
+      amount: '25',
+      applied: '5',
+      paymentables: [
+        {'invoice_id': 'i-0', 'amount': 5, 'refunded': 0},
+      ],
+      currency: '1',
+    );
+    // 10 refunded of the unapplied 30, which no paymentable records.
     await payment(
       'p-refunded-part',
       status: kPaymentStatusPartiallyRefunded,
       amount: '30',
       refunded: '10',
+      paymentables: [],
+    );
+    // 90 cash and a 30 credit on a 100 invoice; refunding 50 of the invoice
+    // returned the credit first, so the payment's `refunded` is the 20 cash.
+    await payment(
+      'p-credit',
+      status: kPaymentStatusPartiallyRefunded,
+      amount: '90',
+      applied: '70',
+      refunded: '20',
+      paymentables: [
+        {'invoice_id': 'i-2', 'amount': 100, 'refunded': 50},
+        {'credit_id': 'cr-1', 'amount': 30, 'refunded': 30},
+      ],
+    );
+    // A reversal credit for the 100 on the invoice was deleted, which refunds
+    // the applied 100 through a credit paymentable with no amount.
+    await payment(
+      'p-reversal',
+      status: kPaymentStatusPartiallyRefunded,
+      amount: '150',
+      applied: '100',
+      refunded: '100',
+      paymentables: [
+        {'invoice_id': 'i-3', 'amount': 100, 'refunded': 0},
+        {'credit_id': 'cr-2', 'amount': 0, 'refunded': 100},
+      ],
     );
     await payment(
       'p-applied-whole',
@@ -254,10 +311,48 @@ void main() {
     // is unapplied.
     await payment(
       'p-applied-refunded',
-      status: kPaymentStatusCompleted,
+      status: kPaymentStatusPartiallyRefunded,
       amount: '10',
       applied: '10',
       refunded: '5',
+      paymentables: [
+        {'invoice_id': 'i-4', 'amount': 10, 'refunded': 5},
+      ],
+    );
+    // A credit paymentable the API no longer sends (deleted with its
+    // invoice) took its returned 30 with it: the refunds of applied money read
+    // 40 against a `refunded` of 10. Never more than `amount − applied`.
+    await payment(
+      'p-lost-credit-row',
+      status: kPaymentStatusPartiallyRefunded,
+      amount: '150',
+      applied: '100',
+      refunded: '10',
+      paymentables: [
+        {'invoice_id': 'i-6', 'amount': 100, 'refunded': 40},
+      ],
+    );
+    // A refunded invoice the API no longer sends (deleted): its 80 reads as
+    // a refund of the unapplied 50. Never below zero, so it takes nothing off
+    // the other payments.
+    await payment(
+      'p-lost-invoice-row',
+      status: kPaymentStatusPartiallyRefunded,
+      amount: '150',
+      applied: '100',
+      refunded: '80',
+      paymentables: [],
+    );
+    // Every unapplied dollar refunded.
+    await payment(
+      'p-unapplied-refunded',
+      status: kPaymentStatusPartiallyRefunded,
+      amount: '50',
+      applied: '20',
+      refunded: '30',
+      paymentables: [
+        {'invoice_id': 'i-5', 'amount': 20, 'refunded': 0},
+      ],
     );
     await payment('p-pending', status: kPaymentStatusPending, amount: '50');
     await payment('p-refunded', status: kPaymentStatusRefunded, amount: '50');
@@ -294,7 +389,7 @@ void main() {
 
     expect(
       await local(() => db.paymentDao.watchListTotals(companyId: co)),
-      dec({'1': '60', '3': '30'}),
+      dec({'1': '80', '3': '140'}),
     );
   });
 
@@ -336,7 +431,7 @@ void main() {
   });
 
   test('purchase orders: the balance of sent and accepted orders, in the '
-      'vendor\'s currency', () async {
+      'vendor\'s currency, never an archived or deleted vendor\'s', () async {
     await parties();
     Future<void> po(
       String id, {
@@ -369,6 +464,8 @@ void main() {
     await po('po-archived', status: '2', archivedAt: 5);
     await po('po-deleted', status: '2', deleted: true);
     await po('po-other', status: '2', company: other);
+    await po('po-gone-vendor', status: '2', vendor: 'v-gone');
+    await po('po-shelved-vendor', status: '2', vendor: 'v-shelved');
 
     expect(
       await local(() => db.purchaseOrderDao.watchListTotals(companyId: co)),
@@ -423,13 +520,14 @@ void main() {
   });
 
   test('recurring expenses: the amount of active ones — never one whose '
-      'cycles have run out', () async {
+      'cycles have run out, nor an archived or deleted client\'s', () async {
     Future<void> recurring(
       String id, {
       required String status,
       String amount = '1000',
       int remainingCycles = -1,
       String lastSentDate = '',
+      String client = '',
       int? archivedAt,
       String company = co,
     }) => db.recurringExpenseDao.upsert(
@@ -443,9 +541,11 @@ void main() {
         currencyId: const Value('2'),
         remainingCycles: Value(remainingCycles),
         lastSentDate: Value(lastSentDate),
+        clientId: Value(client),
         archivedAt: Value(archivedAt),
       ),
     );
+    await parties();
     await recurring(
       're-active',
       status: kRecurringExpenseStatusActive,
@@ -476,10 +576,26 @@ void main() {
       status: kRecurringExpenseStatusActive,
       company: other,
     );
+    await recurring(
+      're-client',
+      status: kRecurringExpenseStatusActive,
+      amount: '2',
+      client: 'c-eur',
+    );
+    await recurring(
+      're-gone-client',
+      status: kRecurringExpenseStatusActive,
+      client: 'c-gone',
+    );
+    await recurring(
+      're-shelved-client',
+      status: kRecurringExpenseStatusActive,
+      client: 'c-shelved',
+    );
 
     expect(
       await local(() => db.recurringExpenseDao.watchListTotals(companyId: co)),
-      dec({'2': '5'}),
+      dec({'2': '7'}),
     );
   });
 

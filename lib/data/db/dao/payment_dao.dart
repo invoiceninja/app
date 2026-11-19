@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:drift/drift.dart';
+import 'package:logging/logging.dart';
 
 import 'package:admin/data/db/dao/_search_fold.dart';
 import 'package:admin/data/db/dao/_distinct_stream.dart';
@@ -10,11 +13,16 @@ import 'package:admin/data/db/dao/base_entity_dao.dart';
 import 'package:admin/data/db/dao/list_totals_query.dart';
 import 'package:admin/data/db/dao/entity_query_helpers.dart';
 import 'package:admin/data/db/tables/payments_table.dart';
+import 'package:admin/data/models/api/payment_api_model.dart';
+import 'package:admin/data/models/domain/payment.dart';
+import 'package:admin/data/models/value/money.dart';
 import 'package:admin/data/models/value/payment_type.dart';
 import 'package:admin/domain/entity_state.dart';
 import 'package:admin/domain/payment_status.dart';
 
 part 'payment_dao.g.dart';
+
+final _log = Logger('PaymentDao');
 
 /// Stable field-id constants used by the list ViewModel for column +
 /// sort selection. Keep in sync with `PaymentRepository.watchPage`.
@@ -115,19 +123,13 @@ class PaymentDao extends BaseEntityDao<$PaymentsTable, PaymentRow>
     _ => null,
   };
 
-  /// Windowed list watch. Filters: state (active/archived/deleted), free-text
-  /// search across number + transaction_reference + private_notes (payload
-  /// JSON extract), optional status set, optional has-unapplied-funds chip
-  /// (filters to rows where `applied < amount` — Decimal comparison via
-  /// CAST). Sort field is one of [PaymentFieldIds].
   /// Money received but not applied (docs/entity-lists.md § A money list's
-  /// totals line): `amount − applied` of completed and partially refunded
-  /// payments, where that is above zero — the row's own `unapplied`. Never
-  /// less `refunded`: a refund does not lower `applied` (the server's
-  /// `PaymentAppliedValidAmount`). In the payment's own currency, else its
-  /// client's; an archived or deleted client's payments are left out. The
-  /// `REAL` comparison — the Unapplied tab's — only narrows the rows read;
-  /// the figure itself is summed in `Decimal`.
+  /// totals line): each completed or partially refunded payment's
+  /// [unappliedAmount] — the row's own `unapplied` — where that is above zero.
+  /// In the payment's own currency, else its client's; an archived or deleted
+  /// client's payments are left out. The `REAL` comparison — the Unapplied
+  /// tab's — only narrows the rows read (`unappliedAmount` is zero unless
+  /// `amount > applied`); the figure itself is worked out in `Decimal`.
   @override
   ListTotalsQuery? listTotalsQuery(String companyId) => ListTotalsQuery(
     where:
@@ -140,12 +142,25 @@ class PaymentDao extends BaseEntityDao<$PaymentsTable, PaymentRow>
         ) &
         clientActiveFilter(clientId: payments.clientId, companyId: companyId),
     amount: payments.amount,
-    less: [payments.applied],
+    figure: (
+      reads: [payments.applied, payments.refunded, payments.paymentables],
+      of: (row) => unappliedAmount(
+        amount: parseMoney(row.read(payments.amount)),
+        applied: parseMoney(row.read(payments.applied)),
+        refunded: parseMoney(row.read(payments.refunded)),
+        paymentables: _storedPaymentables(row.read(payments.paymentables)),
+      ),
+    ),
     positiveOnly: true,
     currency: payments.currencyId,
     clientId: payments.clientId,
   );
 
+  /// Windowed list watch. Filters: state (active/archived/deleted), free-text
+  /// search across number + transaction_reference + private_notes (payload
+  /// JSON extract), optional status set, optional has-unapplied-funds chip
+  /// (filters to rows where `applied < amount` — Decimal comparison via
+  /// CAST). Sort field is one of [PaymentFieldIds].
   Stream<List<PaymentRow>> watchPage({
     required String companyId,
     required int offset,
@@ -502,5 +517,24 @@ extension on Payments {
       "EXISTS (SELECT 1 FROM json_each(COALESCE(paymentables, '[]')) "
       "WHERE json_extract(value, '\$.credit_id') = '$escaped')",
     );
+  }
+}
+
+/// A row's stored `paymentables` JSON (`PaymentRepository._apiToCompanion`)
+/// decoded; none when the column is empty or unreadable, which leaves
+/// [unappliedAmount] reading every refund as one of unapplied money — low,
+/// never high.
+List<Paymentable> _storedPaymentables(String? json) {
+  if (json == null || json.isEmpty) return const [];
+  try {
+    final decoded = jsonDecode(json);
+    if (decoded is! List) return const [];
+    return [
+      for (final m in decoded.whereType<Map<String, dynamic>>())
+        Paymentable.fromApi(PaymentableApi.fromJson(m)),
+    ];
+  } catch (e) {
+    _log.warning('failed to decode stored paymentables: $e');
+    return const [];
   }
 }

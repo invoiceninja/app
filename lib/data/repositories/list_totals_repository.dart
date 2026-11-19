@@ -154,7 +154,8 @@ class ListTotalsRepository implements ListTotalsSource {
     EntityType.credit ||
     EntityType.payment ||
     EntityType.recurringInvoice ||
-    EntityType.expense => const {'client'},
+    EntityType.expense ||
+    EntityType.recurringExpense => const {'client'},
     EntityType.purchaseOrder => const {'vendor'},
     _ => const {},
   };
