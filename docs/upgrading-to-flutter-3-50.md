@@ -70,7 +70,7 @@ Read 2026-11-12 against the 3.50 blog post, its release notes, the breaking-chan
 
 - **`flutter build web --web-content-hash`** puts content hashes in the JS, Wasm and asset names, rewrites `flutter_bootstrap.js` to load them and writes `precache_manifest.json`. It is adopted on upgrade day (§ Upgrade day, in order, step 11), and adopting it means reworking the cache-bust script both web builds run.
 - **`--no-deprecated-js-interop`** on every web build, so no dependency can bring the deprecated libraries back.
-- **Wasm on Safari 26.2+ and Firefox 147+** (about twice the frame rate on heavy pages, per the blog) is opt-in through `wasmAllowList` in a custom `web/flutter_bootstrap.js`, the same file `--pwa-strategy`'s removal will need. Measure with `tools/web_bench` first.
+- **Wasm on Safari 26.2+ and Firefox 147+** (about twice the frame rate on heavy pages, per the blog) is opt-in through `wasmAllowList` in a custom `web/flutter_bootstrap.js`, the same file `--pwa-strategy`'s removal will need. **Adopted November 2026** (docs/web-platform-differences.md § WebAssembly runs in Firefox and Safari too).
 - **`MediaQueryData.reduceMotion`** is new. `InMotion` keys on `disableAnimations` alone, so iOS's Reduce Motion should switch decorative motion off too.
 - **Dart 3.14:** `dart migrate` raises the SDK lower bound (now `^3.11.5`) one minor at a time, with its fixes. Nothing needs the new language features.
 

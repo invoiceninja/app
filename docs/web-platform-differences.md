@@ -35,6 +35,12 @@ Web is a supported target (`flutter run -d chrome`, `flutter build web`). Native
 
 **`dart:io` compiles on web.** Flutter's web toolchain provides a compile-time `dart:io` stub; `import 'dart:io'` does **not** break `flutter build web` — the classes (`File`, `Directory`, `Platform`) throw `UnsupportedError` only when *used* at runtime, so a `kIsWeb` guard before the call suffices (no conditional-import file needed just for the compiler). Prefer `defaultTargetPlatform` + `kIsWeb` over `Platform.isX` in new code (`env.dart` / `support_api.dart` are the reference).
 
+## WebAssembly runs in Firefox and Safari too
+
+**`web/flutter_bootstrap.js` passes `wasmAllowList: {blink: true, gecko: true, webkit: true}`, so every browser that can run the WebAssembly build (dart2wasm + skwasm) gets it.** Flutter 3.50's loader allows it on Chromium alone by default (`flutter.js`: `{blink: true, gecko: false, webkit: false}`), which sent every Firefox and Safari visitor to the slower JavaScript build (dart2js + CanvasKit). A self-hosted beta user on Safari reported high CPU while navigating and scrolling (November 2026), and the benchmark in `docs/web-benchmarks.md` measured navigation frames about twice as fast under WebAssembly in Chrome. The loader still checks each feature it needs (WasmGC, SIMD, js-string builtins, try_table) in the browser and keeps its own Firefox floor of 147, so an older Firefox or Safari falls back to the JavaScript build by itself.
+
+The load call stays on one line: Deploy to Web's JS smoke test rewrites it with `sed` to force the CanvasKit build (`.github/workflows/web.yml`), and `test/lint/web_bootstrap_wasm_test.dart` fails if the two drift apart. The custom bootstrap passes no `serviceWorkerSettings`, so no build registers Flutter's deprecated service worker (the deploy already built with `--pwa-strategy=none`; the demo and `ci.yaml` builds now match it).
+
 ## The browser's toolbar takes the app's background colour, and the app sets it
 
 Safari tints its toolbar (and an installed PWA its title bar, Android Chrome its status bar) from `<meta name="theme-color">`, or, where it ignores the tag, by sampling the page itself. Both pages (`web/index.html`, `tools/web_deploy/boot_page.html`) ship the default pair, lightSand `#F6F4EF` / darkEspresso `#15140F`, keyed on `prefers-color-scheme`, and paint `html, body` the same colours in the shared `loader-style` glue block. Before November 2026 the body was `#888888`, so Safari's toolbar came out grey over a cream app (a self-hosted beta user's report).

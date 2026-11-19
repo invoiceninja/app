@@ -218,9 +218,11 @@ jobs:
           cp -al site/flutter smoke-js/flutter
           cp site/index.html smoke-js/index.html
           rm "smoke-js/flutter/$id/flutter_bootstrap.js"
-          sed 's/_flutter\.loader\.load();/_flutter.loader.load({config:{renderer:"canvaskit"}});/' \
+          # web/flutter_bootstrap.js keeps its load call on one line for this
+          # (test/lint/web_bootstrap_wasm_test.dart holds the two in step).
+          sed 's/_flutter\.loader\.load({config: {/_flutter.loader.load({config: {renderer: "canvaskit", /' \
             "site/flutter/$id/flutter_bootstrap.js" > "smoke-js/flutter/$id/flutter_bootstrap.js"
-          grep -q 'renderer:"canvaskit"' "smoke-js/flutter/$id/flutter_bootstrap.js"
+          grep -q 'renderer: "canvaskit"' "smoke-js/flutter/$id/flutter_bootstrap.js"
 
       - name: Served-files gate (self-hosted)
         run: |
@@ -354,9 +356,9 @@ jobs:
           set -euo pipefail
           cp -al pages smoke-js
           rm smoke-js/flutter_bootstrap.js
-          sed 's/_flutter\.loader\.load();/_flutter.loader.load({config:{renderer:"canvaskit"}});/' \
+          sed 's/_flutter\.loader\.load({config: {/_flutter.loader.load({config: {renderer: "canvaskit", /' \
             pages/flutter_bootstrap.js > smoke-js/flutter_bootstrap.js
-          grep -q 'renderer:"canvaskit"' smoke-js/flutter_bootstrap.js
+          grep -q 'renderer: "canvaskit"' smoke-js/flutter_bootstrap.js
           python3 tools/web_deploy/serve.py pages 8003 &
           server=$!
           python3 tools/web_deploy/serve.py smoke-js 8004 &
