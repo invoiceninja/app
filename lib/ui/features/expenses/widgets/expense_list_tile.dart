@@ -132,12 +132,12 @@ class _ExpenseListTileState extends State<ExpenseListTile> {
     // FormatterScope is in the tree.
     final formatter = FormatterScope.maybeOf(context);
     final formatted = formatter?.money(
-      w.expense.amount,
+      w.expense.grossAmount,
       currencyId: w.expense.currencyId,
     );
     final amountText = (formatted != null && formatted.isNotEmpty)
         ? formatted
-        : _expenseAmountFallback.format(w.expense.amount.toDouble());
+        : _expenseAmountFallback.format(w.expense.grossAmount.toDouble());
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [

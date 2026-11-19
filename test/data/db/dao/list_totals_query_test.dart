@@ -17,6 +17,25 @@ import 'package:admin/domain/recurring_expense_status.dart';
 /// the wrong status, a deleted client's — in several currencies.
 ///
 /// `''` keys the company's currency: a record whose party names none.
+/// An expense payload's taxes, each worth 100 on the amounts the tests use:
+/// 80 at a named 25%, 90 plus 10 stored by amount, and 100 with its 10%
+/// inside it.
+const _exclusiveRate = <String, Object>{
+  'uses_inclusive_taxes': false,
+  'tax_name1': 'VAT',
+  'tax_rate1': 25,
+};
+const _byAmount = <String, Object>{
+  'uses_inclusive_taxes': false,
+  'calculate_tax_by_amount': true,
+  'tax_amount1': 10,
+};
+const _inclusiveRate = <String, Object>{
+  'uses_inclusive_taxes': true,
+  'tax_name1': 'VAT',
+  'tax_rate1': 10,
+};
+
 void main() {
   late AppDatabase db;
 
@@ -473,9 +492,9 @@ void main() {
     );
   });
 
-  test('expenses: marked to be invoiced and on no invoice yet, in the '
-      'expense\'s own currency; one with no client counts, an archived or '
-      'deleted client\'s does not', () async {
+  test('expenses: marked to be invoiced and on no invoice yet, with their '
+      'exclusive taxes, in the expense\'s own currency; one with no client '
+      'counts, an archived or deleted client\'s does not', () async {
     await parties();
     Future<void> expense(
       String id, {
@@ -484,6 +503,7 @@ void main() {
       String amount = '1000',
       String currency = '3',
       String client = '',
+      Map<String, Object> taxes = const {},
       int? archivedAt,
       bool deleted = false,
       String company = co,
@@ -492,7 +512,7 @@ void main() {
         id: id,
         companyId: company,
         updatedAt: 1,
-        payload: '{}',
+        payload: jsonEncode(taxes),
         shouldBeInvoiced: Value(shouldBeInvoiced),
         invoiceId: Value(invoiceId),
         amount: Value(amount),
@@ -512,15 +532,21 @@ void main() {
     await expense('e-archived', archivedAt: 5);
     await expense('e-deleted', deleted: true);
     await expense('e-other', company: other);
+    // As the list rows show it: exclusive taxes added — a named rate, or
+    // the stored amounts when taxed by amount — and inclusive ones not.
+    await expense('e-by-rate', amount: '80', taxes: _exclusiveRate);
+    await expense('e-by-amount', amount: '90', taxes: _byAmount);
+    await expense('e-inclusive', amount: '100', taxes: _inclusiveRate);
 
     expect(
       await local(() => db.expenseDao.watchListTotals(companyId: co)),
-      dec({'3': '10', '': '1.5'}),
+      dec({'3': '310', '': '1.5'}),
     );
   });
 
-  test('recurring expenses: the amount of active ones — never one whose '
-      'cycles have run out, nor an archived or deleted client\'s', () async {
+  test('recurring expenses: the amount of active ones with their exclusive '
+      'taxes — never one whose cycles have run out, nor an archived or '
+      'deleted client\'s', () async {
     Future<void> recurring(
       String id, {
       required String status,
@@ -528,6 +554,7 @@ void main() {
       int remainingCycles = -1,
       String lastSentDate = '',
       String client = '',
+      Map<String, Object> taxes = const {},
       int? archivedAt,
       String company = co,
     }) => db.recurringExpenseDao.upsert(
@@ -535,7 +562,7 @@ void main() {
         id: id,
         companyId: company,
         updatedAt: 1,
-        payload: '{}',
+        payload: jsonEncode(taxes),
         statusId: Value(status),
         amount: Value(amount),
         currencyId: const Value('2'),
@@ -593,9 +620,28 @@ void main() {
       client: 'c-shelved',
     );
 
+    await recurring(
+      're-by-rate',
+      status: kRecurringExpenseStatusActive,
+      amount: '80',
+      taxes: _exclusiveRate,
+    );
+    await recurring(
+      're-by-amount',
+      status: kRecurringExpenseStatusActive,
+      amount: '90',
+      taxes: _byAmount,
+    );
+    await recurring(
+      're-inclusive',
+      status: kRecurringExpenseStatusActive,
+      amount: '100',
+      taxes: _inclusiveRate,
+    );
+
     expect(
       await local(() => db.recurringExpenseDao.watchListTotals(companyId: co)),
-      dec({'2': '7'}),
+      dec({'2': '307'}),
     );
   });
 

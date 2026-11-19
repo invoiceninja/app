@@ -1,4 +1,8 @@
+import 'dart:convert';
+
+import 'package:decimal/decimal.dart';
 import 'package:drift/drift.dart';
+import 'package:logging/logging.dart';
 
 import 'package:admin/data/db/dao/_search_fold.dart';
 import 'package:admin/data/db/dao/_distinct_stream.dart';
@@ -9,10 +13,15 @@ import 'package:admin/data/db/dao/base_entity_dao.dart';
 import 'package:admin/data/db/dao/list_totals_query.dart';
 import 'package:admin/data/db/dao/entity_query_helpers.dart';
 import 'package:admin/data/db/tables/recurring_expenses_table.dart';
+import 'package:admin/data/models/api/recurring_expense_api_model.dart';
+import 'package:admin/data/models/domain/recurring_expense.dart';
+import 'package:admin/data/models/value/money.dart';
 import 'package:admin/domain/entity_state.dart';
 import 'package:admin/domain/recurring_expense_status.dart';
 
 part 'recurring_expense_dao.g.dart';
+
+final _log = Logger('RecurringExpenseDao');
 
 /// Stable field-id constants used by the list ViewModel for column +
 /// sort selection. Keep in sync with `RecurringExpenseRepository.watchPage`.
@@ -89,14 +98,11 @@ class RecurringExpenseDao
   @override
   GeneratedColumn<int>? get updatedAtColumn => recurringExpenses.updatedAt;
 
-  /// Windowed list watch. Filter by state + free-text search + status chip
-  /// (the 5 [kRecurringExpenseStatus*] values, or `null` for "all"). The
-  /// status SQL fragments mirror admin-portal `expense_model.dart:817-854`
-  /// — no computed column, just a tiny SQL switch.
   /// What the active schedules cost per cycle (docs/entity-lists.md § A money
-  /// list's totals line): the amount of active recurring expenses — the Active
-  /// and Pending tabs together, so never one whose cycles have run out — in
-  /// the expense's own currency; an archived or deleted client's are left
+  /// list's totals line): the [RecurringExpense.grossAmount] of active
+  /// recurring expenses, as the list rows show it — the Active and Pending
+  /// tabs together, so never one whose cycles have run out — in the expense's
+  /// own currency; an archived or deleted client's are left
   /// out, as the server's `without_deleted_clients` lists do.
   @override
   ListTotalsQuery? listTotalsQuery(String companyId) => ListTotalsQuery(
@@ -108,9 +114,20 @@ class RecurringExpenseDao
           companyId: companyId,
         ),
     amount: recurringExpenses.amount,
+    figure: (
+      reads: [recurringExpenses.payload],
+      of: (row) => _grossAmount(
+        row.read(recurringExpenses.payload),
+        parseMoney(row.read(recurringExpenses.amount)),
+      ),
+    ),
     currency: recurringExpenses.currencyId,
   );
 
+  /// Windowed list watch. Filter by state + free-text search + status chip
+  /// (the 5 [kRecurringExpenseStatus*] values, or `null` for "all"). The
+  /// status SQL fragments mirror admin-portal `expense_model.dart:817-854`
+  /// — no computed column, just a tiny SQL switch.
   Stream<List<RecurringExpenseRow>> watchPage({
     required String companyId,
     required int offset,
@@ -463,4 +480,19 @@ extension on RecurringExpenses {
         'public_notes',
         'private_notes',
       ]);
+}
+
+/// [RecurringExpense.grossAmount] of a row: its payload's taxes on its
+/// `amount` column. The bare amount when the payload is unreadable.
+Decimal _grossAmount(String? payload, Decimal amount) {
+  try {
+    final json = jsonDecode(payload ?? '');
+    if (json is! Map<String, dynamic>) return amount;
+    return RecurringExpense.fromApi(
+      RecurringExpenseApi.fromJson(json),
+    ).copyWith(amount: amount).grossAmount;
+  } catch (e) {
+    _log.warning('failed to decode a recurring expense payload: $e');
+    return amount;
+  }
 }

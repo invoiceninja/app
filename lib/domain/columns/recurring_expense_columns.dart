@@ -163,8 +163,8 @@ final kAllRecurringExpenseColumns = <RecurringExpenseColumn>[
     width: 130,
     align: ColumnAlign.end,
     cellBuilder: (e, context) =>
-        cellMoney(e.amount, context, currencyId: e.currencyId),
-    valueBuilder: (e) => cellMoneyValue(e.amount),
+        cellMoney(e.grossAmount, context, currencyId: e.currencyId),
+    valueBuilder: (e) => cellMoneyValue(e.grossAmount),
   ),
   RecurringExpenseColumn(
     id: RecurringExpenseFieldIds.invoiceId,

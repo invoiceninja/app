@@ -135,13 +135,13 @@ class _RecurringExpenseListTileState extends State<RecurringExpenseListTile> {
     // no FormatterScope is in the tree.
     final formatter = FormatterScope.maybeOf(context);
     final formatted = formatter?.money(
-      w.recurringExpense.amount,
+      w.recurringExpense.grossAmount,
       currencyId: w.recurringExpense.currencyId,
     );
     final amountText = (formatted != null && formatted.isNotEmpty)
         ? formatted
         : _recurringExpenseAmountFallback.format(
-            w.recurringExpense.amount.toDouble(),
+            w.recurringExpense.grossAmount.toDouble(),
           );
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,

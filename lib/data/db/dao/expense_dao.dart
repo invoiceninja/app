@@ -1,4 +1,8 @@
+import 'dart:convert';
+
+import 'package:decimal/decimal.dart';
 import 'package:drift/drift.dart';
+import 'package:logging/logging.dart';
 
 import 'package:admin/data/db/dao/_search_fold.dart';
 import 'package:admin/data/db/dao/_distinct_stream.dart';
@@ -10,10 +14,15 @@ import 'package:admin/data/db/dao/list_totals_query.dart';
 import 'package:admin/data/db/dao/billing_extra_filters.dart';
 import 'package:admin/data/db/dao/entity_query_helpers.dart';
 import 'package:admin/data/db/tables/expenses_table.dart';
+import 'package:admin/data/models/api/expense_api_model.dart';
+import 'package:admin/data/models/domain/expense.dart';
+import 'package:admin/data/models/value/money.dart';
 import 'package:admin/domain/entity_state.dart';
 import 'package:admin/domain/sidebar_badge_modes.dart';
 
 part 'expense_dao.g.dart';
+
+final _log = Logger('ExpenseDao');
 
 /// Stable field-id constants used by the list ViewModel for column +
 /// sort selection. Keep in sync with `ExpenseRepository.watchPage`.
@@ -100,23 +109,30 @@ class ExpenseDao extends BaseEntityDao<$ExpensesTable, ExpenseRow>
     _ => null,
   };
 
-  /// Windowed list watch. Filters: state (active/archived/deleted), free-text
-  /// search across number + public_notes + private_notes (via payload JSON
-  /// extract). Sort field is one of [ExpenseFieldIds].
   /// Expenses waiting to be billed (docs/entity-lists.md § A money list's
   /// totals line): marked to be invoiced and on no invoice yet — the Pending
-  /// tab's predicate — summed by amount in the expense's own currency. An
-  /// archived or deleted client's expenses are left out; one with no client
-  /// is kept.
+  /// tab's predicate — summed by [Expense.grossAmount], as the list rows show
+  /// it, in the expense's own currency. An archived or deleted client's
+  /// expenses are left out; one with no client is kept.
   @override
   ListTotalsQuery? listTotalsQuery(String companyId) => ListTotalsQuery(
     where:
         expenseClientStatusFilter(expenses, 'pending')! &
         clientActiveFilter(clientId: expenses.clientId, companyId: companyId),
     amount: expenses.amount,
+    figure: (
+      reads: [expenses.payload],
+      of: (row) => _grossAmount(
+        row.read(expenses.payload),
+        parseMoney(row.read(expenses.amount)),
+      ),
+    ),
     currency: expenses.currencyId,
   );
 
+  /// Windowed list watch. Filters: state (active/archived/deleted), free-text
+  /// search across number + public_notes + private_notes (via payload JSON
+  /// extract). Sort field is one of [ExpenseFieldIds].
   Stream<List<ExpenseRow>> watchPage({
     required String companyId,
     required int offset,
@@ -471,4 +487,19 @@ Expression<bool>? expenseClientStatusFilter(Expenses e, String status) {
     'unpaid' => e.isPaid.equals(false),
     _ => null,
   };
+}
+
+/// [Expense.grossAmount] of a row: its payload's taxes on its `amount` column.
+/// The bare amount when the payload is unreadable.
+Decimal _grossAmount(String? payload, Decimal amount) {
+  try {
+    final json = jsonDecode(payload ?? '');
+    if (json is! Map<String, dynamic>) return amount;
+    return Expense.fromApi(
+      ExpenseApi.fromJson(json),
+    ).copyWith(amount: amount).grossAmount;
+  } catch (e) {
+    _log.warning('failed to decode an expense payload: $e');
+    return amount;
+  }
 }

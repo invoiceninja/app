@@ -115,8 +115,8 @@ final List<ExpenseColumn> kAllExpenseColumns = <ExpenseColumn>[
     width: 130,
     align: ColumnAlign.end,
     cellBuilder: (e, context) =>
-        cellMoney(e.amount, context, currencyId: e.currencyId),
-    valueBuilder: (e) => cellMoneyValue(e.amount),
+        cellMoney(e.grossAmount, context, currencyId: e.currencyId),
+    valueBuilder: (e) => cellMoneyValue(e.grossAmount),
   ),
   ExpenseColumn(
     id: ExpenseFieldIds.invoiceId,
