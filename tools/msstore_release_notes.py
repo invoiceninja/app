@@ -3,7 +3,7 @@
 
     PARTNER_CENTER_TENANT_ID=… PARTNER_CENTER_CLIENT_ID=… \\
     PARTNER_CENTER_CLIENT_SECRET=… MS_STORE_PRODUCT_ID=9NG93WNXN797 \\
-    tools/msstore_release_notes.py [--dry-run]
+    tools/msstore_release_notes.py [--dry-run] [--publish-mode Manual] [--no-commit]
     tools/msstore_release_notes.py --print-notes [--build N]   # no network
 
 microsoft-store.yml runs `msstore publish --noCommit`, which uploads the MSIX
@@ -134,6 +134,14 @@ def main():
     parser.add_argument("--build", help="build number (default: pubspec.yaml's)")
     parser.add_argument("--print-notes", action="store_true", help="print the notes and exit")
     parser.add_argument("--dry-run", action="store_true", help="read the submission, change nothing")
+    # A launch is held for review in every store and released together, so its
+    # submission is set to publish by hand and may be left as a draft. Unset,
+    # both keep today's behaviour: whatever mode the last submission had, and
+    # committed (docs/going-live.md).
+    parser.add_argument("--publish-mode", choices=["Immediate", "Manual"],
+                        help="set the submission's targetPublishMode (default: leave it)")
+    parser.add_argument("--no-commit", action="store_true",
+                        help="set the notes but leave the submission as a draft")
     args = parser.parse_args()
 
     notes = notes_for(args.build or pubspec_build())
@@ -182,8 +190,15 @@ def main():
         fail(f"submission {pending} has no listings to put release notes on")
     for listing in listings.values():
         listing.setdefault("baseListing", {})["releaseNotes"] = notes
+    if args.publish_mode:
+        sub["targetPublishMode"] = args.publish_mode
     call(token, "PUT", path, sub)
     print(f"Set releaseNotes on {', '.join(sorted(listings))} ({len(notes)} characters):\n{notes}")
+    if args.publish_mode:
+        print(f"Set targetPublishMode to {args.publish_mode!r}")
+    if args.no_commit:
+        print(f"Left submission {pending} as a draft: commit it in Partner Center.")
+        return
 
     call(token, "POST", f"{path}/commit")
     # From here the submission is committed: a run that turns red now would

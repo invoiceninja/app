@@ -39,6 +39,30 @@ void main() {
     });
   }
 
+  // The launch holds its submission (publish by hand, or a draft); a typo in
+  // the mode must stop the run, never fall back to publishing on its own.
+  test('the launch-hold options parse, and a bad mode is refused', () async {
+    final ok = await Process.run('python3', [
+      'tools/msstore_release_notes.py',
+      '--publish-mode',
+      'Manual',
+      '--no-commit',
+      '--print-notes',
+      '--build',
+      '${digests.last ~/ 10}',
+    ]);
+    expect(ok.exitCode, 0, reason: '${ok.stderr}');
+
+    final bad = await Process.run('python3', [
+      'tools/msstore_release_notes.py',
+      '--publish-mode',
+      'manual',
+      '--print-notes',
+    ]);
+    expect(bad.exitCode, 2);
+    expect(bad.stderr, contains('invalid choice'));
+  });
+
   test('a build with no digest fails', () async {
     final result = await printNotes(999999);
     expect(result.exitCode, 1);
