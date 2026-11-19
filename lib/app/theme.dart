@@ -291,6 +291,11 @@ ThemeData buildInTheme(InTheme baseTokens, {Color? accentOverride}) {
     // pass `backgroundColor: transparent` so the shell here just controls
     // float + rounded shape for any direct `SnackBar` usage that bypasses
     // the helper.
+    // Material waits 0 ms, so a tooltip fired for every control the pointer
+    // merely crossed. A call site sets `InTooltip.hintDelay` only when the
+    // tooltip repeats or adds to a visible label (`docs/tooltip-delays.md`).
+    tooltipTheme: const TooltipThemeData(waitDuration: InTooltip.labelDelay),
+
     snackBarTheme: SnackBarThemeData(
       behavior: SnackBarBehavior.floating,
       shape: RoundedRectangleBorder(

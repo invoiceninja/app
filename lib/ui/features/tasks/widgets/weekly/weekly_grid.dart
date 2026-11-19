@@ -498,7 +498,7 @@ class _WeeklyDurationCellState extends State<WeeklyDurationCell> {
     final tokens = context.inTheme;
     return Tooltip(
       message: '1.5 / 1:30',
-      waitDuration: const Duration(milliseconds: 600),
+      waitDuration: InTooltip.hintDelay,
       child: TextField(
         controller: _controller,
         enabled: !widget.readOnly,

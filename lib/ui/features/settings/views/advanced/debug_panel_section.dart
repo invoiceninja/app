@@ -188,7 +188,7 @@ class _Toolbar extends StatelessWidget {
     // buttons' own tooltips.
     final captureCluster = Tooltip(
       message: context.tr('debug_capture_help'),
-      waitDuration: const Duration(milliseconds: 600),
+      waitDuration: InTooltip.hintDelay,
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [

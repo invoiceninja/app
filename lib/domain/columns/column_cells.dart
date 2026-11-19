@@ -98,7 +98,7 @@ Widget cellLink(
   final tokens = context.inTheme;
   return Tooltip(
     message: context.tr('view'),
-    waitDuration: const Duration(milliseconds: 500),
+    waitDuration: InTooltip.hintDelay,
     child: LinkText(
       label: value,
       onTap: onTap,

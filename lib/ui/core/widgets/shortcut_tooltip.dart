@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:material_ui/material_ui.dart';
 
 import 'package:admin/l10n/localization.dart';
@@ -21,6 +23,7 @@ class ShortcutTooltip extends StatelessWidget {
     this.sequence = false,
     this.waitDuration,
     this.triggerMode,
+    this.positionDelegate,
     required this.child,
   });
 
@@ -28,8 +31,10 @@ class ShortcutTooltip extends StatelessWidget {
   final List<String> keys;
   final bool sequence;
 
-  /// Hover delay before the tooltip appears. Defaults to the Material
-  /// default; pass e.g. 600 ms to match the sidebar's tooltips.
+  /// Hover delay before the tooltip appears. Null takes the theme's
+  /// `InTooltip.labelDelay` — right for an icon-only control, whose tooltip is
+  /// its only label. Pass `InTooltip.hintDelay` when [child] already shows
+  /// [label], so the tooltip only adds the shortcut (`docs/tooltip-delays.md`).
   final Duration? waitDuration;
 
   /// How a *touch* opens the tooltip. Null keeps Material's default
@@ -45,6 +50,11 @@ class ShortcutTooltip extends StatelessWidget {
   /// `MouseRegion` rather than the arena.
   final TooltipTriggerMode? triggerMode;
 
+  /// Where the tooltip goes; null is Material's above / below. A row in a
+  /// vertical stack passes [tooltipBesideTarget], so the tooltip never lands
+  /// on the next row.
+  final TooltipPositionDelegate? positionDelegate;
+
   final Widget child;
 
   @override
@@ -53,6 +63,12 @@ class ShortcutTooltip extends StatelessWidget {
     return Tooltip(
       waitDuration: waitDuration,
       triggerMode: triggerMode,
+      positionDelegate: positionDelegate,
+      // A `richMessage` tooltip takes the pointer by default (Material only
+      // defaults `ignorePointer` on for a plain `message`), so a tooltip drawn
+      // over a neighbouring control stayed open under the pointer and hid
+      // that control from hover and click.
+      ignorePointer: true,
       richMessage: TextSpan(
         children: [
           TextSpan(text: '$label   '),
@@ -68,4 +84,40 @@ class ShortcutTooltip extends StatelessWidget {
       child: child,
     );
   }
+}
+
+/// Places a tooltip beside its target, vertically centred on it, on the
+/// target's end side ([direction]) — the start side when the end has no room,
+/// Material's above / below when neither does.
+///
+/// For a control in a vertical stack (a sidebar row), where above or below
+/// covers the neighbouring row the pointer is about to move to.
+TooltipPositionDelegate tooltipBesideTarget(
+  TextDirection direction, {
+  double gap = 8,
+}) {
+  return (TooltipPositionContext c) {
+    // rtl: physical — the overlay positions in global coordinates; the
+    // reading direction only picks which side is tried first.
+    final halfWidth = c.targetSize.width / 2;
+    final right = c.target.dx + halfWidth + gap;
+    final left = c.target.dx - halfWidth - gap - c.tooltipSize.width;
+    final fitsRight = right + c.tooltipSize.width <= c.overlaySize.width;
+    final fitsLeft = left >= 0;
+    final double? x = direction == TextDirection.ltr
+        ? (fitsRight ? right : (fitsLeft ? left : null))
+        : (fitsLeft ? left : (fitsRight ? right : null));
+    if (x == null) {
+      return positionDependentBox(
+        size: c.overlaySize,
+        childSize: c.tooltipSize,
+        target: c.target,
+        verticalOffset: c.verticalOffset,
+        preferBelow: c.preferBelow,
+      );
+    }
+    final maxY = math.max(0.0, c.overlaySize.height - c.tooltipSize.height);
+    final y = (c.target.dy - c.tooltipSize.height / 2).clamp(0.0, maxY);
+    return Offset(x, y);
+  };
 }

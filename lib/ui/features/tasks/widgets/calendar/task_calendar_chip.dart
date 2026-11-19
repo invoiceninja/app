@@ -31,7 +31,6 @@ class TaskCalendarChip extends StatelessWidget {
         : (task.isInvoiced ? tokens.paid : tokens.border);
     return Tooltip(
       message: taskPrimaryLabel(task),
-      waitDuration: const Duration(milliseconds: 300),
       child: InkWell(
         onTap: () => context.go('/tasks/${task.id}/edit'),
         borderRadius: BorderRadius.circular(InRadii.r1),

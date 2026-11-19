@@ -176,7 +176,7 @@ class _SidebarNavItemState extends State<SidebarNavItem> {
     if (label == null) return badge;
     return Tooltip(
       message: '${widget.count} $label',
-      waitDuration: const Duration(milliseconds: 400),
+      waitDuration: InTooltip.hintDelay,
       // On a tile, `manual` for the same reason the tile's own tooltip uses it
       // — and this one is easy to miss, because it sits *inside* the tile and
       // covers only the badge glyph. A default-trigger tooltip registers its
@@ -458,10 +458,21 @@ class _SidebarNavItemState extends State<SidebarNavItem> {
         child: result,
       );
     }
+    // An expanded row already shows its label, so its tooltip only adds (a
+    // shortcut, "coming soon") and waits the longer hint delay; on the
+    // collapsed rail or a tile the tooltip IS the label and takes the theme's.
+    // Rows open theirs beside the row, never over the next one down — the
+    // pointer is usually on its way there (`docs/tooltip-delays.md`).
+    final labelShown = !widget.compact && !isTile;
+    final rowDelay = labelShown ? InTooltip.hintDelay : null;
+    final beside = isTile
+        ? null
+        : tooltipBesideTarget(Directionality.of(context));
     if (widget.disabled) {
       return Tooltip(
         message: context.tr('coming_soon'),
-        waitDuration: const Duration(milliseconds: 600),
+        waitDuration: rowDelay,
+        positionDelegate: beside,
         child: result,
       );
     }
@@ -477,7 +488,8 @@ class _SidebarNavItemState extends State<SidebarNavItem> {
         label: widget.compact || isTile ? _compactTooltip : widget.label,
         keys: ['G', widget.leaderKey!],
         sequence: true,
-        waitDuration: const Duration(milliseconds: 600),
+        waitDuration: rowDelay,
+        positionDelegate: beside,
         // This branch is reached BEFORE the `isTile` one below, so without
         // this the four entities that have a leader key — client, invoice,
         // product, task — silently lost the manual trigger that branch
@@ -510,7 +522,6 @@ class _SidebarNavItemState extends State<SidebarNavItem> {
       return Tooltip(
         message: _compactTooltip,
         triggerMode: TooltipTriggerMode.manual,
-        waitDuration: const Duration(milliseconds: 600),
         child: result,
       );
     }
@@ -519,7 +530,7 @@ class _SidebarNavItemState extends State<SidebarNavItem> {
       // only thing telling the user what this icon is.
       return Tooltip(
         message: _compactTooltip,
-        waitDuration: const Duration(milliseconds: 600),
+        positionDelegate: beside,
         child: result,
       );
     }

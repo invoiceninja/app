@@ -8,7 +8,7 @@ import 'package:admin/l10n/localization.dart';
 /// back/forward arrows.
 ///
 /// **Why it exists, and why it's touch-only.** The command palette had exactly
-/// two entry points — the `⌘/` shortcut and a hover-revealed icon on the
+/// two entry points — the `⌘K` shortcut and a hover-revealed icon on the
 /// Dashboard row (`_DashboardRowSearchButton`, gated on `MouseRegion.onEnter`).
 /// Neither exists on a phone, so global search across every entity type — plus
 /// the persisted "Recent" list — was unreachable on mobile. On desktop those two

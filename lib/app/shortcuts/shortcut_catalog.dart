@@ -97,12 +97,16 @@ const List<EntityType> kCreateShortcutEntities = <EntityType>[
 /// `new_recurring_invoice`, `new_transaction`, …).
 String _createLabelKey(EntityType type) => 'new_${_snakeEntityName(type)}';
 
-/// The full catalog. The 6 general shortcuts carry the app's current default
-/// bindings; the create actions ship unbound (`defaultBinding: null`).
+/// The full catalog. Five of the 6 general shortcuts carry a default binding
+/// (Switch company ships unbound); the create actions ship unbound (`defaultBinding: null`).
 final List<ShortcutDef> kShortcutCatalog = <ShortcutDef>[
+  // ⌘K / Ctrl+K is the convention for "search / jump to anything" (Slack,
+  // Linear, GitHub, Notion, Discord), so it opens the palette. Switch company
+  // ships unbound and is reached from the palette instead — every chord that
+  // would suit it is taken by some browser (docs/keyboard.md).
   ShortcutDef(
-    id: ShortcutActionIds.openCompanyPicker,
-    labelKey: 'switch_company',
+    id: ShortcutActionIds.openCommandPalette,
+    labelKey: 'search_everything',
     group: ShortcutGroup.general,
     scope: ShortcutScope.global,
     defaultBinding: KeyBinding.logical(
@@ -110,15 +114,11 @@ final List<ShortcutDef> kShortcutCatalog = <ShortcutDef>[
       usesPrimary: true,
     ),
   ),
-  ShortcutDef(
-    id: ShortcutActionIds.openCommandPalette,
-    labelKey: 'search_everything',
+  const ShortcutDef(
+    id: ShortcutActionIds.openCompanyPicker,
+    labelKey: 'switch_company',
     group: ShortcutGroup.general,
     scope: ShortcutScope.global,
-    defaultBinding: KeyBinding.logical(
-      LogicalKeyboardKey.slash.keyId,
-      usesPrimary: true,
-    ),
   ),
   ShortcutDef(
     id: ShortcutActionIds.toggleSidebar,

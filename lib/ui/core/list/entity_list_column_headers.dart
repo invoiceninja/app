@@ -199,11 +199,7 @@ class _HeaderSelectAllSlotState<T> extends State<_HeaderSelectAllSlot<T>> {
     );
     if (onTap != null && !selecting) {
       // A bare box at rest — say what it does.
-      slot = Tooltip(
-        message: context.tr('select_all_visible'),
-        waitDuration: const Duration(milliseconds: 500),
-        child: slot,
-      );
+      slot = Tooltip(message: context.tr('select_all_visible'), child: slot);
     }
     return MouseRegion(
       onEnter: (_) {

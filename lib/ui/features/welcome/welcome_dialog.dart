@@ -962,7 +962,7 @@ class _DensityChoice extends StatelessWidget {
 
 /// The command palette's live shortcut, one cap per key — read from the
 /// user's own bindings, so a rebound shortcut shows what they set, and an
-/// unbound one shows nothing. Never ⌘K: that is Switch company.
+/// unbound one shows nothing.
 class _PaletteKeys extends StatelessWidget {
   const _PaletteKeys();
 
@@ -978,7 +978,7 @@ class _PaletteKeys extends StatelessWidget {
     return ListenableBuilder(
       listenable: shortcuts,
       builder: (context, _) {
-        final binding = shortcuts!.resolvedBinding(
+        final binding = shortcuts!.effectiveBinding(
           ShortcutActionIds.openCommandPalette,
         );
         if (binding == null) return const SizedBox.shrink();

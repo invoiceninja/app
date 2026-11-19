@@ -760,7 +760,7 @@ class _TokenSearchFieldState extends State<TokenSearchField> {
       return context
           .read<Services>()
           .keyboardShortcuts
-          .resolvedBinding(ShortcutActionIds.focusSearch)
+          .effectiveBinding(ShortcutActionIds.focusSearch)
           ?.displayGlyphs(platformModifierLabel());
     } catch (_) {
       // A host with no shortcut controller (a preview, a bare test tree):

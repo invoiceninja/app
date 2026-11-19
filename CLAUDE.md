@@ -168,6 +168,7 @@ Token-based visual language; the Dart port is the sole source of truth.
 - **A fold resizes the app in place: what moves between breakpoint branches keeps one key, a fold is read only through `fold_geometry.dart`, and every `showDialog` passes `anchorPoint`.** → `docs/foldables.md`
 
 - **Always the vertical `⋮`, never the horizontal `⋯`.** → `docs/popup-dismissal.md`
+- **Tooltip delays are `InTooltip` tiers, never a literal.** → `docs/tooltip-delays.md`
 - **Touch targets are gated on the platform, not the viewport** — and five traps each silently produce the wrong size (full text of each: `docs/touch-targets.md`):
 
 1. A row floor is `ConstrainedBox(minHeight:)`, never `SizedBox(height:)` — a fixed height slices descenders at large text scale.

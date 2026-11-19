@@ -356,7 +356,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
   List<String>? _focusSearchGlyphs(BuildContext context) {
     try {
       return _services.keyboardShortcuts
-          .resolvedBinding(ShortcutActionIds.focusSearch)
+          .effectiveBinding(ShortcutActionIds.focusSearch)
           ?.displayGlyphs(platformModifierLabel());
     } catch (_) {
       // A host with no shortcut controller (a preview, a bare test tree):

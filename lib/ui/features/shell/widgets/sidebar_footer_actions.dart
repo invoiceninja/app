@@ -254,7 +254,6 @@ class _CollapsedHelpMenuState extends State<_CollapsedHelpMenu> {
       ],
       builder: (context, controller, _) => Tooltip(
         message: context.tr('help'),
-        waitDuration: const Duration(milliseconds: 600),
         child: IconButton(
           key: _anchorKey,
           // Same sizing as the toggle below it — see [_CollapseToggleButton].
@@ -292,7 +291,6 @@ class _CollapseToggleButton extends StatelessWidget {
     final tokens = context.inTheme;
     return Tooltip(
       message: context.tr(collapsed ? 'show_sidebar' : 'hide_sidebar'),
-      waitDuration: const Duration(milliseconds: 600),
       child: IconButton(
         // The theme sets `IconButton.minimumSize = Size.fromHeight(44)` via
         // the surrounding button defaults; without these overrides the
@@ -366,7 +364,6 @@ class _FooterAction extends StatelessWidget {
     final tokens = context.inTheme;
     return Tooltip(
       message: context.tr(tooltipKey),
-      waitDuration: const Duration(milliseconds: 600),
       child: Material(
         color: Colors.transparent,
         borderRadius: BorderRadius.circular(InRadii.r2),
@@ -478,7 +475,6 @@ class SidebarCompanyFooterAction extends StatelessWidget {
       // adds a second one.
       excludeFromSemantics: true,
       message: label,
-      waitDuration: const Duration(milliseconds: 600),
       child: Semantics(
         button: true,
         label: label,
@@ -526,7 +522,6 @@ class _ThemeFooterActionState extends State<_ThemeFooterAction> {
     final theme = context.read<Services>().theme;
     return Tooltip(
       message: context.tr('appearance'),
-      waitDuration: const Duration(milliseconds: 600),
       child: Material(
         key: _anchorKey,
         color: Colors.transparent,

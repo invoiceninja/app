@@ -51,7 +51,9 @@
 
   <!-- Installed-window title bar / Android status bar. manifest.json can only
        carry one theme_color, so these override it per system theme with the
-       design system's own bg / deep ink (lib/app/design_tokens.dart). -->
+       design system's own bg / deep ink (lib/app/design_tokens.dart). The
+       running app then sets them to the user's own theme
+       (applyBrowserChromeColor, docs/web-platform-differences.md). -->
   <meta name="theme-color" content="#F6F4EF" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#15140F" media="(prefers-color-scheme: dark)">
 
@@ -63,7 +65,15 @@
     /* Boot loader shown until Flutter paints its first frame. Ported from
        admin-portal/web/index.html — three-dot spinner from
        https://projects.lukehaas.me/css-loaders/ */
-    body { margin: 0; background-color: #888888; }
+    /* The app's default background and ink (lightSand / darkEspresso in
+       lib/app/design_tokens.dart), so the boot matches the first frame and a
+       browser that tints its toolbar from the page (Safari) gets the app's
+       colour, not grey. Once running, the app sets both itself to whatever
+       theme the user picked (applyBrowserChromeColor). */
+    html, body { margin: 0; background-color: #F6F4EF; color: #1A1814; }
+    @media (prefers-color-scheme: dark) {
+      html, body { background-color: #15140F; color: #F6F4EF; }
+    }
     #loader {
       position: absolute;
       inset: 0;
@@ -83,7 +93,7 @@
       animation: load7 1.8s infinite ease-in-out;
     }
     .loader {
-      color: #ffffff;
+      color: #857F73;
       font-size: 10px;
       position: relative;
       text-indent: -9999em;
@@ -169,11 +179,11 @@
         var el = document.getElementById('loader');
         if (!el) return;
         el.innerHTML =
-          '<div style="font-family:system-ui,-apple-system,sans-serif;color:#fff;' +
+          '<div style="font-family:system-ui,-apple-system,sans-serif;color:inherit;' +
           'text-align:center;max-width:320px;padding:24px;line-height:1.5">' +
           '<div style="margin-bottom:16px">This is taking longer than expected.</div>' +
           '<button onclick="window.location.reload()" ' +
-          'style="font:inherit;color:#1f2937;background:#fff;border:0;' +
+          'style="font:inherit;color:#1f2937;background:#fff;border:1px solid #d6d1c6;' +
           'border-radius:6px;padding:8px 22px;cursor:pointer">Reload</button>' +
           '</div>';
       }, 30000);

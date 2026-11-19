@@ -11,7 +11,8 @@ import 'package:admin/ui/features/shell/widgets/company_picker.dart';
 /// [anchorKey]'s render box, top-aligned with it and opening beside it on the
 /// content side — rightwards, or leftwards in a right-to-left locale, where
 /// the rail sits at the right. When no
-/// anchorKey is provided — e.g. for the ⌘K shortcut — the picker centres
+/// anchorKey is provided — e.g. for a user-bound Switch company shortcut, or
+/// the palette's Switch Company row — the picker centres
 /// itself in the viewport.
 ///
 /// On narrow layouts the picker comes up as a scrollable bottom sheet that
@@ -131,7 +132,8 @@ class _PositionedPicker extends StatelessWidget {
           : topLeft!.dx + anchorSize!.width + margin;
       top = topLeft!.dy;
     } else {
-      // ⌘K with no anchor — centre horizontally, offset a bit from the top.
+      // No anchor (a shortcut, the palette) — centre horizontally, offset a
+      // bit from the top.
       left = (screen.width - pickerWidth) / 2;
       top = 80;
     }

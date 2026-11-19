@@ -6,7 +6,7 @@ import 'package:admin/app/design_tokens.dart';
 /// (e.g. `⌘`, `K`, `Esc`, `↵`) in a bordered, monospaced badge.
 ///
 /// The shared visual language for keyboard hints across the app: the
-/// Keyboard Shortcuts help dialog, the command palette's `⌘ /` hint, the
+/// Keyboard Shortcuts help dialog, the command palette's `⌘ K` hint, the
 /// hold-modifier hint bar, and hover shortcut tooltips. Reads tokens via
 /// `context.inTheme` so it tracks light/dark automatically.
 ///

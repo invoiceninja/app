@@ -48,7 +48,7 @@ void main() {
     expect(restored.resolvedBinding(ShortcutActionIds.focusSearch), isNull);
     // Untouched actions still resolve to their catalog default.
     expect(
-      restored.resolvedBinding(ShortcutActionIds.openCompanyPicker),
+      restored.resolvedBinding(ShortcutActionIds.openCommandPalette),
       KeyBinding.logical(LogicalKeyboardKey.keyK.keyId, usesPrimary: true),
     );
   });

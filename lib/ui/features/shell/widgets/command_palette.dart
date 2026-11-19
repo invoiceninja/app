@@ -12,7 +12,10 @@ import 'package:admin/app/router.dart';
 import 'package:admin/app/env.dart';
 import 'package:admin/app/review_prompt_controller.dart';
 import 'package:admin/app/services.dart';
+import 'package:admin/app/shortcuts/key_binding.dart';
+import 'package:admin/app/shortcuts/shortcut_catalog.dart';
 import 'package:admin/data/models/domain/company.dart';
+import 'package:admin/data/repositories/auth_repository.dart';
 import 'package:admin/data/models/domain/recent_record.dart';
 import 'package:admin/data/models/domain/search_result.dart';
 import 'package:admin/domain/entity_registry.dart';
@@ -32,6 +35,8 @@ import 'package:admin/utils/search_fold.dart';
 import 'package:admin/ui/core/utils/external_url.dart';
 import 'package:admin/ui/features/feedback/contact_us_dialog.dart';
 import 'package:admin/ui/features/shell/widgets/sidebar_footer_actions.dart';
+import 'package:admin/ui/features/shell/widgets/show_company_picker.dart';
+import 'package:admin/ui/features/shell/widgets/switch_company_guarded.dart';
 import 'package:admin/ui/core/fold_geometry.dart';
 
 /// Search-result group key for a pasted record deep link. Renders as its own
@@ -183,6 +188,28 @@ const _kHelpTerms = [
   'forum',
 ];
 
+/// The group of the palette's company hits — "Switch Company" (opens the
+/// picker) and the user's other companies by name (switches straight to one).
+/// Also its heading's key ("Company"). ⌘K belongs to the palette, so this is
+/// how the keyboard reaches the switcher (docs/keyboard.md).
+const String kCompanySearchGroup = 'company';
+
+/// What someone after the company switcher types, beside the translated
+/// labels. English, like the other term lists.
+const _kSwitchCompanyTerms = [
+  'switch company',
+  'change company',
+  'company',
+  'companies',
+  'account',
+  'workspace',
+  'organization',
+  'organisation',
+];
+
+/// Most companies the palette lists for one query; the picker lists them all.
+const _kMaxCompanyHits = 8;
+
 /// Groups whose row describes a **contact**, not the record it routes to.
 ///
 /// `SearchController::mapResults` puts the CONTACT's `hashed_id` in `id` and
@@ -210,7 +237,7 @@ String recordIdForSearchHit(SearchResult r) {
   return segments.isEmpty ? r.id : segments.last;
 }
 
-/// Cmd/Ctrl+/ global command palette. Server-backed search
+/// Cmd/Ctrl+K global command palette. Server-backed search
 /// (`SearchApi`) across all entities + settings; arrow/enter/escape
 /// keyboard nav; selection routes via the entity registry (or the
 /// server path for settings).
@@ -443,6 +470,7 @@ class _CommandPaletteState extends State<_CommandPalette> {
         ..._localWhatsNewHits(q),
         ..._localRateAppHits(q),
         ..._localHelpHits(q),
+        ..._localCompanyHits(q),
         ..._localSettingsHits(q),
       ];
       setState(() {
@@ -463,6 +491,7 @@ class _CommandPaletteState extends State<_CommandPalette> {
           ..._localWhatsNewHits(q),
           ..._localRateAppHits(q),
           ..._localHelpHits(q),
+          ..._localCompanyHits(q),
           ..._localSettingsHits(q),
         ];
         _selected = 0;
@@ -559,6 +588,95 @@ class _CommandPaletteState extends State<_CommandPalette> {
         hit(_kHelpForum, context.tr('support_forum')),
       ],
     ];
+  }
+
+  /// "Switch Company" for "company", "switch", "account" and the like, and
+  /// every other company of this login whose name matches every word typed.
+  /// The current company is never offered: switching to it does nothing.
+  List<SearchResult> _localCompanyHits(String query) {
+    final session = context.read<Services>().auth.session.value;
+    if (session == null) return const [];
+    final needle = query.trim().toLowerCase();
+    final label = context.tr('switch_company');
+    final terms = [
+      ..._kSwitchCompanyTerms,
+      label.toLowerCase(),
+      context.tr('company').toLowerCase(),
+    ];
+    final wantsSwitcher =
+        needle.length >= 3 &&
+        terms.any((t) => t.startsWith(needle) || t.contains(' $needle'));
+    final words = foldedSearchWords(query);
+    final companies = words.isEmpty
+        ? const <AuthCompany>[]
+        : session.companies
+              .where(
+                (c) =>
+                    c.id != session.currentCompanyId &&
+                    fieldsMatchEveryWord(words, [c.displayName]),
+              )
+              .take(_kMaxCompanyHits)
+              .toList();
+    return [
+      if (wantsSwitcher)
+        SearchResult(group: kCompanySearchGroup, name: label, id: '', path: ''),
+      for (final c in companies)
+        SearchResult(
+          group: kCompanySearchGroup,
+          name: c.displayName,
+          id: c.id,
+          path: '',
+        ),
+    ];
+  }
+
+  /// Switches to company [id] the way a pick in the company picker does
+  /// (`CompanyPicker._pick`): the same guards, the same "stay on this page"
+  /// landing (`companySafeLocation`), and the palette held open — its progress
+  /// bar running — until the switch resolves. A switch into a company whose
+  /// token is missing waits on a full `/refresh`; closing first left an
+  /// unchanged shell on screen for that long before any toast arrived.
+  Future<void> _switchToCompany(String id, String name) async {
+    // One switch at a time: a second Enter or click while the first is still
+    // resolving would otherwise run its guards and switch again.
+    if (_switchingCompany) return;
+    _switchingCompany = true;
+    try {
+      await _runCompanySwitch(id, name);
+    } finally {
+      _switchingCompany = false;
+    }
+  }
+
+  bool _switchingCompany = false;
+
+  Future<void> _runCompanySwitch(String id, String name) async {
+    final services = context.read<Services>();
+    final router = GoRouter.maybeOf(context);
+    final currentLocation =
+        router?.routerDelegate.currentConfiguration.uri.toString() ??
+        '/clients';
+    final routePaths = services.entityRegistry.uiRoutePaths;
+    final nav = Navigator.of(context);
+    final outcome = await switchCompanyGuarded(
+      context,
+      id,
+      companyName: name,
+      onSwitchStart: () {
+        if (mounted) setState(() => _loading = true);
+      },
+      onSwitchEnd: () {
+        if (mounted) setState(() => _loading = false);
+      },
+    );
+    // Cancelled at a guard: the palette stays open and the user stays put.
+    if (outcome == null) return;
+    // Only pop what is still ours — a 401 during a healing refresh replaces
+    // the stack (the same reason `CompanyPicker._pick` checks).
+    if (mounted) unawaited(nav.maybePop());
+    if (outcome == SwitchCompanyResult.ok) {
+      router?.go(companySafeLocation(currentLocation, routePaths));
+    }
   }
 
   /// "Rate the app" (docs/review-prompt.md) — a static link to the review
@@ -721,6 +839,19 @@ class _CommandPaletteState extends State<_CommandPalette> {
       }
       return;
     }
+    if (r.group == kCompanySearchGroup) {
+      // The picker opens from the root navigator's context, which outlives
+      // this palette; a company row switches with the picker's own guards
+      // (unsaved form, unsynced outbox) while the palette stays up.
+      if (r.id.isEmpty) {
+        final host = Navigator.of(context, rootNavigator: true).context;
+        Navigator.of(context).pop();
+        unawaited(showCompanyPicker(host));
+      } else {
+        await _switchToCompany(r.id, r.name);
+      }
+      return;
+    }
     if (r.group == kWelcomeSearchGroup) {
       // Over the current screen, like the release notes below.
       final host = Navigator.of(context, rootNavigator: true).context;
@@ -761,6 +892,20 @@ class _CommandPaletteState extends State<_CommandPalette> {
     }
   }
 
+  /// The palette's own shortcut as display glyphs, or null when it is unbound
+  /// (or the tree has no shortcut controller, as in a bare widget test).
+  List<String>? _paletteGlyphs(BuildContext context) {
+    KeyBinding? binding;
+    try {
+      binding = context.read<Services>().keyboardShortcuts.effectiveBinding(
+        ShortcutActionIds.openCommandPalette,
+      );
+    } catch (_) {
+      binding = null;
+    }
+    return binding?.displayGlyphs(platformModifierLabel());
+  }
+
   /// The keyboard affordance row under the results / recents lists:
   /// `[↑][↓] Navigate  [Enter] Select  [Esc] Close`.
   ///
@@ -796,7 +941,7 @@ class _CommandPaletteState extends State<_CommandPalette> {
   /// nothing to catch it.
   ///
   /// Keyboard-only, so the callers hide the whole row on a phone along with
-  /// the `⌘ /` chip: a divider plus glyphs nobody can press, in a dialog that
+  /// the `⌘ K` chip: a divider plus glyphs nobody can press, in a dialog that
   /// is short on height exactly there. Nothing is stranded — the barrier is
   /// dismissible, Android back pops the route, and the field carries a close
   /// button on every touch device.
@@ -893,7 +1038,7 @@ class _CommandPaletteState extends State<_CommandPalette> {
         prefixIcon: Icon(Icons.search, size: 26, color: tokens.ink3),
         hintText: context.tr('search'),
         hintStyle: TextStyle(fontSize: 22, color: tokens.ink3),
-        // Two independent affordances, not an either/or. The `⌘/` chip is
+        // Two independent affordances, not an either/or. The `⌘K` chip is
         // keyboard-only; the close button is gated on touch because a
         // **tablet** — touch, but not `isPhone` — reaches this card from the
         // sidebar's Search box (itself mounted on `Env.isTouchPrimary`) and
@@ -906,11 +1051,14 @@ class _CommandPaletteState extends State<_CommandPalette> {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // One cap per glyph — `[⌘][/]`, not a single `⌘/` cap, which
-              // rendered `Ctrl/` with no gap on Windows and Linux. Default
+              // One cap per glyph — `[⌘][K]`, not a single `⌘K` cap, which
+              // rendered `CtrlK` with no gap on Windows and Linux. Default
               // ink, like every other KeyCap in the app; this chip was the
-              // only dimmed one (invoiceninja/flutter#103).
-              KeyCapRow(keys: [platformModifierLabel(), '/']),
+              // only dimmed one (invoiceninja/flutter#103). The user's own
+              // binding, so a rebound palette shows what they set and an
+              // unbound one shows nothing.
+              if (_paletteGlyphs(context) case final keys?)
+                KeyCapRow(keys: keys),
               if (touch)
                 IconButton(
                   icon: const Icon(Icons.close, size: 22),
@@ -1047,6 +1195,10 @@ class _CommandPaletteState extends State<_CommandPalette> {
                         ? Icons.new_releases_outlined
                         : r.group == kRateAppSearchGroup
                         ? Icons.star_outline
+                        : r.group == kCompanySearchGroup
+                        ? (r.id.isEmpty
+                              ? Icons.unfold_more
+                              : Icons.business_outlined)
                         : r.group == kHelpSearchGroup
                         ? switch (r.id) {
                             _kHelpUserGuide => Icons.help_outline,

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -107,13 +109,11 @@ void main() {
     // If any of these change, the shell's live map changed too — update
     // deliberately. History ⌘/Alt+Arrow stays fixed (merged in the shell, not
     // here) and the G-leader is handled by the Focus, so neither appears.
+    // ⌘K moved from Switch company to the palette in November 2026
+    // (docs/keyboard.md); Switch company ships unbound.
     final expectedDefaults = <String, KeyBinding>{
-      ShortcutActionIds.openCompanyPicker: KeyBinding.logical(
-        LogicalKeyboardKey.keyK.keyId,
-        usesPrimary: true,
-      ),
       ShortcutActionIds.openCommandPalette: KeyBinding.logical(
-        LogicalKeyboardKey.slash.keyId,
+        LogicalKeyboardKey.keyK.keyId,
         usesPrimary: true,
       ),
       ShortcutActionIds.toggleSidebar: KeyBinding.logical(
@@ -135,11 +135,16 @@ void main() {
       });
     });
 
-    test('the global activator set is exactly the 10 historical entries', () {
+    test('Switch company ships unbound — ⌘K is the palette\'s', () {
+      final c = KeyboardShortcutsController();
+      expect(c.resolvedBinding(ShortcutActionIds.openCompanyPicker), isNull);
+    });
+
+    test('the global activator set is exactly 8 entries', () {
       final c = KeyboardShortcutsController();
       final map = c.activatorsFor(ShortcutScope.global, _allIntents());
-      // 4 primary chords (×2 = meta+control) + 2 character triggers = 10.
-      expect(map.length, 10);
+      // 3 primary chords (×2 = meta+control) + 2 character triggers = 8.
+      expect(map.length, 8);
     });
 
     test('create actions ship unbound → contribute no activators', () {
@@ -149,13 +154,13 @@ void main() {
       }
     });
 
-    test('company-picker maps to both meta + control; help maps once', () {
+    test('the palette maps to both meta + control; help maps once', () {
       final c = KeyboardShortcutsController();
       final intents = _allIntents();
       final map = c.activatorsFor(ShortcutScope.global, intents);
-      final company = intents[ShortcutActionIds.openCompanyPicker];
+      final palette = intents[ShortcutActionIds.openCommandPalette];
       final help = intents[ShortcutActionIds.openKeyboardShortcuts];
-      expect(map.values.where((v) => identical(v, company)).length, 2);
+      expect(map.values.where((v) => identical(v, palette)).length, 2);
       expect(map.values.where((v) => identical(v, help)).length, 1);
     });
 
@@ -166,7 +171,7 @@ void main() {
   });
 
   group('three-state resolution', () {
-    const id = ShortcutActionIds.openCompanyPicker;
+    const id = ShortcutActionIds.openCommandPalette;
     final defaultBinding = KeyBinding.logical(
       LogicalKeyboardKey.keyK.keyId,
       usesPrimary: true,
@@ -201,7 +206,7 @@ void main() {
       final map = c.activatorsFor(ShortcutScope.global, intents);
       final search = intents[ShortcutActionIds.focusSearch];
       expect(map.values.where((v) => identical(v, search)), isEmpty);
-      expect(map.length, 9); // 10 minus the cleared '/'
+      expect(map.length, 7); // 8 minus the cleared '/'
     });
 
     test('resetAll clears every override', () {
@@ -234,7 +239,7 @@ void main() {
         KeyBinding.logical(LogicalKeyboardKey.keyK.keyId, usesPrimary: true),
       );
       final conflicts = c.conflictingIds();
-      expect(conflicts, contains(ShortcutActionIds.openCompanyPicker));
+      expect(conflicts, contains(ShortcutActionIds.openCommandPalette));
       expect(conflicts, contains(createId));
     });
 
@@ -242,10 +247,9 @@ void main() {
       expect(KeyboardShortcutsController().conflictingIds(), isEmpty);
     });
 
-    test('a clashing binding loses to the earlier catalog entry', () {
-      // "First catalog entry wins" has to be enforced, not incidental — the
-      // activator types use identity equality, so a Map keyed by them can't
-      // dedupe on its own.
+    test('a binding the user set beats a default on the same chord', () {
+      // ⌘K moved to the palette by default; someone who had already given
+      // ⌘K to another action keeps it rather than losing it to the move.
       final c = KeyboardShortcutsController();
       final createId = ShortcutActionIds.create(kCreateShortcutEntities.first);
       c.setBinding(
@@ -256,14 +260,78 @@ void main() {
       final map = c.activatorsFor(ShortcutScope.global, intents);
       expect(
         map.values,
-        contains(intents[ShortcutActionIds.openCompanyPicker]),
-        reason: 'the earlier catalog entry keeps the chord',
+        contains(intents[createId]),
+        reason: 'the user-set binding keeps the chord',
       );
       expect(
         map.values,
-        isNot(contains(intents[createId])),
-        reason: 'the later, clashing entry contributes nothing',
+        isNot(contains(intents[ShortcutActionIds.openCommandPalette])),
+        reason: 'the default that clashes with it contributes nothing',
       );
+      expect(
+        c.conflictingIds(),
+        containsAll([createId, ShortcutActionIds.openCommandPalette]),
+        reason: 'and Settings still flags both rows',
+      );
+    });
+
+    test('Switch company set to ⌘K keeps it over the palette default', () {
+      final c = KeyboardShortcutsController();
+      c.setBinding(
+        ShortcutActionIds.openCompanyPicker,
+        KeyBinding.logical(LogicalKeyboardKey.keyK.keyId, usesPrimary: true),
+      );
+      final intents = _allIntents();
+      final map = c.activatorsFor(ShortcutScope.global, intents);
+      final company = intents[ShortcutActionIds.openCompanyPicker];
+      expect(map.values.where((v) => identical(v, company)).length, 2);
+      expect(
+        map.values,
+        isNot(contains(intents[ShortcutActionIds.openCommandPalette])),
+      );
+    });
+
+    test('effectiveBinding drops a chord the action lost', () {
+      // The surfaces that advertise a key (palette chip, hint bar, `?`
+      // dialog) must not offer ⌘K for the palette when ⌘K creates a client.
+      final c = KeyboardShortcutsController();
+      final createId = ShortcutActionIds.create(kCreateShortcutEntities.first);
+      final cmdK = KeyBinding.logical(
+        LogicalKeyboardKey.keyK.keyId,
+        usesPrimary: true,
+      );
+      expect(c.effectiveBinding(ShortcutActionIds.openCommandPalette), cmdK);
+      c.setBinding(createId, cmdK);
+      expect(c.effectiveBinding(ShortcutActionIds.openCommandPalette), isNull);
+      expect(c.resolvedBinding(ShortcutActionIds.openCommandPalette), cmdK);
+      expect(c.effectiveBinding(createId), cmdK);
+    });
+
+    test('effectiveBinding is null for an unbound action', () {
+      final c = KeyboardShortcutsController();
+      expect(c.effectiveBinding(ShortcutActionIds.openCompanyPicker), isNull);
+    });
+
+    test('between two user-set bindings the earlier catalog entry wins', () {
+      // "First catalog entry wins" has to be enforced, not incidental — the
+      // activator types use identity equality, so a Map keyed by them can't
+      // dedupe on its own.
+      final c = KeyboardShortcutsController();
+      final createId = ShortcutActionIds.create(kCreateShortcutEntities.first);
+      final chord = KeyBinding.logical(
+        LogicalKeyboardKey.keyJ.keyId,
+        usesPrimary: true,
+      );
+      c.setBinding(ShortcutActionIds.openCompanyPicker, chord);
+      c.setBinding(createId, chord);
+      final intents = _allIntents();
+      final map = c.activatorsFor(ShortcutScope.global, intents);
+      expect(
+        map.values,
+        contains(intents[ShortcutActionIds.openCompanyPicker]),
+        reason: 'the earlier catalog entry keeps the chord',
+      );
+      expect(map.values, isNot(contains(intents[createId])));
     });
 
     // A recorded chord is always a logical key, but two catalog defaults are
@@ -300,9 +368,14 @@ void main() {
     });
 
     test('a primary-modified key does NOT conflict with the bare glyph', () {
-      // ⌘/ is search_everything's default and must not be reported as clashing
-      // with the bare `/` focus-search default — the modifier disambiguates.
-      expect(KeyboardShortcutsController().conflictingIds(), isEmpty);
+      // A ⌘/ binding must not be reported as clashing with the bare `/`
+      // focus-search default — the modifier disambiguates.
+      final c = KeyboardShortcutsController();
+      c.setBinding(
+        ShortcutActionIds.openCompanyPicker,
+        KeyBinding.logical(LogicalKeyboardKey.slash.keyId, usesPrimary: true),
+      );
+      expect(c.conflictingIds(), isEmpty);
     });
 
     test('a primary chord conflicts with the same key on either modifier', () {
@@ -322,6 +395,20 @@ void main() {
   });
 
   group('persistence round-trip (in-memory codec)', () {
+    test('a stored override equal to the default is dropped on restore', () {
+      // Someone who cleared Switch company when it owned ⌘K: now that it
+      // ships unbound the clear is the default, and keeping it would show a
+      // Reset that does nothing.
+      final c = KeyboardShortcutsController();
+      c.restoreFromJson(
+        '{"${ShortcutActionIds.openCompanyPicker}": null, '
+        '"${ShortcutActionIds.toggleSidebar}": '
+        '${jsonEncode(KeyBinding.logical(LogicalKeyboardKey.keyB.keyId, usesPrimary: true).toJson())}}',
+      );
+      expect(c.isOverridden(ShortcutActionIds.openCompanyPicker), isFalse);
+      expect(c.isOverridden(ShortcutActionIds.toggleSidebar), isFalse);
+    });
+
     test('overridesToJson → restoreFromJson preserves custom + cleared', () {
       final c = KeyboardShortcutsController();
       c.setBinding(

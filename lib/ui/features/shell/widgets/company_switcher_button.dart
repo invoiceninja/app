@@ -1,6 +1,12 @@
 import 'package:material_ui/material_ui.dart';
 
+import 'package:provider/provider.dart';
+
 import 'package:admin/app/design_tokens.dart';
+import 'package:admin/app/services.dart';
+import 'package:admin/app/shortcuts/key_binding.dart';
+import 'package:admin/app/shortcuts/keyboard_shortcuts_controller.dart';
+import 'package:admin/app/shortcuts/shortcut_catalog.dart';
 import 'package:admin/data/repositories/auth_repository.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/utils/platform_modifier.dart';
@@ -20,7 +26,7 @@ const int kCompanyNameTooltipThreshold = 22;
 /// company is missing from the session (issue #16 — a null `token` in the
 /// login/refresh envelope used to drop the whole entry), the user was left with
 /// an unresponsive button and no way to see what the app thought it knew. The
-/// picker is also the sidebar's only Sign-out entry, and the ⌘K path
+/// picker is also the sidebar's only Sign-out entry, and the shortcut path
 /// (`scaffold_with_nav.dart`) never had the gate — so this is the consistent
 /// behavior, not a new affordance.
 ///
@@ -135,10 +141,36 @@ class _CompanySwitcherButtonState extends State<CompanySwitcherButton> {
       ),
     );
 
-    return ShortcutTooltip(
-      label: context.tr('switch_company'),
-      keys: [platformModifierLabel(), 'K'],
-      child: button,
+    // Expanded, the button shows the company and the tooltip only adds to it;
+    // on the collapsed rail it is an avatar and the tooltip is its label.
+    final delay = widget.compact ? null : InTooltip.hintDelay;
+    // The user's own binding, never a hardcoded chord: Switch company ships
+    // unbound (⌘K is the palette's, docs/keyboard.md), and any action can be
+    // rebound in Settings.
+    KeyboardShortcutsController? shortcuts;
+    try {
+      shortcuts = context.read<Services>().keyboardShortcuts;
+    } catch (_) {
+      shortcuts = null;
+    }
+    Widget tooltipFor(KeyBinding? binding) => binding == null
+        ? Tooltip(
+            message: context.tr('switch_company'),
+            waitDuration: delay,
+            child: button,
+          )
+        : ShortcutTooltip(
+            label: context.tr('switch_company'),
+            keys: binding.displayGlyphs(platformModifierLabel()),
+            waitDuration: delay,
+            child: button,
+          );
+    if (shortcuts == null) return tooltipFor(null);
+    return ListenableBuilder(
+      listenable: shortcuts,
+      builder: (context, _) => tooltipFor(
+        shortcuts!.effectiveBinding(ShortcutActionIds.openCompanyPicker),
+      ),
     );
   }
 }

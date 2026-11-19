@@ -35,6 +35,14 @@ Web is a supported target (`flutter run -d chrome`, `flutter build web`). Native
 
 **`dart:io` compiles on web.** Flutter's web toolchain provides a compile-time `dart:io` stub; `import 'dart:io'` does **not** break `flutter build web` — the classes (`File`, `Directory`, `Platform`) throw `UnsupportedError` only when *used* at runtime, so a `kIsWeb` guard before the call suffices (no conditional-import file needed just for the compiler). Prefer `defaultTargetPlatform` + `kIsWeb` over `Platform.isX` in new code (`env.dart` / `support_api.dart` are the reference).
 
+## The browser's toolbar takes the app's background colour, and the app sets it
+
+Safari tints its toolbar (and an installed PWA its title bar, Android Chrome its status bar) from `<meta name="theme-color">`, or, where it ignores the tag, by sampling the page itself. Both pages (`web/index.html`, `tools/web_deploy/boot_page.html`) ship the default pair, lightSand `#F6F4EF` / darkEspresso `#15140F`, keyed on `prefers-color-scheme`, and paint `html, body` the same colours in the shared `loader-style` glue block. Before November 2026 the body was `#888888`, so Safari's toolbar came out grey over a cream app (a self-hosted beta user's report).
+
+The tags can only follow the **system** theme. The user's own choice, an explicit dark theme on a light system or the White (`#FFFFFF`) and Grey (`#ECEEF2`) light backgrounds, is known only to the running app. So `main.dart`'s `MaterialApp.router` builder calls `applyBrowserChromeColor(tokens.bg)` (`lib/app/browser_chrome_web.dart`) beside `NativeWindowTheme.apply`: it rewrites every theme-color tag to the current background, drops their `media`, and sets the page background. It dedupes on the colour, and the native half is a no-op.
+
+The boot spinner's dots are `ink3` (`#857F73`, the same in both themes) and the 30-second "taking longer" text inherits the page's ink. On the old grey both were white, which is invisible on cream.
+
 ## Disabled on web
 
 **Disabled on web** (already guarded): native splash/window theming, biometric, in-app purchase (upgrade routes web→Stripe portal via `upgrade_launcher`), Google, Microsoft and Apple sign-in go through the providers' own scripts in a window instead of the native SDKs, offered only where the page names a client ID (docs/web-deploy.md § Web sign-in).

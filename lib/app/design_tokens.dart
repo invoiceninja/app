@@ -1105,6 +1105,23 @@ class InMotion {
   Duration call(Duration d) => _enabled ? d : Duration.zero;
 }
 
+/// Tooltip hover delays — two tiers, nothing in between (`docs/tooltip-delays.md`).
+///
+/// Material's own default is zero, which pops a tooltip the instant the
+/// pointer crosses a control on its way somewhere else.
+class InTooltip {
+  InTooltip._();
+
+  /// The tooltip is the control's only label: an icon button, the collapsed
+  /// rail, truncated text. The theme default, so a `Tooltip` without its own
+  /// `waitDuration` gets this.
+  static const Duration labelDelay = Duration(milliseconds: 700);
+
+  /// The tooltip adds to a label already on screen: a shortcut hint on a
+  /// labelled button or row, what a count counts, "Copy", a format hint.
+  static const Duration hintDelay = Duration(milliseconds: 1500);
+}
+
 /// One initials-avatar colour: a soft tinted [background] and the darker (in
 /// light) or lighter (in dark) [ink] of the same hue drawn on it.
 ///

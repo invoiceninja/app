@@ -92,7 +92,6 @@ class SidebarSyncButton extends StatelessWidget {
           // Plain Tooltip, not ShortcutTooltip: there's no shortcut to
           // advertise, and `richMessage` isn't matched by `find.byTooltip`.
           message: tip,
-          waitDuration: const Duration(milliseconds: 600),
           child: Material(
             color: tokens.surfaceAlt,
             borderRadius: BorderRadius.circular(InRadii.r2),

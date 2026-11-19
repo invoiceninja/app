@@ -56,8 +56,9 @@ import 'package:admin/ui/core/fold_geometry.dart';
 /// deprecated, unreferenced, and has been deleted.)
 ///
 /// Global keyboard shortcuts live here:
-/// - `⌘K` / `Ctrl+K` opens the company picker; `⌘/` / `Ctrl+/` opens the
-///   global command palette.
+/// - `⌘K` / `Ctrl+K` opens the global command palette (the convention in
+///   Slack, Linear, GitHub, Notion); Switch company ships unbound and is
+///   reached from the palette.
 /// - `⌘B` / `Ctrl+B` toggles the wide-layout sidebar.
 /// - `⌘,` / `Ctrl+,` opens Settings (macOS Preferences convention).
 /// - `?` opens the Keyboard Shortcuts helper dialog.
@@ -176,7 +177,7 @@ class _ScaffoldWithNavState extends State<ScaffoldWithNav> {
     final hints = <ShortcutHint>[];
     for (final def in kShortcutCatalog) {
       if (def.scope != ShortcutScope.global) continue;
-      final binding = _keyboardShortcuts.resolvedBinding(def.id);
+      final binding = _keyboardShortcuts.effectiveBinding(def.id);
       if (binding == null || !binding.usesPrimary) continue;
       hints.add(
         ShortcutHint(keys: binding.displayGlyphs(mod), labelKey: def.labelKey),

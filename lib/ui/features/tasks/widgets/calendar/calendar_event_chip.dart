@@ -30,7 +30,6 @@ class CalendarEventChip extends StatelessWidget {
     final label = time == null ? event.title : '$time  ${event.title}';
     return Tooltip(
       message: event.title,
-      waitDuration: const Duration(milliseconds: 300),
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: onTap,

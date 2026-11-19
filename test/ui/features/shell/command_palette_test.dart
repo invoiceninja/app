@@ -757,12 +757,12 @@ void main() {
         platform: TargetPlatform.macOS,
         body: () async {
           expect(find.byIcon(Icons.arrow_back), findsNothing);
-          // One cap per glyph: `⌘` + `/` on macOS. The card is at rest (no
-          // query, no recents), so `sections` is empty and the footer's own
-          // caps aren't up yet.
+          // One cap per glyph: `⌘` + `K` on macOS — the palette's own live
+          // binding. The card is at rest (no query, no recents), so
+          // `sections` is empty and the footer's own caps aren't up yet.
           expect(find.byType(KeyCap), findsNWidgets(2));
           expect(find.text('⌘'), findsOneWidget);
-          expect(find.text('/'), findsOneWidget);
+          expect(find.text('K'), findsOneWidget);
           expect(
             tester.getSize(find.byType(ClipRRect)).width,
             lessThanOrEqualTo(680),
@@ -850,6 +850,92 @@ void main() {
       final delegate = list.childrenDelegate as SliverChildBuilderDelegate;
       expect(delegate.childCount, 1 + 8);
       expect(find.text('Settings'), findsOneWidget);
+    });
+  });
+
+  // ⌘K belongs to the palette (docs/keyboard.md), so the keyboard reaches the
+  // company switcher through it: "Switch Company", and the other companies by
+  // name.
+  group('company rows', () {
+    late ShellFixture fixture;
+
+    setUp(() async {
+      fixture = await buildFixture(
+        companies: const [
+          FakeCompany(id: 'c1', name: 'Acme', token: 'tok-c1'),
+          FakeCompany(id: 'c2', name: 'Globex Corp', token: 'tok-c2'),
+        ],
+      );
+    });
+
+    tearDown(() async => fixture.dispose());
+
+    Future<void> search(WidgetTester tester, String query) async {
+      tester.view.physicalSize = const Size(1200, 900);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await tester.pumpWidget(
+        wrapWithShell(
+          fixture.services,
+          Builder(
+            builder: (context) => TextButton(
+              onPressed: () => showCommandPalette(context),
+              child: const Text('trigger'),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('trigger'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), query);
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('"company" offers Switch Company', (tester) async {
+      await search(tester, 'company');
+      expect(find.text('Switch Company'), findsOneWidget);
+    });
+
+    testWidgets('another company is found by name', (tester) async {
+      await search(tester, 'globex');
+      expect(find.text('Globex Corp'), findsOneWidget);
+      expect(find.byIcon(Icons.business_outlined), findsOneWidget);
+    });
+
+    testWidgets('the current company is never offered', (tester) async {
+      await search(tester, 'acme');
+      expect(find.byIcon(Icons.business_outlined), findsNothing);
+    });
+
+    testWidgets('picking another company switches to it and closes', (
+      tester,
+    ) async {
+      await search(tester, 'globex');
+      await tester.tap(find.text('Globex Corp'));
+      // The outbox guard and the switch read and write the database — real
+      // I/O, which the test's fake clock cannot advance; give it real time,
+      // a round per await, pumping in between.
+      for (var i = 0; i < 6; i++) {
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 50)),
+        );
+        await tester.pump();
+      }
+      await tester.pumpAndSettle();
+      expect(fixture.services.auth.session.value?.currentCompanyId, 'c2');
+      expect(find.byType(TextField), findsNothing, reason: 'palette closed');
+      // A switch restarts the refresh timer and arms the recents debounce;
+      // flutter_test checks for pending timers before tear-down runs (the
+      // same drain as company_picker_test).
+      fixture.services.refreshScheduler.stop();
+      fixture.services.recentlyViewed.dispose();
+      // Closing the palette cancels its company watch, and drift closes a
+      // cancelled stream on a zero timer.
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump(const Duration(milliseconds: 10));
+      await tester.pump(const Duration(milliseconds: 10));
     });
   });
 }

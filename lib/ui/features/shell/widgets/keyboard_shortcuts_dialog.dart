@@ -47,7 +47,7 @@ class _KeyboardShortcutsDialog extends StatelessWidget {
     List<_RowSpec> rowsFor(ShortcutGroup group) => [
       for (final def in kShortcutCatalog)
         if (def.group == group)
-          if (controller.resolvedBinding(def.id) case final b?)
+          if (controller.effectiveBinding(def.id) case final b?)
             _Row(
               chords: [b.displayGlyphs(mod)],
               description: context.tr(def.labelKey),

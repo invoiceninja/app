@@ -10,6 +10,7 @@ import 'package:store_services/store_services.dart';
 
 import 'package:admin/app/serving_server.dart';
 import 'package:admin/app/app_reload.dart';
+import 'package:admin/app/browser_chrome.dart';
 import 'package:admin/app/corrupt_store_boot.dart';
 import 'package:admin/app/entity_links.dart';
 import 'package:admin/data/repositories/docuninja/docuninja_session.dart';
@@ -1123,6 +1124,9 @@ class _InvoiceNinjaAppState extends State<InvoiceNinjaApp> {
                     border: tokens.borderStrong,
                     brightness: tokens.brightness,
                   );
+                  // The web's equivalent: the browser toolbar's tint and the
+                  // page behind the canvas (no-op off the web; dedupes).
+                  applyBrowserChromeColor(tokens.bg);
                 });
               }
               // Apply the device-local UI text-scale override app-wide

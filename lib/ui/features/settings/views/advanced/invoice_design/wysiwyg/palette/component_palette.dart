@@ -168,7 +168,7 @@ class _PaletteTile extends StatelessWidget {
     );
     final described = Tooltip(
       message: context.tr('block_hint_${spec.type}'),
-      waitDuration: const Duration(milliseconds: 600),
+      waitDuration: InTooltip.hintDelay,
       child: tile,
     );
     final feedback = Material(

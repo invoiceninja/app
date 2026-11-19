@@ -198,7 +198,7 @@ class _HistoryButton extends StatelessWidget {
       onPressed: enabled ? onPressed : null,
     );
     // Only advertise the shortcut while the action can actually fire —
-    // same rule as the company switcher's ⌘K tooltip. A disabled arrow still
+    // same rule as the command palette's ⌘K chip. A disabled arrow still
     // carries its label for screen readers, as does every arrow mounted where
     // no `Overlay` exists to host a tooltip (see [NavHistoryButtons.tooltips]).
     if (!enabled || !tooltips) {
@@ -211,7 +211,6 @@ class _HistoryButton extends StatelessWidget {
     return ShortcutTooltip(
       label: context.tr(labelKey),
       keys: keys,
-      waitDuration: const Duration(milliseconds: 600),
       child: button,
     );
   }

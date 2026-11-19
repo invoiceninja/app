@@ -163,6 +163,8 @@ class EntityListTopRow<T> extends StatelessWidget {
     return ShortcutTooltip(
       label: context.tr(labelKey),
       keys: const ['N'],
+      // The button says "New …" itself; the tooltip only adds the key.
+      waitDuration: InTooltip.hintDelay,
       child: button,
     );
   }

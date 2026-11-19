@@ -73,7 +73,7 @@ class CopyIconButton extends StatelessWidget {
     final radius = BorderRadius.circular(InRadii.r1);
     return Tooltip(
       message: context.tr('copy'),
-      waitDuration: const Duration(milliseconds: 400),
+      waitDuration: InTooltip.hintDelay,
       child: Material(
         color: tokens.surface,
         shape: RoundedRectangleBorder(

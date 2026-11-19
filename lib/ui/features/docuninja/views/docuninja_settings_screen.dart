@@ -994,7 +994,6 @@ class _VariableChip extends StatelessWidget {
     final radius = BorderRadius.circular(InRadii.r1);
     return Tooltip(
       message: context.tr('insert_variable'),
-      waitDuration: const Duration(milliseconds: 400),
       child: Material(
         color: tokens.surfaceAlt,
         shape: RoundedRectangleBorder(

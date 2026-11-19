@@ -7,6 +7,9 @@
 /// in an ordinary tab **without** dropping them in an installed PWA, where
 /// `manifest.json`'s `"display": "standalone"` means there is no toolbar at
 /// all and those arrows are the only way back.
+///
+/// Also paints the browser's toolbar tint and page background in the app's
+/// background colour (`applyBrowserChromeColor`), following the user's theme.
 library;
 
 export 'package:admin/app/browser_chrome_web.dart'
