@@ -35,6 +35,7 @@ class SidebarHeader extends StatelessWidget {
     this.onBeforeModal,
     this.compact = false,
     this.touch = false,
+    this.showSync = true,
     super.key,
   });
 
@@ -45,6 +46,10 @@ class SidebarHeader extends StatelessWidget {
   final VoidCallback? onBeforeModal;
   final bool compact;
   final bool touch;
+
+  /// False in the mobile drawer, which pins Sync beside the Settings row at
+  /// the bottom instead (within thumb reach), leaving the switcher alone here.
+  final bool showSync;
 
   @override
   Widget build(BuildContext context) {
@@ -61,6 +66,7 @@ class SidebarHeader extends StatelessWidget {
       touch: touch,
       onSync: onSync,
     );
+    if (!showSync) return switcher;
     if (compact) {
       // The 64-px rail leaves 64 − 28 padding = 36 px, which the avatar-only
       // switcher already fills exactly — so Sync stacks under it, not beside.

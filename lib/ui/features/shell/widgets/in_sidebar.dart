@@ -362,8 +362,8 @@ class _InSidebarState extends State<InSidebar> {
                 : null;
             // Issue #104: a single-company account has nothing to switch
             // *between*, so in the drawer the header row is pure overhead —
-            // Sync moves up into the toolbar row and the switcher moves into
-            // the footer, handing the nav list ~54 px (about 1.2 rows at the
+            // the switcher moves into the footer (Sync is beside Settings in
+            // every drawer), handing the nav list ~54 px (about 1.2 rows at the
             // 44-px touch pitch) back. That is the *net*: the block removed
             // below is 8 + 46 + 8 = 62, of which 8 comes straight back as the
             // toolbar row's new bottom inset. 46, not 44, because
@@ -387,8 +387,12 @@ class _InSidebarState extends State<InSidebar> {
             // entry keeps `CompanyPicker` — the app's only "New company", and
             // its Sign out — reachable in exactly that state.
             final hideHeader = !canCollapse && session.companies.length <= 1;
-            // One callback, two possible mount points for the Sync button.
+            // One callback, two possible mount points for the Sync button:
+            // the header beside the company switcher on the persistent rail,
+            // and — in the mobile drawer — end-aligned beside the pinned
+            // Settings row at the bottom, within thumb reach.
             void onSync() => unawaited(SettingsActions.forceResync(context));
+            final syncBesideSettings = !canCollapse;
             final showSearch = touch && !collapsed;
             // Window chrome outside these rows may already be showing the
             // arrows: macOS hoists them into the caption row beside the traffic
@@ -517,10 +521,8 @@ class _InSidebarState extends State<InSidebar> {
                   // buttons, so without these a tablet/phone user who follows
                   // a cross-entity link has no way back.
                   // The row survives without the arrows only when something
-                  // else still needs it (search, or Sync under `hideHeader`);
-                  // otherwise it would be pure padding around nothing.
-                  if (!chromeHostsArrows &&
-                      (showNavArrows || showSearch || hideHeader))
+                  // else still needs it (search); otherwise it would be pure padding around nothing.
+                  if (!chromeHostsArrows && (showNavArrows || showSearch))
                     Padding(
                       // start 10 is an alignment, not a leftover: with touch
                       // sizing the back arrow's 18-px glyph starts at
@@ -529,8 +531,8 @@ class _InSidebarState extends State<InSidebar> {
                       //
                       // The end inset has two answers because both of the
                       // things it used to line up with move under `hideHeader`:
-                      // 14 lines the search box's trailing edge up with the Sync
-                      // button *in the header row below*, but with no header
+                      // 14 lines the search box's trailing edge up with the
+                      // company switcher *in the header row below*, but with no header
                       // below there is nothing to line up with — so the merged
                       // row takes the nav list's own 12 instead, which is both
                       // the correct alignment and 2 px the search label needs
@@ -547,19 +549,12 @@ class _InSidebarState extends State<InSidebar> {
                             ),
                       // Global search (issue #101) shares this row when there is
                       // room for it. Touch-only: desktop reaches the palette via
-                      // ⌘/ and the Dashboard row's hover icon. Absent from the
+                      // ⌘K and the Dashboard row's hover icon. Absent from the
                       // collapsed rail — 2×32 arrows fill its 64 px exactly.
                       //
-                      // Sync joins it under `hideHeader` (issue #104), and the
-                      // label slot is the thing to watch: at 280 the row is
-                      // 258 wide, arrows take 88 and Sync 44, leaving the box
-                      // 122 and its label 84 px — a hair more than the 232-px
-                      // rail's 82, which `sidebar_search_box.dart` calls the
-                      // tightest surface in the app. Don't spend those pixels.
-                      // `InSpacing.xs`, not `sm`: two bordered boxes need *some*
-                      // daylight (unlike the bare-glyph arrows, which carry 13 px
-                      // of optical separation inside their own 44-px boxes), but
-                      // 4 is enough and 8 would put the label under the rail.
+                      // Sync used to share this row under `hideHeader` (issue
+                      // #104); it now sits beside the pinned Settings row in
+                      // every drawer, which hands the search label back 48 px.
                       //
                       // The arrows stay a *direct* child when nothing shares the
                       // row rather than always sitting in a `Row`. A Row hands a
@@ -569,7 +564,7 @@ class _InSidebarState extends State<InSidebar> {
                       // free space to work in — so the collapsed rail's centring
                       // would silently become a no-op that only looks right
                       // because 2×32 == 64 exactly.
-                      child: showSearch || hideHeader
+                      child: showSearch
                           ? Row(
                               children: [
                                 if (showNavArrows) navHistory,
@@ -591,26 +586,13 @@ class _InSidebarState extends State<InSidebar> {
                                       },
                                     ),
                                   ),
-                                if (hideHeader) ...[
-                                  SizedBox(width: InSpacing.xs),
-                                  // Start-aligned beside the arrows on a pointer
-                                  // drawer (no search box to push it out): three
-                                  // controls in a row read as a toolbar, whereas
-                                  // a lone button pinned 150 px away at the end
-                                  // edge reads as a stray.
-                                  SidebarSyncButton(
-                                    progress: services.resync,
-                                    companyId: session.currentCompanyId,
-                                    touch: touch,
-                                    onSync: onSync,
-                                  ),
-                                ],
                               ],
                             )
                           : navHistory,
                     ),
                   // Dropped entirely by `hideHeader` — the switcher then lives
-                  // in the footer and Sync in the row above. Deliberately not
+                  // in the footer (and in the drawer Sync is always beside
+                  // Settings). Deliberately not
                   // wrapped in an `AnimatedSize`: the 1 -> 2 transition never
                   // happens on screen (the add-company flow pops the drawer and
                   // routes to Company Details), and 2 -> 1 only arrives with a
@@ -639,6 +621,7 @@ class _InSidebarState extends State<InSidebar> {
                           onBeforeModal: widget.onBeforeModal,
                           compact: collapsed,
                           touch: touch,
+                          showSync: !syncBesideSettings,
                           resync: services.resync,
                           // Deliberately does not pop the mobile drawer the way
                           // the company switcher does: closing it would hide the
@@ -735,6 +718,14 @@ class _InSidebarState extends State<InSidebar> {
                     services,
                     compact: collapsed,
                     touch: touch,
+                    sync: syncBesideSettings
+                        ? SidebarSyncButton(
+                            progress: services.resync,
+                            companyId: session.currentCompanyId,
+                            touch: touch,
+                            onSync: onSync,
+                          )
+                        : null,
                   ),
                   SidebarFooterActions(
                     compact: collapsed,
@@ -938,50 +929,66 @@ class _InSidebarState extends State<InSidebar> {
     Services services, {
     required bool compact,
     required bool touch,
-  }) => Padding(
-    padding: const EdgeInsets.fromLTRB(12, 6, 12, 0),
-    child: AnimatedSize(
-      duration: const Duration(milliseconds: 150),
-      curve: Curves.easeOut,
-      alignment: Alignment.bottomCenter,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Known and pre-existing, but newly always on screen: `StreamBuilder`
-          // carries `snapshot.data` across a stream identity change, and
-          // `_syncStreams` closes and clears `_badgeStreams` wholesale on a
-          // company switch — so until the new Drift query emits, this shows the
-          // previous company's count. A `key: ValueKey(companyId)` would reset
-          // it if it ever looks wrong in practice.
-          _fixedNav(
-            context,
-            services,
-            compact: compact,
-            touch: touch,
-            labelKey: 'outbox',
-            icon: Icons.outbox_outlined,
-            kind: FixedBranchKind.outbox,
-            badgeStream: (s, c) => _combineOutboxCounts(
-              s.watchOutboxPending(c),
-              s.watchOutboxAttention(c),
+    Widget? sync,
+  }) {
+    final settings = _fixedNav(
+      context,
+      services,
+      compact: compact,
+      touch: touch,
+      labelKey: 'settings',
+      icon: Icons.settings_outlined,
+      kind: FixedBranchKind.settings,
+      selection: SidebarNavSelection.neutral,
+    );
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 6, 12, 0),
+      child: AnimatedSize(
+        duration: const Duration(milliseconds: 150),
+        curve: Curves.easeOut,
+        alignment: Alignment.bottomCenter,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Known and pre-existing, but newly always on screen: `StreamBuilder`
+            // carries `snapshot.data` across a stream identity change, and
+            // `_syncStreams` closes and clears `_badgeStreams` wholesale on a
+            // company switch — so until the new Drift query emits, this shows the
+            // previous company's count. A `key: ValueKey(companyId)` would reset
+            // it if it ever looks wrong in practice.
+            _fixedNav(
+              context,
+              services,
+              compact: compact,
+              touch: touch,
+              labelKey: 'outbox',
+              icon: Icons.outbox_outlined,
+              kind: FixedBranchKind.outbox,
+              badgeStream: (s, c) => _combineOutboxCounts(
+                s.watchOutboxPending(c),
+                s.watchOutboxAttention(c),
+              ),
+              hideWhenZero: true,
+              selection: SidebarNavSelection.neutral,
             ),
-            hideWhenZero: true,
-            selection: SidebarNavSelection.neutral,
-          ),
-          _fixedNav(
-            context,
-            services,
-            compact: compact,
-            touch: touch,
-            labelKey: 'settings',
-            icon: Icons.settings_outlined,
-            kind: FixedBranchKind.settings,
-            selection: SidebarNavSelection.neutral,
-          ),
-        ],
+            // The mobile drawer pins Sync end-aligned beside Settings (it used
+            // to sit at the top, out of thumb reach). Siblings, never nested: the
+            // row's `InkWell` would swallow a tap meant for the button.
+            if (sync == null)
+              settings
+            else
+              Row(
+                children: [
+                  Expanded(child: settings),
+                  SizedBox(width: InSpacing.xs),
+                  sync,
+                ],
+              ),
+          ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 
   /// The user's main menu: the app's default block, permuted and filtered by
   /// [SidebarMenuController] (invoiceninja/flutter#125).
@@ -1367,7 +1374,7 @@ class _HoverAddButton extends StatelessWidget {
 
 /// Hover-revealed search affordance at the end of the Dashboard row
 /// (desktop, expanded rail only — mirrors the entity-row `+` button).
-/// Opens the command palette — the same target as the `⌘/` shortcut.
+/// Opens the command palette — the same target as the `⌘K` shortcut.
 class _DashboardRowSearchButton extends StatelessWidget {
   const _DashboardRowSearchButton();
 

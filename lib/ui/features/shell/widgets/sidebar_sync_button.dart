@@ -5,10 +5,10 @@ import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/resync_controller.dart';
 import 'package:admin/l10n/localization.dart';
 
-/// One-tap Sync at the top of the sidebar (issue #14 — syncing used to be four
-/// taps deep in Settings). Paired with the company switcher in `SidebarHeader`,
-/// except on a single-company mobile drawer, where that header is gone and this
-/// sits beside the search box in the toolbar row instead (issue #104).
+/// One-tap Sync (issue #14 — syncing used to be four taps deep in Settings).
+/// On the persistent rail it is paired with the company switcher in
+/// `SidebarHeader`; in the mobile drawer it is pinned end-aligned beside the
+/// Settings row at the bottom, within thumb reach.
 ///
 /// Pure and directly pumpable: it takes the progress listenable and the
 /// callback rather than reaching for `context.read<Services>()`, matching

@@ -63,6 +63,7 @@ void main() {
     bool touch = false,
     AuthSession? session,
     double textScale = 1.0,
+    bool showSync = true,
   }) {
     return MaterialApp(
       theme: _theme(),
@@ -86,6 +87,7 @@ void main() {
                     onSync: () => taps++,
                     compact: compact,
                     touch: touch,
+                    showSync: showSync,
                   ),
                 ),
               ),
@@ -112,6 +114,21 @@ void main() {
       switcher.width + sync.width + InSpacing.sm,
       moreOrLessEquals(232 - _kRailPadding, epsilon: 0.5),
       reason: 'the pair must exactly fill the rail content box',
+    );
+  });
+
+  // The mobile drawer pins Sync beside its Settings row instead.
+  testWidgets('showSync: false leaves the switcher alone, full width', (
+    tester,
+  ) async {
+    await tester.pumpWidget(wrap(railWidth: 280, touch: true, showSync: false));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.byType(SidebarSyncButton), findsNothing);
+    expect(
+      tester.getSize(find.byType(CompanySwitcherButton)).width,
+      moreOrLessEquals(280 - _kRailPadding, epsilon: 0.5),
     );
   });
 

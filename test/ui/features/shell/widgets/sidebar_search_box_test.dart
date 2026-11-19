@@ -104,7 +104,7 @@ void main() {
     bool touch = true,
     bool compact = false,
     bool showSearch = true,
-    bool withSync = false,
+    bool merged = false,
     double textScale = 1.0,
     String? searchLabel,
   }) {
@@ -138,7 +138,7 @@ void main() {
                       Padding(
                         padding: compact
                             ? const EdgeInsets.only(top: 4)
-                            : (withSync ? _kMergedRowPadding : _kRowPadding),
+                            : (merged ? _kMergedRowPadding : _kRowPadding),
                         child: Row(
                           key: _kRowKey,
                           children: [
@@ -147,15 +147,6 @@ void main() {
                               Expanded(
                                 child: SidebarSearchBox(onTap: () => taps++),
                               ),
-                            if (withSync) ...[
-                              SizedBox(width: InSpacing.xs),
-                              SidebarSyncButton(
-                                progress: progress,
-                                companyId: 'c1',
-                                touch: touch,
-                                onSync: () {},
-                              ),
-                            ],
                           ],
                         ),
                       ),
@@ -307,54 +298,37 @@ void main() {
   });
 
   group('the merged row (single-company drawer, issue #104)', () {
-    // The drawer's header is gone and Sync has moved in here, so this row now
-    // carries four controls in 280 px. Two things can go wrong silently: the
-    // Row overflows (hidden by the sidebar's own ClipRect in the app), or the
-    // search label ellipsizes at a text scale the plain row survives.
+    // The drawer's header is gone, so this row is the last thing above the
+    // divider and takes the merged padding. Sync no longer shares it — every
+    // drawer pins Sync beside the Settings row at the bottom.
 
     testWidgets('lays out at the drawer width without overflow', (
       tester,
     ) async {
-      await tester.pumpWidget(wrapRow(railWidth: 280, withSync: true));
+      await tester.pumpWidget(wrapRow(railWidth: 280, merged: true));
       await tester.pumpAndSettle();
 
       expect(tester.takeException(), isNull);
-      expect(find.byType(SidebarSyncButton), findsOneWidget);
       expect(tester.getSize(find.byKey(_kRowKey)).height, 44);
-      for (final f in [
-        find.byType(SidebarSearchBox),
-        find.byType(SidebarSyncButton),
-      ]) {
-        final size = tester.getSize(f);
-        expect(size.width, greaterThanOrEqualTo(InSizes.touchTarget));
-        expect(size.height, greaterThanOrEqualTo(InSizes.touchTarget));
-      }
+      final size = tester.getSize(find.byType(SidebarSearchBox));
+      expect(size.width, greaterThanOrEqualTo(InSizes.touchTarget));
+      expect(size.height, greaterThanOrEqualTo(InSizes.touchTarget));
     });
 
     testWidgets('leaves the label more room than the 232-px rail', (
       tester,
     ) async {
       // The rail is what `sidebar_search_box.dart` calls the tightest surface
-      // in the app, and this row must not quietly become tighter: that is what
-      // the `InSpacing.xs` gap and the trimmed 12-px right inset buy. Compare
-      // the box itself — the label slot is a fixed inset off it.
+      // in the app, and this row must not quietly become tighter.
       await tester.pumpWidget(wrapRow(railWidth: 232));
       await tester.pumpAndSettle();
       final rail = tester.getSize(find.byType(SidebarSearchBox)).width;
 
-      await tester.pumpWidget(wrapRow(railWidth: 280, withSync: true));
+      await tester.pumpWidget(wrapRow(railWidth: 280, merged: true));
       await tester.pumpAndSettle();
       final merged = tester.getSize(find.byType(SidebarSearchBox)).width;
 
-      expect(
-        merged,
-        greaterThanOrEqualTo(rail),
-        reason:
-            'the merged drawer row must not be tighter than the rail — give '
-            'back BOTH the InSpacing.xs gap and the trimmed right inset and '
-            'the slot is 78, where French ellipsizes at 1.21x against the '
-            "app's own Large of 1.2",
-      );
+      expect(merged, greaterThanOrEqualTo(rail));
     });
 
     testWidgets('survives the app\'s Large and Extra Large text scales', (
@@ -362,33 +336,54 @@ void main() {
     ) async {
       for (final scale in [1.2, 1.4]) {
         await tester.pumpWidget(
-          wrapRow(railWidth: 280, withSync: true, textScale: scale),
+          wrapRow(railWidth: 280, merged: true, textScale: scale),
         );
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull, reason: 'text scale $scale');
       }
     });
+  });
 
-    testWidgets('a pointer drawer puts Sync beside the arrows, not adrift', (
-      tester,
-    ) async {
-      // No search box off touch, so Sync sits immediately after the arrows:
-      // three controls read as a toolbar, a lone button pinned 150 px away at
-      // the right edge reads as a stray.
+  group('the drawer\'s Settings row', () {
+    // A replica of `_pinnedChromeRows`' drawer shape (`InSidebar` itself
+    // deadlocks in a widget test — see the wiring group below).
+    testWidgets('pins Sync to the end edge, beside Settings', (tester) async {
       await tester.pumpWidget(
-        wrapRow(
-          railWidth: 280,
-          touch: false,
-          showSearch: false,
-          withSync: true,
+        MaterialApp(
+          theme: _theme(),
+          localizationsDelegates: kTestLocalizationsDelegates,
+          supportedLocales: kTestSupportedLocales,
+          home: Scaffold(
+            body: Align(
+              alignment: Alignment.topLeft,
+              child: SizedBox(
+                width: 280,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 6, 12, 0),
+                  child: Row(
+                    children: [
+                      const Expanded(child: SizedBox(height: 44)),
+                      SizedBox(width: InSpacing.xs),
+                      SidebarSyncButton(
+                        progress: progress,
+                        companyId: 'c1',
+                        touch: true,
+                        onSync: () {},
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
         ),
       );
       await tester.pumpAndSettle();
 
       expect(tester.takeException(), isNull);
-      final arrows = tester.getRect(find.byType(NavHistoryButtons));
       final sync = tester.getRect(find.byType(SidebarSyncButton));
-      expect(sync.left - arrows.right, lessThan(InSizes.touchTarget));
+      expect(sync.right, 280 - 12);
+      expect(sync.width, greaterThanOrEqualTo(InSizes.touchTarget));
     });
   });
 
@@ -467,7 +462,17 @@ void main() {
       );
 
       final syncStart = sidebar.indexOf('SidebarSyncButton(');
-      expect(syncStart, isNot(-1), reason: 'Sync must move into this row');
+      expect(syncStart, isNot(-1), reason: 'Sync must still be mounted');
+      expect(
+        sidebar.contains('final syncBesideSettings = !canCollapse;'),
+        isTrue,
+        reason: 'every drawer pins Sync beside Settings, at the bottom',
+      );
+      expect(
+        sidebar.contains('showSync: !syncBesideSettings'),
+        isTrue,
+        reason: 'and drops it from the header, so it never renders twice',
+      );
       final syncBody = sidebar.substring(
         syncStart,
         (syncStart + 300).clamp(0, sidebar.length),
