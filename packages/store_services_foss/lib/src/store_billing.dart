@@ -34,6 +34,7 @@ class StorePurchase {
     this.error,
     this.purchaseId,
     this.localVerificationData = '',
+    this.serverVerificationData = '',
     this.pendingCompletePurchase = false,
     this.isStoreKit1 = false,
     this.storeKit1OriginalTransactionId,
@@ -44,6 +45,7 @@ class StorePurchase {
   final String? error;
   final String? purchaseId;
   final String localVerificationData;
+  final String serverVerificationData;
   final bool pendingCompletePurchase;
   final bool isStoreKit1;
   final String? storeKit1OriginalTransactionId;
@@ -57,7 +59,14 @@ class StoreBilling {
   Future<StoreProductQuery> queryProducts(Set<String> ids) async =>
       const StoreProductQuery(products: []);
 
-  Future<void> buyNonConsumable(StoreProduct product) async {}
+  Future<void> buyNonConsumable(
+    StoreProduct product, {
+    String? applicationUserName,
+  }) async {}
+
+  Future<List<StorePurchase>> unfinishedPurchases() async => const [];
+
+  Future<Set<String>> activeSubscriptionProductIds() async => const {};
 
   Future<void> restorePurchases() async {}
 

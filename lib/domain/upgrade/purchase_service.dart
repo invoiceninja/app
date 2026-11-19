@@ -1,13 +1,12 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:logging/logging.dart';
 import 'package:store_services/store_services.dart';
 
-import 'package:admin/data/models/api/json_coercion.dart';
 import 'package:admin/data/repositories/auth_repository.dart';
 import 'package:admin/data/services/api_client.dart';
+import 'package:admin/domain/upgrade/purchase_delivery.dart';
 
 /// App Store / Play product identifiers for the hosted plans. Mirrors
 /// admin-portal's `kProductPlans` (legacy `lib/constants.dart`). The server
@@ -36,14 +35,69 @@ const Set<String> kProductPlans = {
   kProductEnterprisePlanYear20,
 };
 
-/// Drives the App Store / Play in-app-purchase flow for hosted plan
-/// upgrades. Lifecycle is owned by the upgrade sheet (created on open,
-/// disposed on close) so we don't hold a global purchase-stream subscription.
+/// How often a plan bills, for the purchase sheet's disclosure (App Review
+/// 3.1.2, Play's subscriptions policy).
+enum PlanBillingPeriod { monthly, yearly }
+
+/// The billing period of a plan product, read from its id: every yearly plan
+/// is `…_annual` / `…_annual_N` (with or without the `v2_` prefix), every
+/// other plan is monthly. The ids are fixed by [kProductPlans] and the store
+/// records match them, so this is exact without asking the store.
+PlanBillingPeriod billingPeriodOf(String productId) =>
+    planSlugOf(productId).contains('_annual')
+    ? PlanBillingPeriod.yearly
+    : PlanBillingPeriod.monthly;
+
+/// The hosted service's in-app purchase settings for the signed-in account
+/// (`GET /api/admin/iap/config`).
+@immutable
+class IapConfig {
+  const IapConfig({required this.purchasesEnabled, this.appAccountToken});
+
+  /// Fail-closed default: no purchases.
+  static const closed = IapConfig(purchasesEnabled: false);
+
+  final bool purchasesEnabled;
+
+  /// The account's purchase token, a UUID: sent with every purchase as
+  /// Apple's `appAccountToken` / Play's `obfuscatedAccountId`, so the store
+  /// (and the server notifications it sends) name the account the purchase
+  /// was made for. Null when the server sent none, or not a UUID — StoreKit
+  /// drops a non-UUID token without a word, and the server then refuses the
+  /// paid purchase.
+  final String? appAccountToken;
+
+  /// Whether a purchase may be started: the service takes them, and there is
+  /// a token to tie one to this account.
+  bool get canPurchase => purchasesEnabled && appAccountToken != null;
+
+  static final _uuid = RegExp(
+    r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
+    caseSensitive: false,
+  );
+
+  /// Reads the config response; anything of the wrong shape is [closed].
+  factory IapConfig.fromJson(Object? json) {
+    if (json is! Map<String, dynamic>) return closed;
+    final token = json['app_account_token'];
+    return IapConfig(
+      purchasesEnabled: json['purchases_enabled'] == true,
+      appAccountToken: token is String && _uuid.hasMatch(token.trim())
+          ? token.trim()
+          : null,
+    );
+  }
+}
+
+/// The upgrade sheet's side of an in-app purchase: lists the store products
+/// and starts a purchase. Created when the sheet opens, disposed when it
+/// closes.
 ///
-/// Port of admin-portal's `UpgradeDialog` purchase plumbing: query products,
-/// `buyNonConsumable`, listen to `purchaseStream`, POST the receipt to
-/// `/api/admin/subscription`, then `auth.refresh()` so the new plan lands in
-/// the session (and every `PlanGateBanner` auto-clears).
+/// It never delivers anything. Every purchase update — this sheet's purchase,
+/// a renewal, an Ask to Buy approved days later — reaches the app-lifetime
+/// [PurchaseDelivery], which posts it to `/api/admin/subscription` and
+/// reports on [PurchaseDelivery.activity]; this follows that to keep [busy]
+/// right and to tell the sheet when a purchase was [applied].
 ///
 /// The SDK itself sits behind [StoreBilling] (`package:store_services`), so
 /// the F-Droid build can drop Play Billing — there it reports unavailable, and
@@ -57,37 +111,66 @@ class PurchaseService {
   PurchaseService({
     required ApiClient apiClient,
     required AuthRepository auth,
-    StoreBilling? billing,
+    required PurchaseDelivery delivery,
   }) : _apiClient = apiClient,
        _auth = auth,
-       _iap = billing ?? StoreBilling();
+       _delivery = delivery;
 
   final ApiClient _apiClient;
   final AuthRepository _auth;
-  final StoreBilling _iap;
+  final PurchaseDelivery _delivery;
   final _log = Logger('PurchaseService');
 
-  StreamSubscription<List<StorePurchase>>? _sub;
+  StoreBilling get _iap => _delivery.billing;
+
+  StreamSubscription<PurchaseActivity>? _sub;
+  VoidCallback? _releaseSheet;
   final ValueNotifier<List<StoreProduct>> products = ValueNotifier(const []);
   final ValueNotifier<bool> busy = ValueNotifier(false);
+
+  /// What [loadConfig] last answered; [IapConfig.closed] until it has.
+  IapConfig _config = IapConfig.closed;
+
+  final _outcomes = StreamController<PurchaseActivity>.broadcast();
+
+  /// The delivery outcomes the sheet tells the user about: applied, rejected
+  /// (with the server's message), retry later, and a failed store purchase.
+  Stream<PurchaseActivity> get outcomes => _outcomes.stream;
 
   /// True only on store platforms with a reachable billing backend.
   Future<bool> get isAvailable => _iap.isAvailable();
 
-  /// Whether the hosted service is taking in-app purchases right now. It asks
+  /// Whether the hosted service is taking in-app purchases right now, and
+  /// gave this account a token to tie one to. It asks
   /// `GET /api/admin/iap/config` and **fails closed**: no answer, an error, or
-  /// anything but `purchases_enabled: true` means no purchase sheet. That keeps
-  /// purchases off until the hosted billing can verify them, and lets support
-  /// switch them off again without an app release. Delivering a purchase the
-  /// user already paid for is never gated on it.
-  Future<bool> purchasesEnabled() async {
+  /// anything but `purchases_enabled: true` with a UUID `app_account_token`
+  /// means no purchase sheet. That keeps purchases off until the hosted
+  /// billing can verify them, and lets support switch them off again without
+  /// an app release. Delivering a purchase the user already paid for is never
+  /// gated on it ([PurchaseDelivery]).
+  Future<bool> loadConfig() async {
     try {
-      final json = await _apiClient.getOne('/api/admin/iap/config');
-      return json is Map<String, dynamic> && json['purchases_enabled'] == true;
+      _config = IapConfig.fromJson(
+        await _apiClient.getOne('/api/admin/iap/config'),
+      );
     } catch (e) {
       _log.info('iap config unavailable, purchases off: $e');
-      return false;
+      _config = IapConfig.closed;
     }
+    if (_config.purchasesEnabled && _config.appAccountToken == null) {
+      _log.warning('iap config has no usable app_account_token, purchases off');
+    }
+    return _config.canPurchase;
+  }
+
+  /// Whether this Apple Account already holds an active subscription to one
+  /// of our plans in this app (StoreKit 2's `Transaction.currentEntitlements`).
+  /// Selling a second one would bill twice. Always false on Android — Play
+  /// refuses a second purchase of an owned product itself — and when StoreKit
+  /// can't be asked.
+  Future<bool> hasActiveStoreSubscription() async {
+    final ids = await _iap.activeSubscriptionProductIds();
+    return ids.any((id) => kProductPlans.contains(planSlugOf(id)));
   }
 
   /// `account.key`, which the hosted endpoint looks the account up by. Blank
@@ -95,11 +178,10 @@ class PurchaseService {
   /// background refresh fills it.
   String get _accountKey => _auth.session.value?.accountKey ?? '';
 
+  /// Follows the delivery and lists the products.
   Future<void> init() async {
-    _sub = _iap.purchaseStream.listen(
-      _onPurchases,
-      onError: (Object e) => _log.warning('purchaseStream error: $e'),
-    );
+    _releaseSheet = _delivery.holdSheet();
+    _sub = _delivery.activity.listen(_onActivity);
     await _queryProducts();
   }
 
@@ -122,9 +204,15 @@ class PurchaseService {
       _log.warning('no account key yet, not starting a purchase');
       return;
     }
+    // Nor money the store can't tie to this account.
+    final token = _config.canPurchase ? _config.appAccountToken : null;
+    if (token == null) {
+      _log.warning('no app account token, not starting a purchase');
+      return;
+    }
     busy.value = true;
     try {
-      await _iap.buyNonConsumable(product);
+      await _iap.buyNonConsumable(product, applicationUserName: token);
     } catch (e) {
       // A purchase that never started sends no purchase-stream event to clear
       // [busy], so the sheet would stay disabled. StoreKit refuses a product
@@ -135,143 +223,44 @@ class PurchaseService {
     }
   }
 
-  Future<void> restore() => _iap.restorePurchases();
-
-  Future<void> _onPurchases(List<StorePurchase> list) async {
-    for (final p in list) {
-      if (p.status == StorePurchaseStatus.pending) {
-        busy.value = true;
-        continue;
-      }
-      // A cancelled store sheet sends `canceled`, not `error` (StoreKit 2,
-      // and Play's user-cancelled) — it must clear [busy] too, or every plan
-      // tile stayed disabled until the sheet was reopened.
-      if (p.status == StorePurchaseStatus.error ||
-          p.status == StorePurchaseStatus.canceled) {
-        busy.value = false;
-        if (p.status == StorePurchaseStatus.error) {
-          _log.warning('purchase error: ${p.error}');
-        }
-      } else if (p.status == StorePurchaseStatus.purchased ||
-          p.status == StorePurchaseStatus.restored) {
-        // Finished with the store only once the server has it. A finished
-        // Apple transaction is never re-delivered and Google never refunds
-        // an acknowledged one, so finishing after a failed POST charged the
-        // user for a plan the account never got. Left unfinished, the store
-        // hands it back on the next launch (and Google refunds it after
-        // three days if it never lands).
-        if (!await _deliver(p)) continue;
-      }
-      if (p.pendingCompletePurchase) {
-        await _iap.completePurchase(p);
-      }
-    }
-  }
-
-  /// POST the receipt to the hosted admin endpoint, then refresh the session
-  /// so the upgraded plan (and the cleared gates) take effect.
-  ///
-  /// Whether the purchase may be finished with the store: true once the server
-  /// has recorded it (a refresh failing after that changes nothing), and for a
-  /// purchase with no transaction id, which no retry could ever deliver; false
-  /// when the POST failed, so the store re-delivers it.
-  Future<bool> _deliver(StorePurchase p) async {
-    busy.value = true;
+  /// Asks the store to hand back this account's purchases; each one reaches
+  /// [PurchaseDelivery]. Never gated on [loadConfig].
+  Future<void> restore() async {
     try {
-      final purchaseId = _inAppTransactionId(p);
-      if (purchaseId == null || purchaseId.isEmpty) {
-        // The server requires a non-empty string; posting null just 422s.
-        _log.warning('no transaction id for ${p.productId} — skipping deliver');
-        return true;
-      }
-      // The hosted endpoint finds the account by its key, never its id: an id
-      // matched nothing, so the server failed and no plan was ever applied.
-      // With no key yet, leave the purchase unfinished for a later delivery.
-      final key = _accountKey;
-      if (key.isEmpty) {
-        _log.warning('no account key yet — leaving ${p.productId} unfinished');
-        return false;
-      }
-      try {
-        await _apiClient.postJson(
-          '/api/admin/subscription',
-          body: {
-            'inapp_transaction_id': purchaseId,
-            'key': key,
-            'plan': p.productId.replaceAll('-', '_'),
-          },
-        );
-      } catch (e) {
-        _log.warning('subscription deliver failed: $e');
-        return false;
-      }
-      try {
-        // Full session snapshot — flips the plan slug everywhere.
-        await _auth.refresh();
-      } catch (e) {
-        _log.warning('refresh after subscription deliver failed: $e');
-      }
-      return true;
-    } finally {
-      busy.value = false;
+      await _iap.restorePurchases();
+    } catch (e) {
+      _log.warning('restorePurchases: $e');
     }
   }
 
-  /// The value the hosted endpoint stores as `accounts.inapp_transaction_id`.
-  ///
-  /// Apple keys its renewal / cancellation / refund notifications on the
-  /// subscription's **original** transaction id and the server matches that
-  /// exactly, so storing a per-transaction id silently orphans the account —
-  /// later notifications find no match and the plan stops being extended. For
-  /// an initial purchase the two are identical; they diverge on restore and on
-  /// renewals, which both reach here.
-  ///
-  /// Google is the opposite: its notifications resolve to the `orderId` that
-  /// already arrives as [StorePurchase.purchaseId], so Android falls through
-  /// unchanged.
-  String? _inAppTransactionId(StorePurchase p) {
-    if (p.isStoreKit1) {
-      // StoreKit 1 — only reached if `enableStoreKit1()` is ever called.
-      // The original transaction is populated for restored transactions only.
-      final original = p.storeKit1OriginalTransactionId;
-      if (original != null) return original;
-    } else {
-      // StoreKit 2 (the plugin default) drops `originalId` when it builds
-      // SK2PurchaseDetails, but Apple's own transaction JSON is passed through
-      // as `localVerificationData` and still carries it. Google's equivalent
-      // JSON has no such key, so Android returns null here and falls back to
-      // `purchaseID`.
-      final original = appleOriginalTransactionId(p.localVerificationData);
-      if (original != null) return original;
+  void _onActivity(PurchaseActivity a) {
+    if (busy.value != _busyAfter(a.kind)) busy.value = _busyAfter(a.kind);
+    switch (a.kind) {
+      case PurchaseActivityKind.applied:
+      case PurchaseActivityKind.rejected:
+      case PurchaseActivityKind.retryLater:
+      case PurchaseActivityKind.failed:
+        if (!_outcomes.isClosed) _outcomes.add(a);
+      case PurchaseActivityKind.pending:
+      case PurchaseActivityKind.delivering:
+      case PurchaseActivityKind.canceled:
+        break;
     }
-    return p.purchaseId;
   }
+
+  // A cancelled store sheet sends `canceled`, not `error` (StoreKit 2, and
+  // Play's user-cancelled) — it must clear [busy] too, or every plan tile
+  // stayed disabled until the sheet was reopened.
+  static bool _busyAfter(PurchaseActivityKind kind) => switch (kind) {
+    PurchaseActivityKind.pending || PurchaseActivityKind.delivering => true,
+    _ => false,
+  };
 
   Future<void> dispose() async {
+    _releaseSheet?.call();
     await _sub?.cancel();
+    await _outcomes.close();
     products.dispose();
     busy.dispose();
-  }
-}
-
-/// Pulls Apple's `originalTransactionId` out of a StoreKit 2 transaction's
-/// `localVerificationData` — Apple's `Transaction.jsonRepresentation`.
-///
-/// Returns `null` when the payload is empty, isn't a JSON object, or carries no
-/// usable `originalTransactionId`, so callers can fall back to `purchaseID`.
-/// Never throws: this runs inside the purchase-stream callback, where an
-/// exception would take down delivery of a paid purchase.
-@visibleForTesting
-String? appleOriginalTransactionId(String localVerificationData) {
-  if (localVerificationData.isEmpty) return null;
-  try {
-    final decoded = jsonDecode(localVerificationData);
-    if (decoded is! Map<String, dynamic>) return null;
-    // Apple documents the field as a string, but encodes some numeric ids as
-    // JSON numbers — same coercion hazard as the invoice line-item payloads.
-    final id = jsonScalarToString(decoded['originalTransactionId']);
-    return (id == null || id.isEmpty) ? null : id;
-  } catch (_) {
-    return null;
   }
 }

@@ -1,326 +1,100 @@
-import 'dart:async';
-import 'dart:convert';
+// The upgrade sheet's side of an in-app purchase: the products, the fail-closed
+// config, and starting a purchase tied to the account. Delivery is
+// `PurchaseDelivery`'s (purchase_delivery_test.dart); this checks that the
+// sheet follows it.
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:store_services/store_services.dart';
 
-import 'package:admin/data/repositories/auth_repository.dart';
-import 'package:admin/data/services/api_client.dart';
 import 'package:admin/data/services/api_exception.dart';
+import 'package:admin/domain/upgrade/purchase_delivery.dart';
 import 'package:admin/domain/upgrade/purchase_service.dart';
 
-/// A trimmed but realistic `Transaction.jsonRepresentation` payload — the
-/// StoreKit 2 value the plugin surfaces as `localVerificationData`.
-String _appleTransactionJson({
-  Object? originalTransactionId = '2000000111111',
-}) {
-  return jsonEncode({
-    'transactionId': '2000000999999',
-    if (originalTransactionId != null)
-      'originalTransactionId': originalTransactionId,
-    'bundleId': 'com.invoiceninja.admin',
-    'productId': 'pro_plan',
-    'purchaseDate': 1751000000000,
-    'type': 'Auto-Renewable Subscription',
-    'environment': 'Production',
-  });
-}
-
-/// The store SDK, as `PurchaseService` sees it — `implements`, so the real
-/// `InAppPurchase.instance` is never touched.
-class _FakeBilling implements StoreBilling {
-  final purchases = StreamController<List<StorePurchase>>();
-  final completed = <StorePurchase>[];
-  final bought = <StoreProduct>[];
-
-  /// Thrown by [buyNonConsumable] when set — a purchase that never starts.
-  Object? buyError;
-
-  @override
-  Future<bool> isAvailable() async => true;
-
-  @override
-  Stream<List<StorePurchase>> get purchaseStream => purchases.stream;
-
-  @override
-  Future<StoreProductQuery> queryProducts(Set<String> ids) async =>
-      const StoreProductQuery(
-        products: [
-          StoreProduct(
-            id: 'pro_plan',
-            title: 'Pro',
-            description: 'Pro plan',
-            price: r'$10',
-          ),
-        ],
-      );
-
-  @override
-  Future<void> buyNonConsumable(StoreProduct product) async {
-    final error = buyError;
-    if (error != null) throw error;
-    bought.add(product);
-  }
-
-  @override
-  Future<void> restorePurchases() async {}
-
-  @override
-  Future<void> completePurchase(StorePurchase purchase) async =>
-      completed.add(purchase);
-
-  @override
-  Future<bool> showManageSubscriptions() async => false;
-}
-
-class _FakeApi implements ApiClient {
-  final posts = <(String, Map<String, dynamic>?)>[];
-
-  /// Thrown by [postJson] when set — the server never recorded the purchase.
-  Object? postError;
-
-  /// What `GET /api/admin/iap/config` answers; thrown when it is an error.
-  Object? iapConfig = const {'purchases_enabled': true};
-  final gets = <String>[];
-
-  @override
-  Future<dynamic> getOne(String path) async {
-    gets.add(path);
-    final answer = iapConfig;
-    if (answer is Exception) throw answer;
-    return answer;
-  }
-
-  @override
-  Future<dynamic> postJson(
-    String path, {
-    Map<String, dynamic>? body,
-    Map<String, String>? query,
-    bool readOnly = false,
-    bool requiresPassword = false,
-    Duration? timeout,
-    bool unauthorizedIsAnswer = false,
-  }) async {
-    posts.add((path, body));
-    final error = postError;
-    if (error != null) throw error;
-    return null;
-  }
-
-  @override
-  Object? noSuchMethod(Invocation invocation) =>
-      throw UnimplementedError(invocation.memberName.toString());
-}
-
-AuthSession _session({String accountKey = 'acct-key'}) => AuthSession(
-  baseUrl: 'https://example.test',
-  isHosted: true,
-  accountId: 'acct',
-  accountKey: accountKey,
-  companies: const [],
-  currentCompanyId: 'co',
-  userId: 'me',
-);
-
-class _FakeAuth implements AuthRepository {
-  int refreshes = 0;
-
-  /// Thrown by [refresh] when set.
-  Object? refreshError;
-
-  @override
-  final ValueNotifier<AuthSession?> session = ValueNotifier<AuthSession?>(
-    _session(),
-  );
-
-  @override
-  Future<void> refresh({bool fullSync = false}) async {
-    refreshes++;
-    final error = refreshError;
-    if (error != null) throw error;
-  }
-
-  @override
-  Object? noSuchMethod(Invocation invocation) =>
-      throw UnimplementedError(invocation.memberName.toString());
-}
+import '_purchase_fakes.dart';
 
 void main() {
-  group('PurchaseService over StoreBilling', () {
-    late _FakeBilling billing;
-    late _FakeApi api;
-    late _FakeAuth auth;
-    late PurchaseService svc;
+  late FakeBilling billing;
+  late FakeApi api;
+  late FakeAuth auth;
+  late PurchaseDelivery delivery;
+  late PurchaseService svc;
 
+  setUp(() {
+    billing = FakeBilling();
+    api = FakeApi();
+    auth = FakeAuth();
+    delivery = PurchaseDelivery(
+      apiClient: api,
+      auth: auth,
+      billing: billing,
+      platform: TargetPlatform.iOS,
+    )..start();
+    svc = PurchaseService(apiClient: api, auth: auth, delivery: delivery);
+  });
+
+  tearDown(() async {
+    await svc.dispose();
+    await delivery.dispose();
+  });
+
+  Future<void> emit(StorePurchase p) async {
+    billing.purchases.add([p]);
+    await pumpEventQueue();
+  }
+
+  group('buying', () {
     setUp(() async {
-      billing = _FakeBilling();
-      api = _FakeApi();
-      auth = _FakeAuth();
-      svc = PurchaseService(apiClient: api, auth: auth, billing: billing);
+      await svc.loadConfig();
       await svc.init();
     });
 
-    tearDown(() => svc.dispose());
-
-    Future<void> emit(StorePurchase p) async {
-      billing.purchases.add([p]);
-      // Let the stream callback and its awaits run.
-      await pumpEventQueue();
-    }
-
     test('lists the store products', () {
-      expect(svc.products.value.map((p) => p.id), ['pro_plan']);
+      expect(svc.products.value.map((p) => p.id), [
+        'pro_plan',
+        'enterprise_plan_annual_5',
+      ]);
     });
 
-    test('delivers the StoreKit 2 original id, refreshes, completes', () async {
-      final p = StorePurchase(
-        productId: 'enterprise-plan',
-        status: StorePurchaseStatus.purchased,
-        purchaseId: '2000000999999',
-        localVerificationData: _appleTransactionJson(),
-        pendingCompletePurchase: true,
-      );
-      await emit(p);
+    test(
+      'ties the purchase to the account with its app account token',
+      () async {
+        await svc.buy(svc.products.value.first);
 
-      expect(api.posts, hasLength(1));
-      final (path, body) = api.posts.single;
-      expect(path, '/api/admin/subscription');
-      expect(body, {
-        'inapp_transaction_id': '2000000111111',
-        // The account's key, never its id: the hosted endpoint looks the
-        // account up by key, so an id matched nothing and no plan was applied.
-        'key': 'acct-key',
-        'plan': 'enterprise_plan',
-      });
-      expect(auth.refreshes, 1);
-      expect(billing.completed, [p]);
-      expect(svc.busy.value, isFalse);
-    });
-
-    test('Android falls back to the purchase id (orderId)', () async {
-      await emit(
-        StorePurchase(
-          productId: 'pro_plan',
-          status: StorePurchaseStatus.restored,
-          purchaseId: 'GPA.3123-4567-8901-23456',
-          localVerificationData: jsonEncode({'orderId': 'x'}),
-        ),
-      );
-
-      expect(
-        api.posts.single.$2?['inapp_transaction_id'],
-        'GPA.3123-4567-8901-23456',
-      );
-    });
-
-    test('StoreKit 1 uses the original transaction when present', () async {
-      await emit(
-        const StorePurchase(
-          productId: 'pro_plan',
-          status: StorePurchaseStatus.restored,
-          purchaseId: 'per-transaction',
-          isStoreKit1: true,
-          storeKit1OriginalTransactionId: 'original',
-        ),
-      );
-
-      expect(api.posts.single.$2?['inapp_transaction_id'], 'original');
-    });
-
-    test('skips delivery with no transaction id, but completes', () async {
-      const p = StorePurchase(
-        productId: 'pro_plan',
-        status: StorePurchaseStatus.purchased,
-        pendingCompletePurchase: true,
-      );
-      await emit(p);
-
-      expect(api.posts, isEmpty);
-      expect(auth.refreshes, 0);
-      expect(billing.completed, [p]);
-    });
-
-    test('an error clears busy and delivers nothing', () async {
-      await svc.buy(svc.products.value.single);
-      expect(svc.busy.value, isTrue);
-
-      await emit(
-        const StorePurchase(
-          productId: 'pro_plan',
-          status: StorePurchaseStatus.error,
-          error: 'user cancelled',
-        ),
-      );
-
-      expect(svc.busy.value, isFalse);
-      expect(api.posts, isEmpty);
-      expect(billing.bought.single.id, 'pro_plan');
-    });
-
-    // A purchase the server never recorded must not be finished with the
-    // store: a finished Apple transaction is never re-delivered, and Google
-    // never auto-refunds an acknowledged one — the user would be charged for
-    // a plan the account does not have. Left unfinished, the store hands it
-    // back on the next launch, and Google refunds it after three days.
-    test('a failed delivery leaves the purchase unfinished', () async {
-      api.postError = Exception('offline');
-      final p = StorePurchase(
-        productId: 'pro_plan',
-        status: StorePurchaseStatus.purchased,
-        purchaseId: 'GPA.1',
-        localVerificationData: jsonEncode({'orderId': 'x'}),
-        pendingCompletePurchase: true,
-      );
-      await emit(p);
-
-      expect(api.posts, hasLength(1));
-      expect(billing.completed, isEmpty);
-      expect(auth.refreshes, 0);
-      expect(svc.busy.value, isFalse);
-    });
+        final (product, token) = billing.bought.single;
+        expect(product.id, 'pro_plan');
+        // Apple's appAccountToken / Play's obfuscatedAccountId. Never the
+        // account key.
+        expect(token, kTestAccountToken);
+        expect(svc.busy.value, isTrue);
+      },
+    );
 
     test('with no account key yet, a purchase never starts', () async {
-      auth.session.value = _session(accountKey: '');
+      auth.session.value = testSession(accountKey: '');
 
-      await svc.buy(svc.products.value.single);
+      await svc.buy(svc.products.value.first);
 
       expect(billing.bought, isEmpty);
       expect(svc.busy.value, isFalse);
     });
 
-    test('with no account key yet, a paid purchase stays unfinished', () async {
-      auth.session.value = _session(accountKey: '');
-      final p = StorePurchase(
-        productId: 'pro_plan',
-        status: StorePurchaseStatus.purchased,
-        purchaseId: 'GPA.1',
-        localVerificationData: jsonEncode({'orderId': 'x'}),
-        pendingCompletePurchase: true,
-      );
-      await emit(p);
+    test(
+      'a purchase that never starts clears busy instead of throwing',
+      () async {
+        // StoreKit throws `storekit_duplicate_product_object` for a product that
+        // still has an unfinished transaction; no stream event follows.
+        billing.buyError = Exception('storekit_duplicate_product_object');
 
-      expect(api.posts, isEmpty);
-      expect(billing.completed, isEmpty);
-      expect(svc.busy.value, isFalse);
-    });
+        await svc.buy(svc.products.value.first);
 
-    test('a refresh failing after delivery still completes', () async {
-      auth.refreshError = Exception('offline');
-      final p = StorePurchase(
-        productId: 'pro_plan',
-        status: StorePurchaseStatus.purchased,
-        purchaseId: 'GPA.1',
-        localVerificationData: jsonEncode({'orderId': 'x'}),
-        pendingCompletePurchase: true,
-      );
-      await emit(p);
+        expect(svc.busy.value, isFalse);
+        expect(billing.bought, isEmpty);
+      },
+    );
 
-      expect(billing.completed, [p]);
-    });
-
-    test('a cancelled purchase sheet clears busy', () async {
-      await svc.buy(svc.products.value.single);
+    test('a cancelled store sheet clears busy', () async {
+      await svc.buy(svc.products.value.first);
       expect(svc.busy.value, isTrue);
 
       await emit(
@@ -334,127 +108,157 @@ void main() {
       expect(api.posts, isEmpty);
     });
 
+    test('a store error clears busy and is reported', () async {
+      final outcomes = <PurchaseActivity>[];
+      svc.outcomes.listen(outcomes.add);
+      await svc.buy(svc.products.value.first);
+
+      await emit(
+        const StorePurchase(
+          productId: 'pro_plan',
+          status: StorePurchaseStatus.error,
+          error: 'payment declined',
+        ),
+      );
+
+      expect(svc.busy.value, isFalse);
+      expect(outcomes.single.kind, PurchaseActivityKind.failed);
+    });
+
+    test('a delivered purchase is reported applied, through the app-wide '
+        'delivery', () async {
+      final outcomes = <PurchaseActivity>[];
+      svc.outcomes.listen(outcomes.add);
+      await svc.buy(svc.products.value.first);
+
+      await emit(applePurchase());
+
+      expect(api.posts, hasLength(1));
+      expect(outcomes.single.kind, PurchaseActivityKind.applied);
+      expect(svc.busy.value, isFalse);
+    });
+
+    test('a refused purchase is reported with the server message', () async {
+      final outcomes = <PurchaseActivity>[];
+      svc.outcomes.listen(outcomes.add);
+      api.postError = const ConflictException(
+        'Already linked to another account.',
+        {'reason': 'linked'},
+      );
+
+      await emit(applePurchase());
+
+      expect(outcomes.single.kind, PurchaseActivityKind.rejected);
+      expect(outcomes.single.message, 'Already linked to another account.');
+    });
+
     test(
-      'a purchase that never starts clears busy instead of throwing',
+      'restore asks the store; the delivery posts what it hands back',
       () async {
-        // StoreKit throws `storekit_duplicate_product_object` for a product that
-        // still has an unfinished transaction; no stream event follows.
-        billing.buyError = Exception('storekit_duplicate_product_object');
+        await svc.restore();
+        expect(billing.restores, 1);
+      },
+    );
 
-        await svc.buy(svc.products.value.single);
-
-        expect(svc.busy.value, isFalse);
-        expect(billing.bought, isEmpty);
+    test(
+      'the open sheet is known to the delivery until it is disposed',
+      () async {
+        expect(delivery.sheetOpen, isTrue);
+        await svc.dispose();
+        expect(delivery.sheetOpen, isFalse);
+        // A fresh one for tearDown to dispose.
+        svc = PurchaseService(apiClient: api, auth: auth, delivery: delivery);
       },
     );
   });
 
+  test('with no app account token, a purchase never starts', () async {
+    api.iapConfig = const {'purchases_enabled': true};
+    expect(await svc.loadConfig(), isFalse);
+    await svc.init();
+
+    await svc.buy(svc.products.value.first);
+
+    expect(billing.bought, isEmpty);
+    expect(svc.busy.value, isFalse);
+  });
+
   // Purchases fail closed: the store sheet opens only when the hosted
-  // service says it takes in-app purchases. Until it can verify them, a sheet
-  // would take money for a plan that can't be applied.
-  group('purchasesEnabled', () {
-    late _FakeApi api;
-    late PurchaseService svc;
-
-    setUp(() {
-      api = _FakeApi();
-      svc = PurchaseService(
-        apiClient: api,
-        auth: _FakeAuth(),
-        billing: _FakeBilling(),
-      );
-    });
-
-    tearDown(() => svc.dispose());
-
+  // service says it takes in-app purchases and has given this account a
+  // token. Until it can verify them, a sheet would take money for a plan
+  // that can't be applied.
+  group('loadConfig', () {
     test('asks the hosted config and opens when it says so', () async {
-      expect(await svc.purchasesEnabled(), isTrue);
+      expect(await svc.loadConfig(), isTrue);
       expect(api.gets, ['/api/admin/iap/config']);
     });
 
     test('stays closed when the config says no', () async {
-      api.iapConfig = const {'purchases_enabled': false};
-      expect(await svc.purchasesEnabled(), isFalse);
+      api.iapConfig = const {
+        'purchases_enabled': false,
+        'app_account_token': kTestAccountToken,
+      };
+      expect(await svc.loadConfig(), isFalse);
     });
 
     test('stays closed on a server with no such route', () async {
       api.iapConfig = const ServerException(404, 'Route does not exist');
-      expect(await svc.purchasesEnabled(), isFalse);
+      expect(await svc.loadConfig(), isFalse);
     });
 
     test('stays closed on an answer of the wrong shape', () async {
-      api.iapConfig = const {'purchases_enabled': 'true'};
-      expect(await svc.purchasesEnabled(), isFalse);
+      api.iapConfig = const {
+        'purchases_enabled': 'true',
+        'app_account_token': kTestAccountToken,
+      };
+      expect(await svc.loadConfig(), isFalse);
       api.iapConfig = null;
-      expect(await svc.purchasesEnabled(), isFalse);
-    });
-  });
-
-  group('appleOriginalTransactionId', () {
-    test('reads the original id, not the per-transaction id', () {
-      expect(
-        appleOriginalTransactionId(_appleTransactionJson()),
-        '2000000111111',
-      );
-    });
-
-    test('coerces a numeric original id to a string', () {
-      expect(
-        appleOriginalTransactionId(
-          _appleTransactionJson(originalTransactionId: 2000000111111),
-        ),
-        '2000000111111',
-      );
-    });
-
-    test('returns null when the field is absent', () {
-      expect(
-        appleOriginalTransactionId(
-          _appleTransactionJson(originalTransactionId: null),
-        ),
-        isNull,
-      );
-    });
-
-    test('returns null for an empty original id', () {
-      expect(
-        appleOriginalTransactionId(
-          _appleTransactionJson(originalTransactionId: ''),
-        ),
-        isNull,
-      );
-    });
-
-    test('returns null for an empty payload', () {
-      expect(appleOriginalTransactionId(''), isNull);
-    });
-
-    test('returns null for malformed JSON instead of throwing', () {
-      expect(appleOriginalTransactionId('{not json'), isNull);
-    });
-
-    test('returns null when the payload is not a JSON object', () {
-      expect(appleOriginalTransactionId('[1,2,3]'), isNull);
-      expect(appleOriginalTransactionId('"a string"'), isNull);
+      expect(await svc.loadConfig(), isFalse);
     });
 
     test(
-      "returns null for Google's purchase JSON, so Android keeps orderId",
-      () {
-        // GooglePlayPurchaseDetails passes `purchase.originalJson` through as
-        // localVerificationData; it has no originalTransactionId key.
-        final googleJson = jsonEncode({
-          'orderId': 'GPA.3123-4567-8901-23456',
-          'packageName': 'com.invoiceninja.admin',
-          'productId': 'pro_plan',
-          'purchaseTime': 1751000000000,
-          'purchaseState': 0,
-          'purchaseToken': 'abcdef.AO-J1Oy...',
-          'acknowledged': false,
-        });
-
-        expect(appleOriginalTransactionId(googleJson), isNull);
+      'stays closed without a UUID token — StoreKit would drop it',
+      () async {
+        api.iapConfig = const {
+          'purchases_enabled': true,
+          'app_account_token': 'acct-key',
+        };
+        expect(await svc.loadConfig(), isFalse);
+        api.iapConfig = const {
+          'purchases_enabled': true,
+          'app_account_token': 7,
+        };
+        expect(await svc.loadConfig(), isFalse);
       },
     );
+  });
+
+  group('hasActiveStoreSubscription', () {
+    test('true when the Apple Account holds one of our plans', () async {
+      billing.entitlements = {'enterprise_plan_annual_10'};
+      expect(await svc.hasActiveStoreSubscription(), isTrue);
+      billing.entitlements = {'v2_pro_plan'};
+      expect(await svc.hasActiveStoreSubscription(), isTrue);
+    });
+
+    test('false with none, or only something else', () async {
+      expect(await svc.hasActiveStoreSubscription(), isFalse);
+      billing.entitlements = {'some_other_product'};
+      expect(await svc.hasActiveStoreSubscription(), isFalse);
+    });
+  });
+
+  test('billingPeriodOf reads the period from the product id', () {
+    for (final id in kProductPlans) {
+      expect(
+        billingPeriodOf(id),
+        id.contains('annual')
+            ? PlanBillingPeriod.yearly
+            : PlanBillingPeriod.monthly,
+        reason: id,
+      );
+    }
+    expect(billingPeriodOf('v2_pro_plan_annual'), PlanBillingPeriod.yearly);
+    expect(billingPeriodOf('v2_enterprise_plan_20'), PlanBillingPeriod.monthly);
   });
 }

@@ -11,6 +11,7 @@ import 'package:store_services/store_services.dart';
 import 'package:admin/app/serving_server.dart';
 import 'package:admin/app/app_reload.dart';
 import 'package:admin/app/browser_chrome.dart';
+import 'package:admin/app/purchase_notices.dart';
 import 'package:admin/app/corrupt_store_boot.dart';
 import 'package:admin/app/entity_links.dart';
 import 'package:admin/data/repositories/docuninja/docuninja_session.dart';
@@ -68,6 +69,7 @@ import 'package:admin/data/services/tls/certificate_trust_store.dart';
 import 'package:admin/data/services/web_oauth.dart';
 import 'package:admin/data/services/web_sign_in.dart';
 import 'package:admin/domain/expenses/receipt_scanner.dart';
+import 'package:admin/domain/upgrade/store_build.dart';
 import 'package:admin/l10n/company_labels_scope.dart';
 import 'package:admin/app/legacy_material_theme.dart';
 import 'package:admin/l10n/localization.dart';
@@ -290,6 +292,7 @@ Future<void> _bootstrap() async {
     mobileAppPromote: true,
     reviewPromptAutoAsk: true,
     homeWidgets: true,
+    storePurchases: isStoreBillingBuild,
   );
   // Subscribe to the desktop runner's window pushes (fullscreen enter/exit) and
   // seed the current state. No-op off desktop; nothing downstream awaits it, so
@@ -824,6 +827,18 @@ class _InvoiceNinjaAppState extends State<InvoiceNinjaApp> {
         auth: widget.services.auth,
       );
 
+  // A store purchase refused while no purchase sheet is open — null off a
+  // store-billing build, where nothing delivers purchases.
+  late final PurchaseNotices? _purchaseNotices =
+      switch (widget.services.purchases) {
+        final delivery? => PurchaseNotices(
+          delivery: delivery,
+          toasts: widget.services.toasts,
+          contextOf: () => _router.routerDelegate.navigatorKey.currentContext,
+        ),
+        null => null,
+      };
+
   late final IdleTimeoutController _idleTimeout = IdleTimeoutController(
     auth: widget.services.auth,
     company: widget.services.company,
@@ -879,6 +894,7 @@ class _InvoiceNinjaAppState extends State<InvoiceNinjaApp> {
       go: _router.go,
       contextOf: () => _router.routerDelegate.navigatorKey.currentContext,
     );
+    _purchaseNotices;
     _appDeepLinks;
     _appShareIntake;
     _sweepSharedFiles();
@@ -955,6 +971,7 @@ class _InvoiceNinjaAppState extends State<InvoiceNinjaApp> {
     widget.services.sharedFiles.dispose();
     widget.services.auth.onBeforeDataWipe = _priorBeforeDataWipe;
     _localDataNoticeHold.dispose();
+    unawaited(_purchaseNotices?.dispose());
     ScriptFonts.detach();
     super.dispose();
   }

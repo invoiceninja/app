@@ -1,6 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
+import 'package:in_app_purchase_android/in_app_purchase_android.dart'
+    show InAppPurchaseAndroidPlatformAddition;
 import 'package:in_app_purchase_storekit/in_app_purchase_storekit.dart';
+import 'package:in_app_purchase_storekit/store_kit_2_wrappers.dart';
 
 /// Where a store purchase stands, as the app acts on it.
 enum StorePurchaseStatus { pending, purchased, restored, error, canceled }
@@ -52,6 +55,7 @@ class StorePurchase {
     this.error,
     this.purchaseId,
     this.localVerificationData = '',
+    this.serverVerificationData = '',
     this.pendingCompletePurchase = false,
     this.isStoreKit1 = false,
     this.storeKit1OriginalTransactionId,
@@ -63,6 +67,7 @@ class StorePurchase {
       error = details.error?.toString(),
       purchaseId = details.purchaseID,
       localVerificationData = details.verificationData.localVerificationData,
+      serverVerificationData = details.verificationData.serverVerificationData,
       pendingCompletePurchase = details.pendingCompletePurchase,
       isStoreKit1 = details is AppStorePurchaseDetails,
       storeKit1OriginalTransactionId = details is AppStorePurchaseDetails
@@ -83,6 +88,11 @@ class StorePurchase {
   /// Apple's `Transaction.jsonRepresentation` under StoreKit 2; Google's
   /// purchase JSON on Android.
   final String localVerificationData;
+
+  /// What the store's server verifies: the transaction's signed JWS under
+  /// StoreKit 2 (the base64 app receipt under StoreKit 1), Google's purchase
+  /// token on Android.
+  final String serverVerificationData;
 
   final bool pendingCompletePurchase;
 
@@ -125,14 +135,93 @@ class StoreBilling {
     );
   }
 
-  Future<void> buyNonConsumable(StoreProduct product) async {
+  /// Starts a purchase of [product]. [applicationUserName] ties it to an
+  /// account on our side: StoreKit 2 sends it as the transaction's
+  /// `appAccountToken`, which must be a UUID (StoreKit drops anything else
+  /// without a word), and Play as the `obfuscatedAccountId`.
+  Future<void> buyNonConsumable(
+    StoreProduct product, {
+    String? applicationUserName,
+  }) async {
     final details = product._details;
     if (details == null) {
       throw StateError('buyNonConsumable needs a product from queryProducts');
     }
     await _iap.buyNonConsumable(
-      purchaseParam: PurchaseParam(productDetails: details),
+      purchaseParam: PurchaseParam(
+        productDetails: details,
+        applicationUserName: applicationUserName,
+      ),
     );
+  }
+
+  /// Paid purchases the app has not finished with the store yet: on Android
+  /// the purchased, unacknowledged ones (Play refunds those after three days),
+  /// on iOS and macOS StoreKit 2's `Transaction.unfinished`. Empty anywhere
+  /// else, and when the store can't be asked.
+  ///
+  /// Each comes back as [StorePurchaseStatus.purchased] and can be handed to
+  /// [completePurchase].
+  Future<List<StorePurchase>> unfinishedPurchases() async {
+    if (kIsWeb) return const [];
+    try {
+      switch (defaultTargetPlatform) {
+        case TargetPlatform.android:
+          final resp = await _iap
+              .getPlatformAddition<InAppPurchaseAndroidPlatformAddition>()
+              .queryPastPurchases();
+          return [
+            for (final p in resp.pastPurchases)
+              if (p.status == PurchaseStatus.purchased &&
+                  p.pendingCompletePurchase)
+                StorePurchase._(p),
+          ];
+        case TargetPlatform.iOS:
+        case TargetPlatform.macOS:
+          final transactions = await SK2Transaction.unfinishedTransactions();
+          return [
+            for (final t in transactions)
+              StorePurchase._(
+                SK2PurchaseDetails(
+                  productID: t.productId,
+                  purchaseID: t.id,
+                  verificationData: PurchaseVerificationData(
+                    localVerificationData: t.jsonRepresentation ?? '',
+                    serverVerificationData: t.receiptData ?? '',
+                    source: kIAPSource,
+                  ),
+                  transactionDate: t.purchaseDate,
+                  status: PurchaseStatus.purchased,
+                  appAccountToken: t.appAccountToken,
+                  expirationDate: t.expirationDate,
+                  sk2Transaction: t,
+                ),
+              ),
+          ];
+        default:
+          return const [];
+      }
+    } on Exception {
+      return const [];
+    }
+  }
+
+  /// The product ids this store account holds an active subscription to in
+  /// this app — StoreKit 2's `Transaction.currentEntitlements` on iOS and
+  /// macOS. Empty on Android and anywhere else, and when StoreKit can't be
+  /// asked; so an empty answer never proves there is none.
+  Future<Set<String>> activeSubscriptionProductIds() async {
+    if (kIsWeb ||
+        (defaultTargetPlatform != TargetPlatform.iOS &&
+            defaultTargetPlatform != TargetPlatform.macOS)) {
+      return const {};
+    }
+    try {
+      final entitlements = await SK2Transaction.currentEntitlements();
+      return {for (final t in entitlements) t.productId};
+    } on Exception {
+      return const {};
+    }
   }
 
   Future<void> restorePurchases() => _iap.restorePurchases();

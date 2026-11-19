@@ -9,7 +9,10 @@ enum LocalizedToastKind { info, warning, error }
 /// Toast a localized [key] straight onto the context-free [ToastController]
 /// (rather than `Notify`, which needs a context to find it) — for code that
 /// lives on `Services` and acts on something arriving from outside the app:
-/// `DeepLinkRouter`, `SharedFileIntake`.
+/// `DeepLinkRouter`, `SharedFileIntake`, `PurchaseNotices`.
+///
+/// [detail] is the one place a string from outside the app may go — a
+/// server's own explanation under the localized title.
 ///
 /// [context] is only read for its [Localization]. Without one — the sliver
 /// before the first frame — the toast is skipped and [log]ged instead:
@@ -21,6 +24,7 @@ void showLocalizedToast({
   required BuildContext? context,
   required String key,
   Map<String, String>? params,
+  String? detail,
   required LocalizedToastKind kind,
   required Logger log,
 }) {
@@ -49,10 +53,10 @@ void showLocalizedToast({
   final message = loc.lookup(key, params);
   switch (kind) {
     case LocalizedToastKind.info:
-      toasts.info(message);
+      toasts.info(message, detail: detail);
     case LocalizedToastKind.warning:
-      toasts.warning(message);
+      toasts.warning(message, detail: detail);
     case LocalizedToastKind.error:
-      toasts.error(message);
+      toasts.error(message, detail: detail);
   }
 }

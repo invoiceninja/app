@@ -4,14 +4,17 @@ import 'package:flutter/foundation.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:store_services/store_services.dart';
 
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/services.dart';
+import 'package:admin/domain/upgrade/purchase_delivery.dart';
 import 'package:admin/domain/upgrade/purchase_service.dart';
 import 'package:admin/domain/upgrade/store_build.dart';
 import 'package:admin/domain/upgrade/upgrade_route.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/utils/external_url.dart';
+import 'package:admin/ui/core/widgets/legal_links.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/features/auth/widgets/name_required_dialog.dart';
 
@@ -94,19 +97,25 @@ Future<void> openStoreSubscriptions({
 }
 
 /// Bottom sheet listing the store products. Owns a [PurchaseService] for its
-/// lifetime so the purchase-stream subscription is scoped to the sheet.
+/// lifetime, which lists the products and starts a purchase; the purchase
+/// itself is delivered by the app-lifetime [PurchaseDelivery]
+/// (`Services.purchases`), and the sheet closes once one is applied.
 Future<void> showUpgradeSheet(BuildContext context) async {
   final services = context.read<Services>();
-  final svc = PurchaseService(
-    apiClient: services.apiClient,
-    auth: services.auth,
-  );
-  if (!await svc.isAvailable) {
+  final delivery = services.purchases;
+  final svc = delivery == null
+      ? null
+      : PurchaseService(
+          apiClient: services.apiClient,
+          auth: services.auth,
+          delivery: delivery,
+        );
+  if (svc == null || !await svc.isAvailable) {
     // Store billing unreachable (no Play Services, not signed in to the
     // store). Only store builds open this sheet ([resolveUpgradeRoute]; the
     // F-Droid build takes the portal path), and a store build may not send
     // anyone to an external purchase, so: say so, and offer to try again.
-    await svc.dispose();
+    await svc?.dispose();
     if (context.mounted) {
       Notify.error(
         context,
@@ -118,15 +127,19 @@ Future<void> showUpgradeSheet(BuildContext context) async {
     }
     return;
   }
-  // Purchases stay off until the hosted service says it takes them (it fails
-  // closed): no store sheet, so nobody pays for a plan that can't be applied.
-  if (!await svc.purchasesEnabled()) {
+  // Purchases stay off until the hosted service says it takes them, and has
+  // given this account a token to tie one to (it fails closed): no store
+  // sheet, so nobody pays for a plan that can't be applied.
+  if (!await svc.loadConfig()) {
     if (context.mounted) {
       Notify.info(context, context.tr('in_app_purchases_unavailable'));
     }
     await svc.dispose();
     return;
   }
+  // An Apple Account that already subscribes in this app would be billed
+  // twice: the sheet offers only Restore then.
+  final alreadySubscribed = await svc.hasActiveStoreSubscription();
   await svc.init();
   if (!context.mounted) {
     await svc.dispose();
@@ -135,67 +148,155 @@ Future<void> showUpgradeSheet(BuildContext context) async {
   await showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
-    builder: (sheetContext) => _UpgradeSheet(service: svc),
+    builder: (sheetContext) => UpgradeSheet(
+      service: svc,
+      store: delivery!.store,
+      alreadySubscribed: alreadySubscribed,
+    ),
   );
   await svc.dispose();
 }
 
-class _UpgradeSheet extends StatelessWidget {
-  const _UpgradeSheet({required this.service});
+/// The purchase sheet's body. Lists each plan with what App Review 3.1.2 and
+/// Play's subscriptions policy require next to a subscription's buy button:
+/// its name, how often it bills, the billed amount as the most prominent
+/// figure, the store's auto-renew and cancel terms, and the privacy policy
+/// and terms of service.
+@visibleForTesting
+class UpgradeSheet extends StatefulWidget {
+  const UpgradeSheet({
+    super.key,
+    required this.service,
+    required this.store,
+    this.alreadySubscribed = false,
+  });
 
   final PurchaseService service;
 
+  /// Whose renewal terms to state. Never the other store's: App Review
+  /// rejects a build that names Google Play, and the reverse reads as wrong.
+  final PurchaseStore store;
+
+  /// This store account already subscribes in this app (StoreKit's current
+  /// entitlements): say so and offer Restore, instead of selling a second.
+  final bool alreadySubscribed;
+
+  @override
+  State<UpgradeSheet> createState() => _UpgradeSheetState();
+}
+
+class _UpgradeSheetState extends State<UpgradeSheet> {
+  StreamSubscription<PurchaseActivity>? _sub;
+  bool _closed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _sub = widget.service.outcomes.listen(_onOutcome);
+  }
+
+  @override
+  void dispose() {
+    unawaited(_sub?.cancel());
+    super.dispose();
+  }
+
+  void _onOutcome(PurchaseActivity a) {
+    if (!mounted) return;
+    switch (a.kind) {
+      case PurchaseActivityKind.applied:
+        // The first applied purchase ends the sale; the plan is on the
+        // account now (the delivery refreshed the session).
+        if (_closed) return;
+        _closed = true;
+        Notify.success(context, context.tr('thank_you_for_your_purchase'));
+        Navigator.of(context).pop();
+      case PurchaseActivityKind.rejected:
+        Notify.error(
+          context,
+          context.tr('store_purchase_not_applied'),
+          detail: _nonBlank(a.message),
+        );
+      case PurchaseActivityKind.retryLater:
+        Notify.warning(context, context.tr('store_purchase_retry_later'));
+      case PurchaseActivityKind.failed:
+        Notify.error(
+          context,
+          context.tr('store_purchase_failed'),
+          detail: _nonBlank(a.message),
+        );
+      case PurchaseActivityKind.pending:
+      case PurchaseActivityKind.delivering:
+      case PurchaseActivityKind.canceled:
+        break;
+    }
+  }
+
+  static String? _nonBlank(String? s) =>
+      (s == null || s.trim().isEmpty) ? null : s.trim();
+
   @override
   Widget build(BuildContext context) {
+    final service = widget.service;
     final tokens = context.inTheme;
+    final textTheme = Theme.of(context).textTheme;
+    final caption = textTheme.bodySmall?.copyWith(color: tokens.ink2);
     return SafeArea(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: EdgeInsets.all(InSpacing.lg(context)),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(
-              context.tr('upgrade'),
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
+            Text(context.tr('upgrade'), style: textTheme.titleLarge),
             SizedBox(height: InSpacing.md(context)),
-            ValueListenableBuilder<bool>(
-              valueListenable: service.busy,
-              builder: (context, busy, _) => ValueListenableBuilder(
-                valueListenable: service.products,
-                builder: (context, products, _) {
-                  if (busy && products.isEmpty) {
-                    return const Padding(
-                      padding: EdgeInsets.all(24),
-                      child: Center(child: CircularProgressIndicator()),
-                    );
-                  }
-                  if (products.isEmpty) {
-                    return Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Text(context.tr('no_results')),
-                    );
-                  }
-                  return Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      for (final p in products)
-                        ListTile(
-                          title: Text(p.title),
-                          subtitle: Text(p.description),
-                          trailing: Text(
-                            p.price,
-                            style: TextStyle(color: tokens.accentInk),
+            if (widget.alreadySubscribed)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Text(context.tr('store_subscription_already_active')),
+              )
+            else ...[
+              ValueListenableBuilder<bool>(
+                valueListenable: service.busy,
+                builder: (context, busy, _) => ValueListenableBuilder(
+                  valueListenable: service.products,
+                  builder: (context, products, _) {
+                    if (busy && products.isEmpty) {
+                      return const Padding(
+                        padding: EdgeInsets.all(24),
+                        child: Center(child: CircularProgressIndicator()),
+                      );
+                    }
+                    if (products.isEmpty) {
+                      return Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Text(context.tr('no_results')),
+                      );
+                    }
+                    return Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        for (final p in products)
+                          _PlanTile(
+                            product: p,
+                            onTap: busy ? null : () => service.buy(p),
                           ),
-                          onTap: busy ? null : () => service.buy(p),
-                        ),
-                    ],
-                  );
-                },
+                      ],
+                    );
+                  },
+                ),
               ),
-            ),
-            SizedBox(height: InSpacing.md(context)),
+              SizedBox(height: InSpacing.md(context)),
+              Text(
+                context.tr(switch (widget.store) {
+                  PurchaseStore.appStore => 'store_auto_renew_terms_apple',
+                  PurchaseStore.googlePlay => 'store_auto_renew_terms_google',
+                }),
+                key: const ValueKey('store_auto_renew_terms'),
+                style: caption,
+              ),
+            ],
+            const LegalLinks(alignment: WrapAlignment.center),
             TextButton(
               onPressed: () => service.restore(),
               child: Text(context.tr('restore_purchases')),
@@ -205,13 +306,51 @@ class _UpgradeSheet extends StatelessWidget {
             Text(
               context.tr('restore_purchases_help'),
               textAlign: TextAlign.center,
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: tokens.ink2),
+              style: caption,
             ),
           ],
         ),
       ),
+    );
+  }
+}
+
+/// One plan: its name and billing period, and the price it bills — the
+/// largest figure on the row.
+class _PlanTile extends StatelessWidget {
+  const _PlanTile({required this.product, required this.onTap});
+
+  final StoreProduct product;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.inTheme;
+    final textTheme = Theme.of(context).textTheme;
+    final description = product.description.trim();
+    return ListTile(
+      title: Text(product.title),
+      subtitle: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            context.tr(switch (billingPeriodOf(product.id)) {
+              PlanBillingPeriod.monthly => 'store_billed_monthly',
+              PlanBillingPeriod.yearly => 'store_billed_yearly',
+            }),
+          ),
+          if (description.isNotEmpty) Text(description),
+        ],
+      ),
+      trailing: Text(
+        product.price,
+        style: textTheme.titleMedium?.copyWith(
+          color: tokens.accentInk,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+      onTap: onTap,
     );
   }
 }

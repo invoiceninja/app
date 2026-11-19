@@ -2264,5 +2264,13 @@
   "store_billing_unreachable": "The app store isn't reachable right now. Please try again.",
   "restore_purchases_help": "Restore brings back purchases made in this app.",
   "plan_billed_in_app_store": "Your plan is billed through the app store you subscribed in.",
-  "plan_billed_on_web": "Your plan is billed on the web."
+  "plan_billed_on_web": "Your plan is billed on the web.",
+  "store_billed_monthly": "Billed monthly",
+  "store_billed_yearly": "Billed yearly",
+  "store_auto_renew_terms_apple": "Subscriptions renew automatically at the price shown until cancelled. Cancel at least 24 hours before renewal in your Apple Account subscription settings.",
+  "store_auto_renew_terms_google": "Subscriptions renew automatically at the price shown until cancelled. Cancel at least 24 hours before renewal in your Google Play subscription settings.",
+  "store_purchase_not_applied": "Your purchase wasn't applied to this account.",
+  "store_purchase_retry_later": "Your purchase couldn't be applied yet. It will be applied the next time the app opens.",
+  "store_purchase_failed": "The store couldn't complete the purchase.",
+  "store_subscription_already_active": "This Apple Account already has an Invoice Ninja subscription, so another one can't be bought here. If it was bought for this account, restore it."
 }

@@ -165,6 +165,7 @@ import 'package:admin/data/services/user_settings_api.dart';
 import 'package:admin/data/services/users_api.dart';
 import 'package:admin/domain/contacts_sync/contacts_sync_service.dart';
 import 'package:admin/domain/entity_registry.dart';
+import 'package:admin/domain/upgrade/purchase_delivery.dart';
 import 'package:admin/domain/welcome.dart';
 import 'package:admin/domain/entity_type.dart';
 import 'package:admin/domain/expenses/receipt_parser.dart';
@@ -384,6 +385,7 @@ class Services implements SidebarBadgeContext {
     required this.realtime,
     this.homeWidgets,
     this.homeWidgetCommands,
+    this.purchases,
     required this.entityRegistry,
     required this.connectivity,
     required this.passwordCache,
@@ -734,6 +736,13 @@ class Services implements SidebarBadgeContext {
 
   /// Applies what the widgets queued (Stop timer) — null with [homeWidgets].
   final HomeWidgetCommands? homeWidgetCommands;
+
+  /// Delivers paid App Store / Play purchases to the hosted service from app
+  /// start — renewals, Ask to Buy approvals and interrupted purchases
+  /// included. Null unless the app asked for it
+  /// (`Services.build(storePurchases:)`), which `main()` does only on a
+  /// store-billing build: the store SDK throws anywhere else.
+  final PurchaseDelivery? purchases;
 
   /// Per-entity dispatchers + metadata. The sync engine, outbox screen,
   /// permissions checks, router branches, and shell navigation all read
@@ -1682,6 +1691,10 @@ class Services implements SidebarBadgeContext {
     // a review sheet or card over the screen it is driving
     // (docs/review-prompt.md).
     bool reviewPromptAutoAsk = false,
+    // Off unless the app asks: a harness must never reach the store SDK,
+    // whose purchase stream throws on desktop and web and whose channels
+    // `flutter_test` has not registered.
+    bool storePurchases = false,
     DiagnosticsLog? diagnosticsLog,
     DebugCaptureStore? debugCaptureStore,
   }) {
@@ -2532,6 +2545,12 @@ class Services implements SidebarBadgeContext {
             ),
       );
     };
+    // Follows the session from here on: StoreKit hands over its pending
+    // transactions only to a listener, and Play refunds a purchase nobody
+    // acknowledges within three days.
+    final purchases = storePurchases
+        ? (PurchaseDelivery(apiClient: apiClient, auth: auth)..start())
+        : null;
     // Home-screen widgets: built before `Services` so the closures above can
     // reach them through it.
     final widgetBridge = homeWidgets ? HomeWidgetBridge() : null;
@@ -2701,6 +2720,7 @@ class Services implements SidebarBadgeContext {
       realtime: realtime,
       homeWidgets: homeWidgetPublisher,
       homeWidgetCommands: homeWidgetCommands,
+      purchases: purchases,
       entityRegistry: registry,
       connectivity: connectivity,
       passwordCache: passwordCache,
