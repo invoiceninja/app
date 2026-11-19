@@ -20,6 +20,7 @@ import 'package:admin/data/services/password_cache.dart';
 import 'package:admin/data/services/tls/certificate_trust_seam.dart';
 import 'package:admin/data/services/tls/certificate_trust_store.dart';
 import 'package:admin/data/services/upload_source.dart';
+import 'package:admin/utils/file_names.dart';
 import 'package:admin/utils/perf_trace.dart';
 
 final _log = Logger('ApiClient');
@@ -354,10 +355,17 @@ class ApiClient {
   /// a Laravel `streamDownload`, which sets no content type at all, and the
   /// file itself can be any of the uploadable types. Its errors still arrive
   /// as non-2xx JSON, so they still go through [_raiseFromResponse].
+  ///
+  /// [keepServerFileName] remembers the response's `Content-Disposition` name
+  /// for the returned bytes (`serverFileNameOf`) — for a route whose name is
+  /// the document's own, the one its email attachment and portal download get.
+  /// Off by default: a route that names its file generically, or one whose
+  /// caller must name it apart (a saved version), keeps the caller's name.
   Future<Uint8List> getRaw(
     String path, {
     bool readOnly = false,
     String? expectedContentType = 'application/pdf',
+    bool keepServerFileName = false,
   }) async {
     if (!readOnly && Env.demoMode) {
       throw const DemoModeException();
@@ -372,19 +380,24 @@ class ApiClient {
     );
     await _postFlight(response, creds, method: 'GET', uri: uri);
     if (response.statusCode >= 200 && response.statusCode < 300) {
-      if (expectedContentType == null) return response.bodyBytes;
-      final ct = response.headers['content-type'] ?? '';
-      final actualType = ct.split(';').first.trim().toLowerCase();
-      if (actualType != expectedContentType.toLowerCase()) {
-        final preview = response.body.length > 200
-            ? '${response.body.substring(0, 200)}…'
-            : response.body;
-        throw ServerException(
-          response.statusCode,
-          'Unexpected content-type: "$ct" (body: $preview)',
-        );
+      if (expectedContentType != null) {
+        final ct = response.headers['content-type'] ?? '';
+        final actualType = ct.split(';').first.trim().toLowerCase();
+        if (actualType != expectedContentType.toLowerCase()) {
+          final preview = response.body.length > 200
+              ? '${response.body.substring(0, 200)}…'
+              : response.body;
+          throw ServerException(
+            response.statusCode,
+            'Unexpected content-type: "$ct" (body: $preview)',
+          );
+        }
       }
-      return response.bodyBytes;
+      final bytes = response.bodyBytes;
+      if (keepServerFileName) {
+        rememberServerFileName(bytes, response.headers['content-disposition']);
+      }
+      return bytes;
     }
     _raiseFromResponse(response);
   }

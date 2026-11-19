@@ -12,6 +12,7 @@ import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/list/entity_list_screen_scaffold.dart';
 import 'package:admin/ui/core/list/entity_sort_filter_sheet.dart';
 import 'package:admin/ui/core/list/master_detail_layout.dart';
+import 'package:admin/ui/features/billing_shared/billing_doc_file_name.dart';
 import 'package:admin/ui/features/billing_shared/email/recipient_email_fix.dart';
 import 'package:admin/ui/features/billing_shared/actions/billing_doc_bulk_pdf.dart';
 import 'package:admin/ui/features/billing_shared/billing_doc_type.dart';
@@ -304,7 +305,9 @@ class InvoiceListScreen extends StatelessWidget {
                 storedPdfKey: items.first.storedPdfInvitationKey,
               ),
               singleFileName:
-                  '${sanitizeFileName('invoice_${items.first.number.isEmpty ? items.first.id : items.first.number}')}.pdf',
+                  '${sanitizeFileName(billingDocFileBase(ctx.tr('invoice'), items.first.number.isEmpty ? items.first.id : items.first.number))}.pdf',
+              // A document with no number is named at random by the server.
+              preferServerName: items.first.number.isNotEmpty,
             );
           },
         ),

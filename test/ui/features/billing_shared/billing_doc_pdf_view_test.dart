@@ -10,6 +10,7 @@ import 'package:admin/app/theme.dart';
 import 'package:admin/ui/core/widgets/error_view.dart';
 import 'package:admin/ui/features/billing_shared/billing_doc_type.dart';
 import 'package:admin/ui/features/billing_shared/pdf/billing_doc_pdf_view.dart';
+import 'package:admin/utils/file_names.dart';
 
 import '../../../_localization_helper.dart';
 
@@ -144,6 +145,7 @@ void main() {
       Object? contentRevision,
       bool hasUnsyncedChanges = false,
       bool initialDeliveryNote = false,
+      String entityNumber = 'INV-1',
     }) => tester.pumpWidget(
       MaterialApp(
         theme: buildInTheme(InTheme.light),
@@ -152,7 +154,7 @@ void main() {
         home: Scaffold(
           body: BillingDocPdfView(
             entity: BillingDocType.invoice,
-            entityNumber: 'INV-1',
+            entityNumber: entityNumber,
             fetcher: ({String? designId, required bool deliveryNote}) => next(),
             revision: revision,
             contentRevision: contentRevision,
@@ -270,12 +272,57 @@ void main() {
       next = () async => pdfA;
       await mount(tester, initialDeliveryNote: true);
       await tester.pump(const Duration(milliseconds: 10));
-      expect(preview(tester).pdfFileName, 'invoice_INV-1_delivery_note.pdf');
+      expect(preview(tester).pdfFileName, 'Delivery_Note_Invoice_INV-1.pdf');
 
       await tester.tap(find.text('Invoice'));
       await tester.pump(const Duration(milliseconds: 10));
-      expect(preview(tester).pdfFileName, 'invoice_INV-1.pdf');
+      expect(preview(tester).pdfFileName, 'Invoice_INV-1.pdf');
     });
+
+    testWidgets('a render the server named downloads under that name', (
+      tester,
+    ) async {
+      // The stored render's `Content-Disposition` name is the one the same
+      // document has in its email and the client portal — the company's
+      // file-name pattern where it set one.
+      final named = Uint8List.fromList(pdfA);
+      rememberServerFileName(
+        named,
+        'attachment; filename="Acme Ltd - Invoice - INV-1.pdf"',
+      );
+      next = () async => named;
+      await mount(tester, initialDeliveryNote: false);
+      await tester.pump(const Duration(milliseconds: 10));
+      expect(preview(tester).pdfFileName, 'Acme Ltd - Invoice - INV-1.pdf');
+    });
+
+    testWidgets('a delivery note the server named downloads under that name', (
+      tester,
+    ) async {
+      final named = Uint8List.fromList(pdfA);
+      rememberServerFileName(
+        named,
+        'attachment; filename=Delivery_Note_Invoice_INV-1.pdf',
+      );
+      next = () async => named;
+      await mount(tester, initialDeliveryNote: true);
+      await tester.pump(const Duration(milliseconds: 10));
+      expect(preview(tester).pdfFileName, 'Delivery_Note_Invoice_INV-1.pdf');
+    });
+
+    testWidgets(
+      'a document with no number keeps a stable name, not the server one',
+      (tester) async {
+        // The server names a number-less document `Invoice_<random>`, a new
+        // name on every fetch.
+        final named = Uint8List.fromList(pdfA);
+        rememberServerFileName(named, 'attachment; filename=Invoice_k3J9a.pdf');
+        next = () async => named;
+        await mount(tester, entityNumber: '');
+        await tester.pump(const Duration(milliseconds: 10));
+        expect(preview(tester).pdfFileName, 'Invoice_preview.pdf');
+      },
+    );
 
     testWidgets(
       'a failed content refresh keeps the PDF, marked stale, and Retry '

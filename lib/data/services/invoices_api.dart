@@ -260,6 +260,7 @@ class InvoicesApi extends BaseEntityApi<InvoiceListApi, InvoiceItemApi> {
       return client.getRaw(
         '/api/v1/invoices/$id/delivery_note$qs',
         readOnly: true,
+        keepServerFileName: true,
       );
     }
 

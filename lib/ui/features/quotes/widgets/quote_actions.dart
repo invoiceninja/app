@@ -34,6 +34,7 @@ import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/features/billing_shared/billing_cross_clone.dart';
 import 'package:admin/ui/features/billing_shared/convert_to_purchase_order_action.dart';
 import 'package:admin/ui/features/invoices/widgets/detail/run_template_dialog.dart';
+import 'package:admin/ui/features/billing_shared/billing_doc_file_name.dart';
 import 'package:admin/utils/file_names.dart';
 
 /// Quote action set. Mirrors `InvoiceAction` but drops `markPaid` /
@@ -519,12 +520,21 @@ class QuoteActions {
             storedPdfKey: quote.storedPdfInvitationKey,
           );
           if (!context.mounted) return;
+          // The server's name for the file when it gave one — the name the
+          // document has in its email and the client portal — but never for a
+          // document with no number, which the server names at random.
+          final fileName =
+              (quote.number.isEmpty
+                  ? null
+                  : serverFileNameOf(bytes, extension: 'pdf')) ??
+              '${sanitizeFileName(billingDocFileBase(context.tr('quote'), quote.number.isEmpty ? quote.id : quote.number))}.pdf';
           if (action == QuoteAction.downloadPdf) {
-            final fileName =
-                '${sanitizeFileName('quote_${quote.number.isEmpty ? quote.id : quote.number}')}.pdf';
             await downloadPdf(context, fileName: fileName)(bytes);
           } else {
-            await Printing.layoutPdf(onLayout: (_) async => bytes);
+            await Printing.layoutPdf(
+              onLayout: (_) async => bytes,
+              name: fileName,
+            );
           }
         } catch (e) {
           if (!context.mounted) return;

@@ -13,6 +13,7 @@ import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/utils/external_url.dart';
 import 'package:admin/ui/core/utils/save_download.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
+import 'package:admin/utils/file_names.dart';
 
 /// Saves bytes through the platform's save dialog — the signature of what
 /// [bytesSaver] returns. Resolves to whether the file was saved; false is a
@@ -178,13 +179,21 @@ Future<void> sharePdfBytes(Uint8List bytes, {required String fileName}) =>
 /// Never call `Printing.sharePdf` for a download anywhere else — on Windows
 /// and Linux it only opens a temp copy (`test/lint/desktop_downloads_test.dart`,
 /// docs/file-downloads.md).
+///
+/// [preferServerName] saves the bytes under the name the server gave them
+/// (`serverFileNameOf`) when it gave one, and under [fileName] otherwise — for
+/// a document whose name has to be bound before its bytes arrive.
 Future<void> Function(Uint8List bytes) downloadPdf(
   BuildContext context, {
   required String fileName,
+  bool preferServerName = false,
 }) {
+  String nameFor(Uint8List bytes) =>
+      (preferServerName ? serverFileNameOf(bytes, extension: 'pdf') : null) ??
+      fileName;
   if (Env.isDesktop) {
     final save = bytesSaver(context);
-    return (bytes) => save(fileName: fileName, bytes: bytes);
+    return (bytes) => save(fileName: nameFor(bytes), bytes: bytes);
   }
-  return (bytes) => pdfShare(bytes: bytes, filename: fileName);
+  return (bytes) => pdfShare(bytes: bytes, filename: nameFor(bytes));
 }

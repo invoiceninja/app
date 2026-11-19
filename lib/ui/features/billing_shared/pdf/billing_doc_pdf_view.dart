@@ -13,6 +13,7 @@ import 'package:admin/ui/core/widgets/empty_state.dart';
 import 'package:admin/ui/core/widgets/error_view.dart';
 import 'package:admin/ui/core/widgets/notify.dart'
     show Notify, formatNotifyError;
+import 'package:admin/ui/features/billing_shared/billing_doc_file_name.dart';
 import 'package:admin/ui/features/billing_shared/billing_doc_type.dart';
 import 'package:admin/utils/file_names.dart';
 import 'package:admin/utils/pdf_bytes_guard.dart';
@@ -302,15 +303,26 @@ class _BillingDocPdfViewState extends State<BillingDocPdfView> {
     final unsyncedNote =
         showToggle && _deliveryNote && widget.hasUnsyncedChanges;
     final stale = _stale || unsyncedNote;
-    final previewName = '${widget.entity.wireName}_preview';
+    final typeLabel = context.tr(widget.entity.singularLabelKey);
+    final previewName = billingDocFileBase(typeLabel, 'preview');
     final baseName = widget.entityNumber.isEmpty
         ? previewName
-        : '${widget.entity.wireName}_${widget.entityNumber}';
-    // A downloaded delivery note must not take the document's own name.
+        : billingDocFileBase(typeLabel, widget.entityNumber);
+    // A downloaded delivery note must not take the document's own name; the
+    // server's shape for it is `Delivery_Note_Invoice_0042`.
     final rawName = showToggle && _deliveryNote
-        ? '${baseName}_delivery_note'
+        ? billingDocFileBase(context.tr('delivery_note'), baseName)
         : baseName;
-    final fileName = '${sanitizeFileName(rawName, fallback: previewName)}.pdf';
+    // The server's own name when the response carried one — the stored render
+    // and the delivery note do; a `live_preview` and a saved version do not
+    // (a version keeps its date-and-time suffix, so two cannot collide). Not
+    // for a document with no number: the server names that one
+    // `Invoice_<random>`, a new name on every fetch.
+    final fileName =
+        (widget.entityNumber.isEmpty
+            ? null
+            : serverFileNameOf(bytes, extension: 'pdf')) ??
+        '${sanitizeFileName(rawName, fallback: previewName)}.pdf';
     final scrim = Theme.of(context).colorScheme.scrim.withValues(alpha: 0.4);
     // Nothing goes out while the render is stale — printing or sharing it
     // would send a document that no longer matches the record — or while a

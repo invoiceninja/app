@@ -30,6 +30,7 @@ import 'package:admin/ui/core/sync/require_synced.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/features/billing_shared/billing_cross_clone.dart';
 import 'package:admin/ui/features/billing_shared/email/recipient_email_fix.dart';
+import 'package:admin/ui/features/billing_shared/billing_doc_file_name.dart';
 import 'package:admin/utils/file_names.dart';
 
 /// RecurringInvoice action set. Mirrors invoice actions but drops markPaid
@@ -400,12 +401,21 @@ class RecurringInvoiceActions {
             designId: ri.designId.isEmpty ? null : ri.designId,
           );
           if (!context.mounted) return;
+          // The server's name for the file when it gave one — the name the
+          // document has in its email and the client portal — but never for a
+          // document with no number, which the server names at random.
+          final fileName =
+              (ri.number.isEmpty
+                  ? null
+                  : serverFileNameOf(bytes, extension: 'pdf')) ??
+              '${sanitizeFileName(billingDocFileBase(context.tr('recurring_invoice'), ri.number.isEmpty ? ri.id : ri.number))}.pdf';
           if (action == RecurringInvoiceAction.downloadPdf) {
-            final fileName =
-                '${sanitizeFileName('recurring_invoice_${ri.number.isEmpty ? ri.id : ri.number}')}.pdf';
             await downloadPdf(context, fileName: fileName)(bytes);
           } else {
-            await Printing.layoutPdf(onLayout: (_) async => bytes);
+            await Printing.layoutPdf(
+              onLayout: (_) async => bytes,
+              name: fileName,
+            );
           }
         } catch (e) {
           if (!context.mounted) return;

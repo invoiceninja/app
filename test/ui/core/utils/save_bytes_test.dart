@@ -11,6 +11,7 @@ import 'package:admin/data/prefs/device_prefs_store.dart';
 import 'package:admin/ui/core/utils/save_bytes.dart';
 import 'package:admin/ui/core/utils/save_download.dart';
 import 'package:admin/ui/core/widgets/toast_controller.dart';
+import 'package:admin/utils/file_names.dart';
 
 import '../../../_localization_helper.dart';
 
@@ -211,4 +212,35 @@ void desktopDownloads() {
     expect(shares, isEmpty);
     expect(File(p.join(downloads.path, 'b.pdf')).existsSync(), isTrue);
   }, variant: TargetPlatformVariant.only(TargetPlatform.macOS));
+
+  testWidgets(
+    'a name bound before the fetch yields to the one the server gave the bytes',
+    (tester) async {
+      final context = await pumpContext(tester);
+      final named = Uint8List.fromList(bytes);
+      rememberServerFileName(
+        named,
+        'attachment; filename="Acme Ltd - Invoice - 7.pdf"',
+      );
+      final download = downloadPdf(
+        context,
+        fileName: 'Invoice_7.pdf',
+        preferServerName: true,
+      );
+      await tester.runAsync(() => download(named));
+      // Unnamed bytes (a `live_preview`) keep the caller's name.
+      await tester.runAsync(() => download(Uint8List.fromList(bytes)));
+      // Without the opt-in a caller's name always wins.
+      await tester.runAsync(
+        () => downloadPdf(context, fileName: 'mine.pdf')(named),
+      );
+
+      expect(shares, [
+        'Acme Ltd - Invoice - 7.pdf',
+        'Invoice_7.pdf',
+        'mine.pdf',
+      ]);
+    },
+    variant: TargetPlatformVariant.only(TargetPlatform.android),
+  );
 }

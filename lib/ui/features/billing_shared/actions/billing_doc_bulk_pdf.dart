@@ -57,10 +57,18 @@ Future<void> bulkDownloadBillingDocs(
   required Future<void> Function() bulkDownload,
   required Future<Uint8List> Function() singleFetch,
   required String singleFileName,
+  bool preferServerName = false,
 }) async {
   try {
     if (count == 1) {
-      final download = downloadPdf(context, fileName: singleFileName);
+      // The server's own name for the file when it gave one and
+      // [preferServerName] allows it (not for a document with no number, which
+      // the server names at random); [singleFileName] otherwise.
+      final download = downloadPdf(
+        context,
+        fileName: singleFileName,
+        preferServerName: preferServerName,
+      );
       final bytes = await singleFetch();
       if (!context.mounted) return;
       await download(bytes);

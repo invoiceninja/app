@@ -33,6 +33,7 @@ import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/features/billing_shared/billing_cross_clone.dart';
 import 'package:admin/ui/features/invoices/widgets/detail/run_template_dialog.dart';
 import 'package:admin/ui/features/vendors/widgets/vendor_portal.dart';
+import 'package:admin/ui/features/billing_shared/billing_doc_file_name.dart';
 import 'package:admin/utils/file_names.dart';
 
 /// PurchaseOrder action set. Mirrors Quote/Credit actions plus the
@@ -473,12 +474,21 @@ class PurchaseOrderActions {
             storedPdfKey: po.storedPdfInvitationKey,
           );
           if (!context.mounted) return;
+          // The server's name for the file when it gave one — the name the
+          // document has in its email and the client portal — but never for a
+          // document with no number, which the server names at random.
+          final fileName =
+              (po.number.isEmpty
+                  ? null
+                  : serverFileNameOf(bytes, extension: 'pdf')) ??
+              '${sanitizeFileName(billingDocFileBase(context.tr('purchase_order'), po.number.isEmpty ? po.id : po.number))}.pdf';
           if (action == PurchaseOrderAction.downloadPdf) {
-            final fileName =
-                '${sanitizeFileName('purchase_order_${po.number.isEmpty ? po.id : po.number}')}.pdf';
             await downloadPdf(context, fileName: fileName)(bytes);
           } else {
-            await Printing.layoutPdf(onLayout: (_) async => bytes);
+            await Printing.layoutPdf(
+              onLayout: (_) async => bytes,
+              name: fileName,
+            );
           }
         } catch (e) {
           if (!context.mounted) return;
@@ -493,14 +503,19 @@ class PurchaseOrderActions {
         // desktop it writes into the downloads folder; elsewhere it opens the
         // save dialog — and it says so either way (docs/file-downloads.md).
         final save = bytesSaver(context);
+        final typeLabel = context.tr('purchase_order');
         try {
           final bytes = await services.purchaseOrders.api
               .downloadEPurchaseOrder(invitationKey: invitationKey);
-          // Sanitised for the same reason the PDF name above is, and it is the
-          // same `po.number`: a company numbering `PO/2026/0001` would otherwise
-          // hand the save a name containing a path separator.
+          // The server's own name for it when it gave one. The fallback is
+          // sanitised for the same reason the PDF name above is: a company
+          // numbering `PO/2026/0001` would otherwise hand the save a name
+          // containing a path separator.
           final fileName =
-              '${sanitizeFileName('purchase_order_${po.number.isEmpty ? po.id : po.number}')}.xml';
+              (po.number.isEmpty
+                  ? null
+                  : serverFileNameOf(bytes, extension: 'xml')) ??
+              '${sanitizeFileName(billingDocFileBase(typeLabel, po.number.isEmpty ? po.id : po.number))}.xml';
           await save(fileName: fileName, bytes: bytes);
         } catch (e) {
           if (!context.mounted) return;

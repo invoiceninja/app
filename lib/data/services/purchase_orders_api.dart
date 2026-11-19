@@ -147,6 +147,7 @@ class PurchaseOrdersApi
         '/api/v1/purchase_order/$invitationKey/download_e_purchase_order',
         readOnly: true,
         expectedContentType: 'application/xml',
+        keepServerFileName: true,
       );
 
   Future<PurchaseOrderApi> uploadDocument({

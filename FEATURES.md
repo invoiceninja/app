@@ -257,6 +257,7 @@ the honest default.
 | Invoice — run template (one invoice or a list selection; the PDF opens in the app or is emailed to you) | ✅ | ✅ | ✅ | | docs/running-a-template.md |
 | Invoice — auto-bill with gateway | ✅ | ✅ | ✅ | ✅ | |
 | Invoice — view / download PDF | ✅ | ✅ | ✅ | ✅ | |
+| Billing documents — a download takes the server's file name (the one its email and portal carry) | ✅ | ❌ | ✅ | | docs/file-downloads.md |
 | Invoice — PDF version history (older versions) | ✅ | ✅ | ✅ | | |
 | Invoice — print | ✅ | ✅ | ✅ | ✅ | |
 | Invoice — audit trail / history | ✅ | ✅ | ✅ | ✅ | |

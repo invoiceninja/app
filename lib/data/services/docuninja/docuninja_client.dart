@@ -9,6 +9,7 @@ import 'package:logging/logging.dart';
 import 'package:admin/data/services/api_exception.dart';
 import 'package:admin/data/services/http_client_factory.dart';
 import 'package:admin/data/services/upload_source.dart';
+import 'package:admin/utils/file_names.dart';
 
 final _log = Logger('DocuNinjaClient');
 
@@ -144,7 +145,9 @@ class DocuNinjaClient {
     );
     return (
       bytes: response.bodyBytes,
-      filename: _filenameFrom(response.headers['content-disposition']),
+      filename: fileNameFromContentDisposition(
+        response.headers['content-disposition'],
+      ),
     );
   }
 
@@ -273,29 +276,6 @@ class DocuNinjaClient {
   static Object? _decode(http.Response response) {
     if (response.bodyBytes.isEmpty) return null;
     return jsonDecode(utf8.decode(response.bodyBytes));
-  }
-
-  static String? _filenameFrom(String? disposition) {
-    if (disposition == null) return null;
-    final star = RegExp(
-      r"filename\*=(?:UTF-8'')?([^;]+)",
-      caseSensitive: false,
-    ).firstMatch(disposition);
-    if (star != null) {
-      final encoded = star.group(1)!.trim().replaceAll('"', '');
-      // A malformed escape (`50%.pdf`) must not fail a download that has
-      // already arrived: fall back to the plain name, or none.
-      try {
-        return Uri.decodeComponent(encoded);
-      } on ArgumentError {
-        // Fall through.
-      }
-    }
-    final plain = RegExp(
-      r'filename="?([^";]+)"?',
-      caseSensitive: false,
-    ).firstMatch(disposition);
-    return plain?.group(1)?.trim();
   }
 }
 

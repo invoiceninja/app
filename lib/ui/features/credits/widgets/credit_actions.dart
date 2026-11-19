@@ -35,6 +35,7 @@ import 'package:admin/ui/features/billing_shared/billing_cross_clone.dart';
 import 'package:admin/ui/features/billing_shared/einvoice_validation_dialog.dart';
 import 'package:admin/ui/features/invoices/widgets/detail/run_template_dialog.dart';
 import 'package:admin/ui/features/payments/view_models/payment_edit_view_model.dart';
+import 'package:admin/ui/features/billing_shared/billing_doc_file_name.dart';
 import 'package:admin/utils/file_names.dart';
 
 /// Credit action set. Mirrors `QuoteAction` but drops the conversion
@@ -425,12 +426,21 @@ class CreditActions {
             storedPdfKey: credit.storedPdfInvitationKey,
           );
           if (!context.mounted) return;
+          // The server's name for the file when it gave one — the name the
+          // document has in its email and the client portal — but never for a
+          // document with no number, which the server names at random.
+          final fileName =
+              (credit.number.isEmpty
+                  ? null
+                  : serverFileNameOf(bytes, extension: 'pdf')) ??
+              '${sanitizeFileName(billingDocFileBase(context.tr('credit'), credit.number.isEmpty ? credit.id : credit.number))}.pdf';
           if (action == CreditAction.downloadPdf) {
-            final fileName =
-                '${sanitizeFileName('credit_${credit.number.isEmpty ? credit.id : credit.number}')}.pdf';
             await downloadPdf(context, fileName: fileName)(bytes);
           } else {
-            await Printing.layoutPdf(onLayout: (_) async => bytes);
+            await Printing.layoutPdf(
+              onLayout: (_) async => bytes,
+              name: fileName,
+            );
           }
         } catch (e) {
           if (!context.mounted) return;

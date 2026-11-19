@@ -58,6 +58,7 @@ Future<Uint8List> fetchStoredPdf({
     return await client.getRaw(
       '/api/v1/$entity/${Uri.encodeComponent(storedPdfKey)}/download',
       readOnly: true,
+      keepServerFileName: true,
     );
   } on PermissionDeniedException {
     rethrow;
