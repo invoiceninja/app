@@ -7,6 +7,7 @@ import 'package:store_services/store_services.dart';
 
 import 'package:admin/data/repositories/auth_repository.dart';
 import 'package:admin/data/services/api_client.dart';
+import 'package:admin/data/services/api_exception.dart';
 import 'package:admin/domain/upgrade/purchase_service.dart';
 
 /// A trimmed but realistic `Transaction.jsonRepresentation` payload — the
@@ -79,6 +80,18 @@ class _FakeApi implements ApiClient {
   /// Thrown by [postJson] when set — the server never recorded the purchase.
   Object? postError;
 
+  /// What `GET /api/admin/iap/config` answers; thrown when it is an error.
+  Object? iapConfig = const {'purchases_enabled': true};
+  final gets = <String>[];
+
+  @override
+  Future<dynamic> getOne(String path) async {
+    gets.add(path);
+    final answer = iapConfig;
+    if (answer is Exception) throw answer;
+    return answer;
+  }
+
   @override
   Future<dynamic> postJson(
     String path, {
@@ -100,6 +113,16 @@ class _FakeApi implements ApiClient {
       throw UnimplementedError(invocation.memberName.toString());
 }
 
+AuthSession _session({String accountKey = 'acct-key'}) => AuthSession(
+  baseUrl: 'https://example.test',
+  isHosted: true,
+  accountId: 'acct',
+  accountKey: accountKey,
+  companies: const [],
+  currentCompanyId: 'co',
+  userId: 'me',
+);
+
 class _FakeAuth implements AuthRepository {
   int refreshes = 0;
 
@@ -107,15 +130,8 @@ class _FakeAuth implements AuthRepository {
   Object? refreshError;
 
   @override
-  final ValueListenable<AuthSession?> session = ValueNotifier<AuthSession?>(
-    const AuthSession(
-      baseUrl: 'https://example.test',
-      isHosted: true,
-      accountId: 'acct',
-      companies: [],
-      currentCompanyId: 'co',
-      userId: 'me',
-    ),
+  final ValueNotifier<AuthSession?> session = ValueNotifier<AuthSession?>(
+    _session(),
   );
 
   @override
@@ -172,7 +188,9 @@ void main() {
       expect(path, '/api/admin/subscription');
       expect(body, {
         'inapp_transaction_id': '2000000111111',
-        'key': 'acct',
+        // The account's key, never its id: the hosted endpoint looks the
+        // account up by key, so an id matched nothing and no plan was applied.
+        'key': 'acct-key',
         'plan': 'enterprise_plan',
       });
       expect(auth.refreshes, 1);
@@ -262,6 +280,31 @@ void main() {
       expect(svc.busy.value, isFalse);
     });
 
+    test('with no account key yet, a purchase never starts', () async {
+      auth.session.value = _session(accountKey: '');
+
+      await svc.buy(svc.products.value.single);
+
+      expect(billing.bought, isEmpty);
+      expect(svc.busy.value, isFalse);
+    });
+
+    test('with no account key yet, a paid purchase stays unfinished', () async {
+      auth.session.value = _session(accountKey: '');
+      final p = StorePurchase(
+        productId: 'pro_plan',
+        status: StorePurchaseStatus.purchased,
+        purchaseId: 'GPA.1',
+        localVerificationData: jsonEncode({'orderId': 'x'}),
+        pendingCompletePurchase: true,
+      );
+      await emit(p);
+
+      expect(api.posts, isEmpty);
+      expect(billing.completed, isEmpty);
+      expect(svc.busy.value, isFalse);
+    });
+
     test('a refresh failing after delivery still completes', () async {
       auth.refreshError = Exception('offline');
       final p = StorePurchase(
@@ -304,6 +347,47 @@ void main() {
         expect(billing.bought, isEmpty);
       },
     );
+  });
+
+  // Purchases fail closed: the store sheet opens only when the hosted
+  // service says it takes in-app purchases. Until it can verify them, a sheet
+  // would take money for a plan that can't be applied.
+  group('purchasesEnabled', () {
+    late _FakeApi api;
+    late PurchaseService svc;
+
+    setUp(() {
+      api = _FakeApi();
+      svc = PurchaseService(
+        apiClient: api,
+        auth: _FakeAuth(),
+        billing: _FakeBilling(),
+      );
+    });
+
+    tearDown(() => svc.dispose());
+
+    test('asks the hosted config and opens when it says so', () async {
+      expect(await svc.purchasesEnabled(), isTrue);
+      expect(api.gets, ['/api/admin/iap/config']);
+    });
+
+    test('stays closed when the config says no', () async {
+      api.iapConfig = const {'purchases_enabled': false};
+      expect(await svc.purchasesEnabled(), isFalse);
+    });
+
+    test('stays closed on a server with no such route', () async {
+      api.iapConfig = const ServerException(404, 'Route does not exist');
+      expect(await svc.purchasesEnabled(), isFalse);
+    });
+
+    test('stays closed on an answer of the wrong shape', () async {
+      api.iapConfig = const {'purchases_enabled': 'true'};
+      expect(await svc.purchasesEnabled(), isFalse);
+      api.iapConfig = null;
+      expect(await svc.purchasesEnabled(), isFalse);
+    });
   });
 
   group('appleOriginalTransactionId', () {

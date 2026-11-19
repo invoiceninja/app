@@ -73,6 +73,27 @@ class PurchaseService {
   /// True only on store platforms with a reachable billing backend.
   Future<bool> get isAvailable => _iap.isAvailable();
 
+  /// Whether the hosted service is taking in-app purchases right now. It asks
+  /// `GET /api/admin/iap/config` and **fails closed**: no answer, an error, or
+  /// anything but `purchases_enabled: true` means no purchase sheet. That keeps
+  /// purchases off until the hosted billing can verify them, and lets support
+  /// switch them off again without an app release. Delivering a purchase the
+  /// user already paid for is never gated on it.
+  Future<bool> purchasesEnabled() async {
+    try {
+      final json = await _apiClient.getOne('/api/admin/iap/config');
+      return json is Map<String, dynamic> && json['purchases_enabled'] == true;
+    } catch (e) {
+      _log.info('iap config unavailable, purchases off: $e');
+      return false;
+    }
+  }
+
+  /// `account.key`, which the hosted endpoint looks the account up by. Blank
+  /// only on an offline cold start from a cache older than 5.1.14, until the
+  /// background refresh fills it.
+  String get _accountKey => _auth.session.value?.accountKey ?? '';
+
   Future<void> init() async {
     _sub = _iap.purchaseStream.listen(
       _onPurchases,
@@ -95,6 +116,11 @@ class PurchaseService {
   }
 
   Future<void> buy(StoreProduct product) async {
+    // Never take money that could not be credited to an account.
+    if (_accountKey.isEmpty) {
+      _log.warning('no account key yet, not starting a purchase');
+      return;
+    }
     busy.value = true;
     try {
       await _iap.buyNonConsumable(product);
@@ -157,12 +183,20 @@ class PurchaseService {
         _log.warning('no transaction id for ${p.productId} — skipping deliver');
         return true;
       }
+      // The hosted endpoint finds the account by its key, never its id: an id
+      // matched nothing, so the server failed and no plan was ever applied.
+      // With no key yet, leave the purchase unfinished for a later delivery.
+      final key = _accountKey;
+      if (key.isEmpty) {
+        _log.warning('no account key yet — leaving ${p.productId} unfinished');
+        return false;
+      }
       try {
         await _apiClient.postJson(
           '/api/admin/subscription',
           body: {
             'inapp_transaction_id': purchaseId,
-            'key': _auth.session.value?.accountId ?? '',
+            'key': key,
             'plan': p.productId.replaceAll('-', '_'),
           },
         );

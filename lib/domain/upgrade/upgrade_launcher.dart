@@ -11,6 +11,7 @@ import 'package:admin/app/services.dart';
 import 'package:admin/domain/upgrade/purchase_service.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/utils/external_url.dart';
+import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/features/auth/widgets/name_required_dialog.dart';
 
 /// The single platform-conditional upgrade entry point. **Every** upgrade
@@ -113,6 +114,15 @@ Future<void> showUpgradeSheet(BuildContext context) async {
     if (context.mounted) {
       final url = services.auth.session.value?.ninjaPortalUrl ?? '';
       await _openPortalOrPlanScreen(context, url);
+    }
+    await svc.dispose();
+    return;
+  }
+  // Purchases stay off until the hosted service says it takes them (it fails
+  // closed): no store sheet, so nobody pays for a plan that can't be applied.
+  if (!await svc.purchasesEnabled()) {
+    if (context.mounted) {
+      Notify.info(context, context.tr('in_app_purchases_unavailable'));
     }
     await svc.dispose();
     return;
