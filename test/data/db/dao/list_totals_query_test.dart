@@ -10,13 +10,6 @@ import 'package:admin/data/models/value/date.dart';
 import 'package:admin/domain/payment_status.dart';
 import 'package:admin/domain/recurring_expense_status.dart';
 
-/// The local half of a money list's totals line (docs/entity-lists.md § A
-/// money list's totals line): each DAO's `listTotalsQuery`, run by
-/// `BaseEntityDao.watchListTotals` over a seeded store holding the rows that
-/// count beside the ones that must not — archived, deleted, another company's,
-/// the wrong status, a deleted client's — in several currencies.
-///
-/// `''` keys the company's currency: a record whose party names none.
 /// An expense payload's taxes, each worth 100 on the amounts the tests use:
 /// 80 at a named 25%, 90 plus 10 stored by amount, and 100 with its 10%
 /// inside it.
@@ -36,6 +29,13 @@ const _inclusiveRate = <String, Object>{
   'tax_rate1': 10,
 };
 
+/// The local half of a money list's totals line (docs/entity-lists.md § A
+/// money list's totals line): each DAO's `listTotalsQuery`, run by
+/// `BaseEntityDao.watchListTotals` over a seeded store holding the rows that
+/// count beside the ones that must not — archived, deleted, another company's,
+/// the wrong status, a deleted client's — in several currencies.
+///
+/// `''` keys the company's currency: a record whose party names none.
 void main() {
   late AppDatabase db;
 
