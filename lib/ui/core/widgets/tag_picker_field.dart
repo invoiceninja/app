@@ -452,6 +452,7 @@ class _TagPickerFieldState extends State<TagPickerField> {
                           maxWidth: popoverWidth,
                         ),
                         child: ListView(
+                          addAutomaticKeepAlives: false,
                           shrinkWrap: true,
                           padding: EdgeInsets.zero,
                           children: [

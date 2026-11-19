@@ -297,6 +297,7 @@ class _AddVariableDialogState extends State<_AddVariableDialog> {
             const SizedBox(height: InSpacing.sm),
             Expanded(
               child: ListView.builder(
+                addAutomaticKeepAlives: false,
                 itemCount: filtered.length,
                 itemBuilder: (ctx, i) {
                   final v = filtered[i];

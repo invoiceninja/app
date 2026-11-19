@@ -1338,6 +1338,7 @@ class _ProductsTab extends StatelessWidget {
         ConstrainedBox(
           constraints: BoxConstraints(maxHeight: maxListHeight),
           child: ListView.builder(
+            addAutomaticKeepAlives: false,
             shrinkWrap: true,
             itemCount: products.length,
             itemBuilder: (context, i) {
@@ -1493,6 +1494,7 @@ class _TasksTab extends StatelessWidget {
         ConstrainedBox(
           constraints: BoxConstraints(maxHeight: maxListHeight),
           child: ListView.builder(
+            addAutomaticKeepAlives: false,
             shrinkWrap: true,
             itemCount: rows.length,
             itemBuilder: (context, i) {
@@ -1689,6 +1691,7 @@ class _ExpensesTab extends StatelessWidget {
         ConstrainedBox(
           constraints: BoxConstraints(maxHeight: maxListHeight),
           child: ListView.builder(
+            addAutomaticKeepAlives: false,
             shrinkWrap: true,
             itemCount: expenses.length,
             itemBuilder: (context, i) {

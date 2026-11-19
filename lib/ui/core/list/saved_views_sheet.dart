@@ -255,6 +255,7 @@ class _SavedViewsSheetState<T> extends State<SavedViewsSheet<T>> {
                     );
                   }
                   return ListView.separated(
+                    addAutomaticKeepAlives: false,
                     shrinkWrap: true,
                     itemCount: views.length,
                     separatorBuilder: (_, _) => const Divider(height: 1),

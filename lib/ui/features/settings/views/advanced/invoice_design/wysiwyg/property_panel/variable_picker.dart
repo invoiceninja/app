@@ -223,7 +223,11 @@ class _VariablePickerBodyState extends State<_VariablePickerBody> {
                       style: TextStyle(color: tokens.ink3),
                     ),
                   )
-                : ListView(shrinkWrap: true, children: sections),
+                : ListView(
+                    addAutomaticKeepAlives: false,
+                    shrinkWrap: true,
+                    children: sections,
+                  ),
           ),
         ],
       ),

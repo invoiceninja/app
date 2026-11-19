@@ -112,6 +112,7 @@ class _ReportsGalleryScreenState extends State<ReportsGalleryScreen> {
               for (final id in vm.recentReports.take(4))
                 ?openableReport(id, company),
             ];
+      // lint: allow-keep-alives the search field scrolls with the list and keeps its focus
       body = ListView(
         padding: EdgeInsets.all(
           globalNav ? InSpacing.xl : InSpacing.lg(context),

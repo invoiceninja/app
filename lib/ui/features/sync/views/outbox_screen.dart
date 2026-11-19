@@ -270,6 +270,7 @@ class _OutboxBodyState extends State<_OutboxBody> {
         final oldFailures = _vm.oldFailureCount;
         final lead = oldFailures > 0 ? 1 : 0;
         return ListView.separated(
+          addAutomaticKeepAlives: false,
           padding: EdgeInsets.symmetric(
             horizontal: InSpacing.lg(context),
             vertical: InSpacing.md(context),

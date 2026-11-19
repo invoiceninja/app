@@ -264,6 +264,7 @@ class _DailyList extends StatelessWidget {
     return ContentPanel(
       wide: wide,
       child: ListView.separated(
+        addAutomaticKeepAlives: false,
         // Clear the screen's `+` (invoiceninja/flutter#167). Inside the scroll
         // view rather than around it, so rows travel *through* the padded region
         // instead of stopping short of it. `fabScrollClearance` carries the

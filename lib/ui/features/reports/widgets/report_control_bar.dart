@@ -4,6 +4,7 @@ import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/env.dart';
 import 'package:admin/data/models/domain/report_definition.dart';
 import 'package:admin/data/models/domain/report_preview.dart';
+import 'package:admin/data/models/value/dashboard_filter.dart';
 import 'package:admin/domain/reports/report_column_types.dart';
 import 'package:admin/domain/reports/report_engine.dart';
 import 'package:admin/domain/reports/report_group_label.dart';
@@ -199,6 +200,8 @@ List<Widget> reportScopeControls(
             anchor,
             current: reportRangeAsPickerValue(vm.payload),
             formatter: formatter,
+            // Sent as dates, never by name, so Today can be offered here.
+            presets: kRangePickerPresetsWithToday,
             onChange: (range) =>
                 vm.setPayload(reportPayloadWithRange(vm.payload, range)),
           ),
@@ -567,6 +570,7 @@ class _GroupDialogState extends State<_GroupDialog> {
             const SizedBox(height: InSpacing.sm),
             Expanded(
               child: ListView(
+                addAutomaticKeepAlives: false,
                 children: [
                   if (needle.isEmpty) option('', tr('no_grouping')),
                   for (final c in shown) option(c.identifier, c.displayLabel),

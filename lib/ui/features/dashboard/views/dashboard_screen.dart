@@ -1058,6 +1058,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     ];
 
     return DashboardScope(
+      // lint: allow-keep-alives the calendar and pipeline cards keep themselves alive
       child: ListView(
         padding: EdgeInsets.all(dense ? InSpacing.lg(context) : InSpacing.xl),
         children: children,

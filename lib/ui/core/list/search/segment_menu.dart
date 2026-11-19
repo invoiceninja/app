@@ -185,6 +185,7 @@ class SegmentMenu extends StatelessWidget {
   /// write (op falls back to the target's default if unsupported).
   Widget _fieldList(BuildContext context) {
     return ListView(
+      addAutomaticKeepAlives: false,
       shrinkWrap: true,
       padding: const EdgeInsets.symmetric(vertical: 4),
       children: [
@@ -223,6 +224,7 @@ class SegmentMenu extends StatelessWidget {
   Widget _comparatorList(BuildContext context, FilterOp current) {
     final ops = filterKey.supportedOps;
     return ListView(
+      addAutomaticKeepAlives: false,
       shrinkWrap: true,
       padding: const EdgeInsets.symmetric(vertical: 4),
       children: [
@@ -256,6 +258,7 @@ class SegmentMenu extends StatelessWidget {
     final formatter = filterFormatterOrNull(vm, context);
     final current = key.presetOf(currentWire);
     return ListView(
+      addAutomaticKeepAlives: false,
       shrinkWrap: true,
       padding: const EdgeInsets.symmetric(vertical: 4),
       children: [
@@ -285,6 +288,7 @@ class SegmentMenu extends StatelessWidget {
   Widget _dateValueList(BuildContext context, FilterOp op) {
     final presets = _dateKey?.singlePresets ?? kRelativeDatePresets;
     return ListView(
+      addAutomaticKeepAlives: false,
       shrinkWrap: true,
       padding: const EdgeInsets.symmetric(vertical: 4),
       children: [

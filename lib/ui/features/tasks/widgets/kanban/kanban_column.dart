@@ -220,6 +220,7 @@ class _KanbanColumnState extends State<KanbanColumn> {
               ),
             ),
           )
+        // lint: allow-keep-alives a card scrolled away mid-drag must not lose its drag
         : ListView.builder(
             key: _listKey,
             controller: _scroll,

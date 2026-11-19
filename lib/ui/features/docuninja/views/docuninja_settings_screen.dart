@@ -269,6 +269,7 @@ class _TabBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => ListView(
+    addAutomaticKeepAlives: false,
     padding: EdgeInsets.all(InSpacing.lg(context)),
     children: [
       Center(

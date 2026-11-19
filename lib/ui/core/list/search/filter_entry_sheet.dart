@@ -397,6 +397,7 @@ class _FilterEntrySheetState extends State<FilterEntrySheet> {
       );
     }
     return ListView.builder(
+      addAutomaticKeepAlives: false,
       padding: EdgeInsets.zero,
       itemCount: items.length,
       itemBuilder: (rowContext, index) {

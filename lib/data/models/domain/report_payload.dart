@@ -8,6 +8,11 @@ import 'package:admin/data/models/value/date.dart';
 /// is `last365_days` (NOT `last365`), and there is **no** `last90` case — an
 /// unrecognized token silently widens to all-time, so we only expose tokens the
 /// server actually honors. The dashboard keeps its own `DashboardDatePreset`.
+///
+/// [ReportDatePreset.today] is the one preset the server has no name for: it
+/// is stored as itself, so a remembered report still means the day it is
+/// opened, and sent as `custom` with that day's date at both ends
+/// ([ReportPayload.toJson]).
 const String _kProfitLoss = 'profitloss';
 
 /// Reports that must be sent `is_income_billed` whatever its value.
@@ -23,6 +28,7 @@ const Set<String> _kRequiresIncomeBilled = {_kProfitLoss, 'tax_period_report'};
 
 enum ReportDatePreset {
   allTime,
+  today,
   last7,
   last30,
   last365,
@@ -38,6 +44,8 @@ enum ReportDatePreset {
     switch (this) {
       case ReportDatePreset.allTime:
         return 'all';
+      case ReportDatePreset.today:
+        return 'custom';
       case ReportDatePreset.last7:
         return 'last7';
       case ReportDatePreset.last30:
@@ -216,15 +224,37 @@ class ReportPayload {
   /// - The `product_sales` `client_id` quirk: pass [reportIdentifier] so the
   ///   serializer knows when to coerce an empty `clientId` to literal `null`
   ///   instead of dropping it.
+  ///
+  /// [today] fills in the dates of [ReportDatePreset.today]; it defaults to
+  /// the device's date and is passed only by tests.
+  ///
+  /// [endsAtTimestamp] says the range filters a timestamp column
+  /// (`created_at`), whose custom end date is sent as `<date> 23:59:59`. The
+  /// server compares the column with the end date's *midnight*
+  /// (`BaseExport::addDateRange` → `whereBetween($date_key,
+  /// [Carbon::parse($start), Carbon::parse($end)])`), so a record created
+  /// during the last day of a custom range was left out — and a one-day range
+  /// (Today) matched almost nothing. The list filters' fix for the same
+  /// server reading (`timestampWindowsForServer`); the request's `date` rule
+  /// takes a time. A date column (`date`) is compared as a date and keeps a
+  /// bare end date.
   Map<String, dynamic> toJson({
     required String reportIdentifier,
     List<String> reportKeys = const [],
     String? groupBy,
+    bool endsAtTimestamp = false,
+    Date? today,
   }) {
+    final isToday = datePreset == ReportDatePreset.today;
+    final day = isToday ? (today ?? Date.today()) : null;
+    final start = day ?? startDate;
+    final end = day ?? endDate;
+    final endOfDay = endsAtTimestamp && datePreset.wire == 'custom';
     final out = <String, dynamic>{
       'date_range': datePreset.wire,
-      if (startDate != null) 'start_date': startDate!.toIso(),
-      if (endDate != null) 'end_date': endDate!.toIso(),
+      if (start != null) 'start_date': start.toIso(),
+      if (end != null)
+        'end_date': endOfDay ? '${end.toIso()} 23:59:59' : end.toIso(),
       if (dateKey != null && dateKey!.isNotEmpty) 'date_key': dateKey,
       if (clients != null && clients!.isNotEmpty) 'clients': clients,
       if (vendors != null && vendors!.isNotEmpty) 'vendors': vendors,

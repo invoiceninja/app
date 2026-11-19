@@ -161,6 +161,7 @@ class _EntityColumnPickerSheetState<T>
                       child: _SectionLabel(text: context.tr('available')),
                     ),
                     SliverList.builder(
+                      addAutomaticKeepAlives: false,
                       itemCount: available.length,
                       itemBuilder: (context, i) {
                         final id = available[i];

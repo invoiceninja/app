@@ -193,6 +193,7 @@ class MobileDashboardBody extends StatelessWidget {
     final gutter = InSpacing.lg(context);
     final pastDueOn = enabled.contains(DashboardKind.pastDue);
     return DashboardScope(
+      // lint: allow-keep-alives the calendar and pipeline cards keep themselves alive
       child: ListView(
         padding: EdgeInsets.fromLTRB(
           gutter,

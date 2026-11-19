@@ -639,6 +639,7 @@ class _DesignDetailScreen extends StatelessWidget {
         ],
       ),
       body: ListView(
+        addAutomaticKeepAlives: false,
         padding: EdgeInsets.all(InSpacing.lg(context)),
         children: [
           if (design.entities.isNotEmpty)

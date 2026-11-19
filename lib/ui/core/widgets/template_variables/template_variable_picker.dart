@@ -315,6 +315,7 @@ class _TemplateVariablePickerBodyState
           const SizedBox(height: InSpacing.sm),
           Flexible(
             child: ListView(
+              addAutomaticKeepAlives: false,
               shrinkWrap: true,
               padding: const EdgeInsets.only(bottom: InSpacing.sm),
               children: rows,

@@ -194,6 +194,7 @@ Token-based visual language; the Dart port is the sole source of truth.
 
 - **On a narrow viewport nothing above a screen owns a `Scaffold`, so every full-page host must bring its own — and a missing one costs keyboard avoidance, silently.** → `docs/sidebar-and-shell.md`
 - **A scroll view under a `RefreshIndicator` that is handed a `controller:` must ask for `physics: const AlwaysScrollableScrollPhysics()` — the controller switches that default off, and a list shorter than its viewport can then never be pulled (`test/lint/refresh_indicator_physics_test.dart`).** → `docs/pull-to-refresh.md`
+- **Every lazy list sets `addAutomaticKeepAlives: false`, a fixed `itemExtent`, or `// lint: allow-keep-alives <reason>`.** → `docs/lazy-list-keep-alives.md`
 
 **Buttons and spacing** (evidence: `docs/buttons-and-spacing.md`):
 
@@ -420,7 +421,7 @@ Every surface calls `guardedOnTap(context, item)`, never `item.onTap`; surfaces 
 - **A discard abandons the *row*, not the *entity*.** → `docs/sync.md`
 - Destructive ops (delete, purge, password change) need `X-API-PASSWORD-BASE64`, captured by `ConfirmPasswordSheet` into a 5-min cache; **an OAuth user is never asked when the company leaves `oauth_password_required` off** (`PasswordCache.isExempt`). → `docs/sync.md`
 - **412 Precondition Failed = password-required.** → `docs/sync.md`
-- 401 forces `AuthRepository.logout()` and a redirect to `/login` — **unless it is a permission denial** (Laravel's message, or `/ping` still answers → `PermissionDeniedException`, which ends nothing → `docs/sync.md` § A permission denial is a 401 too). **Single-flight**: parallel 401s wait on the same logout future. That logout **preserves local data** (`LocalDataPolicy.keep`) — an involuntary 401 is the same user, and wiping the Drift DB (outbox included) over a server-side token change is not a trade worth making; `logout()` still writes the re-lock gate, and `onSessionReset` / `onBeforeLogout` (the cross-user-leak fan-out) run on the preserve path anyway. Only a deliberate sign-out wipes.
+- 401 forces `AuthRepository.logout()` and a redirect to `/login` — **unless it is a permission denial** (Laravel's message, or `/ping` still answers → `PermissionDeniedException`, which ends nothing → `docs/sync.md` § A permission denial is a 401 too). **Single-flight**: parallel 401s wait on the same logout future. **An involuntary 401's logout keeps local data (`LocalDataPolicy.keep`); only a deliberate sign-out wipes.** → `docs/sync.md`
 - **A rejected *company* token fails the switch, not the session.** → `docs/sync.md`
 - **A forced logout logs a WARNING naming the request.** → `docs/sync.md`
 - The `x-minimum-client-version` response header is checked on every request; below threshold throws `ClientTooOldException`.

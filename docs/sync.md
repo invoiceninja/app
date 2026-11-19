@@ -64,6 +64,10 @@ Pinned by `api_client_test.dart` ("a permission denial is not a dead session" �
 
 **Open, and not changed here:** the app does nothing on the 403 a dead token actually produces (`ServerException(403)`), so a token revoked mid-session leaves the user signed in with every request failing. React signs out on 401 and toasts on 403, mirroring the same inversion. Worth settling with the server rather than by another message sniff — `BACKEND.md` § 401 and 403 are the wrong way round.
 
+## An involuntary 401's logout keeps local data
+
+**An involuntary 401's logout keeps local data (`LocalDataPolicy.keep`); only a deliberate sign-out wipes.** An involuntary 401 is the same user, and wiping the Drift DB (outbox included) over a server-side token change is not a trade worth making. `logout()` still writes the re-lock gate, and `onSessionReset` / `onBeforeLogout` (the cross-user-leak fan-out) run on the preserve path anyway.
+
 ## A forced logout logs a WARNING naming the request
 
 **A forced logout logs a WARNING naming the request.** `logout()` and the 401→logout branch of `_postFlight` used to be completely silent, so the app's only involuntary session-ending path left no trace in the diagnostics log — it surfaced only as the unattributable downstream `Not authenticated` failures of whatever ran next. `_postFlight` takes `method` + `uri` purely to name the culprit; tokens are logged as an 8-char SHA-256 fingerprint and the query string is dropped (it can carry a user's `filter=`). The **stale-credential** branch deliberately stays at `fine` so switch-race noise stays off disk — `api_client_test.dart` pins both.

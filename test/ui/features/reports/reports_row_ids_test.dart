@@ -32,6 +32,7 @@ class _EchoRepo implements ReportsRepository {
 
   @override
   Future<ReportPreview> runPreview({
+    bool endsAtTimestamp = false,
     required String reportIdentifier,
     required String endpoint,
     required ReportPayload payload,

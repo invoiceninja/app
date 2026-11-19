@@ -54,6 +54,7 @@ class ComponentPalette extends StatelessWidget {
       child: SizedBox(
         width: 240,
         child: ListView(
+          addAutomaticKeepAlives: false,
           padding: EdgeInsets.symmetric(vertical: InSpacing.md(context)),
           children: [
             Padding(

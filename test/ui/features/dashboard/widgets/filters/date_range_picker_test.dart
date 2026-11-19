@@ -69,8 +69,9 @@ void main() {
   Future<DashboardDateRange?> pumpAndCapture(
     WidgetTester tester,
     DashboardDateRange current,
-    Future<void> Function(WidgetTester tester) interact,
-  ) async {
+    Future<void> Function(WidgetTester tester) interact, {
+    List<DashboardDatePreset> presets = kRangePickerPresets,
+  }) async {
     DashboardDateRange? captured;
     await tester.pumpWidget(
       MaterialApp(
@@ -91,6 +92,7 @@ void main() {
                                 width: 720,
                                 child: DashboardDateRangePopover(
                                   current: current,
+                                  presets: presets,
                                 ),
                               ),
                             ),
@@ -122,6 +124,54 @@ void main() {
     );
     expect(result, isA<DashboardPresetRange>());
     expect((result as DashboardPresetRange).preset, DashboardDatePreset.last7);
+  });
+
+  testWidgets('Today is on the rail only where the caller offers it', (
+    tester,
+  ) async {
+    // The dashboard's cards send a preset by name and the server has no
+    // `today`, so the default rail leaves it out; reports and list filters
+    // send dates and ask for it.
+    await pumpAndCapture(
+      tester,
+      const DashboardPresetRange(DashboardDatePreset.thisMonth),
+      (tester) async {
+        expect(find.text('Today'), findsNothing);
+      },
+    );
+  });
+
+  testWidgets('a rail that offers Today pops with the Today preset', (
+    tester,
+  ) async {
+    final result = await pumpAndCapture(
+      tester,
+      const DashboardPresetRange(DashboardDatePreset.thisMonth),
+      (tester) async {
+        await tester.tap(find.text('Today'));
+      },
+      presets: kRangePickerPresetsWithToday,
+    );
+    expect(result, isA<DashboardPresetRange>());
+    expect((result as DashboardPresetRange).preset, DashboardDatePreset.today);
+  });
+
+  test('Today resolves to the one day it is, and rolls as a list filter', () {
+    const today = Date(2026, 11, 18);
+    expect(
+      const DashboardPresetRange(
+        DashboardDatePreset.today,
+      ).resolve(today: today),
+      (today, today),
+    );
+    expect(rollingBoundsForPreset(DashboardDatePreset.today, 1), (
+      'rel:d0',
+      'rel:d0',
+    ));
+    expect(
+      dashboardPresetForWindow('rel:d0', 'rel:d0'),
+      DashboardDatePreset.today,
+    );
   });
 
   testWidgets('tapping two days then Apply pops with a custom range', (

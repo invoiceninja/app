@@ -572,6 +572,7 @@ class _NetworkTabState extends State<_NetworkTab>
             filteredEmpty: widget.entries.isNotEmpty && filtered.isEmpty,
             enabled: widget.enabled,
             child: ListView.separated(
+              addAutomaticKeepAlives: false,
               padding: EdgeInsets.symmetric(horizontal: InSpacing.lg(context)),
               itemCount: filtered.length,
               separatorBuilder: (_, _) => Divider(
@@ -689,6 +690,7 @@ class _ErrorsTabState extends State<_ErrorsTab>
             filteredEmpty: widget.entries.isNotEmpty && filtered.isEmpty,
             enabled: widget.enabled,
             child: ListView.separated(
+              addAutomaticKeepAlives: false,
               padding: EdgeInsets.symmetric(horizontal: InSpacing.lg(context)),
               itemCount: filtered.length,
               separatorBuilder: (_, _) => Divider(

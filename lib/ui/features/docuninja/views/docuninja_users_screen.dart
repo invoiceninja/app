@@ -555,6 +555,7 @@ class _UsersListState extends State<_UsersList> {
               )
       else
         SliverList.separated(
+          addAutomaticKeepAlives: false,
           itemCount: vm.items.length,
           separatorBuilder: (_, _) => const Divider(height: 1),
           itemBuilder: (context, i) {
@@ -1107,6 +1108,7 @@ class _UserEditorState extends State<_UserEditor> {
     // React's order (`users/edit/Edit.tsx` tabs): details, notifications,
     // permissions.
     return ListView(
+      addAutomaticKeepAlives: false,
       padding: EdgeInsets.all(InSpacing.lg(context)),
       children: [
         Center(
@@ -1776,6 +1778,7 @@ class _GrantAccessState extends State<_GrantAccess> {
       );
     }
     return ListView(
+      addAutomaticKeepAlives: false,
       padding: EdgeInsets.all(InSpacing.lg(context)),
       children: [
         Center(

@@ -595,6 +595,7 @@ class ReportsViewModel extends ChangeNotifier {
               ),
               addedColumns: base.added,
               isCancelled: cancelled,
+              endsAtTimestamp: definition.rangeEndsAtTimestamp(earlier.dateKey),
             );
       if (_disposed || epoch != _compareEpoch || report != _reportIdentifier) {
         return;
@@ -2119,6 +2120,7 @@ class ReportsViewModel extends ChangeNotifier {
         reportKeys: reportKeys,
         addedColumns: sent.added,
         isCancelled: _cancellationFor(epoch),
+        endsAtTimestamp: definition.rangeEndsAtTimestamp(sent.payload.dateKey),
       );
       if (_disposed || epoch != _runEpoch || _supersededOnArrival(sent)) return;
       final ranFor = _forgetUnservedColumns(sent, reportKeys, rawPreview);
@@ -2191,6 +2193,7 @@ class ReportsViewModel extends ChangeNotifier {
               endpoint: definition.endpoint,
               payload: payload.copyWith(templateId: () => null),
               isCancelled: _cancellationFor(epoch),
+              endsAtTimestamp: definition.rangeEndsAtTimestamp(payload.dateKey),
             );
       if (_disposed || epoch != _runEpoch || _supersededOnArrival(sent)) return;
       _document = result.format == ReportExportFormat.csv
@@ -2801,6 +2804,7 @@ class ReportsViewModel extends ChangeNotifier {
             : _payload.copyWith(templateId: () => templateId),
         reportKeys: serverReportKeys(ordered: true),
         isCancelled: () => _disposed || _exportEpoch != epoch,
+        endsAtTimestamp: definition.rangeEndsAtTimestamp(_payload.dateKey),
       );
       if (_disposed || epoch != _exportEpoch) return null;
       return result;
@@ -2884,6 +2888,7 @@ class ReportsViewModel extends ChangeNotifier {
         ),
         reportKeys: serverReportKeys(ordered: true),
         groupBy: serverGroupBy,
+        endsAtTimestamp: definition.rangeEndsAtTimestamp(_payload.dateKey),
       );
     } finally {
       if (!_disposed) {
@@ -2999,6 +3004,9 @@ class ReportsViewModel extends ChangeNotifier {
         companyId: companyId,
         reportKeys: reportKeys,
         isCancelled: _cancellationFor(epoch),
+        endsAtTimestamp: definition.rangeEndsAtTimestamp(
+          request.payload.dateKey,
+        ),
       );
       if (_disposed || epoch != _runEpoch || _supersededOnArrival(request)) {
         return;

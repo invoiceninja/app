@@ -55,6 +55,7 @@ class _FakeRepo implements ReportsRepository {
 
   @override
   Future<ReportPreview> runPreview({
+    bool endsAtTimestamp = false,
     required String reportIdentifier,
     required String endpoint,
     required ReportPayload payload,
@@ -110,6 +111,7 @@ class _FakeRepo implements ReportsRepository {
 
   @override
   Future<ReportExportResult> runExport({
+    bool endsAtTimestamp = false,
     required String reportIdentifier,
     required String endpoint,
     required ReportPayload payload,
@@ -144,6 +146,7 @@ class _FakeRepo implements ReportsRepository {
 
   @override
   Future<void> sendEmail({
+    bool endsAtTimestamp = false,
     required String reportIdentifier,
     required String endpoint,
     required ReportPayload payload,

@@ -221,6 +221,7 @@ class _MultiPickSheetState<T> extends State<_MultiPickSheet<T>> {
                       ),
                     )
                   : ListView.builder(
+                      addAutomaticKeepAlives: false,
                       shrinkWrap: true,
                       itemCount: visible.length,
                       itemBuilder: (ctx, i) {

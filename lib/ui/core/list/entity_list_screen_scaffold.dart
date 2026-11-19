@@ -1982,6 +1982,7 @@ class _EntityListScreenScaffoldState<T, VM extends GenericListViewModel<T>>
         // cache stays complete.
         onRefresh: _vm.refresh,
         child: ListView(
+          addAutomaticKeepAlives: false,
           // RefreshIndicator needs a scrollable child; a single sliver-free
           // ListView with one centered tile gives the empty state without
           // breaking pull-to-refresh.
@@ -2007,6 +2008,7 @@ class _EntityListScreenScaffoldState<T, VM extends GenericListViewModel<T>>
     final showsFab =
         !wide && !widget.embedded && widget.canCreate && _offersCreate;
     final listView = ListView.builder(
+      addAutomaticKeepAlives: false,
       // `null`, never `EdgeInsets.zero`, on the other branch: a null padding is
       // what lets `BoxScrollView` apply the bottom safe inset itself. Once we
       // pass one we own that inset, which is why `fabScrollClearance` includes

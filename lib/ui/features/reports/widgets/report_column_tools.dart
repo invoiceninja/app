@@ -389,6 +389,7 @@ class _ValuesDialogState extends State<_ValuesDialog> {
             const SizedBox(height: InSpacing.sm),
             Expanded(
               child: ListView.builder(
+                addAutomaticKeepAlives: false,
                 itemCount: shown.length,
                 itemBuilder: (context, i) {
                   final (value, count) = shown[i];
@@ -661,6 +662,7 @@ class _ColumnsDialogState extends State<_ColumnsDialog> {
               // the whole list is showing.
               child: searching
                   ? ListView(
+                      addAutomaticKeepAlives: false,
                       children: [
                         for (final c in shown) tile(c),
                         ?relatedSection,

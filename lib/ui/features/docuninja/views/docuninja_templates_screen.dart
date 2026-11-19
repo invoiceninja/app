@@ -393,6 +393,7 @@ class _DocuNinjaTemplatesScreenState extends State<DocuNinjaTemplatesScreen> {
               )
       else
         SliverList.separated(
+          addAutomaticKeepAlives: false,
           itemCount: vm.items.length,
           separatorBuilder: (_, _) => const Divider(height: 1),
           itemBuilder: (context, i) {

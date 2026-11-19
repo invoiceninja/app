@@ -9,7 +9,12 @@ import 'package:admin/utils/date_ranges.dart';
 /// resolution to concrete `(start, end)` dates happens at request time so a
 /// preset like `thisMonth` always means "today's month" rather than the month
 /// the filter was originally created in.
+///
+/// [today] is offered only where a caller asks for it ([kRangePickerPresets]
+/// is the default rail without it): the dashboard's configured cards send a
+/// preset by name, and the server has no `today` — its fallback is this month.
 enum DashboardDatePreset {
+  today,
   last7,
   last30,
   last365,
@@ -23,6 +28,9 @@ enum DashboardDatePreset {
 
   String get serverName {
     switch (this) {
+      // No server preset spells one day; the dates say it.
+      case DashboardDatePreset.today:
+        return 'custom';
       case DashboardDatePreset.last7:
         return 'last7_days';
       case DashboardDatePreset.last30:
@@ -46,6 +54,28 @@ enum DashboardDatePreset {
     }
   }
 }
+
+/// The presets the range popover offers unless its caller passes its own:
+/// every one but [DashboardDatePreset.today].
+const List<DashboardDatePreset> kRangePickerPresets = [
+  DashboardDatePreset.last7,
+  DashboardDatePreset.last30,
+  DashboardDatePreset.last365,
+  DashboardDatePreset.thisMonth,
+  DashboardDatePreset.lastMonth,
+  DashboardDatePreset.thisQuarter,
+  DashboardDatePreset.lastQuarter,
+  DashboardDatePreset.thisYear,
+  DashboardDatePreset.lastYear,
+  DashboardDatePreset.allTime,
+];
+
+/// [kRangePickerPresets] with Today first — for a picker whose range is sent
+/// as dates, never by preset name (reports, a list's date filter).
+const List<DashboardDatePreset> kRangePickerPresetsWithToday = [
+  DashboardDatePreset.today,
+  ...kRangePickerPresets,
+];
 
 /// Sealed sum type: a date range is either a preset or an explicit custom
 /// `(start, end)` pair. The hash form encodes the kind + the resolved dates so
@@ -91,6 +121,8 @@ class DashboardPresetRange extends DashboardDateRange {
       // Rolling windows use UTC date-space (Date.addDays) rather than
       // local-midnight − N×24h: the latter drifts across a spring-forward DST
       // day and resolves the start one calendar day early.
+      case DashboardDatePreset.today:
+        return (today, today);
       case DashboardDatePreset.last7:
         return (today.addDays(-6), today);
       case DashboardDatePreset.last30:

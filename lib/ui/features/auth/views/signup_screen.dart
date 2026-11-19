@@ -55,6 +55,7 @@ class _SignupScreenState extends State<SignupScreen> {
       backgroundColor: context.inTheme.bg,
       body: SafeArea(
         child: ListView(
+          addAutomaticKeepAlives: false,
           padding: const EdgeInsets.symmetric(
             horizontal: InSpacing.xl,
             vertical: InSpacing.xxl,

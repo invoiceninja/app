@@ -1154,6 +1154,7 @@ class _CommandPaletteState extends State<_CommandPalette> {
         Flexible(
           child: hasResults
               ? ListView.builder(
+                  addAutomaticKeepAlives: false,
                   controller: _scrollController,
                   shrinkWrap: true,
                   padding: const EdgeInsets.only(top: 6, bottom: 6),
@@ -1319,6 +1320,7 @@ class _CommandPaletteState extends State<_CommandPalette> {
         Container(height: 1, color: tokens.border.withValues(alpha: 0.6)),
         Flexible(
           child: ListView(
+            addAutomaticKeepAlives: false,
             controller: _scrollController,
             shrinkWrap: true,
             padding: const EdgeInsets.only(top: 6, bottom: 6),

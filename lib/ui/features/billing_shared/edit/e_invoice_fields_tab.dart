@@ -177,6 +177,7 @@ class EInvoiceFieldsTab<T> extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final fields = _fields(context);
+    // lint: allow-keep-alives its form fields keep their state scrolled away
     return ListView(
       // On a wide editor this sits in the fixed-height notes card on a page
       // that scrolls; a primary list would claim every drag even when the

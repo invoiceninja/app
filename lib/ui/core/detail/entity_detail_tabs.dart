@@ -1089,6 +1089,7 @@ class _AllTabsButton extends StatelessWidget {
               maxHeight: MediaQuery.sizeOf(sheetContext).height * 0.7,
             ),
             child: ListView(
+              addAutomaticKeepAlives: false,
               shrinkWrap: true,
               padding: const EdgeInsets.only(bottom: InSpacing.sm),
               children: [

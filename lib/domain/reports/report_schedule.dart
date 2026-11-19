@@ -22,13 +22,17 @@ Schedule reportEmailSchedule(
   String? name,
 }) {
   final p = seed.payload;
+  final runAt = now == null ? Date.today() : Date(now.year, now.month, now.day);
+  final isToday = p.datePreset == ReportDatePreset.today;
   final base = Schedule.empty().withTemplate(kScheduleTemplateEmailReport);
   final params = Map<String, dynamic>.from(base.parameters)
     ..addAll(<String, dynamic>{
       'report_name': _scheduleReportName(seed.reportIdentifier),
       'date_range': _scheduleDateRange(p.datePreset),
-      'start_date': p.startDate?.toIso() ?? '',
-      'end_date': p.endDate?.toIso() ?? '',
+      // The scheduler has no rolling one-day range, so Today seeds the day
+      // the schedule is made, shown as a custom range the user can change.
+      'start_date': (isToday ? runAt : p.startDate)?.toIso() ?? '',
+      'end_date': (isToday ? runAt : p.endDate)?.toIso() ?? '',
       'client_id': p.clientId ?? '',
       'clients': _csv(p.clients),
       'vendors': p.vendors ?? '',
@@ -47,7 +51,6 @@ Schedule reportEmailSchedule(
       'pdf_email_attachment': p.pdfEmailAttachment,
       'send_email': true,
     });
-  final runAt = now == null ? Date.today() : Date(now.year, now.month, now.day);
   return base.copyWith(
     name: (name == null || name.isEmpty) ? seed.reportIdentifier : name,
     nextRun: runAt,

@@ -372,7 +372,7 @@ static gboolean egl_vendor_is_nvidia() {
 // is also the way back: FLUTTER_LINUX_RENDERER=opengl. Returns whether it set
 // the variable, which the engine reads once, in fl_view_new, and which the
 // caller then clears so no process the app starts inherits it.
-static gboolean choose_renderer(FlDartProject* project) {
+static gboolean choose_renderer() {
   if (g_getenv("FLUTTER_LINUX_RENDERER") != nullptr) {
     return FALSE;
   }
@@ -383,9 +383,18 @@ static gboolean choose_renderer(FlDartProject* project) {
       "NVIDIA driver: drawing with the software renderer "
       "(invoiceninja/app#196). FLUTTER_LINUX_RENDERER=opengl switches back.");
   g_setenv("FLUTTER_LINUX_RENDERER", "software", TRUE);
-  // The software renderer draws with Skia; Impeller has no software backend.
-  fl_dart_project_set_enable_impeller(project, FALSE);
   return TRUE;
+}
+
+// The engine honours FLUTTER_LINUX_RENDERER=software but still starts Impeller,
+// which has no software backend: the first frame aborts with "Impeller DlText
+// cannot be drawn to a Skia canvas" (docs/upstream-workarounds.md entry 30).
+// So whoever chose the software renderer, the runner or the user, Impeller is
+// turned off with it.
+static void match_impeller_to_renderer(FlDartProject* project) {
+  if (g_strcmp0(g_getenv("FLUTTER_LINUX_RENDERER"), "software") == 0) {
+    fl_dart_project_set_enable_impeller(project, FALSE);
+  }
 }
 
 // Implements GApplication::activate.
@@ -460,7 +469,8 @@ static void my_application_activate(GApplication* application) {
     g_message("INVOICENINJA_NO_IMPELLER=1: Impeller is off.");
     fl_dart_project_set_enable_impeller(project, FALSE);
   }
-  const gboolean set_renderer = choose_renderer(project);
+  const gboolean set_renderer = choose_renderer();
+  match_impeller_to_renderer(project);
 
   FlView* view = fl_view_new(project);
   if (set_renderer) {

@@ -270,6 +270,7 @@ class _SettingsListSidebarState extends State<SettingsListSidebar> {
             ? widget.summary
             : null;
         return ListView(
+          addAutomaticKeepAlives: false,
           children: [
             // The narrow index only (the wide layout has the rail's switcher
             // beside it): which company — and, scoped, which client or group
@@ -412,6 +413,7 @@ class _SettingsListSidebarState extends State<SettingsListSidebar> {
         final sel = selected.clamp(0, hits.length - 1);
         _revealSelectedRow();
         return ListView.builder(
+          addAutomaticKeepAlives: false,
           itemCount: hits.length,
           itemBuilder: (context, i) {
             final hit = hits[i];

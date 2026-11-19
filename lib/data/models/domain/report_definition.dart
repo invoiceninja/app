@@ -219,6 +219,12 @@ class ReportDefinition {
   /// (`profitloss`, `tax_period_report`).
   final String? dateRangeKey;
 
+  /// Whether a range on [dateKey] (the request's own, else [dateRangeKey])
+  /// filters a timestamp column, whose custom range has to end at 23:59:59
+  /// to take in its last day — see `ReportPayload.toJson`'s `endsAtTimestamp`.
+  bool rangeEndsAtTimestamp(String? dateKey) =>
+      const {'created_at', 'updated_at'}.contains(dateKey ?? dateRangeKey);
+
   /// A column to append to `report_keys` when the user asks for it, for a
   /// report whose [dateRangeKey] names a column the server's *default*
   /// column set omits. `client`, `contact`, `vendor` and `product` have one:

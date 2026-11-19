@@ -389,6 +389,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
       );
     } else if (section.data == null) {
       content = ListView(
+        addAutomaticKeepAlives: false,
         padding: EdgeInsets.all(InSpacing.lg(context)),
         children: const [
           ActivityFeedSkeleton(count: 8, density: ActivityRowDensity.page),
@@ -420,6 +421,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
       child: content is ListView
           ? content
           : ListView(
+              addAutomaticKeepAlives: false,
               // Wrapped so `RefreshIndicator` has a Scrollable to attach to
               // at all — `EmptyState` is a plain Column and would leave the
               // pull gesture inert. The physics need no help: `ScrollView`
@@ -628,6 +630,7 @@ class _ActivityScreenState extends State<ActivityScreen> {
     // came back short (`canLoadMore` false, under the max) is the same case.
     final showFooter = _vm.canLoadMore || _vm.atWindowMax;
     return ListView.builder(
+      addAutomaticKeepAlives: false,
       padding: EdgeInsets.symmetric(
         horizontal: InSpacing.lg(context),
         vertical: InSpacing.sm,

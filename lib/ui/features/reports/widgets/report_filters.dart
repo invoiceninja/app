@@ -343,6 +343,7 @@ class _ChoicePickerState extends State<_ChoicePicker> {
                 );
               }
               return ListView.builder(
+                addAutomaticKeepAlives: false,
                 itemCount: shown.length,
                 itemBuilder: (context, i) {
                   final c = shown[i];

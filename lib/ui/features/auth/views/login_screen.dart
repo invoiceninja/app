@@ -300,6 +300,7 @@ class _LoginScreenState extends State<LoginScreen> {
           backgroundColor: context.inTheme.bg,
           body: SafeArea(
             child: ListView(
+              addAutomaticKeepAlives: false,
               padding: const EdgeInsets.symmetric(
                 horizontal: InSpacing.xl,
                 vertical: InSpacing.xxl,

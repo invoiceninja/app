@@ -470,6 +470,7 @@ class _SettingsPane extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // lint: allow-keep-alives its form fields keep their state scrolled away
     return ListView(
       children: [
         FormSection(
@@ -836,6 +837,7 @@ class _VariablesPaneState extends State<_VariablesPane> {
         SizedBox(height: InSpacing.sm),
         Expanded(
           child: ListView(
+            addAutomaticKeepAlives: false,
             children: [for (final g in groups) ..._group(context, g, q)],
           ),
         ),

@@ -124,6 +124,7 @@ class ReportDocumentView extends StatelessWidget {
     }
 
     return ListView(
+      addAutomaticKeepAlives: false,
       // Always scrollable, so a short report can still be pulled to refresh.
       physics: const AlwaysScrollableScrollPhysics(),
       padding: EdgeInsets.all(gutter),

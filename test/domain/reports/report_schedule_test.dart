@@ -105,6 +105,18 @@ void main() {
       expect(s.parameters['start_date'], '2026-01-01');
       expect(s.parameters['end_date'], '2026-03-31');
     });
+
+    test('Today seeds the day the schedule is made, as a custom range', () {
+      // The scheduler has no rolling one-day range; a preset it does not
+      // know falls back to this month on the server.
+      final s = reportEmailSchedule(
+        _seed(payload: const ReportPayload(datePreset: ReportDatePreset.today)),
+        now: now,
+      );
+      expect(s.parameters['date_range'], 'custom');
+      expect(s.parameters['start_date'], '2026-05-19');
+      expect(s.parameters['end_date'], '2026-05-19');
+    });
   });
 
   test('CSV filters: clients → list, others verbatim string', () {

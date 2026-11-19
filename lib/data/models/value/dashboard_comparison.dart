@@ -108,6 +108,7 @@ extension DashboardFilterComparison on DashboardFilter {
         case DashboardDatePreset.thisYear:
         case DashboardDatePreset.lastYear:
           return (startOfFiscalYear(before, firstMonthOfYear), before);
+        case DashboardDatePreset.today:
         case DashboardDatePreset.last7:
         case DashboardDatePreset.last30:
         case DashboardDatePreset.last365:

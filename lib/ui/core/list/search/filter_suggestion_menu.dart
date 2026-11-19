@@ -669,6 +669,7 @@ class _KeyList extends StatelessWidget {
     return _MenuScroll(
       controller: controller,
       builder: (scroll) => ListView(
+        addAutomaticKeepAlives: false,
         controller: scroll,
         shrinkWrap: true,
         padding: const EdgeInsets.symmetric(vertical: 4),
@@ -1607,6 +1608,7 @@ class _OperatorRows extends StatelessWidget {
     return _MenuScroll(
       controller: controller,
       builder: (scroll) => ListView(
+        addAutomaticKeepAlives: false,
         controller: scroll,
         shrinkWrap: true,
         padding: const EdgeInsets.symmetric(vertical: 4),
@@ -1774,6 +1776,7 @@ class _TypedDateRows extends StatelessWidget {
     return _MenuScroll(
       controller: controller,
       builder: (scroll) => ListView(
+        addAutomaticKeepAlives: false,
         controller: scroll,
         shrinkWrap: true,
         padding: const EdgeInsets.symmetric(vertical: 4),
@@ -1890,6 +1893,7 @@ class _TypedPeriodRows extends StatelessWidget {
     return _MenuScroll(
       controller: controller,
       builder: (scroll) => ListView(
+        addAutomaticKeepAlives: false,
         controller: scroll,
         shrinkWrap: true,
         padding: const EdgeInsets.symmetric(vertical: 4),
@@ -2070,6 +2074,7 @@ class _DateValueRowsState extends State<_DateValueRows> {
     return _MenuScroll(
       controller: widget.controller,
       builder: (scroll) => ListView(
+        addAutomaticKeepAlives: false,
         controller: scroll,
         shrinkWrap: true,
         padding: const EdgeInsets.symmetric(vertical: 4),
@@ -2181,6 +2186,7 @@ class _DateValueRowsState extends State<_DateValueRows> {
       return _MenuScroll(
         controller: widget.controller,
         builder: (scroll) => ListView(
+          addAutomaticKeepAlives: false,
           controller: scroll,
           shrinkWrap: true,
           padding: const EdgeInsets.symmetric(vertical: 4),
@@ -2231,6 +2237,7 @@ class _DateValueRowsState extends State<_DateValueRows> {
     return _MenuScroll(
       controller: widget.controller,
       builder: (scroll) => ListView(
+        addAutomaticKeepAlives: false,
         controller: scroll,
         shrinkWrap: true,
         padding: const EdgeInsets.symmetric(vertical: 4),

@@ -148,6 +148,10 @@ class ReportsRepository {
   ///   `_runEpoch` token so a cancelled run stops cleanly.
   /// - [numberStyle] is how the server writes numbers for this company (its
   ///   currency's separators and precision); see `decodeReportPreview`.
+  /// - [endsAtTimestamp]: the range filters a timestamp column
+  ///   (`ReportDefinition.rangeEndsAtTimestamp`), so a custom end date is
+  ///   sent at 23:59:59 — see `ReportPayload.toJson`. Also on [runExport] and
+  ///   [sendEmail].
   Future<ReportPreview> runPreview({
     required String reportIdentifier,
     required String endpoint,
@@ -159,10 +163,12 @@ class ReportsRepository {
     int maxRetries = ReportsApi.defaultPreviewRetries,
     Duration pollInterval = ReportsApi.defaultPollInterval,
     ReportPollingCancellation? isCancelled,
+    bool endsAtTimestamp = false,
   }) async {
     final wire = payload.toJson(
       reportIdentifier: reportIdentifier,
       reportKeys: reportKeys,
+      endsAtTimestamp: endsAtTimestamp,
     );
     try {
       final raw = await api.runPreview(
@@ -232,11 +238,13 @@ class ReportsRepository {
     int maxRetries = ReportsApi.defaultExportRetries,
     Duration pollInterval = ReportsApi.defaultPollInterval,
     ReportPollingCancellation? isCancelled,
+    bool endsAtTimestamp = false,
   }) async {
     final wire = payload.toJson(
       reportIdentifier: reportIdentifier,
       reportKeys: reportKeys,
       groupBy: groupBy,
+      endsAtTimestamp: endsAtTimestamp,
     );
     try {
       return await api.runExport(
@@ -282,6 +290,7 @@ class ReportsRepository {
     required ReportPayload payload,
     List<String> reportKeys = const [],
     String? groupBy,
+    bool endsAtTimestamp = false,
   }) async {
     final wire = payload
         .copyWith(sendEmail: true)
@@ -289,6 +298,7 @@ class ReportsRepository {
           reportIdentifier: reportIdentifier,
           reportKeys: reportKeys,
           groupBy: groupBy,
+          endsAtTimestamp: endsAtTimestamp,
         );
     try {
       await api.sendEmail(endpoint: endpoint, payload: wire);

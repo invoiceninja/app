@@ -429,6 +429,7 @@ class _DocuNinjaDocumentScreenState extends State<DocuNinjaDocumentScreen> {
       child: RefreshIndicator(
         onRefresh: vm.load,
         child: ListView(
+          addAutomaticKeepAlives: false,
           physics: const AlwaysScrollableScrollPhysics(),
           // A ListView given a padding no longer adds the home indicator's
           // inset itself. Read here, it is zero wherever something above

@@ -49,6 +49,23 @@ Future<void> runWithCrashReporting({
   }, appRunner: appRunner);
 }
 
+/// Adds a screen change to the crash-report timeline, as Sentry's
+/// `navigation` breadcrumb (rendered as from → to). A no-op until
+/// [runWithCrashReporting] has started the SDK, so a debug or self-hosted
+/// build without a DSN records nothing. [from] and [to] are route patterns,
+/// never locations, and the breadcrumb still passes `beforeBreadcrumb`.
+void addNavigationBreadcrumb({required String from, required String to}) {
+  unawaited(
+    Sentry.addBreadcrumb(
+      Breadcrumb(
+        type: 'navigation',
+        category: 'navigation',
+        data: <String, dynamic>{'from': from, 'to': to},
+      ),
+    ),
+  );
+}
+
 SentryEvent _redacted(SentryEvent event, String Function(String) redact) {
   final message = event.message;
   if (message != null) {

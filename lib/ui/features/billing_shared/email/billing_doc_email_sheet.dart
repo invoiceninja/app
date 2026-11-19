@@ -239,6 +239,7 @@ class _EmailSheetState extends State<_EmailSheet> {
                   ),
                   Divider(height: 1, color: tokens.border),
                   Expanded(
+                    // lint: allow-keep-alives its form fields keep their state scrolled away
                     child: ListView(
                       controller: scrollController,
                       padding: EdgeInsets.all(InSpacing.lg(context)),

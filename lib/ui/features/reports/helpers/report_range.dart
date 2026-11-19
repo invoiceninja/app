@@ -8,6 +8,7 @@ import 'package:admin/utils/formatting.dart';
 /// Localization key of a report date preset.
 String reportPresetLabelKey(ReportDatePreset preset) => switch (preset) {
   ReportDatePreset.allTime => 'all_time',
+  ReportDatePreset.today => 'today',
   ReportDatePreset.last7 => 'last_7_days',
   ReportDatePreset.last30 => 'last_30_days',
   ReportDatePreset.last365 => 'last_365_days',
@@ -39,8 +40,9 @@ String reportRangeLabel(
 }
 
 /// The shared range popover speaks [DashboardDateRange]; the report request
-/// speaks [ReportPayload]. The ten dashboard presets map one-to-one onto the
-/// ten report presets, so the popover needs no report-specific list.
+/// speaks [ReportPayload]. The dashboard presets map one-to-one onto the
+/// report presets; the reports' popover adds Today to its rail
+/// (`kRangePickerPresetsWithToday`).
 DashboardDateRange reportRangeAsPickerValue(ReportPayload payload) {
   final start = payload.startDate;
   final end = payload.endDate;
@@ -50,6 +52,7 @@ DashboardDateRange reportRangeAsPickerValue(ReportPayload payload) {
     return DashboardCustomRange(start: start, end: end);
   }
   return DashboardPresetRange(switch (payload.datePreset) {
+    ReportDatePreset.today => DashboardDatePreset.today,
     ReportDatePreset.last7 => DashboardDatePreset.last7,
     ReportDatePreset.last30 => DashboardDatePreset.last30,
     ReportDatePreset.last365 => DashboardDatePreset.last365,
@@ -80,6 +83,7 @@ ReportPayload reportPayloadWithRange(
     case DashboardPresetRange():
       return payload.copyWith(
         datePreset: switch (range.preset) {
+          DashboardDatePreset.today => ReportDatePreset.today,
           DashboardDatePreset.last7 => ReportDatePreset.last7,
           DashboardDatePreset.last30 => ReportDatePreset.last30,
           DashboardDatePreset.last365 => ReportDatePreset.last365,

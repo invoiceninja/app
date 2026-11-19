@@ -3387,6 +3387,7 @@ class _ChoiceSearchCellState extends State<_ChoiceSearchCell> {
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxHeight: 240),
               child: ListView.builder(
+                addAutomaticKeepAlives: false,
                 shrinkWrap: true,
                 padding: EdgeInsets.zero,
                 itemCount: options.length,
@@ -3609,6 +3610,7 @@ class _TaxCellState extends State<_TaxCell> {
                       maxWidth: 280,
                     ),
                     child: ListView.builder(
+                      addAutomaticKeepAlives: false,
                       shrinkWrap: true,
                       padding: EdgeInsets.zero,
                       itemCount: options.length,

@@ -150,6 +150,7 @@ class _DocumentRecordBody extends StatelessWidget {
     return RefreshIndicator(
       onRefresh: onRefresh,
       child: ListView(
+        addAutomaticKeepAlives: false,
         controller: DetailScrollScope.maybeOf(context),
         physics: const AlwaysScrollableScrollPhysics(),
         padding: EdgeInsets.all(InSpacing.lg(context)),

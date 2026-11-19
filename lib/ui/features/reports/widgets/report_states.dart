@@ -305,6 +305,7 @@ class ReportSkeleton extends StatelessWidget {
       label: context.tr('loading_ellipsis'),
       child: ExcludeSemantics(
         child: ListView(
+          addAutomaticKeepAlives: false,
           padding: EdgeInsets.all(pad),
           physics: const NeverScrollableScrollPhysics(),
           children: [

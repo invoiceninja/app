@@ -1111,6 +1111,7 @@ class _PartyContactsState<T extends BillingDocFields>
       // sit in the shared card). The rows pad themselves and paint their own
       // hover, so the card adds only a little above and below them.
       return ListView(
+        addAutomaticKeepAlives: false,
         padding: EdgeInsets.all(InSpacing.lg(context)),
         children: [
           DashboardCardShell(
@@ -2032,6 +2033,7 @@ class _NotesTab<T extends BillingDocFields> extends StatelessWidget {
     return FocusTraversalGroup(
       policy: WidgetOrderTraversalPolicy(),
       child: ListView(
+        addAutomaticKeepAlives: false,
         padding: EdgeInsets.all(InSpacing.lg(context)),
         children: [
           // One shared card around the four editors, like the Details tab's.

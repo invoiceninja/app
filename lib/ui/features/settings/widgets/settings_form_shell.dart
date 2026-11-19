@@ -343,6 +343,7 @@ class _SettingsFormShellState extends State<SettingsFormShell>
       child: SettingsPageActions(
         actions: const <Widget>[],
         child: ListView(
+          addAutomaticKeepAlives: false,
           padding: const EdgeInsets.all(InSpacing.xl),
           children: [
             LayoutBuilder(

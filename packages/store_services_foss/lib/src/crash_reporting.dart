@@ -11,3 +11,6 @@ Future<void> runWithCrashReporting({
 }) async {
   await appRunner();
 }
+
+/// FOSS stub: nothing to record a breadcrumb in.
+void addNavigationBreadcrumb({required String from, required String to}) {}

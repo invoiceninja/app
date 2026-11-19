@@ -193,6 +193,7 @@ class _CompanyPickerState extends State<CompanyPicker> {
                   child: companies.isEmpty
                       ? const _EmptyState()
                       : ListView.builder(
+                          addAutomaticKeepAlives: false,
                           shrinkWrap: true,
                           itemCount: companies.length,
                           itemBuilder: (context, i) {

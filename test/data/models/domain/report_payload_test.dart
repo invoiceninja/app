@@ -34,6 +34,53 @@ void main() {
       expect(wireFor(ReportDatePreset.thisYear), 'this_year');
     });
 
+    test('Today is sent as a custom range on the day it is sent', () {
+      // The server has no `today`; the preset stays itself on the payload so
+      // a remembered report still means the day it is opened.
+      final json = const ReportPayload(
+        datePreset: ReportDatePreset.today,
+      ).toJson(reportIdentifier: 'invoice', today: const Date(2026, 11, 18));
+      expect(json['date_range'], 'custom');
+      expect(json['start_date'], '2026-11-18');
+      expect(json['end_date'], '2026-11-18');
+    });
+
+    test('a custom range on a timestamp column ends at the end of its day', () {
+      // `BaseExport::addDateRange` compares `created_at` with the end date's
+      // midnight, so the last day was left out — and Today matched nothing.
+      final custom = ReportPayload(
+        datePreset: ReportDatePreset.custom,
+        startDate: const Date(2026, 11, 1),
+        endDate: const Date(2026, 11, 30),
+      );
+      final stamped = custom.toJson(
+        reportIdentifier: 'client',
+        endsAtTimestamp: true,
+      );
+      expect(stamped['start_date'], '2026-11-01');
+      expect(stamped['end_date'], '2026-11-30 23:59:59');
+      // A date column keeps its end date.
+      expect(
+        custom.toJson(reportIdentifier: 'invoice')['end_date'],
+        '2026-11-30',
+      );
+      final today = const ReportPayload(datePreset: ReportDatePreset.today)
+          .toJson(
+            reportIdentifier: 'activity',
+            endsAtTimestamp: true,
+            today: const Date(2026, 11, 18),
+          );
+      expect(today['start_date'], '2026-11-18');
+      expect(today['end_date'], '2026-11-18 23:59:59');
+      // A named preset is resolved by the server; nothing is added to it.
+      expect(
+        const ReportPayload(
+          datePreset: ReportDatePreset.thisMonth,
+        ).toJson(reportIdentifier: 'client', endsAtTimestamp: true),
+        isNot(contains('end_date')),
+      );
+    });
+
     test('template id serializes as template_id (server wire key)', () {
       // The server + React expect `template_id`; sending `template` silently
       // drops the design-template filter. Regression guard.

@@ -144,6 +144,7 @@ class _PageSettingsForm extends StatelessWidget {
     final tokens = context.inTheme;
     void set(DocumentSettings next) => vm.setDocumentSettings(next);
     final landscape = ds.pageLayout.trim().toLowerCase() == 'landscape';
+    // lint: allow-keep-alives its property fields keep their state scrolled away
     return ListView(
       padding: EdgeInsets.fromLTRB(
         InSpacing.lg(context),
@@ -595,6 +596,7 @@ class _BlockPropertiesForm extends StatelessWidget {
       return const SizedBox.shrink();
     }
     final spec = blockSpecFor(block.type);
+    // lint: allow-keep-alives its property fields keep their state scrolled away
     return ListView(
       padding: EdgeInsets.fromLTRB(
         InSpacing.lg(context),

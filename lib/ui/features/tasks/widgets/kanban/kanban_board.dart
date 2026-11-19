@@ -383,6 +383,7 @@ class _KanbanBoardState extends State<KanbanBoard> {
           );
         }
 
+        // lint: allow-keep-alives a column scrolled away mid-drag must not lose its drag or scroll
         return ListView.separated(
           controller: _scroll,
           scrollDirection: Axis.horizontal,
@@ -658,6 +659,7 @@ class _KanbanBoardState extends State<KanbanBoard> {
             headers,
             const SizedBox(height: 4),
             Expanded(
+              // lint: allow-keep-alives a lane scrolled away mid-drag must not lose its drag or scroll
               child: ListView.builder(
                 key: _lanesKey,
                 controller: _lanesScroll,

@@ -42,6 +42,7 @@ import 'package:admin/app/native_window.dart';
 import 'package:admin/app/native_window_theme.dart';
 import 'package:admin/app/nav_history_controller.dart';
 import 'package:admin/app/nav_state_persister.dart';
+import 'package:admin/app/route_breadcrumbs.dart';
 import 'package:admin/app/router.dart';
 import 'package:admin/app/sentry_gate.dart';
 import 'package:admin/app/services.dart';
@@ -773,6 +774,12 @@ class _InvoiceNinjaAppState extends State<InvoiceNinjaApp> {
     db: widget.services.db,
   );
 
+  /// Each screen change on the crash-report timeline, as a route pattern.
+  late final RouteBreadcrumbs _routeBreadcrumbs = RouteBreadcrumbs.fromRouter(
+    router: _router,
+    record: addNavigationBreadcrumb,
+  );
+
   late final NavHistoryController _navHistory = NavHistoryController.fromRouter(
     router: _router,
     session: widget.services.auth.session,
@@ -832,6 +839,7 @@ class _InvoiceNinjaAppState extends State<InvoiceNinjaApp> {
     // we never call methods on `_navPersister` directly.
     _navPersister;
     _navHistory;
+    _routeBreadcrumbs;
     // The deep-link router needs the GoRouter (which only exists now) and a
     // context under the MultiProvider for the company-switch guards' dialogs.
     // The root navigator's context is null until the first frame, so the
@@ -939,6 +947,7 @@ class _InvoiceNinjaAppState extends State<InvoiceNinjaApp> {
     widget.services.realtime.dispose();
     _navPersister.dispose();
     _navHistory.dispose();
+    _routeBreadcrumbs.dispose();
     _settingsReveal.dispose();
     _appDeepLinks.dispose();
     widget.services.deepLinks.dispose();

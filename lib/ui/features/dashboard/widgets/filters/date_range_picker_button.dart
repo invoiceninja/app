@@ -30,6 +30,7 @@ class DateRangePickerButton extends StatelessWidget {
     this.formatter,
     this.resolvedDates,
     this.showChevron = false,
+    this.presets = kRangePickerPresets,
   });
 
   final DashboardDateRange current;
@@ -49,6 +50,9 @@ class DateRangePickerButton extends StatelessWidget {
   /// A ▾ after the label: this opens a picker. The dashboard's period row
   /// draws its controls this way, beside a dashed label that is not one.
   final bool showChevron;
+
+  /// The presets the popover's rail offers, in order.
+  final List<DashboardDatePreset> presets;
 
   @override
   Widget build(BuildContext context) {
@@ -122,6 +126,7 @@ class DateRangePickerButton extends StatelessWidget {
     current: current,
     onChange: onChange,
     formatter: formatter,
+    presets: presets,
   );
 
   String _labelFor(BuildContext context, DashboardDateRange r) {
@@ -147,6 +152,7 @@ Future<void> openDateRangePicker(
   required DashboardDateRange current,
   required ValueChanged<DashboardDateRange> onChange,
   Formatter? formatter,
+  List<DashboardDatePreset> presets = kRangePickerPresets,
 }) async {
   final RenderBox? box = context.findRenderObject() as RenderBox?;
   final Offset offset = box?.localToGlobal(Offset.zero) ?? Offset.zero;
@@ -156,6 +162,7 @@ Future<void> openDateRangePicker(
       anchor: Rect.fromLTWH(offset.dx, offset.dy, size.width, size.height),
       current: current,
       formatter: formatter,
+      presets: presets,
       // Resolved here rather than in `buildPage` because `barrierColor` is a
       // getter with no `BuildContext`; same arithmetic either way.
       compact:
@@ -225,6 +232,8 @@ Future<DateWindowPick?> pickDateRangeWindow(
     context,
     current: current,
     formatter: formatter,
+    // A list filter is stored as rolling bounds, never a preset's name.
+    presets: kRangePickerPresetsWithToday,
     onChange: (r) {
       switch (r) {
         case DashboardPresetRange(:final preset):
@@ -248,6 +257,8 @@ Future<DateWindowPick?> pickDateRangeWindow(
 ) {
   RollingDatePreset? rolling;
   switch (p) {
+    case DashboardDatePreset.today:
+      rolling = RollingDatePreset.today;
     case DashboardDatePreset.last7:
       rolling = RollingDatePreset.last7Days;
     case DashboardDatePreset.last30:
@@ -292,6 +303,7 @@ DashboardDatePreset? dashboardPresetForWindow(String start, String end) {
 }
 
 String _presetKey(DashboardDatePreset p) => switch (p) {
+  DashboardDatePreset.today => 'today',
   DashboardDatePreset.last7 => 'last7_days',
   DashboardDatePreset.last30 => 'last_30_days',
   DashboardDatePreset.last365 => 'last_365_days',
@@ -315,10 +327,14 @@ class DashboardDateRangePopover extends StatefulWidget {
     required this.current,
     this.formatter,
     this.width,
+    this.presets = kRangePickerPresets,
   });
 
   final DashboardDateRange current;
   final Formatter? formatter;
+
+  /// The presets the rail offers, in order.
+  final List<DashboardDatePreset> presets;
 
   /// Explicit popover width. When null, the popover picks one based on the
   /// current `MediaQuery` width (the responsive default used by the route).
@@ -484,6 +500,7 @@ class _DashboardDateRangePopoverState extends State<DashboardDateRangePopover> {
                   _PresetRail(
                     compact: compact,
                     current: widget.current,
+                    presets: widget.presets,
                     onSelect: (preset) {
                       Navigator.of(
                         context,
@@ -601,11 +618,13 @@ class _PresetRail extends StatelessWidget {
   const _PresetRail({
     required this.compact,
     required this.current,
+    required this.presets,
     required this.onSelect,
   });
 
   final bool compact;
   final DashboardDateRange current;
+  final List<DashboardDatePreset> presets;
   final ValueChanged<DashboardDatePreset> onSelect;
 
   @override
@@ -626,7 +645,7 @@ class _PresetRail extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,
           children: [
-            for (final preset in DashboardDatePreset.values)
+            for (final preset in presets)
               _PresetChip(
                 label: context.tr(_presetKey(preset)),
                 active: preset == activePreset,
@@ -1293,12 +1312,14 @@ class _DateRangePickerRoute extends PopupRoute<DashboardDateRange?> {
     required this.anchor,
     required this.current,
     required this.formatter,
+    required this.presets,
     required this.compact,
   });
 
   final Rect anchor;
   final DashboardDateRange current;
   final Formatter? formatter;
+  final List<DashboardDatePreset> presets;
 
   /// Whether the popover will render its narrow (single-month) layout. Decided
   /// by the caller because [barrierColor] is a `BuildContext`-free getter.
@@ -1382,6 +1403,7 @@ class _DateRangePickerRoute extends PopupRoute<DashboardDateRange?> {
         child: DashboardDateRangePopover(
           current: current,
           formatter: formatter,
+          presets: presets,
           width: popoverWidth,
         ),
       ),
