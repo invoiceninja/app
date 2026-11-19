@@ -24,6 +24,7 @@
 		74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74858FAE1ED2DC5600515810 /* AppDelegate.swift */; };
 		7884E8682EC3CC0700C636F2 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7884E8672EC3CC0400C636F2 /* SceneDelegate.swift */; };
 		78A318202AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage in Frameworks */ = {isa = PBXBuildFile; productRef = 78A3181F2AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage */; };
+		94CE83923E3D43A3FF5ED2E0 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = B2C4A6146A5020E90BF4F11B /* PrivacyInfo.xcprivacy */; };
 		96750A118112F0C76581A0A9 /* SnapshotWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13272CC7730710C4F556ED1D /* SnapshotWidget.swift */; };
 		97C146FC1CF9000F007C117D /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FA1CF9000F007C117D /* Main.storyboard */; };
 		97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FD1CF9000F007C117D /* Assets.xcassets */; };
@@ -163,6 +164,7 @@
 		A91BC63E28DB1519A873B80C /* fi */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.strings; name = fi; path = fi.lproj/AppShortcuts.strings; sourceTree = "<group>"; };
 		ACBFE0960EE2945DCD78BB0E /* WidgetViews.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WidgetViews.swift; sourceTree = "<group>"; };
 		B008E51900E827FE1BF13910 /* Pods-RunnerTests.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RunnerTests.release.xcconfig"; path = "Target Support Files/Pods-RunnerTests/Pods-RunnerTests.release.xcconfig"; sourceTree = "<group>"; };
+		B2C4A6146A5020E90BF4F11B /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		B9580EEE226BD2C749247FD8 /* zh-Hans */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.strings; name = "zh-Hans"; path = "zh-Hans.lproj/AppShortcuts.strings"; sourceTree = "<group>"; };
 		BA16FCE44BB8333B63B9B054 /* km */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.strings; name = km; path = km.lproj/AppShortcuts.strings; sourceTree = "<group>"; };
 		BB156D0F0D77F85E019C4BC3 /* sq */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.strings; name = sq; path = sq.lproj/AppShortcuts.strings; sourceTree = "<group>"; };
@@ -331,6 +333,7 @@
 				731949CA7A605A86CC85E118 /* Localizable.xcstrings */,
 				48294FEEF325DEDEE8C269C3 /* InfoPlist.xcstrings */,
 				36B3990DA62B3E6352D4D828 /* AppShortcuts.strings */,
+				B2C4A6146A5020E90BF4F11B /* PrivacyInfo.xcprivacy */,
 			);
 			path = Runner;
 			sourceTree = "<group>";
@@ -540,6 +543,7 @@
 				AEFEA872B5C78BD951236CA3 /* Localizable.xcstrings in Resources */,
 				5026B14296EE5D9DB839BA8D /* InfoPlist.xcstrings in Resources */,
 				DE39D549057145876A3D9302 /* AppShortcuts.strings in Resources */,
+				94CE83923E3D43A3FF5ED2E0 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -863,7 +863,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Your contacts are used to quickly create clients."
+            "value" : "Your contacts are used to quickly create clients and, if you turn on Contacts sync in Device Settings, to save your clients' contacts to your address book."
           }
         }
       }

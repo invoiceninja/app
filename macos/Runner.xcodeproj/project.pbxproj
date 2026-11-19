@@ -21,6 +21,7 @@
 /* End PBXAggregateTarget section */
 
 /* Begin PBXBuildFile section */
+		0347B1309E0B0359F06C475D /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 51946E4C6D7413B007F0F1DB /* PrivacyInfo.xcprivacy */; };
 		2CD4748236734E1A09D009BF /* StopTimerIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F6EA102E837F05FF40B7DD5 /* StopTimerIntent.swift */; };
 		331C80D8294CF71000263BE5 /* RunnerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 331C80D7294CF71000263BE5 /* RunnerTests.swift */; };
 		335BBD1B22A9A15E00E9071D /* GeneratedPluginRegistrant.swift in Sources */ = {isa = PBXBuildFile; fileRef = 335BBD1A22A9A15E00E9071D /* GeneratedPluginRegistrant.swift */; };
@@ -121,6 +122,7 @@
 		36AB51DC7B5FB3B860F9ACB3 /* SnapshotWidget.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SnapshotWidget.swift; sourceTree = "<group>"; };
 		39913D090DD6334CD359931F /* HomeWidgetsBridge.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = HomeWidgetsBridge.swift; sourceTree = "<group>"; };
 		42B1AE2CB03E70127FA06FE6 /* WidgetViews.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WidgetViews.swift; sourceTree = "<group>"; };
+		51946E4C6D7413B007F0F1DB /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		6920934040985485FAB371AA /* Pods-Runner.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.release.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.release.xcconfig"; sourceTree = "<group>"; };
 		6AD89C1A71EC6DD57CC179D1 /* AttentionWidget.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AttentionWidget.swift; sourceTree = "<group>"; };
 		6F6EA102E837F05FF40B7DD5 /* StopTimerIntent.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = StopTimerIntent.swift; sourceTree = "<group>"; };
@@ -247,6 +249,7 @@
 				33E51914231749380026EE4D /* Release.entitlements */,
 				33CC11242044D66E0003C045 /* Resources */,
 				33BA886A226E78AF003329D5 /* Configs */,
+				51946E4C6D7413B007F0F1DB /* PrivacyInfo.xcprivacy */,
 			);
 			path = Runner;
 			sourceTree = "<group>";
@@ -493,6 +496,7 @@
 				33CC10F32044A3C60003C045 /* Assets.xcassets in Resources */,
 				33CC10F62044A3C60003C045 /* MainMenu.xib in Resources */,
 				F93668DB2FD86E8900DECF6C /* AppIcon.icon in Resources */,
+				0347B1309E0B0359F06C475D /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
