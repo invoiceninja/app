@@ -11,6 +11,10 @@ import 'package:admin/ui/core/widgets/toast_controller.dart';
 /// open — an Ask to Buy approved later, a purchase interrupted on the way to
 /// the server, one handed back at launch. The open sheet says it itself.
 ///
+/// It subscribes when the app builds, which can be after the launch sweep has
+/// already delivered: [PurchaseDelivery.activity] holds what happened before
+/// its first listener and hands it over, so that refusal is told too.
+///
 /// Only a refusal is told: the hosted service's own words (a test purchase,
 /// one already linked to another account) under a localized title. A
 /// purchase applied in the background — every renewal is one — says nothing,
@@ -34,6 +38,21 @@ class PurchaseNotices {
 
   void _onActivity(PurchaseActivity a) {
     if (a.kind != PurchaseActivityKind.rejected || _delivery.sheetOpen) return;
+    _show(a, 0);
+  }
+
+  /// How many frames a refusal waits for a context to say it in: one held
+  /// from the launch sweep can arrive before the first frame has a navigator.
+  static const _maxFrameWaits = 10;
+
+  void _show(PurchaseActivity a, int frameWaits) {
+    if (_disposed) return;
+    if (_contextOf() == null && frameWaits < _maxFrameWaits) {
+      final binding = WidgetsBinding.instance;
+      binding.addPostFrameCallback((_) => _show(a, frameWaits + 1));
+      binding.scheduleFrame();
+      return;
+    }
     final message = a.message?.trim() ?? '';
     showLocalizedToast(
       toasts: _toasts,
@@ -45,5 +64,10 @@ class PurchaseNotices {
     );
   }
 
-  Future<void> dispose() => _sub.cancel();
+  bool _disposed = false;
+
+  Future<void> dispose() {
+    _disposed = true;
+    return _sub.cancel();
+  }
 }

@@ -202,4 +202,67 @@ void main() {
     await tester.pump();
     expect(billing.restores, 1);
   });
+
+  testWidgets('a Google account that already subscribes is told so in '
+      "Google's words, and offered Restore, not plans", (tester) async {
+    await openSheet(tester, TargetPlatform.android, alreadySubscribed: true);
+
+    expect(
+      find.text(
+        'This Google account already has an Invoice Ninja subscription, so '
+        "another one can't be bought here. If it was bought for this "
+        'account, restore it.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.textContaining('Apple'), findsNothing);
+    expect(find.text('Pro'), findsNothing);
+    expect(find.text('Restore Purchases'), findsOneWidget);
+  });
+
+  testWidgets('the title is announced as a heading', (tester) async {
+    await openSheet(tester, TargetPlatform.iOS);
+
+    final semantics = tester.widget<Semantics>(
+      find
+          .ancestor(of: find.text('Upgrade'), matching: find.byType(Semantics))
+          .first,
+    );
+    expect(semantics.properties.header, isTrue);
+    expect(semantics.properties.headingLevel, 1);
+  });
+
+  testWidgets('a price reads left-to-right in a right-to-left language', (
+    tester,
+  ) async {
+    await openSheet(tester, TargetPlatform.iOS);
+    // Rebuild the open sheet under an RTL ambient direction.
+    await tester.pumpWidget(
+      ChangeNotifierProvider<ToastController>.value(
+        value: toasts,
+        child: MaterialApp(
+          theme: buildInTheme(InTheme.light),
+          localizationsDelegates: kTestLocalizationsDelegates,
+          supportedLocales: kTestSupportedLocales,
+          home: Directionality(
+            textDirection: TextDirection.rtl,
+            child: Scaffold(
+              body: UpgradeSheet(service: svc, store: delivery.store),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final price = tester.widget<Text>(
+      find.descendant(
+        of: find.byWidgetPredicate(
+          (w) => w is Directionality && w.textDirection == TextDirection.rtl,
+        ),
+        matching: find.text(r'$12.00'),
+      ),
+    );
+    expect(price.textDirection, TextDirection.ltr);
+  });
 }

@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:in_app_purchase_android/in_app_purchase_android.dart'
-    show InAppPurchaseAndroidPlatformAddition;
+    show GooglePlayProductDetails, InAppPurchaseAndroidPlatformAddition;
 import 'package:in_app_purchase_storekit/in_app_purchase_storekit.dart';
 import 'package:in_app_purchase_storekit/store_kit_2_wrappers.dart';
 
@@ -127,10 +127,18 @@ class StoreBilling {
     (list) => [for (final p in list) StorePurchase._(p)],
   );
 
+  /// The store products for [ids]. On Play a subscription comes back once
+  /// per offer — its base plan, and each free-trial or intro offer on it,
+  /// priced at the offer's first phase ("Free") — so only one per base plan
+  /// is kept ([playBasePlanOfferIndexes]).
   Future<StoreProductQuery> queryProducts(Set<String> ids) async {
     final resp = await _iap.queryProductDetails(ids);
+    final details = resp.productDetails;
+    final keep = playBasePlanOfferIndexes([
+      for (final d in details) _playOfferOf(d),
+    ]);
     return StoreProductQuery(
-      products: [for (final d in resp.productDetails) StoreProduct._(d)],
+      products: [for (final i in keep) StoreProduct._(details[i])],
       error: resp.error?.toString(),
     );
   }
@@ -208,17 +216,28 @@ class StoreBilling {
 
   /// The product ids this store account holds an active subscription to in
   /// this app — StoreKit 2's `Transaction.currentEntitlements` on iOS and
-  /// macOS. Empty on Android and anywhere else, and when StoreKit can't be
-  /// asked; so an empty answer never proves there is none.
+  /// macOS, and on Android the subscriptions Play reports the Google account
+  /// owns (`queryPurchasesAsync`: bought and not yet expired, cancelled or
+  /// not, acknowledged or not). Empty anywhere else, and when the store can't
+  /// be asked; so an empty answer never proves there is none.
   Future<Set<String>> activeSubscriptionProductIds() async {
-    if (kIsWeb ||
-        (defaultTargetPlatform != TargetPlatform.iOS &&
-            defaultTargetPlatform != TargetPlatform.macOS)) {
-      return const {};
-    }
+    if (kIsWeb) return const {};
     try {
-      final entitlements = await SK2Transaction.currentEntitlements();
-      return {for (final t in entitlements) t.productId};
+      switch (defaultTargetPlatform) {
+        case TargetPlatform.android:
+          final resp = await _iap
+              .getPlatformAddition<InAppPurchaseAndroidPlatformAddition>()
+              .queryPastPurchases();
+          return ownedProductIds([
+            for (final p in resp.pastPurchases) StorePurchase._(p),
+          ]);
+        case TargetPlatform.iOS:
+        case TargetPlatform.macOS:
+          final entitlements = await SK2Transaction.currentEntitlements();
+          return {for (final t in entitlements) t.productId};
+        default:
+          return const {};
+      }
     } on Exception {
       return const {};
     }
@@ -250,3 +269,62 @@ class StoreBilling {
     }
   }
 }
+
+/// The product's Play offer, as [playBasePlanOfferIndexes] reads it; no base
+/// plan for anything that is not a Play subscription.
+({String productId, String? basePlanId, String? offerId}) _playOfferOf(
+  ProductDetails d,
+) {
+  if (d is GooglePlayProductDetails) {
+    final index = d.subscriptionIndex;
+    final offers = d.productDetails.subscriptionOfferDetails;
+    if (index != null && offers != null && index < offers.length) {
+      final offer = offers[index];
+      return (
+        productId: d.id,
+        basePlanId: offer.basePlanId,
+        offerId: offer.offerId,
+      );
+    }
+  }
+  return (productId: d.id, basePlanId: null, offerId: null);
+}
+
+/// Which of Play's product offers to list: one per subscription base plan.
+///
+/// Play hands a subscription back once per offer — its base plan (no
+/// `offerId`) and each offer on it, a free trial priced "Free" among them —
+/// so listing them all shows one plan several times. Keeps, per product and
+/// base plan, the base plan's own offer, or the first offer when the base
+/// plan's isn't there; anything that is not a Play subscription is kept as
+/// is. Returns the kept indexes into [offers], in order.
+List<int> playBasePlanOfferIndexes(
+  List<({String productId, String? basePlanId, String? offerId})> offers,
+) {
+  final chosen = <String, int>{};
+  for (var i = 0; i < offers.length; i++) {
+    final o = offers[i];
+    final basePlan = o.basePlanId;
+    if (basePlan == null) {
+      chosen['$i'] = i;
+      continue;
+    }
+    final key = '${o.productId}|$basePlan';
+    final current = chosen[key];
+    if (current == null ||
+        (offers[current].offerId != null && o.offerId == null)) {
+      chosen[key] = i;
+    }
+  }
+  return chosen.values.toList()..sort();
+}
+
+/// The product ids of [owned] that are bought or on their way (a Play
+/// pending payment): what a second sale would bill alongside.
+Set<String> ownedProductIds(Iterable<StorePurchase> owned) => {
+  for (final p in owned)
+    if (p.status == StorePurchaseStatus.purchased ||
+        p.status == StorePurchaseStatus.restored ||
+        p.status == StorePurchaseStatus.pending)
+      p.productId,
+};

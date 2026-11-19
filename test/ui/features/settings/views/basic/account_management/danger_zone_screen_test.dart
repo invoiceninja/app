@@ -10,8 +10,10 @@
 import 'dart:convert';
 
 import 'package:admin/data/services/password_cache.dart';
+import 'package:admin/domain/upgrade/store_build.dart';
 import 'package:admin/ui/core/widgets/empty_state.dart';
 import 'package:admin/ui/features/settings/views/basic/account_management/danger_zone_screen.dart';
+import 'package:flutter/foundation.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -82,6 +84,87 @@ void main() {
       },
     );
   }
+
+  // The note names only this build's store (App Review 2.3.10 rejects a
+  // build that names another platform's), and links to the store's page only
+  // where that page is this device's.
+  group('the store-billing note', () {
+    Future<void> pumpStoreBilled(WidgetTester tester) async {
+      await tester.binding.setSurfaceSize(const Size(1200, 800));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final fixture = await buildFixture(
+        companies: const [FakeCompany(id: 'c1', name: 'Acme Co')],
+        currentCompanyId: 'c1',
+        hasIapPlan: true,
+      );
+      addTearDown(fixture.dispose);
+      await tester.pumpWidget(
+        wrapWithShell(
+          fixture.services,
+          const AccountManagementDangerZoneScreen(),
+        ),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    final note = find.byKey(
+      const ValueKey('danger_zone_store_billing_warning'),
+    );
+    final manage = find.byKey(
+      const ValueKey('danger_zone_manage_subscription'),
+    );
+    String noteText(WidgetTester tester) => tester.widget<Text>(note).data!;
+
+    for (final platform in [TargetPlatform.iOS, TargetPlatform.macOS]) {
+      testWidgets('${platform.name} store build: the App Store, never Google', (
+        tester,
+      ) async {
+        debugStoreBillingOverride = true;
+        debugDefaultTargetPlatformOverride = platform;
+        addTearDown(() {
+          debugStoreBillingOverride = null;
+          debugDefaultTargetPlatformOverride = null;
+        });
+        await pumpStoreBilled(tester);
+
+        expect(noteText(tester), contains('App Store'));
+        expect(noteText(tester), isNot(contains('Google')));
+        expect(manage, findsOneWidget);
+        debugDefaultTargetPlatformOverride = null;
+      });
+    }
+
+    testWidgets('Android store build: Google Play, never Apple', (
+      tester,
+    ) async {
+      debugStoreBillingOverride = true;
+      debugDefaultTargetPlatformOverride = TargetPlatform.android;
+      addTearDown(() {
+        debugStoreBillingOverride = null;
+        debugDefaultTargetPlatformOverride = null;
+      });
+      await pumpStoreBilled(tester);
+
+      expect(noteText(tester), contains('Google Play'));
+      expect(noteText(tester), isNot(contains('App Store')));
+      expect(noteText(tester), isNot(contains('Apple')));
+      expect(manage, findsOneWidget);
+      debugDefaultTargetPlatformOverride = null;
+    });
+
+    testWidgets('desktop and the web: no store named, and no button', (
+      tester,
+    ) async {
+      debugStoreBillingOverride = false;
+      addTearDown(() => debugStoreBillingOverride = null);
+      await pumpStoreBilled(tester);
+
+      expect(noteText(tester), contains('the app store you subscribed in'));
+      expect(noteText(tester), isNot(contains('Google')));
+      expect(noteText(tester), isNot(contains('App Store')));
+      expect(manage, findsNothing);
+    });
+  });
 
   testWidgets('purge submit is gated on the confirm word AND a password '
       '(confirm match is case-insensitive)', (tester) async {

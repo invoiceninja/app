@@ -15,6 +15,7 @@ import 'package:admin/ui/core/dialogs/discard_changes_dialog.dart';
 import 'package:admin/ui/core/unsaved_changes/unsaved_changes_scope.dart';
 import 'package:admin/ui/core/utils/external_url.dart';
 import 'package:admin/ui/core/widgets/empty_state.dart';
+import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/features/docuninja/view_models/docuninja_builder_view_model.dart';
 import 'package:admin/ui/features/docuninja/widgets/docuninja_builder_link.dart';
 import 'package:admin/ui/features/docuninja/widgets/docuninja_embed_surface.dart';
@@ -30,12 +31,22 @@ final _log = Logger('DocuNinjaBuilderScreen');
 /// something outside the store (a Stripe checkout, the billing portal) is
 /// refused instead: a store build may not send anyone to an external purchase
 /// (App Store 3.1.1(a), Play Payments 4), and the embed hands us any link.
-void _openOffApp(Uri uri) {
+/// The refusal is told in a toast (on [context], while it is mounted), so a
+/// tap in the page never just does nothing.
+@visibleForTesting
+void openDocuNinjaOffApp(
+  BuildContext? context,
+  Uri uri, {
+  Future<bool> Function(Uri) launch = launchExternalUri,
+}) {
   if (isStoreBillingBuild && isExternalPurchaseUri(uri)) {
     _log.info('Not opening a purchase page on a store build: ${uri.host}');
+    if (context != null && context.mounted) {
+      Notify.info(context, context.tr('page_not_opened_in_app'));
+    }
     return;
   }
-  unawaited(launchExternalUri(uri));
+  unawaited(launch(uri));
 }
 
 class DocuNinjaBuilderScreen extends StatefulWidget {
@@ -68,6 +79,9 @@ class DocuNinjaBuilderScreen extends StatefulWidget {
 }
 
 class _DocuNinjaBuilderScreenState extends State<DocuNinjaBuilderScreen> {
+  void _openOffApp(Uri uri) =>
+      openDocuNinjaOffApp(mounted ? context : null, uri);
+
   DnEmbedSurface? _web;
   DocuNinjaBuilderViewModel? _vm;
   String? _companyId;

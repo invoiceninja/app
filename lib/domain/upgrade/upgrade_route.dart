@@ -60,9 +60,7 @@ UpgradeRoute resolveUpgradeRoute({
   // A plan is bought for the whole account, and only its owner may buy it.
   // Checked before the ended-subscription branch: the store page on someone
   // else's device holds nothing of the owner's.
-  if (!(session.currentCompany?.isOwner ?? false)) {
-    return UpgradeRoute.planScreen;
-  }
+  if (!canBuyForActiveAccount(session)) return UpgradeRoute.planScreen;
 
   // An in-app plan that is no longer paid may still be in the store's grace or
   // billing-retry window and renew: offer the sheet only once it has been over
@@ -74,6 +72,18 @@ UpgradeRoute resolveUpgradeRoute({
 
   return UpgradeRoute.purchaseSheet;
 }
+
+/// Whether the signed-in user may buy a plan in-app for the active company's
+/// account: they own the active company, and that company's account is the
+/// user's own. The hosted endpoint applies a purchase to the user's own
+/// account (`user->account`), so selling one while another account's company
+/// is active would bill for a plan this account never gets. A session that
+/// can't say which account is the user's (`userAccountKey` blank) is not
+/// offered one either.
+bool canBuyForActiveAccount(AuthSession session) =>
+    (session.currentCompany?.isOwner ?? false) &&
+    session.userAccountKey.isNotEmpty &&
+    session.userAccountKey == session.accountKey;
 
 /// Whether [planExpires] (the account's `plan_expires`, a `YYYY-MM-DD` day the
 /// plan is paid through) ended more than [kIapRebuyAfter] before [now].

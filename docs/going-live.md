@@ -74,7 +74,7 @@ Each store needs its console step after the launch release is uploaded. Only the
 
 - [ ] Try creating the product id `pro_plan` on the new record. If App Store Connect accepts it, keep v1's ten ids (`lib/domain/upgrade/purchase_service.dart`); if it refuses, the new app uses `v2_`-prefixed ids and the hosted billing strips the prefix.
 - [ ] One subscription group with v1's levels and prices, attached to the launch version.
-- [ ] App Store Server Notifications V2: the Production URL is the hosted billing endpoint (as on v1's record); set a **Sandbox** URL that is not production, on both records, so test purchases never reach live accounts.
+- [ ] App Store Server Notifications V2: the Production URL is the hosted billing endpoint (as on v1's record); set a **Sandbox** URL that is not production, on both records.
 - [ ] Privacy Policy URL, and the Terms of Use link in the description (or a custom EULA); the description names the subscriptions; the subtitle never names the other app.
 - [ ] App Privacy answers: crash data, contacts, photos, precise location (Tap to Pay), financial info, purchases, user content. Export compliance: the app encrypts its database (`sqlite3mc`), so answer the encryption questions deliberately and keep `ITSAppUsesNonExemptEncryption` in step.
 - [ ] A review account on every submission of both apps: a hosted owner on the Free plan with one company, no two-factor, password login; reset it to Free before each submission.

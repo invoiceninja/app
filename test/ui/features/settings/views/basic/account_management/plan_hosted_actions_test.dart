@@ -12,11 +12,13 @@ import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/app/theme.dart';
 import 'package:admin/data/repositories/auth_repository.dart';
+import 'package:admin/domain/upgrade/purchase_delivery.dart';
 import 'package:admin/domain/upgrade/store_build.dart';
 import 'package:admin/ui/features/settings/views/basic/account_management/plan_screen.dart';
 import 'package:admin/utils/formatting.dart';
 
 import '../../../../../../_localization_helper.dart';
+import '../../../../../../domain/upgrade/_purchase_fakes.dart';
 
 class _FakeAuth implements AuthRepository {
   _FakeAuth(this._session);
@@ -29,9 +31,12 @@ class _FakeAuth implements AuthRepository {
 }
 
 class _FakeServices implements Services {
-  _FakeServices({required this.auth});
+  _FakeServices({required this.auth, this.purchases});
   @override
   final AuthRepository auth;
+
+  @override
+  final PurchaseDelivery? purchases;
 
   @override
   Formatter? formatterIfReady(String companyId) => null;
@@ -48,12 +53,25 @@ AuthSession _session({
   int trialDaysLeft = -1,
   String ninjaPortalUrl =
       'https://invoiceninja.invoicing.co/client/key_login/x',
+  bool isOwner = true,
+  String userAccountKey = 'acct-key',
 }) => AuthSession(
   baseUrl: 'https://invoicing.co',
   isHosted: true,
   accountId: 'acct',
-  companies: const [],
-  currentCompanyId: '',
+  accountKey: 'acct-key',
+  userAccountKey: userAccountKey,
+  companies: [
+    AuthCompany(
+      id: 'co',
+      name: 'Co',
+      displayName: 'Co',
+      permissions: '',
+      isAdmin: isOwner,
+      isOwner: isOwner,
+    ),
+  ],
+  currentCompanyId: 'co',
   plan: plan,
   planExpires: planExpires,
   hasIapPlan: hasIapPlan,
@@ -74,6 +92,7 @@ Future<void> _pump(
   WidgetTester tester,
   AuthSession session, {
   required bool storeBuild,
+  PurchaseDelivery? purchases,
 }) async {
   debugStoreBillingOverride = storeBuild;
   await tester.pumpWidget(
@@ -82,7 +101,10 @@ Future<void> _pump(
       localizationsDelegates: kTestLocalizationsDelegates,
       supportedLocales: kTestSupportedLocales,
       home: Provider<Services>.value(
-        value: _FakeServices(auth: _FakeAuth(ValueNotifier(session))),
+        value: _FakeServices(
+          auth: _FakeAuth(ValueNotifier(session)),
+          purchases: purchases,
+        ),
         child: const Scaffold(body: AccountManagementPlanScreen()),
       ),
     ),
@@ -142,6 +164,82 @@ void main() {
       );
       expect(button.onPressed, isNotNull);
       expect(find.text(_billedOnWeb), findsNothing);
+    });
+  });
+
+  group('store build, not the owner', () {
+    for (final MapEntry(key: name, value: session) in {
+      'a member': _session(isOwner: false),
+      "the owner, in another account's company": _session(
+        userAccountKey: 'my-own-acct',
+      ),
+    }.entries) {
+      testWidgets('$name gets a disabled Upgrade that says why', (
+        tester,
+      ) async {
+        await _pump(tester, session, storeBuild: true);
+
+        final button = tester.widget<ButtonStyleButton>(
+          find.ancestor(
+            of: find.text('Upgrade Plan'),
+            matching: find.bySubtype<ButtonStyleButton>(),
+          ),
+        );
+        expect(button.onPressed, isNull);
+        expect(
+          find.text('Only the account owner can change the plan.'),
+          findsOneWidget,
+        );
+      });
+    }
+  });
+
+  // Restore lives outside the purchase sheet too, so it works while new
+  // purchases are switched off: it only re-delivers what was paid for.
+  group('Restore Purchases', () {
+    final restore = find.byKey(const ValueKey('plan_restore_purchases'));
+
+    for (final MapEntry(key: name, value: session) in {
+      'free': _free,
+      'active in-app plan': _activeIap,
+      'web-billed': _webPaid,
+    }.entries) {
+      testWidgets('offered to the owner on a store build ($name)', (
+        tester,
+      ) async {
+        await _pump(tester, session, storeBuild: true);
+        expect(restore, findsOneWidget);
+      });
+    }
+
+    testWidgets('asks the store, even with purchases switched off', (
+      tester,
+    ) async {
+      final billing = FakeBilling();
+      final api = FakeApi()..iapConfig = const {'purchases_enabled': false};
+      final delivery = PurchaseDelivery(
+        apiClient: api,
+        auth: FakeAuth(),
+        billing: billing,
+        platform: TargetPlatform.iOS,
+      );
+      addTearDown(delivery.dispose);
+      await _pump(tester, _free, storeBuild: true, purchases: delivery);
+
+      await tester.tap(restore);
+      await tester.pump();
+      expect(billing.restores, 1);
+      await tester.pump(const Duration(seconds: 10));
+    });
+
+    testWidgets('not offered to a member', (tester) async {
+      await _pump(tester, _session(isOwner: false), storeBuild: true);
+      expect(restore, findsNothing);
+    });
+
+    testWidgets('not offered off a store build', (tester) async {
+      await _pump(tester, _free, storeBuild: false);
+      expect(restore, findsNothing);
     });
   });
 

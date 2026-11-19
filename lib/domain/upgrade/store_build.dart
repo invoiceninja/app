@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:store_services/store_services.dart';
 
+import 'package:admin/domain/upgrade/purchase_delivery.dart';
+
 /// Whether this build sells plans through the store's own billing: a store
 /// build ([StoreReview.isStoreBuild], false in the F-Droid twin) running on
 /// iOS, Android or macOS. Every native macOS build is the Mac App Store build
@@ -38,6 +40,13 @@ bool get isStoreBillingBuild =>
       isWeb: kIsWeb,
       platform: defaultTargetPlatform,
     );
+
+/// The store this build sells through, and so the only store its copy may
+/// name: App Review rejects a build that names another platform's store
+/// (2.3.10). Null off a store-billing build (desktop, the web, F-Droid),
+/// whose copy says "app store" without naming one.
+PurchaseStore? get storeOfBuild =>
+    isStoreBillingBuild ? PurchaseStore.of(defaultTargetPlatform) : null;
 
 /// Stripe's hosted payment pages: Checkout, the customer billing portal,
 /// Payment Links and hosted invoices.

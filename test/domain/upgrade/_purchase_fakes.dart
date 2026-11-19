@@ -175,18 +175,24 @@ class FakeApi implements ApiClient {
       throw UnimplementedError(invocation.memberName.toString());
 }
 
+/// A hosted session. [userAccountKey] — the key of the signed-in user's own
+/// account — defaults to [accountKey] (the active company's): the user is in
+/// their own account.
 AuthSession testSession({
   String accountKey = 'acct-key',
+  String? userAccountKey,
   bool isHosted = true,
   String baseUrl = 'https://invoicing.co',
+  String userId = 'me',
 }) => AuthSession(
   baseUrl: baseUrl,
   isHosted: isHosted,
   accountId: 'acct',
   accountKey: accountKey,
+  userAccountKey: userAccountKey ?? accountKey,
   companies: const [],
   currentCompanyId: 'co',
-  userId: 'me',
+  userId: userId,
 );
 
 class FakeAuth implements AuthRepository {

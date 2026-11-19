@@ -289,6 +289,7 @@ void main() {
         'how_to_tap_shown',
         'tap_to_pay_announced',
         'kanban_json',
+        'web_app_banner_dismissed',
       };
       for (final key in DevicePrefKeys.all) {
         if (addedAfterV12.contains(key.name)) {

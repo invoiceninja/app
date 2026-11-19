@@ -18,6 +18,8 @@ import 'package:admin/data/services/google_oauth.dart';
 import 'package:admin/data/services/password_cache.dart' show PasswordSubject;
 import 'package:admin/data/services/web_oauth.dart';
 import 'package:admin/data/services/web_sign_in.dart';
+import 'package:admin/domain/upgrade/purchase_delivery.dart' show PurchaseStore;
+import 'package:admin/domain/upgrade/store_build.dart' show storeOfBuild;
 import 'package:admin/domain/upgrade/upgrade_launcher.dart'
     show openManageSubscriptions;
 import 'package:admin/l10n/localization.dart';
@@ -213,6 +215,10 @@ class _DeleteSection extends StatelessWidget {
         // can (Apple's account-deletion guidance; App Review 5.1.1(v)).
         final storeBilled =
             (value?.hasIapPlan ?? false) && (value?.isPaidPlanSlug ?? false);
+        // Names only this build's store (App Review 2.3.10), and links to it
+        // only where the store's page is this device's: desktop and the web
+        // say it in words.
+        final store = storeOfBuild;
         return FormSection(
           title: label,
           children: [
@@ -221,22 +227,28 @@ class _DeleteSection extends StatelessWidget {
               SizedBox(height: InSpacing.md(context)),
               Text(
                 key: const ValueKey('danger_zone_store_billing_warning'),
-                context.tr('store_billing_continues_after_delete'),
+                context.tr(switch (store) {
+                  PurchaseStore.appStore => 'store_billed_delete_note_apple',
+                  PurchaseStore.googlePlay => 'store_billed_delete_note_google',
+                  null => 'store_billed_delete_note',
+                }),
                 style: TextStyle(color: tokens.ink2),
               ),
-              SizedBox(height: InSpacing.sm),
-              Align(
-                alignment: AlignmentDirectional.centerStart,
-                child: OutlinedButton.icon(
-                  key: const ValueKey('danger_zone_manage_subscription'),
-                  icon: const Icon(Icons.open_in_new, size: 18),
-                  label: Text(context.tr('manage_subscription')),
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: const Size(120, 40),
+              if (store != null) ...[
+                SizedBox(height: InSpacing.sm),
+                Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: OutlinedButton.icon(
+                    key: const ValueKey('danger_zone_manage_subscription'),
+                    icon: const Icon(Icons.open_in_new, size: 18),
+                    label: Text(context.tr('manage_subscription')),
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size(120, 40),
+                    ),
+                    onPressed: openManageSubscriptions,
                   ),
-                  onPressed: openManageSubscriptions,
                 ),
-              ),
+              ],
             ],
             SizedBox(height: InSpacing.lg(context)),
             Align(

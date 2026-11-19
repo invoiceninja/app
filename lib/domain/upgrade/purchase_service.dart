@@ -163,20 +163,24 @@ class PurchaseService {
     return _config.canPurchase;
   }
 
-  /// Whether this Apple Account already holds an active subscription to one
-  /// of our plans in this app (StoreKit 2's `Transaction.currentEntitlements`).
-  /// Selling a second one would bill twice. Always false on Android — Play
-  /// refuses a second purchase of an owned product itself — and when StoreKit
-  /// can't be asked.
+  /// Whether this store account already holds an active subscription to one
+  /// of our plans in this app: StoreKit 2's `Transaction.currentEntitlements`
+  /// on Apple, the owned subscriptions Play reports on Android. Selling a
+  /// second one would bill twice (Play refuses only the same product again,
+  /// not a different plan). False when the store can't be asked.
   Future<bool> hasActiveStoreSubscription() async {
     final ids = await _iap.activeSubscriptionProductIds();
     return ids.any((id) => kProductPlans.contains(planSlugOf(id)));
   }
 
-  /// `account.key`, which the hosted endpoint looks the account up by. Blank
-  /// only on an offline cold start from a cache older than 5.1.14, until the
-  /// background refresh fills it.
-  String get _accountKey => _auth.session.value?.accountKey ?? '';
+  /// The key of the account a purchase is applied to
+  /// ([PurchaseDelivery.deliveryAccountKey]). Blank only on an offline cold
+  /// start from a cache older than 5.1.14, until the background refresh
+  /// fills it.
+  String get _accountKey => switch (_auth.session.value) {
+    final s? => PurchaseDelivery.deliveryAccountKey(s),
+    null => '',
+  };
 
   /// Follows the delivery and lists the products.
   Future<void> init() async {
@@ -225,13 +229,7 @@ class PurchaseService {
 
   /// Asks the store to hand back this account's purchases; each one reaches
   /// [PurchaseDelivery]. Never gated on [loadConfig].
-  Future<void> restore() async {
-    try {
-      await _iap.restorePurchases();
-    } catch (e) {
-      _log.warning('restorePurchases: $e');
-    }
-  }
+  Future<void> restore() => _delivery.restore();
 
   void _onActivity(PurchaseActivity a) {
     if (busy.value != _busyAfter(a.kind)) busy.value = _busyAfter(a.kind);

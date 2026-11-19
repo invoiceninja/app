@@ -8,6 +8,7 @@ import 'package:admin/app/services.dart';
 import 'package:admin/data/repositories/auth/auth_session.dart';
 import 'package:admin/domain/upgrade/store_build.dart';
 import 'package:admin/domain/upgrade/upgrade_launcher.dart';
+import 'package:admin/domain/upgrade/upgrade_route.dart';
 import 'package:admin/domain/upgrade/white_label.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/field_label.dart';
@@ -243,6 +244,11 @@ class _HostedActionsCard extends StatelessWidget {
     final tokens = context.inTheme;
     final storeBilling = isStoreBillingBuild;
     final hint = TextStyle(color: tokens.ink2);
+    // Restore re-delivers purchases already paid for, so it is offered to the
+    // account's owner on every store-billing build, whether or not new
+    // purchases are on sale.
+    final showRestore =
+        storeBilling && (session.currentCompany?.isOwner ?? false);
 
     // Bought in a store: managed only in that store's subscription settings
     // (mirrors admin-portal's `isProPlan && hasIapPlan` branch). A store build
@@ -265,6 +271,7 @@ class _HostedActionsCard extends StatelessWidget {
                 onPressed: () => unawaited(openManageSubscriptions()),
               ),
             ),
+          if (showRestore) const _RestorePurchasesButton(),
         ],
       );
     }
@@ -277,15 +284,25 @@ class _HostedActionsCard extends StatelessWidget {
         (session.isPaidPlanSlug || session.isTrial)) {
       return FormSection(
         title: context.tr('change_plan'),
-        children: [Text(context.tr('plan_billed_on_web'), style: hint)],
+        children: [
+          Text(context.tr('plan_billed_on_web'), style: hint),
+          if (showRestore) const _RestorePurchasesButton(),
+        ],
       );
     }
 
+    // On a store build only the owner of the active company's account, when
+    // that account is the user's own, can buy (`canBuyForActiveAccount`);
+    // anyone else's Upgrade would only reopen this screen, so it is disabled
+    // and says why.
+    final notOwner = storeBilling && !canBuyForActiveAccount(session);
     // A store build sells in-app and needs no portal URL; everywhere else the
     // button opens the hosted billing portal, so with no URL there's nowhere
     // to send the user (launchUpgrade would otherwise fall back to this same
     // screen). Disable it in that dead-end case.
-    final canUpgrade = storeBilling || session.ninjaPortalUrl.isNotEmpty;
+    final canUpgrade = storeBilling
+        ? !notOwner
+        : session.ninjaPortalUrl.isNotEmpty;
     // Decide button label: free → "Upgrade Plan"; paid → "Change Plan";
     // trial → "Upgrade Plan" so the user knows they're paying.
     final labelKey = session.isPaidPlanSlug && !session.isTrial
@@ -322,11 +339,40 @@ class _HostedActionsCard extends StatelessWidget {
           Padding(
             padding: EdgeInsets.only(top: InSpacing.sm),
             child: Text(
-              context.tr('error_refresh_page'),
+              context.tr(
+                notOwner ? 'store_plan_owner_only' : 'error_refresh_page',
+              ),
               style: TextStyle(color: tokens.ink3),
             ),
           ),
+        if (showRestore) const _RestorePurchasesButton(),
       ],
+    );
+  }
+}
+
+/// Restore Purchases, outside the purchase sheet: it asks the store to hand
+/// back this store account's purchases, and the app-wide delivery applies
+/// any the account doesn't have yet. Works while new purchases are switched
+/// off, since it only re-delivers what was already paid for.
+class _RestorePurchasesButton extends StatelessWidget {
+  const _RestorePurchasesButton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: AlignmentDirectional.centerStart,
+      child: TextButton.icon(
+        key: const ValueKey('plan_restore_purchases'),
+        icon: const Icon(Icons.restore, size: 18),
+        label: Text(context.tr('restore_purchases')),
+        onPressed: () {
+          final delivery = context.read<Services>().purchases;
+          if (delivery == null) return;
+          Notify.info(context, context.tr('store_restore_requested'));
+          unawaited(delivery.restore());
+        },
+      ),
     );
   }
 }

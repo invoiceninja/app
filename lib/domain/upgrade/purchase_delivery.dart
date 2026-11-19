@@ -32,14 +32,16 @@ enum PurchaseActivityKind {
   /// The hosted service applied it (200), and it was finished with the store.
   applied,
 
-  /// The hosted service refused it for good (403, 409, 422): a sandbox
-  /// purchase, one already linked to another account, or one it could not
-  /// verify. [PurchaseActivity.message] is the server's own explanation.
+  /// The hosted service refused it for good (409, 422): a test purchase, one
+  /// already linked to another account, one posted for another account, or
+  /// one it could not verify. [PurchaseActivity.message] is the server's own
+  /// explanation.
   rejected,
 
-  /// Not applied yet — the server or the network failed, or no signed-in
-  /// hosted account to apply it to. Left unfinished, so the store hands it
-  /// back on the next launch.
+  /// Not applied yet — the server or the network failed, the hosted service
+  /// has not confirmed it takes this app's purchases, or no signed-in hosted
+  /// account to apply it to. Left unfinished, so the store hands it back on
+  /// the next launch.
   retryLater,
 }
 
@@ -80,7 +82,9 @@ enum PurchaseStore {
 /// throws on web, Windows and Linux, so nothing else may touch it.
 ///
 /// Listening starts the first time a hosted, signed-in session with an
-/// account key exists, and never stops. That is what StoreKit needs to hand
+/// account key exists, and never stops. A purchase goes to the user's own
+/// account ([deliveryAccountKey]): the hosted endpoint applies it to the
+/// account the signed-in user belongs to, whichever company is active. That is what StoreKit needs to hand
 /// over `Transaction.updates` — renewals, an Ask to Buy approved later, a
 /// purchase interrupted by a crash — and each time such a session appears
 /// (sign-in, a switch to a company of another account) the purchases the
@@ -90,13 +94,23 @@ enum PurchaseStore {
 /// The upgrade sheet only lists products and starts a purchase; every
 /// delivery comes through here, and the sheet follows [activity].
 ///
+/// Nothing is posted, and nothing paid is finished, until the hosted service
+/// has answered `GET /api/admin/iap/config` with a 200 for this session
+/// ([_configConfirmed]): that is how the app knows the server it posts to
+/// takes this app's purchases. A 404 (a server without the route) or any
+/// other failure leaves the purchase unfinished for a later try. The answer's
+/// `purchases_enabled` gates only the sale, never a delivery: a purchase
+/// already paid for is always applied.
+///
 /// Response contract (`POST /api/admin/subscription`):
 ///  * 200 — applied: finish it with the store, then `auth.refresh()`.
-///  * 403 / 409 / 422 — refused for good (wrong account, sandbox, already
-///    linked, unverifiable). Finished on Apple, so StoreKit stops handing it
-///    back; left unacknowledged on Google, so Play refunds it.
-///  * anything else (5xx, no network, a 404 from a server without the route)
-///    — left unfinished, and delivered again on the next launch.
+///  * 409 / 422 — refused for good (`reason`: posted for another account,
+///    a test purchase, already linked, unverifiable). Finished on Apple, so
+///    StoreKit stops handing it back; left unacknowledged on Google, so Play
+///    refunds it.
+///  * anything else (403 for a stale or locked token, 429, 5xx, no network, a
+///    404 from a server without the route) — left unfinished, and delivered
+///    again on the next launch.
 class PurchaseDelivery {
   PurchaseDelivery({
     required ApiClient apiClient,
@@ -119,17 +133,47 @@ class PurchaseDelivery {
 
   PurchaseStore get store => PurchaseStore.of(_platform);
 
-  final _activity = StreamController<PurchaseActivity>.broadcast();
+  late final _activity = StreamController<PurchaseActivity>.broadcast(
+    onListen: _flushUnheard,
+  );
 
-  /// Every purchase update and delivery outcome, as it happens.
+  /// Every purchase update and delivery outcome, as it happens. What happens
+  /// before anything listens (the first sweep can finish before the app-wide
+  /// `PurchaseNotices` subscribes) is held, and handed to the first listener.
   Stream<PurchaseActivity> get activity => _activity.stream;
+
+  /// Outcomes emitted before the first listener ([activity]); null once one
+  /// has listened.
+  List<PurchaseActivity>? _unheard = [];
+
+  /// At most this many are held for the first listener.
+  static const _maxUnheard = 20;
+
+  void _flushUnheard() {
+    final held = _unheard;
+    _unheard = null;
+    if (held == null) return;
+    for (final a in held) {
+      _activity.add(a);
+    }
+  }
 
   StreamSubscription<List<StorePurchase>>? _sub;
   bool _started = false;
   bool _disposed = false;
 
-  /// The hosted account the last sweep ran for (`baseUrl|accountKey`).
+  /// The hosted account the last sweep ran for ([_ownerOf]). Cleared when
+  /// the session can no longer be delivered to (a sign-out), so the next
+  /// sign-in sweeps again.
   String? _sweptFor;
+
+  /// The session ([_ownerOf]) whose `GET /api/admin/iap/config` answered 200.
+  /// Never set from a failure: an unknown config is asked again next time.
+  String? _configOkFor;
+
+  /// The config request on the wire, for [_configOwner].
+  Future<bool>? _configInFlight;
+  String? _configOwner;
 
   /// Purchases being posted right now, by transaction id: the launch sweep
   /// and `Transaction.updates` can hand over the same one at once.
@@ -161,29 +205,115 @@ class PurchaseDelivery {
 
   void _onSession() {
     final session = _auth.session.value;
-    if (!_canDeliverTo(session)) return;
+    if (!_canDeliverTo(session)) {
+      // Signed out (or self-hosted): the next hosted session, even the same
+      // account's, sweeps and asks for the config afresh.
+      _sweptFor = null;
+      _configOkFor = null;
+      return;
+    }
     _sub ??= billing.purchaseStream.listen(
       _onPurchases,
       onError: (Object e) => _log.warning('purchaseStream error: $e'),
     );
-    final owner = '${session!.baseUrl}|${session.accountKey}';
+    final owner = _ownerOf(session!);
     if (_sweptFor == owner) return;
     _sweptFor = owner;
-    unawaited(_sweep());
+    unawaited(_sweep(owner));
   }
 
+  /// The key of the account a purchase is applied to: the signed-in user's
+  /// own account (`user->account` on the server), which may not be the
+  /// active company's. Falls back to the active company's when the session
+  /// can't say which account is the user's.
+  static String deliveryAccountKey(AuthSession session) =>
+      session.userAccountKey.isNotEmpty
+      ? session.userAccountKey
+      : session.accountKey;
+
+  static String _ownerOf(AuthSession session) =>
+      '${session.baseUrl}|${session.userId}|${deliveryAccountKey(session)}';
+
   static bool _canDeliverTo(AuthSession? session) =>
-      session != null && session.isHosted && session.accountKey.isNotEmpty;
+      session != null &&
+      session.isHosted &&
+      deliveryAccountKey(session).isNotEmpty;
 
   /// Delivers what the store still holds unfinished.
-  Future<void> _sweep() async {
+  Future<void> _sweep(String owner) async {
     try {
       final unfinished = await billing.unfinishedPurchases();
       if (unfinished.isEmpty) return;
+      if (!await _configConfirmed()) {
+        // Left unfinished, and swept again on the next session update (a
+        // refresh, a sign-in) rather than only at the next launch.
+        if (_sweptFor == owner) _sweptFor = null;
+        _log.info(
+          'iap config not confirmed, ${unfinished.length} unfinished '
+          'purchase(s) left for later',
+        );
+        for (final p in unfinished) {
+          _emit(PurchaseActivityKind.retryLater, p);
+        }
+        return;
+      }
       _log.info('delivering ${unfinished.length} unfinished purchase(s)');
       await _onPurchases(unfinished);
     } catch (e) {
       _log.warning('unfinished purchase sweep failed: $e');
+    }
+  }
+
+  /// Whether `GET /api/admin/iap/config` has answered 200 for the current
+  /// session — asked once per session and account, and again after any
+  /// failure. Its body is not read here: a 200 is what says the hosted
+  /// service takes this app's purchases, and a purchase already paid for is
+  /// delivered whether or not new ones are on sale.
+  Future<bool> _configConfirmed() async {
+    final session = _auth.session.value;
+    if (!_canDeliverTo(session)) return false;
+    final owner = _ownerOf(session!);
+    if (_configOkFor == owner) return true;
+    if (_configOwner == owner && _configInFlight != null) {
+      return _configInFlight!;
+    }
+    _configOwner = owner;
+    final request = _askConfig(owner);
+    _configInFlight = request;
+    try {
+      return await request;
+    } finally {
+      if (identical(_configInFlight, request)) {
+        _configInFlight = null;
+        _configOwner = null;
+      }
+    }
+  }
+
+  Future<bool> _askConfig(String owner) async {
+    try {
+      await _apiClient.getOne('/api/admin/iap/config');
+    } catch (e) {
+      _log.info('iap config unavailable, purchases left unfinished: $e');
+      return false;
+    }
+    // Answered for the session it was asked under, and only if that session
+    // is still the current one.
+    final now = _auth.session.value;
+    if (now == null || _ownerOf(now) != owner) return false;
+    _configOkFor = owner;
+    return true;
+  }
+
+  /// Asks the store to hand back this account's purchases (Restore); each one
+  /// arrives on the purchase stream and is delivered like any other, so only
+  /// once the hosted config has been confirmed. Never gated on
+  /// `purchases_enabled`: it re-delivers purchases already paid for.
+  Future<void> restore() async {
+    try {
+      await billing.restorePurchases();
+    } catch (e) {
+      _log.warning('restorePurchases: $e');
     }
   }
 
@@ -217,9 +347,13 @@ class PurchaseDelivery {
 
   void _emit(PurchaseActivityKind kind, StorePurchase p, {String? message}) {
     if (_disposed) return;
-    _activity.add(
-      PurchaseActivity(kind, productId: p.productId, message: message),
-    );
+    final a = PurchaseActivity(kind, productId: p.productId, message: message);
+    final held = _unheard;
+    if (held != null && !_activity.hasListener) {
+      if (held.length < _maxUnheard) held.add(a);
+      return;
+    }
+    _activity.add(a);
   }
 
   Future<void> _finish(StorePurchase p) async {
@@ -236,14 +370,6 @@ class PurchaseDelivery {
   /// answered for good: a finished Apple transaction is never handed back,
   /// and Google never refunds an acknowledged one.
   Future<void> _deliver(StorePurchase p) async {
-    final purchaseId = inAppTransactionId(p);
-    if (purchaseId == null || purchaseId.isEmpty) {
-      // The server requires a non-empty string; posting null just 422s, and
-      // no retry would ever have one.
-      _log.warning('no transaction id for ${p.productId}, skipping delivery');
-      await _finish(p);
-      return;
-    }
     final session = _auth.session.value;
     if (!_canDeliverTo(session)) {
       // Signed out, self-hosted (the POST would reach the wrong server), or a
@@ -254,6 +380,28 @@ class PurchaseDelivery {
       _emit(PurchaseActivityKind.retryLater, p);
       return;
     }
+    // Nothing paid is posted or finished until the hosted service has
+    // confirmed it takes this app's purchases (see the class doc).
+    if (!await _configConfirmed()) {
+      _log.info('iap config not confirmed, ${p.productId} left unfinished');
+      _emit(PurchaseActivityKind.retryLater, p);
+      return;
+    }
+    final purchaseId = inAppTransactionId(p);
+    if (purchaseId == null || purchaseId.isEmpty) {
+      // The server requires a non-empty string; posting null just 422s, and
+      // no retry would ever have one.
+      _log.warning('no transaction id for ${p.productId}, skipping delivery');
+      await _finish(p);
+      return;
+    }
+    // Posted for the session the config was just confirmed for.
+    final current = _auth.session.value;
+    if (!_canDeliverTo(current)) {
+      _emit(PurchaseActivityKind.retryLater, p);
+      return;
+    }
+    final key = deliveryAccountKey(current!);
     if (!_inFlight.add(purchaseId)) return;
     _emit(PurchaseActivityKind.delivering, p);
     try {
@@ -262,7 +410,7 @@ class PurchaseDelivery {
         '/api/admin/subscription',
         body: {
           'inapp_transaction_id': purchaseId,
-          'key': session!.accountKey,
+          'key': key,
           'plan': planSlugOf(p.productId),
           if (verification.isNotEmpty) 'verification_data': verification,
           'source': store.wireName,
@@ -309,16 +457,18 @@ class PurchaseDelivery {
 }
 
 /// Whether a failed `POST /api/admin/subscription` is the hosted service's
-/// final word on the purchase: 403 (the token is not this account's), 409
-/// (`sandbox`, `linked`) or 422 (`unverified`). Everything else — a 5xx, no
-/// network, a server without the route — may succeed on a later try.
+/// final word on the purchase: 409 (`reason`: `account`, `sandbox`,
+/// `linked`) or 422 (`unverified`). Everything else may succeed on a later
+/// try — a 403 above all, which is what the server's token check answers for
+/// a stale or invalid token or a locked user, so finishing on it would throw
+/// away a paid purchase the account never got. Likewise a 429, a 5xx, no
+/// network, or a server without the route.
 @visibleForTesting
 bool isPermanentRejection(Object e) => switch (e) {
   // A 400 "no query results for model" — not an answer about the purchase.
   NotFoundException() => false,
   ConflictException() => true,
   ValidationException() => true,
-  ServerException(statusCode: 403) => true,
   _ => false,
 };
 

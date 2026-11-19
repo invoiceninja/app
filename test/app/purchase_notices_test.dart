@@ -57,6 +57,56 @@ void main() {
     return notices;
   }
 
+  testWidgets('a refusal from the launch sweep, before the notices exist, is '
+      'still told', (tester) async {
+    billing = FakeBilling()..unfinished = [applePurchase()];
+    api = FakeApi()
+      ..postError = const ConflictException(
+        'Test purchases are not applied to this account.',
+        {'reason': 'sandbox'},
+      );
+    // Delivery starts with the services, before the app has built.
+    delivery = PurchaseDelivery(
+      apiClient: api,
+      auth: FakeAuth(),
+      billing: billing,
+      platform: TargetPlatform.iOS,
+    )..start();
+    await tester.pump();
+    expect(api.posts, hasLength(1));
+
+    toasts = ToastController();
+    context = null;
+    await tester.pumpWidget(
+      MaterialApp(
+        localizationsDelegates: kTestLocalizationsDelegates,
+        supportedLocales: kTestSupportedLocales,
+        home: Builder(
+          builder: (c) {
+            context = c;
+            return const SizedBox();
+          },
+        ),
+      ),
+    );
+    final notices = PurchaseNotices(
+      delivery: delivery,
+      toasts: toasts,
+      contextOf: () => context,
+    );
+    addTearDown(() async {
+      await notices.dispose();
+      toasts.clearAll();
+      toasts.dispose();
+      await delivery.dispose();
+    });
+    await tester.pump();
+
+    final toast = toasts.toasts.single;
+    expect(toast.message, "Your purchase wasn't applied to this account.");
+    expect(toast.detail, 'Test purchases are not applied to this account.');
+  });
+
   testWidgets('a refusal in the background is told with the server message', (
     tester,
   ) async {

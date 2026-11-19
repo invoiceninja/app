@@ -23,10 +23,14 @@ AuthSession _session({
   bool hasIapPlan = false,
   int trialDaysLeft = -1,
   bool isOwner = true,
+  String accountKey = 'acct-key',
+  String userAccountKey = 'acct-key',
 }) => AuthSession(
   baseUrl: isHosted ? 'https://invoicing.co' : 'https://in.example.test',
   isHosted: isHosted,
   accountId: 'acct',
+  accountKey: accountKey,
+  userAccountKey: userAccountKey,
   currentCompanyId: 'co',
   plan: plan,
   planExpires: planExpires,
@@ -60,6 +64,13 @@ final _accounts = <String, AuthSession>{
   'lapsed IAP, no date': _session(hasIapPlan: true),
   'self-hosted': _session(isHosted: false),
   'non-owner, free': _session(isOwner: false),
+  // The hosted endpoint applies a purchase to the user's own account, so
+  // the sheet is offered only while that account's company is active.
+  "owner, another account's company": _session(
+    accountKey: 'their-acct',
+    userAccountKey: 'my-acct',
+  ),
+  'owner, own account unknown': _session(userAccountKey: ''),
 };
 
 UpgradeRoute _route(bool storeBilling, String account) => resolveUpgradeRoute(
@@ -120,6 +131,8 @@ void main() {
       'lapsed IAP, no date': UpgradeRoute.storeSubscriptionsEnded,
       'self-hosted': UpgradeRoute.planScreen,
       'non-owner, free': UpgradeRoute.planScreen,
+      "owner, another account's company": UpgradeRoute.planScreen,
+      'owner, own account unknown': UpgradeRoute.planScreen,
     };
     for (final platform in [
       TargetPlatform.iOS,
@@ -176,6 +189,8 @@ void main() {
       'lapsed IAP, >60 days': UpgradeRoute.billingPortal,
       'self-hosted': UpgradeRoute.planScreen,
       'non-owner, free': UpgradeRoute.billingPortal,
+      "owner, another account's company": UpgradeRoute.billingPortal,
+      'owner, own account unknown': UpgradeRoute.billingPortal,
     };
     final builds = {
       'F-Droid Android': storeBillingFor(

@@ -15,6 +15,7 @@ import 'package:admin/domain/upgrade/upgrade_route.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/utils/external_url.dart';
 import 'package:admin/ui/core/widgets/legal_links.dart';
+import 'package:admin/ui/core/widgets/ltr_value.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/features/auth/widgets/name_required_dialog.dart';
 
@@ -137,7 +138,7 @@ Future<void> showUpgradeSheet(BuildContext context) async {
     await svc.dispose();
     return;
   }
-  // An Apple Account that already subscribes in this app would be billed
+  // A store account that already subscribes in this app would be billed
   // twice: the sheet offers only Restore then.
   final alreadySubscribed = await svc.hasActiveStoreSubscription();
   await svc.init();
@@ -178,7 +179,8 @@ class UpgradeSheet extends StatefulWidget {
   final PurchaseStore store;
 
   /// This store account already subscribes in this app (StoreKit's current
-  /// entitlements): say so and offer Restore, instead of selling a second.
+  /// entitlements, Play's owned subscriptions): say so and offer Restore,
+  /// instead of selling a second.
   final bool alreadySubscribed;
 
   @override
@@ -248,12 +250,24 @@ class _UpgradeSheetState extends State<UpgradeSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(context.tr('upgrade'), style: textTheme.titleLarge),
+            Semantics(
+              header: true,
+              headingLevel: 1,
+              child: Text(context.tr('upgrade'), style: textTheme.titleLarge),
+            ),
             SizedBox(height: InSpacing.md(context)),
             if (widget.alreadySubscribed)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8),
-                child: Text(context.tr('store_subscription_already_active')),
+                child: Text(
+                  key: const ValueKey('store_subscription_already_active'),
+                  context.tr(switch (widget.store) {
+                    PurchaseStore.appStore =>
+                      'store_subscription_already_active',
+                    PurchaseStore.googlePlay =>
+                      'store_subscription_already_active_google',
+                  }),
+                ),
               )
             else ...[
               ValueListenableBuilder<bool>(
@@ -343,8 +357,11 @@ class _PlanTile extends StatelessWidget {
           if (description.isNotEmpty) Text(description),
         ],
       ),
-      trailing: Text(
+      // A store-formatted amount: laid out left-to-right in every language,
+      // unless the store wrote it in an RTL script.
+      trailing: LtrText(
         product.price,
+        keepRtlScript: true,
         style: textTheme.titleMedium?.copyWith(
           color: tokens.accentInk,
           fontWeight: FontWeight.w700,

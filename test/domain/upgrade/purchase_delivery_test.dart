@@ -208,7 +208,10 @@ void main() {
         {},
         body: {'reason': 'unverified'},
       ),
-      '403': const ServerException(403, 'Invalid token', {}),
+      '409 account': const ConflictException(
+        'This purchase was posted for another account.',
+        {'reason': 'account'},
+      ),
     };
 
     for (final MapEntry(key: name, value: error) in permanent.entries) {
@@ -240,6 +243,10 @@ void main() {
     }
 
     final transient = <String, Object>{
+      // The hosted token check answers 403 for a stale or invalid token, or
+      // a locked user: the purchase is fine, the session is not.
+      '403 (stale token)': const ServerException(403, 'Invalid token', {}),
+      '429': const RateLimitedException(),
       '500': const ServerException(500, 'Server Error'),
       'network': const NetworkException('Connection reset'),
       '404 (no route yet)': const ServerException(404, 'Route does not exist'),
@@ -297,7 +304,224 @@ void main() {
     });
   });
 
+  // The hosted service says it takes this app's purchases by answering
+  // `GET /api/admin/iap/config` with a 200. Until it has, for this session,
+  // nothing is posted and nothing paid is finished: a server without the
+  // route must never be handed a purchase.
+  group('the hosted config gate', () {
+    final unknown = <String, Object>{
+      '404 (no route)': const ServerException(404, 'Route does not exist'),
+      '500': const ServerException(500, 'Server Error'),
+      'network': const NetworkException('Connection reset'),
+    };
+    for (final MapEntry(key: name, value: error) in unknown.entries) {
+      for (final platform in [TargetPlatform.iOS, TargetPlatform.android]) {
+        test(
+          'config $name on ${platform.name}: nothing posted or finished',
+          () async {
+            api.iapConfig = error;
+            build(platform).start();
+            await emit(
+              platform == TargetPlatform.iOS
+                  ? applePurchase()
+                  : googlePurchase(),
+            );
+
+            expect(api.gets, ['/api/admin/iap/config']);
+            expect(api.posts, isEmpty);
+            expect(billing.completed, isEmpty);
+            expect(auth.refreshes, 0);
+            expect(kinds(), [PurchaseActivityKind.retryLater]);
+          },
+        );
+      }
+    }
+
+    test('the launch sweep posts nothing while the config is unknown, and '
+        'delivers once a later session update finds it', () async {
+      final p = googlePurchase();
+      billing.unfinished = [p];
+      api.iapConfig = const ServerException(404, 'Route does not exist');
+      build(TargetPlatform.android).start();
+      await pumpEventQueue();
+      expect(api.posts, isEmpty);
+      expect(billing.completed, isEmpty);
+
+      // The route is deployed; the next refresh of the same session sweeps.
+      api.iapConfig = const {'purchases_enabled': false};
+      auth.session.value = testSession();
+      await pumpEventQueue();
+      expect(api.posts, hasLength(1));
+      expect(billing.completed, [p]);
+    });
+
+    test('a purchase with no transaction id is not finished while the config '
+        'is unknown', () async {
+      api.iapConfig = const ServerException(404, 'Route does not exist');
+      build(TargetPlatform.iOS).start();
+      await emit(
+        const StorePurchase(
+          productId: 'pro_plan',
+          status: StorePurchaseStatus.purchased,
+          pendingCompletePurchase: true,
+        ),
+      );
+      expect(billing.completed, isEmpty);
+    });
+
+    test('purchases switched off still deliver what was paid for', () async {
+      api.iapConfig = const {'purchases_enabled': false};
+      build(TargetPlatform.iOS).start();
+      await emit(applePurchase());
+      expect(api.posts, hasLength(1));
+      expect(kinds().last, PurchaseActivityKind.applied);
+    });
+
+    test('asked once per session, and again for another account', () async {
+      build(TargetPlatform.iOS).start();
+      await emit(applePurchase());
+      await emit(applePurchase());
+      expect(api.gets, hasLength(1));
+      expect(api.posts, hasLength(2));
+
+      auth.session.value = testSession(accountKey: 'other-acct');
+      await pumpEventQueue();
+      await emit(applePurchase());
+      expect(api.gets, hasLength(2));
+    });
+
+    test('asked again after a failure', () async {
+      api.iapConfig = const NetworkException('offline');
+      build(TargetPlatform.iOS).start();
+      await emit(applePurchase());
+      expect(api.posts, isEmpty);
+
+      api.iapConfig = const {'purchases_enabled': true};
+      await emit(applePurchase());
+      expect(api.gets, hasLength(2));
+      expect(api.posts, hasLength(1));
+    });
+
+    test('asked afresh after a sign-out and back in', () async {
+      build(TargetPlatform.iOS).start();
+      await emit(applePurchase());
+      expect(api.gets, hasLength(1));
+
+      auth.session.value = null;
+      await pumpEventQueue();
+      auth.session.value = testSession();
+      await pumpEventQueue();
+      await emit(applePurchase());
+      expect(api.gets, hasLength(2));
+    });
+
+    test('Restore asks the store, whatever the config says', () async {
+      api.iapConfig = const {'purchases_enabled': false};
+      final delivery = build(TargetPlatform.iOS)..start();
+      await delivery.restore();
+      expect(billing.restores, 1);
+    });
+  });
+
+  // The hosted endpoint applies a purchase to the signed-in user's own
+  // account (`user->account`), whichever company is active.
+  group("the user's own account", () {
+    test(
+      'posts the user account key, not the active company account key',
+      () async {
+        auth.session.value = testSession(
+          accountKey: 'company-acct',
+          userAccountKey: 'my-acct',
+        );
+        build(TargetPlatform.iOS).start();
+        await emit(applePurchase());
+
+        expect(api.posts.single.$2!['key'], 'my-acct');
+      },
+    );
+
+    test(
+      "falls back to the active company's key when the user's is unknown",
+      () async {
+        auth.session.value = testSession(
+          accountKey: 'company-acct',
+          userAccountKey: '',
+        );
+        build(TargetPlatform.iOS).start();
+        await emit(applePurchase());
+
+        expect(api.posts.single.$2!['key'], 'company-acct');
+      },
+    );
+
+    test(
+      'a switch to a company of another account sweeps nothing new',
+      () async {
+        billing.unfinished = [applePurchase()];
+        auth.session.value = testSession(
+          accountKey: 'my-acct',
+          userAccountKey: 'my-acct',
+        );
+        build(TargetPlatform.iOS).start();
+        await pumpEventQueue();
+        expect(api.posts, hasLength(1));
+
+        auth.session.value = testSession(
+          accountKey: 'company-acct',
+          userAccountKey: 'my-acct',
+        );
+        await pumpEventQueue();
+        expect(api.posts, hasLength(1));
+      },
+    );
+  });
+
   group('from app start', () {
+    test(
+      'sweeps again after a sign-out and back in to the same account',
+      () async {
+        billing.unfinished = [applePurchase()];
+        build(TargetPlatform.iOS).start();
+        await pumpEventQueue();
+        expect(api.posts, hasLength(1));
+
+        auth.session.value = null;
+        await pumpEventQueue();
+        auth.session.value = testSession();
+        await pumpEventQueue();
+        expect(api.posts, hasLength(2));
+      },
+    );
+
+    test('what the launch sweep did before anything listened reaches the '
+        'first listener', () async {
+      billing.unfinished = [applePurchase()];
+      api.postError = const ConflictException('Sandbox', {'reason': 'sandbox'});
+      final delivery = PurchaseDelivery(
+        apiClient: api,
+        auth: auth,
+        billing: billing,
+        platform: TargetPlatform.iOS,
+      )..start();
+      addTearDown(delivery.dispose);
+      await pumpEventQueue();
+      expect(api.posts, hasLength(1));
+
+      final heard = <PurchaseActivity>[];
+      delivery.activity.listen(heard.add);
+      await pumpEventQueue();
+      expect(
+        [for (final a in heard) a.kind],
+        [PurchaseActivityKind.delivering, PurchaseActivityKind.rejected],
+      );
+
+      // Handed over once: a second listener hears only what comes next.
+      final later = <PurchaseActivity>[];
+      delivery.activity.listen(later.add);
+      await pumpEventQueue();
+      expect(later, isEmpty);
+    });
+
     test(
       'listens as soon as a hosted session exists, and never before',
       () async {
@@ -381,7 +605,7 @@ void main() {
     test('isPermanentRejection', () {
       expect(isPermanentRejection(const ConflictException()), isTrue);
       expect(isPermanentRejection(const ValidationException('x', {})), isTrue);
-      expect(isPermanentRejection(const ServerException(403)), isTrue);
+      expect(isPermanentRejection(const ServerException(403)), isFalse);
       expect(isPermanentRejection(const NotFoundException()), isFalse);
       expect(isPermanentRejection(const ServerException(500)), isFalse);
       expect(isPermanentRejection(const ServerException(401)), isFalse);

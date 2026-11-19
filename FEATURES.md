@@ -1191,13 +1191,16 @@ Field-level breakdown of every option under each settings panel. Source of truth
 | E-invoicing settings at company level only; PEPPOL hidden for self-hosted companies in France | ✅ | — | ✅ | | |
 | State-aware upgrade copy (trial / trialing / expired-renew / upgrade) | ✅ | ✅ | ✅ | ✅ | |
 | Hosted upgrade via App Store / Play IAP (web/desktop → portal) | — | ✅ | 🟡 | ✅ | |
-| Manage an App Store subscription in-app (Apple's sheet on iOS; the subscriptions page as fallback) | — | — | ✅ | | |
+| Manage an App Store subscription in-app (the App Store subscriptions page on iOS and macOS, Play's on Android) | — | — | ✅ | | |
+| Purchase sheet disclosure (each plan's name, billing period and price, the store's auto-renew and cancel terms, privacy policy and terms links) | — | 🟡 | ✅ | | v1 shows Apple's renewal text and a terms link |
+| Store purchases delivered from app start (renewals, approvals and interrupted purchases; Restore on the Plan tab) | — | ❌ | ✅ | | |
+| Privacy policy and terms of service links in the app (sign-up, About, purchase sheet) | ✅ | ✅ | ✅ | | |
 | `premium_business_plus` / `white_label` treated as full paid tiers | — | — | ✅ | ✅ | |
 | Trial-expires-soon urgent footer (≤3 days) | ✅ | ✅ | ✅ | ✅ | |
-| Purchase License (self-hosted white label) | ✅ | ✅ | ✅ | ✅ | |
-| Apply License (redeem key) | ✅ | ✅ | ✅ | ✅ | |
+| Purchase License (self-hosted white label) | ✅ | ✅ | ✅ | ✅ | Hidden on store builds |
+| Apply License (redeem key) | ✅ | ✅ | ✅ | ✅ | Hidden on store builds |
 | Renew a lapsed white-label license | — | — | ✅ | | |
-| Purchase White Label CTA in shell chrome (self-hosted, unlicensed, admin) | ✅ | ✅ | ✅ | | |
+| Purchase White Label CTA in shell chrome (self-hosted, unlicensed, admin) | ✅ | ✅ | ✅ | | Hidden on store builds |
 
 #### Account Management — Overview
 
@@ -1260,6 +1263,7 @@ Field-level breakdown of every option under each settings panel. Source of truth
 | Purge Data (clear all company data) | ✅ | ✅ | ✅ | ✅ | |
 | Delete Company | ✅ | ✅ | ✅ | ✅ | |
 | Cancel Account (close account entirely) | ✅ | ✅ | ✅ | ✅ | |
+| Delete note for a plan billed in a store (names only this build's store; Manage subscription on store builds) | — | — | ✅ | | |
 
 ### Backup & Restore
 
