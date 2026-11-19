@@ -112,7 +112,7 @@ class _PresetButton extends StatelessWidget {
       style: FilledButton.styleFrom(
         minimumSize: const Size(64, 40),
         backgroundColor: selected ? tokens.accent : tokens.surfaceAlt,
-        foregroundColor: selected ? Colors.white : tokens.ink,
+        foregroundColor: selected ? tokens.onAccent : tokens.ink,
       ),
       onPressed: onPressed,
       child: Text(

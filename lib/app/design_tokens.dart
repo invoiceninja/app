@@ -1198,3 +1198,37 @@ double _contrastRatio(double a, double b) {
   final lo = a > b ? b : a;
   return (hi + 0.05) / (lo + 0.05);
 }
+
+/// WCAG 2.x contrast ratio between two colours (alpha ignored), either order.
+double colorContrast(Color a, Color b) =>
+    _contrastRatio(_relativeLuminance(a), _relativeLuminance(b));
+
+/// [color], made opaque, with its HSL lightness walked away from [background]
+/// one percent at a time until it reaches [minRatio] against it — darker on a
+/// light background, lighter on a dark one; hue and saturation are kept.
+/// Returned unchanged (but opaque) when it already clears [minRatio]; the
+/// walk stops at black / white if the ratio is unreachable.
+///
+/// Exists because the accent is the user's own pick (`accent_color`, any hex
+/// from the custom picker, React or v1): a white accent on a white card drew
+/// the primary button, the tab underline and the active badge as nothing at
+/// all (docs/accent-colour.md).
+Color withMinContrast(Color color, Color background, double minRatio) {
+  final opaque = color.withAlpha(0xFF);
+  final bgL = _relativeLuminance(background);
+  if (_contrastRatio(_relativeLuminance(opaque), bgL) >= minRatio) {
+    return opaque;
+  }
+  // The direction is the background's, not the theme's brightness: a custom
+  // surface can be anything. 0.179 is where black and white contrast equally.
+  final darken = bgL > 0.179;
+  final hsl = HSLColor.fromColor(opaque);
+  var out = opaque;
+  for (var step = 1; step <= 100; step++) {
+    final l = (hsl.lightness + (darken ? -step : step) / 100).clamp(0.0, 1.0);
+    out = hsl.withLightness(l).toColor();
+    if (_contrastRatio(_relativeLuminance(out), bgL) >= minRatio) break;
+    if (l == 0.0 || l == 1.0) break;
+  }
+  return out;
+}

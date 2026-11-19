@@ -28,20 +28,40 @@ const String kHostedLandingUrl = 'https://invoicing.co';
 /// `accentSoft` / `accentInk` from it) so a per-(company, user) preference
 /// can override the v2 blue without forking the whole palette. See
 /// [AccentColorController].
+///
+/// The override is the user's own pick, so it can be any colour — white
+/// included — and so can a custom surface (`CustomToken.surface`). Whichever
+/// accent is in force is floored at [kAccentSurfaceContrastFloor] against the
+/// surface (see [withMinContrast]), and everything drawn on a filled accent
+/// takes [InTheme.onAccent], never a hardcoded white (docs/accent-colour.md).
+/// A stock preset clears every floor, so it comes back untouched.
 ThemeData buildInTheme(InTheme baseTokens, {Color? accentOverride}) {
-  final tokens = accentOverride == null
-      ? baseTokens
+  final accent = withMinContrast(
+    accentOverride ?? baseTokens.accent,
+    baseTokens.surface,
+    kAccentSurfaceContrastFloor,
+  );
+  final tokens = accentOverride == null && accent == baseTokens.accent
+      // The preset's own hand-tuned `accentSoft` / `accentInk` stay; only a
+      // custom surface could have made the ink unreadable.
+      ? baseTokens.copyWith(
+          accentInk: withMinContrast(
+            baseTokens.accentInk,
+            baseTokens.surface,
+            kAccentInkContrastFloor,
+          ),
+        )
       : baseTokens.copyWith(
-          accent: accentOverride,
-          accentSoft: _deriveAccentSoft(accentOverride, baseTokens),
-          accentInk: _deriveAccentInk(accentOverride, baseTokens.brightness),
+          accent: accent,
+          accentSoft: _deriveAccentSoft(accent, baseTokens),
+          accentInk: _deriveAccentInk(accent, baseTokens),
         );
   final brightness = tokens.brightness;
 
   final colorScheme = ColorScheme(
     brightness: brightness,
     primary: tokens.accent,
-    onPrimary: Colors.white,
+    onPrimary: tokens.onAccent,
     secondary: tokens.ink,
     onSecondary: tokens.surface,
     tertiary: tokens.accentLime,
@@ -155,7 +175,7 @@ ThemeData buildInTheme(InTheme baseTokens, {Color? accentOverride}) {
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
         backgroundColor: tokens.accent,
-        foregroundColor: Colors.white,
+        foregroundColor: tokens.onAccent,
         // `Size.fromHeight(44)` is `Size(double.infinity, 44)` — full-width by
         // default. Fine for Column-stacked form buttons (login, settings);
         // crashes inside a `Row` (Row gives non-flex children unbounded
@@ -227,7 +247,8 @@ ThemeData buildInTheme(InTheme baseTokens, {Color? accentOverride}) {
     // the M3 outline shape: a `surface`-filled track, a 2 px `ink3` outline
     // and M3's small unselected knob in `ink3` — 3.5:1 or better against the
     // card and the page in all six presets (`switch_theme_contrast_test`).
-    // On is unchanged: an accent track with a white knob. Every switch is a
+    // On is an accent track with an `onAccent` knob (white on the stock
+    // accent; near-black on a pale one). Every switch is a
     // plain `Switch` — `Switch.adaptive` draws a `CupertinoSwitch` on Apple
     // platforms, which this theme does not reach.
     switchTheme: SwitchThemeData(
@@ -235,7 +256,7 @@ ThemeData buildInTheme(InTheme baseTokens, {Color? accentOverride}) {
         (states) => states.contains(WidgetState.disabled)
             ? tokens.ink4
             : states.contains(WidgetState.selected)
-            ? Colors.white
+            ? tokens.onAccent
             : tokens.ink3,
       ),
       trackColor: WidgetStateProperty.resolveWith(
@@ -320,11 +341,27 @@ Color _deriveAccentSoft(Color accent, InTheme base) {
 /// Lighten [accent] for dark backgrounds (the default dark palettes nudge
 /// the accent up by ~25% lightness for active-state legibility); deepen it
 /// for light backgrounds so the active-state ink reads as a saturated form
-/// of the same hue.
-Color _deriveAccentInk(Color accent, Brightness brightness) {
+/// of the same hue. Then keep going until it reads as text on the surface
+/// ([kAccentInkContrastFloor]) — a pale accent shifted by 0.18 alone was
+/// still too faint to read.
+Color _deriveAccentInk(Color accent, InTheme base) {
   final hsl = HSLColor.fromColor(accent);
-  final adjusted = brightness == Brightness.dark
+  final adjusted = base.brightness == Brightness.dark
       ? hsl.withLightness((hsl.lightness + 0.18).clamp(0.0, 1.0))
       : hsl.withLightness((hsl.lightness - 0.18).clamp(0.0, 1.0));
-  return adjusted.toColor();
+  return withMinContrast(
+    adjusted.toColor(),
+    base.surface,
+    kAccentInkContrastFloor,
+  );
 }
+
+/// The least contrast an overridden accent keeps against the surface. Set
+/// just under the faintest light-mode swatch (`#84CC16` lime, 1.89:1 on the
+/// paper surface), so no palette pick is ever altered on a light preset; on a
+/// dark one only `#1F2937` slate (1.14:1, invisible there) is lifted.
+/// `accent_legibility_test` pins both.
+const double kAccentSurfaceContrastFloor = 1.8;
+
+/// WCAG AA for body text: what a derived `accentInk` reaches on the surface.
+const double kAccentInkContrastFloor = 4.5;

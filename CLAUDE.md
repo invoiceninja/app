@@ -158,7 +158,7 @@ Token-based visual language; the Dart port is the sole source of truth.
 - `lib/app/design_tokens.dart` — **the source of truth** for colors, radii, shadows, type. Read tokens via `context.inTheme.<name>` (e.g. `context.inTheme.surface`). **No new color constants** outside `InTheme`. `InRadii` / `InSpacing` are brightness-independent.
 - `lib/app/theme.dart` — wires `InTheme.light` / `InTheme.dark` into `ThemeData` (incl. per-component button/shape themes).
 
-When styling a page: read `design_tokens.dart`, reuse `InTheme`, prefer `Theme.of(context).colorScheme` + `context.inTheme` over hardcoded `Color(0x…)`.
+- **The accent is user-chosen and may be white: on an accent fill use `onAccent`, never `Colors.white`; accent text uses `accentInk`.** → `docs/accent-colour.md`
 
 - **The drawn window buttons are the one exception to every shape rule below.** → `docs/desktop-window-state.md`
 - **Every decorative animation runs through `InMotion.of(context)`, so reduced motion is zero, and the device buzzes only through `InHaptics`.** → `docs/motion-and-haptics.md`

@@ -419,12 +419,13 @@ class _PhoneEntry extends StatelessWidget {
               onPressed: vm.busy ? null : () => _onSend(context),
               style: FilledButton.styleFrom(minimumSize: const Size(120, 44)),
               child: vm.busy
-                  ? const SizedBox(
+                  ? SizedBox(
                       width: 16,
                       height: 16,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation(Colors.white),
+                        // Busy disables the button: the disabled fill.
+                        color: context.inTheme.ink3,
                       ),
                     )
                   : Text(context.tr('send_code')),
@@ -490,12 +491,13 @@ class _SmsVerify extends StatelessWidget {
               onPressed: vm.busy ? null : () => _onVerify(context),
               style: FilledButton.styleFrom(minimumSize: const Size(120, 44)),
               child: vm.busy
-                  ? const SizedBox(
+                  ? SizedBox(
                       width: 16,
                       height: 16,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation(Colors.white),
+                        // Busy disables the button: the disabled fill.
+                        color: context.inTheme.ink3,
                       ),
                     )
                   : Text(context.tr('verify')),
@@ -574,12 +576,13 @@ class _QrShow extends StatelessWidget {
               onPressed: vm.busy ? null : () => _onConfirm(context),
               style: FilledButton.styleFrom(minimumSize: const Size(120, 44)),
               child: vm.busy
-                  ? const SizedBox(
+                  ? SizedBox(
                       width: 16,
                       height: 16,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation(Colors.white),
+                        // Busy disables the button: the disabled fill.
+                        color: context.inTheme.ink3,
                       ),
                     )
                   : Text(context.tr('enable')),

@@ -69,7 +69,7 @@ class SidebarBadge extends StatelessWidget {
     SidebarBadgeTone.muted => (fg: tokens.draft, bg: tokens.draftSoft),
     SidebarBadgeTone.neutral =>
       active
-          ? (fg: tokens.accent, bg: tokens.surface)
+          ? (fg: tokens.accentInk, bg: tokens.surface)
           : (fg: tokens.ink3, bg: tokens.surfaceAlt),
   };
 

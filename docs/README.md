@@ -7,6 +7,7 @@ SDK or server source that explains it, the measured numbers, and the failure eac
 `CLAUDE.md`'s Quick Index routes the common cases; the full symptom table is § Symptom index at the end of this file. `ARCHITECTURE.md` is the
 read-it-first orientation for a new developer.
 
+- [`accent-colour.md`](accent-colour.md) — **The accent colour.** Why a user's accent can be any hex (white included), what went blank when it was, and how `onAccent`, `accentInk` and the contrast floor in `buildInTheme` keep accent surfaces legible.
 - [`activity-timeline.md`](activity-timeline.md) — **The activity timeline.** What `/activity` can chart from a 250-row window with no paging, which filters each count leaves out, why the bars are one colour, which runs of events fold, and how Load more grows a shared cache row without a cursor.
 - [`adding-an-entity.md`](adding-an-entity.md) — **Adding a new entity.** The main file lists the leverage points and the 13-step recipe at a glance; this doc carries the full shape of each step, the standard / non-standard action helpers, and the bundled-entity sub-recipe.
 - [`architecture.md`](architecture.md) — **Architecture.** The MVVM block diagram and the layered-split summary live there; this doc carries the DI / routing / persistence / HTTP detail, the offline-first write pipeline, and the on-disk project layout.

@@ -136,14 +136,13 @@ class _LockScreenState extends State<LockScreen> {
                               minimumSize: const Size(120, 44),
                             ),
                             icon: _vm.busy
-                                ? const SizedBox(
+                                ? SizedBox(
                                     width: 16,
                                     height: 16,
                                     child: CircularProgressIndicator(
                                       strokeWidth: 2,
-                                      valueColor: AlwaysStoppedAnimation(
-                                        Colors.white,
-                                      ),
+                                      // On the disabled fill.
+                                      color: context.inTheme.ink3,
                                     ),
                                   )
                                 : const Icon(Icons.fingerprint, size: 18),

@@ -181,19 +181,20 @@ class _SignupBody extends StatelessWidget {
                     key: const ValueKey('signup_submit'),
                     onPressed: vm.busy ? null : () => _onSubmit(context),
                     icon: vm.busy
-                        ? const SizedBox(
+                        ? SizedBox(
                             width: 16,
                             height: 16,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation(Colors.white),
+                              // Busy disables the button: the disabled fill.
+                              color: context.inTheme.ink3,
                             ),
                           )
                         : const Icon(Icons.person_add_alt_1, size: 18),
                     label: Text(context.tr('sign_up')),
                     style: FilledButton.styleFrom(
                       backgroundColor: tokens.accent,
-                      foregroundColor: Colors.white,
+                      foregroundColor: tokens.onAccent,
                       minimumSize: const Size.fromHeight(48),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(InRadii.r2),

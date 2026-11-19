@@ -1038,7 +1038,7 @@ class _DayCell extends StatelessWidget {
     }
 
     final textColor = isEdge
-        ? Colors.white
+        ? tokens.onAccent
         : (enabled ? tokens.ink : tokens.ink3);
 
     // A day column can get narrow (a compact month on a 320 px device is ~20 px

@@ -74,12 +74,12 @@ void main() {
         expect(_ratio(knob, track), greaterThanOrEqualTo(3));
       });
 
-      test('on is unchanged: accent track, white knob, no outline', () {
+      test('on is an accent track, onAccent knob, no outline', () {
         expect(s.trackColor!.resolve(on), t.accent);
-        expect(s.thumbColor!.resolve(on), Colors.white);
+        expect(s.thumbColor!.resolve(on), t.onAccent);
         expect(s.trackOutlineColor!.resolve(on), Colors.transparent);
         expect(
-          _ratio(Colors.white, t.accent),
+          _ratio(t.onAccent, t.accent),
           greaterThanOrEqualTo(3),
           reason: '${entry.key}: the on knob against the accent track',
         );
