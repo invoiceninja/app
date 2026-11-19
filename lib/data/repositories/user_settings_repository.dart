@@ -9,6 +9,7 @@ import 'package:uuid/uuid.dart';
 import 'package:admin/domain/entity_type.dart';
 import 'package:admin/domain/sync/mutation.dart';
 import 'package:admin/data/db/app_database.dart';
+import 'package:admin/data/repositories/saved_views_sync.dart';
 
 final _log = Logger('UserSettingsRepository');
 
@@ -359,35 +360,14 @@ class UserSettingsRepository {
     required String userId,
     required UserSettingsChange change,
     required int nowMs,
-  }) async {
-    final existing = await db.outboxDao.findPending(
-      companyId: companyId,
-      entityType: kUserSettingsWireName,
-    );
-    final waiting = existing == null
-        ? null
-        : UserSettingsChange.tryDecode(existing.payload);
-    if (existing != null &&
-        waiting != null &&
-        await db.outboxDao.updatePayload(
-          id: existing.id,
-          payload: waiting.merge(change).encode(),
-        )) {
-      return;
-    }
-    await db.outboxDao.enqueue(
-      OutboxCompanion.insert(
-        companyId: companyId,
-        entityType: kUserSettingsWireName,
-        entityId: userId,
-        mutationKind: MutationKind.update.wireName,
-        payload: change.encode(),
-        idempotencyKey: _uuid.v4(),
-        nextAttemptAt: nowMs,
-        createdAt: nowMs,
-      ),
-    );
-  }
+  }) => enqueueUserSettingsChange(
+    db,
+    companyId: companyId,
+    userId: userId,
+    change: change,
+    nowMs: nowMs,
+    uuid: _uuid,
+  );
 
   /// Old admin-portal uses `'$EntityType.client'` (the literal Dart enum
   /// toString) as the map key — must preserve that exactly.
@@ -482,6 +462,46 @@ class UserSettingsChange {
   }
 }
 
+/// Queue [change], or fold it into the pending row. A pending row an earlier
+/// build queued holds a whole body rather than a change, so it is left alone
+/// and this one queues behind it.
+Future<void> enqueueUserSettingsChange(
+  AppDatabase db, {
+  required String companyId,
+  required String userId,
+  required UserSettingsChange change,
+  required int nowMs,
+  Uuid uuid = const Uuid(),
+}) async {
+  final existing = await db.outboxDao.findPending(
+    companyId: companyId,
+    entityType: kUserSettingsWireName,
+  );
+  final waiting = existing == null
+      ? null
+      : UserSettingsChange.tryDecode(existing.payload);
+  if (existing != null &&
+      waiting != null &&
+      await db.outboxDao.updatePayload(
+        id: existing.id,
+        payload: waiting.merge(change).encode(),
+      )) {
+    return;
+  }
+  await db.outboxDao.enqueue(
+    OutboxCompanion.insert(
+      companyId: companyId,
+      entityType: kUserSettingsWireName,
+      entityId: userId,
+      mutationKind: MutationKind.update.wireName,
+      payload: change.encode(),
+      idempotencyKey: uuid.v4(),
+      nextAttemptAt: nowMs,
+      createdAt: nowMs,
+    ),
+  );
+}
+
 Map<String, List<String>> _applyColumns(
   Map<String, List<String>> base,
   Map<String, List<String>?> changed,
@@ -530,15 +550,35 @@ Future<void> applyServerSettings(
     extra = applySettingsPatch(extra, change.patch);
     columns = _applyColumns(columns, change.columns);
   }
-  await db.userSettingsDao.upsert(
-    UserSettingsCompanion(
-      companyId: Value(companyId),
-      userId: Value(userId),
-      tableColumnsJson: Value(jsonEncode(columns)),
-      extraJson: Value(jsonEncode(extra)),
-      updatedAt: Value(nowMs),
-    ),
-  );
+  await db.transaction(() async {
+    // Saved views (invoiceninja/app#198): merged, never adopted whole — other
+    // clients write this object back from stale copies (`saved_views_sync`).
+    // What this device has that the server lacks goes back up.
+    final push = await reconcileSavedViews(
+      db,
+      companyId: companyId,
+      settings: extra,
+    );
+    if (push.isNotEmpty) extra = applySettingsPatch(extra, push);
+    await db.userSettingsDao.upsert(
+      UserSettingsCompanion(
+        companyId: Value(companyId),
+        userId: Value(userId),
+        tableColumnsJson: Value(jsonEncode(columns)),
+        extraJson: Value(jsonEncode(extra)),
+        updatedAt: Value(nowMs),
+      ),
+    );
+    if (push.isNotEmpty) {
+      await enqueueUserSettingsChange(
+        db,
+        companyId: companyId,
+        userId: userId,
+        change: UserSettingsChange(patch: push),
+        nowMs: nowMs,
+      );
+    }
+  });
 }
 
 /// A deep copy of [base] with each dotted path in [patch] set; a null value

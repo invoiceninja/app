@@ -832,6 +832,17 @@ makes no request at all (`SearchFetchMemo`) — `docs/local-search-matching.md` 
 matches each word on its own and § A search the cache already holds in full makes no request.
 `serverSplitsSearchWords` stays `true` only on `ClientRepository`.
 
+### H5. `company_user.settings` is replaced whole, and a non-admin's save without it blanks it — **O** (client works around it)
+
+Found 2026-11-19 fixing [app#198](https://github.com/invoiceninja/app/issues/198) (saved views lost on sign-out, now synced under `settings.flutter_saved_views`). Read from the server source, not measured.
+
+- **Whole-object replace.** `UserRepository::save` (`PUT /users/{id}`) and `CompanyUserController::update` (`PUT /company_users/{id}`) both set `company_user.settings` to the request's object. Every client sends a copy it loaded earlier. React's User Details sends the user as it was at page load (its later `/refresh` calls do not update that copy), so a React save puts back every `flutter_` key as it stood then. The client merges saved views by id with tombstones (`docs/user-settings-storage.md` § Saved views are merged by id, never adopted whole), but nothing can merge a key whose newer value the server has already thrown away.
+- **A non-admin's save blanks it.** The non-admin branch of `UserRepository::save` does `$cu->settings = $data['company_user']['settings'] ?? '';`, so a `company_user` body without `settings` (just notifications, say) erases the whole object: columns, accent colour, dashboard, saved views. Neither client sends one today; it is a trap for the next one that does.
+
+**Ask:** merge top-level keys (`array_merge($cu->settings, $request settings)`, null removing a key) on both routes, or add a `PATCH` that does; and leave `settings` untouched when the request does not carry it.
+
+**Proposed instead (2026-11-19):** a column only the Flutter apps write. [invoiceninja#13472](https://github.com/invoiceninja/invoiceninja/pull/13472) adds `company_user.flutter_settings` and `PUT /company_users/{user}/flutter_settings`, which patches by dotted path (null removes a path). The column is not fillable, so React's whole-user save cannot reach it. The app moves onto it once a release carries it.
+
 ### R. Reports — what the client works around — **O**
 
 Found while rebuilding the Reports screen (2026-10), from `app/Export/CSV/BaseExport.php`, the

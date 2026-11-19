@@ -69,4 +69,13 @@ class SavedViewsDao extends DatabaseAccessor<AppDatabase>
 
   Future<int> deleteById(String id) =>
       (delete(savedViews)..where((v) => v.id.equals(id))).go();
+
+  /// Every saved view of [companyId], entity and report views alike — what
+  /// `flutter_saved_views` mirrors (`saved_views_sync.dart`).
+  Future<List<SavedViewRow>> allForCompany(String companyId) =>
+      (select(savedViews)..where((v) => v.companyId.equals(companyId))).get();
+
+  /// Insert or replace one row — the server's copy of a view being adopted.
+  Future<void> upsertView(SavedViewsCompanion row) =>
+      into(savedViews).insertOnConflictUpdate(row);
 }

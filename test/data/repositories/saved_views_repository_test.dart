@@ -278,14 +278,6 @@ void main() {
           entityType: EntityType.client,
           columns: const ['name', 'balance'],
         );
-        // Clear the (legitimate) row from that setup write.
-        for (final r in await db.outboxDao.nextReady(
-          companyId: 'co',
-          now: DateTime.now().millisecondsSinceEpoch,
-        )) {
-          await db.outboxDao.deleteRow(r.id);
-        }
-
         final view = await repo.create(
           companyId: 'co',
           entityType: EntityType.client,
@@ -295,6 +287,14 @@ void main() {
             'columnIds': ['name', 'balance'],
           },
         );
+        // Clear the (legitimate) rows from that setup: the column write and
+        // the view's own sync to `flutter_saved_views`.
+        for (final r in await db.outboxDao.nextReady(
+          companyId: 'co',
+          now: DateTime.now().millisecondsSinceEpoch,
+        )) {
+          await db.outboxDao.deleteRow(r.id);
+        }
         await repo.apply(view.id);
 
         final rows = await db.outboxDao.nextReady(

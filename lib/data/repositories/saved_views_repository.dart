@@ -8,6 +8,7 @@ import 'package:uuid/uuid.dart';
 
 import 'package:admin/data/db/app_database.dart';
 import 'package:admin/data/models/domain/saved_view.dart';
+import 'package:admin/data/repositories/saved_views_sync.dart';
 import 'package:admin/data/repositories/user_settings_repository.dart';
 import 'package:admin/domain/entity_state.dart';
 import 'package:admin/domain/entity_type.dart';
@@ -376,6 +377,7 @@ class SavedViewsRepository {
         updatedAt: Value(nowMs),
       ),
     );
+    await _syncToServer(companyId, id);
     return SavedView(
       id: id,
       companyId: companyId,
@@ -394,6 +396,7 @@ class SavedViewsRepository {
       name: newName,
       now: _now().millisecondsSinceEpoch,
     );
+    await _syncUpdated(viewId);
   }
 
   Future<void> updateSnapshot({
@@ -405,6 +408,7 @@ class SavedViewsRepository {
       payloadJson: _encode(snapshot),
       now: _now().millisecondsSinceEpoch,
     );
+    await _syncUpdated(viewId);
   }
 
   /// Set (or clear, with `iconKey == null`) the curated icon for [viewId].
@@ -418,10 +422,49 @@ class SavedViewsRepository {
       icon: Value(iconKey),
       now: _now().millisecondsSinceEpoch,
     );
+    await _syncUpdated(viewId);
   }
 
   Future<void> delete(String viewId) async {
+    final row = await db.savedViewsDao.byId(viewId);
     await db.savedViewsDao.deleteById(viewId);
+    if (row != null) await _syncToServer(row.companyId, viewId);
+  }
+
+  // ── Server sync ───────────────────────────────────────────────────────
+
+  /// Send [viewId]'s current state to
+  /// `company_user.settings.flutter_saved_views` (invoiceninja/app#198) — the
+  /// Flutter apps' object, never `react_settings`. Without it a sign-out,
+  /// which wipes the `saved_views` table, lost every view. A view whose row
+  /// is gone goes up as a tombstone, so other devices drop it too
+  /// (`saved_views_sync.dart`). A no-op before a login has stored the
+  /// settings; the next `/refresh` sends whatever this skipped.
+  Future<void> _syncToServer(String companyId, String viewId) async {
+    try {
+      final settings = await userSettings.getSettings(companyId);
+      if (settings == null) return;
+      final row = await db.savedViewsDao.byId(viewId);
+      final nowMs = _now().millisecondsSinceEpoch;
+      await userSettings.patchSettings(
+        companyId: companyId,
+        patch: {
+          if (row == null) ...expiredSavedViewTombstones(settings, nowMs),
+          savedViewSettingsPath(viewId): row == null
+              ? savedViewTombstone(nowMs)
+              : savedViewSettingsEntry(row),
+        },
+      );
+    } catch (e, st) {
+      // The change is made on this device either way, and the next
+      // `/refresh` merge sends it.
+      _log.warning('Syncing saved view $viewId failed', e, st);
+    }
+  }
+
+  Future<void> _syncUpdated(String viewId) async {
+    final row = await db.savedViewsDao.byId(viewId);
+    if (row != null) await _syncToServer(row.companyId, viewId);
   }
 
   // ── Report views ──────────────────────────────────────────────────────
@@ -458,6 +501,7 @@ class SavedViewsRepository {
         updatedAt: Value(nowMs),
       ),
     );
+    await _syncToServer(companyId, id);
     return SavedReportView(
       id: id,
       name: name,
@@ -478,6 +522,7 @@ class SavedViewsRepository {
       payloadJson: _encodeReport(reportIdentifier, state),
       now: _now().millisecondsSinceEpoch,
     );
+    await _syncUpdated(viewId);
   }
 
   String _encodeReport(String reportIdentifier, Map<String, dynamic> state) =>

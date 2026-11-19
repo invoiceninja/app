@@ -20,6 +20,7 @@ Hillel's ruling, November 2026: this app must not be able to cause the React tea
 - `table_columns` — shared with the old app, byte-compatible (`'EntityType.client'` keys). The one key without the prefix, because it is the old app's.
 - `flutter_dashboard` — `{cards, grouping, panels, chart_series}` (`docs/dashboard-panels.md`).
 - `flutter_welcome` — `{v, at}`, written when the first-run Welcome closes (`docs/first-run-welcome.md`).
+- `flutter_saved_views` — `{<view id>: {entity_type, name, icon, payload, created_at, updated_at}}`, or `{deleted: true, updated_at}` for a deleted one: every saved list and report view (below).
 
 A new synced preference takes a new `flutter_<name>` key. `patchSettings` asserts the prefix: the object is shared with the old app, and the prefix is what keeps a key of ours from meeting a field of theirs (`dashboard_fields` is the old app's, in another format).
 
@@ -51,6 +52,25 @@ The non-admin branch of `CompanyUserController::update` reads `$request->input('
 
 ## The old Flutter app erases keys it does not model
 
-admin-portal serializes its typed `UserSettingsEntity` and the server stores exactly that, so a settings save made in the old app (a column change, the accent colour) drops every `flutter_` key. Nothing can prevent that from this side. What recovers it: the dashboard re-seeds `flutter_dashboard` from the device's `nav_state` the next time it opens (`docs/dashboard-panels.md` § Adopting is not writing), and a lost `flutter_welcome` costs at most one more Welcome on a new device. A new `flutter_` key needs the same answer — a device-local copy to re-seed from — or to be safe to lose.
+admin-portal serializes its typed `UserSettingsEntity` and the server stores exactly that, so a settings save made in the old app (a column change, the accent colour) drops every `flutter_` key. Nothing can prevent that from this side. What recovers it: the dashboard re-seeds `flutter_dashboard` from the device's `nav_state` the next time it opens (`docs/dashboard-panels.md` § Adopting is not writing), and a lost `flutter_welcome` costs at most one more Welcome on a new device. A new `flutter_` key needs the same answer — a device-local copy to re-seed from — or to be safe to lose. Saved views re-seed from the `saved_views` table (above).
 
 Tests: `test/data/repositories/user_settings_patch_test.dart`, `test/data/repositories/user_settings_repository_test.dart`, `test/ui/features/dashboard/dashboard_synced_prefs_test.dart`.
+
+## Saved views are merged by id, never adopted whole
+
+**`flutter_saved_views` and the `saved_views` table are merged by view id — newest `updated_at` wins, a tie goes to the server, a delete is a tombstone — and whatever this device has newer, or the server lacks, is queued back up (`reconcileSavedViews`, `lib/data/repositories/saved_views_sync.dart`).**
+
+Saved views used to be local-only, so a deliberate sign-out (`LocalDataPolicy.destroy` → `AppDatabase.wipe`) took every one with it, and the next login had nothing to restore (invoiceninja/app#198). Now every create, rename, re-snapshot, icon change and delete patches its own path (`flutter_saved_views.<id>`) through `patchSettings`, and `applyServerSettings` reconciles on every login, `/refresh` and PUT reply.
+
+Why a merge and not "the server's copy is the list": **other clients write this object back from stale copies.**
+
+- **React.** User Details sends `userState.changes`, which is the whole user (`changes = state.user`), `company_user.settings` included, as it was when the page loaded (`useAuthenticated` → `authenticate`); React's later `/refresh` calls do not update that copy. An admin's Users → Edit sends the user as fetched when the screen opened. Either save puts `flutter_saved_views` back as it stood then. React cannot stop sending `settings` either: it owns `accent_color` in it, and for a non-admin a `company_user` without `settings` blanks the object (BACKEND.md § H5).
+- **The old Flutter app** drops every key it does not model (below).
+
+Adopted whole, either write would delete on this device every view made since and resurrect every one deleted since. Merged, a view the server lacks is sent back, and a delete survives as `{deleted: true, updated_at}` until a newer edit beats it. Tombstones older than 90 days (`kSavedViewTombstoneTtl`) are pruned with the next delete.
+
+What it still cannot catch: a stale write that drops a **tombstone** lets a device that still holds the view send it back, so a deletion can be undone by a React save made in that window. Device clocks decide "newest".
+
+A missing key is the same case at its widest: a device that ran an earlier build seeds every view it has, which is also the migration. A push queued during a periodic `/refresh` waits for the next drain trigger (any enqueue, resume, reconnect, login); a sign-out with it still waiting prompts like any other unsynced change.
+
+Tests: `test/data/repositories/saved_views_sync_test.dart`.

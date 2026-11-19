@@ -1832,7 +1832,7 @@ Field-level breakdown of every option under each advanced settings panel. Source
 | List filter — purchase order status / vendor / client / date / due date | 🟡 | ❌ | ✅ | | React has a status filter only. Sent is sent to the server only from 5.13.44 (exact there); a date comparator travels as the window that means the same |
 | List filter — vendor number (exact) / created / updated | — | — | ✅ | | |
 | List filter — expense date and custom fields | — | — | ✅ | | |
-| Saved views (filter + sort + columns) | ✅ | ✅ | ✅ | ✅ | |
+| Saved views (filter + sort + columns) | ✅ | ✅ | ✅ | ✅ | Synced in `company_user.settings.flutter_saved_views`, so they survive a sign-out and follow the user to other devices (app#198) |
 | Bulk-actions framework | ✅ | ✅ | ✅ | ✅ | |
 | PDF generation | ✅ | ✅ | ✅ | ✅ | |
 | In-app PDF preview / viewer | ✅ | ✅ | ✅ | ✅ | |
