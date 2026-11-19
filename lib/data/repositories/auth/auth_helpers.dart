@@ -8,7 +8,7 @@ const String kAuthCurrentCompanyIdKey = 'invoiceninja.current_company.v1';
 
 /// Identity of the session whose data is currently on disk. Written on every
 /// login / refresh; read only by the login entry points, which wipe the local
-/// database when a DIFFERENT user or account signs in on this device.
+/// database when a DIFFERENT user (or server) signs in on this device.
 ///
 /// This exists because an involuntary logout (401, or an idle timeout with
 /// unsynced work) deliberately PRESERVES the Drift database — right for the
@@ -22,6 +22,11 @@ const String kAuthCurrentCompanyIdKey = 'invoiceninja.current_company.v1';
 /// wipe). A wipe that throws leaves them — with `kAuthBaseUrlKey` — on disk,
 /// so the next different sign-in can still see whose data is there.
 const String kAuthUserIdKey = 'invoiceninja.user_id.v1';
+
+/// No longer written or read: the wipe used to compare it, but an account is
+/// not an identity — one user can belong to companies of several accounts,
+/// and the value was whichever account `data.first` happened to be. Still
+/// deleted by a destructive `logout()` so an older install's copy goes away.
 const String kAuthAccountIdKey = 'invoiceninja.account_id.v1';
 
 /// Set by a destructive `logout()` after it deletes the tokens and before it
@@ -125,4 +130,37 @@ String? cacheBustedLogoUrl(String? rawUrl, int updatedAt) {
   if (rawUrl == null || rawUrl.isEmpty) return rawUrl;
   final sep = rawUrl.contains('?') ? '&' : '?';
   return '$rawUrl${sep}v=$updatedAt';
+}
+
+/// The account the signed-in user belongs to (`users.account_id`), from the
+/// `(accountId, isOwner)` of each company they hold, or null when that can't
+/// be told.
+///
+/// The login envelope never names it — `UserTransformer` sends no
+/// `account_id` — yet the per-user realtime channel is authorised against it
+/// (`routes/channels.php`: `$user->account->key`), not against the active
+/// company's account. Two facts pin it down:
+///
+/// - one account across every company (every user since the server's
+///   2024-10-18 "no cross account linkage" guard in `UserRepository::save`)
+///   is the user's;
+/// - otherwise a company the user OWNS is in their account: `is_owner` is set
+///   for the account's creator and for whoever creates a company inside it,
+///   which already takes being its owner.
+///
+/// Anything else — several accounts and none or more than one owned — is a
+/// guess, and the caller keeps its fallback rather than make one.
+String? resolveUserAccountId(
+  Iterable<({String accountId, bool isOwner})> memberships,
+) {
+  final all = <String>{};
+  final owned = <String>{};
+  for (final m in memberships) {
+    if (m.accountId.isEmpty) continue;
+    all.add(m.accountId);
+    if (m.isOwner) owned.add(m.accountId);
+  }
+  if (all.length == 1) return all.single;
+  if (owned.length == 1) return owned.single;
+  return null;
 }

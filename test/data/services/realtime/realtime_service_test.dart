@@ -333,16 +333,34 @@ void main() {
 
   // React #3340 — the per-user channel carries "your download is ready".
   group('the user channel', () {
-    AuthSession session({String accountKey = 'ACCT', String userId = 'u1'}) =>
-        AuthSession(
-          baseUrl: 'https://invoicing.co',
-          isHosted: true,
-          accountId: 'a1',
-          companies: const [],
-          currentCompanyId: 'co1',
-          userId: userId,
-          accountKey: accountKey,
-        );
+    AuthSession session({
+      String accountKey = 'ACCT',
+      String userAccountKey = '',
+      String userId = 'u1',
+    }) => AuthSession(
+      baseUrl: 'https://invoicing.co',
+      isHosted: true,
+      accountId: 'a1',
+      companies: const [],
+      currentCompanyId: 'co1',
+      userId: userId,
+      accountKey: accountKey,
+      userAccountKey: userAccountKey,
+    );
+
+    // The server authorises it against `$user->account->key`, and the active
+    // company can be in another account than the user's.
+    test("is named with the user's own account, not the active company's", () {
+      build();
+      auth.creds.value = _hosted('co1');
+      auth.sess.value = session(accountKey: 'OTHER', userAccountKey: 'OWN');
+      expect(conn.userChannel, 'private-user-OWN-u1');
+
+      // A switch into a company of yet another account keeps it.
+      auth.sess.value = session(accountKey: 'THIRD', userAccountKey: 'OWN');
+      expect(conn.userChannel, 'private-user-OWN-u1');
+      expect(conn.userUnsubscribes, 0);
+    });
 
     test('is carried once the account key is known', () {
       build();

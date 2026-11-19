@@ -305,6 +305,20 @@ class AuthRepository {
   /// is the durable copy.
   Map<String, String> _tokensByCompany = const {};
 
+  /// Every account the session's companies belong to, and which account each
+  /// company is in. A user can hold companies of several accounts, and the
+  /// session's account fields (plan, trial, `has_iap_plan`, `key`, …) are the
+  /// ACTIVE company's — so a company switch swaps them from here
+  /// ([_withActiveAccount]) without a round-trip. Rebuilt by
+  /// [_persistAndActivate] and [restore]; cleared by [logout].
+  Map<String, AccountEnvelopeApi> _accountsById = const {};
+  Map<String, String> _accountIdByCompanyId = const {};
+
+  /// `data[N].ninja_portal_url` per company — the hosted billing portal is
+  /// the company's account's, so it follows a switch like the account fields.
+  /// Not persisted (a cold restore has none until the first refresh).
+  Map<String, String> _ninjaPortalUrlByCompanyId = const {};
+
   /// Monotonic session epoch, bumped at the top of [logout]. A
   /// `_refreshSession` whose `/refresh` network call was already in flight when
   /// the user logged out captures the old value, sees the mismatch on return,
@@ -380,7 +394,8 @@ class AuthRepository {
   /// Hot login. Calls `/api/v1/login`, persists everything, and primes
   /// [credentials] so subsequent API calls work.
   /// Wipe the local database when the credentials being signed in belong to a
-  /// DIFFERENT user or account than the one whose data is still on disk.
+  /// DIFFERENT user, or a different server, than the one whose data is still
+  /// on disk.
   ///
   /// An involuntary logout — a 401, or an idle timeout with unsynced work —
   /// takes `logout(data: LocalDataPolicy.keep)`, which deliberately returns before
@@ -402,12 +417,19 @@ class AuthRepository {
   /// needs no check either — it reads its identity from the same disk it would
   /// be comparing against.
   ///
-  /// The identity is `(userId, accountId, baseUrl)`. **`baseUrl` is not
-  /// decoration**: self-hosted instances mint hashids from small sequential
-  /// ids, so user #1 / account #1 on two different servers commonly encode to
-  /// the SAME strings — without it, a user 401'd out of server A who signs
-  /// into server B inherits A's entire database, which is the exact leak the
-  /// other two legs exist to stop. It is compared through [canonicalBaseUrl]
+  /// The identity is `(userId, baseUrl)`. **Not the account**: one user can
+  /// hold companies of several accounts, and the account the envelope leads
+  /// with (`data.first`) is the active company's after a delta refresh but
+  /// `data[0]`'s after a full one — so comparing it judged the SAME user
+  /// signing back in (after a 401, say) a stranger, and wiped their database,
+  /// outbox included. A user id is already unique per server, which is what
+  /// the second leg is for.
+  ///
+  /// **`baseUrl` is not decoration**: self-hosted instances mint hashids from
+  /// small sequential ids, so user #1 on two different servers commonly
+  /// encodes to the SAME string — without it, a user 401'd out of server A
+  /// who signs into server B inherits A's entire database, which is the exact
+  /// leak the user leg exists to stop. It is compared through [canonicalBaseUrl]
   /// rather than raw, because here a false positive DESTROYS data (the wipe
   /// takes the outbox with it) while a false negative merely leaves today's
   /// leak — and `https://acme.com` vs `https://acme.com/` vs `HTTPS://Acme.com`
@@ -444,27 +466,20 @@ class AuthRepository {
       return;
     }
     final incomingUserId = response.data.first.user.id;
-    final incomingAccountId = response.data.first.account.id;
     final storedUserId = await _secure.read(kAuthUserIdKey) ?? '';
-    final storedAccountId = await _secure.read(kAuthAccountIdKey) ?? '';
     final storedBaseUrl = await _secure.read(kAuthBaseUrlKey) ?? '';
     final userChanged =
         storedUserId.isNotEmpty &&
         incomingUserId.isNotEmpty &&
         storedUserId != incomingUserId;
-    final accountChanged =
-        storedAccountId.isNotEmpty &&
-        incomingAccountId.isNotEmpty &&
-        storedAccountId != incomingAccountId;
     final serverChanged =
         storedBaseUrl.isNotEmpty &&
         baseUrl.isNotEmpty &&
         canonicalBaseUrl(storedBaseUrl) != canonicalBaseUrl(baseUrl);
-    if (!userChanged && !accountChanged && !serverChanged) return;
+    if (!userChanged && !serverChanged) return;
     _log.warning(
       'A different identity is signing in on this device '
-      '(user changed: $userChanged, account changed: $accountChanged, '
-      'server changed: $serverChanged) — '
+      '(user changed: $userChanged, server changed: $serverChanged) — '
       'wiping local data before activating the new session.',
     );
     await _wipeForIncomingIdentity(DisposalReason.identityChanged);
@@ -875,7 +890,11 @@ class AuthRepository {
             healed: healed,
           )
         : null;
-    _session.value = s.copyWith(currentCompanyId: companyId);
+    // A company of another account brings that account's plan, trial and
+    // key with it.
+    _session.value = _withActiveAccount(
+      s.copyWith(currentCompanyId: companyId),
+    );
     _credentials.value = ApiCredentials(
       baseUrl: s.baseUrl,
       token: token,
@@ -1371,6 +1390,9 @@ class AuthRepository {
     _credentials.value = null;
     _requiresBiometricUnlock.value = false;
     _tokensByCompany = const {};
+    _accountsById = const {};
+    _accountIdByCompanyId = const {};
+    _ninjaPortalUrlByCompanyId = const {};
     // Re-arm the activation guard so a fresh login (even to the same company)
     // re-fires onActiveCompanyChanged and re-runs the sidebar prefetch.
     _lastActivatedCompanyId = null;
@@ -1541,9 +1563,9 @@ class AuthRepository {
     );
     if (tokensMap.isEmpty) return;
 
-    final account = await _db.companiesDao.account();
+    final accountRows = await _db.companiesDao.allAccounts();
     final companies = await _db.companiesDao.all();
-    if (account == null || companies.isEmpty) {
+    if (accountRows.isEmpty || companies.isEmpty) {
       // Drift was reset (or never populated), so the stored token describes
       // nothing. End the session — but never by wiping queued work: the
       // account/company rows can be missing while outbox rows are not, and a
@@ -1561,62 +1583,14 @@ class AuthRepository {
       return;
     }
     _tokensByCompany = tokensMap;
-    // A handful of account-level fields aren't Drift columns — they live
-    // inside the serialized `features_json` blob written by
-    // `_persistAndActivate`. Decode lazily, tolerating a missing/corrupt
-    // blob by defaulting each field to its zero value.
-    var hostedCompanyCount = 0;
-    var hostedClientCount = 0;
-    var planExpires = '';
-    var trialPlan = '';
-    var trialStarted = '';
-    var trialDaysLeft = -1;
-    var hasIapPlan = false;
-    var eInvoicingToken = '';
-    var reportErrors = false;
-    var isPremium = false;
-    var docuninjaNumUsers = 0;
-    var accountKey = '';
-    var serverCurrentVersion = '';
-    var serverLatestVersion = '';
-    var isDocker = false;
-    var disableAutoUpdate = false;
-    final featuresRaw = account.featuresJson;
-    if (featuresRaw != null && featuresRaw.isNotEmpty) {
-      try {
-        final decoded = jsonDecode(featuresRaw);
-        if (decoded is Map<String, dynamic>) {
-          int asInt(Object? v) {
-            if (v is int) return v;
-            if (v is num) return v.toInt();
-            return 0;
-          }
-
-          String asStr(Object? v) => v is String ? v : '';
-          hostedCompanyCount = asInt(decoded['hosted_company_count']);
-          hostedClientCount = asInt(decoded['hosted_client_count']);
-          planExpires = asStr(decoded['plan_expires']);
-          trialPlan = asStr(decoded['trial_plan']);
-          trialStarted = asStr(decoded['trial_started']);
-          // -1 sentinel = absent (fall back to client-clock estimate).
-          trialDaysLeft = decoded.containsKey('trial_days_left')
-              ? asInt(decoded['trial_days_left'])
-              : -1;
-          hasIapPlan = decoded['has_iap_plan'] == true;
-          eInvoicingToken = asStr(decoded['e_invoicing_token']);
-          reportErrors = decoded['report_errors'] == true;
-          isPremium = decoded['is_premium'] == true;
-          docuninjaNumUsers = asInt(decoded['docuninja_num_users']);
-          accountKey = asStr(decoded['key']);
-          serverCurrentVersion = asStr(decoded['current_version']);
-          serverLatestVersion = asStr(decoded['latest_version']);
-          isDocker = decoded['is_docker'] == true;
-          disableAutoUpdate = decoded['disable_auto_update'] == true;
-        }
-      } catch (_) {
-        /* fall through to defaults */
-      }
-    }
+    // One row per account the companies belong to; the session takes the
+    // active company's (below) — never an arbitrary row.
+    _accountsById = {for (final r in accountRows) r.id: _accountFromRow(r)};
+    _accountIdByCompanyId = {for (final c in companies) c.id: c.accountId};
+    _ninjaPortalUrlByCompanyId = const {};
+    final userAccountKey = _userAccountKeyIn(_accountsById, [
+      for (final c in companies) (accountId: c.accountId, isOwner: c.isOwner),
+    ]);
     // Recover the auth user's identity from Drift so an OFFLINE restart
     // still has userId/userEmail/names — without this they stayed '' until
     // the unawaited network heal landed, so Settings → User Details refused
@@ -1679,20 +1653,25 @@ class AuthRepository {
     } catch (e, st) {
       _log.warning('restore(): could not recover auth user from Drift', e, st);
     }
+    // The active company's account. A missing row (the account was pruned
+    // under a company that survived) falls back to any — what this always did.
+    final account =
+        _accountsById[_accountIdByCompanyId[restoredCompanyId]] ??
+        _accountsById.values.first;
     var session = AuthSession(
       baseUrl: baseUrl,
       isHosted: isHosted,
       accountId: account.id,
       plan: account.plan,
-      planExpires: planExpires,
-      trialPlan: trialPlan,
-      trialStarted: trialStarted,
+      planExpires: account.planExpires,
+      trialPlan: account.trialPlan,
+      trialStarted: account.trialStarted,
       numTrialDays: account.numTrialDays,
-      trialDaysLeft: trialDaysLeft,
-      hasIapPlan: hasIapPlan,
-      defaultCompanyId: account.defaultCompanyId ?? '',
-      hostedClientCount: hostedClientCount,
-      hostedCompanyCount: hostedCompanyCount,
+      trialDaysLeft: account.trialDaysLeft,
+      hasIapPlan: account.hasIapPlan,
+      defaultCompanyId: account.defaultCompanyId,
+      hostedClientCount: account.hostedClientCount,
+      hostedCompanyCount: account.hostedCompanyCount,
       userId: userId,
       userEmail: userEmail,
       userFirstName: userFirstName,
@@ -1735,15 +1714,16 @@ class AuthRepository {
           .toList(growable: false),
       currentCompanyId: restoredCompanyId,
       biometricEnabled: biometricEnabled,
-      eInvoicingToken: eInvoicingToken,
-      reportErrors: reportErrors,
-      isPremium: isPremium,
-      docuninjaNumUsers: docuninjaNumUsers,
-      accountKey: accountKey,
-      serverCurrentVersion: serverCurrentVersion,
-      serverLatestVersion: serverLatestVersion,
-      isDocker: isDocker,
-      disableAutoUpdate: disableAutoUpdate,
+      eInvoicingToken: account.eInvoicingToken,
+      reportErrors: account.reportErrors,
+      isPremium: account.isPremium,
+      docuninjaNumUsers: account.docuninjaNumUsers,
+      accountKey: account.key,
+      userAccountKey: userAccountKey,
+      serverCurrentVersion: account.currentVersion,
+      serverLatestVersion: account.latestVersion,
+      isDocker: account.isDocker,
+      disableAutoUpdate: account.disableAutoUpdate,
     );
     final storedToken = tokensMap[session.currentCompanyId];
     final String activeToken;
@@ -1789,7 +1769,9 @@ class AuthRepository {
         'restore(): no token for currentCompanyId=${session.currentCompanyId}; '
         'falling back to ${fallback.key}',
       );
-      session = session.copyWith(currentCompanyId: fallback.key);
+      session = _withActiveAccount(
+        session.copyWith(currentCompanyId: fallback.key),
+      );
       activeToken = fallback.value;
       await _secure.write(kAuthCurrentCompanyIdKey, fallback.key);
     }
@@ -1944,7 +1926,15 @@ class AuthRepository {
     }
     final nowMs = _now().millisecondsSinceEpoch;
     final syncMark = syncWatermarkMs ?? nowMs;
+    // Only for picking the company to land on: the session's account fields
+    // are the ACTIVE company's account (below), not `data.first`'s — a user can
+    // hold companies of several accounts.
     final firstAccount = response.data.first.account;
+    // Each account the response carries, by id (`data[N].account` is that
+    // company's own account).
+    final responseAccounts = <String, AccountEnvelopeApi>{
+      for (final uc in response.data) uc.account.id: uc.account,
+    };
     // Prefer the caller-supplied active company (used by refresh-on-create
     // so the user doesn't get silently teleported back to the account's
     // default company) when its token is still in the new response.
@@ -2006,24 +1996,29 @@ class AuthRepository {
       // / task-invoicing / payment-conversion flags) on every launch — issue
       // #29. Those columns now ride the envelope, but the prune is what keeps
       // any future envelope gap from being silently destructive.
+      //
+      // Accounts likewise: one row per account the response's companies
+      // belong to, and a full sync drops only those no company references.
       if (isFullSync) {
         await _db.companiesDao.pruneExcept(
           companyIds: liveIds,
-          accountId: firstAccount.id,
+          accountIds: responseAccounts.keys.toSet(),
         );
       }
-      await _db.companiesDao.upsertAccount(
-        AccountsCompanion.insert(
-          id: firstAccount.id,
-          email: '',
-          plan: firstAccount.plan,
-          numTrialDays: firstAccount.numTrialDays,
-          isHosted: Value(isHosted),
-          defaultCompanyId: Value(firstAccount.defaultCompanyId),
-          featuresJson: Value(jsonEncode(firstAccount.toJson())),
-          updatedAt: nowMs,
-        ),
-      );
+      for (final account in responseAccounts.values) {
+        await _db.companiesDao.upsertAccount(
+          AccountsCompanion.insert(
+            id: account.id,
+            email: '',
+            plan: account.plan,
+            numTrialDays: account.numTrialDays,
+            isHosted: Value(isHosted),
+            defaultCompanyId: Value(account.defaultCompanyId),
+            featuresJson: Value(jsonEncode(account.toJson())),
+            updatedAt: nowMs,
+          ),
+        );
+      }
       // Don't clobber a pending local edit. `updateCompany` writes the
       // companies row optimistically inside its enqueue transaction, so the
       // local row IS the user's not-yet-synced state; overwriting it with the
@@ -2430,6 +2425,26 @@ class AuthRepository {
     // A delta is scoped to the active company, so the picker list is sourced
     // from the Drift table instead (see `companiesList` below).
     final deltaCompanyRows = isFullSync ? null : await _db.companiesDao.all();
+    // Which account each company is in, and every account's fields — so the
+    // session takes the ACTIVE company's account, and a later switch can swap
+    // to another's. A full sync's response is the whole set; a delta carries
+    // only the active company, so the rest come from Drift (the delta prunes
+    // nothing). The response wins where both have a value.
+    final accountsById = <String, AccountEnvelopeApi>{
+      if (!isFullSync)
+        for (final r in await _db.companiesDao.allAccounts())
+          r.id: _accountFromRow(r),
+      ...responseAccounts,
+    };
+    final accountIdByCompanyId = <String, String>{
+      if (!isFullSync)
+        for (final c in deltaCompanyRows!) c.id: c.accountId,
+      for (final uc in response.data) uc.company.id: uc.account.id,
+    };
+    final ninjaPortalUrlByCompanyId = <String, String>{
+      if (!isFullSync) ..._ninjaPortalUrlByCompanyId,
+      for (final uc in response.data) uc.company.id: uc.ninjaPortalUrl,
+    };
 
     // Final guard before anything observable is committed. This sits ahead of
     // the secure-storage writes, the `_session`/`_credentials` assignments, AND
@@ -2477,9 +2492,9 @@ class AuthRepository {
       // this device gets a clean database instead of inheriting this one's
       // cached rows (see [_wipeIfIdentityChanged]). Re-written on every
       // refresh, which is what heals an install upgrading from a build that
-      // never wrote these keys.
+      // never wrote these keys. (No account id: an account is not an
+      // identity — see [kAuthAccountIdKey].)
       await _secure.write(kAuthUserIdKey, response.data.first.user.id);
-      await _secure.write(kAuthAccountIdKey, firstAccount.id);
       // A fresh sign-in / token activation is a re-auth — clear any
       // idle-timeout re-lock flag. (A no-op on a normal authenticated refresh,
       // where it's already absent.) Biometric-OFF locked sessions only reach
@@ -2496,6 +2511,9 @@ class AuthRepository {
     }
 
     _tokensByCompany = tokens;
+    _accountsById = accountsById;
+    _accountIdByCompanyId = accountIdByCompanyId;
+    _ninjaPortalUrlByCompanyId = ninjaPortalUrlByCompanyId;
     // A 200 from /refresh proves whatever token carried it; nothing on
     // probation survives a successful round-trip.
     _unprovenActivation = null;
@@ -2535,20 +2553,25 @@ class AuthRepository {
         for (final c in deltaCompanyRows!) _authCompanyFromRow(c),
       ];
     }
+    // The active company's account — `currentId` is final by now (the
+    // switch-raced override above included). `data.first`'s only if the maps
+    // somehow don't know the company, which is what this always used.
+    final activeAccount =
+        accountsById[accountIdByCompanyId[currentId]] ?? firstAccount;
     _session.value = AuthSession(
       baseUrl: baseUrl,
       isHosted: isHosted,
-      accountId: firstAccount.id,
-      plan: firstAccount.plan,
-      planExpires: firstAccount.planExpires,
-      trialPlan: firstAccount.trialPlan,
-      trialStarted: firstAccount.trialStarted,
-      numTrialDays: firstAccount.numTrialDays,
-      trialDaysLeft: firstAccount.trialDaysLeft,
-      hasIapPlan: firstAccount.hasIapPlan,
-      defaultCompanyId: firstAccount.defaultCompanyId,
-      hostedClientCount: firstAccount.hostedClientCount,
-      hostedCompanyCount: firstAccount.hostedCompanyCount,
+      accountId: activeAccount.id,
+      plan: activeAccount.plan,
+      planExpires: activeAccount.planExpires,
+      trialPlan: activeAccount.trialPlan,
+      trialStarted: activeAccount.trialStarted,
+      numTrialDays: activeAccount.numTrialDays,
+      trialDaysLeft: activeAccount.trialDaysLeft,
+      hasIapPlan: activeAccount.hasIapPlan,
+      defaultCompanyId: activeAccount.defaultCompanyId,
+      hostedClientCount: activeAccount.hostedClientCount,
+      hostedCompanyCount: activeAccount.hostedCompanyCount,
       companies: companiesList,
       currentCompanyId: currentId,
       userId: firstUser.id,
@@ -2567,16 +2590,24 @@ class AuthRepository {
       biometricEnabled: biometricEnabled,
       referralCode: firstUser.referralCode,
       referralMeta: firstUser.referralMeta,
-      ninjaPortalUrl: response.data.first.ninjaPortalUrl,
-      eInvoicingToken: firstAccount.eInvoicingToken,
-      reportErrors: firstAccount.reportErrors,
-      isPremium: firstAccount.isPremium,
-      docuninjaNumUsers: firstAccount.docuninjaNumUsers,
-      accountKey: firstAccount.key,
-      serverCurrentVersion: firstAccount.currentVersion,
-      serverLatestVersion: firstAccount.latestVersion,
-      isDocker: firstAccount.isDocker,
-      disableAutoUpdate: firstAccount.disableAutoUpdate,
+      ninjaPortalUrl:
+          ninjaPortalUrlByCompanyId[currentId] ??
+          response.data.first.ninjaPortalUrl,
+      eInvoicingToken: activeAccount.eInvoicingToken,
+      reportErrors: activeAccount.reportErrors,
+      isPremium: activeAccount.isPremium,
+      docuninjaNumUsers: activeAccount.docuninjaNumUsers,
+      accountKey: activeAccount.key,
+      // The realtime user channel's account — the user's own, whichever
+      // company is active (see [AuthSession.userAccountKey]).
+      userAccountKey: _userAccountKeyIn(accountsById, [
+        for (final c in companiesList)
+          (accountId: accountIdByCompanyId[c.id] ?? '', isOwner: c.isOwner),
+      ]),
+      serverCurrentVersion: activeAccount.currentVersion,
+      serverLatestVersion: activeAccount.latestVersion,
+      isDocker: activeAccount.isDocker,
+      disableAutoUpdate: activeAccount.disableAutoUpdate,
     );
     _credentials.value = ApiCredentials(
       baseUrl: baseUrl,
@@ -2595,6 +2626,97 @@ class AuthRepository {
     );
     _attachCompaniesWatcher();
     _fireActiveCompanyChanged(currentId);
+  }
+
+  /// [s] carrying the account fields of the account its current company
+  /// belongs to, and that company's billing-portal URL. Unchanged where the
+  /// maps don't know the company (a field it can't source keeps its value).
+  AuthSession _withActiveAccount(AuthSession s) {
+    final portal = _ninjaPortalUrlByCompanyId[s.currentCompanyId];
+    final a = _accountsById[_accountIdByCompanyId[s.currentCompanyId]];
+    if (a == null) {
+      return portal == null ? s : s.copyWith(ninjaPortalUrl: portal);
+    }
+    return s.copyWith(
+      accountId: a.id,
+      plan: a.plan,
+      planExpires: a.planExpires,
+      trialPlan: a.trialPlan,
+      trialStarted: a.trialStarted,
+      numTrialDays: a.numTrialDays,
+      trialDaysLeft: a.trialDaysLeft,
+      hasIapPlan: a.hasIapPlan,
+      defaultCompanyId: a.defaultCompanyId,
+      hostedClientCount: a.hostedClientCount,
+      hostedCompanyCount: a.hostedCompanyCount,
+      ninjaPortalUrl: portal,
+      eInvoicingToken: a.eInvoicingToken,
+      reportErrors: a.reportErrors,
+      isPremium: a.isPremium,
+      docuninjaNumUsers: a.docuninjaNumUsers,
+      accountKey: a.key,
+      serverCurrentVersion: a.currentVersion,
+      serverLatestVersion: a.latestVersion,
+      isDocker: a.isDocker,
+      disableAutoUpdate: a.disableAutoUpdate,
+    );
+  }
+
+  /// The key of the user's own account ([resolveUserAccountId]), or `''`
+  /// when the memberships can't say which it is.
+  static String _userAccountKeyIn(
+    Map<String, AccountEnvelopeApi> accounts,
+    Iterable<({String accountId, bool isOwner})> memberships,
+  ) => accounts[resolveUserAccountId(memberships)]?.key ?? '';
+
+  /// An `accounts` row as the envelope it was written from. The plan, trial
+  /// length and default company are columns; everything else lives in the
+  /// `features_json` blob `_persistAndActivate` writes (`toJson()` of the
+  /// envelope). Decoded field by field so a missing or corrupt blob — or one
+  /// written by an older build — defaults each field instead of throwing.
+  static AccountEnvelopeApi _accountFromRow(AccountRow row) {
+    var decoded = const <String, dynamic>{};
+    final raw = row.featuresJson;
+    if (raw != null && raw.isNotEmpty) {
+      try {
+        final d = jsonDecode(raw);
+        if (d is Map<String, dynamic>) decoded = d;
+      } catch (_) {
+        /* fall through to defaults */
+      }
+    }
+    int asInt(Object? v) {
+      if (v is int) return v;
+      if (v is num) return v.toInt();
+      return 0;
+    }
+
+    String asStr(Object? v) => v is String ? v : '';
+    return AccountEnvelopeApi(
+      id: row.id,
+      plan: row.plan,
+      numTrialDays: row.numTrialDays,
+      defaultCompanyId: row.defaultCompanyId ?? '',
+      hostedCompanyCount: asInt(decoded['hosted_company_count']),
+      hostedClientCount: asInt(decoded['hosted_client_count']),
+      planExpires: asStr(decoded['plan_expires']),
+      trialPlan: asStr(decoded['trial_plan']),
+      trialStarted: asStr(decoded['trial_started']),
+      // -1 sentinel = absent (fall back to client-clock estimate).
+      trialDaysLeft: decoded.containsKey('trial_days_left')
+          ? asInt(decoded['trial_days_left'])
+          : -1,
+      hasIapPlan: decoded['has_iap_plan'] == true,
+      eInvoicingToken: asStr(decoded['e_invoicing_token']),
+      reportErrors: decoded['report_errors'] == true,
+      isPremium: decoded['is_premium'] == true,
+      docuninjaNumUsers: asInt(decoded['docuninja_num_users']),
+      key: asStr(decoded['key']),
+      currentVersion: asStr(decoded['current_version']),
+      latestVersion: asStr(decoded['latest_version']),
+      isDocker: decoded['is_docker'] == true,
+      disableAutoUpdate: decoded['disable_auto_update'] == true,
+    );
   }
 
   /// Subscribe to the Drift `companies` table once per repo lifetime so a

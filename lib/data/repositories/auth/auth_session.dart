@@ -79,6 +79,7 @@ class AuthSession {
     this.isPremium = false,
     this.docuninjaNumUsers = 0,
     this.accountKey = '',
+    this.userAccountKey = '',
     this.serverCurrentVersion = '',
     this.serverLatestVersion = '',
     this.isDocker = false,
@@ -223,6 +224,15 @@ class AuthSession {
   /// (`private-user-{accountKey}-{userId}`). Blank until the account envelope
   /// has carried it.
   final String accountKey;
+
+  /// The key of the account the signed-in USER belongs to (`users.account_id`)
+  /// — not necessarily the active company's ([accountKey]). The server
+  /// authorises the per-user realtime channel against `$user->account->key`
+  /// (`routes/channels.php`), so that channel is named with this one. Blank
+  /// when the companies on hand can't say which account is the user's (see
+  /// `resolveUserAccountId`); the realtime service then falls back to
+  /// [accountKey].
+  final String userAccountKey;
 
   /// `account.current_version` — the server's installed release, as of the
   /// last login / refresh. Only read on self-hosted
@@ -500,10 +510,34 @@ class AuthSession {
     return CanAddCompanyResult.ok;
   }
 
+  /// Every account-level field takes a parameter so a company switch can swap
+  /// in the new company's account (a user can belong to companies of several
+  /// accounts — `AuthRepository._withActiveAccount`).
   AuthSession copyWith({
     String? currentCompanyId,
     List<AuthCompany>? companies,
+    String? accountId,
+    String? plan,
+    String? planExpires,
+    String? trialPlan,
+    String? trialStarted,
+    int? numTrialDays,
+    int? trialDaysLeft,
+    bool? hasIapPlan,
     String? defaultCompanyId,
+    int? hostedClientCount,
+    int? hostedCompanyCount,
+    String? ninjaPortalUrl,
+    String? eInvoicingToken,
+    bool? reportErrors,
+    bool? isPremium,
+    int? docuninjaNumUsers,
+    String? accountKey,
+    String? userAccountKey,
+    String? serverCurrentVersion,
+    String? serverLatestVersion,
+    bool? isDocker,
+    bool? disableAutoUpdate,
     bool? googleTwoFactorEnabled,
     bool? verifiedPhoneNumber,
     String? userPhone,
@@ -516,19 +550,19 @@ class AuthSession {
   }) => AuthSession(
     baseUrl: baseUrl,
     isHosted: isHosted,
-    accountId: accountId,
+    accountId: accountId ?? this.accountId,
     companies: companies ?? this.companies,
     currentCompanyId: currentCompanyId ?? this.currentCompanyId,
-    plan: plan,
-    planExpires: planExpires,
-    trialPlan: trialPlan,
-    trialStarted: trialStarted,
-    numTrialDays: numTrialDays,
-    trialDaysLeft: trialDaysLeft,
-    hasIapPlan: hasIapPlan,
+    plan: plan ?? this.plan,
+    planExpires: planExpires ?? this.planExpires,
+    trialPlan: trialPlan ?? this.trialPlan,
+    trialStarted: trialStarted ?? this.trialStarted,
+    numTrialDays: numTrialDays ?? this.numTrialDays,
+    trialDaysLeft: trialDaysLeft ?? this.trialDaysLeft,
+    hasIapPlan: hasIapPlan ?? this.hasIapPlan,
     defaultCompanyId: defaultCompanyId ?? this.defaultCompanyId,
-    hostedClientCount: hostedClientCount,
-    hostedCompanyCount: hostedCompanyCount,
+    hostedClientCount: hostedClientCount ?? this.hostedClientCount,
+    hostedCompanyCount: hostedCompanyCount ?? this.hostedCompanyCount,
     userId: userId,
     userEmail: userEmail ?? this.userEmail,
     userPhone: userPhone ?? this.userPhone,
@@ -542,16 +576,17 @@ class AuthSession {
     biometricEnabled: biometricEnabled ?? this.biometricEnabled,
     referralCode: referralCode,
     referralMeta: referralMeta,
-    ninjaPortalUrl: ninjaPortalUrl,
-    eInvoicingToken: eInvoicingToken,
-    reportErrors: reportErrors,
-    isPremium: isPremium,
-    docuninjaNumUsers: docuninjaNumUsers,
-    accountKey: accountKey,
-    serverCurrentVersion: serverCurrentVersion,
-    serverLatestVersion: serverLatestVersion,
-    isDocker: isDocker,
-    disableAutoUpdate: disableAutoUpdate,
+    ninjaPortalUrl: ninjaPortalUrl ?? this.ninjaPortalUrl,
+    eInvoicingToken: eInvoicingToken ?? this.eInvoicingToken,
+    reportErrors: reportErrors ?? this.reportErrors,
+    isPremium: isPremium ?? this.isPremium,
+    docuninjaNumUsers: docuninjaNumUsers ?? this.docuninjaNumUsers,
+    accountKey: accountKey ?? this.accountKey,
+    userAccountKey: userAccountKey ?? this.userAccountKey,
+    serverCurrentVersion: serverCurrentVersion ?? this.serverCurrentVersion,
+    serverLatestVersion: serverLatestVersion ?? this.serverLatestVersion,
+    isDocker: isDocker ?? this.isDocker,
+    disableAutoUpdate: disableAutoUpdate ?? this.disableAutoUpdate,
   );
 }
 

@@ -25,7 +25,8 @@ import 'package:admin/ui/features/auth/widgets/name_required_dialog.dart';
 ///   management page (Apple/Google forbid us mutating their subscription
 ///   from a web portal).
 /// - iOS / Android, web-billed paid plan → the portal (manage existing).
-/// - iOS / Android, free/trial → the in-app store purchase sheet.
+/// - iOS / Android, free/trial → the in-app store purchase sheet for the
+///   owner of the active company's account; the Plan screen for anyone else.
 Future<void> launchUpgrade(BuildContext context) async {
   final services = context.read<Services>();
   // Hosted billing needs the user's first and last name (React #3341): ask
@@ -61,6 +62,12 @@ Future<void> launchUpgrade(BuildContext context) async {
   }
 
   if (!context.mounted) return;
+  // A plan is bought for the whole account, and only its owner may buy it:
+  // anyone else gets the Plan screen.
+  if (!(session?.currentCompany?.isOwner ?? false)) {
+    await _openPortalOrPlanScreen(context, '');
+    return;
+  }
   await showUpgradeSheet(context);
 }
 

@@ -225,7 +225,13 @@ class RealtimeService {
   void _reconcileUserChannel({bool reauthorize = false}) {
     final companyId = _companyId;
     final session = _auth.session.value;
-    final accountKey = session?.accountKey ?? '';
+    // The USER's own account, not the active company's: the server authorises
+    // `user-{account_key}-{user_id}` against `$user->account->key`
+    // (`routes/channels.php`), and a user can hold companies of several
+    // accounts. The active company's key is the fallback when the session
+    // can't tell which account is the user's.
+    final ownKey = session?.userAccountKey ?? '';
+    final accountKey = ownKey.isNotEmpty ? ownKey : session?.accountKey ?? '';
     final userId = session?.userId ?? '';
     final wanted = companyId == null || accountKey.isEmpty || userId.isEmpty
         ? null

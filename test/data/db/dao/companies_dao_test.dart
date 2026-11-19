@@ -55,7 +55,7 @@ void main() {
 
       await db.companiesDao.pruneExcept(
         companyIds: {'co_a'},
-        accountId: 'acct',
+        accountIds: {'acct'},
       );
 
       expect(await ids(), {'co_a'});
@@ -69,7 +69,7 @@ void main() {
 
       await db.companiesDao.pruneExcept(
         companyIds: {'co_a'},
-        accountId: 'acct',
+        accountIds: {'acct'},
       );
 
       expect(
@@ -91,7 +91,7 @@ void main() {
 
         await db.companiesDao.pruneExcept(
           companyIds: const <String>{},
-          accountId: 'acct',
+          accountIds: {'acct'},
         );
 
         expect(await ids(), {'co_a', 'co_b'});
@@ -112,10 +112,37 @@ void main() {
 
       await db.companiesDao.pruneExcept(
         companyIds: {'co_a'},
-        accountId: 'acct_new',
+        accountIds: {'acct_new'},
       );
 
       expect(await db.companiesDao.account(), isNull);
+    });
+
+    test('keeps every account a surviving company belongs to', () async {
+      // One user can hold companies of several accounts; a full sync carries
+      // each company's own, and only an account none of them references goes.
+      Future<void> account(String id) => db.companiesDao.upsertAccount(
+        AccountsCompanion.insert(
+          id: id,
+          email: '',
+          plan: '',
+          numTrialDays: 0,
+          updatedAt: 1,
+        ),
+      );
+      await account('acct_own');
+      await account('acct_other');
+      await account('acct_gone');
+
+      await db.companiesDao.pruneExcept(
+        companyIds: {'co_a'},
+        accountIds: {'acct_own', 'acct_other'},
+      );
+
+      expect((await db.companiesDao.allAccounts()).map((a) => a.id).toSet(), {
+        'acct_own',
+        'acct_other',
+      });
     });
   });
 

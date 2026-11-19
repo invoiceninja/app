@@ -108,7 +108,8 @@ abstract class UserCompanyApi with _$UserCompanyApi {
     // empty token keeps the company in the roster and lets the cached token
     // (merged at `_persistAndActivate`, which only overrides on non-empty) keep
     // working. `company` and `account` stay required — an entry missing either
-    // is unusable, and `data.first.account` sources every account-level field.
+    // is unusable, and `account` (that company's own) sources every
+    // account-level field while the company is active.
     @Default(SessionTokenApi()) SessionTokenApi token,
     required AccountEnvelopeApi account,
     @Default(<String, dynamic>{}) Map<String, dynamic> settings,

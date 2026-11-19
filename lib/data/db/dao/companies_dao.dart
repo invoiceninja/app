@@ -80,8 +80,14 @@ class CompaniesDao extends DatabaseAccessor<AppDatabase>
     );
   }
 
+  /// Any one account row. A user can belong to companies of several accounts,
+  /// so this is not "the" account — the session reads [allAccounts] and picks
+  /// the active company's `account_id`.
   Future<AccountRow?> account() =>
       (select(accounts)..limit(1)).getSingleOrNull();
+
+  /// Every account row — one per account the user's companies belong to.
+  Future<List<AccountRow>> allAccounts() => select(accounts).get();
 
   Stream<AccountRow?> watchAccount() =>
       (select(accounts)..limit(1)).watchSingleOrNull();
@@ -89,8 +95,10 @@ class CompaniesDao extends DatabaseAccessor<AppDatabase>
   Future<void> upsertAccount(AccountsCompanion row) =>
       into(accounts).insertOnConflictUpdate(row);
 
-  /// Full-sync reconciliation: drop the companies (and any stale account) the
-  /// response no longer carries, and leave every surviving row in place.
+  /// Full-sync reconciliation: drop the companies the response no longer
+  /// carries and the accounts none of its companies belong to ([accountIds]
+  /// — one user can hold companies of several accounts), and leave every
+  /// surviving row in place.
   ///
   /// Deliberately NOT a wipe-and-reseed. `_persistAndActivate` follows this
   /// with [upsertAll], whose `insertAllOnConflictUpdate` only writes the
@@ -100,7 +108,7 @@ class CompaniesDao extends DatabaseAccessor<AppDatabase>
   /// user's SMTP credentials and friends on every launch (issue #29).
   Future<void> pruneExcept({
     required Set<String> companyIds,
-    required String accountId,
+    required Set<String> accountIds,
   }) async {
     await transaction(() async {
       // `isNotIn([])` compiles to a bare `WHERE TRUE` — drift's `isNotInExp`
@@ -111,7 +119,10 @@ class CompaniesDao extends DatabaseAccessor<AppDatabase>
       if (companyIds.isNotEmpty) {
         await (delete(companies)..where((c) => c.id.isNotIn(companyIds))).go();
       }
-      await (delete(accounts)..where((a) => a.id.equals(accountId).not())).go();
+      // Same empty-set trap as above.
+      if (accountIds.isNotEmpty) {
+        await (delete(accounts)..where((a) => a.id.isNotIn(accountIds))).go();
+      }
     });
   }
 }

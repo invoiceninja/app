@@ -204,6 +204,52 @@ LoginResponseApi _envelope({
   );
 }
 
+/// The user's own account (they own `co_own`) and another account whose
+/// company (`co_other`) they were added to. Every account-level field the
+/// session carries differs between the two.
+const _ownAccount = AccountEnvelopeApi(
+  id: 'acct_own',
+  key: 'key_own',
+  plan: 'pro',
+  planExpires: '2099-12-31',
+  hasIapPlan: true,
+  defaultCompanyId: 'co_own',
+  numTrialDays: 14,
+  hostedCompanyCount: 10,
+);
+const _otherAccount = AccountEnvelopeApi(
+  id: 'acct_other',
+  key: 'key_other',
+  plan: 'enterprise',
+  planExpires: '2098-06-30',
+  defaultCompanyId: 'co_other',
+  hostedCompanyCount: 3,
+  isPremium: true,
+);
+
+/// One user in `co_own` (account `acct_own`, owner) and `co_other` (account
+/// `acct_other`, member), in [order] — each `data[N].account` is that
+/// company's own account, as `CompanyUserTransformer::includeAccount` sends.
+LoginResponseApi _twoAccountEnvelope({
+  List<String> order = const ['co_own', 'co_other'],
+  UserSummaryApi user = const UserSummaryApi(id: 'user_x'),
+}) {
+  UserCompanyApi entry(String id) {
+    final own = id == 'co_own';
+    return UserCompanyApi(
+      isOwner: own,
+      isAdmin: own,
+      user: user,
+      company: CompanyEnvelopeApi(id: id, name: own ? 'Own' : 'Other'),
+      token: SessionTokenApi(token: 'tok_$id'),
+      account: own ? _ownAccount : _otherAccount,
+      ninjaPortalUrl: 'https://portal.example.com/$id',
+    );
+  }
+
+  return LoginResponseApi(data: [for (final id in order) entry(id)]);
+}
+
 void main() {
   late AppDatabase db;
   late _FakeAuthService authService;
@@ -4175,6 +4221,214 @@ void main() {
     );
   });
 
+  // `data[N].account` is each company's OWN account, and a user can hold
+  // companies of several. The session's account fields used to come from
+  // `data.first` — `data[0]` after a full sync, the active company after a
+  // delta — and restore read an arbitrary `accounts` row.
+  group('a user in companies of two accounts', () {
+    Future<void> signIn() async {
+      authService.queueLogin(_twoAccountEnvelope());
+      await repo.login(
+        baseUrl: 'https://invoicing.co',
+        isHosted: true,
+        email: 'a@example.com',
+        password: 'pw',
+      );
+    }
+
+    /// Serves `/refresh` with [reply] and records each request's query.
+    List<Map<String, String>> serveRefresh(LoginResponseApi reply) {
+      final queries = <Map<String, String>>[];
+      repo.apiClient = ApiClient(
+        credentials: repo.credentials,
+        passwordCache: PasswordCache(),
+        onUnauthorized: () async {},
+        httpClient: MockClient((req) async {
+          if (req.url.path == '/api/v1/refresh') {
+            queries.add(req.url.queryParameters);
+            return http.Response(jsonEncode(reply.toJson()), 200);
+          }
+          return http.Response('not found', 404);
+        }),
+      );
+      return queries;
+    }
+
+    void expectOwnAccount(AuthSession s) {
+      expect(s.accountId, 'acct_own');
+      expect(s.plan, 'pro');
+      expect(s.planExpires, '2099-12-31');
+      expect(s.hasIapPlan, isTrue);
+      expect(s.accountKey, 'key_own');
+      expect(s.defaultCompanyId, 'co_own');
+      expect(s.hostedCompanyCount, 10);
+      expect(s.isPremium, isFalse);
+    }
+
+    void expectOtherAccount(AuthSession s) {
+      expect(s.accountId, 'acct_other');
+      expect(s.plan, 'enterprise');
+      expect(s.planExpires, '2098-06-30');
+      expect(s.hasIapPlan, isFalse);
+      expect(s.accountKey, 'key_other');
+      expect(s.defaultCompanyId, 'co_other');
+      expect(s.hostedCompanyCount, 3);
+      expect(s.isPremium, isTrue);
+    }
+
+    test('a login persists both accounts and takes the active one', () async {
+      await signIn();
+
+      expect(repo.session.value!.currentCompanyId, 'co_own');
+      expectOwnAccount(repo.session.value!);
+      expect((await db.companiesDao.allAccounts()).map((a) => a.id).toSet(), {
+        'acct_own',
+        'acct_other',
+      });
+    });
+
+    test('a switch to a company of the other account swaps the account '
+        'fields, and back', () async {
+      await signIn();
+
+      expect(await repo.switchCompany('co_other'), SwitchCompanyResult.ok);
+      final other = repo.session.value!;
+      expectOtherAccount(other);
+      expect(other.ninjaPortalUrl, 'https://portal.example.com/co_other');
+
+      expect(await repo.switchCompany('co_own'), SwitchCompanyResult.ok);
+      expectOwnAccount(repo.session.value!);
+      expect(
+        repo.session.value!.ninjaPortalUrl,
+        'https://portal.example.com/co_own',
+      );
+    });
+
+    test('a full sync leading with the other account keeps the active '
+        "company's", () async {
+      await signIn();
+      await repo.switchCompany('co_other');
+
+      // data.first is co_own's account; the active company is co_other.
+      final queries = serveRefresh(_twoAccountEnvelope());
+      await repo.refresh(fullSync: true);
+
+      expect(queries.single['current_company'], 'false');
+      expect(repo.session.value!.currentCompanyId, 'co_other');
+      expectOtherAccount(repo.session.value!);
+    });
+
+    test(
+      'a delta refresh keeps the account rows a switch back needs',
+      () async {
+        await signIn();
+        await repo.switchCompany('co_other');
+
+        final queries = serveRefresh(
+          _twoAccountEnvelope(order: const ['co_other']),
+        );
+        await repo.refresh();
+
+        expect(queries.single['current_company'], 'true');
+        expectOtherAccount(repo.session.value!);
+        expect((await db.companiesDao.allAccounts()).map((a) => a.id).toSet(), {
+          'acct_own',
+          'acct_other',
+        });
+
+        await repo.switchCompany('co_own');
+        expectOwnAccount(repo.session.value!);
+      },
+    );
+
+    test('a full sync prunes an account no company references', () async {
+      await signIn();
+
+      serveRefresh(_twoAccountEnvelope(order: const ['co_own']));
+      await repo.refresh(fullSync: true);
+
+      expect((await db.companiesDao.allAccounts()).map((a) => a.id), [
+        'acct_own',
+      ]);
+      expectOwnAccount(repo.session.value!);
+    });
+
+    test("restore reads the active company's account row", () async {
+      await signIn();
+      await repo.switchCompany('co_other');
+
+      final next = AuthRepository(
+        db: db,
+        authService: authService,
+        tokenStorage: storage,
+        passwordCache: PasswordCache(),
+      );
+      await next.restore();
+
+      expect(next.session.value!.currentCompanyId, 'co_other');
+      expectOtherAccount(next.session.value!);
+      expect(next.session.value!.userAccountKey, 'key_own');
+
+      await next.switchCompany('co_own');
+      expectOwnAccount(next.session.value!);
+    });
+
+    test("the realtime key is the user's own account, whichever company is "
+        'active', () async {
+      await signIn();
+      expect(repo.session.value!.userAccountKey, 'key_own');
+
+      await repo.switchCompany('co_other');
+      expect(repo.session.value!.accountKey, 'key_other');
+      expect(repo.session.value!.userAccountKey, 'key_own');
+
+      serveRefresh(_twoAccountEnvelope(order: const ['co_other']));
+      await repo.refresh();
+      expect(repo.session.value!.userAccountKey, 'key_own');
+    });
+  });
+
+  group('resolveUserAccountId', () {
+    test('one account across every company is the user\'s', () {
+      expect(
+        resolveUserAccountId([
+          (accountId: 'a', isOwner: false),
+          (accountId: 'a', isOwner: false),
+        ]),
+        'a',
+      );
+    });
+
+    test('with several, the one the user owns a company in', () {
+      expect(
+        resolveUserAccountId([
+          (accountId: 'a', isOwner: false),
+          (accountId: 'b', isOwner: true),
+          (accountId: 'b', isOwner: false),
+        ]),
+        'b',
+      );
+    });
+
+    test('several and none owned (or more than one) cannot be told', () {
+      expect(
+        resolveUserAccountId([
+          (accountId: 'a', isOwner: false),
+          (accountId: 'b', isOwner: false),
+        ]),
+        isNull,
+      );
+      expect(
+        resolveUserAccountId([
+          (accountId: 'a', isOwner: true),
+          (accountId: 'b', isOwner: true),
+        ]),
+        isNull,
+      );
+      expect(resolveUserAccountId(const []), isNull);
+    });
+  });
+
   group('cross-user isolation on a shared device', () {
     // An involuntary logout (401, or an idle timeout with unsynced work) takes
     // `LocalDataPolicy.keep`, which returns before the wipe. Nothing on
@@ -4239,8 +4493,14 @@ void main() {
       );
     });
 
-    test('a different ACCOUNT signing in wipes it too', () async {
-      authService.queueLogin(_envelope(accountId: 'acct_1'));
+    // An account is not an identity: one user can hold companies of several
+    // accounts, and which one `data.first` carries depends on the call (a
+    // delta leads with the active company, a full sync with `data[0]`). The
+    // wipe used to compare it, and destroyed a multi-account user's queued
+    // work when they signed back in after a 401.
+    test('the SAME user signing back in keeps their queued work even when '
+        'data.first is a company of their other account', () async {
+      authService.queueLogin(_twoAccountEnvelope());
       await repo.login(
         baseUrl: 'https://x',
         isHosted: true,
@@ -4250,7 +4510,9 @@ void main() {
       await seedQueuedWork();
       await repo.logout(data: LocalDataPolicy.keep);
 
-      authService.queueLogin(_envelope(accountId: 'acct_2'));
+      authService.queueLogin(
+        _twoAccountEnvelope(order: const ['co_other', 'co_own']),
+      );
       await repo.login(
         baseUrl: 'https://x',
         isHosted: true,
@@ -4258,7 +4520,44 @@ void main() {
         password: 'pw',
       );
 
+      expect(await outboxRows(), 1);
+    });
+
+    test('the same account under a DIFFERENT user still wipes', () async {
+      authService.queueLogin(
+        _envelope(user: const UserSummaryApi(id: 'user_a')),
+      );
+      await repo.login(
+        baseUrl: 'https://x',
+        isHosted: true,
+        email: 'a@example.com',
+        password: 'pw',
+      );
+      await seedQueuedWork();
+      await repo.logout(data: LocalDataPolicy.keep);
+
+      authService.queueLogin(
+        _twoAccountEnvelope(user: const UserSummaryApi(id: 'user_b')),
+      );
+      await repo.login(
+        baseUrl: 'https://x',
+        isHosted: true,
+        email: 'b@example.com',
+        password: 'pw',
+      );
+
       expect(await outboxRows(), 0);
+    });
+
+    test('no account id is stored for the wipe to compare', () async {
+      authService.queueLogin(_twoAccountEnvelope());
+      await repo.login(
+        baseUrl: 'https://x',
+        isHosted: true,
+        email: 'a@example.com',
+        password: 'pw',
+      );
+      expect(await storage.read(kAuthAccountIdKey), isNull);
     });
 
     test('the SAME user signing back in keeps their queued work', () async {
@@ -4496,7 +4795,6 @@ void main() {
 
         expect(await storage.read(kAuthTokensKey), isNull);
         expect(await storage.read(kAuthUserIdKey), 'user_a');
-        expect(await storage.read(kAuthAccountIdKey), 'acct_1');
         expect(await storage.read(kAuthBaseUrlKey), 'https://x');
         expect(await storage.read(kAuthWipePendingKey), 'true');
       });
@@ -4544,12 +4842,11 @@ void main() {
         repo.onBeforeDataWipe = () async {
           seen
             ..add(await storage.read(kAuthUserIdKey))
-            ..add(await storage.read(kAuthAccountIdKey))
             ..add(await storage.read(kAuthBaseUrlKey));
         };
         await repo.logout(data: LocalDataPolicy.destroy);
 
-        expect(seen, ['user_a', 'acct_1', 'https://x']);
+        expect(seen, ['user_a', 'https://x']);
         expect(await storage.read(kAuthUserIdKey), isNull);
         expect(await storage.read(kAuthBaseUrlKey), isNull);
       });

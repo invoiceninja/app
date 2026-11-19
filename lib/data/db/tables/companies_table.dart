@@ -352,9 +352,10 @@ class Companies extends Table {
   Set<Column> get primaryKey => {id};
 }
 
-/// Account-level info (one row per logged-in user). Stores hosted-vs-self
-/// hosted, plan, trial info, feature flags, etc. — anything that's per-user
-/// rather than per-company.
+/// Account-level info: one row per account the user's companies belong to
+/// (a user can hold companies of several; `companies.account_id` says which).
+/// Stores hosted-vs-self hosted, plan, trial info, feature flags, etc. — the
+/// session takes the active company's row.
 @DataClassName('AccountRow')
 class Accounts extends Table {
   TextColumn get id => text()();
