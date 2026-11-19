@@ -30,6 +30,78 @@ void main() {
         [r'$number_short', r'$client.name'],
       );
     });
+
+    test('a file name splits at the longest known variable, as strtr does', () {
+      // The server's FileNamePattern replaces with strtr, so `$date_` is the
+      // date then an underscore — where the email grammar reads one token.
+      expect(
+        findTemplateVariables(
+          r'$date_$client.name_{$number}',
+          TemplateVariableScope.invoiceFileName,
+        ).map((m) => m.token),
+        [r'$date', r'$client.name', r'$number'],
+      );
+      expect(
+        findTemplateVariables(
+          r'$po_number $numbers',
+          TemplateVariableScope.invoiceFileName,
+        ).map((m) => m.token),
+        [r'$po_number', r'$number'],
+      );
+    });
+  });
+
+  group('file name scopes', () {
+    test('client documents offer client variables, purchase orders vendor', () {
+      for (final scope in [
+        TemplateVariableScope.invoiceFileName,
+        TemplateVariableScope.quoteFileName,
+        TemplateVariableScope.creditFileName,
+      ]) {
+        expect(isTemplateVariableInScope(r'$client.name', scope), isTrue);
+        expect(isTemplateVariableInScope(r'$vendor.name', scope), isFalse);
+        expect(isTemplateVariableInScope(r'$po_number', scope), isTrue);
+      }
+      const po = TemplateVariableScope.purchaseOrderFileName;
+      expect(isTemplateVariableInScope(r'$vendor.name', po), isTrue);
+      expect(isTemplateVariableInScope(r'$client.name', po), isFalse);
+      expect(isTemplateVariableInScope(r'$po_number', po), isFalse);
+    });
+
+    test('a file name variable never reaches an email template', () {
+      // `$entity` and the custom fields are listed only by the file name
+      // scopes; an email template must leave them as plain text, not flag
+      // them "Not available" (the server substitutes them in emails too).
+      for (final scope in TemplateVariableScope.values.where(
+        (s) => !s.isFileName,
+      )) {
+        expect(lookupTemplateVariable(r'$entity', scope), isNull);
+        expect(lookupTemplateVariable(r'$client.custom1', scope), isNull);
+        expect(lookupTemplateVariable(r'$vendor.custom1', scope), isNull);
+      }
+    });
+
+    test('an email-only variable is not a variable in a file name', () {
+      // The server's FileNamePattern doesn't substitute `$amount`; its
+      // character rules strip the `$`, so it is plain text, not a chip.
+      expect(
+        findTemplateVariables(
+          r'$amount $number',
+          TemplateVariableScope.invoiceFileName,
+        ).map((m) => m.token),
+        [r'$number'],
+      );
+    });
+
+    test('every scope offers the number and the document type', () {
+      for (final scope in TemplateVariableScope.values.where(
+        (s) => s.isFileName,
+      )) {
+        expect(isTemplateVariableInScope(r'$number', scope), isTrue);
+        expect(isTemplateVariableInScope(r'$entity', scope), isTrue);
+        expect(isTemplateVariableInScope(r'$company.name', scope), isTrue);
+      }
+    });
   });
 
   group('scopes', () {
@@ -110,6 +182,8 @@ void main() {
             if (v.qualifierKey != null) keys.add(v.qualifierKey!);
           }
         }
+        // A file name scope has no aliases.
+        if (scope.isFileName) continue;
         for (final alias in [r'$view_link', r'$client_name', r'$account']) {
           keys.add(lookupTemplateVariable(alias, scope)!.variable.labelKey);
         }
@@ -154,7 +228,10 @@ void main() {
     });
 
     test('every listed token has engine data or is a statement extra', () {
-      for (final scope in TemplateVariableScope.values) {
+      // A file name scope's variables are its own set, not an engine's.
+      for (final scope in TemplateVariableScope.values.where(
+        (s) => !s.isFileName,
+      )) {
         for (final v in listed(scope)) {
           expect(
             templateVariableEngines.containsKey(v.token) ||

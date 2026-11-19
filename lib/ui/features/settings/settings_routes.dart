@@ -506,6 +506,7 @@ final List<RouteBase> settingsRoutes = [
     path: 'generated_numbers',
     pageKey: 'generated_numbers_shell',
     tabSlugs: const [
+      'file_names',
       'clients',
       'invoices',
       'recurring_invoices',

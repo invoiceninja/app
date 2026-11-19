@@ -125,6 +125,15 @@ abstract class CompanySettingsApi with _$CompanySettingsApi {
     @JsonKey(name: 'shared_invoice_credit_counter')
     bool? sharedInvoiceCreditCounter,
     @JsonKey(name: 'recurring_number_prefix') String? recurringNumberPrefix,
+    // File name patterns (Generated Numbers → File Names): the name of the PDF
+    // and e-invoice a client or vendor receives, from the email-template
+    // variables. Blank keeps the server's default name. docs/file-downloads.md.
+    @JsonKey(name: 'invoice_filename_pattern') String? invoiceFilenamePattern,
+    @JsonKey(name: 'quote_filename_pattern') String? quoteFilenamePattern,
+    @JsonKey(name: 'credit_filename_pattern') String? creditFilenamePattern,
+    @JsonKey(name: 'purchase_order_filename_pattern')
+    String? purchaseOrderFilenamePattern,
+    @JsonKey(name: 'filename_slug') bool? filenameSlug,
     @JsonKey(name: 'reset_counter_frequency_id') int? resetCounterFrequencyId,
     @JsonKey(name: 'reset_counter_date') String? resetCounterDate,
     @JsonKey(name: 'counter_padding') int? counterPadding,
@@ -542,6 +551,7 @@ const Set<String> _settingsBoolKeys = {
   'vendor_portal_enable_uploads',
   'unlock_invoice_documents_after_payment',
   'documents_public_by_default',
+  'filename_slug',
   'show_task_item_description',
   'allow_billable_task_items',
   'task_round_up',

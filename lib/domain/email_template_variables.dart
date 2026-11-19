@@ -52,12 +52,31 @@ enum TemplateVariableScope {
 
   /// `custom1`–`custom3`: sent with invoices, quotes, credits and purchase
   /// orders alike, so any catalogued token may resolve and none is flagged.
-  any(null);
+  any(null),
+
+  /// File name patterns (Settings → Generated Numbers → File Names). The
+  /// server's `FileNamePattern` substitutes its own small set of the
+  /// `HtmlEngine` names, not an engine's — see [isFileName].
+  invoiceFileName(null),
+  quoteFileName(null),
+  creditFileName(null),
+  purchaseOrderFileName(null);
 
   const TemplateVariableScope(this.engine);
 
-  /// Null for [any].
+  /// Null for [any] and the file name scopes.
   final TemplateVariableEngine? engine;
+
+  /// A file name pattern: its variables are [_fileNameTokens], it is split
+  /// into tokens by the longest known variable (the server's `strtr`), and a
+  /// token needs no space after it (`$number_$client.name`).
+  bool get isFileName => switch (this) {
+    invoiceFileName ||
+    quoteFileName ||
+    creditFileName ||
+    purchaseOrderFileName => true,
+    _ => false,
+  };
 }
 
 /// One catalogued variable, as a picker row / chip label.
@@ -108,11 +127,30 @@ final RegExp kTemplateVariablePattern = RegExp(
   r'\$[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z0-9_]+)*',
 );
 
-/// Every `$token` in [text], in order.
-List<TemplateVariableMatch> findTemplateVariables(String text) => [
-  for (final m in kTemplateVariablePattern.allMatches(text))
+/// Every `$token` in [text], in order. In a file name [scope] the tokens are
+/// that scope's variables, longest first, as the server's `strtr` reads them —
+/// so `$number_$client.name` is two variables and an underscore, where the
+/// email grammar would read `$number_` as one unknown token.
+List<TemplateVariableMatch> findTemplateVariables(
+  String text, [
+  TemplateVariableScope? scope,
+]) => [
+  for (final m
+      in (scope != null && scope.isFileName
+              ? _fileNamePatternFor(scope)
+              : kTemplateVariablePattern)
+          .allMatches(text))
     (start: m.start, end: m.end, token: m.group(0)!),
 ];
+
+final Map<TemplateVariableScope, RegExp> _fileNamePatterns = {};
+
+RegExp _fileNamePatternFor(TemplateVariableScope scope) =>
+    _fileNamePatterns.putIfAbsent(scope, () {
+      final tokens = _fileNameTokens(scope).toList()
+        ..sort((a, b) => b.length.compareTo(a.length));
+      return RegExp(tokens.map(RegExp.escape).join('|'));
+    });
 
 /// Scope for a Settings → Templates & Reminders template id.
 TemplateVariableScope templateVariableScopeForTemplate(String templateId) =>
@@ -198,12 +236,60 @@ List<TemplateVariableGroup> templateVariableGroups(
     _contactGroup,
     _companyGroup,
   ],
+  TemplateVariableScope.invoiceFileName => const [
+    TemplateVariableGroup('invoice', [
+      TemplateVariable(r'$number', 'invoice_number'),
+      _fileNameEntity,
+      TemplateVariable(r'$date', 'invoice_date'),
+      TemplateVariable(r'$due_date', 'due_date'),
+      TemplateVariable(r'$po_number', 'po_number'),
+    ]),
+    _fileNameClientGroup,
+    _fileNameContactGroup,
+    _fileNameCompanyGroup,
+  ],
+  TemplateVariableScope.quoteFileName => const [
+    TemplateVariableGroup('quote', [
+      TemplateVariable(r'$number', 'quote_number'),
+      _fileNameEntity,
+      TemplateVariable(r'$date', 'quote_date'),
+      TemplateVariable(r'$due_date', 'quote_due_date'),
+      TemplateVariable(r'$po_number', 'po_number'),
+    ]),
+    _fileNameClientGroup,
+    _fileNameContactGroup,
+    _fileNameCompanyGroup,
+  ],
+  TemplateVariableScope.creditFileName => const [
+    TemplateVariableGroup('credit', [
+      TemplateVariable(r'$number', 'credit_number'),
+      _fileNameEntity,
+      TemplateVariable(r'$date', 'credit_date'),
+      TemplateVariable(r'$due_date', 'due_date'),
+      TemplateVariable(r'$po_number', 'po_number'),
+    ]),
+    _fileNameClientGroup,
+    _fileNameContactGroup,
+    _fileNameCompanyGroup,
+  ],
+  TemplateVariableScope.purchaseOrderFileName => const [
+    TemplateVariableGroup('purchase_order', [
+      TemplateVariable(r'$number', 'purchase_order_number'),
+      _fileNameEntity,
+      TemplateVariable(r'$date', 'purchase_order_date'),
+      TemplateVariable(r'$due_date', 'due_date'),
+    ]),
+    _fileNameVendorGroup,
+    _fileNameContactGroup,
+    _fileNameCompanyGroup,
+  ],
 };
 
 /// Whether the engine that renders [scope] substitutes [token]. Answers only
 /// for catalogued tokens; anything else is `false` (unknown to the app, which
 /// makes no claim about it — callers leave such text alone).
 bool isTemplateVariableInScope(String token, TemplateVariableScope scope) {
+  if (scope.isFileName) return _fileNameTokens(scope).contains(token);
   if (_extrasFor(scope).contains(token)) return true;
   final engine = scope.engine;
   // `any` never flags a catalogued token — including the statement extras,
@@ -222,7 +308,11 @@ TemplateVariableLookup? lookupTemplateVariable(
   TemplateVariableScope scope,
 ) {
   var variable = _indexFor(scope)[token];
-  for (final other in TemplateVariableScope.values) {
+  // Only the same kind of scope: a file name's `$entity` is no email
+  // template's variable, and would flag as "Not available" in one.
+  for (final other in TemplateVariableScope.values.where(
+    (s) => s.isFileName == scope.isFileName,
+  )) {
     if (variable != null) break;
     variable = _indexFor(other)[token];
   }
@@ -649,10 +739,52 @@ const _vendorGroup = TemplateVariableGroup('vendor', [
   TemplateVariable(r'$vendor.id_number', 'id_number', qualifierKey: 'vendor'),
 ]);
 
+// ── File names ───────────────────────────────────────────────────────────────
+
+/// The variables the server's `FileNamePattern` substitutes for [scope] — the
+/// `HtmlEngine` names, the client ones for invoices, quotes and credits and the
+/// vendor ones for purchase orders. Every listed token of a file name scope.
+Set<String> _fileNameTokens(TemplateVariableScope scope) => {
+  for (final group in templateVariableGroups(scope))
+    for (final v in group.variables) v.token,
+};
+
+const _fileNameEntity = TemplateVariable(r'$entity', 'document_type');
+
+const _fileNameClientGroup = TemplateVariableGroup('client', [
+  TemplateVariable(r'$client.name', 'client_name'),
+  TemplateVariable(r'$client.number', 'client_number'),
+  TemplateVariable(r'$client.id_number', 'client_id_number'),
+  TemplateVariable(r'$client.custom1', 'client1'),
+  TemplateVariable(r'$client.custom2', 'client2'),
+  TemplateVariable(r'$client.custom3', 'client3'),
+  TemplateVariable(r'$client.custom4', 'client4'),
+]);
+
+const _fileNameVendorGroup = TemplateVariableGroup('vendor', [
+  TemplateVariable(r'$vendor.name', 'name', qualifierKey: 'vendor'),
+  TemplateVariable(r'$vendor.number', 'vendor_number'),
+  TemplateVariable(r'$vendor.id_number', 'id_number', qualifierKey: 'vendor'),
+  TemplateVariable(r'$vendor.custom1', 'vendor1'),
+  TemplateVariable(r'$vendor.custom2', 'vendor2'),
+  TemplateVariable(r'$vendor.custom3', 'vendor3'),
+  TemplateVariable(r'$vendor.custom4', 'vendor4'),
+]);
+
+const _fileNameContactGroup = TemplateVariableGroup('contact', [
+  TemplateVariable(r'$contact.first_name', 'contact_first_name'),
+  TemplateVariable(r'$contact.last_name', 'contact_last_name'),
+]);
+
+const _fileNameCompanyGroup = TemplateVariableGroup('company', [
+  TemplateVariable(r'$company.name', 'company_name'),
+]);
+
 /// Tokens the server treats as synonyms of a listed one. They render as chips
 /// (the PO default subject uses `$account`) but are kept out of the picker so
 /// the same field isn't offered twice.
 List<TemplateVariable> _aliasesFor(TemplateVariableScope scope) {
+  if (scope.isFileName) return const [];
   final viewLabel = switch (scope) {
     TemplateVariableScope.quote => 'view_quote',
     TemplateVariableScope.credit => 'view_credit',

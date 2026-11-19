@@ -298,7 +298,7 @@ class TemplateVariableFieldShellState
     // Appending gets a space from the text before it; at the caret the
     // user put the caret exactly where they want the token.
     final lead = !atCaret && before.trim().isNotEmpty ? ' ' : '';
-    final trail = _continuesToken(after) ? ' ' : '';
+    final trail = _needsSpaceBefore(after) ? ' ' : '';
     final insert = '$lead${pick.token}$trail';
     final text = source.replaceRange(start, end, insert);
     final caret = start + insert.length;
@@ -315,7 +315,7 @@ class TemplateVariableFieldShellState
     if (!_live) return;
     final text = _currentSource();
     final caret = widget.controller.selection.baseOffset;
-    for (final m in findTemplateVariables(text)) {
+    for (final m in findTemplateVariables(text, _scope)) {
       if (caret >= m.start &&
           caret <= m.end &&
           lookupTemplateVariable(m.token, _scope) != null) {
@@ -328,7 +328,7 @@ class TemplateVariableFieldShellState
 
   (String, int) _replaced(String s, TemplateVariableMatch m, String token) {
     final after = m.end < s.length ? s[m.end] : '';
-    final insert = '$token${_continuesToken(after) ? ' ' : ''}';
+    final insert = '$token${_needsSpaceBefore(after) ? ' ' : ''}';
     return (s.replaceRange(m.start, m.end, insert), m.start + insert.length);
   }
 
@@ -345,6 +345,13 @@ class TemplateVariableFieldShellState
 
   static bool _continuesToken(String char) =>
       char.isNotEmpty && RegExp(r'[A-Za-z0-9_]').hasMatch(char);
+
+  /// Whether a token placed before [char] needs a space to stay a token. A
+  /// file name pattern is split by the longest known variable, so
+  /// `$number_x` already ends at the variable — and a space there would be in
+  /// the file name.
+  bool _needsSpaceBefore(String char) =>
+      !_scope.isFileName && _continuesToken(char);
 
   void _commit(String text, int caret, {required String undoMessageKey}) {
     final previous = widget.controller.value;
@@ -495,7 +502,7 @@ class TemplateVariableFieldShellState
     }
 
     final values = _values;
-    for (final m in findTemplateVariables(source)) {
+    for (final m in findTemplateVariables(source, _scope)) {
       final display = describeTemplateVariable(
         context,
         m.token,

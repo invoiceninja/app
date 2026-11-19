@@ -4,9 +4,12 @@ import 'package:provider/provider.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/data/models/domain/company.dart';
 import 'package:admin/data/models/domain/enabled_modules.dart';
+import 'package:admin/domain/file_name_pattern.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/features/settings/state/settings_level_controller.dart';
 import 'package:admin/ui/features/settings/view_models/generated_numbers_view_model.dart';
 import 'package:admin/ui/features/settings/views/advanced/generated_numbers/bodies/entity_body.dart';
+import 'package:admin/ui/features/settings/views/advanced/generated_numbers/bodies/file_names_body.dart';
 import 'package:admin/ui/features/settings/views/advanced/generated_numbers/bodies/settings_body.dart';
 import 'package:admin/ui/features/settings/widgets/cascade_tabbed_settings_shell.dart';
 import 'package:admin/ui/features/settings/widgets/plan_gate_banner.dart';
@@ -53,6 +56,8 @@ class GeneratedNumbersShell extends StatelessWidget {
   Widget _buildShell(BuildContext context, Company company, String companyId) {
     final modules = company.enabledModules;
     bool isOn(EnabledModule m) => isModuleEnabled(modules, m);
+    final level = context.watch<SettingsLevelController>();
+    final cascade = level.isClient || level.isGroup;
 
     // Every per-entity tab shares slug == labelKey == titleKey and threads the
     // active `company` (for the custom-field chip gating) plus a stable
@@ -92,6 +97,26 @@ class GeneratedNumbersShell extends StatelessWidget {
           showSharedCreditCounter: isOn(EnabledModule.credits),
         ),
       ),
+      // File names appear once the server supports them: its company settings
+      // carry the keys (`fileNamePatternsSupported`). The purchase order one
+      // is company-only, so at group / client scope it alone is no tab.
+      if (fileNamePatternsSupported(company.rawSettings) &&
+          (isOn(EnabledModule.invoices) ||
+              isOn(EnabledModule.quotes) ||
+              isOn(EnabledModule.credits) ||
+              (isOn(EnabledModule.purchaseOrders) && !cascade)))
+        TabbedSettingsTab(
+          slug: 'file_names',
+          labelKey: 'file_names',
+          body: GeneratedNumbersFileNamesBody(
+            key: const ValueKey('file_names'),
+            company: company,
+            showInvoices: isOn(EnabledModule.invoices),
+            showQuotes: isOn(EnabledModule.quotes),
+            showCredits: isOn(EnabledModule.credits),
+            showPurchaseOrders: isOn(EnabledModule.purchaseOrders),
+          ),
+        ),
       entityTab(
         slug: 'clients',
         patternKey: 'client_number_pattern',
@@ -190,6 +215,9 @@ class GeneratedNumbersShell extends StatelessWidget {
     final patternError = context
         .tr('counter_pattern_error')
         .replaceAll(':', r'$');
+    final fileNameError = context.tr('file_name_number_required', {
+      'variable': r'$number',
+    });
 
     return CascadeTabbedSettingsShell(
       titleKey: 'generated_numbers',
@@ -200,6 +228,7 @@ class GeneratedNumbersShell extends StatelessWidget {
             repo: repo,
             companyId: companyId,
             patternError: patternError,
+            fileNameError: fileNameError,
           ),
       banner: const PlanGateBanner(style: PlanGateStyle.stripe),
       tabs: tabs,

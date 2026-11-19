@@ -10,11 +10,13 @@ import 'package:admin/data/models/domain/company.dart';
 import 'package:admin/data/models/domain/enabled_modules.dart';
 import 'package:admin/data/repositories/auth/auth_session.dart';
 import 'package:admin/domain/companion_apps.dart';
+import 'package:admin/domain/file_name_pattern.dart';
 import 'package:admin/domain/terminal/terminal_eligibility.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/l10n/tap_to_pay_names.dart';
 import 'package:admin/ui/features/bank_accounts/views/bank_account_list_screen.dart';
 import 'package:admin/ui/features/settings/state/settings_level_controller.dart';
+import 'package:admin/ui/features/settings/views/advanced/generated_numbers/bodies/file_names_body.dart';
 import 'package:admin/ui/features/settings/views/advanced/generated_numbers/bodies/settings_body.dart';
 import 'package:admin/ui/features/settings/views/advanced/invoice_design/bodies/general_settings_body.dart';
 import 'package:admin/ui/features/settings/views/advanced/tags_screen.dart';
@@ -615,6 +617,31 @@ bool _peppolStatusShown(SettingsSearchScope? scope) =>
 bool _documentsPublicByDefaultShown(SettingsSearchScope? scope) =>
     scope?.supportsDocumentsPublicByDefault ?? true;
 
+/// Generated Numbers → File Names: a field shows when the server supports
+/// file names and its document's module is on; the purchase order one at
+/// company scope only, like `GeneratedNumbersFileNamesBody`.
+bool _fileNameShown(
+  SettingsSearchScope? scope,
+  EnabledModule? module, {
+  bool companyOnly = false,
+}) {
+  if (scope == null) return true;
+  if (!scope.supportsFileNamePatterns) return false;
+  if (companyOnly && scope.isCascade) return false;
+  return module == null || isModuleEnabled(scope.enabledModules, module);
+}
+
+bool _invoiceFileNameShown(SettingsSearchScope? scope) =>
+    _fileNameShown(scope, EnabledModule.invoices);
+bool _quoteFileNameShown(SettingsSearchScope? scope) =>
+    _fileNameShown(scope, EnabledModule.quotes);
+bool _creditFileNameShown(SettingsSearchScope? scope) =>
+    _fileNameShown(scope, EnabledModule.credits);
+bool _purchaseOrderFileNameShown(SettingsSearchScope? scope) =>
+    _fileNameShown(scope, EnabledModule.purchaseOrders, companyOnly: true);
+bool _fileNameSlugShown(SettingsSearchScope? scope) =>
+    _fileNameShown(scope, null);
+
 /// Payment Settings' setup card (`PaymentSetupSection`): at company scope the
 /// gateways row reads Company Gateways — or Add Payment Gateway with none —
 /// beside a Payment Types row; at group / client scope it is one row, Gateway
@@ -1057,6 +1084,24 @@ const kSettingsSearchCatalog = <String, List<SettingsSearchTab>>{
       kGeneratedNumbersSettingsSearchKeys,
       titleKey: 'settings',
     ),
+    SettingsSearchTab(
+      'file_names',
+      kGeneratedNumbersFileNamesSearchKeys,
+      titleKey: 'file_names',
+      enabledBy: [
+        EnabledModule.invoices,
+        EnabledModule.quotes,
+        EnabledModule.credits,
+        EnabledModule.purchaseOrders,
+      ],
+      keyGates: {
+        'invoice_filename_pattern': _invoiceFileNameShown,
+        'quote_filename_pattern': _quoteFileNameShown,
+        'credit_filename_pattern': _creditFileNameShown,
+        'purchase_order_filename_pattern': _purchaseOrderFileNameShown,
+        'filename_slug': _fileNameSlugShown,
+      },
+    ),
     SettingsSearchTab('clients', [
       'client_number',
       ..._kGeneratedNumbersEntityKeys,
@@ -1281,7 +1326,8 @@ const kSettingsSearchKeywords = <String, String>{
   'invoice_design': 'pdf template layout theme fonts',
   'invoice_design/custom_designs': 'template html pdf custom layout',
   'custom_fields': 'extra fields metadata',
-  'generated_numbers': 'invoice number counter pattern prefix sequence',
+  'generated_numbers':
+      'invoice number counter pattern prefix sequence file name filename pdf attachment download rename',
   'client_portal': 'customer portal self service domain',
   'client_portal/authorization': 'login password protect access',
   'client_portal/registration': 'signup self register',
@@ -1315,6 +1361,7 @@ class SettingsSearchScope {
     this.showsWordPressPlugin = true,
     this.showsChromeExtension = true,
     this.supportsDocumentsPublicByDefault = true,
+    this.supportsFileNamePatterns = true,
     this.activeGatewayCount,
   });
 
@@ -1346,6 +1393,9 @@ class SettingsSearchScope {
         serverVersion,
         isHosted: session?.isHosted ?? false,
       ),
+      // Null (not loaded yet) hides the File Names fields, as their tab is.
+      supportsFileNamePatterns:
+          company != null && fileNamePatternsSupported(company.rawSettings),
       activeGatewayCount: activeGatewayCount,
     );
   }
@@ -1381,6 +1431,11 @@ class SettingsSearchScope {
   /// Whether the server applies `documents_public_by_default`, the one case
   /// the Documents tab shows its toggle (`documentsPublicByDefaultSupported`).
   final bool supportsDocumentsPublicByDefault;
+
+  /// Whether the server supports file name patterns: the company's settings
+  /// carry the keys (`fileNamePatternsSupported`), as Generated Numbers' File
+  /// Names tab requires.
+  final bool supportsFileNamePatterns;
 
   /// The company's active gateways, which decide the Payment Settings row's
   /// label: Company Gateways, or Add Payment Gateway when there are none.

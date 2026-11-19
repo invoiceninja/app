@@ -157,3 +157,59 @@ server-name sanitizer), `test/data/services/api_client_raw_file_name_test.dart`,
 `test/ui/core/utils/save_bytes_test.dart`,
 `test/ui/features/billing_shared/billing_doc_pdf_view_test.dart`,
 `test/ui/features/billing_shared/billing_doc_file_name_test.dart`.
+
+## A file name pattern is the email-template field with a file name scope, and its tab appears only once the server carries the keys
+
+Settings → Generated Numbers → **File Names** edits `invoice_filename_pattern`,
+`quote_filename_pattern`, `credit_filename_pattern`,
+`purchase_order_filename_pattern` and `filename_slug` (server PR
+invoiceninja/invoiceninja#13474, discussion #12610).
+
+**When it shows.** `fileNamePatternsSupported` (`lib/domain/file_name_pattern.dart`):
+the company's raw settings carry `invoice_filename_pattern`. The server's
+`CompanySettingsSaver` rebuilds settings from `CompanySettings::defaults()` plus
+the input on every company save, so a server with the feature has the keys after
+the company's next settings save, and a server without it never does. No version
+check: hosted reports a version that lags, and `ServerFeatures.supports` is
+always true there. The settings search gates the fields on the same fact
+(`SettingsSearchScope.supportsFileNamePatterns`).
+
+**The field is the email-template one.** Each pattern is an
+`OverridableTextField(templateVariables:)` with a file name
+`TemplateVariableScope` (`invoiceFileName` … `purchaseOrderFileName`): chips at
+rest, Insert variable, the override box. The variables are the HtmlEngine names
+the server's `FileNamePattern` substitutes — the client ones for invoices,
+quotes and credits, the vendor ones for purchase orders — held as each scope's
+own groups, not in `_kEngines` (the PHP engine oracle cannot see one class's two
+branches). Two things differ from an email field:
+
+- **Tokens are split by the longest known variable** (`findTemplateVariables(text, scope)`),
+  as the server's `strtr` reads them: `$date_$client.name_$number` is three
+  variables, where the email grammar reads `$date_` as one unknown token.
+- **No space is added after an inserted variable** (`_needsSpaceBefore`): it
+  would end up in the file name.
+
+**The rules.** A pattern must contain `$number` (the server ignores one without
+it): the field shows the error once it is left, and a company-scope save of a
+shown field is blocked (`GeneratedNumbersViewModel.preSaveError`; at group /
+client scope it warns only, like the number patterns). The purchase order field
+is company only (vendors have no client or group settings), so at those scopes a
+purchase-order-only company has no tab. Blank is the server's default name,
+shown as its example (`Invoice_0042.pdf`); Presets → Default writes it, and is
+not offered at group / client scope, where blank means inherit. The switch's
+subtitle says when there is nothing for it to change: the server simplifies only
+custom names.
+
+**The example is a port, not the name.** The "e.g." line under each field and
+the switch's subtitle come from `fileNameExample` over sample values (only that document's variables), mirroring the server's resolver
+and pinned by the server test's own expectations
+(`test/domain/file_name_pattern_test.dart`). It is close, not identical: Latin
+accents fold to plain letters, where the server folds by the client's language
+(ü → ue in German), and other scripts (Cyrillic, Greek…) are dropped where the
+server transliterates them — so a type label with no Latin letters shows in
+English. A real download takes the server's name (the section above).
+
+**A tab can appear while the page is open.** The first company save on an
+upgraded server brings the keys in through the save echo, so the tab list grows
+under a mounted shell; `CascadeTabbedSettingsShell.didUpdateWidget` replaces
+the `TabController` (its length is fixed) and keeps the user on their tab.

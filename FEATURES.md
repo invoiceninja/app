@@ -257,7 +257,7 @@ the honest default.
 | Invoice — run template (one invoice or a list selection; the PDF opens in the app or is emailed to you) | ✅ | ✅ | ✅ | | docs/running-a-template.md |
 | Invoice — auto-bill with gateway | ✅ | ✅ | ✅ | ✅ | |
 | Invoice — view / download PDF | ✅ | ✅ | ✅ | ✅ | |
-| Billing documents — a download takes the server's file name (the one its email and portal carry) | ✅ | ❌ | ✅ | | docs/file-downloads.md |
+| Billing documents — a download takes the server's file name (the one its email and portal carry) | ✅ | ❌ | ✅ | | |
 | Invoice — PDF version history (older versions) | ✅ | ✅ | ✅ | | |
 | Invoice — print | ✅ | ✅ | ✅ | ✅ | |
 | Invoice — audit trail / history | ✅ | ✅ | ✅ | ✅ | |
@@ -1472,6 +1472,7 @@ Field-level breakdown of every option under each advanced settings panel. Source
 
 | Feature | React | Flutter v1 | Flutter v2 | AI review | Live E2E |
 |---|---|---|---|---|---|
+| File Names — PDF / e-invoice file name pattern per document type, presets, simplified names (shown once the server supports it, invoiceninja/invoiceninja#13474) | — | — | ✅ | | |
 | Client Number — pattern + counter + reset | ✅ | ✅ | ✅ | ✅ | |
 | Invoice Number — pattern + counter + reset | ✅ | ✅ | ✅ | ✅ | |
 | Recurring Invoice Number | ✅ | ✅ | ✅ | ✅ | |

@@ -48,7 +48,7 @@ class TemplateVariableTextController extends TextEditingController {
     final matches = composing
         ? const <TemplateVariableMatch>[]
         : [
-            for (final m in findTemplateVariables(text))
+            for (final m in findTemplateVariables(text, _scope))
               if (lookupTemplateVariable(m.token, _scope) != null) m,
           ];
     if (matches.isEmpty) {

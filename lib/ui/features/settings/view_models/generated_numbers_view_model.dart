@@ -1,4 +1,6 @@
 import 'package:admin/data/models/domain/company.dart';
+import 'package:admin/data/models/domain/enabled_modules.dart';
+import 'package:admin/domain/file_name_pattern.dart';
 import 'package:admin/ui/features/settings/view_models/settings_draft_view_model.dart';
 import 'package:admin/ui/features/settings/views/advanced/generated_numbers/generated_numbers_validation.dart';
 import 'package:admin/ui/features/settings/widgets/settings_field_bindings.dart';
@@ -21,12 +23,17 @@ class GeneratedNumbersViewModel extends SettingsDraftViewModel {
     required super.repo,
     required super.companyId,
     required this.patternError,
+    required this.fileNameError,
   });
 
   /// Localized "{$client_counter} needs a distinguishing token" message.
   /// Captured in the shell where a `BuildContext` is available — this VM has
   /// none, and [preSaveError] is called off the UI by the save lifecycle.
   final String patternError;
+
+  /// Localized "Add $number so each document gets its own file name." — a
+  /// file name pattern without it is one the server ignores.
+  final String fileNameError;
 
   @override
   String? preSaveError(Company draft) {
@@ -35,6 +42,23 @@ class GeneratedNumbersViewModel extends SettingsDraftViewModel {
         settingsBindingOf(key).read(draft.settings),
       ),
     );
-    return violates ? patternError : null;
+    if (violates) return patternError;
+    // Only a field the page shows: a hidden one could never be fixed there.
+    final missingNumber = kFileNamePatternKeys.any(
+      (key) =>
+          isModuleEnabled(draft.enabledModules, _kFileNameModules[key]!) &&
+          fileNamePatternMissingNumber(
+            settingsBindingOf(key).read(draft.settings),
+          ),
+    );
+    return missingNumber ? fileNameError : null;
   }
 }
+
+/// The module whose document each file name pattern names.
+const _kFileNameModules = {
+  'invoice_filename_pattern': EnabledModule.invoices,
+  'quote_filename_pattern': EnabledModule.quotes,
+  'credit_filename_pattern': EnabledModule.credits,
+  'purchase_order_filename_pattern': EnabledModule.purchaseOrders,
+};

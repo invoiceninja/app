@@ -475,6 +475,23 @@ const Map<String, SettingOverrideSpec> kSettingOverrideSpecs = {
     'recurring_prefix',
     'generated_numbers',
   ),
+  'invoice_filename_pattern': SettingOverrideSpec(
+    'invoice_filename_pattern',
+    'generated_numbers',
+  ),
+  'quote_filename_pattern': SettingOverrideSpec(
+    'quote_filename_pattern',
+    'generated_numbers',
+  ),
+  'credit_filename_pattern': SettingOverrideSpec(
+    'credit_filename_pattern',
+    'generated_numbers',
+  ),
+  'purchase_order_filename_pattern': SettingOverrideSpec(
+    'purchase_order_filename_pattern',
+    'generated_numbers',
+  ),
+  'filename_slug': SettingOverrideSpec('filename_slug', 'generated_numbers'),
   'shared_invoice_quote_counter': SettingOverrideSpec(
     'shared_invoice_quote_counter',
     'generated_numbers',

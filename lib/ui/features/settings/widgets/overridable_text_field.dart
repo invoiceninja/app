@@ -42,6 +42,7 @@ class OverridableTextField extends StatefulWidget {
     this.templateVariables,
     this.defaultValue,
     this.textDirection,
+    this.errorText,
   });
 
   final String label;
@@ -105,6 +106,10 @@ class OverridableTextField extends StatefulWidget {
   /// keyboard, or [obscureToggle], is LTR (and sits at the ambient start, see
   /// `ltrValueAlign`); anything else follows the locale.
   final TextDirection? textDirection;
+
+  /// An error the page computes from the value (a file name pattern without
+  /// `$number`); the server's own 422 error for the field wins over it.
+  final String? errorText;
 
   @override
   State<OverridableTextField> createState() => _OverridableTextFieldState();
@@ -211,7 +216,7 @@ class _OverridableTextFieldState extends State<OverridableTextField> {
     final errors = host.fieldErrors[widget.apiKey];
     final errorText = (errors != null && errors.isNotEmpty)
         ? errors.first
-        : null;
+        : widget.errorText;
     final templateScope = widget.templateVariables;
     final canResetToDefault =
         templateScope != null &&
@@ -224,6 +229,10 @@ class _OverridableTextFieldState extends State<OverridableTextField> {
       hintText: widget.hintText,
       helperText: widget.helperText,
       errorText: errorText,
+      // Wrap rather than cut off at phone width: an example file name or a
+      // validation message can run past one line.
+      helperMaxLines: 3,
+      errorMaxLines: 3,
       suffixIcon: widget.obscureToggle
           ? IconButton(
               icon: Icon(

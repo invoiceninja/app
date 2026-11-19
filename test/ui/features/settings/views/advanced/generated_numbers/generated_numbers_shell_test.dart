@@ -26,6 +26,7 @@ import 'package:admin/ui/features/settings/view_models/generated_numbers_view_mo
 import 'package:admin/ui/features/settings/views/advanced/e_invoice/e_invoice_constants.dart';
 import 'package:admin/ui/features/settings/views/advanced/generated_numbers/generated_numbers_shell.dart';
 import 'package:admin/ui/features/settings/widgets/segmented_choice_field.dart';
+import 'package:admin/utils/bidi.dart';
 
 import '../../../../../../_localization_helper.dart';
 
@@ -35,10 +36,12 @@ class _StubCompanyRepo extends CompanyRepository {
   _StubCompanyRepo({
     required super.db,
     required super.api,
-    required this.company,
-  });
+    required Company company,
+  }) : _latest = company;
 
-  final Company company;
+  /// The company every new `watchCompany` subscriber gets — the last one
+  /// [emit]ted, as a real Drift watch would replay.
+  Company _latest;
   final _controllers = <String, StreamController<Company?>>{};
 
   /// Set when `updateCompany` is invoked — lets a test assert that an aborted
@@ -52,9 +55,18 @@ class _StubCompanyRepo extends CompanyRepository {
       StreamController<Company?>.broadcast,
     );
     Future.microtask(() {
-      if (!c.isClosed) c.add(company);
+      if (!c.isClosed) c.add(_latest);
     });
     return c.stream;
+  }
+
+  /// Pushes [next] to every open `watchCompany` stream — a save echo or a
+  /// `/refresh` changing the company under a mounted page.
+  void emit(Company next) {
+    _latest = next;
+    for (final c in _controllers.values) {
+      if (!c.isClosed) c.add(next);
+    }
   }
 
   @override
@@ -196,6 +208,7 @@ void main() {
   late _FakeCompaniesApi companiesApi;
   late _FakeClientsApi clientsApi;
   late ClientRepository clientRepo;
+  late _StubCompanyRepo stubRepo;
 
   setUp(() {
     db = AppDatabase(NativeDatabase.memory());
@@ -210,6 +223,7 @@ void main() {
 
   Services makeServices({required Company company}) {
     final repo = _StubCompanyRepo(db: db, api: companiesApi, company: company);
+    stubRepo = repo;
     return _FakeServices(
       auth: _FakeAuth(ValueNotifier(_session())),
       company: repo,
@@ -583,6 +597,202 @@ void main() {
         find.widgetWithText(SegmentedChoiceField<String>, 'Generate Number'),
       );
 
+  group('File Names', () {
+    // The server writes every key it knows into a company's settings on save,
+    // so the keys being there is how the app knows the server names files.
+    const supported = {'invoice_filename_pattern': ''};
+
+    Finder tab(String label) =>
+        find.descendant(of: find.byType(Tab), matching: find.text(label));
+
+    testWidgets('no tab until the server supports file names', (tester) async {
+      await tester.pumpWidget(
+        _host(
+          services: makeServices(
+            company: Company(
+              id: 'co-A',
+              enabledModules: EnabledModule.invoices.bitmask,
+            ),
+          ),
+        ),
+      );
+      await settle(tester);
+      expect(tab('File Names'), findsNothing);
+      await tester.pumpWidget(const SizedBox.shrink());
+    });
+
+    testWidgets('a field per enabled document, and the switch', (tester) async {
+      await pumpOnTab(
+        tester,
+        company: Company(
+          id: 'co-A',
+          enabledModules:
+              EnabledModule.invoices.bitmask | EnabledModule.quotes.bitmask,
+          rawSettings: supported,
+        ),
+        tabLabel: 'File Names',
+      );
+      expect(find.text('Invoice File Name'), findsWidgets);
+      expect(find.text('Quote File Name'), findsWidgets);
+      expect(find.text('Credit File Name'), findsNothing);
+      expect(find.text('Purchase Order File Name'), findsNothing);
+      expect(find.text('Simplified File Names'), findsWidgets);
+      await tester.pumpWidget(const SizedBox.shrink());
+    });
+
+    testWidgets(r'a pattern without $number says so', (tester) async {
+      await pumpOnTab(
+        tester,
+        company: Company(
+          id: 'co-A',
+          enabledModules: EnabledModule.invoices.bitmask,
+          rawSettings: supported,
+          settings: const CompanySettings(
+            invoiceFilenamePattern: r'$client.name - $entity',
+          ),
+        ),
+        tabLabel: 'File Names',
+      );
+      expect(
+        find.text(
+          'Add Invoice Number so each document gets its own file name.',
+        ),
+        findsOneWidget,
+      );
+      await tester.pumpWidget(const SizedBox.shrink());
+    });
+
+    testWidgets('a set pattern shows an example of the name it gives', (
+      tester,
+    ) async {
+      await pumpOnTab(
+        tester,
+        company: Company(
+          id: 'co-A',
+          enabledModules: EnabledModule.invoices.bitmask,
+          rawSettings: supported,
+          settings: const CompanySettings(
+            name: 'Widgets Inc',
+            invoiceFilenamePattern: r'$company.name - $entity - $number',
+          ),
+        ),
+        tabLabel: 'File Names',
+      );
+      expect(
+        find.text('e.g. ${ltrIsolate('Widgets Inc - Invoice - 0042.pdf')}'),
+        findsOneWidget,
+      );
+      await tester.pumpWidget(const SizedBox.shrink());
+    });
+
+    testWidgets('Presets name each choice by the file it gives', (
+      tester,
+    ) async {
+      await pumpOnTab(
+        tester,
+        company: Company(
+          id: 'co-A',
+          enabledModules: EnabledModule.invoices.bitmask,
+          rawSettings: supported,
+          settings: const CompanySettings(name: 'Widgets Inc'),
+        ),
+        tabLabel: 'File Names',
+      );
+      // Blank is the server's default name, and says which.
+      expect(
+        find.text('e.g. ${ltrIsolate('Invoice_0042.pdf')}'),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.text('Presets'));
+      await tester.pumpAndSettle();
+      expect(find.text('Set every file name to'), findsOneWidget);
+      expect(find.text('Invoice_0042.pdf'), findsOneWidget);
+      expect(find.text('0042.pdf'), findsOneWidget);
+      expect(find.text('Widgets Inc - Invoice - 0042.pdf'), findsOneWidget);
+      expect(
+        find.text('Company Name - Document Type - Invoice Number'),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.text('0042.pdf'));
+      await tester.pumpAndSettle();
+      expect(find.text('e.g. ${ltrIsolate('0042.pdf')}'), findsOneWidget);
+      await tester.pumpWidget(const SizedBox.shrink());
+    });
+
+    testWidgets('the tab appears on an open page when the keys arrive', (
+      tester,
+    ) async {
+      // The first save on an upgraded server echoes settings carrying the new
+      // keys while the page is open: the tab list grows under the controller.
+      const before = Company(id: 'co-A');
+      await tester.pumpWidget(
+        _host(
+          services: makeServices(
+            company: before.copyWith(
+              enabledModules: EnabledModule.invoices.bitmask,
+            ),
+          ),
+        ),
+      );
+      await settle(tester);
+      expect(tab('File Names'), findsNothing);
+
+      stubRepo.emit(
+        before.copyWith(
+          enabledModules: EnabledModule.invoices.bitmask,
+          rawSettings: supported,
+        ),
+      );
+      await settle(tester);
+      expect(tester.takeException(), isNull);
+      expect(tab('File Names'), findsOneWidget);
+      await tester.tap(tab('File Names'));
+      await tester.pumpAndSettle();
+      expect(find.text('Invoice File Name'), findsWidgets);
+      await tester.pumpWidget(const SizedBox.shrink());
+    });
+
+    test(r'a company save of a pattern without $number is blocked', () {
+      final vm = GeneratedNumbersViewModel(
+        repo: _StubCompanyRepo(
+          db: db,
+          api: companiesApi,
+          company: const Company(),
+        ),
+        companyId: 'co-A',
+        patternError: 'ERR',
+        fileNameError: 'FILE',
+      );
+      expect(
+        vm.preSaveError(
+          Company(
+            id: 'co-A',
+            enabledModules: EnabledModule.invoices.bitmask,
+            settings: const CompanySettings(
+              invoiceFilenamePattern: r'$client.name',
+            ),
+          ),
+        ),
+        'FILE',
+      );
+      // A field the page doesn't show (Quotes off) can't block the save.
+      expect(
+        vm.preSaveError(
+          Company(
+            id: 'co-A',
+            enabledModules: EnabledModule.invoices.bitmask,
+            settings: const CompanySettings(
+              quoteFilenamePattern: r'$client.name',
+            ),
+          ),
+        ),
+        isNull,
+      );
+    });
+  });
+
   testWidgets('VeriFactu disables the Generate Number choice', (tester) async {
     final services = makeServices(
       company: const Company(
@@ -654,6 +864,7 @@ void main() {
       repo: repo,
       companyId: 'co-A',
       patternError: 'ERR',
+      fileNameError: 'file name error',
     );
     addTearDown(vm.dispose);
 
@@ -694,6 +905,7 @@ void main() {
       repo: badRepo,
       companyId: 'co-A',
       patternError: 'ERR',
+      fileNameError: 'file name error',
     );
     addTearDown(badVm.dispose);
     await badVm.load();
@@ -716,6 +928,7 @@ void main() {
       repo: okRepo,
       companyId: 'co-A',
       patternError: 'ERR',
+      fileNameError: 'file name error',
     );
     addTearDown(okVm.dispose);
     await okVm.load();

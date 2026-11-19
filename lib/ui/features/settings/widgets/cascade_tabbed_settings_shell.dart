@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:material_ui/material_ui.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -115,8 +116,8 @@ class CascadeTabbedSettingsShell extends StatefulWidget {
 }
 
 class _CascadeTabbedSettingsShellState extends State<CascadeTabbedSettingsShell>
-    with SingleTickerProviderStateMixin {
-  late final TabController _tabController;
+    with TickerProviderStateMixin {
+  late TabController _tabController;
   late final ValueNotifier<bool> _saveVisible;
 
   /// Tablet-band ("medium" width) toggle: false → tab content full-width,
@@ -140,6 +141,29 @@ class _CascadeTabbedSettingsShellState extends State<CascadeTabbedSettingsShell>
     _saveVisible = ValueNotifier<bool>(
       widget.tabs[initialIndex].contributesToSave,
     );
+  }
+
+  /// A tab can come or go while the page is open — a module switched on, or
+  /// File Names appearing when a save brings the server's new settings keys
+  /// in. The controller's length is fixed, so a changed tab list gets a new
+  /// one, on the tab the user was on.
+  @override
+  void didUpdateWidget(CascadeTabbedSettingsShell oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final oldSlugs = [for (final t in oldWidget.tabs) t.slug];
+    final newSlugs = [for (final t in widget.tabs) t.slug];
+    if (listEquals(oldSlugs, newSlugs)) return;
+    final current = oldSlugs[_tabController.index];
+    final index = newSlugs.indexOf(current);
+    _tabController.removeListener(_onTabControllerChanged);
+    _tabController.dispose();
+    _tabController = TabController(
+      length: widget.tabs.length,
+      vsync: this,
+      initialIndex: index < 0 ? 0 : index,
+    );
+    _tabController.addListener(_onTabControllerChanged);
+    _saveVisible.value = widget.tabs[_tabController.index].contributesToSave;
   }
 
   @override

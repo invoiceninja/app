@@ -524,6 +524,26 @@ final Map<String, SettingsBinding> _bindings = <String, SettingsBinding>{
     read: (s) => s.recurringNumberPrefix,
     write: (s, v) => s.copyWith(recurringNumberPrefix: v),
   ),
+  'invoice_filename_pattern': (
+    read: (s) => s.invoiceFilenamePattern,
+    write: (s, v) => s.copyWith(invoiceFilenamePattern: v),
+  ),
+  'quote_filename_pattern': (
+    read: (s) => s.quoteFilenamePattern,
+    write: (s, v) => s.copyWith(quoteFilenamePattern: v),
+  ),
+  'credit_filename_pattern': (
+    read: (s) => s.creditFilenamePattern,
+    write: (s, v) => s.copyWith(creditFilenamePattern: v),
+  ),
+  'purchase_order_filename_pattern': (
+    read: (s) => s.purchaseOrderFilenamePattern,
+    write: (s, v) => s.copyWith(purchaseOrderFilenamePattern: v),
+  ),
+  'filename_slug': (
+    read: (s) => s.filenameSlug?.toString(),
+    write: (s, v) => s.copyWith(filenameSlug: _parseBool(v)),
+  ),
   'shared_invoice_quote_counter': (
     read: (s) => s.sharedInvoiceQuoteCounter?.toString(),
     write: (s, v) => s.copyWith(sharedInvoiceQuoteCounter: _parseBool(v)),
