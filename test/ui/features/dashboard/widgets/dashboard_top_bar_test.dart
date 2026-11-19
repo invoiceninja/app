@@ -231,7 +231,11 @@ void main() {
 
       expect(tester.takeException(), isNull);
       final bar = tester.getRect(find.byType(DashboardTopBar));
-      for (final type in [DashboardRefreshButton, DashboardCustomizeButton]) {
+      for (final type in [
+        DashboardRefreshButton,
+        DashboardSearchButton,
+        DashboardCustomizeButton,
+      ]) {
         final rect = tester.getRect(find.byType(type));
         expect(rect.right, lessThanOrEqualTo(bar.right), reason: '$type');
         expect(rect.width, greaterThan(0), reason: '$type');
@@ -408,8 +412,11 @@ void main() {
     final toggle = tester.getRect(find.byIcon(Icons.keyboard_arrow_down));
     expect(toggle.left, greaterThan(primary.right));
 
+    final search = tester.getRect(find.byType(DashboardSearchButton));
+    expect(search.left, greaterThan(toggle.right));
+    expect(find.byTooltip('Search'), findsOneWidget);
     final customize = tester.getRect(find.byType(DashboardCustomizeButton));
-    expect(customize.left, greaterThan(toggle.right));
+    expect(customize.left, greaterThan(search.right));
     expect(find.byTooltip('Customize'), findsOneWidget);
     expect(
       find.descendant(

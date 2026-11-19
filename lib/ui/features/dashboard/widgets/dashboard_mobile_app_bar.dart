@@ -7,8 +7,11 @@ import 'package:admin/ui/features/dashboard/view_models/dashboard_view_model.dar
 import 'package:admin/ui/features/dashboard/widgets/freshness.dart';
 import 'package:admin/ui/features/dashboard/widgets/manage_dashboard_cards_sheet.dart';
 import 'package:admin/ui/features/shell/widgets/app_drawer.dart';
+import 'package:admin/ui/features/shell/widgets/command_palette.dart';
 
-/// Narrow-layout `AppBar` for the dashboard: hamburger + title + Customize.
+/// Narrow-layout `AppBar` for the dashboard: hamburger + title + Search +
+/// Customize. Search opens the command palette — on a phone the drawer's
+/// search box is two taps away, and there is no ⌘K.
 /// Wide layouts use the bespoke `DashboardTopBar` inside the body instead — see
 /// `DashboardScreen`. Since flutter#51 a phone renders this bar in *either*
 /// orientation, so the landscape case arrives here through `Breakpoints.isPhone`
@@ -85,8 +88,8 @@ class DashboardMobileAppBar extends StatelessWidget
       automaticallyImplyLeading: showHamburger,
       // Material's default 16 dp gap either side of the title costs more width
       // than this bar had on the narrowest phones. With a hamburger and three
-      // actions (it carries one now), the default left the title 88 dp on a
-      // 320 dp handset.
+      // actions (it carries two now: Search and Customize), the default left
+      // the title 88 dp on a 320 dp handset.
       // "Dashboard" measures 104 dp in Inter Tight, so the default truncates it
       // to "Dashboa…", the exact ellipsis flutter#50 was filed about. When
       // flutter#50 was filed it took a 360 dp phone to do this, because the
@@ -152,6 +155,11 @@ class DashboardMobileAppBar extends StatelessWidget
         ],
       ),
       actions: [
+        IconButton(
+          tooltip: context.tr('search'),
+          icon: const Icon(Icons.search),
+          onPressed: () => showCommandPalette(context),
+        ),
         IconButton(
           tooltip: context.tr('customize'),
           icon: const Icon(Icons.tune),

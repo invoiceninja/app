@@ -261,8 +261,19 @@ void main() {
     expect(find.byIcon(Icons.add), findsNothing);
     expect(
       find.byType(IconButton),
-      findsOneWidget,
-      reason: 'customize, and nothing else',
+      findsNWidgets(2),
+      reason: 'search and customize, and nothing else',
+    );
+  });
+
+  // A phone has no ⌘K, and the drawer's search box is two taps away.
+  testWidgets('renders Search before Customize', (tester) async {
+    await pumpBar(tester, showHamburger: false);
+
+    expect(find.byTooltip('Search'), findsOneWidget);
+    expect(
+      tester.getCenter(find.byIcon(Icons.search)).dx,
+      lessThan(tester.getCenter(find.byIcon(Icons.tune)).dx),
     );
   });
 

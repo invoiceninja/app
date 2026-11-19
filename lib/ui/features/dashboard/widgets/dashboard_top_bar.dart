@@ -1,6 +1,14 @@
 import 'package:material_ui/material_ui.dart';
+import 'package:provider/provider.dart';
 
 import 'package:admin/app/design_tokens.dart';
+import 'package:admin/app/services.dart';
+import 'package:admin/app/shortcuts/key_binding.dart';
+import 'package:admin/app/shortcuts/keyboard_shortcuts_controller.dart';
+import 'package:admin/app/shortcuts/shortcut_catalog.dart';
+import 'package:admin/ui/core/utils/platform_modifier.dart';
+import 'package:admin/ui/core/widgets/shortcut_tooltip.dart';
+import 'package:admin/ui/features/shell/widgets/command_palette.dart';
 import 'package:admin/ui/features/dashboard/view_models/dashboard_view_model.dart';
 import 'package:admin/ui/features/dashboard/widgets/dashboard_create_fab.dart';
 import 'package:admin/ui/features/dashboard/widgets/dashboard_create_strip.dart';
@@ -12,7 +20,7 @@ import 'package:admin/ui/features/dashboard/widgets/manage_dashboard_cards_sheet
 
 /// Wide-layout top bar, fixed above the dashboard scroll: the company's name,
 /// with how fresh the data is and a small Refresh under it; the create
-/// buttons; and Customize, set apart at the trailing end.
+/// buttons; and Search + Customize, set apart at the trailing end.
 ///
 /// **The create buttons live here, not in the page**, so they are on screen
 /// however far the dashboard is scrolled — see [DashboardCreateStrip]. They
@@ -130,6 +138,9 @@ class DashboardTopBar extends StatelessWidget {
             Container(width: 1, height: 20, color: tokens.border),
             SizedBox(width: InSpacing.md(context)),
           ],
+          // The same palette as ⌘K and the narrow bar's search icon.
+          const DashboardSearchButton(),
+          SizedBox(width: InSpacing.xs),
           DashboardCustomizeButton(vm: vm),
         ],
       ),
@@ -266,6 +277,56 @@ class DashboardCustomizeButton extends StatelessWidget {
         ),
       ),
       icon: const Icon(Icons.tune),
+    );
+  }
+}
+
+/// Search: opens the command palette, beside Customize at the bar's trailing
+/// end. Same quiet square as [DashboardCustomizeButton]; the tooltip names the
+/// user's own palette binding (⌘K by default), never a hardcoded chord.
+class DashboardSearchButton extends StatelessWidget {
+  const DashboardSearchButton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final size = Env.isTouchPrimary ? InSizes.touchTarget : 36.0;
+    final button = IconButton(
+      onPressed: () => showCommandPalette(context),
+      iconSize: 18,
+      padding: EdgeInsets.zero,
+      // `compact` (the desktop theme's) takes 8 px off explicit constraints.
+      visualDensity: VisualDensity.standard,
+      constraints: BoxConstraints.tightFor(width: size, height: size),
+      style: IconButton.styleFrom(
+        foregroundColor: context.inTheme.ink2,
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(InRadii.r2),
+        ),
+      ),
+      icon: const Icon(Icons.search),
+    );
+    final label = context.tr('search');
+    Widget tooltipFor(KeyBinding? binding) => binding == null
+        ? Tooltip(message: label, child: button)
+        : ShortcutTooltip(
+            label: label,
+            keys: binding.displayGlyphs(platformModifierLabel()),
+            child: button,
+          );
+    // Pumpable without a `Services` harness, like the rest of this bar.
+    KeyboardShortcutsController? shortcuts;
+    try {
+      shortcuts = context.read<Services>().keyboardShortcuts;
+    } catch (_) {
+      shortcuts = null;
+    }
+    if (shortcuts == null) return tooltipFor(null);
+    return ListenableBuilder(
+      listenable: shortcuts,
+      builder: (context, _) => tooltipFor(
+        shortcuts!.effectiveBinding(ShortcutActionIds.openCommandPalette),
+      ),
     );
   }
 }
