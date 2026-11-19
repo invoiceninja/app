@@ -9,6 +9,7 @@ import 'package:admin/data/services/web_sign_in.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/form_save_scope.dart';
 import 'package:admin/ui/core/widgets/google_logo.dart';
+import 'package:admin/ui/core/widgets/legal_links.dart';
 import 'package:admin/ui/core/widgets/microsoft_logo.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/features/auth/view_models/signup_view_model.dart';
@@ -278,30 +279,38 @@ class _TermsCheckbox extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = context.inTheme;
-    return InkWell(
-      borderRadius: BorderRadius.circular(InRadii.r1),
-      onTap: () => onChanged(!value),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Checkbox(value: value, onChanged: (v) => onChanged(v ?? false)),
-            const SizedBox(width: InSpacing.xs),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.only(top: 12),
-                child: Text(
-                  '${context.tr('i_agree')} '
-                  '(${context.tr('terms_of_service')} · '
-                  '${context.tr('privacy_policy')})',
-                  style: TextStyle(fontSize: 13, color: tokens.ink2),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        InkWell(
+          borderRadius: BorderRadius.circular(InRadii.r1),
+          onTap: () => onChanged(!value),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Checkbox(value: value, onChanged: (v) => onChanged(v ?? false)),
+                const SizedBox(width: InSpacing.xs),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 12),
+                    child: Text(
+                      '${context.tr('i_agree')} '
+                      '(${context.tr('terms_of_service')} · '
+                      '${context.tr('privacy_policy')})',
+                      style: TextStyle(fontSize: 13, color: tokens.ink2),
+                    ),
+                  ),
                 ),
-              ),
+              ],
             ),
-          ],
+          ),
         ),
-      ),
+        // The documents being agreed to, readable before agreeing. Outside
+        // the row's InkWell so opening one never ticks the box.
+        const LegalLinks(),
+      ],
     );
   }
 }

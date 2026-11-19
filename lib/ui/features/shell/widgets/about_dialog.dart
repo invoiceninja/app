@@ -12,6 +12,7 @@ import 'package:admin/domain/mobile_app_promo.dart';
 import 'package:admin/domain/self_update.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/adaptive.dart';
+import 'package:admin/ui/core/widgets/legal_links.dart';
 import 'package:admin/ui/core/widgets/link_text.dart';
 import 'package:admin/ui/features/shell/widgets/health_check_dialog.dart';
 import 'package:admin/ui/features/mobile_promo/mobile_app_promo_dialog.dart';
@@ -344,6 +345,7 @@ class _AboutDialog extends StatelessWidget {
                   _versionLabel(serverVersion.value),
                 ),
               ),
+              const LegalLinks(),
               SizedBox(height: InSpacing.md(context)),
               Text(
                 '© ${DateTime.now().year} Invoice Ninja',
