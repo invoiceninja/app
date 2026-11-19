@@ -83,6 +83,10 @@ Future<void> _openPortalOrPlanScreen(BuildContext context, String url) async {
   context.go('/settings/account_management');
 }
 
+/// The store's own subscription management, for a plan bought in-app — the
+/// one place a store-billed subscription can be changed or cancelled.
+Future<void> openManageSubscriptions() => _openStoreSubscriptions();
+
 Future<void> _openStoreSubscriptions() => openStoreSubscriptions(
   platform: defaultTargetPlatform,
   showAppleSheet: () => StoreBilling().showManageSubscriptions(),

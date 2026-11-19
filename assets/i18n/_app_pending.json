@@ -2257,5 +2257,7 @@
   "emailed_payments": "Successfully emailed :count payments",
   "deleted_payment_links": "Successfully deleted :count payment links",
   "deleted_transactions": "Successfully deleted :count transactions",
-  "in_app_purchases_unavailable": "In-app purchases aren't available yet. Please try again later."
+  "in_app_purchases_unavailable": "In-app purchases aren't available yet. Please try again later.",
+  "store_billing_continues_after_delete": "Your plan is billed through the App Store or Google Play. Deleting here doesn't cancel that subscription; cancel it in your store's subscription settings.",
+  "manage_subscription": "Manage subscription"
 }

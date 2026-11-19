@@ -18,6 +18,8 @@ import 'package:admin/data/services/google_oauth.dart';
 import 'package:admin/data/services/password_cache.dart' show PasswordSubject;
 import 'package:admin/data/services/web_oauth.dart';
 import 'package:admin/data/services/web_sign_in.dart';
+import 'package:admin/domain/upgrade/upgrade_launcher.dart'
+    show openManageSubscriptions;
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/empty_state.dart';
 import 'package:admin/ui/core/widgets/field_label.dart';
@@ -206,10 +208,36 @@ class _DeleteSection extends StatelessWidget {
         final message = multi
             ? context.tr('delete_company_message')
             : context.tr('cancel_account_message');
+        // A plan bought in the App Store or Google Play is billed by the store,
+        // and deleting the account here doesn't cancel it — only the store
+        // can (Apple's account-deletion guidance; App Review 5.1.1(v)).
+        final storeBilled =
+            (value?.hasIapPlan ?? false) && (value?.isPaidPlanSlug ?? false);
         return FormSection(
           title: label,
           children: [
             Text(message, style: TextStyle(color: tokens.ink2)),
+            if (storeBilled) ...[
+              SizedBox(height: InSpacing.md(context)),
+              Text(
+                key: const ValueKey('danger_zone_store_billing_warning'),
+                context.tr('store_billing_continues_after_delete'),
+                style: TextStyle(color: tokens.ink2),
+              ),
+              SizedBox(height: InSpacing.sm),
+              Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: OutlinedButton.icon(
+                  key: const ValueKey('danger_zone_manage_subscription'),
+                  icon: const Icon(Icons.open_in_new, size: 18),
+                  label: Text(context.tr('manage_subscription')),
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(120, 40),
+                  ),
+                  onPressed: openManageSubscriptions,
+                ),
+              ),
+            ],
             SizedBox(height: InSpacing.lg(context)),
             Align(
               alignment: AlignmentDirectional.centerStart,

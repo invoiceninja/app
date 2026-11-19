@@ -130,6 +130,8 @@ Future<ShellFixture> buildFixture({
   int trialDays = 0,
   String plan = 'pro',
   int hostedCompanyCount = 10,
+  // A plan bought in the App Store or Google Play (`has_iap_plan`).
+  bool hasIapPlan = false,
   bool online = false,
   // Every fixture session is hosted unless a test says otherwise — the
   // self-hosted case (server-version gates, `ServerFeatures`) passes false.
@@ -176,7 +178,10 @@ Future<ShellFixture> buildFixture({
       // the default `0` would trip the hosted-plan guard for every test
       // that exercises the "New Company" action.
       featuresJson: Value(
-        jsonEncode({'hosted_company_count': hostedCompanyCount}),
+        jsonEncode({
+          'hosted_company_count': hostedCompanyCount,
+          'has_iap_plan': hasIapPlan,
+        }),
       ),
       updatedAt: 0,
     ),

@@ -44,6 +44,45 @@ void main() {
     },
   );
 
+  // Deleting here doesn't cancel a plan billed by the App Store or Google
+  // Play; Apple's account-deletion guidance asks apps to say so and point at
+  // the store's subscription settings.
+  for (final iap in [true, false]) {
+    testWidgets(
+      iap
+          ? 'a store-billed plan is warned that billing continues'
+          : 'no store-billing warning for a plan not bought in-app',
+      (tester) async {
+        await tester.binding.setSurfaceSize(const Size(1200, 800));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+        final fixture = await buildFixture(
+          companies: const [FakeCompany(id: 'c1', name: 'Acme Co')],
+          currentCompanyId: 'c1',
+          hasIapPlan: iap,
+        );
+        addTearDown(fixture.dispose);
+
+        await tester.pumpWidget(
+          wrapWithShell(
+            fixture.services,
+            const AccountManagementDangerZoneScreen(),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        final matcher = iap ? findsOneWidget : findsNothing;
+        expect(
+          find.byKey(const ValueKey('danger_zone_store_billing_warning')),
+          matcher,
+        );
+        expect(
+          find.byKey(const ValueKey('danger_zone_manage_subscription')),
+          matcher,
+        );
+      },
+    );
+  }
+
   testWidgets('purge submit is gated on the confirm word AND a password '
       '(confirm match is case-insensitive)', (tester) async {
     await tester.binding.setSurfaceSize(const Size(1200, 800));
