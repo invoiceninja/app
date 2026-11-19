@@ -21,6 +21,8 @@ Going live is one app release with the beta flag off, plus a store-console step 
 
 On Play, the App Store and Microsoft the new app (`com.invoiceninja.admin`) has its own listing, so going live there leaves the v1 app (`com.invoiceninja.app`) untouched. **The Snap is the exception:** both apps are the `invoiceninja` snap, so releasing to `stable` replaces v1 for every snap user.
 
+**The launch is decided (2026-11-19):** the new app goes live as its own listing on the App Store, Play and Microsoft; v1 is renamed **Invoice Ninja Legacy** (`IN Legacy` under the icon), carries a move prompt for about six months, and then retires (§ Sunsetting v1). A paid plan lives on the Invoice Ninja account, not in a store, so it carries over the moment someone signs in to the new app; v1's store subscriptions keep renewing on v1's records. The order of everything is § Launch day and § Sunsetting v1; normal beta releases keep going until three weeks before launch (§ Release freeze).
+
 ## App changes in the launch release
 
 These ship together in one version to every store, so each store's first public build is already out of beta.
@@ -50,6 +52,14 @@ Each store needs its console step after the launch release is uploaded. Only the
 - [ ] Promote the launch release from Open testing to Production in the Play Console. Google reviews it.
 - [ ] Optional: to release to production from CI, add `production` to the `track` options in `playstore.yml` and grant the service account "Release to production".
 
+**In-app purchases (`com.invoiceninja.admin`):**
+
+- [ ] The ten subscription products with v1's ids (Play ids are per app).
+- [ ] Real-time developer notifications to the hosted billing topic, and the Play service account the hosted billing uses granted access to this package.
+- [ ] App content: Data safety (crash logs, and the account-deletion web link reused from v1), App access (the review account), Financial features, Ads.
+- [ ] Turn managed publishing on before the launch build is promoted, so it is held after review (§ Launch day).
+- [ ] Check Play Console orders for this package from the beta: any real purchase was never applied to an account (the beta sent the wrong account field), so apply the plan or refund it by hand and tell the buyer.
+
 ### App Store (iOS and macOS)
 
 `appstore-ios.yml` and `appstore-macos.yml` upload to TestFlight and never submit for review. iOS and macOS are one App Store record.
@@ -59,12 +69,25 @@ Each store needs its console step after the launch release is uploaded. Only the
 - [ ] Do the same for the macOS version.
 - [ ] Release each version once approved, or set it to release automatically.
 
+**In-app purchases (the new record, iOS and macOS share it):**
+
+- [ ] Try creating the product id `pro_plan` on the new record. If App Store Connect accepts it, keep v1's ten ids (`lib/domain/upgrade/purchase_service.dart`); if it refuses, the new app uses `v2_`-prefixed ids and the hosted billing strips the prefix.
+- [ ] One subscription group with v1's levels and prices, attached to the launch version.
+- [ ] App Store Server Notifications V2: the Production URL is the hosted billing endpoint (as on v1's record); set a **Sandbox** URL that is not production, on both records, so test purchases never reach live accounts.
+- [ ] Privacy Policy URL, and the Terms of Use link in the description (or a custom EULA); the description names the subscriptions; the subtitle never names the other app.
+- [ ] App Privacy answers: crash data, contacts, photos, precise location (Tap to Pay), financial info, purchases, user content. Export compliance: the app encrypts its database (`sqlite3mc`), so answer the encryption questions deliberately and keep `ITSAppUsesNonExemptEncryption` in step.
+- [ ] A review account on every submission of both apps: a hosted owner on the Free plan with one company, no two-factor, password login; reset it to Free before each submission.
+- [ ] Sandbox-test buy, renew, change level, cancel (the plan stays until it expires), refund and Restore on iOS and macOS before submitting.
+
 ### Microsoft Store
 
 `microsoft-store.yml` already publishes each build once Microsoft certifies it, to the restricted `InvoiceNinja.AdminPortal` listing (v1 is `InvoiceNinja.InvoiceNinja`). What restricts it is the **Audience**: Pricing and availability → Visibility → **Private audience**, the "Beta Testers" group. The submission API can't see the audience (its `visibility` is the Discoverability option and reads `Public` under a Private audience), so `tools/msstore_release_notes.py` can't check it; each CI submission copies the last, so the audience carries forward until someone changes it here.
 
 - [ ] Partner Center → the app → Pricing and availability → Visibility → Audience: switch **Private audience** to **Public audience**. This is the Microsoft Store's go-live switch; nothing in CI makes it.
 - [ ] Remove "Beta" from the Store listing name.
+- [ ] The name: first ship v1's package as "Invoice Ninja Legacy" (reserved on 9N3F2BBCFDR6 before that build), then delete "Invoice Ninja" from 9N3F2BBCFDR6 and reserve it on 9NG93WNXN797 in one sitting; a deleted name is free to anyone at once.
+- [ ] The description opens with "Requires an Invoice Ninja account (hosted or self-hosted)", lists the plans and their price range, and the submission declares the third-party purchase API (Stripe, desktop only).
+- [ ] Dispatch the launch build with `publish_mode: Manual` (and `commit` ticked) so it waits for the launch-day click (`microsoft-store.yml`).
 
 ### Snap
 
@@ -116,6 +139,62 @@ Today one **Deploy to all** dispatch ships every store to its testing channel wi
 
 ## Decisions outside the code
 
-- [ ] **Moving v1 users over.** The v1 listings on Play, the App Store and Microsoft stay live after launch. Decide when to point v1 users at the new app and when to retire those listings.
+- [x] **Moving v1 users over.** Decided 2026-11-19: § Sunsetting v1.
 - [ ] **Beta links.** Keep the TestFlight and Play testing links working for a while after launch: installed builds still point at them, and Snap, Microsoft Store and AppImage users can run an old build for months.
 - [ ] **People who saw the beta promo.** Decide whether those who engaged with or dismissed it should see the public one; that needs a new preference key (`docs/mobile-app-promo.md` § Swap the links at launch).
+
+## Release freeze
+
+From three weeks before launch (the day the launch build is submitted to the App Store, Play and Microsoft) until launch day, no store workflow is dispatched: a new build would replace the one held for review, and Microsoft would open a second submission. A fix needed in that window goes into the held build (reject, rebuild, resubmit) or waits until after launch. Outside that window, beta releases go out the usual way (`.claude/skills/release/SKILL.md`).
+
+## Launch day
+
+The launch build is submitted three weeks ahead, one workflow at a time rather than Deploy to all: `appstore-ios.yml` and `appstore-macos.yml` (submit both version pages with manual release), `playstore.yml` to the beta track then promoted to Production in the Play Console with managed publishing on, and `microsoft-store.yml` with `publish_mode: Manual` after switching the Audience to Public. v1's move release is submitted the same way, held, two weeks ahead.
+
+Two days before: go or no go. Every new-app submission and every v1 move release must be approved; if one isn't, slip the whole launch (the email and the links are global). Microsoft alone may follow later: hold v1's Windows move release until it is certified.
+
+On the day, in this order:
+
+1. Release the new app on the App Store (iOS and macOS), Play and Microsoft.
+2. Open each listing logged out, in two storefronts, on a device that isn't a tester's. Wait until all of them load.
+3. `appimage.yml` (tag, GitHub Release, the F-Droid APKs), then `snapcraft.yml`, then Flathub's update (merge it by hand if it isn't automatic). `web.yml` only if the web app launches the same day.
+4. Turn in-app purchases on for everyone in the hosted billing.
+5. Point the redirect links (`https://invoiceninja.com/app/{ios,android,mac,windows}`) at the listings and check each with `curl -sI`.
+6. Release v1's move release on every store and tag it for F-Droid. Publish v1's listing text (§ Sunsetting v1).
+7. The landing page (`tools/web_deploy/landing/apps.json`, then `export_landing.sh` and a backend PR) and the website's download links.
+8. Last, once every link above works: the announcement email, the help-center page, the support macros, the note to testers, and the old repo's README.
+
+| If | Then |
+|---|---|
+| a listing isn't visible after release | wait; send nothing until every link works |
+| the redirect flip fails | the page it points at before launch already lists the store links |
+| a GitHub, Snap or Flathub job fails | re-run it; Snap rolls back with `snapcraft release invoiceninja <previous revision> stable` |
+| F-Droid lags | expected; the email says "within a few days" |
+| purchases fail or crashes spike | turn in-app purchases off in the hosted billing, then fix forward |
+
+A first release has no staged rollout on Play and no phased release on the App Store: a bad launch build is fixed by an expedited review, a fast Play release, or taking it off sale.
+
+## Sunsetting v1
+
+v1 (`com.invoiceninja.app`) becomes **Invoice Ninja Legacy** and keeps working beside the new app for about six months.
+
+**What users are told, everywhere** (v1's prompt and retired screen, the store listings, the email, the help center): their data lives in their Invoice Ninja account in the cloud (or on their own server), so a new app changes nothing about it; they only need the new app on their phone or computer and sign in with the same account; both apps work side by side until the sunset date, so they can switch at their own pace, and their plan comes with them; and if anything works differently than they'd like, they should tell us (Settings → Contact Us in the new app, `contact@invoiceninja.com` from v1).
+
+**Rules:**
+
+- v1's App Store subscription products stay on sale for good: removing one stops its renewals. Never delete either app's store record or its notification setup.
+- An App Store v1 subscriber changes level in Apple's subscription settings, inside v1's group. A Play v1 subscriber buys in the new app and the hosted billing cancels the v1 subscription with a prorated refund.
+- Never stop a v1 that a store still lists: take it off sale first, then raise the minimum version.
+- The stop is server-only: hosted `MINIMUM_CLIENT_VERSION=5.1.0` (every v1 is 5.0.x, the new app 5.1.x), then `config:cache` and a worker restart. Self-hosted servers keep their own minimum.
+- Ask Play support in writing whether unpublishing an app cancels its subscriptions before unpublishing v1 on Play.
+
+**v1's releases** (admin-portal: `develop` → `master` for iOS, macOS, Android and F-Droid; the `flutter-3.19.6` branch for Windows, every change cherry-picked there):
+
+- [x] Its CI can no longer replace the new app: the web build is manual only and the Snap and Flatpak workflows are gone (2026-11-19).
+- [x] The rename to Invoice Ninja Legacy, `IN Legacy` under the icon (2026-11-19, not yet released). Release it about five weeks before launch and wait until it is live everywhere: the App Store name and the Microsoft name can move to the new app only after.
+- [ ] The move release: the beta invite becomes the move prompt (re-armed for everyone, escalating towards the sunset date, always dismissible), a retired screen when the server's minimum version refuses it, no more in-app sales (Manage subscription and Restore stay), and links through the redirect. Submitted two weeks before launch, held.
+
+**v1's store listings** point at the new app from launch day: App Store promotional text (set by hand) and description, the Play short and full description, the Microsoft description (with the retirement date), and the F-Droid metadata.
+
+**The sunset**, about six months after launch: check v1 traffic by platform two weeks before; take v1 off sale on every store (its subscriptions stay); ask F-Droid to archive it; then raise the hosted minimum version; remove the Snap rollback-to-revision-76 note above (revision 76 is v1); archive the admin-portal repo.
+
