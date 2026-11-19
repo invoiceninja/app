@@ -60,6 +60,7 @@ import 'package:admin/app/hide_empty_panels_controller.dart';
 import 'package:admin/app/hide_unverified_users_controller.dart';
 import 'package:admin/app/show_seconds_controller.dart';
 import 'package:admin/app/spell_check_controller.dart';
+import 'package:admin/app/web_app_banner_controller.dart';
 import 'package:admin/app/status_tabs_controller.dart';
 import 'package:admin/app/tasks_view_controller.dart';
 import 'package:admin/app/text_scale_controller.dart';
@@ -418,6 +419,7 @@ class Services implements SidebarBadgeContext {
     required this.welcome,
     required this.reviewPrompt,
     required this.spellCheck,
+    required this.webAppBanner,
     required this.showSeconds,
     required this.downloadsFolder,
     required this.pendingCall,
@@ -909,6 +911,10 @@ class Services implements SidebarBadgeContext {
   /// (docs/spell-check.md). Read through its root provider, like
   /// [signOutNotice].
   final SpellCheckController spellCheck;
+
+  /// Whether the web build's "other apps" banner was dismissed in this
+  /// browser (`WebAppBanner`).
+  final WebAppBannerController webAppBanner;
 
   /// Whether the Tasks surfaces that leave seconds out show them
   /// (docs/tasks-views.md). Read through its root provider, like
@@ -1756,6 +1762,7 @@ class Services implements SidebarBadgeContext {
     );
     final whatsNew = WhatsNewController(prefs: devicePrefs);
     final spellCheck = SpellCheckController(prefs: devicePrefs);
+    final webAppBanner = WebAppBannerController(prefs: devicePrefs);
     final showSeconds = ShowSecondsController(prefs: devicePrefs);
     final downloadsFolder = DownloadsFolderController(prefs: devicePrefs);
     final mobileAppPromo = MobileAppPromoController(
@@ -2755,6 +2762,7 @@ class Services implements SidebarBadgeContext {
       welcome: welcome,
       reviewPrompt: reviewPrompt,
       spellCheck: spellCheck,
+      webAppBanner: webAppBanner,
       showSeconds: showSeconds,
       downloadsFolder: downloadsFolder,
       pendingCall: pendingCall,

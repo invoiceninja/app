@@ -28,6 +28,7 @@ import 'package:admin/ui/core/widgets/focus_owner_keeper.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/core/widgets/offline_banner.dart';
 import 'package:admin/ui/core/widgets/session_expiry_banner.dart';
+import 'package:admin/ui/core/widgets/web_app_banner.dart';
 import 'package:admin/ui/features/settings/views/advanced/debug_panel_section.dart';
 import 'package:admin/ui/features/shell/branch_company_gate.dart';
 import 'package:admin/ui/features/shell/widgets/in_sidebar.dart';
@@ -716,6 +717,7 @@ class _ScaffoldWithNavState extends State<ScaffoldWithNav> {
                               const OfflineBanner(),
                               const CertificateBanner(),
                               const SessionExpiryBanner(),
+                              const WebAppBanner(),
                               Expanded(
                                 child: Stack(
                                   children: [
@@ -892,6 +894,7 @@ class _ScaffoldWithNavState extends State<ScaffoldWithNav> {
                           const OfflineBanner(),
                           const CertificateBanner(),
                           const SessionExpiryBanner(),
+                          const WebAppBanner(),
                           Expanded(
                             // Narrow: the running timer DOCKS under the content
                             // as a full-width bar rather than floating over it —

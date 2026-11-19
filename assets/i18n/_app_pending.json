@@ -2272,5 +2272,15 @@
   "store_purchase_not_applied": "Your purchase wasn't applied to this account.",
   "store_purchase_retry_later": "Your purchase couldn't be applied yet. It will be applied the next time the app opens.",
   "store_purchase_failed": "The store couldn't complete the purchase.",
-  "store_subscription_already_active": "This Apple Account already has an Invoice Ninja subscription, so another one can't be bought here. If it was bought for this account, restore it."
+  "store_subscription_already_active": "This Apple Account already has an Invoice Ninja subscription, so another one can't be bought here. If it was bought for this account, restore it.",
+  "web_app_banner_both": "For the best experience, use Invoice Ninja Web or install the app.",
+  "web_app_banner_web_only": "For the best experience, use Invoice Ninja Web.",
+  "web_app_banner_native_only": "For the best experience, install the app.",
+  "web_app_banner_open_web": "Open Invoice Ninja Web",
+  "web_app_banner_get_ios": "Get the iPhone and iPad app",
+  "web_app_banner_get_android": "Get the Android app",
+  "web_app_banner_get_mac": "Get the Mac app",
+  "web_app_banner_get_windows": "Get the Windows app",
+  "web_app_banner_get_linux": "Get the Linux app",
+  "web_app_banner_dismiss": "Don't show this again"
 }

@@ -46,6 +46,7 @@ void main() {
     'pending_card_payments_json': PrefScope.account,
     'how_to_tap_shown': PrefScope.account,
     'tap_to_pay_announced': PrefScope.account,
+    'web_app_banner_dismissed': PrefScope.device,
   };
 
   final names = [for (final k in DevicePrefKeys.all) k.name];

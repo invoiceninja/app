@@ -33,6 +33,7 @@ These ship together in one version to every store, so each store's first public 
     - `kMobileAppIosUrl` → `https://apps.apple.com/app/id<number>`;
     - `kMobileAppAndroidUrl` → `https://play.google.com/store/apps/details?id=com.invoiceninja.admin`;
     - reword the `mobile_app_promo_testflight_step` and `mobile_app_promo_play_step` captions, and drop the "Beta" label.
+- [ ] Give the web build's "other apps" banner its Windows link: set `kWindowsAppUrl` in `lib/domain/web_app_banner.dart` to `https://apps.microsoft.com/detail/$kMicrosoftStoreId` once the listing is Public. Its iPhone, Mac and Android links follow the promo's constants above.
 - [ ] Rename the app from "Ninja Beta" to "Invoice Ninja":
     - `CFBundleDisplayName` in `ios/Runner/Info.plist` and `android:label` in `android/app/src/main/AndroidManifest.xml`;
     - drop " - Beta" from `msix_config` `display_name` in `pubspec.yaml` and from the `README.md` title;

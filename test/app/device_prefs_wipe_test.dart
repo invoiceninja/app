@@ -225,6 +225,12 @@ final Map<PrefKey<Object>, _Probe> _probes = {
     ),
     (s) => s.terminal.pendingFor('co', 'inv') == null,
   ),
+  // "This browser has been told" — the web's idle timeout signs people out
+  // on its own, and the banner must not come back each time.
+  DevicePrefKeys.webAppBannerDismissed: _Probe(
+    (s) => s.webAppBanner.dismiss(),
+    (s) => !s.webAppBanner.dismissed,
+  ),
 };
 
 final _certificate = CertificateFacts(

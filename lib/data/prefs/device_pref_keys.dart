@@ -352,6 +352,16 @@ abstract final class DevicePrefKeys {
     PrefScope.account,
   );
 
+  /// The web build's "other apps" banner was dismissed in this browser
+  /// (`WebAppBannerController`). "This browser has been told", like
+  /// [mobileAppPromo], so a sign-out keeps it — the web's idle timeout signs
+  /// people out on its own, and the banner must not come back each time.
+  static const webAppBannerDismissed = PrefKey<bool>(
+    'web_app_banner_dismissed',
+    PrefCodec.boolean,
+    PrefScope.device,
+  );
+
   /// In the order they were added; append new keys at the end.
   static const List<PrefKey<Object>> all = [
     locale,
@@ -389,6 +399,7 @@ abstract final class DevicePrefKeys {
     pendingCardPayments,
     howToTapShown,
     tapToPayAnnounced,
+    webAppBannerDismissed,
   ];
 
   /// The rows a data wipe leaves in place: the [PrefScope.device] keys and the
