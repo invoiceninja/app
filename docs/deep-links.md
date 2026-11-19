@@ -291,7 +291,7 @@ A beta user (Android, November 2026) tapped **Share Link** in an invoice's `⋮`
 So there are two nouns, used the same way on every surface:
 
 - **Internal Link** (`internal_link`, `share_internal_link` / `copy_internal_link`): `copyLinkActionItem` on every record and the DocuNinja document. Opens the record in this app; needs a sign-in.
-- **Client Portal Link** / **Vendor Portal Link** (`client_portal_link`, `vendor_portal_link` and their `share_` / `copy_` forms): `portalLinkActionItem` + `sharePortalLink` (`lib/ui/core/detail/portal_link_action.dart`). The page the customer or vendor opens with no account.
+- **Client Portal Link** / **Vendor Portal Link** (`client_portal_link`, `vendor_portal_link` and their `share_` / `copy_` forms; the action itself reads just **Copy / Share Portal Link** to save space, while the toast and picker keep the full noun): `portalLinkActionItem` + `sharePortalLink` (`lib/ui/core/detail/portal_link_action.dart`). The page the customer or vendor opens with no account.
 
 What holds it together:
 

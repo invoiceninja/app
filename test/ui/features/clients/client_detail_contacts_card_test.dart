@@ -175,7 +175,7 @@ void main() {
 
     await openMore(tester);
     // Named for the portal: the record's own menu has a "Copy Link" too.
-    expect(find.text('Share Client Portal Link'), findsOneWidget);
+    expect(find.text('Share Portal Link'), findsOneWidget);
     expect(find.text('View Portal'), findsOneWidget);
   });
 
@@ -194,7 +194,7 @@ void main() {
     await services.phoneActions.setTapToCall(false);
     await pump(tester, [contact(link: 'https://portal.example.com/abc')]);
 
-    await tester.tap(find.byTooltip('Share Client Portal Link'));
+    await tester.tap(find.byTooltip('Share Portal Link'));
     await tester.pump();
     await tester.pump();
 
@@ -212,7 +212,7 @@ void main() {
 
     expect(callButton, findsNothing);
     expect(emailButton, findsOneWidget);
-    expect(find.byTooltip('Share Client Portal Link'), findsOneWidget);
+    expect(find.byTooltip('Share Portal Link'), findsOneWidget);
     await openMore(tester);
     expect(find.text('View Portal'), findsOneWidget);
     expect(find.text('Send SMS'), findsNothing);
@@ -466,7 +466,7 @@ void main() {
     await pump(tester, [blank(link: 'https://portal.example.com/abc')]);
 
     expect(find.byType(DashboardCardShell), findsNothing);
-    expect(find.byTooltip('Share Client Portal Link'), findsNothing);
+    expect(find.byTooltip('Share Portal Link'), findsNothing);
   });
 
   testWidgets('a custom value with no label for it does not keep a blank '

@@ -36,8 +36,9 @@ class PortalLinkTarget {
 String portalLinkNoun(BuildContext context, {required bool vendor}) =>
     context.tr(vendor ? 'vendor_portal_link' : 'client_portal_link');
 
-/// "Share Client Portal Link" on touch, "Copy Client Portal Link" elsewhere —
-/// following what the tap does, as the Internal Link's label does.
+/// "Share Portal Link" on touch, "Copy Portal Link" elsewhere — following what
+/// the tap does, as the Internal Link's label does. Short for the space; the
+/// copy toast and the contact picker still say whose portal ([portalLinkNoun]).
 String portalLinkActionLabel(BuildContext context, {required bool vendor}) =>
     context.tr(
       Env.isTouchPrimary

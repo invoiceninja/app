@@ -321,7 +321,7 @@ void main() {
         },
       );
       try {
-        await tester.tap(find.byTooltip('Share Client Portal Link').first);
+        await tester.tap(find.byTooltip('Share Portal Link').first);
         await screen.until(() => shared != null, 'the share');
         // The contact's own link: never the sender's `silent=true` form.
         expect(shared, kPortalLink);

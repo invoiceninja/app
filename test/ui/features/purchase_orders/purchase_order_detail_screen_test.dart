@@ -106,11 +106,11 @@ void main() {
         find.descendant(of: header, matching: find.text('Northwind Paper Co.')),
         findsOneWidget,
       );
-      // …and the vendor's contact, with the vendor portal's link.
+      // …and the vendor's contact, with its portal link (the label no longer
+      // names whose portal; the copy toast still does).
       expect(find.byType(PartyContactRow), findsOneWidget);
       expect(find.text('Olga Nordin'), findsOneWidget);
-      expect(find.byTooltip('Share Vendor Portal Link'), findsOneWidget);
-      expect(find.byTooltip('Share Client Portal Link'), findsNothing);
+      expect(find.byTooltip('Share Portal Link'), findsOneWidget);
 
       // One figure. Its balance is its amount until something is recorded
       // against it, and the same number twice would be noise.

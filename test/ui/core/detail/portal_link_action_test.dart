@@ -146,9 +146,9 @@ void main() {
     final none = label(vendor: false, hasLink: false);
     debugDefaultTargetPlatformOverride = null;
 
-    expect(pointer, 'Copy Client Portal Link');
-    expect(touch, 'Share Client Portal Link');
-    expect(touchVendor, 'Share Vendor Portal Link');
+    expect(pointer, 'Copy Portal Link');
+    expect(touch, 'Share Portal Link');
+    expect(touchVendor, 'Share Portal Link');
     expect(none, isNull);
   });
 }
