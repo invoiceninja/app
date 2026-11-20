@@ -2661,6 +2661,15 @@ class _ProductCellState extends State<_ProductCell> {
         // neither the debounce nor a server fetch, which would otherwise go
         // out for a cell nobody is looking at.
         if (!widget.focusNode.hasFocus) {
+          // This call bumped `_searchSeq`, so a search still in flight will
+          // bail without clearing its spinner — clear it here, or the bar
+          // shows the next time the options open.
+          if (_searching || _searchFailed) {
+            setState(() {
+              _searching = false;
+              _searchFailed = false;
+            });
+          }
           _lastOptionsCount = local.length;
           return local;
         }
