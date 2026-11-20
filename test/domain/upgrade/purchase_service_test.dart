@@ -4,6 +4,7 @@
 // sheet follows it.
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart' show PlatformException;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:store_services/store_services.dart';
 
@@ -30,7 +31,7 @@ void main() {
       billing: billing,
       platform: TargetPlatform.iOS,
     )..start();
-    svc = PurchaseService(apiClient: api, auth: auth, delivery: delivery);
+    svc = PurchaseService(auth: auth, delivery: delivery);
   });
 
   tearDown(() async {
@@ -70,9 +71,11 @@ void main() {
       },
     );
 
-    test('with no account key yet, a purchase never starts', () async {
-      auth.session.value = testSession(accountKey: '');
+    test('while a company of another account is active, a purchase never '
+        'starts: it would land on the user\'s own account', () async {
+      auth.session.value = testSession(accountKey: 'company-acct');
 
+      expect(svc.sellsToActiveAccount, isFalse);
       await svc.buy(svc.products.value.first);
 
       expect(billing.bought, isEmpty);
@@ -80,16 +83,27 @@ void main() {
     });
 
     test(
-      'a purchase that never starts clears busy instead of throwing',
+      'a purchase that never starts clears busy and says the store failed',
       () async {
+        final outcomes = <PurchaseActivity>[];
+        svc.outcomes.listen(outcomes.add);
         // StoreKit throws `storekit_duplicate_product_object` for a product that
         // still has an unfinished transaction; no stream event follows.
-        billing.buyError = Exception('storekit_duplicate_product_object');
+        billing.buyError = PlatformException(
+          code: 'storekit_duplicate_product_object',
+          message: 'There is a pending transaction for the same product.',
+        );
 
         await svc.buy(svc.products.value.first);
+        await pumpEventQueue();
 
         expect(svc.busy.value, isFalse);
         expect(billing.bought, isEmpty);
+        expect(outcomes.single.kind, PurchaseActivityKind.failed);
+        expect(
+          outcomes.single.message,
+          'There is a pending transaction for the same product.',
+        );
       },
     );
 
@@ -167,13 +181,16 @@ void main() {
         await svc.dispose();
         expect(delivery.sheetOpen, isFalse);
         // A fresh one for tearDown to dispose.
-        svc = PurchaseService(apiClient: api, auth: auth, delivery: delivery);
+        svc = PurchaseService(auth: auth, delivery: delivery);
       },
     );
   });
 
   test('with no app account token, a purchase never starts', () async {
-    api.iapConfig = const {'purchases_enabled': true};
+    api.iapConfig = const {
+      'purchases_enabled': true,
+      'account_key': 'acct-key',
+    };
     expect(await svc.loadConfig(), isFalse);
     await svc.init();
 
@@ -191,12 +208,28 @@ void main() {
     test('asks the hosted config and opens when it says so', () async {
       expect(await svc.loadConfig(), isTrue);
       expect(api.gets, ['/api/admin/iap/config']);
+      expect(svc.sellsToActiveAccount, isTrue);
+    });
+
+    test('reuses the delivery\'s answer: one request', () async {
+      await delivery.config();
+      expect(await svc.loadConfig(), isTrue);
+      expect(api.gets, hasLength(1));
+    });
+
+    test('stays closed when the config names no account', () async {
+      api.iapConfig = const {
+        'purchases_enabled': true,
+        'app_account_token': kTestAccountToken,
+      };
+      expect(await svc.loadConfig(), isFalse);
     });
 
     test('stays closed when the config says no', () async {
       api.iapConfig = const {
         'purchases_enabled': false,
         'app_account_token': kTestAccountToken,
+        'account_key': 'acct-key',
       };
       expect(await svc.loadConfig(), isFalse);
     });
@@ -222,13 +255,17 @@ void main() {
         api.iapConfig = const {
           'purchases_enabled': true,
           'app_account_token': 'acct-key',
+          'account_key': 'acct-key',
         };
         expect(await svc.loadConfig(), isFalse);
-        api.iapConfig = const {
-          'purchases_enabled': true,
-          'app_account_token': 7,
-        };
-        expect(await svc.loadConfig(), isFalse);
+        expect(
+          IapConfig.fromJson(const {
+            'purchases_enabled': true,
+            'app_account_token': 7,
+            'account_key': 'acct-key',
+          }).canPurchase,
+          isFalse,
+        );
       },
     );
   });

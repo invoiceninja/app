@@ -69,6 +69,8 @@ import 'package:admin/data/services/tls/certificate_trust_store.dart';
 import 'package:admin/data/services/web_oauth.dart';
 import 'package:admin/data/services/web_sign_in.dart';
 import 'package:admin/domain/expenses/receipt_scanner.dart';
+import 'package:admin/domain/upgrade/purchase_delivery.dart'
+    show PurchaseResumeObserver;
 import 'package:admin/domain/upgrade/store_build.dart';
 import 'package:admin/l10n/company_labels_scope.dart';
 import 'package:admin/app/legacy_material_theme.dart';
@@ -839,6 +841,14 @@ class _InvoiceNinjaAppState extends State<InvoiceNinjaApp> {
         null => null,
       };
 
+  // A purchase not applied yet is swept again on every return to the
+  // foreground — null off a store-billing build.
+  late final PurchaseResumeObserver? _purchaseResume =
+      switch (widget.services.purchases) {
+        final delivery? => PurchaseResumeObserver(delivery),
+        null => null,
+      };
+
   late final IdleTimeoutController _idleTimeout = IdleTimeoutController(
     auth: widget.services.auth,
     company: widget.services.company,
@@ -914,6 +924,9 @@ class _InvoiceNinjaAppState extends State<InvoiceNinjaApp> {
     WidgetsBinding.instance.addObserver(_idleTimeout);
     WidgetsBinding.instance.addObserver(_memoryPressureObserver);
     WidgetsBinding.instance.addObserver(_terminalObserver);
+    if (_purchaseResume case final observer?) {
+      WidgetsBinding.instance.addObserver(observer);
+    }
     // Apple's Tap to Pay on iPhone symbol, drawn once by iOS (no-op
     // elsewhere): the action and the collect screen show it, or nothing.
     unawaited(TapToPaySymbol.load());
@@ -953,6 +966,9 @@ class _InvoiceNinjaAppState extends State<InvoiceNinjaApp> {
 
   @override
   void dispose() {
+    if (_purchaseResume case final observer?) {
+      WidgetsBinding.instance.removeObserver(observer);
+    }
     WidgetsBinding.instance.removeObserver(_terminalObserver);
     WidgetsBinding.instance.removeObserver(_memoryPressureObserver);
     WidgetsBinding.instance.removeObserver(_idleTimeout);

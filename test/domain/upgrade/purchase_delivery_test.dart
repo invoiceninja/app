@@ -5,6 +5,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart' show AppLifecycleState;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:store_services/store_services.dart';
 
@@ -18,6 +19,7 @@ void main() {
   late FakeApi api;
   late FakeAuth auth;
   late List<PurchaseActivity> activity;
+  late FakeTimers timers;
 
   PurchaseDelivery build(TargetPlatform platform, {FakeAuth? withAuth}) {
     final delivery = PurchaseDelivery(
@@ -25,6 +27,7 @@ void main() {
       auth: withAuth ?? auth,
       billing: billing,
       platform: platform,
+      timer: timers.call,
     );
     delivery.activity.listen(activity.add);
     addTearDown(delivery.dispose);
@@ -36,6 +39,7 @@ void main() {
     api = FakeApi();
     auth = FakeAuth();
     activity = [];
+    timers = FakeTimers();
   });
 
   Future<void> emit(StorePurchase p) async {
@@ -57,8 +61,8 @@ void main() {
       expect(path, '/api/admin/subscription');
       expect(body, {
         'inapp_transaction_id': '2000000111111',
-        // The account's key, never its id: the hosted endpoint looks the
-        // account up by key.
+        // The config's `account_key`, never the account id: the hosted
+        // endpoint looks the account up by key.
         'key': 'acct-key',
         'plan': 'enterprise_plan',
         'verification_data': 'eyJhbGciOiJFUzI1NiJ9.apple-jws.sig',
@@ -140,18 +144,37 @@ void main() {
       },
     );
 
-    test('skips delivery with no transaction id, but finishes', () async {
-      build(TargetPlatform.iOS).start();
-      const p = StorePurchase(
-        productId: 'pro_plan',
-        status: StorePurchaseStatus.purchased,
-        pendingCompletePurchase: true,
-      );
+    for (final platform in [TargetPlatform.iOS, TargetPlatform.android]) {
+      test('${platform.name}: no transaction id and nothing else to name it '
+          'by: left unfinished, and the sheet hears it', () async {
+        build(platform).start();
+        const p = StorePurchase(
+          productId: 'pro_plan',
+          status: StorePurchaseStatus.purchased,
+          pendingCompletePurchase: true,
+        );
+        await emit(p);
+
+        expect(api.posts, isEmpty);
+        expect(auth.refreshes, 0);
+        // Play refunds an acknowledged purchase never, and a later hand-over
+        // may carry the id.
+        expect(billing.completed, isEmpty);
+        expect(kinds(), [PurchaseActivityKind.retryLater]);
+      });
+    }
+
+    test('Google with no order id yet posts by its purchase token', () async {
+      build(TargetPlatform.android).start();
+      final p = googlePurchase(orderId: null);
       await emit(p);
 
-      expect(api.posts, isEmpty);
-      expect(auth.refreshes, 0);
+      final body = api.posts.single.$2!;
+      expect(body, isNot(contains('inapp_transaction_id')));
+      expect(body['verification_data'], 'play-purchase-token');
+      expect(body['key'], 'acct-key');
       expect(billing.completed, [p]);
+      expect(kinds().last, PurchaseActivityKind.applied);
     });
 
     test('a refresh failing after delivery still finishes', () async {
@@ -194,7 +217,9 @@ void main() {
   // gone for good: Apple never hands a finished transaction back, and Google
   // never refunds an acknowledged one.
   group('response contract', () {
-    final permanent = <String, Object>{
+    // The hosted service's final word: a finished Apple transaction is never
+    // handed back, so only these finish it.
+    final finalRefusals = <String, Object>{
       '409 sandbox': const ConflictException(
         'Test purchases are not applied to this account.',
         {'message': 'Test purchases are not applied.', 'reason': 'sandbox'},
@@ -203,18 +228,44 @@ void main() {
         'Already linked to another account.',
         {'reason': 'linked'},
       ),
+      '409 expired': const ConflictException('Expired.', {'reason': 'expired'}),
+      '409 revoked': const ConflictException('Refunded.', {
+        'reason': 'revoked',
+      }),
+      '409 upgraded': const ConflictException('Upgraded.', {
+        'reason': 'upgraded',
+      }),
+      '422 sandbox': const ValidationException(
+        'A test purchase.',
+        {},
+        body: {'reason': 'sandbox'},
+      ),
+    };
+    // Refusals that may change: the purchase stays with the store.
+    final openRefusals = <String, Object>{
+      '409 account': const ConflictException(
+        'This purchase was posted for another account.',
+        {'reason': 'account'},
+      ),
+      '409 token_mismatch': const ConflictException(
+        'Bought for another account.',
+        {'reason': 'token_mismatch'},
+      ),
+      '409 no_token': const ConflictException('No account token.', {
+        'reason': 'no_token',
+      }),
+      '409 with no reason': const ConflictException('Conflict', {}),
+      '409 with an unknown reason': const ConflictException('Conflict', {
+        'reason': 'something_new',
+      }),
       '422 unverified': const ValidationException(
         'The purchase could not be verified.',
         {},
         body: {'reason': 'unverified'},
       ),
-      '409 account': const ConflictException(
-        'This purchase was posted for another account.',
-        {'reason': 'account'},
-      ),
     };
 
-    for (final MapEntry(key: name, value: error) in permanent.entries) {
+    for (final MapEntry(key: name, value: error) in finalRefusals.entries) {
       test('$name: Apple finishes it and shows the server message', () async {
         build(TargetPlatform.iOS).start();
         api.postError = error;
@@ -226,7 +277,26 @@ void main() {
         expect(kinds().last, PurchaseActivityKind.rejected);
         expect(activity.last.message, (error as ApiException).message);
       });
+    }
 
+    for (final MapEntry(key: name, value: error) in openRefusals.entries) {
+      test('$name: Apple leaves it unfinished and shows the server '
+          'message', () async {
+        build(TargetPlatform.iOS).start();
+        api.postError = error;
+        await emit(applePurchase());
+
+        expect(api.posts, hasLength(1));
+        expect(billing.completed, isEmpty);
+        expect(auth.refreshes, 0);
+        expect(kinds().last, PurchaseActivityKind.rejected);
+      });
+    }
+
+    for (final MapEntry(key: name, value: error) in {
+      ...finalRefusals,
+      ...openRefusals,
+    }.entries) {
       test(
         '$name: Google leaves it unacknowledged, so Play refunds it',
         () async {
@@ -282,14 +352,71 @@ void main() {
       expect(kinds(), [PurchaseActivityKind.retryLater]);
     });
 
-    test('no account key yet: left unfinished', () async {
+    test('a config that names no account: left unfinished', () async {
+      api.iapConfig = const {
+        'purchases_enabled': true,
+        'app_account_token': kTestAccountToken,
+      };
       build(TargetPlatform.android).start();
-      auth.session.value = testSession(accountKey: '');
       await emit(googlePurchase());
 
       expect(api.posts, isEmpty);
       expect(billing.completed, isEmpty);
+      expect(kinds(), [PurchaseActivityKind.retryLater]);
     });
+
+    test(
+      'a purchase bought under another account token is left alone',
+      () async {
+        build(TargetPlatform.iOS).start();
+        await emit(
+          applePurchase(
+            appAccountToken: '11111111-2222-3333-4444-555555555555',
+          ),
+        );
+
+        expect(api.posts, isEmpty);
+        expect(billing.completed, isEmpty);
+      },
+    );
+
+    test('Google: an obfuscatedAccountId of another account is left '
+        'alone', () async {
+      build(TargetPlatform.android).start();
+      await emit(
+        googlePurchase(
+          obfuscatedAccountId: '11111111-2222-3333-4444-555555555555',
+        ),
+      );
+
+      expect(api.posts, isEmpty);
+      expect(billing.completed, isEmpty);
+    });
+
+    test("this account's token (any case) is delivered", () async {
+      build(TargetPlatform.iOS).start();
+      await emit(
+        applePurchase(appAccountToken: kTestAccountToken.toUpperCase()),
+      );
+
+      expect(api.posts, hasLength(1));
+    });
+
+    for (final (name, extra) in [
+      ('revoked', <String, Object?>{'revocationDate': 1751000000000}),
+      ('upgraded', <String, Object?>{'isUpgraded': true}),
+    ]) {
+      test('an Apple transaction $name is finished, not posted, and not '
+          'said', () async {
+        build(TargetPlatform.iOS).start();
+        final p = applePurchase(extra: extra);
+        await emit(p);
+
+        expect(api.posts, isEmpty);
+        expect(billing.completed, [p]);
+        expect(activity, isEmpty);
+      });
+    }
 
     test('a self-hosted session never posts it (wrong server)', () async {
       build(TargetPlatform.android).start();
@@ -348,7 +475,7 @@ void main() {
       expect(billing.completed, isEmpty);
 
       // The route is deployed; the next refresh of the same session sweeps.
-      api.iapConfig = const {'purchases_enabled': false};
+      api.iapConfig = const {'purchases_enabled': false, 'account_key': 'k'};
       auth.session.value = testSession();
       await pumpEventQueue();
       expect(api.posts, hasLength(1));
@@ -370,24 +497,41 @@ void main() {
     });
 
     test('purchases switched off still deliver what was paid for', () async {
-      api.iapConfig = const {'purchases_enabled': false};
+      api.iapConfig = const {
+        'purchases_enabled': false,
+        'account_key': 'acct-key',
+      };
       build(TargetPlatform.iOS).start();
       await emit(applePurchase());
       expect(api.posts, hasLength(1));
       expect(kinds().last, PurchaseActivityKind.applied);
     });
 
-    test('asked once per session, and again for another account', () async {
+    test('asked once per user, and again for another user', () async {
       build(TargetPlatform.iOS).start();
       await emit(applePurchase());
       await emit(applePurchase());
       expect(api.gets, hasLength(1));
       expect(api.posts, hasLength(2));
 
+      // A company of another account: the same user, the same config.
       auth.session.value = testSession(accountKey: 'other-acct');
       await pumpEventQueue();
       await emit(applePurchase());
+      expect(api.gets, hasLength(1));
+
+      auth.session.value = testSession(userId: 'someone-else');
+      await pumpEventQueue();
+      await emit(applePurchase());
       expect(api.gets, hasLength(2));
+    });
+
+    test('the sheet reads the same answer, with no second request', () async {
+      final delivery = build(TargetPlatform.iOS)..start();
+      await emit(applePurchase());
+      final config = await delivery.config();
+      expect(config?.accountKey, 'acct-key');
+      expect(api.gets, hasLength(1));
     });
 
     test('asked again after a failure', () async {
@@ -396,7 +540,7 @@ void main() {
       await emit(applePurchase());
       expect(api.posts, isEmpty);
 
-      api.iapConfig = const {'purchases_enabled': true};
+      api.iapConfig = const {'purchases_enabled': true, 'account_key': 'k'};
       await emit(applePurchase());
       expect(api.gets, hasLength(2));
       expect(api.posts, hasLength(1));
@@ -416,7 +560,7 @@ void main() {
     });
 
     test('Restore asks the store, whatever the config says', () async {
-      api.iapConfig = const {'purchases_enabled': false};
+      api.iapConfig = const {'purchases_enabled': false, 'account_key': 'k'};
       final delivery = build(TargetPlatform.iOS)..start();
       await delivery.restore();
       expect(billing.restores, 1);
@@ -424,56 +568,96 @@ void main() {
   });
 
   // The hosted endpoint applies a purchase to the signed-in user's own
-  // account (`user->account`), whichever company is active.
-  group("the user's own account", () {
-    test(
-      'posts the user account key, not the active company account key',
-      () async {
-        auth.session.value = testSession(
-          accountKey: 'company-acct',
-          userAccountKey: 'my-acct',
-        );
-        build(TargetPlatform.iOS).start();
-        await emit(applePurchase());
+  // account (`user->account`), whichever company is active; the config names
+  // it (`account_key`), and that is the key posted.
+  group("the config's account key", () {
+    test("posts the config's key, not a key the session guessed", () async {
+      api.iapConfig = const {
+        'purchases_enabled': true,
+        'app_account_token': kTestAccountToken,
+        'account_key': 'my-acct',
+      };
+      auth.session.value = testSession(
+        accountKey: 'company-acct',
+        userAccountKey: 'some-guess',
+      );
+      build(TargetPlatform.iOS).start();
+      await emit(applePurchase());
 
-        expect(api.posts.single.$2!['key'], 'my-acct');
-      },
-    );
-
-    test(
-      "falls back to the active company's key when the user's is unknown",
-      () async {
-        auth.session.value = testSession(
-          accountKey: 'company-acct',
-          userAccountKey: '',
-        );
-        build(TargetPlatform.iOS).start();
-        await emit(applePurchase());
-
-        expect(api.posts.single.$2!['key'], 'company-acct');
-      },
-    );
+      expect(api.posts.single.$2!['key'], 'my-acct');
+    });
 
     test(
       'a switch to a company of another account sweeps nothing new',
       () async {
         billing.unfinished = [applePurchase()];
-        auth.session.value = testSession(
-          accountKey: 'my-acct',
-          userAccountKey: 'my-acct',
-        );
+        auth.session.value = testSession(accountKey: 'my-acct');
         build(TargetPlatform.iOS).start();
         await pumpEventQueue();
         expect(api.posts, hasLength(1));
 
-        auth.session.value = testSession(
-          accountKey: 'company-acct',
-          userAccountKey: 'my-acct',
-        );
+        auth.session.value = testSession(accountKey: 'company-acct');
         await pumpEventQueue();
         expect(api.posts, hasLength(1));
       },
     );
+  });
+
+  group('trying again', () {
+    test('a purchase not applied yet is swept again with a backoff, capped, '
+        'while the app runs', () async {
+      api.postError = const ServerException(500, 'Server Error');
+      final p = applePurchase();
+      billing.unfinished = [p];
+      build(TargetPlatform.iOS).start();
+      await pumpEventQueue();
+      expect(api.posts, hasLength(1));
+      expect(timers.delays, [const Duration(seconds: 30)]);
+
+      for (var i = 0; i < 3; i++) {
+        timers.fireLast();
+        await pumpEventQueue();
+      }
+      expect(api.posts, hasLength(4));
+      expect(timers.delays, const [
+        Duration(seconds: 30),
+        Duration(minutes: 2),
+        Duration(minutes: 10),
+        Duration(minutes: 10),
+      ]);
+
+      // The server is back: applied, finished, and no more retries.
+      api.postError = null;
+      timers.fireLast();
+      await pumpEventQueue();
+      expect(billing.completed, [p]);
+      expect(kinds().last, PurchaseActivityKind.applied);
+      expect(timers.scheduled, hasLength(4));
+    });
+
+    test('a return to the foreground sweeps again', () async {
+      final delivery = build(TargetPlatform.android)..start();
+      await pumpEventQueue();
+      final p = googlePurchase();
+      billing.unfinished = [p];
+
+      PurchaseResumeObserver(
+        delivery,
+      ).didChangeAppLifecycleState(AppLifecycleState.resumed);
+      await pumpEventQueue();
+      expect(api.posts, hasLength(1));
+      expect(billing.completed, [p]);
+    });
+
+    test('a Google acknowledgement Play did not confirm is swept '
+        'again', () async {
+      billing.completeResult = false;
+      build(TargetPlatform.android).start();
+      await emit(googlePurchase());
+
+      expect(billing.completed, hasLength(1));
+      expect(timers.delays, [const Duration(seconds: 30)]);
+    });
   });
 
   group('from app start', () {
@@ -552,31 +736,33 @@ void main() {
       expect(auth.refreshes, 1);
     });
 
-    test(
-      'sweeps again when another account signs in, not on a refresh',
-      () async {
-        final p = applePurchase();
-        billing.unfinished = [p];
-        // Signed out at launch: nothing to deliver it to yet.
-        final launchAuth = FakeAuth()..session.value = null;
-        build(TargetPlatform.iOS, withAuth: launchAuth).start();
-        await pumpEventQueue();
-        expect(api.posts, isEmpty);
+    test('sweeps again when another user signs in, not on a refresh', () async {
+      final p = applePurchase();
+      billing.unfinished = [p];
+      // Signed out at launch: nothing to deliver it to yet.
+      final launchAuth = FakeAuth()..session.value = null;
+      build(TargetPlatform.iOS, withAuth: launchAuth).start();
+      await pumpEventQueue();
+      expect(api.posts, isEmpty);
 
-        launchAuth.session.value = testSession();
-        await pumpEventQueue();
-        expect(api.posts, hasLength(1));
+      launchAuth.session.value = testSession();
+      await pumpEventQueue();
+      expect(api.posts, hasLength(1));
 
-        launchAuth.session.value = testSession();
-        await pumpEventQueue();
-        expect(api.posts, hasLength(1));
+      launchAuth.session.value = testSession();
+      await pumpEventQueue();
+      expect(api.posts, hasLength(1));
 
-        launchAuth.session.value = testSession(accountKey: 'other-acct');
-        await pumpEventQueue();
-        expect(api.posts, hasLength(2));
-        expect(api.posts.last.$2!['key'], 'other-acct');
-      },
-    );
+      api.iapConfig = const {
+        'purchases_enabled': true,
+        'app_account_token': kTestAccountToken,
+        'account_key': 'other-acct',
+      };
+      launchAuth.session.value = testSession(userId: 'someone-else');
+      await pumpEventQueue();
+      expect(api.posts, hasLength(2));
+      expect(api.posts.last.$2!['key'], 'other-acct');
+    });
 
     test(
       'the same purchase handed over twice at once is posted once',
@@ -611,6 +797,77 @@ void main() {
       expect(isPermanentRejection(const ServerException(401)), isFalse);
       expect(isPermanentRejection(const NetworkException('x')), isFalse);
       expect(isPermanentRejection(Exception('x')), isFalse);
+    });
+
+    test('finishesOnRejection: only a final reason', () {
+      for (final reason in kFinalRejectionReasons) {
+        expect(
+          finishesOnRejection(ConflictException('x', {'reason': reason})),
+          isTrue,
+          reason: reason,
+        );
+        expect(
+          finishesOnRejection(
+            ValidationException('x', const {}, body: {'reason': reason}),
+          ),
+          isTrue,
+          reason: reason,
+        );
+      }
+      for (final reason in ['account', 'token_mismatch', 'no_token', '']) {
+        expect(
+          finishesOnRejection(ConflictException('x', {'reason': reason})),
+          isFalse,
+        );
+      }
+      expect(finishesOnRejection(const ConflictException()), isFalse);
+      expect(
+        finishesOnRejection(const ServerException(503, 'x', {'reason': 'x'})),
+        isFalse,
+      );
+    });
+
+    test('purchaseAccountToken reads each store\'s own field', () {
+      expect(
+        purchaseAccountToken(
+          applePurchase(appAccountToken: kTestAccountToken),
+          PurchaseStore.appStore,
+        ),
+        kTestAccountToken,
+      );
+      expect(
+        purchaseAccountToken(applePurchase(), PurchaseStore.appStore),
+        isNull,
+      );
+      expect(
+        purchaseAccountToken(
+          googlePurchase(obfuscatedAccountId: kTestAccountToken),
+          PurchaseStore.googlePlay,
+        ),
+        kTestAccountToken,
+      );
+      expect(
+        purchaseAccountToken(googlePurchase(), PurchaseStore.googlePlay),
+        isNull,
+      );
+    });
+
+    test('IapConfig needs an account_key to deliver or sell', () {
+      final ready = IapConfig.fromJson(const {
+        'purchases_enabled': true,
+        'app_account_token': kTestAccountToken,
+        'account_key': 'acct-key',
+      });
+      expect(ready.canDeliver, isTrue);
+      expect(ready.sellsTo(testSession()), isTrue);
+      expect(ready.sellsTo(testSession(accountKey: 'other')), isFalse);
+
+      final noKey = IapConfig.fromJson(const {
+        'purchases_enabled': true,
+        'app_account_token': kTestAccountToken,
+      });
+      expect(noKey.canDeliver, isFalse);
+      expect(noKey.canPurchase, isFalse);
     });
 
     test('planSlugOf', () {

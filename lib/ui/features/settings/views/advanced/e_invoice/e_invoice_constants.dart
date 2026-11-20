@@ -15,6 +15,7 @@ library;
 
 // ignore_for_file: constant_identifier_names
 
+import 'package:admin/domain/upgrade/billing_host.dart';
 import 'package:admin/ui/core/utils/external_url.dart';
 
 /// Wire values for `company.settings.e_invoice_type`. Order matches
@@ -150,9 +151,9 @@ const String kEInvoiceHelpUrl =
 /// [PeppolBuyCreditsLinks] on the onboarding + preferences cards; hosted-only
 /// (these are invoicing.co subscription URLs, inapplicable to self-hosted).
 const String kPeppolBuy500Url =
-    'https://invoiceninja.invoicing.co/client/subscriptions/WJxboqNegw/purchase';
+    '$kInvoiceNinjaBillingOrigin/client/subscriptions/WJxboqNegw/purchase';
 const String kPeppolBuy1000Url =
-    'https://invoiceninja.invoicing.co/client/subscriptions/k8mep0reMy/purchase';
+    '$kInvoiceNinjaBillingOrigin/client/subscriptions/k8mep0reMy/purchase';
 
 /// Open the e-invoicing user-guide URL in the host browser. Best-effort;
 /// failures (no browser, sandbox restrictions) are swallowed. Used by the

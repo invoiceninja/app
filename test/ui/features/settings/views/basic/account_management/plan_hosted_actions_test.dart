@@ -114,7 +114,7 @@ Future<void> _pump(
 
 const _billedInStore =
     'Your plan is billed through the app store you subscribed in.';
-const _billedOnWeb = 'Your plan is billed on the web.';
+const _billedOnWeb = 'Your plan is managed on the web.';
 
 void main() {
   tearDown(() => debugStoreBillingOverride = null);
@@ -168,11 +168,10 @@ void main() {
   });
 
   group('store build, not the owner', () {
+    // Which account a purchase lands on is the hosted config's answer, read
+    // when the sheet opens; only the owner check is the card's.
     for (final MapEntry(key: name, value: session) in {
       'a member': _session(isOwner: false),
-      "the owner, in another account's company": _session(
-        userAccountKey: 'my-own-acct',
-      ),
     }.entries) {
       testWidgets('$name gets a disabled Upgrade that says why', (
         tester,
@@ -216,7 +215,8 @@ void main() {
       tester,
     ) async {
       final billing = FakeBilling();
-      final api = FakeApi()..iapConfig = const {'purchases_enabled': false};
+      final api = FakeApi()
+        ..iapConfig = const {'purchases_enabled': false, 'account_key': 'k'};
       final delivery = PurchaseDelivery(
         apiClient: api,
         auth: FakeAuth(),
@@ -269,6 +269,29 @@ void main() {
       await _pump(tester, _free, storeBuild: false);
 
       expect(find.text('Upgrade Plan'), findsOneWidget);
+    });
+
+    // The store may still renew a lapsed in-app plan for 60 days: no web plan
+    // is sold on top meanwhile.
+    testWidgets('an in-app plan that ended recently is not sold a web plan', (
+      tester,
+    ) async {
+      final ended = DateTime.now()
+          .toUtc()
+          .subtract(const Duration(days: 10))
+          .toIso8601String()
+          .substring(0, 10);
+      await _pump(
+        tester,
+        _session(planExpires: ended, hasIapPlan: true),
+        storeBuild: false,
+      );
+
+      expect(
+        find.textContaining('Your in-app subscription has ended'),
+        findsOneWidget,
+      );
+      expect(find.bySubtype<FilledButton>(), findsNothing);
     });
   });
 }

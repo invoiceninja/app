@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:store_services/store_services.dart';
 
+import 'package:admin/domain/upgrade/billing_host.dart';
 import 'package:admin/domain/upgrade/purchase_delivery.dart';
 
 /// Whether this build sells plans through the store's own billing: a store
@@ -58,10 +59,6 @@ const _kStripePaymentHosts = {
   'invoice.stripe.com',
 };
 
-/// Invoice Ninja's own billing portal — `ninja_portal_url`, the white-label
-/// checkout and the PEPPOL credit packs all live here.
-const _kInvoiceNinjaBillingHost = 'invoiceninja.invoicing.co';
-
 /// Whether [uri] is a page that sells something outside the store: Stripe's
 /// payment pages, Invoice Ninja's billing portal, a subscription checkout on
 /// any client portal, or the pricing pages. A store build refuses to open one
@@ -69,7 +66,7 @@ const _kInvoiceNinjaBillingHost = 'invoiceninja.invoicing.co';
 bool isExternalPurchaseUri(Uri uri) {
   final host = uri.host.toLowerCase();
   if (_kStripePaymentHosts.contains(host)) return true;
-  if (host == _kInvoiceNinjaBillingHost) return true;
+  if (host == kInvoiceNinjaBillingHost) return true;
   final path = uri.path.toLowerCase();
   if (path.startsWith('/client/subscriptions')) return true;
   if ((host == 'invoiceninja.com' || host == 'www.invoiceninja.com') &&

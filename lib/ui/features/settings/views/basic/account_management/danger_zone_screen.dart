@@ -213,8 +213,7 @@ class _DeleteSection extends StatelessWidget {
         // A plan bought in the App Store or Google Play is billed by the store,
         // and deleting the account here doesn't cancel it — only the store
         // can (Apple's account-deletion guidance; App Review 5.1.1(v)).
-        final storeBilled =
-            (value?.hasIapPlan ?? false) && (value?.isPaidPlanSlug ?? false);
+        final storeBilled = value?.hasActiveIapPlan ?? false;
         // Names only this build's store (App Review 2.3.10), and links to it
         // only where the store's page is this device's: desktop and the web
         // say it in words.
@@ -223,6 +222,16 @@ class _DeleteSection extends StatelessWidget {
           title: label,
           children: [
             Text(message, style: TextStyle(color: tokens.ink2)),
+            // There is no account-delete route: the account goes with its
+            // last company, which is worth saying before it is the last one.
+            if (multi) ...[
+              SizedBox(height: InSpacing.md(context)),
+              Text(
+                key: const ValueKey('danger_zone_last_company_note'),
+                context.tr('delete_last_company_deletes_account'),
+                style: TextStyle(color: tokens.ink2),
+              ),
+            ],
             if (storeBilled) ...[
               SizedBox(height: InSpacing.md(context)),
               Text(
@@ -245,7 +254,7 @@ class _DeleteSection extends StatelessWidget {
                     style: OutlinedButton.styleFrom(
                       minimumSize: const Size(120, 40),
                     ),
-                    onPressed: openManageSubscriptions,
+                    onPressed: () => unawaited(openManageSubscriptions()),
                   ),
                 ),
               ],

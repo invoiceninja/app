@@ -1,9 +1,18 @@
 import 'package:flutter/foundation.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
+import 'package:in_app_purchase_android/billing_client_wrappers.dart'
+    show BillingResponse;
 import 'package:in_app_purchase_android/in_app_purchase_android.dart'
-    show GooglePlayProductDetails, InAppPurchaseAndroidPlatformAddition;
+    show
+        GooglePlayProductDetails,
+        InAppPurchaseAndroidPlatform,
+        InAppPurchaseAndroidPlatformAddition;
+import 'package:in_app_purchase_platform_interface/in_app_purchase_platform_interface.dart'
+    show InAppPurchasePlatform;
 import 'package:in_app_purchase_storekit/in_app_purchase_storekit.dart';
 import 'package:in_app_purchase_storekit/store_kit_2_wrappers.dart';
+
+import 'package:store_services/src/sdk_only/play_billing_helpers.dart';
 
 /// Where a store purchase stands, as the app acts on it.
 enum StorePurchaseStatus { pending, purchased, restored, error, canceled }
@@ -245,28 +254,25 @@ class StoreBilling {
 
   Future<void> restorePurchases() => _iap.restorePurchases();
 
-  Future<void> completePurchase(StorePurchase purchase) async {
+  /// Finishes [purchase] with the store: StoreKit's `finish()`, Play's
+  /// acknowledgement. False when the store did not confirm it — Play answered
+  /// its acknowledgement with anything but OK — so the caller can try again
+  /// before Play's three-day refund. StoreKit reports no result: true once
+  /// the call returns.
+  Future<bool> completePurchase(StorePurchase purchase) async {
     final details = purchase._details;
     if (details == null) {
       throw StateError('completePurchase needs a purchase from purchaseStream');
     }
-    await _iap.completePurchase(details);
-  }
-
-  /// Presents Apple's own manage-subscriptions sheet over the app (StoreKit 2,
-  /// iOS 15+). False when it was not shown — any other platform (StoreKit has
-  /// no such sheet on macOS), or a StoreKit refusal such as no key window
-  /// scene — so the caller can fall back to the subscriptions page.
-  Future<bool> showManageSubscriptions() async {
-    if (kIsWeb || defaultTargetPlatform != TargetPlatform.iOS) return false;
-    try {
-      await _iap
-          .getPlatformAddition<InAppPurchaseStoreKitPlatformAddition>()
-          .showManageSubscriptions();
-      return true;
-    } on Exception {
-      return false;
+    // `InAppPurchase.completePurchase` drops the result; Android's platform
+    // returns Play's BillingResult for the acknowledgement.
+    final platform = InAppPurchasePlatform.instance;
+    if (platform is InAppPurchaseAndroidPlatform) {
+      final result = await platform.completePurchase(details);
+      return result.responseCode == BillingResponse.ok;
     }
+    await _iap.completePurchase(details);
+    return true;
   }
 }
 
@@ -289,42 +295,3 @@ class StoreBilling {
   }
   return (productId: d.id, basePlanId: null, offerId: null);
 }
-
-/// Which of Play's product offers to list: one per subscription base plan.
-///
-/// Play hands a subscription back once per offer — its base plan (no
-/// `offerId`) and each offer on it, a free trial priced "Free" among them —
-/// so listing them all shows one plan several times. Keeps, per product and
-/// base plan, the base plan's own offer, or the first offer when the base
-/// plan's isn't there; anything that is not a Play subscription is kept as
-/// is. Returns the kept indexes into [offers], in order.
-List<int> playBasePlanOfferIndexes(
-  List<({String productId, String? basePlanId, String? offerId})> offers,
-) {
-  final chosen = <String, int>{};
-  for (var i = 0; i < offers.length; i++) {
-    final o = offers[i];
-    final basePlan = o.basePlanId;
-    if (basePlan == null) {
-      chosen['$i'] = i;
-      continue;
-    }
-    final key = '${o.productId}|$basePlan';
-    final current = chosen[key];
-    if (current == null ||
-        (offers[current].offerId != null && o.offerId == null)) {
-      chosen[key] = i;
-    }
-  }
-  return chosen.values.toList()..sort();
-}
-
-/// The product ids of [owned] that are bought or on their way (a Play
-/// pending payment): what a second sale would bill alongside.
-Set<String> ownedProductIds(Iterable<StorePurchase> owned) => {
-  for (final p in owned)
-    if (p.status == StorePurchaseStatus.purchased ||
-        p.status == StorePurchaseStatus.restored ||
-        p.status == StorePurchaseStatus.pending)
-      p.productId,
-};

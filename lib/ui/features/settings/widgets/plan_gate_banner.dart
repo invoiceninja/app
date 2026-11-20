@@ -8,6 +8,7 @@ import 'package:admin/app/services.dart';
 import 'package:admin/data/repositories/auth/auth_session.dart';
 import 'package:admin/domain/upgrade/store_build.dart';
 import 'package:admin/domain/upgrade/upgrade_launcher.dart';
+import 'package:admin/domain/upgrade/upgrade_route.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/link_text.dart';
 
@@ -31,7 +32,9 @@ enum PlanGateLevel { pro, enterprise }
 /// - Hides itself when the user already has access (so call sites can drop
 ///   it in unconditionally without a wrapping `if`).
 /// - Owner-aware copy: non-owners cannot act on the upgrade, so they see
-///   `owner_upgrade_to_paid_plan` with no link CTA.
+///   `owner_upgrade_to_paid_plan` with no link CTA; nor does a store build's
+///   trial or web-billed plan, which the store cannot change
+///   (`plan_managed_on_web`).
 /// - CTA helper [openUpgradeFlow] launches `ninjaPortalUrl` externally when
 ///   set, otherwise navigates to `/settings/account_management` (the Plan tab).
 class PlanGateBanner extends StatelessWidget {
@@ -76,54 +79,71 @@ class PlanGateBanner extends StatelessWidget {
       level,
       session,
       isOwner: isOwner,
-      storeBilling: isStoreBillingBuild,
+      route: resolveUpgradeRoute(
+        storeBilling: isStoreBillingBuild,
+        session: session,
+        now: DateTime.now(),
+      ),
     );
     switch (style) {
       case PlanGateStyle.inset:
-        return _InsetCard(copy: copy, isOwner: isOwner);
+        return _InsetCard(copy: copy);
       case PlanGateStyle.stripe:
-        return _StripeBar(copy: copy, isOwner: isOwner);
+        return _StripeBar(copy: copy);
     }
   }
 }
 
-/// Resolved banner message: localization key + optional substitution params.
-typedef PlanGateCopy = ({String key, Map<String, String>? params});
+/// Resolved banner message: localization key, optional substitution params,
+/// and whether it carries the upgrade button ([cta]).
+typedef PlanGateCopy = ({String key, Map<String, String>? params, bool cta});
 
-/// State-aware copy. A used-trial or expired-paid user must never be told to
-/// "start a free trial" (a dead-end lie). Order matters: trial countdown and
-/// expiry-renewal take precedence over the generic upgrade nudge.
+/// State-aware copy, for where an upgrade tap would go ([route],
+/// `resolveUpgradeRoute`). A used-trial or expired-paid user must never be
+/// told to "start a free trial" (a dead-end lie). Order matters: trial
+/// countdown and expiry-renewal take precedence over the generic upgrade
+/// nudge.
 ///
-/// Nor is anyone on a store build ([storeBilling]): a hosted trial starts on
-/// the web with a card, and the store sheet the button opens sells a paid plan.
+/// The trial is promised only where the tap opens the web billing
+/// ([UpgradeRoute.billingPortal]): on a store build a hosted trial starts on
+/// the web with a card, and the store sheet the button opens sells a paid
+/// plan. And on a store build a trial or web-billed plan gets no button at
+/// all ([planManagedOnWeb]): it would only reach a Plan screen saying the
+/// plan is managed on the web.
 @visibleForTesting
 PlanGateCopy planGateCopy(
   PlanGateLevel level,
   AuthSession s, {
   required bool isOwner,
-  required bool storeBilling,
+  required UpgradeRoute route,
 }) {
-  if (!isOwner) return (key: 'owner_upgrade_to_paid_plan', params: null);
+  if (!isOwner) {
+    return (key: 'owner_upgrade_to_paid_plan', params: null, cta: false);
+  }
+  if (route == UpgradeRoute.planScreen && s.isWebBilled) {
+    return (key: 'plan_managed_on_web', params: null, cta: false);
+  }
   if (s.isTrial) {
     return (
       key: 'free_trial_ends_in_days',
       params: {'count': '${s.trialDaysRemaining}'},
+      cta: true,
     );
   }
   // Hosted account that previously paid (non-empty slug) but lapsed.
   if (s.isHosted && s.plan.isNotEmpty && s.isPlanExpired) {
-    return (key: 'plan_expired_renew', params: null);
+    return (key: 'plan_expired_renew', params: null, cta: true);
   }
   if (level == PlanGateLevel.enterprise) {
     // Not `enterprise_plan_features` — it ends with ":link to see the full
     // list of features" and this banner has no link to substitute. This key
     // is placeholder-free, translated, and matches the sibling copy's length.
-    return (key: 'requires_an_enterprise_plan', params: null);
+    return (key: 'requires_an_enterprise_plan', params: null, cta: true);
   }
-  if (s.isEligibleForTrial && !storeBilling) {
-    return (key: 'start_free_trial_message', params: null);
+  if (s.isEligibleForTrial && route == UpgradeRoute.billingPortal) {
+    return (key: 'start_free_trial_message', params: null, cta: true);
   }
-  return (key: 'upgrade_to_paid_plan', params: null);
+  return (key: 'upgrade_to_paid_plan', params: null, cta: true);
 }
 
 /// Opens the user's upgrade flow. Delegates to the single platform-conditional
@@ -133,10 +153,9 @@ PlanGateCopy planGateCopy(
 Future<void> openUpgradeFlow(BuildContext context) => launchUpgrade(context);
 
 class _InsetCard extends StatelessWidget {
-  const _InsetCard({required this.copy, required this.isOwner});
+  const _InsetCard({required this.copy});
 
   final PlanGateCopy copy;
-  final bool isOwner;
 
   @override
   Widget build(BuildContext context) {
@@ -169,7 +188,7 @@ class _InsetCard extends StatelessWidget {
                   style: theme.textTheme.bodyMedium?.copyWith(color: t.ink),
                 ),
               ),
-              if (isOwner) ...[
+              if (copy.cta) ...[
                 const SizedBox(width: InSpacing.sm),
                 OutlinedButton(
                   onPressed: () => unawaited(openUpgradeFlow(context)),
@@ -188,10 +207,9 @@ class _InsetCard extends StatelessWidget {
 }
 
 class _StripeBar extends StatelessWidget {
-  const _StripeBar({required this.copy, required this.isOwner});
+  const _StripeBar({required this.copy});
 
   final PlanGateCopy copy;
-  final bool isOwner;
 
   @override
   Widget build(BuildContext context) {
@@ -214,7 +232,7 @@ class _StripeBar extends StatelessWidget {
           Icon(Icons.lock_outline, size: 18, color: tokens.ink),
           const SizedBox(width: InSpacing.sm),
           Expanded(child: Text(message, style: bodyStyle)),
-          if (isOwner) ...[
+          if (copy.cta) ...[
             SizedBox(width: InSpacing.md(context)),
             LinkText(
               label: context.tr('plan_change'),

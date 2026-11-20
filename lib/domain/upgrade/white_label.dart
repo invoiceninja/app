@@ -2,6 +2,7 @@ import 'package:material_ui/material_ui.dart';
 
 import 'package:admin/app/env.dart';
 import 'package:admin/data/repositories/auth/auth_session.dart';
+import 'package:admin/domain/upgrade/billing_host.dart';
 import 'package:admin/domain/upgrade/store_build.dart';
 import 'package:admin/ui/core/utils/external_url.dart';
 
@@ -17,7 +18,7 @@ import 'package:admin/ui/core/utils/external_url.dart';
 /// on the Overview tab) was a marketing path that 404s — pinned by a test so
 /// a dead purchase link can't ship silently again.
 const String kWhiteLabelPurchaseUrl =
-    'https://invoiceninja.invoicing.co/client/subscriptions/O5xe7Rwd7r/purchase';
+    '$kInvoiceNinjaBillingOrigin/client/subscriptions/O5xe7Rwd7r/purchase';
 
 /// Whether Account Management → Plan shows the White Label card at all:
 /// a self-hosted, non-demo session. Buy / renew / re-apply are branches
@@ -35,10 +36,9 @@ const String kWhiteLabelPurchaseUrl =
 /// web, and a store build may not link to an external purchase (App Store
 /// 3.1.1(a), Play Payments 4). Apply License goes with it, so the card would
 /// be empty; a license bought on the web is applied from the web or desktop.
-/// [storeBilling] is for tests.
-bool showWhiteLabelCard(AuthSession? session, {bool? storeBilling}) {
+bool showWhiteLabelCard(AuthSession? session) {
   if (session == null || session.isHosted) return false;
-  if (storeBilling ?? isStoreBillingBuild) return false;
+  if (isStoreBillingBuild) return false;
   // The demo bootstrap logs in with `isHosted: false` (`main.dart`), so the
   // public GitHub Pages build satisfies `isSelfHosted`. Suppress the whole
   // card there, not just the checkout button: a demo account has no server of
@@ -52,9 +52,8 @@ bool showWhiteLabelCard(AuthSession? session, {bool? storeBilling}) {
 /// True when this session should be *offered* a license — [showWhiteLabelCard]
 /// minus the installs that already hold one. Drives the purchase button and
 /// (via [shouldNagForWhiteLabel]) the sidebar CTA.
-bool canPurchaseWhiteLabel(AuthSession? session, {bool? storeBilling}) =>
-    showWhiteLabelCard(session, storeBilling: storeBilling) &&
-    !session!.isWhiteLabeled;
+bool canPurchaseWhiteLabel(AuthSession? session) =>
+    showWhiteLabelCard(session) && !session!.isWhiteLabeled;
 
 /// [canPurchaseWhiteLabel] plus the role check that only persistent chrome
 /// needs: a user who can't act on the purchase shouldn't carry the nag on
@@ -63,10 +62,8 @@ bool canPurchaseWhiteLabel(AuthSession? session, {bool? storeBilling}) =>
 ///
 /// The settings card deliberately skips this — someone who navigated to
 /// Account Management → Plan asked to see their license state.
-bool shouldNagForWhiteLabel(AuthSession? session, {bool? storeBilling}) {
-  if (!canPurchaseWhiteLabel(session, storeBilling: storeBilling)) {
-    return false;
-  }
+bool shouldNagForWhiteLabel(AuthSession? session) {
+  if (!canPurchaseWhiteLabel(session)) return false;
   final me = session!.currentCompany;
   // Fail closed on a not-yet-loaded company: an unsolicited upsell is worse
   // than a missing one, and the Plan tab still offers the purchase.

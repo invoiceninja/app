@@ -64,22 +64,12 @@ void main() {
   tearDown(() => debugStoreBillingOverride = null);
 
   test('shown only on a hosted session of a non-store build', () {
-    expect(
-      PeppolBuyCreditsLinks.shownFor(_session(), storeBilling: false),
-      isTrue,
-    );
-    expect(
-      PeppolBuyCreditsLinks.shownFor(_session(), storeBilling: true),
-      isFalse,
-    );
-    expect(
-      PeppolBuyCreditsLinks.shownFor(
-        _session(isHosted: false),
-        storeBilling: false,
-      ),
-      isFalse,
-    );
-    expect(PeppolBuyCreditsLinks.shownFor(null, storeBilling: false), isFalse);
+    debugStoreBillingOverride = false;
+    expect(PeppolBuyCreditsLinks.shownFor(_session()), isTrue);
+    expect(PeppolBuyCreditsLinks.shownFor(_session(isHosted: false)), isFalse);
+    expect(PeppolBuyCreditsLinks.shownFor(null), isFalse);
+    debugStoreBillingOverride = true;
+    expect(PeppolBuyCreditsLinks.shownFor(_session()), isFalse);
   });
 
   testWidgets('a store build renders no buy links', (tester) async {

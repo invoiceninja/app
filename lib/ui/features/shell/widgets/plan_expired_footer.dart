@@ -4,7 +4,9 @@ import 'package:provider/provider.dart';
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/data/repositories/auth/auth_session.dart';
+import 'package:admin/domain/upgrade/store_build.dart';
 import 'package:admin/domain/upgrade/upgrade_launcher.dart';
+import 'package:admin/domain/upgrade/upgrade_route.dart';
 import 'package:admin/l10n/localization.dart';
 
 /// "Account plan expired — Pay now" for the account owner of a hosted paid
@@ -18,7 +20,10 @@ import 'package:admin/l10n/localization.dart';
 /// still on the session, and [AuthSession.isPlanExpired] — mutually exclusive
 /// with the trial card, which needs an active trial. Pay Now goes through
 /// [launchUpgrade], the one platform-aware upgrade seam (store billing on
-/// iOS / Android, the portal elsewhere).
+/// iOS / Android, the portal elsewhere). On a store build a plan still billed
+/// on the web can't be paid for here, so it says the plan is managed on the
+/// web and offers no button ([planManagedOnWeb]); once the server has blanked
+/// the slug the account is free again and Pay Now opens the purchase sheet.
 class PlanExpiredFooter extends StatelessWidget {
   const PlanExpiredFooter({this.compact = false, super.key});
 
@@ -47,6 +52,10 @@ class PlanExpiredFooter extends StatelessWidget {
       builder: (context, value, _) {
         if (!shows(value)) return const SizedBox.shrink();
         final tokens = context.inTheme;
+        final managedOnWeb = planManagedOnWeb(
+          storeBilling: isStoreBillingBuild,
+          session: value,
+        );
         // Same insets as `TrialFooter`, whose slot this shares.
         return Padding(
           padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
@@ -69,23 +78,29 @@ class PlanExpiredFooter extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 6),
-                // A local ink layer — see `TrialFooter` for why the sidebar's
-                // opaque boxes would otherwise swallow the splash.
-                Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    onTap: () => launchUpgrade(context),
-                    child: Text(
-                      context.tr('pay_now'),
-                      style: TextStyle(
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w600,
-                        color: tokens.overdue,
-                        decoration: TextDecoration.underline,
+                if (managedOnWeb)
+                  Text(
+                    context.tr('plan_managed_on_web'),
+                    style: TextStyle(fontSize: 11.5, color: tokens.overdue),
+                  )
+                else
+                  // A local ink layer — see `TrialFooter` for why the sidebar's
+                  // opaque boxes would otherwise swallow the splash.
+                  Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () => launchUpgrade(context),
+                      child: Text(
+                        context.tr('pay_now'),
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w600,
+                          color: tokens.overdue,
+                          decoration: TextDecoration.underline,
+                        ),
                       ),
                     ),
                   ),
-                ),
               ],
             ),
           ),

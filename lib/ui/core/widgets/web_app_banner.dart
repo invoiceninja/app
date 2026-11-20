@@ -80,6 +80,7 @@ class _WebAppBannerState extends State<WebAppBanner> {
           final links = webAppBannerLinks(
             platform: defaultTargetPlatform,
             isHosted: session.isHosted,
+            whiteLabeled: session.isWhiteLabeledSelfHost,
           );
           if (links.isEmpty) return const SizedBox.shrink();
           return WebAppStrip(

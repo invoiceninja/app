@@ -329,5 +329,47 @@ void main() {
       expect(find.textContaining('days left'), findsNothing);
       expect(find.text('Purchase White Label'), findsOneWidget);
     });
+
+    // A store build can't sell on top of a hosted trial (it runs on a card)
+    // nor link to the web billing: no upgrade pitch, no Manage Plan.
+    testWidgets('a store build says the plan is managed on the web, with no '
+        'link', (tester) async {
+      debugStoreBillingOverride = true;
+      await _pump(
+        tester,
+        _session(
+          isHosted: true,
+          baseUrl: 'https://invoicing.co',
+          trialDaysLeft: 2,
+        ),
+      );
+
+      expect(find.textContaining('days left'), findsOneWidget);
+      expect(find.text('Your plan is managed on the web.'), findsOneWidget);
+      expect(
+        find.text('Upgrade to unlock recurring & multi-currency.'),
+        findsNothing,
+      );
+      expect(find.byType(InkWell), findsNothing);
+    });
+
+    testWidgets('desktop keeps the pitch and, when urgent, the link', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        _session(
+          isHosted: true,
+          baseUrl: 'https://invoicing.co',
+          trialDaysLeft: 2,
+        ),
+      );
+
+      expect(
+        find.text('Upgrade to unlock recurring & multi-currency.'),
+        findsOneWidget,
+      );
+      expect(find.byType(InkWell), findsOneWidget);
+    });
   });
 }

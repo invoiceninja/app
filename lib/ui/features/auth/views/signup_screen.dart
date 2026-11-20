@@ -295,10 +295,10 @@ class _TermsCheckbox extends StatelessWidget {
                 Expanded(
                   child: Padding(
                     padding: const EdgeInsets.only(top: 12),
+                    // Names the two documents; their buttons sit right
+                    // below, so the line doesn't list them again.
                     child: Text(
-                      '${context.tr('i_agree')} '
-                      '(${context.tr('terms_of_service')} · '
-                      '${context.tr('privacy_policy')})',
+                      context.tr('i_agree_to_terms_and_privacy'),
                       style: TextStyle(fontSize: 13, color: tokens.ink2),
                     ),
                   ),

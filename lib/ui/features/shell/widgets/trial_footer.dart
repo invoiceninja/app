@@ -5,6 +5,8 @@ import 'package:provider/provider.dart';
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/data/repositories/auth/auth_session.dart';
+import 'package:admin/domain/upgrade/store_build.dart';
+import 'package:admin/domain/upgrade/upgrade_route.dart';
 import 'package:admin/l10n/localization.dart';
 
 /// Small trial-info card pinned to the bottom of the sidebar. Auto-hides
@@ -17,6 +19,10 @@ import 'package:admin/l10n/localization.dart';
 /// trial ends). At ≤3 days the card escalates: tinted background, warning
 /// border, and a "Manage Plan" link so the user can act without leaving
 /// the page.
+///
+/// A store build can neither sell on top of a trial (hosted runs it on a
+/// card) nor link to the web billing, so there the pitch says the plan is
+/// managed on the web and there is no link ([planManagedOnWeb]).
 class TrialFooter extends StatelessWidget {
   const TrialFooter({this.compact = false, super.key});
 
@@ -52,6 +58,10 @@ class TrialFooter extends StatelessWidget {
         final tokens = context.inTheme;
         final days = value.trialDaysRemaining;
         final urgent = days <= 3;
+        final managedOnWeb = planManagedOnWeb(
+          storeBilling: isStoreBillingBuild,
+          session: value,
+        );
         // Shares its slot with `WhiteLabelFooter`, so the two must carry the
         // same insets: no top (the footer icon row above already ends with
         // 8 px — invoiceninja/flutter#124), 12 at the bottom.
@@ -84,13 +94,15 @@ class TrialFooter extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  context.tr('upgrade_pitch'),
+                  context.tr(
+                    managedOnWeb ? 'plan_managed_on_web' : 'upgrade_pitch',
+                  ),
                   style: TextStyle(
                     fontSize: 11.5,
                     color: urgent ? tokens.overdue : tokens.ink3,
                   ),
                 ),
-                if (urgent) ...[
+                if (urgent && !managedOnWeb) ...[
                   const SizedBox(height: 6),
                   // The `Material` is not decoration: an `InkWell` paints its
                   // splash and highlight onto the nearest ancestor `Material`,

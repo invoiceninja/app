@@ -1,7 +1,35 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:material_ui/material_ui.dart';
+import 'package:provider/provider.dart';
 
-import 'package:admin/data/repositories/auth/auth_session.dart';
+import 'package:admin/app/design_tokens.dart';
+import 'package:admin/app/services.dart';
+import 'package:admin/app/theme.dart';
+import 'package:admin/data/repositories/auth_repository.dart';
+import 'package:admin/domain/upgrade/store_build.dart';
 import 'package:admin/ui/features/shell/widgets/plan_expired_footer.dart';
+
+import '../../../_localization_helper.dart';
+
+class _FakeAuth implements AuthRepository {
+  _FakeAuth(this._session);
+  final ValueNotifier<AuthSession?> _session;
+  @override
+  ValueListenable<AuthSession?> get session => _session;
+  @override
+  Object? noSuchMethod(Invocation invocation) =>
+      throw UnimplementedError(invocation.memberName.toString());
+}
+
+class _FakeServices implements Services {
+  _FakeServices({required this.auth});
+  @override
+  final AuthRepository auth;
+  @override
+  dynamic noSuchMethod(Invocation invocation) =>
+      throw UnimplementedError(invocation.memberName.toString());
+}
 
 /// React #3222's "Account plan expired — Pay now", for the owner of a lapsed
 /// hosted plan (or ended trial) only.
@@ -50,5 +78,49 @@ void main() {
       isFalse,
     );
     expect(PlanExpiredFooter.shows(null), isFalse);
+  });
+
+  group('Pay Now', () {
+    tearDown(() => debugStoreBillingOverride = null);
+
+    Future<void> pump(WidgetTester tester, AuthSession s) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildInTheme(InTheme.light),
+          localizationsDelegates: kTestLocalizationsDelegates,
+          supportedLocales: kTestSupportedLocales,
+          home: Provider<Services>.value(
+            value: _FakeServices(auth: _FakeAuth(ValueNotifier(s))),
+            child: const Scaffold(body: PlanExpiredFooter()),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('a store build: a plan still billed on the web is managed on '
+        'the web, with no button', (tester) async {
+      debugStoreBillingOverride = true;
+      await pump(tester, session());
+
+      expect(find.text('Your plan is managed on the web.'), findsOneWidget);
+      expect(find.byType(InkWell), findsNothing);
+    });
+
+    testWidgets('a store build: a blanked slug is a free account, offered '
+        'the purchase', (tester) async {
+      debugStoreBillingOverride = true;
+      await pump(tester, session(plan: ''));
+
+      expect(find.byType(InkWell), findsOneWidget);
+      expect(find.text('Your plan is managed on the web.'), findsNothing);
+    });
+
+    testWidgets('desktop keeps Pay Now', (tester) async {
+      debugStoreBillingOverride = false;
+      await pump(tester, session());
+
+      expect(find.byType(InkWell), findsOneWidget);
+    });
   });
 }

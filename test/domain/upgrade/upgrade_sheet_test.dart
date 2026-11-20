@@ -5,6 +5,7 @@
 // purchase is applied.
 
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart' show PlatformException;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
@@ -49,8 +50,10 @@ void main() {
       auth: auth,
       billing: billing,
       platform: platform,
+      // Retries are fired by hand; a real 30 s timer would outlive the test.
+      timer: FakeTimers().call,
     )..start();
-    svc = PurchaseService(apiClient: api, auth: auth, delivery: delivery);
+    svc = PurchaseService(auth: auth, delivery: delivery);
     toasts = ToastController();
     await svc.loadConfig();
     await svc.init();
@@ -185,6 +188,37 @@ void main() {
     final toast = toasts.toasts.single;
     expect(toast.message, "Your purchase wasn't applied to this account.");
     expect(toast.detail, 'Test purchases are not applied to this account.');
+  });
+
+  testWidgets('a purchase the store refuses to start says so', (tester) async {
+    await openSheet(tester, TargetPlatform.iOS);
+    billing.buyError = PlatformException(
+      code: 'storekit_duplicate_product_object',
+      message: 'There is a pending transaction for the same product.',
+    );
+
+    await tester.tap(find.text('Pro'));
+    await tester.pumpAndSettle();
+
+    final toast = toasts.toasts.single;
+    expect(toast.message, "The store couldn't complete the purchase.");
+    expect(svc.busy.value, isFalse);
+  });
+
+  testWidgets('"applied later" is said once, however many tries fail', (
+    tester,
+  ) async {
+    await openSheet(tester, TargetPlatform.iOS);
+    api.postError = const ServerException(500, 'Server Error');
+
+    billing.purchases.add([applePurchase()]);
+    await tester.pumpAndSettle();
+    billing.purchases.add([applePurchase()]);
+    await tester.pumpAndSettle();
+
+    expect(api.posts, hasLength(2));
+    expect(toasts.toasts, hasLength(1));
+    expect(find.byType(UpgradeSheet), findsOneWidget);
   });
 
   testWidgets('an Apple Account that already subscribes is offered Restore, '

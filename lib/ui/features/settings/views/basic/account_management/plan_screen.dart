@@ -250,59 +250,67 @@ class _HostedActionsCard extends StatelessWidget {
     final showRestore =
         storeBilling && (session.currentCompany?.isOwner ?? false);
 
-    // Bought in a store: managed only in that store's subscription settings
-    // (mirrors admin-portal's `isProPlan && hasIapPlan` branch). A store build
-    // links there; desktop and the web can't (the subscription is on someone's
-    // Apple ID or Google account, not this device), so they say how it's billed.
-    if (session.hasIapPlan && session.isPaidPlanSlug) {
-      return FormSection(
-        title: context.tr('change_plan'),
-        children: [
-          Text(context.tr('plan_billed_in_app_store'), style: hint),
-          if (storeBilling)
-            Align(
-              alignment: AlignmentDirectional.centerStart,
-              child: OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(
-                  minimumSize: const Size(160, 40),
-                ),
-                icon: const Icon(Icons.open_in_new, size: 18),
-                label: Text(context.tr('manage_subscription')),
-                onPressed: () => unawaited(openManageSubscriptions()),
-              ),
+    // Where an Upgrade tap goes decides what this card offers, so the card
+    // never shows a button that `launchUpgrade` would not honour.
+    final route = resolveUpgradeRoute(
+      storeBilling: storeBilling,
+      session: session,
+      now: DateTime.now(),
+    );
+
+    Widget explained(String key, {bool manage = false}) => FormSection(
+      title: context.tr('change_plan'),
+      children: [
+        Text(context.tr(key), style: hint),
+        if (manage)
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(minimumSize: const Size(160, 40)),
+              icon: const Icon(Icons.open_in_new, size: 18),
+              label: Text(context.tr('manage_subscription')),
+              onPressed: () => unawaited(openManageSubscriptions()),
             ),
-          if (showRestore) const _RestorePurchasesButton(),
-        ],
-      );
-    }
+          ),
+        if (showRestore) const _RestorePurchasesButton(),
+      ],
+    );
 
-    // A store build may not link to the web billing portal (App Store
-    // 3.1.1(a), Play Payments 4), and selling a store plan on top of a
-    // web-billed one (a trial runs on a card too) would bill twice.
-    if (storeBilling &&
-        !session.hasIapPlan &&
-        (session.isPaidPlanSlug || session.isTrial)) {
-      return FormSection(
-        title: context.tr('change_plan'),
-        children: [
-          Text(context.tr('plan_billed_on_web'), style: hint),
-          if (showRestore) const _RestorePurchasesButton(),
-        ],
-      );
+    final String? disabledReason;
+    switch (route) {
+      case UpgradeRoute.storeSubscriptions:
+        // Bought in this build's store: managed only in that store's
+        // subscription settings (admin-portal's `isProPlan && hasIapPlan`).
+        return explained('plan_billed_in_app_store', manage: true);
+      case UpgradeRoute.planScreen:
+        // Bought in a store, seen from desktop or the web (the subscription is
+        // on someone's Apple ID or Google account, not this device), or one
+        // that may still renew there.
+        if (session.hasIapPlan) {
+          return explained(
+            session.hasActiveIapPlan
+                ? 'plan_billed_in_app_store'
+                : 'store_subscription_ended_renew',
+          );
+        }
+        // A store build may not link to the web billing (App Store 3.1.1(a),
+        // Play Payments 4), and selling a store plan on top of a web-billed
+        // one (a trial runs on a card too) would bill twice.
+        if (session.isWebBilled) return explained('plan_managed_on_web');
+        // Only the owner of the active company can buy; anyone else's
+        // Upgrade would only reopen this screen.
+        disabledReason = 'store_plan_owner_only';
+      case UpgradeRoute.billingPortal:
+        // The button opens the hosted billing portal: with no URL yet (a
+        // transient pre-refresh state) there's nowhere to send the user.
+        disabledReason = session.ninjaPortalUrl.isEmpty
+            ? 'error_refresh_page'
+            : null;
+      case UpgradeRoute.storeSubscriptionsEnded:
+      case UpgradeRoute.purchaseSheet:
+        disabledReason = null;
     }
-
-    // On a store build only the owner of the active company's account, when
-    // that account is the user's own, can buy (`canBuyForActiveAccount`);
-    // anyone else's Upgrade would only reopen this screen, so it is disabled
-    // and says why.
-    final notOwner = storeBilling && !canBuyForActiveAccount(session);
-    // A store build sells in-app and needs no portal URL; everywhere else the
-    // button opens the hosted billing portal, so with no URL there's nowhere
-    // to send the user (launchUpgrade would otherwise fall back to this same
-    // screen). Disable it in that dead-end case.
-    final canUpgrade = storeBilling
-        ? !notOwner
-        : session.ninjaPortalUrl.isNotEmpty;
+    final canUpgrade = disabledReason == null;
     // Decide button label: free → "Upgrade Plan"; paid → "Change Plan";
     // trial → "Upgrade Plan" so the user knows they're paying.
     final labelKey = session.isPaidPlanSlug && !session.isTrial
@@ -327,21 +335,16 @@ class _HostedActionsCard extends StatelessWidget {
                   size: 18,
                 ),
                 label: Text(context.tr(labelKey)),
-                // Store purchase on a store build; the hosted portal
-                // elsewhere. Disabled only on the portal dead-end where no
-                // URL is available yet (transient pre-refresh state).
                 onPressed: canUpgrade ? () => launchUpgrade(context) : null,
               ),
             ],
           ),
         ),
-        if (!canUpgrade)
+        if (disabledReason != null)
           Padding(
             padding: EdgeInsets.only(top: InSpacing.sm),
             child: Text(
-              context.tr(
-                notOwner ? 'store_plan_owner_only' : 'error_refresh_page',
-              ),
+              context.tr(disabledReason),
               style: TextStyle(color: tokens.ink3),
             ),
           ),

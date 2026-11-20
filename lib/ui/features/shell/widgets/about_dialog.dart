@@ -58,6 +58,8 @@ Future<void> showAppAboutDialog(BuildContext context) async {
     builder: (ctx) => _AboutDialog(
       serverVersion: services.serverVersion,
       isSelfHosted: session?.isSelfHosted,
+      // A white-labeled install shows nothing of Invoice Ninja's own.
+      showLegalLinks: !(session?.isWhiteLabeledSelfHost ?? false),
       isOwner: company?.isOwner ?? false,
       isAdmin: company?.isAdmin ?? false,
       onShowHealthCheck: _canShowHealthCheck(session)
@@ -157,6 +159,7 @@ class _AboutDialog extends StatelessWidget {
   const _AboutDialog({
     required this.serverVersion,
     required this.isSelfHosted,
+    this.showLegalLinks = true,
     required this.isOwner,
     required this.isAdmin,
     required this.onShowHealthCheck,
@@ -174,6 +177,10 @@ class _AboutDialog extends StatelessWidget {
 
   final ValueListenable<String?> serverVersion;
   final bool? isSelfHosted;
+
+  /// Invoice Ninja's privacy policy and terms; off on a white-labeled
+  /// self-hosted install.
+  final bool showLegalLinks;
   final bool isOwner;
   final bool isAdmin;
   final VoidCallback? onShowHealthCheck;
@@ -345,7 +352,7 @@ class _AboutDialog extends StatelessWidget {
                   _versionLabel(serverVersion.value),
                 ),
               ),
-              const LegalLinks(),
+              if (showLegalLinks) const LegalLinks(),
               SizedBox(height: InSpacing.md(context)),
               Text(
                 '© ${DateTime.now().year} Invoice Ninja',

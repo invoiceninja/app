@@ -70,41 +70,5 @@ class StoreBilling {
 
   Future<void> restorePurchases() async {}
 
-  Future<void> completePurchase(StorePurchase purchase) async {}
-
-  Future<bool> showManageSubscriptions() async => false;
+  Future<bool> completePurchase(StorePurchase purchase) async => false;
 }
-
-/// Mirrors packages/store_services: which of Play's product offers to list,
-/// one per subscription base plan (the base plan's own offer, else the
-/// first). Returns the kept indexes into [offers], in order.
-List<int> playBasePlanOfferIndexes(
-  List<({String productId, String? basePlanId, String? offerId})> offers,
-) {
-  final chosen = <String, int>{};
-  for (var i = 0; i < offers.length; i++) {
-    final o = offers[i];
-    final basePlan = o.basePlanId;
-    if (basePlan == null) {
-      chosen['$i'] = i;
-      continue;
-    }
-    final key = '${o.productId}|$basePlan';
-    final current = chosen[key];
-    if (current == null ||
-        (offers[current].offerId != null && o.offerId == null)) {
-      chosen[key] = i;
-    }
-  }
-  return chosen.values.toList()..sort();
-}
-
-/// Mirrors packages/store_services: the product ids of [owned] that are
-/// bought or on their way.
-Set<String> ownedProductIds(Iterable<StorePurchase> owned) => {
-  for (final p in owned)
-    if (p.status == StorePurchaseStatus.purchased ||
-        p.status == StorePurchaseStatus.restored ||
-        p.status == StorePurchaseStatus.pending)
-      p.productId,
-};

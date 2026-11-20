@@ -76,6 +76,29 @@ void main() {
     }
   });
 
+  test('a white-labeled self-hosted install gets no banner', () {
+    for (final platform in TargetPlatform.values) {
+      expect(
+        webAppBannerLinks(
+          platform: platform,
+          isHosted: false,
+          whiteLabeled: true,
+        ).isEmpty,
+        isTrue,
+        reason: platform.name,
+      );
+    }
+    // A hosted white_label plan is not a white-labeled install.
+    expect(
+      webAppBannerLinks(
+        platform: TargetPlatform.android,
+        isHosted: true,
+        whiteLabeled: true,
+      ).isEmpty,
+      isFalse,
+    );
+  });
+
   test('nothing to offer is empty, so no banner', () {
     expect(
       webAppBannerLinks(platform: TargetPlatform.windows, isHosted: false),

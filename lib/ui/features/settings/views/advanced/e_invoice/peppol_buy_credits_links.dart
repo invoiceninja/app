@@ -28,11 +28,9 @@ import 'package:admin/ui/features/settings/views/advanced/e_invoice/e_invoice_co
 class PeppolBuyCreditsLinks extends StatelessWidget {
   const PeppolBuyCreditsLinks({super.key});
 
-  /// Whether the links show for [session]. [storeBilling] is for tests.
-  static bool shownFor(AuthSession? session, {bool? storeBilling}) =>
-      session != null &&
-      session.isHosted &&
-      !(storeBilling ?? isStoreBillingBuild);
+  /// Whether the links show for [session].
+  static bool shownFor(AuthSession? session) =>
+      session != null && session.isHosted && !isStoreBillingBuild;
 
   @override
   Widget build(BuildContext context) {

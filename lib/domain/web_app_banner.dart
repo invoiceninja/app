@@ -91,10 +91,16 @@ String? nativeAppUrl(NativeAppPlatform platform) => switch (platform) {
 /// (`set_react_as_default_ap`), and then it never serves this app — so from
 /// here there is no React URL to send anyone to, and switching an account's
 /// default is not a banner's call.
+///
+/// A white-labeled self-hosted install ([whiteLabeled],
+/// `AuthSession.isWhiteLabeledSelfHost`) shows nothing of Invoice Ninja's
+/// own, so it gets no banner at all.
 WebAppBannerLinks webAppBannerLinks({
   required TargetPlatform platform,
   required bool isHosted,
+  bool whiteLabeled = false,
 }) {
+  if (whiteLabeled && !isHosted) return const WebAppBannerLinks();
   final native = nativeAppPlatformFor(platform);
   final url = native == null ? null : nativeAppUrl(native);
   return WebAppBannerLinks(

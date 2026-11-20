@@ -18,6 +18,7 @@ import 'package:admin/ui/core/widgets/legal_links.dart';
 import 'package:admin/ui/core/widgets/ltr_value.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/features/auth/widgets/name_required_dialog.dart';
+import 'package:admin/utils/url_safety.dart';
 
 /// The single upgrade entry point. **Every** upgrade surface (the
 /// `PlanGateBanner` CTA, the Plan screen's "Upgrade / Change Plan" button, the
@@ -52,7 +53,7 @@ Future<void> launchUpgrade(BuildContext context) async {
     case UpgradeRoute.storeSubscriptions:
       await openManageSubscriptions();
     case UpgradeRoute.storeSubscriptionsEnded:
-      Notify.info(context, context.tr('app_store_subscription_ended'));
+      Notify.info(context, context.tr('store_subscription_ended_renew'));
       await openManageSubscriptions();
     case UpgradeRoute.purchaseSheet:
       await showUpgradeSheet(context);
@@ -60,11 +61,10 @@ Future<void> launchUpgrade(BuildContext context) async {
 }
 
 Future<void> _openPortalOrPlanScreen(BuildContext context, String url) async {
-  if (url.isNotEmpty) {
-    final uri = Uri.tryParse(url);
-    // Falls through to the in-app destination when it doesn't open.
-    if (uri != null && await launchExternalUri(uri)) return;
-  }
+  // A server-sent URL: only an http(s) page is handed to the launcher. Falls
+  // through to the in-app destination when it isn't one, or doesn't open.
+  final uri = isSafeWebUrl(url) ? Uri.tryParse(url) : null;
+  if (uri != null && await launchExternalUri(uri)) return;
   if (!context.mounted) return;
   // Plan is the Account Management shell's bare-URL default tab; `/plan` is not
   // a matchable route (it would land on the route-error view).
@@ -106,11 +106,7 @@ Future<void> showUpgradeSheet(BuildContext context) async {
   final delivery = services.purchases;
   final svc = delivery == null
       ? null
-      : PurchaseService(
-          apiClient: services.apiClient,
-          auth: services.auth,
-          delivery: delivery,
-        );
+      : PurchaseService(auth: services.auth, delivery: delivery);
   if (svc == null || !await svc.isAvailable) {
     // Store billing unreachable (no Play Services, not signed in to the
     // store). Only store builds open this sheet ([resolveUpgradeRoute]; the
@@ -134,6 +130,16 @@ Future<void> showUpgradeSheet(BuildContext context) async {
   if (!await svc.loadConfig()) {
     if (context.mounted) {
       Notify.info(context, context.tr('in_app_purchases_unavailable'));
+    }
+    await svc.dispose();
+    return;
+  }
+  // The hosted service applies a purchase to the user's own account (the
+  // config's `account_key`); while a company of another account is active,
+  // a plan bought here would never reach that company.
+  if (!svc.sellsToActiveAccount) {
+    if (context.mounted) {
+      Notify.info(context, context.tr('store_purchase_own_account_only'));
     }
     await svc.dispose();
     return;
@@ -191,6 +197,10 @@ class _UpgradeSheetState extends State<UpgradeSheet> {
   StreamSubscription<PurchaseActivity>? _sub;
   bool _closed = false;
 
+  /// "Will be applied later" is said once per sheet: the delivery tries
+  /// again with a backoff, and each try that fails reports it again.
+  bool _toldRetryLater = false;
+
   @override
   void initState() {
     super.initState();
@@ -220,6 +230,8 @@ class _UpgradeSheetState extends State<UpgradeSheet> {
           detail: _nonBlank(a.message),
         );
       case PurchaseActivityKind.retryLater:
+        if (_toldRetryLater) return;
+        _toldRetryLater = true;
         Notify.warning(context, context.tr('store_purchase_retry_later'));
       case PurchaseActivityKind.failed:
         Notify.error(

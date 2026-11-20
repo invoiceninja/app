@@ -20,11 +20,6 @@ import 'package:admin/ui/features/docuninja/view_models/docuninja_builder_view_m
 import 'package:admin/ui/features/docuninja/widgets/docuninja_builder_link.dart';
 import 'package:admin/ui/features/docuninja/widgets/docuninja_embed_surface.dart';
 
-/// React's field builder for one document (`/docuninja/:id/builder`), in a
-/// web view: the hosted web app's own builder page in embed mode
-/// (docs/docuninja.md § The field builder runs embedded where a web view
-/// can). The app draws the title and Back; the page draws the builder and
-/// its Send / Save for later buttons.
 final _log = Logger('DocuNinjaBuilderScreen');
 
 /// A link off the web app, in the browser. On a store build a page that sells
@@ -49,6 +44,11 @@ void openDocuNinjaOffApp(
   unawaited(launch(uri));
 }
 
+/// React's field builder for one document (`/docuninja/:id/builder`), in a
+/// web view: the hosted web app's own builder page in embed mode
+/// (docs/docuninja.md § The field builder runs embedded where a web view
+/// can). The app draws the title and Back; the page draws the builder and
+/// its Send / Save for later buttons.
 class DocuNinjaBuilderScreen extends StatefulWidget {
   const DocuNinjaBuilderScreen({
     super.key,

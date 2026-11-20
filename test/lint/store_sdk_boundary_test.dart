@@ -94,7 +94,9 @@ void main() {
   test('both store_services packages declare the same public API', () {
     Map<String, Set<String>> surface(String pkg) => {
       for (final f in Directory('packages/$pkg/lib').listSync(recursive: true))
-        if (f is File && f.path.endsWith('.dart'))
+        if (f is File &&
+            f.path.endsWith('.dart') &&
+            !f.path.contains('/$_kSdkOnlyDir/'))
           f.path.substring('packages/$pkg/lib/'.length): _publicDeclarations(
             f.readAsStringSync(),
           ),
@@ -127,6 +129,35 @@ void main() {
             'does, or the F-Droid build stops compiling.',
       );
     }
+  });
+
+  // `lib/src/sdk_only/` holds the real package's SDK-side helpers that a test
+  // pins (the Play offer filter). The FOSS twin needs no copy, so the folder
+  // stays out of the public surface: nothing exports it, and the app's `lib/`
+  // never imports it (only its tests do, which F-Droid never builds).
+  test('sdk_only/ is real-package only, unexported, and unused by lib/', () {
+    expect(
+      Directory(
+        'packages/store_services_foss/lib/src/$_kSdkOnlyDir',
+      ).existsSync(),
+      isFalse,
+    );
+    final library = File(
+      'packages/store_services/lib/store_services.dart',
+    ).readAsStringSync();
+    expect(library, isNot(contains(_kSdkOnlyDir)));
+    final offenders = [
+      for (final f in Directory('lib').listSync(recursive: true))
+        if (f is File &&
+            f.path.endsWith('.dart') &&
+            f.readAsStringSync().contains('store_services/src/'))
+          f.path,
+    ];
+    expect(
+      offenders,
+      isEmpty,
+      reason: 'lib/ imports only package:store_services/store_services.dart.',
+    );
   });
 
   test('the FOSS overrides repeat every pubspec.yaml dependency_override', () {
@@ -325,6 +356,9 @@ Map<String, String> _lockEntries(String lock) {
   }
   return out;
 }
+
+/// The real package's folder of SDK-side helpers with no FOSS twin.
+const _kSdkOnlyDir = 'sdk_only';
 
 String? _topLevel(String yaml, String key) =>
     RegExp('^$key:\\s*(\\S+)', multiLine: true).firstMatch(yaml)?.group(1);

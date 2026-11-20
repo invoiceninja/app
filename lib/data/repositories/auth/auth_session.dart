@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 
 import 'package:admin/app/env.dart';
+import 'package:admin/data/models/api/login_response_api_model.dart'
+    show AccountEnvelopeApi;
 import 'package:admin/data/models/domain/enabled_modules.dart';
 import 'package:admin/data/services/password_cache.dart';
 import 'package:admin/domain/entity_type.dart';
@@ -365,6 +367,14 @@ class AuthSession {
 
   bool get isPremiumBusinessPlusPlan => plan == 'premium_business_plus';
 
+  /// A paid plan bought in the App Store or Google Play (`has_iap_plan` with
+  /// a paid slug): billed, changed and cancelled only in that store.
+  bool get hasActiveIapPlan => hasIapPlan && isPaidPlanSlug;
+
+  /// A paid plan or a trial billed on the web (hosted runs a trial on a card
+  /// too), not in a store: selling a store plan on top would bill twice.
+  bool get isWebBilled => !hasIapPlan && (isPaidPlanSlug || isTrial);
+
   /// True when a white-label license is active. This is the only paid state a
   /// self-hosted install has — the server sets `plan = 'white_label'` on a
   /// successful `/claim_license` (`LicenseController`) and clears `plan` once
@@ -375,6 +385,11 @@ class AuthSession {
   /// Display-only: self-hosted feature access is unconditional (see
   /// [isProPlan] / [isEnterprisePlan]) whether or not a license is applied.
   bool get isWhiteLabeled => plan == 'white_label';
+
+  /// A self-hosted install under a live white-label license: it shows
+  /// nothing of Invoice Ninja's own (the web banner, the legal links).
+  /// [isWhiteLabeled] alone is true on hosted too.
+  bool get isWhiteLabeledSelfHost => isSelfHosted && isWhiteLabeled;
 
   /// Self-hosted white-label license whose expiry has passed — the counterpart
   /// to [isPlanExpired], which stays hosted-only on purpose (self-hosted
@@ -509,6 +524,38 @@ class AuthSession {
     }
     return CanAddCompanyResult.ok;
   }
+
+  /// This session with every account-level field taken from [a]: the one way
+  /// an account's fields reach a session (`AuthRepository`'s restore, login /
+  /// refresh, and a company switch). [ninjaPortalUrl] is the billing portal
+  /// of the company now active; when it is not known it stays as it was for
+  /// the same account, and is cleared for another, so a switch never offers
+  /// one account's portal for another's plan.
+  AuthSession withAccount(AccountEnvelopeApi a, {String? ninjaPortalUrl}) =>
+      copyWith(
+        accountId: a.id,
+        plan: a.plan,
+        planExpires: a.planExpires,
+        trialPlan: a.trialPlan,
+        trialStarted: a.trialStarted,
+        numTrialDays: a.numTrialDays,
+        trialDaysLeft: a.trialDaysLeft,
+        hasIapPlan: a.hasIapPlan,
+        defaultCompanyId: a.defaultCompanyId,
+        hostedClientCount: a.hostedClientCount,
+        hostedCompanyCount: a.hostedCompanyCount,
+        ninjaPortalUrl:
+            ninjaPortalUrl ?? (a.id == accountId ? this.ninjaPortalUrl : ''),
+        eInvoicingToken: a.eInvoicingToken,
+        reportErrors: a.reportErrors,
+        isPremium: a.isPremium,
+        docuninjaNumUsers: a.docuninjaNumUsers,
+        accountKey: a.key,
+        serverCurrentVersion: a.currentVersion,
+        serverLatestVersion: a.latestVersion,
+        isDocker: a.isDocker,
+        disableAutoUpdate: a.disableAutoUpdate,
+      );
 
   /// Every account-level field takes a parameter so a company switch can swap
   /// in the new company's account (a user can belong to companies of several

@@ -2,6 +2,9 @@
 // (App Review 5.1.1(i), and 3.1.2 wherever a subscription is sold). Before
 // LegalLinks the app named them only as plain text at signup.
 
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:admin/app/theme.dart';
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/ui/core/widgets/legal_links.dart';
@@ -36,7 +39,13 @@ void main() {
   });
 
   test('the links are the pages the hosted landing page uses', () {
-    expect(kPrivacyPolicyUrl, 'https://invoiceninja.com/privacy-policy/');
-    expect(kTermsOfServiceUrl, 'https://invoiceninja.com/terms/');
+    final landing =
+        jsonDecode(
+              File('tools/web_deploy/landing/apps.json').readAsStringSync(),
+            )
+            as Map<String, dynamic>;
+    final footer = landing['footer'] as Map<String, dynamic>;
+    expect(kPrivacyPolicyUrl, footer['privacy']);
+    expect(kTermsOfServiceUrl, footer['terms']);
   });
 }

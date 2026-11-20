@@ -2262,11 +2262,11 @@
   "store_billed_delete_note_google": "Your plan is billed through Google Play. Deleting here doesn't cancel that subscription; cancel it in your Google Play subscription settings.",
   "store_billed_delete_note": "Your plan is billed through the app store you subscribed in. Deleting here doesn't cancel that subscription; cancel it in that store's subscription settings.",
   "manage_subscription": "Manage subscription",
-  "app_store_subscription_ended": "Your app store subscription has ended. Renew it in your store's subscription settings.",
+  "store_subscription_ended_renew": "Your in-app subscription has ended. To renew it, use the subscription settings of the store you subscribed in.",
   "store_billing_unreachable": "The app store isn't reachable right now. Please try again.",
   "restore_purchases_help": "Restore brings back purchases made in this app.",
   "plan_billed_in_app_store": "Your plan is billed through the app store you subscribed in.",
-  "plan_billed_on_web": "Your plan is billed on the web.",
+  "plan_managed_on_web": "Your plan is managed on the web.",
   "store_billed_monthly": "Billed monthly",
   "store_billed_yearly": "Billed yearly",
   "store_auto_renew_terms_apple": "Subscriptions renew automatically at the price shown until cancelled. Cancel at least 24 hours before renewal in your Apple Account subscription settings.",
@@ -2288,5 +2288,8 @@
   "web_app_banner_get_mac": "Get the Mac app",
   "web_app_banner_get_windows": "Get the Windows app",
   "web_app_banner_get_linux": "Get the Linux app",
-  "web_app_banner_dismiss": "Don't show this again"
+  "web_app_banner_dismiss": "Don't show this again",
+  "store_purchase_own_account_only": "Plans bought here are applied to your own account. Switch to one of its companies to upgrade.",
+  "delete_last_company_deletes_account": "Deleting your last company deletes your account.",
+  "i_agree_to_terms_and_privacy": "I agree to the Terms of Service and Privacy Policy"
 }

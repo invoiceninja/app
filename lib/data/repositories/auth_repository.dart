@@ -1661,17 +1661,7 @@ class AuthRepository {
     var session = AuthSession(
       baseUrl: baseUrl,
       isHosted: isHosted,
-      accountId: account.id,
-      plan: account.plan,
-      planExpires: account.planExpires,
-      trialPlan: account.trialPlan,
-      trialStarted: account.trialStarted,
-      numTrialDays: account.numTrialDays,
-      trialDaysLeft: account.trialDaysLeft,
-      hasIapPlan: account.hasIapPlan,
-      defaultCompanyId: account.defaultCompanyId,
-      hostedClientCount: account.hostedClientCount,
-      hostedCompanyCount: account.hostedCompanyCount,
+      accountId: '',
       userId: userId,
       userEmail: userEmail,
       userFirstName: userFirstName,
@@ -1714,17 +1704,8 @@ class AuthRepository {
           .toList(growable: false),
       currentCompanyId: restoredCompanyId,
       biometricEnabled: biometricEnabled,
-      eInvoicingToken: account.eInvoicingToken,
-      reportErrors: account.reportErrors,
-      isPremium: account.isPremium,
-      docuninjaNumUsers: account.docuninjaNumUsers,
-      accountKey: account.key,
       userAccountKey: userAccountKey,
-      serverCurrentVersion: account.currentVersion,
-      serverLatestVersion: account.latestVersion,
-      isDocker: account.isDocker,
-      disableAutoUpdate: account.disableAutoUpdate,
-    );
+    ).withAccount(account);
     final storedToken = tokensMap[session.currentCompanyId];
     final String activeToken;
     if (storedToken != null && storedToken.isNotEmpty) {
@@ -2558,57 +2539,41 @@ class AuthRepository {
     // somehow don't know the company, which is what this always used.
     final activeAccount =
         accountsById[accountIdByCompanyId[currentId]] ?? firstAccount;
-    _session.value = AuthSession(
-      baseUrl: baseUrl,
-      isHosted: isHosted,
-      accountId: activeAccount.id,
-      plan: activeAccount.plan,
-      planExpires: activeAccount.planExpires,
-      trialPlan: activeAccount.trialPlan,
-      trialStarted: activeAccount.trialStarted,
-      numTrialDays: activeAccount.numTrialDays,
-      trialDaysLeft: activeAccount.trialDaysLeft,
-      hasIapPlan: activeAccount.hasIapPlan,
-      defaultCompanyId: activeAccount.defaultCompanyId,
-      hostedClientCount: activeAccount.hostedClientCount,
-      hostedCompanyCount: activeAccount.hostedCompanyCount,
-      companies: companiesList,
-      currentCompanyId: currentId,
-      userId: firstUser.id,
-      userEmail: firstUser.email,
-      // The envelope DOES carry these (UserApi.first_name/last_name); omitting
-      // them left the session identity name blank on every login/refresh, and
-      // re-blanked the names restore() had recovered from Drift on the next
-      // background refresh (L9).
-      userFirstName: firstUser.firstName,
-      userLastName: firstUser.lastName,
-      userPhone: firstUser.phone,
-      userOauthProviderId: firstUser.oauthProviderId,
-      userHasPassword: firstUser.hasPassword,
-      googleTwoFactorEnabled: firstUser.google2faSecret,
-      verifiedPhoneNumber: firstUser.verifiedPhoneNumber,
-      biometricEnabled: biometricEnabled,
-      referralCode: firstUser.referralCode,
-      referralMeta: firstUser.referralMeta,
-      ninjaPortalUrl:
-          ninjaPortalUrlByCompanyId[currentId] ??
-          response.data.first.ninjaPortalUrl,
-      eInvoicingToken: activeAccount.eInvoicingToken,
-      reportErrors: activeAccount.reportErrors,
-      isPremium: activeAccount.isPremium,
-      docuninjaNumUsers: activeAccount.docuninjaNumUsers,
-      accountKey: activeAccount.key,
-      // The realtime user channel's account — the user's own, whichever
-      // company is active (see [AuthSession.userAccountKey]).
-      userAccountKey: _userAccountKeyIn(accountsById, [
-        for (final c in companiesList)
-          (accountId: accountIdByCompanyId[c.id] ?? '', isOwner: c.isOwner),
-      ]),
-      serverCurrentVersion: activeAccount.currentVersion,
-      serverLatestVersion: activeAccount.latestVersion,
-      isDocker: activeAccount.isDocker,
-      disableAutoUpdate: activeAccount.disableAutoUpdate,
-    );
+    _session.value =
+        AuthSession(
+          baseUrl: baseUrl,
+          isHosted: isHosted,
+          accountId: '',
+          companies: companiesList,
+          currentCompanyId: currentId,
+          userId: firstUser.id,
+          userEmail: firstUser.email,
+          // The envelope DOES carry these (UserApi.first_name/last_name); omitting
+          // them left the session identity name blank on every login/refresh, and
+          // re-blanked the names restore() had recovered from Drift on the next
+          // background refresh (L9).
+          userFirstName: firstUser.firstName,
+          userLastName: firstUser.lastName,
+          userPhone: firstUser.phone,
+          userOauthProviderId: firstUser.oauthProviderId,
+          userHasPassword: firstUser.hasPassword,
+          googleTwoFactorEnabled: firstUser.google2faSecret,
+          verifiedPhoneNumber: firstUser.verifiedPhoneNumber,
+          biometricEnabled: biometricEnabled,
+          referralCode: firstUser.referralCode,
+          referralMeta: firstUser.referralMeta,
+          // The realtime user channel's account — the user's own, whichever
+          // company is active (see [AuthSession.userAccountKey]).
+          userAccountKey: _userAccountKeyIn(accountsById, [
+            for (final c in companiesList)
+              (accountId: accountIdByCompanyId[c.id] ?? '', isOwner: c.isOwner),
+          ]),
+        ).withAccount(
+          activeAccount,
+          ninjaPortalUrl:
+              ninjaPortalUrlByCompanyId[currentId] ??
+              response.data.first.ninjaPortalUrl,
+        );
     _credentials.value = ApiCredentials(
       baseUrl: baseUrl,
       // `??` does NOT catch the empty string a token-less company-user carries
@@ -2629,7 +2594,8 @@ class AuthRepository {
   }
 
   /// [s] carrying the account fields of the account its current company
-  /// belongs to, and that company's billing-portal URL. Unchanged where the
+  /// belongs to, and that company's billing-portal URL ([AuthSession.withAccount]
+  /// clears an unknown one when the account changed). Unchanged where the
   /// maps don't know the company (a field it can't source keeps its value).
   AuthSession _withActiveAccount(AuthSession s) {
     final portal = _ninjaPortalUrlByCompanyId[s.currentCompanyId];
@@ -2637,29 +2603,7 @@ class AuthRepository {
     if (a == null) {
       return portal == null ? s : s.copyWith(ninjaPortalUrl: portal);
     }
-    return s.copyWith(
-      accountId: a.id,
-      plan: a.plan,
-      planExpires: a.planExpires,
-      trialPlan: a.trialPlan,
-      trialStarted: a.trialStarted,
-      numTrialDays: a.numTrialDays,
-      trialDaysLeft: a.trialDaysLeft,
-      hasIapPlan: a.hasIapPlan,
-      defaultCompanyId: a.defaultCompanyId,
-      hostedClientCount: a.hostedClientCount,
-      hostedCompanyCount: a.hostedCompanyCount,
-      ninjaPortalUrl: portal,
-      eInvoicingToken: a.eInvoicingToken,
-      reportErrors: a.reportErrors,
-      isPremium: a.isPremium,
-      docuninjaNumUsers: a.docuninjaNumUsers,
-      accountKey: a.key,
-      serverCurrentVersion: a.currentVersion,
-      serverLatestVersion: a.latestVersion,
-      isDocker: a.isDocker,
-      disableAutoUpdate: a.disableAutoUpdate,
-    );
+    return s.withAccount(a, ninjaPortalUrl: portal);
   }
 
   /// The key of the user's own account ([resolveUserAccountId]), or `''`

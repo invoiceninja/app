@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:admin/data/models/api/login_response_api_model.dart';
 import 'package:admin/data/repositories/auth/auth_session.dart';
 
 /// Anchors the computed getters on [AuthSession] that the Account Management
@@ -806,6 +807,87 @@ void _permissionTests() {
       );
       expect(s.isWhiteLabelLapsed, isFalse);
       expect(s.isPlanExpired, isTrue);
+    });
+  });
+
+  group('billing getters', () {
+    test('hasActiveIapPlan: bought in a store, and still paid', () {
+      expect(
+        const AuthSession(
+          baseUrl: 'https://invoicing.co',
+          isHosted: true,
+          accountId: 'a',
+          companies: [],
+          currentCompanyId: '',
+          plan: 'pro',
+          hasIapPlan: true,
+        ).hasActiveIapPlan,
+        isTrue,
+      );
+      // The server blanks the slug once the plan is over.
+      expect(
+        const AuthSession(
+          baseUrl: 'https://invoicing.co',
+          isHosted: true,
+          accountId: 'a',
+          companies: [],
+          currentCompanyId: '',
+          hasIapPlan: true,
+        ).hasActiveIapPlan,
+        isFalse,
+      );
+    });
+
+    test('isWebBilled: a paid plan or a trial, not bought in a store', () {
+      expect(_session(plan: 'enterprise').isWebBilled, isTrue);
+      expect(_session(trialDaysLeft: 5).isWebBilled, isTrue);
+      expect(_session().isWebBilled, isFalse);
+    });
+
+    test('isWhiteLabeledSelfHost: a licensed self-host only', () {
+      expect(
+        _session(isHosted: false, plan: 'white_label').isWhiteLabeledSelfHost,
+        isTrue,
+      );
+      expect(_session(plan: 'white_label').isWhiteLabeledSelfHost, isFalse);
+      expect(_session(isHosted: false).isWhiteLabeledSelfHost, isFalse);
+    });
+  });
+
+  group('withAccount', () {
+    const other = AccountEnvelopeApi(
+      id: 'acc2',
+      plan: 'enterprise',
+      planExpires: '2098-06-30',
+      hasIapPlan: true,
+      key: 'key2',
+      isPremium: true,
+    );
+
+    test('takes every account field from the account', () {
+      final s = _session(plan: 'pro').withAccount(other);
+      expect(s.accountId, 'acc2');
+      expect(s.plan, 'enterprise');
+      expect(s.planExpires, '2098-06-30');
+      expect(s.hasIapPlan, isTrue);
+      expect(s.accountKey, 'key2');
+      expect(s.isPremium, isTrue);
+    });
+
+    test("another account's portal is never kept for this one", () {
+      final s = _session().copyWith(ninjaPortalUrl: 'https://portal/acc1');
+      expect(s.withAccount(other).ninjaPortalUrl, '');
+      expect(
+        s
+            .withAccount(other, ninjaPortalUrl: 'https://portal/acc2')
+            .ninjaPortalUrl,
+        'https://portal/acc2',
+      );
+      // The same account keeps the portal it has.
+      expect(
+        s.withAccount(const AccountEnvelopeApi(id: 'acc1')).ninjaPortalUrl,
+        'https://portal/acc1',
+      );
     });
   });
 }

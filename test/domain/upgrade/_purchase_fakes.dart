@@ -15,11 +15,17 @@ const kTestAccountToken = '6f1c2a54-9d0e-5b7f-8a3c-1e2d3f4a5b6c';
 
 /// A trimmed but realistic `Transaction.jsonRepresentation` payload — the
 /// StoreKit 2 value the plugin surfaces as `localVerificationData`.
-String appleTransactionJson({Object? originalTransactionId = '2000000111111'}) {
+String appleTransactionJson({
+  Object? originalTransactionId = '2000000111111',
+  String? appAccountToken,
+  Map<String, Object?> extra = const {},
+}) {
   return jsonEncode({
     'transactionId': '2000000999999',
     if (originalTransactionId != null)
       'originalTransactionId': originalTransactionId,
+    'appAccountToken': ?appAccountToken,
+    ...extra,
     'bundleId': 'com.invoiceninja.admin',
     'productId': 'pro_plan',
     'purchaseDate': 1751000000000,
@@ -32,11 +38,16 @@ String appleTransactionJson({Object? originalTransactionId = '2000000111111'}) {
 StorePurchase applePurchase({
   String productId = 'pro_plan',
   StorePurchaseStatus status = StorePurchaseStatus.purchased,
+  String? appAccountToken,
+  Map<String, Object?> extra = const {},
 }) => StorePurchase(
   productId: productId,
   status: status,
   purchaseId: '2000000999999',
-  localVerificationData: appleTransactionJson(),
+  localVerificationData: appleTransactionJson(
+    appAccountToken: appAccountToken,
+    extra: extra,
+  ),
   serverVerificationData: 'eyJhbGciOiJFUzI1NiJ9.apple-jws.sig',
   // StoreKit 2 marks only a `purchased` transaction finishable.
   pendingCompletePurchase: status == StorePurchaseStatus.purchased,
@@ -47,11 +58,16 @@ StorePurchase googlePurchase({
   String productId = 'pro_plan',
   StorePurchaseStatus status = StorePurchaseStatus.purchased,
   bool acknowledged = false,
+  String? orderId = 'GPA.3123-4567-8901-23456',
+  String? obfuscatedAccountId,
 }) => StorePurchase(
   productId: productId,
   status: status,
-  purchaseId: 'GPA.3123-4567-8901-23456',
-  localVerificationData: jsonEncode({'orderId': 'GPA.3123-4567-8901-23456'}),
+  purchaseId: orderId,
+  localVerificationData: jsonEncode({
+    'orderId': ?orderId,
+    'obfuscatedAccountId': ?obfuscatedAccountId,
+  }),
   serverVerificationData: 'play-purchase-token',
   pendingCompletePurchase: !acknowledged,
 );
@@ -121,12 +137,44 @@ class FakeBilling implements StoreBilling {
   @override
   Future<void> restorePurchases() async => restores++;
 
-  @override
-  Future<void> completePurchase(StorePurchase purchase) async =>
-      completed.add(purchase);
+  /// What [completePurchase] answers — false is Play refusing the
+  /// acknowledgement.
+  bool completeResult = true;
 
   @override
-  Future<bool> showManageSubscriptions() async => false;
+  Future<bool> completePurchase(StorePurchase purchase) async {
+    completed.add(purchase);
+    return completeResult;
+  }
+}
+
+/// The retry timers `PurchaseDelivery` schedules, fired by hand: the test
+/// clock (`fake_async` is not a dependency).
+class FakeTimers {
+  final scheduled = <(Duration, void Function())>[];
+
+  Timer call(Duration d, void Function() callback) {
+    scheduled.add((d, callback));
+    return _FakeTimer();
+  }
+
+  List<Duration> get delays => [for (final (d, _) in scheduled) d];
+
+  /// Fires the most recent timer.
+  void fireLast() => scheduled.last.$2();
+}
+
+class _FakeTimer implements Timer {
+  bool _active = true;
+
+  @override
+  void cancel() => _active = false;
+
+  @override
+  bool get isActive => _active;
+
+  @override
+  int get tick => 0;
 }
 
 class FakeApi implements ApiClient {
@@ -142,6 +190,7 @@ class FakeApi implements ApiClient {
   Object? iapConfig = const {
     'purchases_enabled': true,
     'app_account_token': kTestAccountToken,
+    'account_key': 'acct-key',
   };
   final gets = <String>[];
 

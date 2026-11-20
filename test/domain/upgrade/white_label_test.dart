@@ -60,18 +60,15 @@ void main() {
   group('store builds (App Store 3.1.1(a), Play Payments 4)', () {
     test('never show the card, offer the license or nag', () {
       final s = _session(isHosted: false, isOwner: true);
-      expect(showWhiteLabelCard(s, storeBilling: true), isFalse);
-      expect(canPurchaseWhiteLabel(s, storeBilling: true), isFalse);
-      expect(shouldNagForWhiteLabel(s, storeBilling: true), isFalse);
-      // The same session on desktop, the web or F-Droid keeps all three.
-      expect(showWhiteLabelCard(s, storeBilling: false), isTrue);
-      expect(canPurchaseWhiteLabel(s, storeBilling: false), isTrue);
-      expect(shouldNagForWhiteLabel(s, storeBilling: false), isTrue);
-    });
-
-    test('read the running build by default', () {
       debugStoreBillingOverride = true;
-      expect(showWhiteLabelCard(_session(isHosted: false)), isFalse);
+      expect(showWhiteLabelCard(s), isFalse);
+      expect(canPurchaseWhiteLabel(s), isFalse);
+      expect(shouldNagForWhiteLabel(s), isFalse);
+      // The same session on desktop, the web or F-Droid keeps all three.
+      debugStoreBillingOverride = false;
+      expect(showWhiteLabelCard(s), isTrue);
+      expect(canPurchaseWhiteLabel(s), isTrue);
+      expect(shouldNagForWhiteLabel(s), isTrue);
     });
   });
 

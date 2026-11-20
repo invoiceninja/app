@@ -14,7 +14,8 @@ enum UpgradeRoute {
   /// period, and a second purchase would bill twice.
   storeSubscriptionsEnded,
 
-  /// Account Management → Plan, which explains how the plan is billed.
+  /// Account Management → Plan, which explains how the plan is billed: in a
+  /// store, on the web, or by the account's owner.
   planScreen,
 
   /// The hosted billing portal (`ninja_portal_url`). Never on a store build.
@@ -41,49 +42,59 @@ UpgradeRoute resolveUpgradeRoute({
   // would reach that server.
   if (session == null || !session.isHosted) return UpgradeRoute.planScreen;
 
-  final activeIap = session.hasIapPlan && session.isPaidPlanSlug;
+  // An in-app plan that is no longer paid may still be in the store's grace or
+  // billing-retry window and renew: nothing new is sold, in the store or on
+  // the web, until it has been over for [kIapRebuyAfter].
+  final lapsedIapRecently =
+      session.hasIapPlan &&
+      !session.hasActiveIapPlan &&
+      !iapPlanEndedLongAgo(session.planExpires, now: now);
 
   if (!storeBilling) {
-    // A plan bought in a store is managed in that store, never the portal.
-    if (activeIap) return UpgradeRoute.planScreen;
+    // A plan bought in a store is managed in that store, never the portal;
+    // and one that may still renew there is not sold again here.
+    if (session.hasActiveIapPlan || lapsedIapRecently) {
+      return UpgradeRoute.planScreen;
+    }
     return UpgradeRoute.billingPortal;
   }
 
-  if (activeIap) return UpgradeRoute.storeSubscriptions;
+  if (session.hasActiveIapPlan) return UpgradeRoute.storeSubscriptions;
 
   // Billed on the web (a paid plan, or a trial, which hosted runs on a card):
   // a store purchase would bill twice, and the portal is off limits here.
-  if (!session.hasIapPlan && (session.isPaidPlanSlug || session.isTrial)) {
-    return UpgradeRoute.planScreen;
-  }
+  if (session.isWebBilled) return UpgradeRoute.planScreen;
 
   // A plan is bought for the whole account, and only its owner may buy it.
   // Checked before the ended-subscription branch: the store page on someone
   // else's device holds nothing of the owner's.
   if (!canBuyForActiveAccount(session)) return UpgradeRoute.planScreen;
 
-  // An in-app plan that is no longer paid may still be in the store's grace or
-  // billing-retry window and renew: offer the sheet only once it has been over
-  // for [kIapRebuyAfter].
-  if (session.hasIapPlan &&
-      !iapPlanEndedLongAgo(session.planExpires, now: now)) {
-    return UpgradeRoute.storeSubscriptionsEnded;
-  }
+  if (lapsedIapRecently) return UpgradeRoute.storeSubscriptionsEnded;
 
   return UpgradeRoute.purchaseSheet;
 }
 
+/// Whether an upgrade on this build could only say the plan is managed on
+/// the web: a store build ([storeBilling]) with a trial or a web-billed plan
+/// ([AuthSession.isWebBilled]), which [resolveUpgradeRoute] sends to the Plan
+/// screen. Every upgrade prompt then shows that, with no button: a store build
+/// may not link to the web billing, and a store plan would bill twice. A
+/// long-expired web plan is a free account again (the slug is blank), so it
+/// is offered the purchase sheet like any other.
+bool planManagedOnWeb({
+  required bool storeBilling,
+  required AuthSession? session,
+}) =>
+    storeBilling && session != null && session.isHosted && session.isWebBilled;
+
 /// Whether the signed-in user may buy a plan in-app for the active company's
-/// account: they own the active company, and that company's account is the
-/// user's own. The hosted endpoint applies a purchase to the user's own
-/// account (`user->account`), so selling one while another account's company
-/// is active would bill for a plan this account never gets. A session that
-/// can't say which account is the user's (`userAccountKey` blank) is not
-/// offered one either.
+/// account: they own the active company. Which account a purchase lands on is
+/// the hosted config's answer (`account_key`, `IapConfig.sellsTo`), checked
+/// when the sheet opens, since the hosted endpoint applies a purchase to the
+/// user's own account, which may not be the active company's.
 bool canBuyForActiveAccount(AuthSession session) =>
-    (session.currentCompany?.isOwner ?? false) &&
-    session.userAccountKey.isNotEmpty &&
-    session.userAccountKey == session.accountKey;
+    session.currentCompany?.isOwner ?? false;
 
 /// Whether [planExpires] (the account's `plan_expires`, a `YYYY-MM-DD` day the
 /// plan is paid through) ended more than [kIapRebuyAfter] before [now].

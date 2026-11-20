@@ -1,11 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart' show PlatformException;
 import 'package:logging/logging.dart';
 import 'package:store_services/store_services.dart';
 
 import 'package:admin/data/repositories/auth_repository.dart';
-import 'package:admin/data/services/api_client.dart';
 import 'package:admin/domain/upgrade/purchase_delivery.dart';
 
 /// App Store / Play product identifiers for the hosted plans. Mirrors
@@ -48,47 +48,6 @@ PlanBillingPeriod billingPeriodOf(String productId) =>
     ? PlanBillingPeriod.yearly
     : PlanBillingPeriod.monthly;
 
-/// The hosted service's in-app purchase settings for the signed-in account
-/// (`GET /api/admin/iap/config`).
-@immutable
-class IapConfig {
-  const IapConfig({required this.purchasesEnabled, this.appAccountToken});
-
-  /// Fail-closed default: no purchases.
-  static const closed = IapConfig(purchasesEnabled: false);
-
-  final bool purchasesEnabled;
-
-  /// The account's purchase token, a UUID: sent with every purchase as
-  /// Apple's `appAccountToken` / Play's `obfuscatedAccountId`, so the store
-  /// (and the server notifications it sends) name the account the purchase
-  /// was made for. Null when the server sent none, or not a UUID — StoreKit
-  /// drops a non-UUID token without a word, and the server then refuses the
-  /// paid purchase.
-  final String? appAccountToken;
-
-  /// Whether a purchase may be started: the service takes them, and there is
-  /// a token to tie one to this account.
-  bool get canPurchase => purchasesEnabled && appAccountToken != null;
-
-  static final _uuid = RegExp(
-    r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
-    caseSensitive: false,
-  );
-
-  /// Reads the config response; anything of the wrong shape is [closed].
-  factory IapConfig.fromJson(Object? json) {
-    if (json is! Map<String, dynamic>) return closed;
-    final token = json['app_account_token'];
-    return IapConfig(
-      purchasesEnabled: json['purchases_enabled'] == true,
-      appAccountToken: token is String && _uuid.hasMatch(token.trim())
-          ? token.trim()
-          : null,
-    );
-  }
-}
-
 /// The upgrade sheet's side of an in-app purchase: lists the store products
 /// and starts a purchase. Created when the sheet opens, disposed when it
 /// closes.
@@ -109,14 +68,11 @@ class IapConfig {
 /// outside the Flutter codebase and cannot be exercised in CI.
 class PurchaseService {
   PurchaseService({
-    required ApiClient apiClient,
     required AuthRepository auth,
     required PurchaseDelivery delivery,
-  }) : _apiClient = apiClient,
-       _auth = auth,
+  }) : _auth = auth,
        _delivery = delivery;
 
-  final ApiClient _apiClient;
   final AuthRepository _auth;
   final PurchaseDelivery _delivery;
   final _log = Logger('PurchaseService');
@@ -140,28 +96,27 @@ class PurchaseService {
   /// True only on store platforms with a reachable billing backend.
   Future<bool> get isAvailable => _iap.isAvailable();
 
-  /// Whether the hosted service is taking in-app purchases right now, and
-  /// gave this account a token to tie one to. It asks
-  /// `GET /api/admin/iap/config` and **fails closed**: no answer, an error, or
-  /// anything but `purchases_enabled: true` with a UUID `app_account_token`
-  /// means no purchase sheet. That keeps purchases off until the hosted
-  /// billing can verify them, and lets support switch them off again without
-  /// an app release. Delivering a purchase the user already paid for is never
-  /// gated on it ([PurchaseDelivery]).
+  /// Whether the hosted service is taking in-app purchases right now, gave
+  /// this account a token to tie one to, and named the account it applies
+  /// them to. It reads [PurchaseDelivery.config] (the one request for the
+  /// signed-in user) and **fails closed**: no answer, an error, or anything
+  /// but `purchases_enabled: true` with a UUID `app_account_token` and an
+  /// `account_key` means no purchase sheet. That keeps purchases off until
+  /// the hosted billing can verify them, and lets support switch them off
+  /// again without an app release. Delivering a purchase the user already
+  /// paid for is never gated on it ([PurchaseDelivery]).
   Future<bool> loadConfig() async {
-    try {
-      _config = IapConfig.fromJson(
-        await _apiClient.getOne('/api/admin/iap/config'),
-      );
-    } catch (e) {
-      _log.info('iap config unavailable, purchases off: $e');
-      _config = IapConfig.closed;
-    }
-    if (_config.purchasesEnabled && _config.appAccountToken == null) {
-      _log.warning('iap config has no usable app_account_token, purchases off');
-    }
+    _config = await _delivery.config() ?? IapConfig.closed;
     return _config.canPurchase;
   }
+
+  /// Whether a plan bought now goes to the active company's account: the
+  /// config's `account_key` is the active account's key
+  /// ([IapConfig.sellsTo]). False until [loadConfig] has answered.
+  bool get sellsToActiveAccount => switch (_auth.session.value) {
+    final s? => _config.sellsTo(s),
+    null => false,
+  };
 
   /// Whether this store account already holds an active subscription to one
   /// of our plans in this app: StoreKit 2's `Transaction.currentEntitlements`
@@ -172,15 +127,6 @@ class PurchaseService {
     final ids = await _iap.activeSubscriptionProductIds();
     return ids.any((id) => kProductPlans.contains(planSlugOf(id)));
   }
-
-  /// The key of the account a purchase is applied to
-  /// ([PurchaseDelivery.deliveryAccountKey]). Blank only on an offline cold
-  /// start from a cache older than 5.1.14, until the background refresh
-  /// fills it.
-  String get _accountKey => switch (_auth.session.value) {
-    final s? => PurchaseDelivery.deliveryAccountKey(s),
-    null => '',
-  };
 
   /// Follows the delivery and lists the products.
   Future<void> init() async {
@@ -203,27 +149,33 @@ class PurchaseService {
   }
 
   Future<void> buy(StoreProduct product) async {
-    // Never take money that could not be credited to an account.
-    if (_accountKey.isEmpty) {
-      _log.warning('no account key yet, not starting a purchase');
+    // Never take money that could not be credited to this account, nor money
+    // the store can't tie to it.
+    if (!sellsToActiveAccount) {
+      _log.warning('the config does not sell to this account, no purchase');
       return;
     }
-    // Nor money the store can't tie to this account.
-    final token = _config.canPurchase ? _config.appAccountToken : null;
-    if (token == null) {
-      _log.warning('no app account token, not starting a purchase');
-      return;
-    }
+    final token = _config.appAccountToken!;
     busy.value = true;
     try {
       await _iap.buyNonConsumable(product, applicationUserName: token);
     } catch (e) {
       // A purchase that never started sends no purchase-stream event to clear
-      // [busy], so the sheet would stay disabled. StoreKit refuses a product
-      // that still has an unfinished transaction this way
-      // (`storekit_duplicate_product_object`, in_app_purchase_storekit 0.4.10).
+      // [busy], so the sheet would stay disabled; and nothing would say why.
+      // StoreKit refuses a product that still has an unfinished transaction
+      // this way (`storekit_duplicate_product_object`,
+      // in_app_purchase_storekit 0.4.10).
       busy.value = false;
       _log.warning('buyNonConsumable: $e');
+      if (!_outcomes.isClosed) {
+        _outcomes.add(
+          PurchaseActivity(
+            PurchaseActivityKind.failed,
+            productId: product.id,
+            message: e is PlatformException ? (e.message ?? e.code) : null,
+          ),
+        );
+      }
     }
   }
 

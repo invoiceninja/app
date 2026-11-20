@@ -46,6 +46,42 @@ void main() {
     },
   );
 
+  // There is no account-delete route: the account goes with its last company.
+  // With more than one company the button says Delete Company, so the note
+  // says what deleting the last one does.
+  for (final many in [true, false]) {
+    testWidgets(
+      many
+          ? 'with several companies, says deleting the last deletes the account'
+          : 'with one company (Cancel Account), no last-company note',
+      (tester) async {
+        await tester.binding.setSurfaceSize(const Size(1200, 800));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+        final fixture = await buildFixture(
+          companies: [
+            const FakeCompany(id: 'c1', name: 'Acme Co'),
+            if (many) const FakeCompany(id: 'c2', name: 'Beta Co'),
+          ],
+          currentCompanyId: 'c1',
+        );
+        addTearDown(fixture.dispose);
+
+        await tester.pumpWidget(
+          wrapWithShell(
+            fixture.services,
+            const AccountManagementDangerZoneScreen(),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(
+          find.text('Deleting your last company deletes your account.'),
+          many ? findsOneWidget : findsNothing,
+        );
+      },
+    );
+  }
+
   // Deleting here doesn't cancel a plan billed by the App Store or Google
   // Play; Apple's account-deletion guidance asks apps to say so and point at
   // the store's subscription settings.

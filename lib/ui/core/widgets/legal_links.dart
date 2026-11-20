@@ -12,6 +12,7 @@ const String kTermsOfServiceUrl = 'https://invoiceninja.com/terms/';
 /// browser. The App Store wants both reachable inside the app (App Review
 /// 5.1.1(i), and 3.1.2 wherever a subscription is sold), and a link inside a
 /// sentence is too small to hit with a finger, so each is a button of its own.
+/// A link that doesn't open says so in a toast ([openExternalUrl]).
 class LegalLinks extends StatelessWidget {
   const LegalLinks({super.key, this.alignment = WrapAlignment.start});
 
@@ -24,12 +25,12 @@ class LegalLinks extends StatelessWidget {
       children: [
         TextButton(
           key: const ValueKey('legal_privacy_policy'),
-          onPressed: () => launchExternalUri(Uri.parse(kPrivacyPolicyUrl)),
+          onPressed: () => openExternalUrl(context, kPrivacyPolicyUrl),
           child: Text(context.tr('privacy_policy')),
         ),
         TextButton(
           key: const ValueKey('legal_terms_of_service'),
-          onPressed: () => launchExternalUri(Uri.parse(kTermsOfServiceUrl)),
+          onPressed: () => openExternalUrl(context, kTermsOfServiceUrl),
           child: Text(context.tr('terms_of_service')),
         ),
       ],

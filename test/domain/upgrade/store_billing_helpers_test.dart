@@ -1,9 +1,15 @@
 // The pure halves of `StoreBilling`'s Play answers: which product offers the
 // purchase sheet lists, and which subscriptions a Google account already
 // owns (so the sheet never sells a second, different plan).
+//
+// Here rather than in packages/store_services/test: CI runs only the app's
+// `flutter test`. The helpers live in the real package's `src/sdk_only/`,
+// which has no FOSS copy (test/lint/store_sdk_boundary_test.dart).
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:store_services/store_services.dart';
+// ignore: implementation_imports
+import 'package:store_services/src/sdk_only/play_billing_helpers.dart';
 
 void main() {
   group('playBasePlanOfferIndexes', () {

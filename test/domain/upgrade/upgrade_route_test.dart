@@ -64,13 +64,13 @@ final _accounts = <String, AuthSession>{
   'lapsed IAP, no date': _session(hasIapPlan: true),
   'self-hosted': _session(isHosted: false),
   'non-owner, free': _session(isOwner: false),
-  // The hosted endpoint applies a purchase to the user's own account, so
-  // the sheet is offered only while that account's company is active.
+  // Which account a purchase lands on is the hosted config's answer
+  // (`account_key`), checked when the sheet opens (purchase_service_test),
+  // never a guess from the session's keys.
   "owner, another account's company": _session(
     accountKey: 'their-acct',
     userAccountKey: 'my-acct',
   ),
-  'owner, own account unknown': _session(userAccountKey: ''),
 };
 
 UpgradeRoute _route(bool storeBilling, String account) => resolveUpgradeRoute(
@@ -131,8 +131,7 @@ void main() {
       'lapsed IAP, no date': UpgradeRoute.storeSubscriptionsEnded,
       'self-hosted': UpgradeRoute.planScreen,
       'non-owner, free': UpgradeRoute.planScreen,
-      "owner, another account's company": UpgradeRoute.planScreen,
-      'owner, own account unknown': UpgradeRoute.planScreen,
+      "owner, another account's company": UpgradeRoute.purchaseSheet,
     };
     for (final platform in [
       TargetPlatform.iOS,
@@ -185,12 +184,13 @@ void main() {
       'web-paid': UpgradeRoute.billingPortal,
       // Bought in a store: managed there, never the portal.
       'active IAP': UpgradeRoute.planScreen,
-      'lapsed IAP, recent': UpgradeRoute.billingPortal,
+      // It may still renew in the store: no web plan on top for 60 days.
+      'lapsed IAP, recent': UpgradeRoute.planScreen,
+      'lapsed IAP, no date': UpgradeRoute.planScreen,
       'lapsed IAP, >60 days': UpgradeRoute.billingPortal,
       'self-hosted': UpgradeRoute.planScreen,
       'non-owner, free': UpgradeRoute.billingPortal,
       "owner, another account's company": UpgradeRoute.billingPortal,
-      'owner, own account unknown': UpgradeRoute.billingPortal,
     };
     final builds = {
       'F-Droid Android': storeBillingFor(
@@ -230,6 +230,48 @@ void main() {
         }
       });
     }
+  });
+
+  group('planManagedOnWeb', () {
+    test('a store build with a trial or a web-billed plan', () {
+      for (final account in ['trial', 'web-paid']) {
+        expect(
+          planManagedOnWeb(storeBilling: true, session: _accounts[account]),
+          isTrue,
+          reason: account,
+        );
+        expect(
+          planManagedOnWeb(storeBilling: false, session: _accounts[account]),
+          isFalse,
+          reason: account,
+        );
+      }
+    });
+
+    test('not a free account, a long-expired web plan, or an in-app one', () {
+      for (final account in [
+        'free',
+        'active IAP',
+        'lapsed IAP, recent',
+        'self-hosted',
+      ]) {
+        expect(
+          planManagedOnWeb(storeBilling: true, session: _accounts[account]),
+          isFalse,
+          reason: account,
+        );
+      }
+      // The server blanks the slug once the plan is over: a free account.
+      final expiredWeb = _session(planExpires: _daysAgo(200));
+      expect(
+        planManagedOnWeb(storeBilling: true, session: expiredWeb),
+        isFalse,
+      );
+      expect(
+        resolveUpgradeRoute(storeBilling: true, session: expiredWeb, now: _now),
+        UpgradeRoute.purchaseSheet,
+      );
+    });
   });
 
   group('iapPlanEndedLongAgo', () {
