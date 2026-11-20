@@ -26,11 +26,12 @@ void main() {
       TargetPlatform.macOS: const WebAppBannerLinks(
         webAppUrl: kHostedReactUrl,
         nativePlatform: NativeAppPlatform.mac,
-        nativeUrl: kMobileAppIosUrl,
+        nativeUrl: kMacAppUrl,
       ),
-      // No public Microsoft Store listing yet: the web app only.
       TargetPlatform.windows: const WebAppBannerLinks(
         webAppUrl: kHostedReactUrl,
+        nativePlatform: NativeAppPlatform.windows,
+        nativeUrl: kWindowsAppUrl,
       ),
       TargetPlatform.linux: const WebAppBannerLinks(
         webAppUrl: kHostedReactUrl,
@@ -60,9 +61,12 @@ void main() {
       ),
       TargetPlatform.macOS: const WebAppBannerLinks(
         nativePlatform: NativeAppPlatform.mac,
-        nativeUrl: kMobileAppIosUrl,
+        nativeUrl: kMacAppUrl,
       ),
-      TargetPlatform.windows: const WebAppBannerLinks(),
+      TargetPlatform.windows: const WebAppBannerLinks(
+        nativePlatform: NativeAppPlatform.windows,
+        nativeUrl: kWindowsAppUrl,
+      ),
       TargetPlatform.linux: const WebAppBannerLinks(
         nativePlatform: NativeAppPlatform.linux,
         nativeUrl: flathub,
@@ -101,7 +105,7 @@ void main() {
 
   test('nothing to offer is empty, so no banner', () {
     expect(
-      webAppBannerLinks(platform: TargetPlatform.windows, isHosted: false),
+      webAppBannerLinks(platform: TargetPlatform.fuchsia, isHosted: false),
       isA<WebAppBannerLinks>().having((l) => l.isEmpty, 'isEmpty', isTrue),
     );
     expect(
@@ -169,10 +173,9 @@ void main() {
     });
   });
 
-  test('the Windows link waits for the public Microsoft Store listing', () {
-    // Flip this with `kWindowsAppUrl` at launch.
-    expect(kWindowsAppUrl, isNull);
-    expect(nativeAppUrl(NativeAppPlatform.windows), isNull);
+  test('the Mac and Windows links are invoiceninja.com download pages', () {
+    expect(kMacAppUrl, 'https://invoiceninja.com/apps/mac/');
+    expect(kWindowsAppUrl, 'https://invoiceninja.com/apps/windows/');
   });
 
   test('every link is https', () {

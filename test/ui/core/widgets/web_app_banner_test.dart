@@ -15,6 +15,7 @@ import 'package:admin/data/prefs/device_prefs_store.dart';
 import 'package:admin/data/repositories/auth_repository.dart';
 import 'package:admin/data/services/connectivity_watcher.dart';
 import 'package:admin/domain/mobile_app_promo.dart';
+import 'package:admin/domain/web_app_banner.dart';
 import 'package:admin/ui/core/widgets/web_app_banner.dart';
 
 import '../../../_localization_helper.dart';
@@ -211,12 +212,13 @@ void main() {
     });
 
     testWidgets(
-      'self-hosted on Windows has nothing to offer, so nothing shows',
+      'self-hosted on a platform with no app has nothing to offer, so nothing '
+      'shows',
       (tester) async {
         await pump(tester, session: _session(isHosted: false));
         expect(_banner, findsNothing);
       },
-      variant: TargetPlatformVariant.only(TargetPlatform.windows),
+      variant: TargetPlatformVariant.only(TargetPlatform.fuchsia),
     );
   });
 
@@ -232,7 +234,8 @@ void main() {
     final nativeTargets = <TargetPlatform, (String, String)>{
       TargetPlatform.iOS: ('Get the iPhone and iPad app', kMobileAppIosUrl),
       TargetPlatform.android: ('Get the Android app', kMobileAppAndroidUrl),
-      TargetPlatform.macOS: ('Get the Mac app', kMobileAppIosUrl),
+      TargetPlatform.macOS: ('Get the Mac app', kMacAppUrl),
+      TargetPlatform.windows: ('Get the Windows app', kWindowsAppUrl),
       TargetPlatform.linux: (
         'Get the Linux app',
         'https://flathub.org/apps/com.invoiceninja.InvoiceNinja',
@@ -250,19 +253,17 @@ void main() {
       }, variant: TargetPlatformVariant.only(platform));
     }
 
-    testWidgets(
-      'Windows offers only the web app until the store listing is public',
-      (tester) async {
-        await pump(tester);
-        expect(
-          find.text('For the best experience, use Invoice Ninja Web.'),
-          findsOneWidget,
-        );
-        expect(_openWeb, findsOneWidget);
-        expect(_getApp, findsNothing);
-      },
-      variant: TargetPlatformVariant.only(TargetPlatform.windows),
-    );
+    testWidgets('a platform with no app offers only the web app', (
+      tester,
+    ) async {
+      await pump(tester);
+      expect(
+        find.text('For the best experience, use Invoice Ninja Web.'),
+        findsOneWidget,
+      );
+      expect(_openWeb, findsOneWidget);
+      expect(_getApp, findsNothing);
+    }, variant: TargetPlatformVariant.only(TargetPlatform.fuchsia));
 
     testWidgets('self-hosted offers only the native app', (tester) async {
       await pump(tester, session: _session(isHosted: false));

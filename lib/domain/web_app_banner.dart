@@ -13,11 +13,14 @@ import 'package:admin/domain/mobile_app_promo.dart';
 const String kLinuxAppUrl =
     'https://flathub.org/apps/com.invoiceninja.InvoiceNinja';
 
-/// Windows: null until the Microsoft Store listing's audience is Public — a
-/// Private-audience listing tells everyone else the app isn't available. Set
-/// it to `'https://apps.microsoft.com/detail/$kMicrosoftStoreId'` at launch
-/// (docs/mobile-app-promo.md § Swap the links at launch).
-const String? kWindowsAppUrl = null;
+/// Mac: invoiceninja.com's download page for the Mac App Store listing (one App
+/// Store record serves the iPhone, iPad and Mac apps, but the Mac one opens on
+/// its own platform page).
+const String kMacAppUrl = 'https://invoiceninja.com/apps/mac/';
+
+/// Windows: invoiceninja.com's download page for the Microsoft Store listing
+/// (`9NG93WNXN797`, public since the launch release).
+const String kWindowsAppUrl = 'https://invoiceninja.com/apps/windows/';
 
 /// The native app the banner offers on the browser's operating system.
 enum NativeAppPlatform {
@@ -86,12 +89,12 @@ NativeAppPlatform? nativeAppPlatformFor(
 bool isChromeOsUserAgent(String userAgent) => userAgent.contains('CrOS');
 
 /// Where [platform]'s native app is downloaded, or null where there is no
-/// public listing yet. The Mac app is the iPhone app's TestFlight beta today
-/// (one App Store record serves both), so it follows [kMobileAppIosUrl].
+/// public listing. Every platform has one since the launch release; the
+/// nullable shape stays for a platform that loses or hasn't got its listing.
 String? nativeAppUrl(NativeAppPlatform platform) => switch (platform) {
   NativeAppPlatform.ios => kMobileAppIosUrl,
   NativeAppPlatform.android => kMobileAppAndroidUrl,
-  NativeAppPlatform.mac => kMobileAppIosUrl,
+  NativeAppPlatform.mac => kMacAppUrl,
   NativeAppPlatform.windows => kWindowsAppUrl,
   NativeAppPlatform.linux => kLinuxAppUrl,
 };

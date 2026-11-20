@@ -359,28 +359,6 @@ class _MobileAppPromoDialogState extends State<MobileAppPromoDialog> {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Not on native macOS: it labels the phone app, but in a Mac App
-        // Store build it can read as this app calling itself a beta
-        // (guideline 2.2). The TestFlight caption says so anyway.
-        if (!_isAppleOnlyQr) ...[
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-            decoration: BoxDecoration(
-              color: tokens.accentSoft,
-              borderRadius: BorderRadius.circular(InRadii.r1),
-            ),
-            child: Text(
-              context.tr('beta').toUpperCase(),
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                letterSpacing: .8,
-                color: tokens.accentInk,
-              ),
-            ),
-          ),
-          SizedBox(height: InSpacing.md(context)),
-        ],
         Semantics(
           header: true,
           headingLevel: 1,
@@ -424,8 +402,8 @@ class _MobileAppPromoDialogState extends State<MobileAppPromoDialog> {
       MobilePromoTarget.android => 'mobile_app_promo_scan_android',
     };
     final stepKey = isIos
-        ? 'mobile_app_promo_testflight_step'
-        : 'mobile_app_promo_play_step';
+        ? 'mobile_app_promo_app_store_step'
+        : 'mobile_app_promo_play_store_step';
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -461,8 +439,8 @@ class _MobileAppPromoDialogState extends State<MobileAppPromoDialog> {
             size: 176,
             semanticsLabel: context.tr(
               isIos
-                  ? 'mobile_app_promo_qr_iphone'
-                  : 'mobile_app_promo_qr_android',
+                  ? 'mobile_app_promo_qr_iphone_app'
+                  : 'mobile_app_promo_qr_android_app',
             ),
           ),
           SizedBox(height: InSpacing.md(context)),

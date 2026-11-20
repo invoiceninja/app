@@ -147,14 +147,9 @@ void main() {
         }
       }
 
-      // The QR step: captions, the TestFlight line, the QR code's label.
-      expect(find.textContaining('TestFlight'), findsOneWidget);
+      // The QR step: captions, the App Store line, the QR code's label.
+      expect(find.textContaining('App Store'), findsOneWidget);
       expectNoOtherPlatform('QR step');
-      expect(
-        find.text('BETA'),
-        findsNothing,
-        reason: 'the Mac app must not read as calling itself a beta (2.2)',
-      );
 
       await tester.tap(find.text('Copy Link'));
       await tester.pump();
@@ -173,10 +168,10 @@ void main() {
       tester,
     ) async {
       await _Harness().open(tester, targets: _both);
-      expect(find.text('BETA'), findsOneWidget);
+      expect(find.text('BETA'), findsNothing, reason: 'out of beta');
       expect(_qrData(tester), kMobileAppIosUrl);
       expect(find.text('Scan with your iPhone camera'), findsOneWidget);
-      expect(find.textContaining('TestFlight'), findsOneWidget);
+      expect(find.textContaining('App Store'), findsOneWidget);
 
       await tester.tap(find.text('Android app'));
       await tester.pump();
@@ -185,7 +180,7 @@ void main() {
         find.text("Scan with your Android phone's camera"),
         findsOneWidget,
       );
-      expect(find.textContaining('Become a tester'), findsOneWidget);
+      expect(find.textContaining('Google Play'), findsOneWidget);
     });
 
     testWidgets('the phone picture shows only when there is height to '

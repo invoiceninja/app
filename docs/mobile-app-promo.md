@@ -18,7 +18,7 @@ A one-screen dialog that pitches the phone app to someone using the desktop app 
 
 Three store rules, each enforced in one place:
 
-- **No other platform on native macOS.** `mobilePromoTargets(isWeb: false, platform: macOS)` is `[ios]`, and the dialog only ever names a phone it was handed — no toggle, text, icon, QR code, link, tooltip or semantics label for Android. `test/ui/features/mobile_promo/mobile_app_promo_dialog_test.dart` pumps the macOS surface and asserts that neither step — the QR step nor the sign-in step — shows or speaks "Android", "Google Play" or the Play URL, including the value Copy Link puts on the clipboard. ("Google" as the *sign-in provider* — "You sign in here with Google" — is fine: it names how this user signs in, not a platform, and the Mac sign-in screen offers Google too.) The "Beta" chip is also hidden there, so the Mac app can't read as calling itself a beta (guideline 2.2). A Mac *browser* is not the App Store build and offers both phones.
+- **No other platform on native macOS.** `mobilePromoTargets(isWeb: false, platform: macOS)` is `[ios]`, and the dialog only ever names a phone it was handed — no toggle, text, icon, QR code, link, tooltip or semantics label for Android. `test/ui/features/mobile_promo/mobile_app_promo_dialog_test.dart` pumps the macOS surface and asserts that neither step — the QR step nor the sign-in step — shows or speaks "Android", "Google Play" or the Play URL, including the value Copy Link puts on the clipboard. ("Google" as the *sign-in provider* — "You sign in here with Google" — is fine: it names how this user signs in, not a platform, and the Mac sign-in screen offers Google too.) A Mac *browser* is not the App Store build and offers both phones.
 - **Never a gate.** The dialog always has the ✕, Esc, and a dismiss button, and nothing in the app waits on it. Esc needs the dialog's own `DismissIntent` action: the route's handler is off whenever the barrier isn't dismissible (`_DismissModalAction.isEnabled` returns `route.barrierDismissible`), and the barrier isn't, so a stray click beside the card doesn't count as an answer.
 - **No purchase copy.** Both links go to a free download. Adding a plan, a price or an upgrade link to this dialog turns it into an external purchase call to action, which both stores forbid.
 
@@ -40,9 +40,9 @@ The desktop app ships to the Mac App Store (TestFlight today), the Microsoft Sto
 Two things that look like problems and aren't:
 
 - **The binary contains Android strings.** `kMobileAppAndroidUrl`, the `google_play` / `android_app` keys and `upgrade_launcher.dart`'s Play URL are compiled into every build; what a reviewer sees is what 2.3.10 is applied to. One of them *was* reachable: About → Debug Panel → screenshot-size menu headed a group "Google Play" on every desktop. `visibleScreenshotPresetGroups` now drops that group from a **release** macOS build (debug and profile runs, where the store screenshots are captured, keep it).
-- **A TestFlight link inside a Mac App Store build.** Guideline 2.2 is about *submitting* betas to the store, not linking to one. It is still the first link to swap once the iOS app is public.
+- **A link to invoiceninja.com rather than the store.** Each phone has its own download page (`https://invoiceninja.com/apps/iphone-ipad/`, `/apps/android/`), whose button links that store's listing, so a listing can move without a release. The macOS build is handed only the iOS one.
 
-Rejected: a single QR code pointing at a redirect that sends Android phones to Google Play. It would avoid printing the word on macOS while doing exactly what 2.3.10 forbids — a Mac user with an Android phone can get the link from the web app instead.
+Rejected: a single QR code pointing at a redirect that sends Android phones to Google Play. It would avoid printing the word on macOS while doing exactly what 2.3.10 forbids — a Mac user with an Android phone can get the link from the web app instead. The per-platform redirects are not that: each one goes to one store, and macOS is never given the Android one.
 
 ## Who sees it, and when
 
@@ -81,14 +81,13 @@ The schedule is a `PrefScope.device` key: "this machine has been told", so a sig
 
 ## Swap the links at launch
 
-When the phone apps leave beta:
+Done in the launch release. During the beta the promo linked TestFlight's public join link and Play's open-testing opt-in, captioned "Become a tester", with a "Beta" chip over the title (hidden on native macOS, guideline 2.2). At launch:
 
-1. `kMobileAppIosUrl` → the App Store listing (`https://apps.apple.com/app/id<number>`).
-2. `kMobileAppAndroidUrl` → `https://play.google.com/store/apps/details?id=com.invoiceninja.admin`.
-3. The beta-step captions: `mobile_app_promo_testflight_step` and `mobile_app_promo_play_step` describe TestFlight and "Become a tester"; replace them with store wording, and drop the "Beta" label and the `_qr_*` "…beta" semantics labels.
-4. Builds already installed keep the old links. Snap, Microsoft Store and AppImage users can run an old build for months, so keep the TestFlight and testing links working for a while after launch.
-5. Decide whether people who engaged with or dismissed the *beta* promo should see the public one: that needs a new preference key (`mobile_app_promo_json` already says "told").
-6. In the same release, set `kAppStoreId` and flip `kAppIsBeta` to `false` — the review prompt's half of the launch (`docs/review-prompt.md` § GA launch checklist).
-7. The web build's "other apps" banner (`WebAppBanner`) takes its links from `lib/domain/web_app_banner.dart`: iPhone, iPad and Mac follow `kMobileAppIosUrl` and Android `kMobileAppAndroidUrl` on their own, but Windows offers no app until `kWindowsAppUrl` is set to `https://apps.microsoft.com/detail/$kMicrosoftStoreId` — do it once the Microsoft Store listing's audience is Public (`docs/going-live.md` § Microsoft Store). Linux already links Flathub, except on a Chromebook: it reports Linux, so the banner reads the browser's user agent (`browserUserAgent`, `lib/app/browser_chrome.dart`) and a `CrOS` one is offered the Android app instead.
+1. `kMobileAppIosUrl` and `kMobileAppAndroidUrl` became invoiceninja.com's download pages, `https://invoiceninja.com/apps/iphone-ipad/` and `https://invoiceninja.com/apps/android/`. Before launch day their buttons name the old app's listings; on launch day they are switched to the new app's App Store and Google Play listings (`docs/going-live.md` § Launch day).
+2. The captions moved to new keys with store wording (`mobile_app_promo_app_store_step`, `mobile_app_promo_play_store_step`, and the QR labels `mobile_app_promo_qr_iphone_app` / `mobile_app_promo_qr_android_app`), and the "Beta" chip is gone.
+3. Builds already installed keep the old links. Snap, Microsoft Store and AppImage users can run an old build for months, so keep the TestFlight and testing links working for a while after launch.
+4. Still open: whether people who engaged with or dismissed the *beta* promo should see the public one. That needs a new preference key (`mobile_app_promo_json` already says "told").
+5. The same release flipped `kAppIsBeta` to `false` and set `kAppStoreId`, the review prompt's half of the launch (`docs/review-prompt.md` § GA launch checklist).
+6. The web build's "other apps" banner (`WebAppBanner`) takes its links from `lib/domain/web_app_banner.dart`: iPhone, iPad and Android follow the two constants above, and the Mac and Windows apps their own download pages, `https://invoiceninja.com/apps/mac/` and `https://invoiceninja.com/apps/windows/`. Linux links Flathub, except on a Chromebook: it reports Linux, so the banner reads the browser's user agent (`browserUserAgent`, `lib/app/browser_chrome.dart`) and a `CrOS` one is offered the Android app instead.
 
-Until then, watch two limits. A TestFlight public link caps at 10,000 testers, and a full beta shows "This beta is full" to everyone the promo sends there. And `kMobilePromoEnabled` is compile-time: it stops the promo in the *next* build, not in ones already installed.
+`kMobilePromoEnabled` is compile-time: it stops the promo in the *next* build, not in ones already installed.

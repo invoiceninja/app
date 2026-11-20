@@ -83,6 +83,12 @@ void main() {
       expect(ios.url, kMobileAppIosUrl);
       expect(android.url, kMobileAppAndroidUrl);
       expect(kMobileAppIosUrl, isNot(contains('google')));
+      expect(kMobileAppIosUrl, isNot(contains('android')));
+    });
+
+    test('both links are invoiceninja.com download pages', () {
+      expect(kMobileAppIosUrl, 'https://invoiceninja.com/apps/iphone-ipad/');
+      expect(kMobileAppAndroidUrl, 'https://invoiceninja.com/apps/android/');
     });
   });
 

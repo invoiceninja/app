@@ -14,16 +14,15 @@ import 'package:admin/utils/local_network_host.dart';
 /// About and Device Settings entries.
 const bool kMobilePromoEnabled = true;
 
-/// The iPhone/iPad beta — TestFlight's public join link. Swap for the App
-/// Store listing once the iOS app is public — see
-/// docs/mobile-app-promo.md § Swap the links at launch.
-const String kMobileAppIosUrl = 'https://testflight.apple.com/join/YY1BZ7uR';
+/// The iPhone/iPad app — invoiceninja.com's download page, whose button links
+/// the App Store listing, so the listing can move without a release
+/// (docs/mobile-app-promo.md § Swap the links at launch).
+const String kMobileAppIosUrl = 'https://invoiceninja.com/apps/iphone-ipad/';
 
-/// The Android beta — Google Play's open-testing opt-in page. **Never
-/// reachable on native macOS** (Apple guideline 2.3.10): only
+/// The Android app — invoiceninja.com's download page for the Google Play listing.
+/// **Never reachable on native macOS** (Apple guideline 2.3.10): only
 /// [mobilePromoTargets] hands it out.
-const String kMobileAppAndroidUrl =
-    'https://play.google.com/apps/testing/com.invoiceninja.admin';
+const String kMobileAppAndroidUrl = 'https://invoiceninja.com/apps/android/';
 
 enum MobilePromoTarget {
   ios,
