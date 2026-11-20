@@ -141,7 +141,7 @@ View (StatelessWidget)
 - **DI**: `Services` (`lib/app/services.dart`) — singleton bag built once in `main.dart`, exposed via `Provider<Services>.value`. Screens read via `context.read<Services>()`; ViewModels take repos by constructor injection.
 - **State**: `ChangeNotifier` + `ListenableBuilder`. No Redux/bloc/Riverpod.
 - **Models**: `freezed` + `json_serializable`. API DTOs in `lib/data/models/api/`, domain models in `lib/data/models/domain/`.
-- **Persistence**: Drift. Native (iOS/macOS): SQLCipher, encrypted-at-rest with a per-install key in `flutter_secure_storage` (`invoiceninja.db.key.v1`). Web: unencrypted IndexedDB/OPFS via drift WASM (no SQLCipher/`PRAGMA key` — the browser origin sandbox is the trust boundary). The platform split lives behind `lib/data/db/database_opener.dart`; `openAppDatabase()` is platform-agnostic. Tests use `NativeDatabase.memory()`. See § Web.
+- **Persistence**: Drift — SQLCipher on native (per-install key `invoiceninja.db.key.v1` in `flutter_secure_storage`), unencrypted drift WASM on web; split behind `lib/data/db/database_opener.dart`. Tests: `NativeDatabase.memory()`. See `docs/architecture.md`, § Web.
 
 See `docs/architecture.md` for the offline-first write pipeline (Drift→outbox→drain→apply, with `tmp_<uuid>` + `id_remap` for offline creates), the on-disk project layout, and the full coding-conventions checklist.
 
@@ -159,6 +159,7 @@ Token-based visual language; the Dart port is the sole source of truth.
 - `lib/app/theme.dart` — wires `InTheme.light` / `InTheme.dark` into `ThemeData` (incl. per-component button/shape themes).
 
 - **The accent is user-chosen and may be white: on an accent fill use `onAccent`, never `Colors.white`; accent text uses `accentInk`.** → `docs/accent-colour.md`
+- **Theme, palettes and custom colours sync as one `flutter_appearance` record: written to the active company, adopted newest-first from all.** → `docs/user-settings-storage.md`
 
 - **The drawn window buttons are the one exception to every shape rule below.** → `docs/desktop-window-state.md`
 - **Every decorative animation runs through `InMotion.of(context)`, so reduced motion is zero, and the device buzzes only through `InHaptics`.** → `docs/motion-and-haptics.md`

@@ -1818,8 +1818,6 @@
   "card_readers_help": "Tag imod kortbetalinger ved fremmøde.",
   "contacts_section_help": "Dine kunders kontaktpersoner i telefonens adressebog, så et indgående opkald viser, hvem der ringer.",
   "customize_colors_help": "Tilsidesæt farverne for baggrund, flader, tekst og kanter",
-  "device_settings_subtitle": "Gemmes kun på denne enhed og synkroniseres aldrig med dine andre enheder.",
-  "device_settings_subtitle_web": "Gemmes kun i denne browser og synkroniseres aldrig med andre browsere eller enheder.",
   "downloads_folder_help": "Hvor downloadede PDF'er og eksporter gemmes.",
   "hide_empty_dashboard_panels": "Skjul tomme paneler på oversigten",
   "items_section_help": "Varetabellen på fakturaer, tilbud og gentagende fakturaer.",

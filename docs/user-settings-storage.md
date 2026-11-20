@@ -21,6 +21,7 @@ Hillel's ruling, November 2026: this app must not be able to cause the React tea
 - `flutter_dashboard` — `{cards, grouping, panels, chart_series}` (`docs/dashboard-panels.md`).
 - `flutter_welcome` — `{v, at}`, written when the first-run Welcome closes (`docs/first-run-welcome.md`).
 - `flutter_saved_views` — `{<view id>: {entity_type, name, icon, payload, created_at, updated_at}}`, or `{deleted: true, updated_at}` for a deleted one: every saved list and report view (below).
+- `flutter_appearance` — `{theme_mode, light_variant, dark_variant, custom: {light, dark}, updated_at}`: the theme, both palettes and the custom colours (below).
 
 A new synced preference takes a new `flutter_<name>` key. `patchSettings` asserts the prefix: the object is shared with the old app, and the prefix is what keeps a key of ours from meeting a field of theirs (`dashboard_fields` is the old app's, in another format).
 
@@ -52,7 +53,7 @@ The non-admin branch of `CompanyUserController::update` reads `$request->input('
 
 ## The old Flutter app erases keys it does not model
 
-admin-portal serializes its typed `UserSettingsEntity` and the server stores exactly that, so a settings save made in the old app (a column change, the accent colour) drops every `flutter_` key. Nothing can prevent that from this side. What recovers it: the dashboard re-seeds `flutter_dashboard` from the device's `nav_state` the next time it opens (`docs/dashboard-panels.md` § Adopting is not writing), and a lost `flutter_welcome` costs at most one more Welcome on a new device. A new `flutter_` key needs the same answer — a device-local copy to re-seed from — or to be safe to lose. Saved views re-seed from the `saved_views` table (above).
+admin-portal serializes its typed `UserSettingsEntity` and the server stores exactly that, so a settings save made in the old app (a column change, the accent colour) drops every `flutter_` key. Nothing can prevent that from this side. What recovers it: the dashboard re-seeds `flutter_dashboard` from the device's `nav_state` the next time it opens (`docs/dashboard-panels.md` § Adopting is not writing), and a lost `flutter_welcome` costs at most one more Welcome on a new device. A new `flutter_` key needs the same answer — a device-local copy to re-seed from — or to be safe to lose. Saved views re-seed from the `saved_views` table (below), the appearance from `device_prefs` (below).
 
 Tests: `test/data/repositories/user_settings_patch_test.dart`, `test/data/repositories/user_settings_repository_test.dart`, `test/ui/features/dashboard/dashboard_synced_prefs_test.dart`.
 
@@ -74,3 +75,23 @@ What it still cannot catch: a stale write that drops a **tombstone** lets a devi
 A missing key is the same case at its widest: a device that ran an earlier build seeds every view it has, which is also the migration. A push queued during a periodic `/refresh` waits for the next drain trigger (any enqueue, resume, reconnect, login); a sign-out with it still waiting prompts like any other unsynced change.
 
 Tests: `test/data/repositories/saved_views_sync_test.dart`.
+
+## Theme, palettes and custom colours sync as one flutter_appearance record: written to the active company, adopted newest-first from all
+
+**The theme mode, both palettes and the custom colours follow the user to their other devices as one `flutter_appearance` record. A change is written to the active company only; the newest copy across every company is adopted; an active company whose copy is older or missing is sent the device's; and only `ThemeController.adoptSynced` writes an adopted one.** Text size, density and the rest of Device Settings stay on the device. The accent colour is not in it: it stays `company_user.settings.accent_color`, per company, shared with React and v1 (`docs/accent-colour.md`).
+
+They were device-local until invoiceninja/app#199: a user changed their colours, signed in on their other computer the next day, and found the old ones. Device Settings said so in its subtitle ("never synced to your other devices"), which nobody reads before changing a colour.
+
+**Where it lives, and why per company is not the question.** `company_user` is per company, the appearance is not. Writing every company on each change would queue a row per company, and the outbox drains only the active company's rows (`applyServerSettings`' `pushLocal`), so the rest would sit as unsynced changes and hold up a sign-out. So:
+
+- **A change is written to the active company** through `patchSettings`: one dotted path per field plus `updated_at`, so a field a newer build adds survives an older build's write. Offline it lands locally at once and queues like any other settings change.
+- **The newest copy anywhere is adopted.** A login and a full `/refresh` store every company's settings, so a new device finds the change whichever company it was made in. A delta `/refresh` updates only the active company, so a device sitting on company B sees a change made under company A at its next login, full Sync, or switch to A.
+- **The active company is sent the device's copy when its own is older or missing** — on each change, on each company switch, after each capture. Every company converges as it is used, and a copy another client wrote back stale is put right, as saved views are: React's whole-object profile save brings an older `updated_at` back, and the old app drops the key.
+
+**Order is a stamp.** `DevicePrefKeys.appearanceSyncedAt` holds when this account last changed or adopted the appearance on this device; every `ThemeController` setter stamps it (never below the stamp it replaces), and an adoption stores the adopted record's. A copy wins when it is newer than the stamp, or when there is no stamp. On a tie with a different look the server's copy wins. Device clocks decide "newest".
+
+**The stamp is account-scoped, the look device-scoped, the seed marker device-scoped.** The four theme keys stay `PrefScope.device`, so the sign-in screen keeps the last look. A sign-out forgets the stamp, so whoever signs in next adopts their own record. With no stamp and no copy anywhere, a device that has never met an account's synced appearance uploads its non-default look once, stamped now (`DevicePrefKeys.appearanceSeeded` then set). That is the migration for a device that ran an earlier build. The marker keeps a shared device from uploading the last user's look as the next user's, and two upgraded devices settle on whichever seeded last.
+
+**Where the code is.** `reconcileAppearance` (`lib/domain/appearance_sync.dart`) is the pure decision; `AppearanceSyncController` (`lib/app/appearance_sync_controller.dart`) watches every company's settings for the signed-in user (`UserSettingsRepository.watchAllSettings`), the session and the theme, and applies it. Adoption goes through `ThemeController.adoptSynced` because `DevicePrefsStore` notifies only on a load or a wipe, never on a write: a reconcile in `applyServerSettings` writing the rows would leave the theme on screen unchanged. `adoptSynced` takes a palette with its overrides; the setters clear a palette's overrides when the palette changes, which an adoption must not.
+
+Tests: `test/domain/appearance_sync_test.dart`, `test/app/appearance_sync_controller_test.dart`, `test/app/theme_controller_test.dart`.

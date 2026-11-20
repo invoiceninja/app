@@ -240,6 +240,19 @@ final Map<PrefKey<Object>, _Probe> _probes = {
     (s) => s.afterSaving.set(false, isPhone: false),
     (s) => s.afterSaving.value == null,
   ),
+  // Whose choice the appearance was: a sign-out forgets it — the look itself
+  // stays (the theme probes above) — so the next person to sign in adopts
+  // their own synced one rather than racing it.
+  DevicePrefKeys.appearanceSyncedAt: _Probe(
+    (s) => s.theme.setThemeMode(ThemeMode.light),
+    (s) => s.theme.syncedAt == null,
+  ),
+  // This install has met an account's synced appearance: a shared device
+  // never uploads the last user's unstamped look as the next one's.
+  DevicePrefKeys.appearanceSeeded: _Probe(
+    (s) => s.devicePrefs.write(DevicePrefKeys.appearanceSeeded, true),
+    (s) => s.devicePrefs.read(DevicePrefKeys.appearanceSeeded) != true,
+  ),
 };
 
 final _certificate = CertificateFacts(

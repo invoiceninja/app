@@ -1895,8 +1895,6 @@
   "card_readers_help": "Accetta pagamenti con carta di persona.",
   "contacts_section_help": "I contatti dei tuoi clienti nella rubrica di questo telefono, così una chiamata in arrivo mostra chi sta chiamando.",
   "customize_colors_help": "Sostituisci i colori di sfondo, superficie, testo e bordi",
-  "device_settings_subtitle": "Salvate solo su questo dispositivo, mai sincronizzate con gli altri tuoi dispositivi.",
-  "device_settings_subtitle_web": "Salvate solo in questo browser, mai sincronizzate con altri browser o dispositivi.",
   "downloads_folder_help": "Dove vengono salvati i PDF e le esportazioni scaricati.",
   "hide_empty_dashboard_panels": "Nascondi i pannelli vuoti della dashboard",
   "items_section_help": "La tabella degli articoli su fatture, preventivi e fatture ricorrenti.",

@@ -179,21 +179,23 @@ void main() {
     }
   });
 
-  testWidgets('the page subtitle says where these settings live', (
-    tester,
-  ) async {
+  testWidgets('the page subtitle says where these settings live, and which '
+      'ones also sync (invoiceninja/app#199)', (tester) async {
     final fixture = await _fixture();
     await _pump(tester, fixture, width: 1440);
     expect(
       find.text(
         kIsWeb
-            ? 'Stored in this browser only, never synced to other browsers or '
-                  'devices.'
-            : 'Stored on this device only, never synced to your other '
-                  'devices.',
+            ? 'Stored in this browser. Your theme, palette and custom colors '
+                  'also sync with your account.'
+            : 'Stored on this device. Your theme, palette and custom colors '
+                  'also sync with your account.',
       ),
       findsOneWidget,
     );
+    expect(find.textContaining('never synced'), findsNothing);
+    // Theme, Palette and Customize colors each say so; nothing else does.
+    expect(find.text('Synced with your account'), findsNWidgets(3));
     await _dispose(tester);
   }, variant: _desktop);
 

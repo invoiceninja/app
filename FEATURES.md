@@ -1300,6 +1300,7 @@ Field-level breakdown of every option under each settings panel. Source of truth
 | Feature | React | Flutter v1 | Flutter v2 | AI review | Live E2E |
 |---|---|---|---|---|---|
 | Theme (light / dark / system, local) | — | ✅ | ✅ | ✅ | |
+| Theme, palette and custom colours follow you to your other devices (synced with the account; the accent stays per company) | ✅ | ❌ | ✅ | | |
 | Font Size (text scale, local) | — | ✅ | ✅ | ✅ | |
 | Density — Normal / Compact for entity lists, record screens and the dashboard, for more on screen (local; Device Settings, and offered in the first-run Welcome) | — | — | ✅ | | |
 | Show seconds — adds seconds to the kanban cards' timers, durations past a day and time-entry start / end times (local, off by default; running timers always tick seconds) | — | — | ✅ | | |

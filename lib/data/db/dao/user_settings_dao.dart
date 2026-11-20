@@ -20,6 +20,14 @@ class UserSettingsDao extends DatabaseAccessor<AppDatabase>
     userSettings,
   )..where((u) => u.companyId.equals(companyId))).getSingleOrNull();
 
+  /// Every company's settings row. Not company-scoped on purpose: the
+  /// appearance follows the user across companies
+  /// (`AppearanceSyncController`), so its newest copy is looked for in all.
+  Future<List<UserSettingsRow>> all() => select(userSettings).get();
+
+  /// [all], as a stream.
+  Stream<List<UserSettingsRow>> watchAll() => select(userSettings).watch();
+
   Future<void> upsert(UserSettingsCompanion row) =>
       into(userSettings).insertOnConflictUpdate(row);
 

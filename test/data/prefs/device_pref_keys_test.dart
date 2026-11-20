@@ -48,6 +48,8 @@ void main() {
     'tap_to_pay_announced': PrefScope.account,
     'web_app_banner_dismissed': PrefScope.device,
     'after_saving': PrefScope.device,
+    'appearance_synced_at': PrefScope.account,
+    'appearance_seeded': PrefScope.device,
   };
 
   final names = [for (final k in DevicePrefKeys.all) k.name];

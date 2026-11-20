@@ -3,6 +3,7 @@ import 'package:admin/app/theme_controller.dart';
 import 'package:admin/data/db/app_database.dart';
 import 'package:admin/data/prefs/device_pref_keys.dart';
 import 'package:admin/data/prefs/device_prefs_store.dart';
+import 'package:admin/domain/appearance_sync.dart';
 import 'package:drift/native.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -212,4 +213,128 @@ void main() {
       expect(controller.lightTokens.surface, InTheme.lightMist.surface);
     },
   );
+
+  group('syncing with the account (invoiceninja/app#199)', () {
+    test('every setter stamps the change, and the stamp survives a '
+        'relaunch', () async {
+      var clock = 1000;
+      final controller = ThemeController(
+        prefs: DevicePrefsStore(db),
+        now: () => DateTime.fromMillisecondsSinceEpoch(clock),
+      );
+      expect(controller.syncedAt, isNull);
+      await controller.setThemeMode(ThemeMode.dark);
+      expect(controller.syncedAt, 1000);
+      clock = 2000;
+      await controller.setLightVariant(LightVariant.paper);
+      expect(controller.syncedAt, 2000);
+      clock = 3000;
+      await controller.setDarkVariant(DarkVariant.carbon);
+      clock = 4000;
+      await controller.setCustomOverride(
+        Brightness.dark,
+        CustomToken.border,
+        const Color(0xFF101010),
+      );
+      expect(controller.syncedAt, 4000);
+      clock = 5000;
+      await controller.clearCustomOverride(Brightness.dark, CustomToken.border);
+      expect(controller.syncedAt, 5000);
+      expect((await rows())[DevicePrefKeys.appearanceSyncedAt.name], '5000');
+      expect((await relaunch()).syncedAt, 5000);
+    });
+
+    test('a clock set back never stamps below the last stamp', () async {
+      var clock = 9000;
+      final controller = ThemeController(
+        prefs: DevicePrefsStore(db),
+        now: () => DateTime.fromMillisecondsSinceEpoch(clock),
+      );
+      await controller.setThemeMode(ThemeMode.dark);
+      clock = 10;
+      await controller.setThemeMode(ThemeMode.light);
+      expect(controller.syncedAt, 9001);
+    });
+
+    test('setting the same value stamps nothing', () async {
+      final controller = newController();
+      await controller.setThemeMode(ThemeMode.system);
+      expect(controller.syncedAt, isNull);
+    });
+
+    test('appearance is the record the account stores', () async {
+      final controller = newController();
+      await controller.setThemeMode(ThemeMode.dark);
+      await controller.setLightVariant(LightVariant.mist);
+      await controller.setCustomOverride(
+        Brightness.light,
+        CustomToken.ink,
+        const Color(0xFF445566),
+      );
+      final r = controller.appearance;
+      expect(r.themeMode, 'dark');
+      expect(r.lightVariant, 'mist');
+      expect(r.darkVariant, 'espresso');
+      expect(r.custom['light'], {'ink': '#445566'});
+      expect(r.updatedAt, controller.syncedAt);
+      expect(r.isDefaultLook, isFalse);
+    });
+
+    test('adoptSynced writes all four wholesale, keeps a palette\'s '
+        'overrides, takes the stamp and notifies once', () async {
+      final controller = newController();
+      var notifications = 0;
+      controller.addListener(() => notifications++);
+      await controller.adoptSynced(
+        const AppearanceRecord(
+          themeMode: 'light',
+          lightVariant: 'paper',
+          darkVariant: 'midnight',
+          custom: {
+            'light': {'background': '#FAFAFA'},
+            'dark': <String, Object?>{},
+          },
+          updatedAt: 777,
+        ),
+      );
+      expect(notifications, 1);
+      expect(controller.themeMode, ThemeMode.light);
+      expect(controller.lightVariant, LightVariant.paper);
+      expect(controller.darkVariant, DarkVariant.midnight);
+      expect(
+        controller.customTheme.lightOverrides[CustomToken.background],
+        const Color(0xFFFAFAFA),
+        reason: 'unlike setLightVariant, the overrides arrive with it',
+      );
+      expect(controller.lightTokens.bg, const Color(0xFFFAFAFA));
+      expect(controller.syncedAt, 777);
+
+      final fresh = await relaunch();
+      expect(fresh.lightVariant, LightVariant.paper);
+      expect(fresh.syncedAt, 777);
+      expect(
+        fresh.customTheme.lightOverrides[CustomToken.background],
+        const Color(0xFFFAFAFA),
+      );
+
+      await controller.adoptSynced(controller.appearance);
+      expect(notifications, 1, reason: 'the same record is a no-op');
+    });
+
+    test('a value this build does not know keeps the device\'s', () async {
+      final controller = newController();
+      await controller.setDarkVariant(DarkVariant.carbon);
+      await controller.adoptSynced(
+        const AppearanceRecord(
+          themeMode: 'sepia',
+          lightVariant: 'mist',
+          darkVariant: 'neon',
+          updatedAt: 99999999999999,
+        ),
+      );
+      expect(controller.themeMode, ThemeMode.system);
+      expect(controller.lightVariant, LightVariant.mist);
+      expect(controller.darkVariant, DarkVariant.carbon);
+    });
+  });
 }

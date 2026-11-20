@@ -1895,8 +1895,6 @@
   "card_readers_help": "対面でカード決済を受け付けます。",
   "contacts_section_help": "顧客の連絡先をこの電話のアドレス帳に保存し、着信時に誰からの電話かを表示します。",
   "customize_colors_help": "背景、サーフェス、テキスト、枠線の色を上書きします",
-  "device_settings_subtitle": "このデバイスにのみ保存され、他のデバイスとは同期されません。",
-  "device_settings_subtitle_web": "このブラウザにのみ保存され、他のブラウザやデバイスとは同期されません。",
   "downloads_folder_help": "ダウンロードした PDF やエクスポートの保存先。",
   "hide_empty_dashboard_panels": "空のダッシュボードパネルを非表示",
   "items_section_help": "請求書、見積書、定期請求書の明細表。",

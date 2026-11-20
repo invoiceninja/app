@@ -64,7 +64,9 @@ device.
   text size, keyboard shortcuts, sidebar collapsed, status tabs, phone
   actions, show seconds and trusted server certificates (made at the login screen, before
   any account exists — `docs/trusting-a-self-hosted-certificate.md` § Why
-  device scope).
+  device scope). Theme mode, the palettes and the custom colours also sync
+  with the account (below); only whose choice they were — the
+  `appearance_synced_at` stamp — is account-scoped.
 - **`account`** is forgotten, because it describes the signed-in account and
   the next person to sign in must not inherit it. That covers sidebar counters
   (the account's modules), the main menu, the Tasks layout, "Hide unverified
@@ -99,11 +101,28 @@ A key's scope is pinned in `device_pref_keys_test.dart`, because changing it
 changes what a sign-out does.
 
 Copy about these settings has to stay true of both scopes. Device Settings'
-page subtitle (`device_settings_subtitle`, and `_web`) says they are stored on
-this device (this browser) and never synced, and promises nothing about how
+page subtitle (`device_settings_subtitle_synced_look`, and `_web`) says they
+are stored on this device (this browser) and that the theme, palette and
+custom colours also sync with the account, and promises nothing about how
 long they last: the account keys on its own Appearance tab go at a sign-out
 (`docs/settings-screens.md` § Device Settings is tabbed, and every tab opens
-with a card that always renders).
+with a card that always renders). Each synced row also says "Synced with your
+account" (`SyncedWithAccountNote`). Until invoiceninja/app#199 the subtitle
+said "never synced"; the old keys were retired rather than reworded, so no
+translation of the old promise survives.
+
+## A device preference that follows the account is still a device preference
+
+**A preference that syncs keeps its `DevicePrefKeys` entry and its owner; a
+separate controller reconciles it with a `flutter_` key in
+`company_user.settings`, and adopts through the owner.** The appearance is the
+one such case (`AppearanceSyncController`,
+`docs/user-settings-storage.md` § Theme, palettes and custom colours sync as
+one flutter_appearance record: written to the active company, adopted
+newest-first from all). The device row is what the app renders from before
+any account exists and offline, and what re-seeds the account copy when
+another client drops it. The owner is the only writer of its rows, because
+`DevicePrefsStore` does not tell owners about writes they did not make.
 
 ## The store is the one writer, and the controllers follow it
 

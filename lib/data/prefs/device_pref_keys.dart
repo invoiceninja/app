@@ -374,6 +374,29 @@ abstract final class DevicePrefKeys {
     PrefScope.device,
   );
 
+  /// When the appearance this device shows ([themeMode], the palettes,
+  /// [customTheme]) was last changed here or adopted from the account, in
+  /// epoch ms — the stamp `flutter_appearance` is ordered by
+  /// (`lib/domain/appearance_sync.dart`, invoiceninja/app#199). Owned by
+  /// `ThemeController`. Account scope: the look itself stays with the device,
+  /// but whose choice it was goes with a sign-out, so the next person to sign
+  /// in adopts their own.
+  static const appearanceSyncedAt = PrefKey<String>(
+    'appearance_synced_at',
+    PrefCodec.string,
+    PrefScope.account,
+  );
+
+  /// This device has met an account's synced appearance once, so a look
+  /// nobody stamped is never uploaded again (`AppearanceSyncController`).
+  /// Device scope: the upload-once migration is for this install, and must
+  /// not hand the last user's look to the next one on a shared device.
+  static const appearanceSeeded = PrefKey<bool>(
+    'appearance_seeded',
+    PrefCodec.boolean,
+    PrefScope.device,
+  );
+
   /// In the order they were added; append new keys at the end.
   static const List<PrefKey<Object>> all = [
     locale,
@@ -413,6 +436,8 @@ abstract final class DevicePrefKeys {
     tapToPayAnnounced,
     webAppBannerDismissed,
     afterSaving,
+    appearanceSyncedAt,
+    appearanceSeeded,
   ];
 
   /// The rows a data wipe leaves in place: the [PrefScope.device] keys and the

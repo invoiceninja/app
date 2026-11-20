@@ -1814,8 +1814,6 @@
   "card_readers_help": "Cobra con tarjeta en persona.",
   "contacts_section_help": "Los contactos de tus clientes en la agenda de este teléfono, para que una llamada entrante muestre quién llama.",
   "customize_colors_help": "Cambia los colores de fondo, superficie, texto y bordes",
-  "device_settings_subtitle": "Se guarda solo en este dispositivo y nunca se sincroniza con tus otros dispositivos.",
-  "device_settings_subtitle_web": "Se guarda solo en este navegador y nunca se sincroniza con otros navegadores o dispositivos.",
   "downloads_folder_help": "Dónde se guardan los PDF y las exportaciones descargados.",
   "hide_empty_dashboard_panels": "Ocultar paneles vacíos del inicio",
   "items_section_help": "La tabla de artículos de las facturas, presupuestos y facturas recurrentes.",

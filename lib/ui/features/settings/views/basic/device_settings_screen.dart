@@ -145,9 +145,10 @@ const _kTabs = <_TabDef>[
 
 /// Settings → Device Settings: the device-local, no-save controls. Unlike most
 /// settings screens it has no cascade and no save bar — every control writes
-/// immediately to a device-local store (`DevicePrefsStore`). Only the accent
-/// colour is server-synced; it lives on User Details → Preferences with the
-/// save bar.
+/// immediately to a device-local store (`DevicePrefsStore`). The theme,
+/// palette and custom colours also follow the user to their other devices
+/// (`AppearanceSyncController`); the accent colour is server-synced per
+/// company and lives on User Details → Preferences with the save bar.
 ///
 /// Five URL-driven tabs (`docs/settings-screens.md` § Device Settings is
 /// tabbed, and every tab opens with a card that always renders):
@@ -268,9 +269,12 @@ class _DeviceSettingsScreenState extends State<DeviceSettingsScreen>
 /// The page's one line: where these settings live. Worded so it stays true of
 /// every key on the page — some are forgotten at a sign-out
 /// (`PrefScope.account`, docs/device-preferences.md), so it promises where
-/// they are kept, never for how long.
+/// they are kept, never for how long — and names the ones that also follow
+/// the account (invoiceninja/app#199), each marked on its own row too.
 String deviceSettingsSubtitle(BuildContext context) => context.tr(
-  kIsWeb ? 'device_settings_subtitle_web' : 'device_settings_subtitle',
+  kIsWeb
+      ? 'device_settings_subtitle_synced_look_web'
+      : 'device_settings_subtitle_synced_look',
 );
 
 /// How the app looks and what its screens show, in three sections:

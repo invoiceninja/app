@@ -65,6 +65,7 @@ class _ModeRow extends StatelessWidget {
       icon: const Icon(Icons.contrast),
       title: context.tr('theme'),
       subtitle: _label(context, mode),
+      details: const SyncedWithAccountNote(),
       control: InSegmented<ThemeMode>(
         segments: [
           InSegment(value: ThemeMode.system, label: context.tr('auto')),
@@ -126,7 +127,28 @@ class _PaletteRow extends StatelessWidget {
       icon: const Icon(Icons.palette_outlined),
       title: context.tr('palette'),
       subtitle: context.tr('palette_help'),
+      details: const SyncedWithAccountNote(),
       control: picker,
+    );
+  }
+}
+
+/// "Synced with your account", under each Device Settings row whose value
+/// follows the user to their other devices — the theme, the palette and the
+/// custom colours (`AppearanceSyncController`, invoiceninja/app#199). The rest
+/// of the page stays on the device, so the rows say which ones don't.
+class SyncedWithAccountNote extends StatelessWidget {
+  const SyncedWithAccountNote({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(Icons.sync, size: 14, color: context.inTheme.ink3),
+        const SizedBox(width: InSpacing.xs),
+        Flexible(child: Text(context.tr('synced_with_your_account'))),
+      ],
     );
   }
 }

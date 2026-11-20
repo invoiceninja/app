@@ -167,6 +167,21 @@ class UserSettingsRepository {
       .map((row) => row == null ? null : _decodeAny(row.extraJson))
       .distinct(const DeepCollectionEquality().equals);
 
+  /// Every company's `company_user.settings` (without `table_columns`) that
+  /// belongs to [userId], by company id. A row a login stored for another
+  /// identity is left out.
+  Stream<Map<String, Map<String, dynamic>>> watchAllSettings({
+    required String userId,
+  }) => db.userSettingsDao
+      .watchAll()
+      .map(
+        (rows) => {
+          for (final row in rows)
+            if (row.userId == userId) row.companyId: _decodeAny(row.extraJson),
+        },
+      )
+      .distinct(const DeepCollectionEquality().equals);
+
   Future<Map<String, dynamic>?> getSettings(String companyId) async {
     final row = await db.userSettingsDao.get(companyId);
     return row == null ? null : _decodeAny(row.extraJson);

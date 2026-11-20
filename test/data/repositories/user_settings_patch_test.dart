@@ -11,6 +11,7 @@ import 'package:admin/data/repositories/user_repository.dart';
 import 'package:admin/data/repositories/user_settings_sync_dispatcher.dart';
 import 'package:admin/data/repositories/user_sync_dispatcher.dart';
 import 'package:admin/data/services/user_settings_api.dart';
+import 'package:admin/domain/appearance_sync.dart';
 import 'package:admin/domain/entity_type.dart';
 import 'package:admin/domain/sync/mutation.dart';
 import 'package:admin/domain/sync/sync_dispatcher.dart';
@@ -460,6 +461,103 @@ void main() {
       'keep': {'x': 1},
     });
     expect(base['a'], 1);
+  });
+
+  group('flutter_appearance (invoiceninja/app#199)', () {
+    const record = AppearanceRecord(
+      themeMode: 'dark',
+      lightVariant: 'mist',
+      darkVariant: 'carbon',
+      custom: {
+        'light': {'ink': '#112233'},
+        'dark': <String, Object?>{},
+      },
+      updatedAt: 1234,
+    );
+
+    test('a record is patched field by field: a key a newer build added '
+        'survives, and the PUT carries every other key', () async {
+      await seedRow(
+        extra: {
+          'accent_color': '#abcdef',
+          kAppearanceSettingsKey: {'theme_mode': 'light', 'from_newer': 1},
+        },
+      );
+      await repo.patchSettings(
+        companyId: companyId,
+        patch: record.toSettingsPatch(),
+      );
+
+      final stored = (await repo.getSettings(companyId))!;
+      expect(stored['accent_color'], '#abcdef');
+      expect(stored[kAppearanceSettingsKey], {
+        'theme_mode': 'dark',
+        'light_variant': 'mist',
+        'dark_variant': 'carbon',
+        'custom': {
+          'light': {'ink': '#112233'},
+          'dark': <String, Object?>{},
+        },
+        'updated_at': 1234,
+        'from_newer': 1,
+      });
+      expect(AppearanceRecord.fromSettings(stored)?.updatedAt, 1234);
+
+      final body = await repo.putBodyFor(
+        companyId: companyId,
+        change: changeOf((await rows()).single),
+      );
+      final settings =
+          (body!['company_user'] as Map)['settings'] as Map<String, dynamic>;
+      expect(settings['accent_color'], '#abcdef');
+      expect(AppearanceRecord.fromSettings(settings)?.sameLook(record), isTrue);
+    });
+
+    test(
+      'a queued record is laid over a capture, so it does not revert',
+      () async {
+        await seedRow();
+        await repo.patchSettings(
+          companyId: companyId,
+          patch: record.toSettingsPatch(),
+        );
+        await capture({
+          kAppearanceSettingsKey: {'theme_mode': 'light', 'updated_at': 5},
+        });
+        final stored = (await repo.getSettings(companyId))!;
+        expect(AppearanceRecord.fromSettings(stored)?.updatedAt, 1234);
+        expect(AppearanceRecord.fromSettings(stored)?.themeMode, 'dark');
+      },
+    );
+
+    test('watchAllSettings holds every company of the signed-in user, and '
+        'no one else\'s', () async {
+      await seedRow(extra: {'k': 1});
+      await db.userSettingsDao.upsert(
+        UserSettingsCompanion(
+          companyId: const Value('co2'),
+          userId: const Value('u1'),
+          updatedAt: const Value(0),
+          extraJson: Value(jsonEncode({'k': 2})),
+          tableColumnsJson: const Value('{"EntityType.client":["name"]}'),
+        ),
+      );
+      await db.userSettingsDao.upsert(
+        UserSettingsCompanion(
+          companyId: const Value('co3'),
+          userId: const Value('someone_else'),
+          updatedAt: const Value(0),
+          extraJson: Value(jsonEncode({'k': 3})),
+          tableColumnsJson: const Value('{}'),
+        ),
+      );
+      final all = await repo.watchAllSettings(userId: 'u1').first;
+      expect(all, {
+        companyId: {'k': 1},
+        'co2': {'k': 2},
+      });
+      expect(await db.userSettingsDao.all(), hasLength(3));
+    });
   });
 
   group('discarding a preferences row', () {

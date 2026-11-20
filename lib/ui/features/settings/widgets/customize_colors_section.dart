@@ -8,11 +8,12 @@ import 'package:admin/ui/features/settings/widgets/accent_swatch_grid.dart';
 import 'package:admin/ui/features/settings/widgets/setting_row.dart';
 import 'package:admin/ui/features/settings/widgets/theme_tile.dart';
 
-/// Collapsible "Customize colors" section — four device-local colour
-/// overrides (background / surface / text / border) layered on the
-/// selected preset for the brightness currently in effect. Pure
-/// [ThemeController]: no save bar, persists immediately. Accent lives
-/// elsewhere (it's the server-synced per-user setting on User Details).
+/// Collapsible "Customize colors" section — four colour overrides
+/// (background / surface / text / border) layered on the selected preset for
+/// the brightness currently in effect. Pure [ThemeController]: no save bar,
+/// persists immediately, and follows the user to their other devices with
+/// the theme and palette (`AppearanceSyncController`). Accent lives
+/// elsewhere (the per-company setting on User Details).
 class CustomizeColorsSection extends StatefulWidget {
   const CustomizeColorsSection({super.key, required this.controller});
 
@@ -71,6 +72,7 @@ class _CustomizeColorsSectionState extends State<CustomizeColorsSection> {
             icon: const Icon(Icons.format_color_fill_outlined),
             title: context.tr('customize_colors'),
             subtitle: context.tr('customize_colors_help'),
+            details: const SyncedWithAccountNote(),
             stackWhenNarrow: false,
             control: Icon(
               _expanded ? Icons.expand_less : Icons.expand_more,

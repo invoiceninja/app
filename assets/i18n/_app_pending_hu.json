@@ -1852,8 +1852,6 @@
   "card_readers_help": "Kártyás fizetés fogadása személyesen.",
   "contacts_section_help": "Ügyfelei kapcsolattartói a telefon címjegyzékében, hogy bejövő hívásnál lássa, ki hív.",
   "customize_colors_help": "A háttér, a felületek, a szöveg és a szegélyek színeinek felülírása",
-  "device_settings_subtitle": "Csak ezen az eszközön tárolódik, sosem szinkronizálódik a többi eszközére.",
-  "device_settings_subtitle_web": "Csak ebben a böngészőben tárolódik, sosem szinkronizálódik más böngészőkre vagy eszközökre.",
   "downloads_folder_help": "Ide kerülnek a letöltött PDF-ek és exportok.",
   "hide_empty_dashboard_panels": "Üres műszerfal-panelek elrejtése",
   "items_section_help": "A tételtáblázat a számlákon, ajánlatokon és ismétlődő számlákon.",

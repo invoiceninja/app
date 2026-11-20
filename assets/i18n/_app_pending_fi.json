@@ -1815,8 +1815,6 @@
   "card_readers_help": "Ota korttimaksuja vastaan paikan päällä.",
   "contacts_section_help": "Asiakkaidesi yhteyshenkilöt tämän puhelimen osoitekirjassa, jotta saapuva puhelu näyttää, kuka soittaa.",
   "customize_colors_help": "Ohita taustan, pintojen, tekstin ja reunojen värit",
-  "device_settings_subtitle": "Tallennetaan vain tähän laitteeseen, ei koskaan synkronoida muihin laitteisiisi.",
-  "device_settings_subtitle_web": "Tallennetaan vain tähän selaimeen, ei koskaan synkronoida muihin selaimiin tai laitteisiin.",
   "downloads_folder_help": "Mihin ladatut PDF-tiedostot ja viennit tallennetaan.",
   "hide_empty_dashboard_panels": "Piilota tyhjät paneelit hallintapaneelista",
   "items_section_help": "Rivitaulukko laskuissa, tarjouksissa ja toistuvissa laskuissa.",

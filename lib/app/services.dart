@@ -10,6 +10,7 @@ import 'package:logging/logging.dart';
 import 'package:admin/app/accent_color_controller.dart';
 import 'package:admin/app/after_saving_controller.dart';
 import 'package:admin/app/app_locale_resolver.dart';
+import 'package:admin/app/appearance_sync_controller.dart';
 import 'package:admin/app/company_label_overrides.dart';
 import 'package:admin/app/downloads_folder_controller.dart';
 import 'package:admin/app/script_fonts.dart';
@@ -2261,6 +2262,14 @@ class Services implements SidebarBadgeContext {
       services.backOnline.fire();
     });
     final theme = ThemeController(prefs: devicePrefs);
+    // The theme follows the user across devices (invoiceninja/app#199). Lives
+    // for the app's lifetime, held by its listeners on the session and theme.
+    AppearanceSyncController(
+      session: auth.session,
+      userSettings: userSettingsRepo,
+      theme: theme,
+      prefs: devicePrefs,
+    );
     final accentColor = AccentColorController(auth: auth, users: userRepo);
     final locale = LocaleController(prefs: devicePrefs);
     final textScale = TextScaleController(prefs: devicePrefs);

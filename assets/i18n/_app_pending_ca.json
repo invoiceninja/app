@@ -1814,8 +1814,6 @@
   "card_readers_help": "Cobreu amb targeta en persona.",
   "contacts_section_help": "Els contactes dels vostres clients a l'agenda d'aquest telèfon, perquè una trucada entrant mostri qui truca.",
   "customize_colors_help": "Canvieu els colors del fons, la superfície, el text i les vores",
-  "device_settings_subtitle": "Es desa només en aquest dispositiu i mai no se sincronitza amb els vostres altres dispositius.",
-  "device_settings_subtitle_web": "Es desa només en aquest navegador i mai no se sincronitza amb altres navegadors o dispositius.",
   "downloads_folder_help": "On es desen els PDF i les exportacions baixats.",
   "hide_empty_dashboard_panels": "Amaga els panells buits del tauler",
   "items_section_help": "La taula d'articles de les factures, els pressupostos i les factures recurrents.",
