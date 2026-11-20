@@ -320,7 +320,7 @@ const List<ReleaseNotes> kReleaseNotes = [
         'unfold it, and splits at the fold when it is half open',
       ),
       ReleaseNoteItem(
-        "Updated: Expense lists show the gross amount, Inclusive Taxes moves "
+        'Updated: Expense lists show the gross amount, Inclusive Taxes moves '
         "to the document's Settings tab, the privacy policy and terms are "
         'linked inside the app, and on the web Firefox and Safari run the '
         'faster WebAssembly build',
