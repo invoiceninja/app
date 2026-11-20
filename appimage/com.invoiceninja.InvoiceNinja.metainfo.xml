@@ -89,6 +89,19 @@
     <control>touch</control>
   </supports>
   <releases>
+    <release version="5.1.32" date="2026-11-20">
+      <description>
+        <ul>
+          <li>Run Template returns the PDF, offers only matching templates, and runs on clients, payments and tasks</li>
+          <li>Choose how invoice, quote, credit and purchase order PDFs are named</li>
+          <li>A Search button on the dashboard; Cmd/Ctrl+K opens search from anywhere</li>
+          <li>Saved views are kept with your account</li>
+          <li>Foldables keep your place when folded or unfolded</li>
+          <li>Expense lists show the gross amount; privacy policy and terms linked in the app</li>
+          <li>Many smaller fixes</li>
+        </ul>
+      </description>
+    </release>
     <release version="5.1.31" date="2026-11-18">
       <description>
         <ul>
