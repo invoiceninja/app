@@ -442,13 +442,6 @@ void main() {
         expect(f.dateRange('not-a-date', '2024-05-15'), '');
       });
 
-      test('parseDate round-trips through the company date pattern', () {
-        final f = _make(); // format='MMM d, yyyy'
-        expect(f.parseDate('May 11, 2024'), '2024-05-11');
-        expect(f.parseDate(''), '');
-        expect(f.parseDate('garbage'), '');
-      });
-
       test('parseTime returns a DateTime for a 12-hour clock string', () {
         final f = _make(); // enableMilitaryTime: false
         final dt = f.parseTime('3:42 PM');
@@ -796,16 +789,20 @@ void main() {
         );
       });
 
-      test('compact 6-digit MMDDYY with 2-digit year heuristic', () {
-        // < 30 → 2000+yy.
+      test('compact 6-digit MMDDYY with the two-digit-year window', () {
         expect(
           parseDateInput('051426', activePattern: 'M/d/yyyy', now: now),
           DateTime(2026, 5, 14),
         );
-        // >= 30 → 1900+yy.
         expect(
           parseDateInput('051485', activePattern: 'M/d/yyyy', now: now),
           DateTime(1985, 5, 14),
+        );
+        // Inside the 20 years ahead: this century, where the old fixed
+        // `< 30` pivot read it as 1935.
+        expect(
+          parseDateInput('051435', activePattern: 'M/d/yyyy', now: now),
+          DateTime(2035, 5, 14),
         );
         // EU order.
         expect(
@@ -827,6 +824,152 @@ void main() {
           parseDateInput('999926', activePattern: 'M/d/yyyy', now: now),
           isNull,
         );
+      });
+
+      test(
+        'short slash form follows the field order, not the first letter',
+        () {
+          // `EEE MMM d, yyyy` (server id 7) opens with the weekday, but the
+          // month comes before the day.
+          expect(
+            parseDateInput('5/14', activePattern: 'EEE MMM d, yyyy', now: now),
+            DateTime(2026, 5, 14),
+          );
+          expect(
+            parseDateInput('5/14', activePattern: 'yyyy-MM-dd', now: now),
+            DateTime(2026, 5, 14),
+          );
+          expect(
+            parseDateInput('14/5', activePattern: 'dd/MMM/yyyy', now: now),
+            DateTime(2026, 5, 14),
+          );
+          expect(
+            parseDateInput(
+              '140526',
+              activePattern: 'EEE MMM d, yyyy',
+              now: now,
+            ),
+            isNull,
+          );
+          expect(
+            parseDateInput(
+              '051426',
+              activePattern: 'EEE MMM d, yyyy',
+              now: now,
+            ),
+            DateTime(2026, 5, 14),
+          );
+        },
+      );
+    });
+
+    // invoiceninja/app#200: `14.11.26` on a `dd.MM.yyyy` company was saved
+    // as 14.11.0026 — a `yyyy` field reads `26` as the year 26.
+    group('two-digit years', () {
+      final now = DateTime(2026, 5, 14);
+      DateTime? parse(String input, [String? pattern]) =>
+          parseDateInput(input, activePattern: pattern, now: now);
+
+      test('the reported inputs are this century', () {
+        expect(parse('14.11.26', 'dd.MM.yyyy'), DateTime(2026, 11, 14));
+        expect(parse('20.11.26', 'dd.MM.yyyy'), DateTime(2026, 11, 20));
+        expect(parse('1.2.26', 'dd.MM.yyyy'), DateTime(2026, 2, 1));
+      });
+
+      test('every format family expands a short year', () {
+        expect(parse('11/14/26', 'MM/dd/yyyy'), DateTime(2026, 11, 14));
+        expect(parse('5/14/26', 'M/d/yyyy'), DateTime(2026, 5, 14));
+        expect(parse('14/11/26', 'dd/MM/yyyy'), DateTime(2026, 11, 14));
+        expect(parse('14-11-26', 'dd-MM-yyyy'), DateTime(2026, 11, 14));
+        expect(parse('14-Nov-26', 'dd-MMM-yyyy'), DateTime(2026, 11, 14));
+        expect(parse('14/Nov/26', 'dd/MMM/yyyy'), DateTime(2026, 11, 14));
+        expect(parse('14. Nov. 26', 'd. MMM. yyyy'), DateTime(2026, 11, 14));
+        expect(parse('Nov 14, 26'), DateTime(2026, 11, 14));
+      });
+
+      test('a one-digit year expands too', () {
+        expect(parse('14.11.6', 'dd.MM.yyyy'), DateTime(2006, 11, 14));
+      });
+
+      test('a short dash date keeps its day: ISO needs four digits', () {
+        // Read as ISO this was the year 14, November 26th.
+        expect(parse('14-11-26', 'dd-MM-yyyy'), DateTime(2026, 11, 14));
+        // A year-first company reads its own short form through its pattern.
+        expect(parse('26-11-14', 'yyyy-MM-dd'), DateTime(2026, 11, 14));
+        // Elsewhere a year-first short form is not a date at all.
+        expect(parse('26-11-14', 'dd.MM.yyyy'), isNull);
+        expect(parse('26-11-14'), isNull);
+      });
+
+      test('the window runs 79 years back and 20 ahead', () {
+        expect(parse('01.01.00', 'dd.MM.yyyy'), DateTime(2000, 1, 1));
+        expect(parse('01.01.46', 'dd.MM.yyyy'), DateTime(2046, 1, 1));
+        expect(parse('01.01.47', 'dd.MM.yyyy'), DateTime(1947, 1, 1));
+        expect(parse('01.01.85', 'dd.MM.yyyy'), DateTime(1985, 1, 1));
+        expect(parse('01.01.99', 'dd.MM.yyyy'), DateTime(1999, 1, 1));
+        expect(expandTwoDigitYear(46, DateTime(2026)), 2046);
+        expect(expandTwoDigitYear(47, DateTime(2026)), 1947);
+        // It slides: in 2031 `51` is this century.
+        expect(expandTwoDigitYear(51, DateTime(2031)), 2051);
+        expect(expandTwoDigitYear(52, DateTime(2031)), 1952);
+      });
+
+      test('a four-digit year is unchanged', () {
+        expect(parse('14.11.2026', 'dd.MM.yyyy'), DateTime(2026, 11, 14));
+        expect(parse('14.11.1999', 'dd.MM.yyyy'), DateTime(1999, 11, 14));
+        expect(parse('14.11.2099', 'dd.MM.yyyy'), DateTime(2099, 11, 14));
+        expect(parse('14-11-2026', 'dd-MM-yyyy'), DateTime(2026, 11, 14));
+        expect(parse('2026-05-14', 'dd.MM.yyyy'), DateTime(2026, 5, 14));
+        expect(parse('2026-05-14'), DateTime(2026, 5, 14));
+      });
+
+      test('a three-digit year is a half-typed one, not a date', () {
+        expect(parse('14.11.202', 'dd.MM.yyyy'), isNull);
+        expect(parse('14.11.126', 'dd.MM.yyyy'), isNull);
+        expect(parse('05140202', 'M/d/yyyy'), isNull);
+      });
+
+      test('a leap day is checked in the expanded year', () {
+        expect(parse('29.02.24', 'dd.MM.yyyy'), DateTime(2024, 2, 29));
+        expect(parse('29.02.26', 'dd.MM.yyyy'), isNull);
+      });
+    });
+
+    group('slash fallbacks follow the active pattern\'s order', () {
+      final now = DateTime(2026, 5, 14);
+
+      test('a day-first company reads a slash date day first', () {
+        // `dd.MM.yyyy` cannot read slashes, so the fallbacks decide; they
+        // tried `M/d/yyyy` first and made this May 11th.
+        expect(
+          parseDateInput('5/11/26', activePattern: 'dd.MM.yyyy', now: now),
+          DateTime(2026, 11, 5),
+        );
+        expect(
+          parseDateInput('5/11/2026', activePattern: 'dd/MMM/yyyy', now: now),
+          DateTime(2026, 11, 5),
+        );
+        // A day that cannot be a month still falls through to month-first.
+        expect(
+          parseDateInput('5/14/2026', activePattern: 'dd.MM.yyyy', now: now),
+          DateTime(2026, 5, 14),
+        );
+      });
+
+      test('a month-first company and no pattern read it month first', () {
+        expect(
+          parseDateInput(
+            '5/11/2026',
+            activePattern: 'EEE MMM d, yyyy',
+            now: now,
+          ),
+          DateTime(2026, 5, 11),
+        );
+        expect(
+          parseDateInput('5/11/2026', activePattern: 'yyyy-MM-dd', now: now),
+          DateTime(2026, 5, 11),
+        );
+        expect(parseDateInput('5/11/2026', now: now), DateTime(2026, 5, 11));
       });
     });
   });

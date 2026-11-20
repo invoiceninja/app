@@ -613,56 +613,107 @@ final _minutesUnitForm = RegExp(
 /// (typically the existing entry's start time-of-day).
 ///
 /// Tries patterns in order so the dominant locale's format wins for
-/// ambiguous strings: ISO `yyyy-MM-dd` first, then the optional
-/// [activePattern] (the company's `date_format_id` rendering — pass
+/// ambiguous strings: ISO `yyyy-MM-dd` first (only when the input opens
+/// with a four-digit year), then the optional [activePattern] (the
+/// company's `date_format_id` rendering — pass
 /// `formatter.dateFormats[formatter.settings.dateFormatId]?.format`), then
-/// a small fallback set covering US / EU short forms and `MMM d, yyyy`.
-/// Returns `null` for unparseable input — UI uses `null` to silently
-/// revert the cell to its last valid render.
+/// a small fallback set covering US / EU short forms (in the active
+/// pattern's day / month order) and `MMM d, yyyy`. Returns `null` for
+/// unparseable input — UI uses `null` to silently revert the cell to its
+/// last valid render.
+///
+/// A one- or two-digit year is read through [expandTwoDigitYear]
+/// (`14.11.26` is 2026, never the year 26 — invoiceninja/app#200); a
+/// three-digit year is rejected as a half-typed one.
 ///
 /// [now] is a test seam so relative shortcuts (`today`, `+1`, bare day
-/// `14`) can resolve against a fixed anchor in unit tests. Production
-/// callers should leave it unset — `DateTime.now()` is the default.
+/// `14`) and the two-digit-year window can resolve against a fixed anchor
+/// in unit tests. Production callers should leave it unset —
+/// `DateTime.now()` is the default.
 DateTime? parseDateInput(String raw, {String? activePattern, DateTime? now}) {
   final input = raw.trim();
   if (input.isEmpty) return null;
+  final today = _stripTime(now ?? DateTime.now());
 
   // 1. Shortcut keywords: `today`, `tomorrow`, `yesterday`. Case-insensitive.
   final shortcut = _tryDateShortcut(
     input,
     activePattern: activePattern,
-    now: now,
+    today: today,
   );
   if (shortcut != null) return shortcut;
 
   // 2. Strict format patterns. ISO `yyyy-MM-dd` first so it always wins
-  // against an ambiguous numeric string; remaining patterns cover the
-  // dominant short-form locales plus the long `MMM d, yyyy` shape.
-  // `parseStrict` rejects overflow (`2026-13-40`) rather than
-  // normalizing the way `DateTime.tryParse` would.
+  // against an ambiguous numeric string — but only for a four-digit year:
+  // `parseStrict` takes `14-11-26` as the year 14, November 26th, which on
+  // a `dd-MM-yyyy` company is the wrong day and month, not just the wrong
+  // century. Remaining patterns cover the dominant short-form locales plus
+  // the long `MMM d, yyyy` shape. `parseStrict` rejects overflow
+  // (`2026-13-40`) rather than normalizing the way `DateTime.tryParse`
+  // would.
+  final monthFirst = _monthBeforeDay(activePattern) ?? true;
   final patterns = <String>[
-    'yyyy-MM-dd',
+    if (_isoYearPrefix.hasMatch(input)) 'yyyy-MM-dd',
     if (activePattern != null && activePattern.isNotEmpty) activePattern,
-    'M/d/yyyy',
-    'MM/dd/yyyy',
-    'd/M/yyyy',
-    'dd/MM/yyyy',
+    ...monthFirst
+        ? const ['M/d/yyyy', 'MM/dd/yyyy', 'd/M/yyyy', 'dd/MM/yyyy']
+        : const ['d/M/yyyy', 'dd/MM/yyyy', 'M/d/yyyy', 'MM/dd/yyyy'],
     'MMM d, yyyy',
     'MMM d yyyy',
     'd MMM yyyy',
   ];
 
   for (final pattern in patterns) {
+    final DateTime parsed;
     try {
-      final parsed = DateFormat(pattern).parseStrict(input);
-      return DateTime(parsed.year, parsed.month, parsed.day);
+      parsed = DateFormat(pattern).parseStrict(input);
     } on FormatException {
-      // Try the next pattern.
+      continue;
     } on ArgumentError {
       // Pattern itself was invalid — shouldn't happen for our list.
+      continue;
     }
+    // A `yyyy` field takes `26` as the year 26 — intl guesses the century
+    // only for a `yy` field, and every server date format is `yyyy`.
+    final year = _typedYear(parsed.year, today);
+    if (year == null) continue;
+    final date = _safeDate(year, parsed.month, parsed.day);
+    if (date != null) return date;
   }
   return null;
+}
+
+final _isoYearPrefix = RegExp(r'^\d{4}-');
+
+/// The four-digit year a typed one- or two-digit [yy] means: the one in the
+/// 100-year window from 79 years before [today]'s year to 20 after it (in
+/// 2026: `00`–`46` → 2000–2046, `47`–`99` → 1947–1999). The same window
+/// intl applies to a `yy` field, and unlike a fixed pivot it never expires.
+int expandTwoDigitYear(int yy, DateTime today) {
+  final upper = today.year + 20;
+  final year = (upper ~/ 100) * 100 + yy;
+  return year > upper ? year - 100 : year;
+}
+
+/// The year a parsed date means: one or two digits go through
+/// [expandTwoDigitYear], a three-digit year (`202`, half typed) is null.
+int? _typedYear(int year, DateTime today) {
+  if (year < 0) return null;
+  if (year < 100) return expandTwoDigitYear(year, today);
+  if (year < 1000) return null;
+  return year;
+}
+
+/// Whether [pattern] puts the month before the day (`M/d/yyyy`,
+/// `EEE MMM d, yyyy`, `yyyy-MM-dd`), by the order of the fields themselves —
+/// not by its first letter, which reads a weekday-first pattern as
+/// day-first. Null when the pattern names no month or no day.
+bool? _monthBeforeDay(String? pattern) {
+  if (pattern == null) return null;
+  final month = pattern.indexOf('M');
+  final day = pattern.indexOf('d');
+  if (month < 0 || day < 0) return null;
+  return month < day;
 }
 
 /// Quick-shortcut paths checked first by [parseDateInput]: keywords,
@@ -675,10 +726,9 @@ DateTime? parseDateInput(String raw, {String? activePattern, DateTime? now}) {
 /// who learned the shortcuts in the old app keep them in the new app.
 DateTime? _tryDateShortcut(
   String input, {
-  String? activePattern,
-  DateTime? now,
+  required String? activePattern,
+  required DateTime today,
 }) {
-  final today = _stripTime(now ?? DateTime.now());
   // Calendar-day offsets must be computed in date-space, not by adding
   // 24h multiples to a LOCAL midnight: across a fall-back DST transition
   // `local midnight + N×24h` lands at 23:00 of day N−1, so `+30` /
@@ -713,7 +763,7 @@ DateTime? _tryDateShortcut(
   // From here on, we need a pure-digit string (or one with a single
   // slash). Reject anything else so we don't accidentally swallow input
   // the strict patterns would prefer to handle.
-  final monthFirst = (activePattern ?? '').startsWith('M');
+  final monthFirst = _monthBeforeDay(activePattern) ?? false;
 
   // Slash form: `D/M` or `M/D` with 1-2 digit parts, current year.
   if (input.contains('/') && !input.contains(' ')) {
@@ -745,20 +795,20 @@ DateTime? _tryDateShortcut(
       return _safeDate(today.year, month, day);
     }
     if (input.length == 6) {
-      // MMDDYY / DDMMYY. 2-digit year: <30 → 2000+yy, else 1900+yy.
+      // MMDDYY / DDMMYY, the year through the two-digit-year window.
       final a = int.parse(input.substring(0, 2));
       final b = int.parse(input.substring(2, 4));
       final yy = int.parse(input.substring(4, 6));
       final month = monthFirst ? a : b;
       final day = monthFirst ? b : a;
-      final year = yy < 30 ? 2000 + yy : 1900 + yy;
-      return _safeDate(year, month, day);
+      return _safeDate(expandTwoDigitYear(yy, today), month, day);
     }
     if (input.length == 8) {
       // MMDDYYYY / DDMMYYYY.
       final a = int.parse(input.substring(0, 2));
       final b = int.parse(input.substring(2, 4));
-      final year = int.parse(input.substring(4, 8));
+      final year = _typedYear(int.parse(input.substring(4, 8)), today);
+      if (year == null) return null;
       final month = monthFirst ? a : b;
       final day = monthFirst ? b : a;
       return _safeDate(year, month, day);
@@ -1316,23 +1366,6 @@ class Formatter {
     final s = DateFormat(startPattern, locale).format(start);
     final e = DateFormat(endPattern, locale).format(end);
     return '$s - $e';
-  }
-
-  /// Parse a user-entered date string using the company's date pattern,
-  /// returning an ISO `yyyy-MM-dd` for storage. Returns `''` on bad input.
-  String parseDate(String value) {
-    if (value.isEmpty) return '';
-    final pattern = dateFormats[settings.dateFormatId]?.format ?? 'yyyy-MM-dd';
-    try {
-      return convertDateTimeToSqlDate(
-        DateFormat(
-          pattern,
-          settings.locale.isEmpty ? null : settings.locale,
-        ).parse(value),
-      );
-    } catch (_) {
-      return '';
-    }
   }
 
   /// Parse a user-entered time string using the company's military-time

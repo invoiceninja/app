@@ -72,6 +72,24 @@ void main() {
       expect(parse('May 14, 2026'), (value: '2026-05-14', op: null));
     });
 
+    test('a two-digit year is this century, in a four-digit wire', () {
+      // invoiceninja/app#200: this was the year 26, sent as `26-11-14`.
+      expect(parse('14.11.26', pattern: 'dd.MM.yyyy'), (
+        value: '2026-11-14',
+        op: null,
+      ));
+      expect(parse('>=14-11-26', pattern: 'dd-MM-yyyy'), (
+        value: '2026-11-14',
+        op: FilterOp.gte,
+      ));
+      expect(parse('11/14/26', pattern: 'MM/dd/yyyy'), (
+        value: '2026-11-14',
+        op: null,
+      ));
+      // A half-typed year is not a date yet.
+      expect(parse('14.11.202', pattern: 'dd.MM.yyyy'), isNull);
+    });
+
     test('today / yesterday roll; tomorrow is absolute', () {
       // Rolling tokens, so a saved view keeps meaning "today".
       expect(parse('today'), (value: 'rel:d0', op: null));

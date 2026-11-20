@@ -222,7 +222,9 @@ class DateColumnFilterKey extends FilterKey with ComparableFilterKey {
     if (date == null) return null;
     String two(int v) => v.toString().padLeft(2, '0');
     return (
-      value: '${date.year}-${two(date.month)}-${two(date.day)}',
+      value:
+          '${date.year.toString().padLeft(4, '0')}-'
+          '${two(date.month)}-${two(date.day)}',
       op: split.op,
     );
   }

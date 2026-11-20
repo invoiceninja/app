@@ -115,6 +115,61 @@ void main() {
     expect(find.text('2026-05-14'), findsOneWidget);
   });
 
+  // invoiceninja/app#200: a German company (`dd.MM.yyyy`) typed `14.11.26`
+  // and the field committed 14.11.0026.
+  group('typed input', () {
+    Future<List<DateTime?>> typeAndBlur(
+      WidgetTester tester,
+      String pattern,
+      String typed,
+    ) async {
+      final committed = <DateTime?>[];
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildInTheme(InTheme.light),
+          localizationsDelegates: kTestLocalizationsDelegates,
+          supportedLocales: kTestSupportedLocales,
+          home: Scaffold(
+            body: SizedBox(
+              width: 360,
+              child: InDateField(
+                value: null,
+                formatter: _formatterFor('X', pattern),
+                onChanged: committed.add,
+                labelText: 'Date',
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.enterText(find.byType(TextField), typed);
+      FocusManager.instance.primaryFocus?.unfocus();
+      await tester.pumpAndSettle();
+      return committed;
+    }
+
+    String fieldText(WidgetTester tester) =>
+        tester.widget<TextField>(find.byType(TextField)).controller!.text;
+
+    testWidgets('a two-digit year commits this century', (tester) async {
+      final committed = await typeAndBlur(tester, 'dd.MM.yyyy', '14.11.26');
+      expect(committed, [DateTime(2026, 11, 14)]);
+      expect(fieldText(tester), '14.11.2026');
+    });
+
+    testWidgets('a short dash date keeps its day and month', (tester) async {
+      final committed = await typeAndBlur(tester, 'dd-MM-yyyy', '14-11-26');
+      expect(committed, [DateTime(2026, 11, 14)]);
+      expect(fieldText(tester), '14-11-2026');
+    });
+
+    testWidgets('a three-digit year reverts silently', (tester) async {
+      final committed = await typeAndBlur(tester, 'dd.MM.yyyy', '14.11.202');
+      expect(committed, isEmpty);
+      expect(fieldText(tester), '');
+    });
+  });
+
   group('placeholder', () {
     testWidgets('is a worked example date, never the intl pattern', (
       tester,
