@@ -134,7 +134,8 @@ void main() {
   // `lib/src/sdk_only/` holds the real package's SDK-side helpers that a test
   // pins (the Play offer filter). The FOSS twin needs no copy, so the folder
   // stays out of the public surface: nothing exports it, and the app's `lib/`
-  // never imports it (only its tests do, which F-Droid never builds).
+  // never imports it. Only tests do: F-Droid never builds them, and CI's FOSS
+  // analyze (ci.yaml `build-android-foss`) deletes them first — pinned below.
   test('sdk_only/ is real-package only, unexported, and unused by lib/', () {
     expect(
       Directory(
@@ -158,6 +159,58 @@ void main() {
       isEmpty,
       reason: 'lib/ imports only package:store_services/store_services.dart.',
     );
+  });
+
+  // Against the FOSS twin a test importing `sdk_only/` cannot resolve, so the
+  // FOSS analyze in CI deletes every such test before it runs; it finds them
+  // by that import, so a test reaching any other `src/` file would slip past.
+  test('the FOSS analyze in CI drops every test that imports sdk_only/', () {
+    const sdkOnlyImport = 'package:store_services/src/$_kSdkOnlyDir/';
+    final ci = File('.github/workflows/ci.yaml').readAsStringSync();
+    final start = ci.indexOf('\n  build-android-foss:\n');
+    expect(start, isNot(-1), reason: 'ci.yaml has no build-android-foss job');
+    final next = RegExp(
+      r'\n  [A-Za-z][\w-]*:\n',
+    ).firstMatch(ci.substring(start + 1));
+    final job = next == null
+        ? ci.substring(start)
+        : ci.substring(start, start + 1 + next.start);
+    final drop = job.indexOf("grep -rlZ '$sdkOnlyImport' test");
+    final analyze = job.indexOf('flutter analyze lib test');
+    expect(drop, isNot(-1), reason: 'no step drops the sdk_only/ tests');
+    expect(analyze, isNot(-1), reason: 'no FOSS analyze of test/');
+    expect(drop, lessThan(analyze), reason: 'dropped after the analyze');
+
+    final srcImport = RegExp(
+      r'''^\s*(?:import|export)\s+['"]package:store_services/src/''',
+    );
+    final reachingPast = <String>[];
+    final droppedWithoutImport = <String>[];
+    for (final f in Directory('test').listSync(recursive: true)) {
+      if (f is! File || !f.path.endsWith('.dart')) continue;
+      final lines = f.readAsLinesSync();
+      var imports = false;
+      for (final line in lines) {
+        if (!srcImport.hasMatch(line)) continue;
+        if (line.contains(sdkOnlyImport)) {
+          imports = true;
+        } else {
+          reachingPast.add('${f.path}: $line');
+        }
+      }
+      // The step deletes any file naming the import: only importers may.
+      if (!imports && lines.any((l) => l.contains(sdkOnlyImport))) {
+        droppedWithoutImport.add(f.path);
+      }
+    }
+    expect(
+      reachingPast,
+      isEmpty,
+      reason:
+          'a test may import only sdk_only/ from store_services/src/, or '
+          "the FOSS analyze's drop step misses it.",
+    );
+    expect(droppedWithoutImport, isEmpty);
   });
 
   test('the FOSS overrides repeat every pubspec.yaml dependency_override', () {

@@ -575,16 +575,67 @@ void main() {
       expect(api.gets, hasLength(1));
       expect(api.posts, hasLength(2));
 
-      // A company of another account: the same user, the same config.
-      auth.session.value = testSession(accountKey: 'other-acct');
+      // A refresh of the same user and company: the same config.
+      auth.session.value = testSession();
       await pumpEventQueue();
       await emit(applePurchase(transactionId: 't3'));
       expect(api.gets, hasLength(1));
 
-      auth.session.value = testSession(userId: 'someone-else');
+      // The server answers for the token's company: another company is
+      // asked afresh.
+      auth.session.value = testSession(companyId: 'co2');
       await pumpEventQueue();
       await emit(applePurchase(transactionId: 't4'));
       expect(api.gets, hasLength(2));
+
+      auth.session.value = testSession(userId: 'someone-else');
+      await pumpEventQueue();
+      await emit(applePurchase(transactionId: 't5'));
+      expect(api.gets, hasLength(3));
+    });
+
+    test('a company with no account_key, then one with it: the switch sweeps '
+        'and delivers', () async {
+      // Not the owner here, or a company of another account.
+      api.iapConfig = const {'purchases_enabled': false};
+      final p = applePurchase();
+      billing.unfinished = [p];
+      build(TargetPlatform.iOS).start();
+      await pumpEventQueue();
+      expect(api.posts, isEmpty);
+
+      api.iapConfig = const {
+        'purchases_enabled': true,
+        'app_account_token': kTestAccountToken,
+        'account_key': 'acct-key',
+      };
+      auth.session.value = testSession(companyId: 'my-own-co');
+      await pumpEventQueue();
+      expect(api.gets, hasLength(2));
+      expect(api.posts, hasLength(1));
+      expect(billing.completed, [p]);
+    });
+
+    test('a 200 with no account_key is kept, not asked again on a timer, '
+        'until the app returns to the foreground', () async {
+      api.iapConfig = const {'purchases_enabled': false};
+      final p = googlePurchase();
+      billing.unfinished = [p];
+      final delivery = build(TargetPlatform.android)..start();
+      await pumpEventQueue();
+      await emit(p);
+      await emit(p);
+
+      expect(api.gets, hasLength(1));
+      expect(timers.scheduled, isEmpty);
+      expect(api.posts, isEmpty);
+      expect(billing.completed, isEmpty);
+      expect(kinds().toSet(), {PurchaseActivityKind.retryLater});
+
+      delivery.onAppResumed();
+      await pumpEventQueue();
+      expect(api.gets, hasLength(2));
+      expect(timers.scheduled, isEmpty);
     });
 
     test('the sheet reads the same answer, with no second request', () async {
@@ -648,20 +699,39 @@ void main() {
       expect(api.posts.single.$2!['key'], 'my-acct');
     });
 
-    test(
-      'a switch to a company of another account sweeps nothing new',
-      () async {
-        billing.unfinished = [applePurchase()];
-        auth.session.value = testSession(accountKey: 'my-acct');
-        build(TargetPlatform.iOS).start();
-        await pumpEventQueue();
-        expect(api.posts, hasLength(1));
+    test('a switch to another company sweeps again, but never re-posts what '
+        'was applied', () async {
+      billing.unfinished = [applePurchase()];
+      auth.session.value = testSession(accountKey: 'my-acct');
+      build(TargetPlatform.iOS).start();
+      await pumpEventQueue();
+      expect(api.posts, hasLength(1));
 
-        auth.session.value = testSession(accountKey: 'company-acct');
-        await pumpEventQueue();
-        expect(api.posts, hasLength(1));
-      },
-    );
+      auth.session.value = testSession(
+        accountKey: 'company-acct',
+        companyId: 'their-co',
+      );
+      await pumpEventQueue();
+      expect(api.posts, hasLength(1));
+    });
+
+    test('a switch to another company re-posts a refusal left with the '
+        'store', () async {
+      api.postError = const ConflictException(
+        'This purchase was posted for another account.',
+        {'reason': 'account'},
+      );
+      billing.unfinished = [applePurchase()];
+      build(TargetPlatform.iOS).start();
+      await pumpEventQueue();
+      expect(api.posts, hasLength(1));
+
+      api.postError = null;
+      auth.session.value = testSession(companyId: 'my-own-co');
+      await pumpEventQueue();
+      expect(api.posts, hasLength(2));
+      expect(kinds().last, PurchaseActivityKind.applied);
+    });
   });
 
   group('trying again', () {

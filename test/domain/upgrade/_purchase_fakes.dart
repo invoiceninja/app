@@ -236,6 +236,7 @@ AuthSession testSession({
   bool isHosted = true,
   String baseUrl = 'https://invoicing.co',
   String userId = 'me',
+  String companyId = 'co',
 }) => AuthSession(
   baseUrl: baseUrl,
   isHosted: isHosted,
@@ -243,7 +244,7 @@ AuthSession testSession({
   accountKey: accountKey,
   userAccountKey: userAccountKey ?? accountKey,
   companies: const [],
-  currentCompanyId: 'co',
+  currentCompanyId: companyId,
   userId: userId,
 );
 

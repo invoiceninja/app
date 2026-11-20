@@ -87,7 +87,8 @@ enum PurchaseStore {
 
 /// The hosted service's in-app purchase settings for the signed-in user
 /// (`GET` [kIapConfigPath]). [PurchaseDelivery.config] is its one owner: it
-/// asks once per signed-in user and the purchase sheet reads the same answer.
+/// asks once per signed-in user and active company, and the purchase sheet
+/// reads the same answer.
 @immutable
 class IapConfig {
   const IapConfig({
@@ -168,8 +169,8 @@ const kPurchaseRetryBackoff = [
 /// never stops. That is what StoreKit needs to hand over
 /// `Transaction.updates`: renewals, an Ask to Buy approved later, a purchase
 /// interrupted by a crash. Each time a signed-in user appears (a sign-in, a
-/// different user) the purchases the stores still hold unfinished are swept
-/// and delivered too: Play's unacknowledged ones, and StoreKit's
+/// different user) or another company becomes active, the purchases the
+/// stores still hold unfinished are swept and delivered too: Play's unacknowledged ones, and StoreKit's
 /// `Transaction.unfinished`. A purchase that could not be applied yet is
 /// swept again with a backoff ([kPurchaseRetryBackoff]) while the app runs,
 /// and whenever the app comes back to the foreground ([onAppResumed]).
@@ -189,9 +190,13 @@ const kPurchaseRetryBackoff = [
 /// Nothing is posted, and nothing paid is finished, until the hosted service
 /// has answered [kIapConfigPath] with a 200 that names the account
 /// (`account_key`, [config]): that is how the app knows the server it posts
-/// to takes this app's purchases, and which account they go to. A 404 (a
-/// server without the route), an answer without `account_key`, or any other
-/// failure leaves the purchase unfinished for a later try. The answer's
+/// to takes this app's purchases, and which account they go to. It is asked
+/// with the active company's token and answers for that company: a user who
+/// does not own it, or a company of another account, gets no `account_key`.
+/// A 404 (a server without the route) or any other failure leaves the
+/// purchase unfinished and tried again; an answer without `account_key`
+/// leaves it unfinished, not retried on a timer, until another company is
+/// active, someone signs in, or the app returns to the foreground. The answer's
 /// `purchases_enabled` gates only the sale, never a delivery: a purchase
 /// already paid for is always applied.
 ///
@@ -259,20 +264,23 @@ class PurchaseDelivery {
   bool _started = false;
   bool _disposed = false;
 
-  /// The signed-in user the last sweep ran for ([_ownerOf]). Cleared when the
-  /// session can no longer be delivered to (a sign-out), so the next sign-in
-  /// sweeps again.
+  /// The signed-in user and active company the last sweep ran for
+  /// ([_scopeOf]). Cleared when the session can no longer be delivered to (a
+  /// sign-out), so the next sign-in sweeps again; a switch to another company
+  /// sweeps again too, since the config may answer differently there.
   String? _sweptFor;
 
-  /// The last [kIapConfigPath] answer that named an account, and the user
-  /// ([_ownerOf]) it was asked for. Never set from a failure or from an
-  /// answer without `account_key`: those are asked again next time.
+  /// The last 200 from [kIapConfigPath], and the user and active company
+  /// ([_scopeOf]) it was asked for — one without `account_key` included (the
+  /// user does not own the active company, or it belongs to another account),
+  /// so that answer is not asked again on every retry. Never set from a
+  /// failure: that is asked again next time.
   IapConfig? _config;
   String? _configFor;
 
-  /// The config request on the wire, for [_configOwner].
+  /// The config request on the wire, for [_configScope].
   Future<IapConfig?>? _configInFlight;
-  String? _configOwner;
+  String? _configScope;
 
   /// Purchases being posted right now, by [_transactionKey]: the launch
   /// sweep and `Transaction.updates` can hand over the same one at once.
@@ -341,10 +349,10 @@ class PurchaseDelivery {
       _onPurchases,
       onError: (Object e) => _log.warning('purchaseStream error: $e'),
     );
-    final owner = _ownerOf(session!);
-    if (_sweptFor == owner) return;
-    _sweptFor = owner;
-    unawaited(_sweep(owner, repostRefused: true));
+    final scope = _scopeOf(session!);
+    if (_sweptFor == scope) return;
+    _sweptFor = scope;
+    unawaited(_sweep(_ownerOf(session), repostRefused: true));
   }
 
   /// The app is back in the foreground: ask the config afresh (support may
@@ -359,11 +367,17 @@ class PurchaseDelivery {
     unawaited(_sweep(_ownerOf(session!)));
   }
 
-  /// Purchases are applied to the signed-in user's own account, whichever
-  /// company is active, so the config (and its `account_key`) belongs to the
-  /// user on this server, not to the active company.
+  /// The signed-in user on this server: whom a refusal has been said to
+  /// ([_refused]).
   static String _ownerOf(AuthSession session) =>
       '${session.baseUrl}|${session.userId}';
+
+  /// The user and the active company. The hosted service answers the config
+  /// for the company of the token it is asked with — whether the user owns
+  /// it, and whether it belongs to the user's own account decide
+  /// `account_key` — so the config is per active company, not per user.
+  static String _scopeOf(AuthSession session) =>
+      '${_ownerOf(session)}|${session.currentCompanyId}';
 
   static bool _canDeliverTo(AuthSession? session) =>
       session != null && session.isHosted;
@@ -392,10 +406,14 @@ class PurchaseDelivery {
         }
       }
       if (unfinished.isEmpty) return;
-      if (await config() == null) {
+      final answer = await _configAnswer();
+      if (answer == null) {
         // Left unfinished, and swept again on the next session update (a
         // refresh, a sign-in), the next retry and the next resume.
-        if (_sweptFor == owner) _sweptFor = null;
+        final session = _auth.session.value;
+        if (session != null && _sweptFor == _scopeOf(session)) {
+          _sweptFor = null;
+        }
         _log.info(
           'iap config not confirmed, ${unfinished.length} unfinished '
           'purchase(s) left for later',
@@ -404,6 +422,18 @@ class PurchaseDelivery {
           _emit(PurchaseActivityKind.retryLater, p);
         }
         _scheduleRetry();
+        return;
+      }
+      if (!answer.canDeliver) {
+        // An answer, not a failure: nothing to retry until the company
+        // changes, someone signs in, or the app returns to the foreground.
+        _log.info(
+          'iap config names no account here, ${unfinished.length} '
+          'unfinished purchase(s) left for another company',
+        );
+        for (final p in unfinished) {
+          _emit(PurchaseActivityKind.retryLater, p);
+        }
         return;
       }
       _log.info('delivering ${unfinished.length} unfinished purchase(s)');
@@ -430,33 +460,43 @@ class PurchaseDelivery {
     });
   }
 
-  /// The hosted service's answer to [kIapConfigPath] for the signed-in user,
-  /// or null while it is unknown: signed out, self-hosted, any failure, or a
-  /// 200 without `account_key` (a service not ready to take purchases).
-  /// Asked once per user and kept; asked again after any failure, after a
-  /// sign-out, and when the app returns to the foreground.
+  /// The hosted service's answer to [kIapConfigPath] for the signed-in user
+  /// and the active company, or null while nothing may be delivered under it:
+  /// signed out, self-hosted, any failure, or a 200 without `account_key`
+  /// (the user does not own the active company, or it belongs to another
+  /// account, or the service is not ready to take purchases). Asked once per
+  /// user and company and kept; asked again after any failure, after a
+  /// sign-out, on a switch to another company, and when the app returns to
+  /// the foreground.
   Future<IapConfig?> config() async {
+    final answer = await _configAnswer();
+    return answer != null && answer.canDeliver ? answer : null;
+  }
+
+  /// [config]'s 200 as it came, one without `account_key` included; null on
+  /// a failure (or no hosted session).
+  Future<IapConfig?> _configAnswer() async {
     final session = _auth.session.value;
     if (!_canDeliverTo(session)) return null;
-    final owner = _ownerOf(session!);
-    if (_configFor == owner && _config != null) return _config;
-    if (_configOwner == owner && _configInFlight != null) {
+    final scope = _scopeOf(session!);
+    if (_configFor == scope && _config != null) return _config;
+    if (_configScope == scope && _configInFlight != null) {
       return _configInFlight!;
     }
-    _configOwner = owner;
-    final request = _askConfig(owner);
+    _configScope = scope;
+    final request = _askConfig(scope);
     _configInFlight = request;
     try {
       return await request;
     } finally {
       if (identical(_configInFlight, request)) {
         _configInFlight = null;
-        _configOwner = null;
+        _configScope = null;
       }
     }
   }
 
-  Future<IapConfig?> _askConfig(String owner) async {
+  Future<IapConfig?> _askConfig(String scope) async {
     final IapConfig answer;
     try {
       answer = IapConfig.fromJson(await _apiClient.getOne(kIapConfigPath));
@@ -465,18 +505,16 @@ class PurchaseDelivery {
       return null;
     }
     if (!answer.canDeliver) {
-      _log.warning('iap config names no account_key, purchases off');
-      return null;
-    }
-    if (answer.purchasesEnabled && answer.appAccountToken == null) {
+      _log.warning('iap config names no account_key here, purchases off');
+    } else if (answer.purchasesEnabled && answer.appAccountToken == null) {
       _log.warning('iap config has no usable app_account_token');
     }
-    // Answered for the session it was asked under, and only if that session
-    // is still the current one.
+    // Answered for the user and company it was asked under, and only if they
+    // are still the current ones.
     final now = _auth.session.value;
-    if (now == null || _ownerOf(now) != owner) return null;
+    if (now == null || _scopeOf(now) != scope) return null;
     _config = answer;
-    _configFor = owner;
+    _configFor = scope;
     return answer;
   }
 
@@ -604,10 +642,17 @@ class PurchaseDelivery {
     final owner = _ownerOf(session!);
     // Nothing paid is posted or finished until the hosted service has
     // confirmed it takes this app's purchases, and for which account.
-    final config = await this.config();
+    final config = await _configAnswer();
     if (config == null) {
       _log.info('iap config not confirmed, ${p.productId} left unfinished');
       _retryLater(p);
+      return;
+    }
+    if (!config.canDeliver) {
+      // No account to apply it to under this company: said, never retried
+      // on a timer (asking again would get the same answer).
+      _log.info('iap config names no account here, ${p.productId} left');
+      _emit(PurchaseActivityKind.retryLater, p);
       return;
     }
     // A refunded or upgraded-away Apple transaction has nothing to apply.

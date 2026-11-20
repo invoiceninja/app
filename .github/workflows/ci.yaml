@@ -220,6 +220,18 @@ jobs:
       - name: Generate code
         run: dart run build_runner build --delete-conflicting-outputs
 
+      # A test that pins the real store package's SDK-side helpers
+      # (packages/store_services/lib/src/sdk_only/, e.g. the Play offer filter
+      # in store_billing_helpers_test.dart) cannot resolve against the FOSS
+      # twin, which has no copy. Dropped here, for this analyze only, and not
+      # by prepare_foss.sh: that is the F-Droid recipe, which builds no tests,
+      # and its --restore puts back only what it changed.
+      # test/lint/store_sdk_boundary_test.dart pins this step.
+      - name: Drop the store-only tests
+        run: |
+          { grep -rlZ 'package:store_services/src/sdk_only/' test || true; } |
+            xargs -0 -r rm --
+
       # Not the whole repo: packages/store_services is (correctly) unresolved
       # here, since the non-free SDKs it imports are no longer in the graph.
       - name: Analyze (FOSS)

@@ -106,9 +106,9 @@ class PurchaseService {
   /// Whether the hosted service is taking in-app purchases right now, gave
   /// this account a token to tie one to, and named the account it applies
   /// them to. It reads [PurchaseDelivery.config] (the one request for the
-  /// signed-in user) and **fails closed**: no answer, an error, or anything
-  /// but `purchases_enabled: true` with a UUID `app_account_token` and an
-  /// `account_key` means no purchase sheet. That keeps purchases off until
+  /// signed-in user and the active company) and **fails closed**: no answer,
+  /// an error, or anything but `purchases_enabled: true` with a UUID
+  /// `app_account_token` and an `account_key` means no purchase sheet. That keeps purchases off until
   /// the hosted billing can verify them, and lets support switch them off
   /// again without an app release. Delivering a purchase the user already
   /// paid for is never gated on it ([PurchaseDelivery]).
