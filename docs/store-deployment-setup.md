@@ -158,7 +158,7 @@ Environment secrets, not repository secrets: only the `fdroid-sign` job can read
 | `PARTNER_CENTER_CLIENT_ID` | Entra application (client) ID | Same page |
 | `PARTNER_CENTER_CLIENT_SECRET` | Entra client secret **value** | Certificates & secrets → New client secret. The *value* is shown once. |
 | `PARTNER_CENTER_SELLER_ID` | Partner Center Seller ID | Partner Center account settings. **Not** the `9N…` Store ID. |
-| `MS_STORE_PRODUCT_ID` | The app's **Store ID** (`9NG93WNXN797` for Invoice Ninja - Beta) | Product management → Product identity → Store ID, or `msstore apps list`. For an MSIX app it *is* the `9N…` value. Not `9N3F2BBCFDR6`, which is the old app. |
+| `MS_STORE_PRODUCT_ID` | The app's **Store ID** (`9NG93WNXN797` for the new app, Invoice Ninja) | Product management → Product identity → Store ID, or `msstore apps list`. For an MSIX app it *is* the `9N…` value. Not `9N3F2BBCFDR6`, which is the old app. |
 
 ### Apple — shared by `appstore-ios.yml` and `appstore-macos.yml`
 
@@ -315,7 +315,7 @@ Map the rest: `storePassword` → `ANDROID_KEYSTORE_PASSWORD`, `keyPassword` →
 **Two ID traps** — both fail confusingly if you get them wrong:
 
 - `PARTNER_CENTER_SELLER_ID` is the Partner Center **Seller ID** (a number), *not* the `9N…` Store ID.
-- `MS_STORE_PRODUCT_ID` is the **Store ID of Invoice Ninja - Beta, `9NG93WNXN797`** — the same `9N…` value as the `apps.microsoft.com/detail/...` URL, because for an MSIX app the submission API's application id *is* the Store ID (measured 2026-11-08: `GET /v1.0/my/applications` lists `9NG93WNXN797` and `9N3F2BBCFDR6`, the old app). The account has both apps, so the trap is picking the old one.
+- `MS_STORE_PRODUCT_ID` is the **Store ID of the new app, `9NG93WNXN797`** — the same `9N…` value as the `apps.microsoft.com/detail/...` URL, because for an MSIX app the submission API's application id *is* the Store ID (measured 2026-11-08: `GET /v1.0/my/applications` lists `9NG93WNXN797` and `9N3F2BBCFDR6`, the old app). The account has both apps, so the trap is picking the old one.
 
 **Check the credentials without publishing.** A dispatch here goes live, so prove the Entra app and its Manager role first: get a token with the client secret (`POST https://login.microsoftonline.com/<tenant>/oauth2/v2.0/token`, `grant_type=client_credentials`, `scope=https://manage.devcenter.microsoft.com/.default`), then `GET https://manage.devcenter.microsoft.com/v1.0/my/applications` with it. A 200 listing `9NG93WNXN797` means the secrets are right; a 401 / 403 means the Manager role (step 4) is missing. The secret can be a temporary second one on the same app — access is granted per app, not per secret. `msstore publish` also fails when the app has a pending submission left in draft in Partner Center (`pendingApplicationSubmission` in that response).
 
@@ -536,13 +536,15 @@ Two exceptions:
 
 ## 7. Beta → GA flips *(not required for setup)*
 
-These are deliberate beta-posture settings, listed so they aren't mistaken for setup gaps. None of them blocks a dispatch. The full launch checklist, with each store's console step, is `docs/going-live.md`.
+The beta-posture settings below were flipped in the launch release; they are listed so the history of each name is in one place. The full launch checklist, with each store's console step, is `docs/going-live.md`.
 
-| Where | Current | At GA |
+| Where | During the beta | Since the launch release |
 |---|---|---|
-| `pubspec.yaml` `msix_config` | `display_name: Invoice Ninja - Beta` | Drop the ` - Beta` |
-| `ios/Runner/Info.plist` | `CFBundleDisplayName = Ninja Beta`, `CFBundleName = admin` | `Invoice Ninja`. The beta installs beside the v1 app, whose home-screen label is "Invoice Ninja", and iOS truncates a label at about 12 characters — "Invoice Ninja Beta" would read "Invoice Ninj…" and look like the old app. The exported `.ipa` filename derives from this value, so `appstore-ios.yml` renames it before the upload. The v1 app's beta invitation names this label (`kBetaAppNameMobile` in admin-portal), so change the two together. |
-| `android/app/src/main/AndroidManifest.xml` | `android:label="Ninja Beta"` | `Invoice Ninja` — same reason and same pairing as the iOS label. |
+| `pubspec.yaml` `msix_config` | `display_name: Invoice Ninja - Beta` | `Invoice Ninja`. The Partner Center listing name is separate: it moves to `9NG93WNXN797` by hand (`docs/going-live.md` § Microsoft Store). |
+| `ios/Runner/Info.plist` and its `InfoPlist.xcstrings` override | `CFBundleDisplayName = Ninja Beta` (`CFBundleName = admin`, unchanged) | `Invoice Ninja`. The beta installed beside the v1 app, whose home-screen label was "Invoice Ninja", and iOS truncates a label at about 12 characters, so "Invoice Ninja Beta" would have read "Invoice Ninj…". v1 is now "IN Legacy" under its icon. The exported `.ipa` filename derives from this value, so `appstore-ios.yml` renames it before the upload. |
+| `android/app/src/main/AndroidManifest.xml` | `android:label="Ninja Beta"` | `Invoice Ninja`, for the same reason as the iOS label. The F-Droid recipe's `AutoName` follows it (`docs/fdroid.md`). |
+| `kAppIsBeta` (`lib/app/version.dart`) | `true` | `false`: the review prompt can ask (`docs/review-prompt.md`). |
+| The phone-app promo and the web banner | TestFlight and Play-testing links, a "Beta" chip | invoiceninja.com's `/apps/{iphone-ipad,android,mac,windows}/` download pages (`docs/mobile-app-promo.md` § Swap the links at launch). |
 
 ---
 

@@ -179,8 +179,8 @@ App Review risk accepted for the smoother flow), so the design never depends on 
 **also pulls on every resume**, and if `open` says no — or neither it nor the host app going to the
 background (`NSExtensionHostDidEnterBackground`, which settles a slow cold start whose answer is
 late) has happened within 3 s — the extension tells the user to open the app, by its home-screen
-name (the containing app's `CFBundleDisplayName`, "Ninja Beta" — not the share sheet's "Invoice
-Ninja"). The URL carries nothing; `AppDeepLinks` recognises it
+name (the containing app's `CFBundleDisplayName`, "Invoice Ninja", the same as the share sheet's
+since the launch release dropped "Ninja Beta"). The URL carries nothing; `AppDeepLinks` recognises it
 (`isShareHandoffLink`) and pulls instead of handing it to `DeepLinkRouter`, which would toast
 `invalid_url`.
 
@@ -449,7 +449,8 @@ validation rejects an extension whose version differs from the app's.
   send only if retried from the Outbox.
 - **The tmp expense's Documents tab says "save to upload" while its uploads are queued** — it
   needs an outbox count to say better.
-- **iOS display names**: "Ninja Beta" on the home screen, "Invoice Ninja" in the share sheet. The
+- **iOS display names**: "Invoice Ninja" on the home screen and in the share sheet (the home screen
+  read "Ninja Beta" until the launch release). The
   open-the-app hint uses the home-screen name; the failure alert names the share-sheet entry the
   user just tapped. Neither is localized.
 - **The CI profile script needs the `xcodeproj` gem.** It ships with CocoaPods; the step installs

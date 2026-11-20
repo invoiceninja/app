@@ -25,21 +25,21 @@ On Play, the App Store and Microsoft the new app (`com.invoiceninja.admin`) has 
 
 ## App changes in the launch release
 
-These ship together in one version to every store, so each store's first public build is already out of beta.
+These ship together in one version to every store, so each store's first public build is already out of beta. They land at T−3 (§ Release freeze), after the Microsoft name move and before the launch bump; until then `main` keeps shipping betas with every one of them in its beta state.
 
-- [ ] Set `kAppIsBeta` to `false` in `lib/app/version.dart`. This switches on the store review prompt, which stays silent during the beta (`docs/review-prompt.md` § GA launch checklist).
-- [ ] Set `kAppStoreId` in `lib/domain/review_prompt.dart`: the Apple ID in App Store Connect → App Information. iOS and macOS share one record.
-- [ ] Swap the phone-app promo links from TestFlight and Play testing to the store listings (`docs/mobile-app-promo.md` § Swap the links at launch):
-    - `kMobileAppIosUrl` → `https://apps.apple.com/app/id<number>`;
-    - `kMobileAppAndroidUrl` → `https://play.google.com/store/apps/details?id=com.invoiceninja.admin`;
-    - reword the `mobile_app_promo_testflight_step` and `mobile_app_promo_play_step` captions, and drop the "Beta" label.
-- [ ] Give the web build's "other apps" banner its Windows link: set `kWindowsAppUrl` in `lib/domain/web_app_banner.dart` to `https://apps.microsoft.com/detail/$kMicrosoftStoreId` once the listing is Public. Its iPhone, Mac and Android links follow the promo's constants above.
-- [ ] Rename the app from "Ninja Beta" to "Invoice Ninja":
-    - `CFBundleDisplayName` in `ios/Runner/Info.plist` and `android:label` in `android/app/src/main/AndroidManifest.xml`;
-    - drop " - Beta" from `msix_config` `display_name` in `pubspec.yaml` and from the `README.md` title;
-    - update the v1 app's beta invitation (`kBetaAppNameMobile` in admin-portal) at the same time, since it names "Ninja Beta".
+- [x] `kAppIsBeta` is `false` (`lib/app/version.dart`). This switches on the store review prompt, which stayed silent during the beta (`docs/review-prompt.md` § GA launch checklist).
+- [x] `kAppStoreId` in `lib/domain/review_prompt.dart` is the new record's Apple ID (App Store Connect → App Information → Apple ID; iOS and macOS share the record), digits only. Left null, the Apple builds simply offer no "Rate the app" link.
+- [x] The phone-app promo links invoiceninja.com's download pages instead of TestFlight and Play testing (`docs/mobile-app-promo.md` § Swap the links at launch):
+    - `kMobileAppIosUrl` → `https://invoiceninja.com/apps/iphone-ipad/`, `kMobileAppAndroidUrl` → `https://invoiceninja.com/apps/android/`;
+    - the captions moved to store wording under new keys (`mobile_app_promo_app_store_step`, `mobile_app_promo_play_store_step`, `mobile_app_promo_qr_iphone_app`, `mobile_app_promo_qr_android_app`, translated into every `_app_pending_<locale>.json` overlay), and the "Beta" chip is gone.
+- [x] The web build's "other apps" banner offers every platform: the Mac app through `https://invoiceninja.com/apps/mac/` (`kMacAppUrl`) and the Windows app through `https://invoiceninja.com/apps/windows/` (`kWindowsAppUrl`), in `lib/domain/web_app_banner.dart`.
+- [x] The app is "Invoice Ninja", not "Ninja Beta":
+    - `CFBundleDisplayName` in `ios/Runner/Info.plist` and its `ios/Runner/InfoPlist.xcstrings` override, and `android:label` in `android/app/src/main/AndroidManifest.xml`;
+    - `msix_config` `display_name` in `pubspec.yaml`, the F-Droid recipe's `AutoName` and the `README.md` title;
+    - macOS, Windows, Linux, the Snap, the Flatpak metainfo and the web manifest already said Invoice Ninja.
+- [x] The landing page data (`tools/web_deploy/landing/apps.json`) names the new app's listings: Microsoft `9NG93WNXN797`, Play `com.invoiceninja.admin`, and the App Store through the `/apps/iphone-ipad/` and `/apps/mac/` download pages until the Apple ID replaces them. It reaches invoicing.co only through `export_landing.sh` and a backend PR on launch day (§ Launch day, step 7).
 - [x] Snap: change `grade: devel` to `grade: stable` in `snap/snapcraft.yaml` (done 2026-11-12, ahead of the launch release, § Snap).
-- [ ] Write the release notes, bump the version and run **Deploy to all** (`docs/release-notes.md`).
+- [ ] Write the release notes with an "Out of beta" highlight (`docs/release-notes.md`), bump the version, then dispatch per workflow, not Deploy to all (§ Launch day).
 
 ## Per-store steps
 

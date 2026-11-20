@@ -3,15 +3,16 @@
 v2 client application for [Invoice Ninja](https://github.com/invoiceninja/invoiceninja).
 
 #### Desktop Apps
-- Windows: [apps.microsoft.com/detail/restricted/9NG93WNXN797](https://apps.microsoft.com/detail/restricted/9NG93WNXN797)
-- macOS: [testflight.apple.com/join/YY1BZ7uR](https://testflight.apple.com/join/YY1BZ7uR)
+- Windows: [apps.microsoft.com/detail/9NG93WNXN797](https://apps.microsoft.com/detail/9NG93WNXN797)
+- macOS: [invoiceninja.com/apps/mac](https://invoiceninja.com/apps/mac/)
 - Linux (Flathub): [flathub.org/apps/com.invoiceninja.InvoiceNinja](https://flathub.org/apps/com.invoiceninja.InvoiceNinja)
 - Linux (Snap): `sudo snap install invoiceninja`
 - Linux (AppImage): [Releases](https://github.com/invoiceninja/flutter/releases)
 
 #### Mobile Apps
-- iOS: [testflight.apple.com/join/YY1BZ7uR](https://testflight.apple.com/join/YY1BZ7uR)
-- Android: [play.google.com/apps/testing/com.invoiceninja.admin](https://play.google.com/apps/testing/com.invoiceninja.admin)
+- iOS: [invoiceninja.com/apps/iphone-ipad](https://invoiceninja.com/apps/iphone-ipad/)
+- Android (Google Play): [play.google.com/store/apps/details?id=com.invoiceninja.admin](https://play.google.com/store/apps/details?id=com.invoiceninja.admin)
+- Android (F-Droid): [f-droid.org/packages/com.invoiceninja.admin](https://f-droid.org/packages/com.invoiceninja.admin/)
 
 # Table of Contents
 

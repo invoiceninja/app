@@ -533,7 +533,8 @@ vary: the image or the JDK. Compare their build log with our `toolchain.txt`, th
 - **After the fdroiddata merge request lands, fdroiddata's copy is authoritative.** Reviewers do
   edit recipes, so copy any change back here; otherwise our CI builds something F-Droid doesn't.
 - **Listing text** lives in `fastlane/metadata/android/en-US/`:
-  - `title.txt`. Without it, checkupdates would rename the app after the APK label, "Ninja Beta".
+  - `title.txt`. Without it, checkupdates would rename the app after the APK label (which read
+    "Ninja Beta" until the launch release, and is "Invoice Ninja" now).
   - `short_description.txt` (≤ 80 characters) and `full_description.txt` (≤ 4000).
   - `images/icon.png`, one of the `tools/gen_app_icons.dart` outputs.
   - `images/phoneScreenshots/1.png` … `8.png`: 1080×2400 captures of the real app against the
@@ -590,13 +591,15 @@ on invoiceninja/flutter#175. Use the "App inclusion" template and the title `New
 - **So the two copies differ only on those three lines.** Make the submitted copy from the
   current recipe, not the tag's, so it carries any listing fix made since:
   `sed "s/^    commit: v<ver>\$/    commit: $(git rev-parse v<ver>^{commit})/" tools/foss/com.invoiceninja.admin.yml`.
-- **`AutoName` is the launcher label, "Ninja Beta".**
+- **`AutoName` is the launcher label, "Invoice Ninja" ("Ninja Beta" until the launch release).**
   - fdroiddata's `checkupdates` job runs `fdroid checkupdates --auto` and then fails on any
     diff.
   - Its `fetch_autoname` reads `<application android:label>` from `android/app`, the directory
     whose Gradle file names the `applicationId`. Any other `AutoName` is rewritten, and the
     merge request fails.
   - The listing's name comes from `fastlane/.../title.txt`, "Invoice Ninja".
+  - The launch release changed the label and this recipe's `AutoName` together; fdroiddata's
+    copy follows on the first `checkupdates` run after that tag.
 - **Before submitting, run fdroiddata's metadata checks on the copy.** These are `fdroid lint`,
   `rewritemeta`, `checkupdates`, `check-fastlane.py` and the JSON schema. They need no build, so
   they run in a `debian:trixie-slim` container in a few minutes, natively on an arm64 Mac.
