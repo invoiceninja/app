@@ -206,6 +206,10 @@ class _BillingDocEditLayoutState<T extends BillingDocFields>
   /// opens on Details as usual.
   late bool _openOnItems = widget.openLineItem != null;
 
+  /// Marks [BillingDocEditLayout.openLineItem] as done, in the view model's
+  /// `formUiState`.
+  static const _kOpenedLineKey = 'billing_doc_edit.opened_line';
+
   BillingDocType get _type => widget.type;
   BillingDocEditViewModel<T> get _vm => widget.vm;
 
@@ -240,8 +244,16 @@ class _BillingDocEditLayoutState<T extends BillingDocFields>
     super.initState();
     if (widget.slots.eInvoiceTab != null) unawaited(_resolveEInvoiceGate());
     if (_type.offersOptionalLines) unawaited(_resolveOptionalLinesGate());
-    final openLineItem = widget.openLineItem;
+    // The record screen's "open this line" is one-shot: the view model a
+    // stay-in-editor Save reloads into carries the mark, so the line's
+    // editor doesn't open again — nor the strip jump to Items — on every
+    // Save (docs/after-saving.md).
+    final openLineItem = _vm.formUiState[_kOpenedLineKey] == true
+        ? null
+        : widget.openLineItem;
+    if (openLineItem == null) _openOnItems = false;
     if (openLineItem != null) {
+      _vm.formUiState[_kOpenedLineKey] = true;
       final items = _vm.draft.lineItems;
       final index = openLineItem.index;
       // Before the Items tabs mount, which read it once: open on the

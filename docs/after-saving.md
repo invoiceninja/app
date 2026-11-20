@@ -56,8 +56,9 @@ hold a draft that never saw the server's reply — totals, the assigned number,
 invitation keys, line ids — and the next Save would send it back. A change
 reverted after the save would also read as dirty, against the stale original.
 
-So after a plain Save the scaffold re-runs `fetchExisting` and `buildVm` and
-swaps the new view model in (`_reloadAfterSave`). An online save's row is
+So after a plain Save the scaffold re-runs `fetchExisting` and `reloadVm`
+(`buildVm` where a screen has none) and swaps the new view model in
+(`_reloadAfterSave`). An online save's row is
 deleted only after its reply is applied, so the stored record is the server's
 copy by the time `save()` returns; offline or after the wait timed out it is
 the local copy, which is the draft. The form below remounts on the new view
@@ -70,6 +71,44 @@ view model.
 `canKeepEditing` is asked first: an invoice that is now locked, or an invoiced
 task, goes to the record instead, with no dialog. A record that can no longer
 be read back goes there too.
+
+## A reload never re-applies an edit route's one-shot extras
+
+Three edit routes carry a one-shot `extra` that `buildVm` applies to the form
+it opens: invoice "Add to invoice" (`cloneFrom`, the invoice with the task's or
+expense's line appended, for review), the record screen's Contacts "+ Add"
+(`addContact`, a blank contact on a client or vendor) and a tapped line
+(`openLineItem`, the billing documents). The record a Save just wrote already
+holds what the extra asked for, so applying it again was a bug each time: the
+reloaded invoice showed the stale handoff draft, dirty, and the next Save
+reverted the user's later edits; every Save added another blank contact; the
+line's dialog reopened and the narrow strip jumped to Items after every Save.
+
+So a screen with such an extra passes `reloadVm` — `buildVm` without it
+(invoice, client, vendor) — and `BillingDocEditLayout` consumes
+`openLineItem` once per form through `formUiState`
+(`billing_doc_edit.opened_line`), which the reload carries across; the
+reloaded strip opens on Details, like any strip mounted after the request was
+served. Tests: `reload_skips_one_shot_extras_test.dart`,
+`open_line_item_test.dart`.
+
+## An edit typed while the save was out keeps the form open and dirty
+
+Online, `save()` waits up to 30 s for the server. An edit typed meanwhile was
+not sent; latched clean, the reload threw it away and the guard let the user
+leave without it. `GenericEditViewModel` counts `updateDraft` calls, and a save
+of an existing record that saw one after `performSave` leaves the form dirty
+(`editedDuringSave`); the scaffold then keeps that view model instead of
+reloading. A new record still latches clean: its form moves to the record's
+edit route either way. Test: `generic_edit_view_model_edited_during_save_test.dart`.
+
+## The reload keeps the scroll position
+
+The remount would put a long form back at the top. Just before it, the
+scaffold reads the pixels of every vertical scroll view under the form (a
+`GlobalKey` per generation) and, after the next frame, jumps the new ones back
+— only when the form has the same number of them, matched in tree order, so an
+offset never lands on a different list.
 
 ## A new record moves to its own edit route, under the real id once its create landed
 
@@ -104,9 +143,13 @@ number there when the draft's is blank (invoice, quote, credit, recurring
 invoice, purchase order, task, expense, recurring expense, project, client,
 vendor, payment). Only on a rebind: a blank number on a record the form opened
 with a number is the user clearing it, which does ask the server for a new
-one. Still open: an update queued *before* its record's create lands carries
-the blank number in its payload, and nothing fills it when the create's reply
-arrives.
+one.
+
+An update queued *before* its record's create lands (offline: create, stay,
+Save again) carries the blank number in its payload. When the create lands,
+`OutboxDao.rewriteTempIdInPayloads` — which rewrites the queued rows' `tmp_` id
+— also drops a blank `number` from such an update, so the server keeps the
+number the create got; a number the user typed is sent as is.
 
 ## Save is disabled on an unchanged existing record while the editor stays open
 
@@ -116,9 +159,15 @@ landed — and ⌘S / Enter on it do nothing (`disableSaveWhenClean`). A focused
 text input counts as a possible change: a date, time or notes field commits
 only on blur or Enter, so the Save button listens to focus changes and stays
 enabled while one is focused; pressing it unfocuses, flushes, and saves only if
-something changed. SAVE-PARAM actions never need a change.
+something changed — and, when nothing did, hands the focus back to the field.
+With no text field focused, ⌘S on a settled record leaves the focus alone. The
+scaffold listens to the controller, so a change in Device Settings reaches an
+editor already open. SAVE-PARAM actions never need a change.
 
 Tests: `test/ui/core/edit/entity_edit_screen_scaffold_after_saving_test.dart`,
 `test/app/after_saving_controller_test.dart`,
 `test/ui/core/list/go_after_entity_save_test.dart`,
-`test/data/repositories/number_kept_on_rebind_test.dart`.
+`test/data/repositories/number_kept_on_rebind_test.dart`,
+`test/ui/core/edit/generic_edit_view_model_edited_during_save_test.dart`,
+`test/ui/features/billing_shared/edit/reload_skips_one_shot_extras_test.dart`,
+`test/ui/features/billing_shared/edit/open_line_item_test.dart`.

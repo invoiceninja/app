@@ -1303,6 +1303,29 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
   /// otherwise the Outbox screen's Retry re-sends the stale tmp_ id and
   /// fails identically forever. `in_flight` rows stay untouched: their
   /// network attempt may be landing concurrently (TOCTOU).
+  /// An update queued before its record's create landed carries the blank
+  /// number the create was sent with. Sent as is, the server stores the blank
+  /// and then takes the NEXT number from the counter (`ApplyNumber::run`), so
+  /// the number the create just got is skipped. Without the key the server
+  /// keeps it (docs/after-saving.md). Only a blank one goes: a number the
+  /// user typed is theirs to send.
+  static String _withoutBlankNumber(String payload) {
+    final Object? decoded;
+    try {
+      decoded = jsonDecode(payload);
+    } on FormatException {
+      return payload;
+    }
+    if (decoded is! Map<String, dynamic> || !decoded.containsKey('number')) {
+      return payload;
+    }
+    final number = decoded['number'];
+    if (number != null && (number is! String || number.trim().isNotEmpty)) {
+      return payload;
+    }
+    return jsonEncode(decoded..remove('number'));
+  }
+
   Future<void> rewriteTempIdInPayloads({
     required String companyId,
     required String entityType,
@@ -1318,8 +1341,12 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
             ))
             .get();
     for (final row in rows) {
-      final newPayload = row.payload.replaceAll(tempId, realId);
+      var newPayload = row.payload.replaceAll(tempId, realId);
       final newEntityId = row.entityId == tempId ? realId : row.entityId;
+      if (row.entityId == tempId &&
+          row.mutationKind == MutationKind.update.wireName) {
+        newPayload = _withoutBlankNumber(newPayload);
+      }
       // A PENDING row that was deferred by the drain's tmp_-dependency guard
       // (nextAttemptAt parked +60s, lastError set) is now healed — make it
       // immediately eligible so the very next `nextReady` picks it up,

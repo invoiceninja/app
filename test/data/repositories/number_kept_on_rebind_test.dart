@@ -78,6 +78,34 @@ void main() {
       expect(payload['number'], '0042');
     });
 
+    test('an update queued before the create landed drops its blank number '
+        'when the create lands, so the server keeps the one it gave', () async {
+      final created = await repo.create(
+        companyId: 'co',
+        draft: Invoice.fromApi(const InvoiceApi(id: '', number: '')),
+      );
+      final tmpId = created.entity.id;
+      // Offline, the form stays open on the tmp_ record and saves again.
+      await repo.save(
+        companyId: 'co',
+        invoice: created.entity.copyWith(poNumber: 'PO-8'),
+      );
+
+      await repo.applyCreateResponse(
+        companyId: 'co',
+        tempId: tmpId,
+        serverResponse: const InvoiceApi(id: 'inv_9', number: '0044'),
+      );
+
+      final rows = await db.outboxDao.nextReady(companyId: 'co', now: 1 << 60);
+      final update = rows.singleWhere((r) => r.mutationKind == 'update');
+      expect(update.entityId, 'inv_9');
+      final payload = jsonDecode(update.payload) as Map<String, dynamic>;
+      expect(payload['id'], 'inv_9');
+      expect(payload['po_number'], 'PO-8');
+      expect(payload.containsKey('number'), isFalse);
+    });
+
     test('a number the user cleared on a saved invoice is sent blank — the '
         'server gives it a new one', () async {
       await repo.applyCreateResponse(

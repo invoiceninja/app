@@ -36,6 +36,21 @@ class VendorEditScreen extends StatelessWidget {
   /// record screen's Contacts card "+ Add" (`AddContactRequest`).
   final bool addContact;
 
+  VendorEditViewModel _buildVm(
+    BuildContext ctx,
+    Services services,
+    String companyId,
+    Vendor? existing,
+  ) => VendorEditViewModel(
+    repo: services.vendors,
+    companyId: companyId,
+    nameRequiredMessage: ctx.tr('please_enter_a_name'),
+    existing: existing,
+    cloneFrom: cloneFrom,
+    sync: services.sync,
+    connectivity: services.connectivity,
+  );
+
   @override
   Widget build(BuildContext context) {
     return EntityEditScreenScaffold<Vendor, VendorEditViewModel>(
@@ -44,19 +59,14 @@ class VendorEditScreen extends StatelessWidget {
       fetchExisting: (ctx, services, companyId, id) =>
           services.vendors.watch(companyId: companyId, id: id).first,
       buildVm: (ctx, services, companyId, existing) {
-        final vm = VendorEditViewModel(
-          repo: services.vendors,
-          companyId: companyId,
-          nameRequiredMessage: ctx.tr('please_enter_a_name'),
-          existing: existing,
-          cloneFrom: cloneFrom,
-          sync: services.sync,
-          connectivity: services.connectivity,
-        );
-        // Once per view model, which the scaffold builds once per screen.
+        final vm = _buildVm(ctx, services, companyId, existing);
+        // The record screen's "+ Add" contact, once: a stay-in-editor Save
+        // reloads through [reloadVm], which doesn't add another
+        // (docs/after-saving.md).
         if (addContact && existing != null) vm.addContact();
         return vm;
       },
+      reloadVm: _buildVm,
       titleWhileLoading: (ctx) =>
           existingId == null ? ctx.tr('new_vendor') : ctx.tr('edit'),
       titleBuilder: (ctx, vm) {

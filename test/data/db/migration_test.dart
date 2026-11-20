@@ -290,6 +290,9 @@ void main() {
         'tap_to_pay_announced',
         'kanban_json',
         'web_app_banner_dismissed',
+        'after_saving',
+        'appearance_synced_at',
+        'appearance_seeded',
       };
       for (final key in DevicePrefKeys.all) {
         if (addedAfterV12.contains(key.name)) {

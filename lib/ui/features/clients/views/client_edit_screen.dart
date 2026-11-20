@@ -36,6 +36,27 @@ class ClientEditScreen extends StatelessWidget {
   /// record screen's Contacts card "+ Add" (`AddContactRequest`).
   final bool addContact;
 
+  ClientEditViewModel _buildVm(
+    BuildContext ctx,
+    Services services,
+    String companyId,
+    Client? existing,
+  ) => ClientEditViewModel(
+    repo: services.clients,
+    companyId: companyId,
+    existing: existing,
+    cloneFrom:
+        cloneFrom ??
+        (existing == null
+            ? services.takeCreateDraft<Client>('/clients')
+            : null),
+    useCommaAsDecimalPlace:
+        services.formatterIfReady(companyId)?.settings.useCommaAsDecimalPlace ??
+        false,
+    sync: services.sync,
+    connectivity: services.connectivity,
+  );
+
   @override
   Widget build(BuildContext context) {
     return EntityEditScreenScaffold<Client, ClientEditViewModel>(
@@ -44,26 +65,12 @@ class ClientEditScreen extends StatelessWidget {
       fetchExisting: (ctx, services, companyId, id) =>
           services.clients.watch(companyId: companyId, id: id).first,
       buildVm: (ctx, services, companyId, existing) => _withRequestedContact(
-        ClientEditViewModel(
-          repo: services.clients,
-          companyId: companyId,
-          existing: existing,
-          cloneFrom:
-              cloneFrom ??
-              (existing == null
-                  ? services.takeCreateDraft<Client>('/clients')
-                  : null),
-          useCommaAsDecimalPlace:
-              services
-                  .formatterIfReady(companyId)
-                  ?.settings
-                  .useCommaAsDecimalPlace ??
-              false,
-          sync: services.sync,
-          connectivity: services.connectivity,
-        ),
+        _buildVm(ctx, services, companyId, existing),
         existing,
       ),
+      // A stay-in-editor Save reloads without the requested blank contact,
+      // which the saved record already settled (docs/after-saving.md).
+      reloadVm: _buildVm,
       titleWhileLoading: (ctx) =>
           existingId == null ? ctx.tr('new_client') : ctx.tr('edit'),
       titleBuilder: (ctx, vm) {
@@ -118,8 +125,8 @@ class ClientEditScreen extends StatelessWidget {
     );
   }
 
-  /// [vm], with the blank contact [addContact] asked for. Once per view
-  /// model, which the scaffold builds once per screen.
+  /// [vm], with the blank contact [addContact] asked for — once: a
+  /// stay-in-editor Save reloads through `reloadVm`, which skips it.
   ClientEditViewModel _withRequestedContact(
     ClientEditViewModel vm,
     Client? existing,

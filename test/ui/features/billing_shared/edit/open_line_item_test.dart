@@ -151,6 +151,51 @@ void main() {
     await unmount(tester, fixture);
   }, timeout: const Timeout(Duration(seconds: 60)));
 
+  testWidgets('the request is one-shot across a stay-in-editor Save: the '
+      'reloaded form opens no dialog and stays off Items', (tester) async {
+    // A stay-in-editor Save remounts the layout on a view model built from
+    // the stored record, carrying `formUiState` across
+    // (docs/after-saving.md); the route's request is still on the screen.
+    final (:fixture, :vm) = await mountQuote(
+      tester,
+      width: 390,
+      request: const OpenLineItemRequest(0),
+    );
+    await tester.tap(
+      find.descendant(of: find.byType(Dialog), matching: find.text('Cancel')),
+    );
+    await settle(tester);
+
+    final reloaded = QuoteEditViewModel(
+      repo: fixture.services.quotes,
+      companyId: kHarnessCompanyId,
+      clientRequiredMessage: '',
+      crossClientLineItemsMessage: '',
+      partialInvalidMessage: '',
+      cloneFrom: emptyQuote().copyWith(lineItems: lines),
+    )..formUiState.addAll(vm.formUiState);
+    addTearDown(reloaded.dispose);
+    await tester.pumpWidget(
+      wrapWithShell(
+        fixture.services,
+        QuoteEditLayout(
+          key: const ValueKey('reloaded'),
+          vm: reloaded,
+          showPdfTab: true,
+          openLineItem: const OpenLineItemRequest(0),
+        ),
+      ),
+    );
+    await settleWithQuery(tester);
+
+    expect(find.byType(Dialog), findsNothing);
+    // Like any strip mounted after the request was served, it opens on
+    // Details — not on Items, where the request had put it.
+    final strip = tester.widget<TabBar>(find.byType(TabBar).first);
+    expect(strip.controller!.index, 0);
+    await unmount(tester, fixture);
+  }, timeout: const Timeout(Duration(seconds: 60)));
+
   testWidgets('without a request the strip opens on Details, no dialog', (
     tester,
   ) async {

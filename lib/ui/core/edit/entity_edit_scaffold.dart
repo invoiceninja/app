@@ -239,6 +239,12 @@ class EntityEditScaffold<T> extends StatelessWidget {
     // fires each field's focus-loss commit; the FocusManager applies focus
     // changes on a microtask, so yield once before reading the draft.
     final focus = FocusManager.instance.primaryFocus;
+    if (skipIfClean) {
+      // Nothing to send and no text field that may hold an uncommitted
+      // edit: nothing happens — and the focus stays where it is.
+      vm.flushPendingEdits();
+      if (_settledClean() && !isTextInputFocused()) return null;
+    }
     if (focus != null && focus.context != null) {
       focus.unfocus();
       await Future<void>.delayed(Duration.zero);
@@ -246,9 +252,15 @@ class EntityEditScaffold<T> extends StatelessWidget {
     }
     if (skipIfClean) {
       // What blur committed is in the draft now; a debounced cell edit is
-      // committed here. Still nothing to send ⇒ nothing happens.
+      // committed here. Still nothing to send ⇒ nothing happens, and the
+      // field the user was in gets its focus back.
       vm.flushPendingEdits();
-      if (_settledClean()) return null;
+      if (_settledClean()) {
+        if (focus != null && focus.context != null && focus.canRequestFocus) {
+          focus.requestFocus();
+        }
+        return null;
+      }
     }
     final confirm = confirmSave;
     if (confirm != null) {

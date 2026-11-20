@@ -53,6 +53,97 @@ class InvoiceEditScreen extends StatelessWidget {
   /// [BillingDocEditLayout.openLineItem].
   final OpenLineItemRequest? openLineItem;
 
+  /// The form's view model — [handoff] is the "Add to invoice" draft the
+  /// route handed over, or null.
+  InvoiceEditViewModel _buildVm(
+    BuildContext ctx,
+    Services services,
+    String companyId,
+    Invoice? existing, {
+    required Invoice? handoff,
+  }) {
+    // Create-mode seed: a Client / Product / Project / clone "New Invoice"
+    // stages the draft on `Services` (the route `extra:`/query channel is
+    // dropped on the cross-branch jump and on create-screen reuse). The
+    // generation-keyed `/new` route recreates this screen on each stage, so
+    // `buildVm` re-reads the staged draft here.
+    // `isClone`: the draft copies an existing record (a clone, a
+    // cross-clone), which keeps its source's taxes.
+    final seed = handoff == null && existing == null
+        ? services.takeCreateSeed<Invoice>('/invoices')
+        : null;
+    final clone = handoff ?? seed?.draft;
+    final vm = InvoiceEditViewModel(
+      repo: services.invoices,
+      companyId: companyId,
+      clientRequiredMessage: ctx.tr('please_select_a_client'),
+      crossClientLineItemsMessage: ctx.tr('cross_client_line_items'),
+      partialInvalidMessage: ctx.tr('partial_value'),
+      dateOrderMessages: billingDateOrderMessages(ctx, BillingDocType.invoice),
+      existing: existing,
+      cloneFrom: clone,
+      useCommaAsDecimalPlace:
+          services
+              .formatterIfReady(companyId)
+              ?.settings
+              .useCommaAsDecimalPlace ??
+          false,
+      sync: services.sync,
+      connectivity: services.connectivity,
+    );
+    // When the staged draft carries a projectId but no client (the embedded
+    // Project → Invoices-tab "New", which only knows the project id),
+    // resolve the project's client so its contacts seed — same as picking
+    // the client in the dropdown. Actions that bake the clientId skip this.
+    // Deferred via postFrame so the scaffold's listeners are attached
+    // before notifyListeners fires (else a subwidget caching state on first
+    // mount — e.g. LineItemTableDesktop's _rows — misses the seed).
+    final seedProjectId =
+        (clone != null && clone.projectId.isNotEmpty && clone.clientId.isEmpty)
+        ? clone.projectId
+        : null;
+    if (seedProjectId != null && existing == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        unawaited(
+          services.projects
+              .watch(companyId: companyId, id: seedProjectId)
+              .first
+              .then((project) async {
+                if (project == null) return;
+                final client = await services.clients
+                    .watch(companyId: companyId, id: project.clientId)
+                    .first;
+                if (client != null) {
+                  vm.selectClient(client.id, client.contacts);
+                } else {
+                  vm.setClientId(project.clientId);
+                }
+              })
+              .catchError((Object _) {}),
+        );
+      });
+    }
+    // Seed contact invitations when the draft carries a client but no
+    // invitations yet — mirrors picking the client in the dropdown.
+    if (existing == null) {
+      seedClientInvitationsFromPrefill(
+        services: services,
+        companyId: companyId,
+        vm: vm,
+      );
+      // The inclusive-tax mode and default tax rates.
+      seedBillingCreateDefaults(
+        settings: services.settings,
+        companyId: companyId,
+        type: BillingDocType.invoice,
+        vm: vm,
+        taxFacts: BillingTaxFacts.of(services, companyId),
+        isClone: seed?.isClone ?? false,
+      );
+    }
+    return vm;
+  }
+
   @override
   Widget build(BuildContext context) {
     // ONE width read, threaded into BOTH halves below.
@@ -116,93 +207,13 @@ class InvoiceEditScreen extends StatelessWidget {
         }
         return invoice;
       },
-      buildVm: (ctx, services, companyId, existing) {
-        // Create-mode seed: a Client / Product / Project / clone "New Invoice"
-        // stages the draft on `Services` (the route `extra:`/query channel is
-        // dropped on the cross-branch jump and on create-screen reuse). The
-        // generation-keyed `/new` route recreates this screen on each stage, so
-        // `buildVm` re-reads the staged draft here.
-        // `isClone`: the draft copies an existing record (a clone, a
-        // cross-clone), which keeps its source's taxes.
-        final seed = cloneFrom == null && existing == null
-            ? services.takeCreateSeed<Invoice>('/invoices')
-            : null;
-        final clone = cloneFrom ?? seed?.draft;
-        final vm = InvoiceEditViewModel(
-          repo: services.invoices,
-          companyId: companyId,
-          clientRequiredMessage: ctx.tr('please_select_a_client'),
-          crossClientLineItemsMessage: ctx.tr('cross_client_line_items'),
-          partialInvalidMessage: ctx.tr('partial_value'),
-          dateOrderMessages: billingDateOrderMessages(
-            ctx,
-            BillingDocType.invoice,
-          ),
-          existing: existing,
-          cloneFrom: clone,
-          useCommaAsDecimalPlace:
-              services
-                  .formatterIfReady(companyId)
-                  ?.settings
-                  .useCommaAsDecimalPlace ??
-              false,
-          sync: services.sync,
-          connectivity: services.connectivity,
-        );
-        // When the staged draft carries a projectId but no client (the embedded
-        // Project → Invoices-tab "New", which only knows the project id),
-        // resolve the project's client so its contacts seed — same as picking
-        // the client in the dropdown. Actions that bake the clientId skip this.
-        // Deferred via postFrame so the scaffold's listeners are attached
-        // before notifyListeners fires (else a subwidget caching state on first
-        // mount — e.g. LineItemTableDesktop's _rows — misses the seed).
-        final seedProjectId =
-            (clone != null &&
-                clone.projectId.isNotEmpty &&
-                clone.clientId.isEmpty)
-            ? clone.projectId
-            : null;
-        if (seedProjectId != null && existing == null) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            unawaited(
-              services.projects
-                  .watch(companyId: companyId, id: seedProjectId)
-                  .first
-                  .then((project) async {
-                    if (project == null) return;
-                    final client = await services.clients
-                        .watch(companyId: companyId, id: project.clientId)
-                        .first;
-                    if (client != null) {
-                      vm.selectClient(client.id, client.contacts);
-                    } else {
-                      vm.setClientId(project.clientId);
-                    }
-                  })
-                  .catchError((Object _) {}),
-            );
-          });
-        }
-        // Seed contact invitations when the draft carries a client but no
-        // invitations yet — mirrors picking the client in the dropdown.
-        if (existing == null) {
-          seedClientInvitationsFromPrefill(
-            services: services,
-            companyId: companyId,
-            vm: vm,
-          );
-          // The inclusive-tax mode and default tax rates.
-          seedBillingCreateDefaults(
-            settings: services.settings,
-            companyId: companyId,
-            type: BillingDocType.invoice,
-            vm: vm,
-            taxFacts: BillingTaxFacts.of(services, companyId),
-            isClone: seed?.isClone ?? false,
-          );
-        }
-        return vm;
-      },
+      buildVm: (ctx, services, companyId, existing) =>
+          _buildVm(ctx, services, companyId, existing, handoff: cloneFrom),
+      // A stay-in-editor Save reloads without the route's one-shot "Add to
+      // invoice" draft: the record it saved already holds it
+      // (docs/after-saving.md).
+      reloadVm: (ctx, services, companyId, existing) =>
+          _buildVm(ctx, services, companyId, existing, handoff: null),
       titleWhileLoading: (ctx) =>
           existingId == null ? ctx.tr('new_invoice') : ctx.tr('edit'),
       // Title · status · Unsaved on a wide header.

@@ -96,6 +96,12 @@ class _Vm extends GenericEditViewModel<_Rec> {
 
   int saves = 0;
 
+  /// Stands in for an edit made while the save waited on the server.
+  bool editedWhileSaving = false;
+
+  @override
+  bool get editedDuringSave => editedWhileSaving;
+
   void setName(String v) => updateDraft(_Rec(draft.id, v));
 
   @override
@@ -118,6 +124,7 @@ void main() {
   /// form opened with, a second one is the reload after a Save.
   late List<_Vm> built;
   late int fetches;
+  late AfterSavingController afterSaving;
 
   Future<GoRouter> pump(
     WidgetTester tester, {
@@ -125,6 +132,8 @@ void main() {
     String initial = '/clients/c1/edit',
     _Rec stored = const _Rec('c1', 'Acme'),
     Future<bool> Function(_Rec saved)? canKeepEditing,
+    Widget Function(_Vm vm)? body,
+    void Function(_Vm vm)? onBuilt,
   }) async {
     built = [];
     fetches = 0;
@@ -143,6 +152,7 @@ void main() {
           buildVm: (_, _, _, existing) {
             final vm = _Vm(existing);
             built.add(vm);
+            onBuilt?.call(vm);
             return vm;
           },
           canKeepEditing: canKeepEditing == null
@@ -151,6 +161,7 @@ void main() {
           titleBuilder: (_, _) => 'Client',
           titleWhileLoading: (_) => 'Client',
           bodyBuilder: (_, vm) =>
+              body?.call(vm as _Vm) ??
               Text('name ${vm.draft.name}', key: const ValueKey('body')),
           resetToEmpty: (_) {},
           entityIdOf: (draft) => draft.id,
@@ -204,7 +215,7 @@ void main() {
       ],
     );
     addTearDown(router.dispose);
-    final afterSaving = AfterSavingController(
+    afterSaving = AfterSavingController(
       prefs: prefsWith({DevicePrefKeys.afterSaving: stay}),
     );
     addTearDown(afterSaving.dispose);
@@ -383,6 +394,89 @@ void main() {
       await tester.pump();
       expect(focus.hasPrimaryFocus, isTrue);
       expect(saveEnabled(tester), isTrue);
+    });
+  });
+
+  group('Edit Record, the reload', () {
+    testWidgets('an edit made while the save was out is kept: no reload, the '
+        'form stays dirty', (tester) async {
+      final router = await pump(
+        tester,
+        stay: true,
+        onBuilt: (vm) => vm.editedWhileSaving = true,
+      );
+      built.single.setName('Acme Inc');
+      await tester.pump();
+      await tapSave(tester);
+
+      expect(pathOf(router), '/clients/c1/edit');
+      expect(fetches, 1, reason: 'a reload would throw the edit away');
+      expect(built, hasLength(1));
+    });
+
+    testWidgets('keeps the scroll position', (tester) async {
+      await pump(
+        tester,
+        stay: true,
+        body: (vm) => ListView(
+          key: const ValueKey('body'),
+          children: [
+            for (var i = 0; i < 100; i++)
+              SizedBox(height: 50, child: Text('row $i')),
+          ],
+        ),
+      );
+      tester
+          .state<ScrollableState>(find.byType(Scrollable).last)
+          .position
+          .jumpTo(1200);
+      await tester.pump();
+      built.single.setName('Acme Inc');
+      await tester.pump();
+      await tapSave(tester);
+
+      expect(built, hasLength(2), reason: 'reloaded');
+      expect(
+        tester
+            .state<ScrollableState>(find.byType(Scrollable).last)
+            .position
+            .pixels,
+        1200,
+      );
+    });
+
+    testWidgets('Enter on an unchanged record keeps the focus in its field', (
+      tester,
+    ) async {
+      final focus = FocusNode();
+      addTearDown(focus.dispose);
+      await pump(
+        tester,
+        stay: true,
+        body: (vm) => Material(
+          key: const ValueKey('body'),
+          child: TextField(focusNode: focus),
+        ),
+      );
+      focus.requestFocus();
+      await tester.pump();
+      final form = tester.element(find.byKey(const ValueKey('body')));
+      FormSaveScope.maybeOf(form)!.trySubmit();
+      await tester.pumpAndSettle();
+
+      expect(built.single.saves, 0);
+      expect(focus.hasPrimaryFocus, isTrue);
+    });
+
+    testWidgets('a change in Device Settings reaches an editor already open', (
+      tester,
+    ) async {
+      await pump(tester, stay: true);
+      expect(saveEnabled(tester), isFalse);
+
+      await afterSaving.set(false, isPhone: false);
+      await tester.pump();
+      expect(saveEnabled(tester), isTrue, reason: 'View Record never disables');
     });
   });
 

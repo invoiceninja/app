@@ -173,6 +173,18 @@ abstract class GenericEditViewModel<T> extends ChangeNotifier {
 
   bool _lastSaveWasDiscarded = false;
 
+  /// Counts [updateDraft] calls, so [save] can tell an edit made while it
+  /// waited on the server.
+  int _draftEdits = 0;
+
+  bool _editedDuringSave = false;
+
+  /// True when the last successful save of an existing record saw the draft
+  /// change while it waited on the server (up to the online timeout): the
+  /// form stays dirty with that edit, and a stay-in-editor Save keeps this
+  /// view model rather than reloading over it (docs/after-saving.md).
+  bool get editedDuringSave => _editedDuringSave;
+
   /// True when the most recent `save()` returned null because its outbox row
   /// was discarded (from the Outbox, or by a discarded parent's cascade) while
   /// the online wait was polling it: nothing was saved, and the draft is kept
@@ -682,6 +694,7 @@ abstract class GenericEditViewModel<T> extends ChangeNotifier {
   @protected
   void updateDraft(T next) {
     _draft = next;
+    _draftEdits++;
     // A fresh edit after a save re-arms the dirty/guard machinery.
     _savedClean = false;
     notifyListeners();
@@ -890,6 +903,7 @@ abstract class GenericEditViewModel<T> extends ChangeNotifier {
     _localValidationOnly = false;
     _lastSaveWasOptimistic = false;
     _lastSaveWasDiscarded = false;
+    _editedDuringSave = false;
     _clearUnconfirmedState();
     // Note: `_deadOutboxRowId` deliberately survives `save()` entry — the
     // screen's `onSaved` callback reads it to delete the prior dead row
@@ -918,6 +932,9 @@ abstract class GenericEditViewModel<T> extends ChangeNotifier {
           ? List<UploadSource>.of(_documents)
           : null;
       final result = await performSave();
+      // Edits from here on were made while this save was out; what it sent
+      // was the draft as it stood.
+      final editsAtSend = _draftEdits;
       awaitedRowId = result.outboxRowId;
       if (createsHere) {
         await _queueDocumentUploads(
@@ -992,7 +1009,12 @@ abstract class GenericEditViewModel<T> extends ChangeNotifier {
       // (the dispatcher will applyCreateResponse → remap to a real id), or
       // we hit timeout and the still-pending row carries the same tmp id
       // (background drain handles its own remap).
-      _savedClean = true;
+      //
+      // An edit made while the save was out is not saved: an existing
+      // record's form stays dirty with it. A new record's form is left for
+      // the record's own route either way, so it latches clean as before.
+      _editedDuringSave = !isCreate && _draftEdits != editsAtSend;
+      _savedClean = !_editedDuringSave;
       _recoveryTempId = null;
       _recreate = false;
       _failedAttemptRowId = null;

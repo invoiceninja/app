@@ -5,6 +5,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import 'package:admin/app/after_saving_controller.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/data/db/app_database.dart';
 import 'package:admin/l10n/localization.dart';
@@ -64,6 +65,7 @@ class EntityEditScreenScaffold<T, VM extends GenericEditViewModel<T>>
     this.onSaved,
     this.basePath,
     this.canKeepEditing,
+    this.reloadVm,
     required this.entityIdOf,
     this.canSave,
     this.embedded = false,
@@ -149,6 +151,19 @@ class EntityEditScreenScaffold<T, VM extends GenericEditViewModel<T>>
   )?
   canKeepEditing;
 
+  /// Builds the view model a stay-in-editor Save reloads into — [buildVm]
+  /// without the route's one-shot extras (an "Add to invoice" draft, a
+  /// requested blank contact), which the record just saved already settled.
+  /// Null ⇒ [buildVm], for a screen whose edit route carries none
+  /// (docs/after-saving.md).
+  final VM Function(
+    BuildContext context,
+    Services services,
+    String companyId,
+    T existing,
+  )?
+  reloadVm;
+
   /// Optional Save-button gate. Defaults to `!vm.isSaving`.
   final bool Function(VM vm)? canSave;
 
@@ -217,6 +232,11 @@ class _EntityEditScreenScaffoldState<T, VM extends GenericEditViewModel<T>>
   /// the stored record: the form below remounts on it, so no field or tab
   /// keeps state seeded from the view model it replaced.
   int _generation = 0;
+
+  /// The form subtree of the current [_generation] — read for its scroll
+  /// offsets just before a reload remounts it. A fresh key per generation:
+  /// one key kept across would reparent the old subtree instead.
+  GlobalKey _formKey = GlobalKey();
   bool _ready = false;
   bool _bootstrapped = false;
   bool _notFound = false;
@@ -551,13 +571,70 @@ class _EntityEditScreenScaffoldState<T, VM extends GenericEditViewModel<T>>
     // (Expense Category and Payment Link could not be created OR edited at
     // all), and made the back-swipe / predictive-back discard guard dead code.
     // The sibling settings scaffolds already do exactly this.
+    // "After Saving" decides whether Save is disabled on a settled record,
+    // so a change in Device Settings reaches an editor already open.
+    final afterSaving = context.read<AfterSavingController?>();
     return KeyedSubtree(
       key: ValueKey(_generation),
-      child: ListenableBuilder(
-        listenable: vm,
-        builder: (context, _) => _scaffold(context, vm),
+      child: KeyedSubtree(
+        key: _formKey,
+        child: ListenableBuilder(
+          listenable: afterSaving == null
+              ? vm
+              : Listenable.merge([vm, afterSaving]),
+          builder: (context, _) => _scaffold(context, vm),
+        ),
       ),
     );
+  }
+
+  /// The pixels of every vertical scroll view under [root], in tree order.
+  static List<double> _verticalScrollOffsets(BuildContext? root) {
+    final out = <double>[];
+    if (root == null) return out;
+    void visit(Element element) {
+      if (element is StatefulElement && element.state is ScrollableState) {
+        final position = (element.state as ScrollableState).position;
+        if (position.axis == Axis.vertical && position.hasPixels) {
+          out.add(position.pixels);
+        }
+      }
+      element.visitChildren(visit);
+    }
+
+    (root as Element).visitChildren(visit);
+    return out;
+  }
+
+  /// Put the remounted form back where it was scrolled to — only when it has
+  /// the same vertical scroll views it had, matched in tree order, so an
+  /// offset never lands on a different list.
+  void _restoreScrollOffsets(List<double> offsets) {
+    if (offsets.every((o) => o == 0)) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final root = _formKey.currentContext;
+      if (!mounted || root == null) return;
+      final positions = <ScrollPosition>[];
+      void visit(Element element) {
+        if (element is StatefulElement && element.state is ScrollableState) {
+          final position = (element.state as ScrollableState).position;
+          if (position.axis == Axis.vertical && position.hasPixels) {
+            positions.add(position);
+          }
+        }
+        element.visitChildren(visit);
+      }
+
+      (root as Element).visitChildren(visit);
+      if (positions.length != offsets.length) return;
+      for (var i = 0; i < offsets.length; i++) {
+        final position = positions[i];
+        if (!position.hasContentDimensions) continue;
+        position.jumpTo(
+          offsets[i].clamp(position.minScrollExtent, position.maxScrollExtent),
+        );
+      }
+    });
   }
 
   /// Leave for the record, as every save did before "After Saving".
@@ -586,6 +663,9 @@ class _EntityEditScreenScaffoldState<T, VM extends GenericEditViewModel<T>>
     if (!context.mounted) return;
     final existingId = widget.existingId;
     if (existingId != null) {
+      // An edit made while the save was out is still only in this form,
+      // which stays dirty with it: a reload would throw it away.
+      if (vm.editedDuringSave) return;
       if (!await _reloadAfterSave(services, vm, existingId) &&
           context.mounted) {
         _leaveForRecord(context, vm, saved);
@@ -632,12 +712,20 @@ class _EntityEditScreenScaffoldState<T, VM extends GenericEditViewModel<T>>
       existingId,
     );
     if (!mounted || fresh == null || !identical(_vm, old)) return false;
-    final next = widget.buildVm(context, services, _companyId, fresh);
+    final next = (widget.reloadVm ?? widget.buildVm)(
+      context,
+      services,
+      _companyId,
+      fresh,
+    );
     next.formUiState.addAll(old.formUiState);
+    final offsets = _verticalScrollOffsets(_formKey.currentContext);
     setState(() {
       _vm = next;
       _generation++;
+      _formKey = GlobalKey();
     });
+    _restoreScrollOffsets(offsets);
     // After the frame that unmounts the form bound to it.
     WidgetsBinding.instance.addPostFrameCallback((_) => old.dispose());
     await _hydrateFailedSync(services, _companyId, existingId);
