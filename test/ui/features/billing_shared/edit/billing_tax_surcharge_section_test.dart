@@ -3,8 +3,10 @@
 // document carries it or "+ Add tax" opens it, up to the company's
 // `enabled_tax_rates`. The section used to be latched on the FIRST build —
 // which on a new document ran before the company row arrived — so a company
-// with document taxes enabled got no card at all: and with it no
-// inclusive-tax switch, which lives nowhere else.
+// with document taxes enabled got no card at all. The inclusive-tax switch
+// is not in this card: it is on the document's Settings tab, as in React
+// (beta feedback — a US user never changes it, and it was a full-width row
+// beside the totals).
 
 import 'package:decimal/decimal.dart';
 import 'package:drift/drift.dart' show Value;
@@ -42,7 +44,6 @@ void main() {
   }
 
   Widget section({
-    bool inclusive = false,
     bool comma = false,
     String name1 = '',
     Decimal? rate1,
@@ -61,8 +62,6 @@ void main() {
       for (var i = 1; i < 3; i++)
         (name: '', rate: Decimal.zero, onName: (_) {}, onRate: (_) {}),
     ],
-    usesInclusiveTaxes: inclusive,
-    onInclusiveChanged: (_) {},
     surcharges: [
       for (var i = 0; i < 4; i++) (amount: Decimal.zero, onAmount: (_) {}),
     ],
@@ -84,7 +83,7 @@ void main() {
     await tester.pumpWidget(wrapWithShell(fixture.services, section()));
     await settle(tester);
     expect(tiers(tester), 0, reason: 'no empty tier waits on the document');
-    expect(inclusiveSwitch(), findsOneWidget);
+    expect(inclusiveSwitch(), findsNothing, reason: 'on the Settings tab');
 
     await tester.tap(addTax());
     await settle(tester);
@@ -103,7 +102,6 @@ void main() {
     await tester.pumpWidget(wrapWithShell(fixture.services, section()));
     await settle(tester);
     expect(addTax(), findsNothing);
-    expect(inclusiveSwitch(), findsOneWidget, reason: 'the lines are taxed');
     await unmount(tester, fixture);
   });
 
@@ -144,30 +142,10 @@ void main() {
     await unmount(tester, fixture);
   });
 
-  testWidgets('keeps the inclusive switch while it means something', (
-    tester,
-  ) async {
-    final fixture = await fixtureWith(tester, enabledItemTaxRates: 1);
-    await tester.pumpWidget(wrapWithShell(fixture.services, section()));
-    await settle(tester);
-    expect(inclusiveSwitch(), findsOneWidget, reason: 'the lines are taxed');
-    await unmount(tester, fixture);
-  });
-
-  testWidgets('keeps the inclusive switch on an inclusive document', (
-    tester,
-  ) async {
-    final fixture = await fixtureWith(tester);
-    await tester.pumpWidget(
-      wrapWithShell(fixture.services, section(inclusive: true)),
-    );
-    await settle(tester);
-    expect(inclusiveSwitch(), findsOneWidget);
-    await unmount(tester, fixture);
-  });
-
   testWidgets('collapses when nothing in it applies', (tester) async {
-    final fixture = await fixtureWith(tester);
+    // Taxed lines no longer keep the card up: the switch they kept it up
+    // for moved to the Settings tab.
+    final fixture = await fixtureWith(tester, enabledItemTaxRates: 1);
     await tester.pumpWidget(wrapWithShell(fixture.services, section()));
     await settle(tester);
     expect(inclusiveSwitch(), findsNothing);

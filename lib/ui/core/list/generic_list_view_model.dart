@@ -526,6 +526,36 @@ abstract class GenericListViewModel<T> extends ChangeNotifier {
   Map<String, Set<String>> _extraFilters = const {};
   Map<String, Set<String>> get extraFilters => _extraFilters;
 
+  /// What scopes this list to the record it is embedded in (a client's
+  /// Invoices tab: `{'client_id': {clientId}}`), written as the **standalone**
+  /// list's own filter key writes it, so it lands there as a removable chip.
+  /// Empty — the default, and a standalone list — means no parent scope this
+  /// list can hand over.
+  ///
+  /// A subclass with a `clientId` / `vendorId` constructor scope overrides
+  /// this; one whose scope has no matching standalone filter key (a project's
+  /// tasks: the key is `project_tasks`, a different query) leaves it empty and
+  /// its rows open the record over the company-wide list, as before.
+  Map<String, Set<String>> get parentScopeFilters => const {};
+
+  /// The filter state an embedded row hands the standalone list when it opens
+  /// a record there: what this tab shows, plus [parentScopeFilters]. Beta
+  /// feedback (2026-11-20): a client's Invoices tab opened a row as a pane
+  /// over *every* invoice, so finding one of that client's old invoices took a
+  /// round trip back to the client per row. Null when there is no parent
+  /// scope to carry — the old behavior, and the user's own standalone filters
+  /// stay untouched.
+  ListFilterIntent? standaloneIntent() {
+    final scope = parentScopeFilters;
+    if (scope.isEmpty) return null;
+    return ListFilterIntent(
+      extraFilters: {..._extraFilters, ...scope},
+      states: _states,
+      sortField: sortField,
+      sortAscending: _sortAscending,
+    );
+  }
+
   /// The status tab the list is currently narrowed to — a
   /// [SidebarBadgeMode.id] — or null for `All`.
   ///

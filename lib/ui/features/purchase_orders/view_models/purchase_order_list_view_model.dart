@@ -71,6 +71,14 @@ class PurchaseOrderListViewModel extends GenericListViewModel<PurchaseOrder> {
       isSortableColumnId(purchaseOrderColumnsById, field) ||
       field == PurchaseOrderFieldIds.updatedAt;
 
+  /// A vendor's tab hands the standalone list its `vendor:` chip
+  /// (`PurchaseOrderVendorFilterKey`), so a row opens over that vendor's
+  /// purchase orders.
+  @override
+  Map<String, Set<String>> get parentScopeFilters => {
+    if (vendorId != null) 'vendor_id': {vendorId!},
+  };
+
   @override
   String idOf(PurchaseOrder item) => item.id;
 

@@ -75,6 +75,13 @@ class QuoteListViewModel extends GenericListViewModel<Quote> {
       isSortableColumnId(quoteColumnsById, field) ||
       field == QuoteFieldIds.updatedAt;
 
+  /// A client's tab hands the standalone list its `client:` chip
+  /// (`ClientFilterKey`), so a row opens over that client's records.
+  @override
+  Map<String, Set<String>> get parentScopeFilters => {
+    if (clientId != null) 'client_id': {clientId!},
+  };
+
   @override
   String idOf(Quote item) => item.id;
 

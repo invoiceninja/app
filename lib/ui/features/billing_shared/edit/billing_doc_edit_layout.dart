@@ -1445,6 +1445,8 @@ Widget _settings(
     onVendorChanged: vm.setVendorId,
     exchangeRate: d.exchangeRate.toString(),
     onExchangeRateChanged: vm.setExchangeRate,
+    usesInclusiveTaxes: d.usesInclusiveTaxes,
+    onInclusiveTaxesChanged: vm.setUsesInclusiveTaxes,
     autoBillEnabled: slots.autoBillEnabled?.call(),
     onAutoBillEnabledChanged: slots.onAutoBillEnabledChanged,
     // The vendor is a vendor document's own party, picked on its Details.
@@ -1639,8 +1641,8 @@ class _PdfPaneDesktop<T extends BillingDocFields> extends StatelessWidget {
   }
 }
 
-/// Document-level tax tiers + custom surcharges + inclusive-tax toggle.
-/// Self-collapses when the company has no enabled tax rates and no surcharge
+/// Document-level tax tiers + custom surcharges (the inclusive-tax switch is
+/// on the Settings tab). Self-collapses when the company has no enabled tax rates and no surcharge
 /// labels configured (so it adds no chrome when unused).
 class _TaxSurchargeSection<T extends BillingDocFields> extends StatelessWidget {
   const _TaxSurchargeSection({required this.vm, this.framed = true});
@@ -1676,8 +1678,6 @@ class _TaxSurchargeSection<T extends BillingDocFields> extends StatelessWidget {
           onRate: vm.setTaxRate3,
         ),
       ],
-      usesInclusiveTaxes: d.usesInclusiveTaxes,
-      onInclusiveChanged: vm.setUsesInclusiveTaxes,
       surcharges: [
         (amount: d.customSurcharge1, onAmount: vm.setCustomSurcharge1),
         (amount: d.customSurcharge2, onAmount: vm.setCustomSurcharge2),

@@ -27,12 +27,13 @@ typedef TaxRowSpec = ({
 /// slot is shown come from the company's `customFields['surcharge{n}']`.
 typedef SurchargeSpec = ({Decimal amount, ValueChanged<String> onAmount});
 
-/// Document-level **tax** + **custom surcharge** + **inclusive-tax** editor,
+/// Document-level **tax** + **custom surcharge** editor,
 /// shared by every billing-doc edit screen (Invoice / Quote / Credit / PO /
 /// RecurringInvoice). These inputs previously had no UI at all — the setters
 /// and serialization existed but nothing called them, so a user could not
-/// apply a document tax rate, set a surcharge, or toggle inclusive taxes
-/// (React exposes all of these in `InvoiceTotals`).
+/// apply a document tax rate or set a surcharge (React exposes both in
+/// `InvoiceTotals`; its inclusive-tax switch is on the Settings tab, and so
+/// is ours).
 ///
 /// Tax tiers show as the document fills them: one per tier it already
 /// carries, and "+ Add tax" opens the next — up to the company's
@@ -51,8 +52,6 @@ class BillingTaxSurchargeSection extends StatefulWidget {
     required this.companyId,
     this.useCommaAsDecimalPlace = false,
     required this.taxRows,
-    required this.usesInclusiveTaxes,
-    required this.onInclusiveChanged,
     required this.surcharges,
     this.framed = true,
     super.key,
@@ -74,9 +73,6 @@ class BillingTaxSurchargeSection extends StatefulWidget {
   /// Exactly three tiers (taxName/taxRate 1–3); the widget shows as many as
   /// the company enables (plus any already populated, plus "Add tax").
   final List<TaxRowSpec> taxRows;
-
-  final bool usesInclusiveTaxes;
-  final ValueChanged<bool> onInclusiveChanged;
 
   /// Exactly four surcharge slots (customSurcharge 1–4), shown only when the
   /// matching company custom-field label is set.
@@ -214,14 +210,6 @@ class _BillingTaxSurchargeSectionState
             ),
           );
         }
-        children.add(
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            title: Text(context.tr('inclusive_taxes')),
-            value: widget.usesInclusiveTaxes,
-            onChanged: widget.onInclusiveChanged,
-          ),
-        );
         for (final entry in surchargeLabels.entries) {
           children.add(
             Padding(
@@ -242,17 +230,11 @@ class _BillingTaxSurchargeSectionState
         }
 
         // Nothing to show (no enabled taxes, none populated, no surcharge
-        // labels) → collapse entirely rather than render a lone toggle. Not
-        // while the inclusive-tax switch means something: the lines are
-        // taxed (`enabled_item_tax_rates`), or the document is inclusive —
-        // this card is the only place that switch lives.
-        final inclusiveMatters =
-            (company?.enabledItemTaxRates ?? 0) > 0 ||
-            widget.usesInclusiveTaxes;
-        if (visible == 0 &&
-            companyEnabled == 0 &&
-            surchargeLabels.isEmpty &&
-            !inclusiveMatters) {
+        // labels) → collapse entirely. The inclusive-tax switch is not here:
+        // it is on the document's Settings tab, as in React (beta feedback —
+        // seeded from the company's `inclusive_taxes`, it rarely changes and
+        // was a full-width row beside the totals).
+        if (visible == 0 && companyEnabled == 0 && surchargeLabels.isEmpty) {
           return const SizedBox.shrink();
         }
 

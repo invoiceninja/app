@@ -77,6 +77,17 @@ class ExpenseListViewModel extends GenericListViewModel<Expense> {
       isSortableColumnId(expenseColumnsById, field) ||
       field == ExpenseFieldIds.updatedAt;
 
+  /// A client's or vendor's tab hands the standalone list its `client:` /
+  /// `vendor:` chip (`ClientFilterKey`, `ExpenseVendorFilterKey` —
+  /// `vendor_ids`, not the fetch's `vendor_id`), so a row opens over that
+  /// party's expenses. A project's tab hands nothing: its chip and its fetch
+  /// key differ in shape too, and a project tab already reaches its rows.
+  @override
+  Map<String, Set<String>> get parentScopeFilters => {
+    if (clientId != null) 'client_id': {clientId!},
+    if (vendorId != null) 'vendor_ids': {vendorId!},
+  };
+
   @override
   String idOf(Expense item) => item.id;
 

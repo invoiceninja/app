@@ -13,6 +13,7 @@ import 'package:admin/domain/entity_type.dart';
 import 'package:admin/domain/quick_create.dart' show mayCreateEntity;
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/adaptive.dart';
+import 'package:admin/ui/core/list/embedded_list_scope.dart';
 import 'package:admin/ui/core/list/master_detail_layout.dart';
 import 'package:admin/ui/features/activity/views/activity_screen.dart';
 import 'package:admin/ui/features/auth/views/client_too_old_screen.dart';
@@ -623,6 +624,11 @@ String? highlightSelectedIdFromRoute(BuildContext context) {
 /// fall back to `/:id/edit` so the route is never dead. Never appends
 /// `?view`.
 ///
+/// From a row of a list embedded in a record's tab, the jump carries that
+/// tab's scope as a [ListFilterIntent] (`EmbeddedListScope.rowIntentOf`), so
+/// the list the record opens over is the client's invoices — not every
+/// invoice in the company (beta feedback, 2026-11-20).
+///
 /// Not for `EntityType.transactionRule` — that entity is owned by the
 /// settings router with no `MasterDetailLayout`; its list keeps a raw
 /// `context.go`.
@@ -635,6 +641,7 @@ void goEntityRecord(BuildContext context, EntityType type, String id) {
       id: id,
       hasDetailScreen: handlers.detailBuilder != null,
     ),
+    extra: EmbeddedListScope.rowIntentOf(context, type),
   );
 }
 

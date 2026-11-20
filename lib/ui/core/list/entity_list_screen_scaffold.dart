@@ -1035,7 +1035,15 @@ class _EntityListScreenScaffoldState<T, VM extends GenericListViewModel<T>>
   /// cross-branch jump, and when the list is already mounted in the
   /// master-detail shell (same-route navigation reuses this State). The
   /// VM's per-token guard makes repeat reads of the same intent a no-op.
+  ///
+  /// Never by an embedded list: the route's intent is addressed to the
+  /// standalone list the record opens over. A row opened from a client's
+  /// Projects tab carries `client_id` + that tab's states and sort, and the
+  /// project's own Tasks / Invoices / Expenses tabs on the same route would
+  /// each adopt it. A record screen filters its tabs through
+  /// `EmbeddedListIntents` instead.
   void _maybeApplyListIntent(BuildContext context) {
+    if (widget.embedded) return;
     Object? extra;
     try {
       extra = routerStateOf(context).extra;
@@ -1534,7 +1542,12 @@ class _EntityListScreenScaffoldState<T, VM extends GenericListViewModel<T>>
                   // money cells resolve the per-client/vendor currency cascade
                   // (`cellMoney` / `PartyCurrencyBuilder` read it via
                   // FormatterScope) — the standalone path wraps the same way.
+                  // …and so a row tap opens its record over the standalone
+                  // list narrowed to this tab's rows, not over every record
+                  // in the company (beta feedback, 2026-11-20).
                   EmbeddedListScope(
+                    entityType: _vm.entityType,
+                    standaloneIntent: _vm.standaloneIntent,
                     child: () {
                       final body = _bodyWithBanner(
                         context,

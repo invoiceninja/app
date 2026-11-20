@@ -16,8 +16,8 @@ import 'package:admin/ui/features/billing_shared/edit/billing_edit_field_decorat
 
 /// The bottom-notes "Settings" tab shared by every billing-doc edit
 /// screen. Mirrors the old admin-portal Settings tab: Design / Project
-/// / Exchange Rate on the left, User / Vendor / Auto Bill on the
-/// right. VM-agnostic — the host passes the current values + setters.
+/// / Exchange Rate on the left, User / Vendor / Auto Bill / Inclusive
+/// Taxes on the right. VM-agnostic — the host passes the current values + setters.
 class BillingDocSettingsTab extends StatelessWidget {
   const BillingDocSettingsTab({
     super.key,
@@ -35,6 +35,8 @@ class BillingDocSettingsTab extends StatelessWidget {
     required this.onVendorChanged,
     required this.exchangeRate,
     required this.onExchangeRateChanged,
+    required this.usesInclusiveTaxes,
+    required this.onInclusiveTaxesChanged,
     this.autoBillEnabled,
     this.onAutoBillEnabledChanged,
     this.showVendor = true,
@@ -54,6 +56,13 @@ class BillingDocSettingsTab extends StatelessWidget {
   final ValueChanged<String> onVendorChanged;
   final String exchangeRate;
   final ValueChanged<String> onExchangeRateChanged;
+
+  /// The document's `uses_inclusive_taxes`. It lives here, with React's, and
+  /// not beside the tax pickers: a new document is seeded from the company's
+  /// `inclusive_taxes` setting, so for most users it never changes, and on
+  /// the totals card it was a full-width row of noise (beta feedback).
+  final bool usesInclusiveTaxes;
+  final ValueChanged<bool> onInclusiveTaxesChanged;
 
   /// Auto Bill applies to invoices + recurring invoices only. Null for
   /// quotes / credits / purchase orders → the toggle is hidden.
@@ -180,6 +189,16 @@ class BillingDocSettingsTab extends StatelessWidget {
       ),
     );
 
+    final inclusiveTaxes = SwitchListTile(
+      contentPadding: EdgeInsets.zero,
+      title: Text(
+        context.tr('inclusive_taxes'),
+        style: TextStyle(color: tokens.ink, fontSize: 14),
+      ),
+      value: usesInclusiveTaxes,
+      onChanged: onInclusiveTaxesChanged,
+    );
+
     final autoBill = onAutoBillEnabledChanged == null
         ? null
         : SwitchListTile(
@@ -218,6 +237,8 @@ class BillingDocSettingsTab extends StatelessWidget {
                     user(),
                     if (showVendor) ...[gap, vendor()],
                     if (autoBill != null) ...[gap, autoBill],
+                    gap,
+                    inclusiveTaxes,
                   ],
                 ),
               ),

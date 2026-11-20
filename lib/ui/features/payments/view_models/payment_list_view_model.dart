@@ -93,6 +93,13 @@ class PaymentListViewModel extends GenericListViewModel<Payment> {
       isSortableColumnId(paymentColumnsById, field) ||
       field == PaymentFieldIds.updatedAt;
 
+  /// A client's tab hands the standalone list its `client:` chip
+  /// (`ClientFilterKey`), so a row opens over that client's records.
+  @override
+  Map<String, Set<String>> get parentScopeFilters => {
+    if (clientId != null) 'client_id': {clientId!},
+  };
+
   @override
   String idOf(Payment item) => item.id;
 
