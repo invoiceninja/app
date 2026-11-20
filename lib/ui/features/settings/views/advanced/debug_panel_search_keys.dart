@@ -7,4 +7,5 @@ const kDebugPanelSearchKeys = <String>[
   'capture_network_and_errors',
   'network_requests',
   'debug_recent_errors',
+  'app_info',
 ];

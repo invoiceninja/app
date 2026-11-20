@@ -112,6 +112,12 @@ class Env {
   /// per-account `report_errors` opt-in (see `main.dart` / `sentry_gate`).
   static const String sentryDsn = String.fromEnvironment('IN_SENTRY_DSN');
 
+  /// The commit this binary was built from, when the build passes
+  /// `--dart-define=IN_GIT_COMMIT=$(git rev-parse --short HEAD)`. Empty
+  /// otherwise; shown only by the Debug Panel's App info tab (`app_info.dart`),
+  /// which leaves the row out when it is.
+  static const String gitCommit = String.fromEnvironment('IN_GIT_COMMIT');
+
   /// `X-CLIENT-PLATFORM` header value. Expands as we add platforms.
   ///
   /// Uses `defaultTargetPlatform` (web-safe — `dart:io`'s `Platform` can't be

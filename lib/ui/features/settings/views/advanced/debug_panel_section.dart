@@ -23,6 +23,7 @@ import 'package:admin/ui/core/widgets/copyable_value.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/core/widgets/status_pill.dart';
 import 'package:admin/ui/features/review_prompt/review_prompt_host.dart';
+import 'package:admin/ui/features/settings/views/advanced/debug_panel_app_info.dart';
 import 'package:admin/ui/features/settings/views/advanced/debug_panel_window_controls.dart';
 import 'package:admin/ui/features/settings/widgets/card_reader_section.dart';
 import 'package:admin/utils/formatting.dart';
@@ -33,7 +34,8 @@ import 'package:admin/ui/core/fold_geometry.dart';
 /// Renders as a Chrome DevTools-style band pinned to the bottom of the
 /// authenticated shell: a compact toolbar (capture toggle + screenshot tools
 /// on desktop + clear / copy / hide) above a Material `TabBar` switching
-/// between a Network Requests list and a Recent Errors list. Reactive to
+/// between a Network Requests list, a Recent Errors list and an App info card
+/// (`DebugAppInfoTab` — build, platform, renderer, server, display). Reactive to
 /// [DebugCaptureStore]; the desktop screenshot tools react to
 /// [ScreenshotWindowController].
 ///
@@ -94,7 +96,7 @@ class DebugPanelSection extends StatelessWidget {
                 final network = store.networkEntries;
                 final errors = store.diagnosticEntries;
                 return DefaultTabController(
-                  length: 2,
+                  length: 3,
                   // The band is the bottom-most viewport element on phones, so
                   // it owns the home-indicator inset; the surface Material
                   // behind it paints into that gap. No-op on desktop/web.
@@ -125,6 +127,7 @@ class DebugPanelSection extends StatelessWidget {
                               text:
                                   '${context.tr('debug_recent_errors')} (${errors.length})',
                             ),
+                            Tab(text: context.tr('app_info')),
                           ],
                         ),
                         Divider(height: 1, thickness: 1, color: tokens.border),
@@ -140,6 +143,7 @@ class DebugPanelSection extends StatelessWidget {
                                 entries: errors,
                                 enabled: store.enabled,
                               ),
+                              const DebugAppInfoTab(),
                             ],
                           ),
                         ),

@@ -273,6 +273,16 @@ MediaQueryData foldMediaOf(BuildContext context) => MediaQueryData(
   displayFeatures: MediaQuery.displayFeaturesOf(context),
 );
 
+/// Each display feature under [context] as `<type> <state> <w>×<h>` (e.g.
+/// `fold postureHalfOpened 0×2208`), for the Debug Panel's App info tab — so
+/// it can show what the device reports without reading the features itself.
+/// Empty with no fold, hinge or cutout.
+List<String> describeDisplayFeatures(BuildContext context) => [
+  for (final f in MediaQuery.displayFeaturesOf(context))
+    '${f.type.name} ${f.state.name} '
+        '${f.bounds.width.round()}×${f.bounds.height.round()}',
+];
+
 /// Debounces book posture and publishes it through [FoldPostureScope].
 ///
 /// Entering waits for [settle] of an unchanged half-open vertical fold: a
