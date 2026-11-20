@@ -266,7 +266,7 @@ jobs:
           ls -la build/ios/ipa
 
       # Resolve the exact .ipa path — Xcode names it after CFBundleDisplayName
-      # ("Ninja Beta" here), and the upload action stat's app-path LITERALLY (it
+      # ("Invoice Ninja" here), and the upload action stat's app-path LITERALLY (it
       # does NOT expand globs), so a "*.ipa" would ENOENT. The display name has
       # a space in it, so the file is renamed rather than trusting every later
       # step to quote the path.

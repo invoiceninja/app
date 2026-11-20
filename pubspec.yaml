@@ -230,7 +230,7 @@ flutter:
 # Build first (`flutter build windows --release --dart-define=IN_SENTRY_DSN=…`),
 # then `dart run msix:create`.
 msix_config:
-  display_name: Invoice Ninja - Beta
+  display_name: Invoice Ninja
   publisher_display_name: Invoice Ninja
   identity_name: InvoiceNinja.AdminPortal
   publisher: CN=2B7AA393-06A0-46F5-AF85-1917142440C3

@@ -22,7 +22,7 @@
     <application
         android:gwpAsanMode="default"
         tools:replace="android:gwpAsanMode"
-        android:label="Ninja Beta"
+        android:label="Invoice Ninja"
         android:supportsRtl="true"
         android:fullBackupContent="@xml/backup_rules"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -163,9 +163,8 @@
              `configChanges` because a recreation mid-copy would lose the share:
              the new instance has nothing to copy, and the old one deletes what
              it copied. See docs/sharing-files-into-the-app.md.
-             Its own label, because the application's is "Ninja Beta" while the
-             beta installs beside the v1 app: the share sheet keeps the product
-             name, as the iOS extension does. -->
+             Its own label, so the share sheet keeps the product name whatever
+             the launcher label says, as the iOS extension does. -->
         <activity
             android:name=".ShareReceiverActivity"
             android:label="Invoice Ninja"

@@ -13,7 +13,7 @@ IssueTracker: https://github.com/invoiceninja/flutter/issues
 Translation: https://explore.transifex.com/invoice-ninja/invoice-ninja/
 Changelog: https://github.com/invoiceninja/flutter/releases
 
-AutoName: Ninja Beta
+AutoName: Invoice Ninja
 
 RepoType: git
 Repo: https://github.com/invoiceninja/flutter.git
@@ -186,8 +186,8 @@ MaintainerNotes: |-
   DEX, so upstream's reproducibility gate builds in the same buildserver
   image, whose only JDK is 21.
 
-  AutoName is the launcher label, "Ninja Beta"; the listing name comes from
-  fastlane title.txt.
+  AutoName is the launcher label (android:label), "Invoice Ninja"; the
+  listing name comes from fastlane title.txt.
 
 AutoUpdateMode: Version
 UpdateCheckMode: Tags ^v\d+\.\d+\.\d+$
