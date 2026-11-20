@@ -98,7 +98,15 @@ class _BillingDocPartyNotesState extends State<BillingDocPartyNotes> {
 
   @override
   Widget build(BuildContext context) {
-    if (widget.partyId.isEmpty) return const SizedBox.shrink();
+    if (widget.partyId.isEmpty) {
+      // Forget the watch with the StreamBuilder it fed: a re-pick of the same
+      // party mounts a fresh one, and an unsynced (`tmp_`) party's watch is
+      // single-subscription — handing it over again throws "Stream has
+      // already been listened to".
+      _key = null;
+      _notes = null;
+      return const SizedBox.shrink();
+    }
     _watch(context.read<Services>());
     return StreamBuilder<_PartyNotes?>(
       // Keyed on the party, so a pick never paints the previous party's notes

@@ -9,6 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/data/models/api/client_api_model.dart';
 import 'package:admin/data/models/api/vendor_api_model.dart';
+import 'package:admin/data/models/domain/client.dart';
 import 'package:admin/ui/features/billing_shared/billing_doc_type.dart';
 import 'package:admin/ui/features/billing_shared/edit/billing_doc_party_notes.dart';
 import 'package:admin/ui/features/invoices/view_models/invoice_edit_view_model.dart';
@@ -195,6 +196,45 @@ void main() {
 
       expect(find.text('Old rate'), findsNothing);
       expect(find.text('New rate'), findsOneWidget);
+      await unmount(tester, fixture);
+    });
+
+    testWidgets('clearing and re-picking an unsynced client shows its notes '
+        'again', (tester) async {
+      // An inline-created client is `tmp_` until its create syncs, and its
+      // watch is single-subscription: a re-pick must not hand the cached
+      // stream to a second StreamBuilder ("already been listened to").
+      setWindow(tester, 800);
+      final fixture = await _fixture();
+      final created = (await tester.runAsync(
+        () => fixture.services.clients.create(
+          companyId: kHarnessCompanyId,
+          draft: Client.fromApi(
+            const ClientApi(
+              id: '',
+              name: 'New Co',
+              privateNotes: 'Unsynced note',
+              updatedAt: 1,
+            ),
+          ),
+        ),
+      ))!.entity;
+      expect(created.id, startsWith('tmp_'));
+
+      Future<void> pick(String id) async {
+        await tester.pumpWidget(
+          wrapWithShell(fixture.services, _notes(BillingDocParty.client, id)),
+        );
+        await settle(tester);
+      }
+
+      await pick(created.id);
+      expect(find.text('Unsynced note'), findsOneWidget);
+      await pick('');
+      expect(find.text('Unsynced note'), findsNothing);
+      await pick(created.id);
+      expect(tester.takeException(), isNull);
+      expect(find.text('Unsynced note'), findsOneWidget);
       await unmount(tester, fixture);
     });
 
