@@ -1,5 +1,5 @@
 {
-  "_comment": "Every link and requirement on the invoicing.co landing page (docs/web-deploy.md § The landing page). render_landing.py builds the page from this file; test/lint/landing_apps_test.dart pins each min_os to the app's build files, so a deployment-target bump that forgets this file fails CI. Store links name each store's live listing: switch a store to the new app's listing when that store goes live (docs/going-live.md).",
+  "_comment": "Every link and requirement on the invoicing.co landing page (docs/web-deploy.md § The landing page). render_landing.py builds the page from this file; test/lint/landing_apps_test.dart pins each min_os to the app's build files, so a deployment-target bump that forgets this file fails CI. Store links name the new app's listing on each store (docs/going-live.md); the App Store and Mac App Store ones go through invoiceninja.com's /apps/iphone-ipad/ and /apps/mac/ download pages until the listing's numeric Apple ID (kAppStoreId in lib/domain/review_prompt.dart) replaces them with https://apps.apple.com/app/id<ID> and https://apps.apple.com/app/id<ID>?platform=mac.",
   "web": {
     "react": { "url": "https://app.invoicing.co", "source": "https://github.com/invoiceninja/web" },
     "app": { "url": "https://admin.invoicing.co", "source": "https://github.com/invoiceninja/app" }
@@ -8,12 +8,12 @@
     {
       "id": "windows", "group": "desktop", "name": "Windows", "icon": "windows", "color": "#0078D4",
       "min_os": "Windows 10 or later",
-      "store": ["Microsoft Store", "https://apps.microsoft.com/detail/9n3f2bbcfdr6"]
+      "store": ["Microsoft Store", "https://apps.microsoft.com/detail/9NG93WNXN797"]
     },
     {
       "id": "mac", "group": "desktop", "name": "Mac", "icon": "apple", "color": "ink",
       "min_os": "macOS 12 or later",
-      "store": ["Mac App Store", "https://apps.apple.com/us/app/invoice-ninja/id1503970375?platform=mac"]
+      "store": ["Mac App Store", "https://invoiceninja.com/apps/mac/"]
     },
     {
       "id": "linux", "group": "desktop", "name": "Linux", "icon": "linux", "color": "ink",
@@ -27,13 +27,13 @@
     {
       "id": "android", "group": "mobile", "name": "Android", "icon": "android", "color": "#3DDC84",
       "min_os": "Android 8.0 or later",
-      "store": ["Google Play", "https://play.google.com/store/apps/details?id=com.invoiceninja.app"],
+      "store": ["Google Play", "https://play.google.com/store/apps/details?id=com.invoiceninja.admin"],
       "alt": [["F-Droid", "https://f-droid.org/packages/com.invoiceninja.admin/"]]
     },
     {
       "id": "ios", "group": "mobile", "name": "iPhone & iPad", "icon": "apple", "color": "ink",
       "min_os": "iOS 15 or later",
-      "store": ["App Store", "https://apps.apple.com/us/app/invoice-ninja/id1503970375"]
+      "store": ["App Store", "https://invoiceninja.com/apps/iphone-ipad/"]
     }
   ],
   "addons": {
