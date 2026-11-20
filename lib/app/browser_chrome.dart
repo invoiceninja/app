@@ -9,7 +9,9 @@
 /// all and those arrows are the only way back.
 ///
 /// Also paints the browser's toolbar tint and page background in the app's
-/// background colour (`applyBrowserChromeColor`), following the user's theme.
+/// background colour (`applyBrowserChromeColor`), following the user's theme,
+/// and reads the browser's user agent (`browserUserAgent`), which is how the
+/// web banner tells a Chromebook from Linux.
 library;
 
 export 'package:admin/app/browser_chrome_web.dart'

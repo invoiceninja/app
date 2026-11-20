@@ -47,9 +47,12 @@ class _Probe {
 }
 
 final _customInk = const Color(0xFF445566);
+// Not toggle_sidebar's catalog default (⌘B): an override equal to the
+// default is no override, so a probe bound to it would read "wiped" already.
 final _binding = KeyBinding.logical(
   LogicalKeyboardKey.keyB.keyId,
   usesPrimary: true,
+  shift: true,
 );
 
 /// In insertion order, which matters once: the light variant is changed

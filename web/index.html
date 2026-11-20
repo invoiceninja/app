@@ -161,21 +161,48 @@
       // carries no z-index, so Flutter's view already covers it before this
       // fires — this just cleans the node out of the DOM.
       var painted = false;
+      // flutter_bootstrap.js reads this key: 'canvaskit' forces the
+      // JavaScript build (docs/web-platform-differences.md).
+      var RENDERER_KEY = 'invoiceninja.web.renderer.v1';
+      var pinnedByWatchdog = false;
       window.addEventListener('flutter-first-frame', function () {
         painted = true;
         // Read by Deploy to Web's boot smoke (docs/web-deploy.md).
         window.__flutterFirstFrame = true;
+        // A slow boot that painted after all was not a WebAssembly crash.
+        if (pinnedByWatchdog) {
+          try { localStorage.removeItem(RENDERER_KEY); } catch (e) {}
+        }
         var el = document.getElementById('loader');
         if (el && el.parentNode) el.parentNode.removeChild(el);
       });
+      // Whether this boot loaded the WebAssembly build (dart2wasm's
+      // main.dart.wasm / main.dart.mjs) rather than main.dart.js.
+      function bootIsWasm() {
+        try {
+          return performance.getEntriesByType('resource').some(function (r) {
+            return /\/main\.dart\.(wasm|mjs)(\?|$)/.test(r.name);
+          });
+        } catch (e) {
+          return false;
+        }
+      }
       // Safety-net: boot must never leave the user on an endless spinner. If
       // the first frame hasn't painted after 30s the boot is wedged — most
       // likely a transient web-database lock left by a service-worker reload
       // after a redeploy (see lib/data/db/database_opener_web.dart, which now
       // time-bounds WasmDatabase.open). Swap the spinner for a one-tap reload,
-      // which clears the stale lock.
+      // which clears the stale lock. On a WebAssembly boot it may instead be
+      // a browser that passed the loader's checks and crashed, so the reload
+      // (or any later load) uses the JavaScript build; ?renderer=auto undoes it.
       window.setTimeout(function () {
         if (painted) return;
+        if (bootIsWasm()) {
+          try {
+            localStorage.setItem(RENDERER_KEY, 'canvaskit');
+            pinnedByWatchdog = true;
+          } catch (e) {}
+        }
         var el = document.getElementById('loader');
         if (!el) return;
         el.innerHTML =

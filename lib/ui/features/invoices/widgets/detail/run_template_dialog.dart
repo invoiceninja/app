@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/services.dart';
+import 'package:admin/data/db/dao/outbox_dao.dart';
 import 'package:admin/data/models/domain/design.dart';
 import 'package:admin/data/models/domain/document.dart';
 import 'package:admin/data/services/api_exception.dart';
@@ -27,7 +28,10 @@ import 'package:admin/ui/core/widgets/searchable_dropdown_field.dart';
 ///
 /// [hasUnsyncedEdits] stops a record whose own save is still queued: the
 /// server would render its older copy. (The outbox row this replaced waited
-/// behind that save; a direct call does not.)
+/// behind that save; a direct call does not.) The local `is_dirty` flag and
+/// the outbox can disagree, and the bulk bar sees only the flag, so every id
+/// is also checked against the outbox ([runTemplateHasQueuedChanges]), on the
+/// single and the bulk path alike.
 ///
 /// Returns false when the user backed out — the list bulk bar keeps its
 /// selection then ([SelectionActionOutcome.cancelled], via
@@ -39,12 +43,22 @@ Future<bool> runTemplate(
   bool hasUnsyncedEdits = false,
 }) async {
   if (ids.isEmpty) return false;
-  if (hasUnsyncedEdits) {
-    Notify.error(context, context.tr('sync_first_generic'));
-    return false;
-  }
   final services = context.read<Services>();
   final session = services.auth.session.value;
+  if (hasUnsyncedEdits ||
+      (session != null &&
+          await runTemplateHasQueuedChanges(
+            services.db.outboxDao,
+            companyId: session.currentCompanyId,
+            entity: entity,
+            ids: ids,
+          ))) {
+    if (context.mounted) {
+      Notify.error(context, context.tr('sync_first_generic'));
+    }
+    return false;
+  }
+  if (!context.mounted) return false;
   final pdfBlock = session == null
       ? null
       : runTemplatePdfBlock(
@@ -111,6 +125,28 @@ Future<bool> runTemplate(
   );
   closed = true;
   return true;
+}
+
+/// Whether any of [ids] still has a change of its fields in the outbox —
+/// `pending`, `in_flight` or `unconfirmed` (`OutboxDao.hasActiveRowsForEntity`,
+/// which leaves out a document upload or a comment). The server would render
+/// the copy it has, not the one on screen.
+Future<bool> runTemplateHasQueuedChanges(
+  OutboxDao outbox, {
+  required String companyId,
+  required RunTemplateEntity entity,
+  required List<String> ids,
+}) async {
+  for (final id in ids) {
+    if (await outbox.hasActiveRowsForEntity(
+      companyId: companyId,
+      entityType: entity.entityType.name,
+      entityId: id,
+    )) {
+      return true;
+    }
+  }
+  return false;
 }
 
 /// [runTemplate] as a list bulk bar's `onSelection`: [records] are the

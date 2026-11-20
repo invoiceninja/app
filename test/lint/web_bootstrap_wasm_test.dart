@@ -39,6 +39,47 @@ void main() {
     expect(calls.single.trimRight(), endsWith('});'));
   });
 
+  // The escape hatch (docs/web-platform-differences.md § A browser that
+  // crashes on WebAssembly has a way back): ?renderer=canvaskit forces the
+  // JavaScript build and is remembered, ?renderer=auto forgets it, and the
+  // 30-second boot watchdog sets the same key after a WebAssembly boot that
+  // never painted.
+  group('the CanvasKit escape hatch', () {
+    const key = 'invoiceninja.web.renderer.v1';
+    final index = File('web/index.html').readAsStringSync();
+
+    test('the bootstrap reads ?renderer= and the remembered key', () {
+      expect(bootstrap, contains("'$key'"));
+      expect(bootstrap, contains("get('renderer')"));
+      expect(bootstrap, contains("asked === 'canvaskit'"));
+      expect(bootstrap, contains("asked === 'auto'"));
+      expect(bootstrap, contains('localStorage.removeItem(key)'));
+      expect(bootstrap, contains('{renderer: forced}'));
+    });
+
+    test('it is spread last, so the smoke rewrite still forces CanvasKit', () {
+      final call = bootstrap
+          .split('\n')
+          .singleWhere((l) => l.contains('_flutter.loader.load('))
+          .trim();
+      // The smoke sed inserts `renderer: "canvaskit", ` at the front; a later
+      // `renderer` key would override it, a spread of `{}` cannot.
+      expect(call, endsWith('...inRendererConfig()}});'));
+      expect(call, isNot(contains('renderer:')));
+    });
+
+    test('the watchdog pins a WebAssembly boot that never painted', () {
+      expect(index, contains("var RENDERER_KEY = '$key';"));
+      expect(index, contains('if (bootIsWasm())'));
+      expect(
+        index,
+        contains("localStorage.setItem(RENDERER_KEY, 'canvaskit')"),
+      );
+      // ... and unpins it if that boot paints after all.
+      expect(index, contains('localStorage.removeItem(RENDERER_KEY)'));
+    });
+  });
+
   test('both smoke rewrites in web.yml match that call', () {
     final seds = RegExp(r"sed 's/([^/]+)/").allMatches(workflow).toList();
     final loaderSeds = seds.where((m) => m[1]!.contains('loader')).toList();

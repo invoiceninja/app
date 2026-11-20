@@ -1,7 +1,11 @@
+import 'package:flutter/foundation.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:admin/app/shortcuts/key_binding.dart';
+import 'package:admin/app/shortcuts/keyboard_shortcuts_controller.dart';
+import 'package:admin/app/shortcuts/shortcut_catalog.dart';
 import 'package:admin/ui/core/utils/text_input_focus.dart';
 
 void main() {
@@ -205,6 +209,122 @@ void main() {
             'an armed leader sequence must stand the single-key shortcut down '
             'so the second key reaches the shell leader handler (Tasks `S` '
             'must not hijack `G then S`).',
+      );
+    });
+  });
+
+  // The shell's palette wiring (`scaffold_with_nav.dart`), which cannot be
+  // pumped whole: the controller's activators for the palette, and its
+  // GuardedShortcutAction lifting the text-field guard for a primary chord.
+  group('the palette chord from inside a text field', () {
+    Future<({int Function() fired, TextEditingController text})> pumpShell(
+      WidgetTester tester,
+      KeyboardShortcutsController shortcuts,
+    ) async {
+      var fired = 0;
+      final controller = TextEditingController();
+      addTearDown(controller.dispose);
+      final focusNode = FocusNode();
+      addTearDown(focusNode.dispose);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Shortcuts(
+              shortcuts: shortcuts.activatorsFor(ShortcutScope.global, {
+                ShortcutActionIds.openCommandPalette: const _ProbeIntent(),
+              }),
+              child: Actions(
+                actions: <Type, Action<Intent>>{
+                  _ProbeIntent: GuardedShortcutAction<_ProbeIntent>(
+                    firesInTextInput: () => chordFiresInTextInput(
+                      shortcuts.resolvedBinding(
+                        ShortcutActionIds.openCommandPalette,
+                      ),
+                    ),
+                    onInvoke: (_) {
+                      fired++;
+                      return null;
+                    },
+                  ),
+                },
+                child: TextField(controller: controller, focusNode: focusNode),
+              ),
+            ),
+          ),
+        ),
+      );
+      focusNode.requestFocus();
+      await tester.pump();
+      expect(isTextInputFocused(), isTrue);
+      return (fired: () => fired, text: controller);
+    }
+
+    testWidgets('Ctrl+K opens the palette from a focused field', (
+      tester,
+    ) async {
+      final harness = await pumpShell(tester, KeyboardShortcutsController());
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyK);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await tester.pump();
+      expect(harness.fired(), 1);
+    });
+
+    testWidgets('on macOS ⌘K fires from a field, and ⌃K stays the field\'s', (
+      tester,
+    ) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+      try {
+        final harness = await pumpShell(tester, KeyboardShortcutsController());
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.metaLeft);
+        await tester.sendKeyEvent(LogicalKeyboardKey.keyK);
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.metaLeft);
+        await tester.pump();
+        expect(harness.fired(), 1);
+
+        // Cocoa's kill-to-end-of-line inside a field.
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+        await tester.sendKeyEvent(LogicalKeyboardKey.keyK);
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+        await tester.pump();
+        expect(harness.fired(), 1);
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
+    });
+
+    testWidgets('a bare-key rebind still types into the field', (tester) async {
+      final shortcuts = KeyboardShortcutsController()
+        ..setBinding(
+          ShortcutActionIds.openCommandPalette,
+          KeyBinding.logical(LogicalKeyboardKey.keyP.keyId),
+        );
+      final harness = await pumpShell(tester, shortcuts);
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyP);
+      await tester.pump();
+      expect(harness.fired(), 0);
+    });
+
+    test('chordFiresInTextInput: only a primary chord', () {
+      expect(chordFiresInTextInput(null), isFalse);
+      expect(
+        chordFiresInTextInput(
+          KeyBinding.logical(LogicalKeyboardKey.keyK.keyId),
+        ),
+        isFalse,
+      );
+      expect(
+        chordFiresInTextInput(
+          KeyBinding.logical(LogicalKeyboardKey.keyK.keyId, shift: true),
+        ),
+        isFalse,
+      );
+      expect(chordFiresInTextInput(const KeyBinding.character('?')), isFalse);
+      expect(
+        chordFiresInTextInput(
+          KeyBinding.logical(LogicalKeyboardKey.keyK.keyId, usesPrimary: true),
+        ),
+        isTrue,
       );
     });
   });

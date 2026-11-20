@@ -42,6 +42,10 @@ class RunTemplateApi {
   /// Step 1. [entityPath] is the plural route segment (`invoices`,
   /// `purchase_orders`, …). Returns the job hash, or null when [sendEmail]
   /// is set — the server then answers `"email sent"`, which is not a hash.
+  /// Any other answer to an email run is a [FormatException]: a 200 that is
+  /// not that confirmation (a proxy's page, an older server that ignored
+  /// `send_email` and queued a PDF nobody will read) must not tell the user
+  /// an email is on its way.
   Future<String?> start({
     required String entityPath,
     required List<String> ids,
@@ -58,7 +62,13 @@ class RunTemplateApi {
         'send_email': sendEmail,
       },
     );
-    if (sendEmail) return null;
+    if (sendEmail) {
+      final message = raw is Map ? raw['message'] : null;
+      if (message != kRunTemplateEmailSent) {
+        throw const FormatException('Run template did not confirm the email');
+      }
+      return null;
+    }
     final hash = raw is Map ? raw['message'] : null;
     if (hash is! String || !_kJobId.hasMatch(hash)) {
       throw const FormatException('Run template did not return a job id');
@@ -105,6 +115,10 @@ class RunTemplateApi {
   /// One token, as `Str::uuid()` writes it — not `"email sent"`.
   static final _kJobId = RegExp(r'^[A-Za-z0-9_-]+$');
 }
+
+/// What the bulk `template` action answers when `send_email` is set
+/// (`InvoiceController::bulk` and its siblings: `'email sent'`).
+const String kRunTemplateEmailSent = 'email sent';
 
 /// The job did not finish inside the poll budget.
 class RunTemplateTimeout implements Exception {

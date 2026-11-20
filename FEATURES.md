@@ -1190,7 +1190,7 @@ Field-level breakdown of every option under each settings panel. Source of truth
 | E-invoice settings gated at Enterprise on hosted | ✅ | — | ✅ | ✅ | |
 | E-invoicing settings at company level only; PEPPOL hidden for self-hosted companies in France | ✅ | — | ✅ | | |
 | State-aware upgrade copy (trial / trialing / expired-renew / upgrade) | ✅ | ✅ | ✅ | ✅ | |
-| Hosted upgrade via App Store / Play IAP (web/desktop → portal) | — | ✅ | 🟡 | ✅ | |
+| Hosted upgrade via App Store / Play IAP (Windows / Linux / web → portal; macOS is a store-billing build) | — | ✅ | 🟡 | ✅ | |
 | Manage an App Store subscription in-app (the App Store subscriptions page on iOS and macOS, Play's on Android) | — | — | ✅ | | |
 | Purchase sheet disclosure (each plan's name, billing period and price, the store's auto-renew and cancel terms, privacy policy and terms links) | — | 🟡 | ✅ | | v1 shows Apple's renewal text and a terms link |
 | Store purchases delivered from app start (renewals, approvals and interrupted purchases; Restore on the Plan tab) | — | ❌ | ✅ | | |
@@ -1605,7 +1605,7 @@ Field-level breakdown of every option under each advanced settings panel. Source
 | E-invoice certificate upload + passphrase | ✅ | ❌ | ✅ | ✅ | |
 | Payment means (IBAN / BIC / card) | ✅ | ❌ | ✅ | ✅ | |
 | Additional tax identifiers | ✅ | ❌ | ✅ | ✅ | |
-| Peppol — buy credit packs (500 / 1000) | ✅ | ❌ | ✅ | ✅ | |
+| Peppol — buy credit packs (500 / 1000) | ✅ | ❌ | ✅ | ✅ | Hidden on store builds |
 | E-invoice compliance fields per entity | ✅ | ❌ | ✅ | ✅ | |
 | Credit — Peppol billing reference (origin invoice + issue date) | ✅ | ❌ | ✅ | | |
 | Recurring invoice — Peppol period (Description encoding) | ✅ | ❌ | ✅ | | |

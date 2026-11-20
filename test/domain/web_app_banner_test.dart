@@ -113,6 +113,62 @@ void main() {
     );
   });
 
+  group('a Chromebook reports Linux but gets the Android app', () {
+    const chromebook =
+        'Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 '
+        '(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
+    const linux =
+        'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 '
+        '(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
+
+    test('hosted and self-hosted', () {
+      expect(
+        webAppBannerLinks(
+          platform: TargetPlatform.linux,
+          isHosted: true,
+          userAgent: chromebook,
+        ),
+        const WebAppBannerLinks(
+          webAppUrl: kHostedReactUrl,
+          nativePlatform: NativeAppPlatform.android,
+          nativeUrl: kMobileAppAndroidUrl,
+        ),
+      );
+      expect(
+        webAppBannerLinks(
+          platform: TargetPlatform.linux,
+          isHosted: false,
+          userAgent: chromebook,
+        ),
+        const WebAppBannerLinks(
+          nativePlatform: NativeAppPlatform.android,
+          nativeUrl: kMobileAppAndroidUrl,
+        ),
+      );
+    });
+
+    test('a desktop Linux browser still gets Flathub', () {
+      expect(
+        nativeAppPlatformFor(TargetPlatform.linux, userAgent: linux),
+        NativeAppPlatform.linux,
+      );
+      expect(
+        nativeAppPlatformFor(TargetPlatform.linux),
+        NativeAppPlatform.linux,
+      );
+    });
+
+    test('only a Linux report is reinterpreted', () {
+      expect(isChromeOsUserAgent(chromebook), isTrue);
+      expect(isChromeOsUserAgent(linux), isFalse);
+      expect(isChromeOsUserAgent(''), isFalse);
+      expect(
+        nativeAppPlatformFor(TargetPlatform.windows, userAgent: chromebook),
+        NativeAppPlatform.windows,
+      );
+    });
+  });
+
   test('the Windows link waits for the public Microsoft Store listing', () {
     // Flip this with `kWindowsAppUrl` at launch.
     expect(kWindowsAppUrl, isNull);

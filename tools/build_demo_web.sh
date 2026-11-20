@@ -57,8 +57,10 @@ grep -q "src=\"flutter_bootstrap.js?v=$token\"" build/web/index.html \
   || { echo "!! cache-bust failed: index.html not stamped" >&2; exit 1; }
 
 # Pages' 100 MB-per-file ceiling is far off, but the demo is also where the
-# hosted split is tried in Firefox and Safari, which load main.dart.js
-# (docs/web-deploy.md § On Pages main.dart.js ships in parts).
+# hosted split is tried by the browsers that load main.dart.js: an older
+# Firefox or Safari the loader sends to the JavaScript build, or any browser
+# opened with ?renderer=canvaskit (docs/web-deploy.md § On Pages main.dart.js
+# ships in parts).
 python3 "$repo_root/tools/web_deploy/split_main_js.py" build/web
 
 # Every file but the page lives in b/<id>/, <id> a hash of the whole build, and

@@ -2227,12 +2227,16 @@ class AuthRepository {
         // password gate) is laid over the server's copy rather than reverted
         // by it — this table has no `is_dirty` column, so the queued row is
         // the dirty marker. `react_settings` is not stored: it is React's.
+        // Only the active company pushes local saved views back up: the
+        // outbox drains only its rows, so a push queued for any other company
+        // would wait, unsynced, until the user switched to it.
         await applyServerSettings(
           _db,
           companyId: uc.company.id,
           userId: uc.user.id,
           settings: uc.settings,
           nowMs: nowMs,
+          pushLocal: uc.company.id == currentId,
         );
       }
       // Auth user record. /refresh's `data[N].user` carries the full

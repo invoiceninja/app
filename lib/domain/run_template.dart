@@ -1,23 +1,28 @@
 import 'package:admin/data/models/domain/design.dart';
+import 'package:admin/domain/entity_type.dart';
 
 /// The record types Run Template is offered on, each carrying the two names
-/// the server knows it by (`docs/running-a-template.md`).
+/// the server knows it by (`docs/running-a-template.md`) and the local
+/// [EntityType] its outbox rows are filed under.
 ///
 /// Every controller that dispatches `TemplateAction`. Recurring invoices have
 /// no `template` bulk action (`BulkRecurringInvoiceRequest`), so they are not
 /// here.
 enum RunTemplateEntity {
-  invoice('invoice', 'invoices'),
-  quote('quote', 'quotes'),
-  credit('credit', 'credits'),
-  purchaseOrder('purchase_order', 'purchase_orders'),
-  project('project', 'projects'),
-  expense('expense', 'expenses'),
-  client('client', 'clients'),
-  payment('payment', 'payments'),
-  task('task', 'tasks');
+  invoice('invoice', 'invoices', EntityType.invoice),
+  quote('quote', 'quotes', EntityType.quote),
+  credit('credit', 'credits', EntityType.credit),
+  purchaseOrder('purchase_order', 'purchase_orders', EntityType.purchaseOrder),
+  project('project', 'projects', EntityType.project),
+  expense('expense', 'expenses', EntityType.expense),
+  client('client', 'clients', EntityType.client),
+  payment('payment', 'payments', EntityType.payment),
+  task('task', 'tasks', EntityType.task);
 
-  const RunTemplateEntity(this.designEntity, this.path);
+  const RunTemplateEntity(this.designEntity, this.path, this.entityType);
+
+  /// The record type, whose `name` is the outbox's `entity_type`.
+  final EntityType entityType;
 
   /// The value a template design lists in its `entities` (the Design editor's
   /// checkboxes; `StoreDesignRequest::$valid_entities`).

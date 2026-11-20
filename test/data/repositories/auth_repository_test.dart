@@ -8,6 +8,8 @@ import 'package:admin/data/repositories/auth/auth_helpers.dart';
 import 'package:admin/data/repositories/auth_repository.dart';
 import 'package:admin/data/repositories/local_data_disposer.dart';
 import 'package:admin/data/repositories/user_repository.dart';
+import 'package:admin/data/repositories/user_settings_repository.dart'
+    show kUserSettingsWireName;
 import 'package:admin/data/services/api_client.dart';
 import 'package:admin/data/services/auth_service.dart';
 import 'package:admin/data/services/password_cache.dart';
@@ -327,6 +329,68 @@ void main() {
       expect(member!.displayName, 'Vivienne Gerlach');
       final owner = await userRepo.get(companyId: 'co_a', userId: 'u_owner');
       expect(owner!.displayName, 'Tyler Kris');
+    });
+
+    test('only the active company pushes its local-only saved views up — the '
+        'outbox drains no other company', () async {
+      // Views an earlier build saved on this device, in two companies, that
+      // the server's `flutter_saved_views` has never seen.
+      for (final co in ['co_a', 'co_b']) {
+        await db.savedViewsDao.insertView(
+          SavedViewsCompanion(
+            id: Value('v_$co'),
+            companyId: Value(co),
+            entityType: const Value('invoice'),
+            name: Value('View $co'),
+            payloadJson: const Value('{"v":1,"data":{}}'),
+            createdAt: const Value(1),
+            updatedAt: const Value(1),
+          ),
+        );
+      }
+      authService.queueLogin(
+        _envelope(
+          companies: [
+            (
+              id: 'co_a',
+              name: 'Acme',
+              token: 'tok_a',
+              isAdmin: false,
+              isOwner: false,
+            ),
+            (
+              id: 'co_b',
+              name: 'Beta',
+              token: 'tok_b',
+              isAdmin: false,
+              isOwner: false,
+            ),
+          ],
+          defaultCompanyId: 'co_b',
+        ),
+      );
+
+      await repo.login(
+        baseUrl: 'https://test',
+        isHosted: false,
+        email: 'a@b',
+        password: 'pw',
+      );
+      expect(repo.session.value!.currentCompanyId, 'co_b');
+
+      Future<int> queued(String co) async => (await db.outboxDao.activeRowsFor(
+        companyId: co,
+        entityType: kUserSettingsWireName,
+      )).length;
+      expect(await queued('co_b'), 1, reason: 'the active company pushes');
+      expect(
+        await queued('co_a'),
+        0,
+        reason: 'a row for an inactive company would never drain',
+      );
+      // Neither company loses its view.
+      expect(await db.savedViewsDao.allForCompany('co_a'), hasLength(1));
+      expect(await db.savedViewsDao.allForCompany('co_b'), hasLength(1));
     });
 
     test('persists tokens + companies and primes credentials', () async {

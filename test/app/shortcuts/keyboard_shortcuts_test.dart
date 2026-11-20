@@ -221,6 +221,46 @@ void main() {
       expect(c.isOverridden(ShortcutActionIds.focusSearch), isFalse);
     });
 
+    test('setting a binding equal to the default is a reset, not an '
+        'override', () {
+      final c = KeyboardShortcutsController();
+      c.setBinding(
+        id,
+        KeyBinding.logical(LogicalKeyboardKey.keyG.keyId, usesPrimary: true),
+      );
+      expect(c.isOverridden(id), isTrue);
+
+      // Back onto the catalog default: the Reset affordance must go now, not
+      // on the next launch's restore.
+      c.setBinding(id, defaultBinding);
+      expect(c.isOverridden(id), isFalse);
+      expect(c.resolvedBinding(id), defaultBinding);
+      expect(c.overridesToJson(), isEmpty);
+
+      // From a clean slate it stays clean.
+      c.setBinding(id, defaultBinding);
+      expect(c.isOverridden(id), isFalse);
+    });
+
+    test('clearing an action that ships unbound is no override', () {
+      const unbound = ShortcutActionIds.openCompanyPicker;
+      final c = KeyboardShortcutsController();
+      expect(c.resolvedBinding(unbound), isNull);
+      c.clearBinding(unbound);
+      expect(c.isOverridden(unbound), isFalse);
+      expect(c.overridesToJson(), isEmpty);
+
+      // A custom binding on it, then cleared, drops the override entirely.
+      c.setBinding(
+        unbound,
+        KeyBinding.logical(LogicalKeyboardKey.keyJ.keyId, usesPrimary: true),
+      );
+      expect(c.isOverridden(unbound), isTrue);
+      c.clearBinding(unbound);
+      expect(c.isOverridden(unbound), isFalse);
+      expect(c.resolvedBinding(unbound), isNull);
+    });
+
     test('notifies listeners on a binding change', () {
       final c = KeyboardShortcutsController();
       var notified = 0;

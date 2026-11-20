@@ -8,3 +8,6 @@ bool browserProvidesHistoryControls() => false;
 /// Native half of [applyBrowserChromeColor]: there is no browser chrome to
 /// paint (a desktop window's frame is `NativeWindowTheme`'s).
 void applyBrowserChromeColor(Color color) {}
+
+/// Native half of [browserUserAgent]: no browser, so no user agent.
+String browserUserAgent() => '';

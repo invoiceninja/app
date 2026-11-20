@@ -595,8 +595,16 @@ class _ScaffoldWithNavState extends State<ScaffoldWithNav> {
                   return null;
                 },
               ),
+          // The palette is the one action that also fires from inside a
+          // text field — on its ⌘/Ctrl chord only, which types nothing; a
+          // bare-key rebind keeps the guard (`docs/keyboard.md`).
           _OpenCommandPaletteIntent:
               GuardedShortcutAction<_OpenCommandPaletteIntent>(
+                firesInTextInput: () => chordFiresInTextInput(
+                  shortcutsController.resolvedBinding(
+                    ShortcutActionIds.openCommandPalette,
+                  ),
+                ),
                 onInvoke: (_) {
                   showCommandPalette(context);
                   return null;

@@ -28,6 +28,10 @@ migrate_working_dir/
 **/ios/Flutter/.last_build_id
 .dart_tool/
 .flutter-plugins-dependencies
+# The store_services packages resolve inside the app's lockfile; a local
+# `flutter analyze` run in one of them writes its own, which blocks the
+# release preflight's clean-tree check.
+packages/*/pubspec.lock
 .pub-cache/
 .pub/
 /build/

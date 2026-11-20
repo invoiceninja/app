@@ -1,4 +1,8 @@
+import 'package:flutter/foundation.dart' show defaultTargetPlatform;
+import 'package:flutter/services.dart' show HardwareKeyboard;
 import 'package:material_ui/material_ui.dart';
+
+import 'package:admin/app/shortcuts/key_binding.dart';
 
 /// Whether the currently-focused element is inside any kind of text input.
 ///
@@ -68,12 +72,40 @@ bool leaderModeArmed = false;
 /// matched action's `isEnabled` is false. `Action.consumesKey` defaults to
 /// `true`, so a guard that only no-ops in `onInvoke` still reports the key as
 /// handled and swallows it. `consumesKey` is overridden too as belt-and-braces.
+///
+/// [firesInTextInput], when given, is asked at key-press time and lifts the
+/// text-field half of the guard when it returns true — for an action whose
+/// binding is a primary-modified chord that types nothing (⌘K opening the
+/// palette), which would otherwise be dead, and beep on macOS, from every
+/// field. See [chordFiresInTextInput]. The leader half always applies.
 class GuardedShortcutAction<T extends Intent> extends CallbackAction<T> {
-  GuardedShortcutAction({required super.onInvoke});
+  GuardedShortcutAction({required super.onInvoke, this.firesInTextInput});
+
+  final bool Function()? firesInTextInput;
+
+  bool get _active =>
+      !leaderModeArmed &&
+      (!isTextInputFocused() || (firesInTextInput?.call() ?? false));
 
   @override
-  bool isEnabled(T intent) => !isTextInputFocused() && !leaderModeArmed;
+  bool isEnabled(T intent) => _active;
 
   @override
-  bool consumesKey(T intent) => !isTextInputFocused() && !leaderModeArmed;
+  bool consumesKey(T intent) => _active;
+}
+
+/// Whether a press of [binding] may fire while a text field has focus: only
+/// a chord on the platform primary modifier, which types nothing. A bare key
+/// or a Shift chord types a character, so it keeps the guard.
+///
+/// On Apple platforms only the ⌘ half counts. A primary chord also binds
+/// Control (`KeyBinding.toActivators`), and ⌃K, ⌃A, ⌃E and friends are Cocoa's
+/// text-editing keys inside a field (⌃K kills to the end of the line).
+bool chordFiresInTextInput(KeyBinding? binding) {
+  if (binding == null || !binding.usesPrimary) return false;
+  return switch (defaultTargetPlatform) {
+    TargetPlatform.macOS ||
+    TargetPlatform.iOS => HardwareKeyboard.instance.isMetaPressed,
+    _ => true,
+  };
 }

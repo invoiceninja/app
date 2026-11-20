@@ -136,16 +136,29 @@ class KeyboardShortcutsController extends ChangeNotifier {
     return out;
   }
 
-  /// Assign a custom binding.
+  /// Assign a custom binding. A binding equal to the catalog default is no
+  /// override — it reverts to the default, exactly as [restoreFromJson] would
+  /// read it back, so the row's Reset never shows only to vanish on the next
+  /// launch.
   void setBinding(String id, KeyBinding binding) {
+    if (binding == kShortcutCatalogById[id]?.defaultBinding) {
+      resetBinding(id);
+      return;
+    }
     _overrides[id] = binding;
     _persist();
     notifyListeners();
   }
 
   /// Explicitly clear a shortcut (removes even the catalog default). Distinct
-  /// from [resetBinding], which reverts to the default.
+  /// from [resetBinding], which reverts to the default. Clearing an action
+  /// that ships unbound is its default, so that is a reset too (the same
+  /// normalisation as [restoreFromJson]).
   void clearBinding(String id) {
+    if (kShortcutCatalogById[id]?.defaultBinding == null) {
+      resetBinding(id);
+      return;
+    }
     _overrides[id] = null;
     _persist();
     notifyListeners();

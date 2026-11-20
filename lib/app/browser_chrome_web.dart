@@ -22,6 +22,16 @@ bool browserProvidesHistoryControls() {
   }
 }
 
+/// The browser's `navigator.userAgent`, or `''` when it cannot be read —
+/// which the banner (`webAppBannerLinks`) reads as "not a Chromebook".
+String browserUserAgent() {
+  try {
+    return web.window.navigator.userAgent;
+  } catch (_) {
+    return '';
+  }
+}
+
 /// The last colour [applyBrowserChromeColor] wrote, so a rebuild that changes
 /// nothing touches no DOM.
 String? _chromeColor;

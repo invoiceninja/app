@@ -61,16 +61,29 @@ class WebAppBannerLinks {
 }
 
 /// The native app for a browser reporting [platform] (on the web,
-/// `defaultTargetPlatform` is the browser's operating system).
-NativeAppPlatform? nativeAppPlatformFor(TargetPlatform platform) =>
-    switch (platform) {
-      TargetPlatform.iOS => NativeAppPlatform.ios,
-      TargetPlatform.android => NativeAppPlatform.android,
-      TargetPlatform.macOS => NativeAppPlatform.mac,
-      TargetPlatform.windows => NativeAppPlatform.windows,
-      TargetPlatform.linux => NativeAppPlatform.linux,
-      TargetPlatform.fuchsia => null,
-    };
+/// `defaultTargetPlatform` is the browser's operating system) and
+/// [userAgent].
+///
+/// A Chromebook reports Linux, but it runs Android apps from Google Play and
+/// a Flatpak only inside the opt-in Linux container, so a `CrOS` user agent
+/// (`Mozilla/5.0 (X11; CrOS x86_64 …)`) is offered the Android app.
+NativeAppPlatform? nativeAppPlatformFor(
+  TargetPlatform platform, {
+  String userAgent = '',
+}) => switch (platform) {
+  TargetPlatform.iOS => NativeAppPlatform.ios,
+  TargetPlatform.android => NativeAppPlatform.android,
+  TargetPlatform.macOS => NativeAppPlatform.mac,
+  TargetPlatform.windows => NativeAppPlatform.windows,
+  TargetPlatform.linux when isChromeOsUserAgent(userAgent) =>
+    NativeAppPlatform.android,
+  TargetPlatform.linux => NativeAppPlatform.linux,
+  TargetPlatform.fuchsia => null,
+};
+
+/// Whether [userAgent] is a Chromebook's browser. Every ChromeOS browser —
+/// Chrome, and the Lacros builds — carries the `CrOS` token.
+bool isChromeOsUserAgent(String userAgent) => userAgent.contains('CrOS');
 
 /// Where [platform]'s native app is downloaded, or null where there is no
 /// public listing yet. The Mac app is the iPhone app's TestFlight beta today
@@ -83,8 +96,9 @@ String? nativeAppUrl(NativeAppPlatform platform) => switch (platform) {
   NativeAppPlatform.linux => kLinuxAppUrl,
 };
 
-/// The banner's links for a browser on [platform] signed in to a hosted
-/// ([isHosted]) or self-hosted server.
+/// The banner's links for a browser on [platform] (with [userAgent], which
+/// tells a Chromebook from Linux) signed in to a hosted ([isHosted]) or
+/// self-hosted server.
 ///
 /// Invoice Ninja Web is offered on hosted only. A self-hosted server serves
 /// React at its root only when the account has made React its default
@@ -99,9 +113,10 @@ WebAppBannerLinks webAppBannerLinks({
   required TargetPlatform platform,
   required bool isHosted,
   bool whiteLabeled = false,
+  String userAgent = '',
 }) {
   if (whiteLabeled && !isHosted) return const WebAppBannerLinks();
-  final native = nativeAppPlatformFor(platform);
+  final native = nativeAppPlatformFor(platform, userAgent: userAgent);
   final url = native == null ? null : nativeAppUrl(native);
   return WebAppBannerLinks(
     webAppUrl: isHosted ? kHostedReactUrl : null,

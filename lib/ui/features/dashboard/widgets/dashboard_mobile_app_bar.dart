@@ -87,9 +87,10 @@ class DashboardMobileAppBar extends StatelessWidget
       // to pop. Kept as a statement of intent, not a working guard.
       automaticallyImplyLeading: showHamburger,
       // Material's default 16 dp gap either side of the title costs more width
-      // than this bar had on the narrowest phones. With a hamburger and three
-      // actions (it carries two now: Search and Customize), the default left
-      // the title 88 dp on a 320 dp handset.
+      // than this bar had on the narrowest phones. When the bar had a
+      // hamburger and three actions, the default left the title 88 dp on a
+      // 320 dp handset; it carries two actions now (Search and Customize), and
+      // the gap still matters there.
       // "Dashboard" measures 104 dp in Inter Tight, so the default truncates it
       // to "Dashboa…", the exact ellipsis flutter#50 was filed about. When
       // flutter#50 was filed it took a 360 dp phone to do this, because the

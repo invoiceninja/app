@@ -1,8 +1,11 @@
+import 'package:drift/drift.dart' show Value;
+import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/theme.dart';
+import 'package:admin/data/db/app_database.dart';
 import 'package:admin/data/models/domain/design.dart';
 import 'package:admin/domain/run_template.dart';
 import 'package:admin/ui/features/invoices/widgets/detail/run_template_dialog.dart';
@@ -123,5 +126,67 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(results.single?.sendEmail, isTrue);
+  });
+
+  // The bulk bar's `eligible` sees only `is_dirty`, and a record's own action
+  // passes only that flag too: the outbox is asked for every id as well.
+  group('runTemplateHasQueuedChanges', () {
+    late AppDatabase db;
+    setUp(() => db = AppDatabase(NativeDatabase.memory()));
+    tearDown(() => db.close());
+
+    Future<void> queue(
+      String entityType,
+      String id, {
+      String state = 'pending',
+      String kind = 'update',
+      String payload = '{}',
+    }) => db.outboxDao.enqueue(
+      OutboxCompanion.insert(
+        companyId: 'co',
+        entityType: entityType,
+        entityId: id,
+        mutationKind: kind,
+        payload: payload,
+        idempotencyKey: 'k_$entityType$id$state',
+        nextAttemptAt: 0,
+        createdAt: 0,
+        state: Value(state),
+      ),
+    );
+
+    Future<bool> blocked(RunTemplateEntity entity, List<String> ids) =>
+        runTemplateHasQueuedChanges(
+          db.outboxDao,
+          companyId: 'co',
+          entity: entity,
+          ids: ids,
+        );
+
+    test('a queued change to any selected record refuses the run', () async {
+      expect(await blocked(RunTemplateEntity.invoice, ['a', 'b']), isFalse);
+      await queue('invoice', 'b');
+      expect(await blocked(RunTemplateEntity.invoice, ['a', 'b']), isTrue);
+      expect(await blocked(RunTemplateEntity.invoice, ['a']), isFalse);
+      // Another record type with the same id is not this one.
+      expect(await blocked(RunTemplateEntity.quote, ['b']), isFalse);
+    });
+
+    test('in flight and unconfirmed count; dead does not', () async {
+      await queue('invoice', 'f', state: 'in_flight');
+      await queue('invoice', 'u', state: 'unconfirmed');
+      await queue('invoice', 'd', state: 'dead');
+      expect(await blocked(RunTemplateEntity.invoice, ['f']), isTrue);
+      expect(await blocked(RunTemplateEntity.invoice, ['u']), isTrue);
+      expect(await blocked(RunTemplateEntity.invoice, ['d']), isFalse);
+    });
+
+    test(
+      'rows are filed under the EntityType name, not the wire name',
+      () async {
+        await queue('purchaseOrder', 'po');
+        expect(await blocked(RunTemplateEntity.purchaseOrder, ['po']), isTrue);
+      },
+    );
   });
 }

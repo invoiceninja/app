@@ -85,6 +85,30 @@ void main() {
   );
 
   test(
+    'start with send_email throws unless the server confirms the email',
+    () async {
+      for (final body in <Object>[
+        {'message': '6f1c2a0e-1b2c-4d5e-8f90-a1b2c3d4e5f6'},
+        {'message': 'Email sent'},
+        <String, Object>{},
+        ['email sent'],
+      ]) {
+        final api = _api(MockClient((_) async => _json(body)));
+        await expectLater(
+          api.start(
+            entityPath: 'invoices',
+            ids: const ['a'],
+            templateId: 'tmpl',
+            sendEmail: true,
+          ),
+          throwsA(isA<FormatException>()),
+          reason: '$body',
+        );
+      }
+    },
+  );
+
+  test(
     'start throws when the server answers something that is not a job id',
     () async {
       final api = _api(

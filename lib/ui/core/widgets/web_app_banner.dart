@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 
+import 'package:admin/app/browser_chrome.dart';
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/env.dart';
 import 'package:admin/app/idle_timeout_controller.dart';
@@ -79,6 +80,7 @@ class _WebAppBannerState extends State<WebAppBanner> {
           }
           final links = webAppBannerLinks(
             platform: defaultTargetPlatform,
+            userAgent: browserUserAgent(),
             isHosted: session.isHosted,
             whiteLabeled: session.isWhiteLabeledSelfHost,
           );

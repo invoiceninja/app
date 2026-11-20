@@ -29,9 +29,11 @@ void main() {
     // row and load it into a fresh controller — the real row + load path end
     // to end.
     final producer = KeyboardShortcutsController();
+    // Off toggle_sidebar's catalog default (⌘B), or there is no override.
     final custom = KeyBinding.logical(
       LogicalKeyboardKey.keyB.keyId,
       usesPrimary: true,
+      shift: true,
     );
     producer.setBinding(ShortcutActionIds.toggleSidebar, custom);
     producer.clearBinding(ShortcutActionIds.focusSearch);
@@ -43,6 +45,7 @@ void main() {
     );
 
     final restored = await relaunch();
+    expect(restored.isOverridden(ShortcutActionIds.toggleSidebar), isTrue);
     expect(restored.resolvedBinding(ShortcutActionIds.toggleSidebar), custom);
     expect(restored.isOverridden(ShortcutActionIds.focusSearch), isTrue);
     expect(restored.resolvedBinding(ShortcutActionIds.focusSearch), isNull);
@@ -61,9 +64,12 @@ void main() {
 
   test('setBinding writes through, and survives a relaunch', () async {
     final c = KeyboardShortcutsController(prefs: DevicePrefsStore(db));
+    // Not open_settings' catalog default (⌘,): a binding equal to the default
+    // is a reset, so nothing would be written.
     final binding = KeyBinding.logical(
       LogicalKeyboardKey.comma.keyId,
       usesPrimary: true,
+      shift: true,
     );
     c.setBinding(ShortcutActionIds.openSettings, binding);
     // _persist is fire-and-forget; give the async write a beat to land.

@@ -522,6 +522,14 @@ Map<String, List<String>> _applyColumns(
 /// [deferToFullBodyRows]: a waiting row an earlier build queued carries a
 /// whole body, which cannot be laid over anything, so while one waits the
 /// local copy is left as it is — the contract that row was queued under.
+///
+/// [pushLocal]: whether saved views this device has newer, or the server
+/// lacks, are queued back up. A login or first `/refresh` answers for every
+/// company, but the outbox drains only the active one's rows, so a push for
+/// any other company would sit there as "unsynced changes" until the user
+/// happened to switch to it — and block a sign-out meanwhile. Those companies
+/// only adopt the server's copy; their push happens on the refresh that runs
+/// once they are active.
 Future<void> applyServerSettings(
   AppDatabase db, {
   required String companyId,
@@ -529,6 +537,7 @@ Future<void> applyServerSettings(
   required Map<String, dynamic> settings,
   required int nowMs,
   bool deferToFullBodyRows = true,
+  bool pushLocal = true,
 }) async {
   final waiting = await db.outboxDao.activeRowsFor(
     companyId: companyId,
@@ -553,12 +562,14 @@ Future<void> applyServerSettings(
   await db.transaction(() async {
     // Saved views (invoiceninja/app#198): merged, never adopted whole — other
     // clients write this object back from stale copies (`saved_views_sync`).
-    // What this device has that the server lacks goes back up.
-    final push = await reconcileSavedViews(
+    // What this device has that the server lacks goes back up — for the
+    // active company only ([pushLocal]).
+    final reconciled = await reconcileSavedViews(
       db,
       companyId: companyId,
       settings: extra,
     );
+    final push = pushLocal ? reconciled : const <String, Object?>{};
     if (push.isNotEmpty) extra = applySettingsPatch(extra, push);
     await db.userSettingsDao.upsert(
       UserSettingsCompanion(

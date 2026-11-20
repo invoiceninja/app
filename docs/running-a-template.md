@@ -66,7 +66,14 @@ record's actions menu and from its list's bulk bar:
 - **A record with unsynced edits is refused** (`sync_first_generic`), and is
   not eligible in a list. The server would render its older copy: the outbox
   row this replaced waited behind the record's own save, a direct call does
-  not.
+  not. "Unsynced" is the `is_dirty` flag **and** the outbox: `runTemplate`
+  asks `OutboxDao.hasActiveRowsForEntity` (pending, in flight or unconfirmed)
+  for every id, because the flag and the queue can disagree and a list's
+  `eligible` is synchronous and sees only the flag. One queued record refuses
+  the whole run, and the selection is kept.
+- **An email run succeeds only on the words `"email sent"`.**
+  `RunTemplateApi.start` throws a `FormatException` on any other 200, which
+  surfaces as the Run Template error toast instead of "emailed".
 - A list selection is one call with every id (one merged PDF), through
   `EntityListBulkAction.onSelection` — never the per-id loop. Unsynced
   (`tmp_`) and dirty rows are not eligible. Backing out of the picker returns
