@@ -151,6 +151,63 @@ void main() {
     });
   });
 
+  group('deleteCompany', () {
+    Future<Map<String, dynamic>> deletePayload() async {
+      final pending = await db.outboxDao.nextReady(
+        companyId: 'co',
+        now: 1 << 60,
+      );
+      expect(pending, hasLength(1));
+      expect(pending.single.mutationKind, MutationKind.delete.wireName);
+      return jsonDecode(pending.single.payload) as Map<String, dynamic>;
+    }
+
+    test('sends only the cancellation message without an Apple code', () async {
+      await seedCompany('co');
+
+      await makeRepo().deleteCompany(
+        companyId: 'co',
+        cancellationMessage: 'Bye',
+      );
+
+      expect(await deletePayload(), {'cancellation_message': 'Bye'});
+    });
+
+    test("an Apple re-authentication's authorization code (and, from the "
+        'web, its redirect URI) goes along, so the server can revoke the '
+        "user's Apple tokens", () async {
+      await seedCompany('co');
+
+      await makeRepo().deleteCompany(
+        companyId: 'co',
+        cancellationMessage: '',
+        appleAuthorizationCode: 'auth-code',
+        appleRedirectUri: 'https://admin.invoicing.co',
+      );
+
+      expect(await deletePayload(), {
+        'cancellation_message': '',
+        'apple_authorization_code': 'auth-code',
+        'apple_redirect_uri': 'https://admin.invoicing.co',
+      });
+    });
+
+    test('a native code has no redirect URI', () async {
+      await seedCompany('co');
+
+      await makeRepo().deleteCompany(
+        companyId: 'co',
+        cancellationMessage: '',
+        appleAuthorizationCode: 'auth-code',
+      );
+
+      expect(await deletePayload(), {
+        'cancellation_message': '',
+        'apple_authorization_code': 'auth-code',
+      });
+    });
+  });
+
   group('updateCompany', () {
     test(
       'writes the new settings JSON and enqueues an update outbox row',

@@ -15,6 +15,7 @@ the Flutter app) so they are explicitly **out of scope** here.
 - Web platform CORS — `Idempotency-Key` not allow-listed (**O** since 2026-09-24: the client stopped sending it on web, so web writes work; still needed before the key can be honoured on web).
 - Server-side `Idempotency-Key` dedupe — not implemented (**R**, retry-safety / duplicate creates); the server now has the machinery but keys it on a 1-second body hash, so the ask is smaller — see that section.
 - OIDC sign-in — the callback hardcodes the React SPA, so no Flutter client (native **or** web) can complete it (**O**, blocks self-hosted SSO; same shape as the calendar-connect fix).
+- Sign in with Apple tokens are never revoked when an account is deleted (**O**, § Sign in with Apple tokens; the client already sends the authorization code, a server branch is ready).
 - OAuth re-authentication (`X-API-OAUTH-PASSWORD`) can never pass for a **Google** user — it wants an `id_token` the client can't produce, and its `Hash::check` arguments are swapped (**O**, § OAuth re-authentication; client offers Apple re-auth only).
 - Bulk `ids` are now existence-checked, so one stale id 422s the whole batch (**O**, shared-cache UX).
 - `POST /api/v1/tasks/bulk` with `action=bulk_update` always **500s** — `Collection::first()` returns a model, not a collection (**SHIPPED** 2026-09-23, `87528bcf0c`, v5.13.44; the client now offers task Bulk Update on servers that have it).
@@ -1299,6 +1300,35 @@ credential is needed and the client now sends none.
 
 **Wanted:** accept a Google access token here (the `harvestUser` path
 `oauth_login` already uses), and swap the `Hash::check` arguments.
+
+---
+
+## Sign in with Apple tokens are never revoked when an account is deleted — **O (server branch ready, not yet a PR)**
+
+**Provenance** — 2026-11-20, launch plan E3. Apple's account-deletion guidance
+(App Review 5.1.1(v)) asks an app that offers Sign in with Apple to revoke the
+user's Apple tokens when the account is deleted. Deleting the last company
+(`DELETE /api/v1/companies/{id}`, `CompanyController::destroy`) deletes the
+account, and nothing told Apple.
+
+**Client side (done):** the Danger Zone's "Confirm with Apple" now sends Apple's
+`authorizationCode` in the delete body as `apple_authorization_code`, and on the
+web also `apple_redirect_uri` (the sign-in window's return URL, which Apple
+needs to redeem a web code). The identity token still rides
+`X-API-OAUTH-PASSWORD`. A server without the change ignores both fields
+(`DestroyCompanyRequest` had no rules), so the client ships first.
+
+**Server side:** branch `feat/apple-token-revoke`, commit `50c9e962bc` (worktree
+`~/Code/invoiceninja-backend-apple-revoke`, unpushed). When the delete takes the account
+and the user is an Apple user, `OAuth::revokeAppleToken` runs after the
+response: it exchanges the code at `/auth/token` with an ES256 client-secret JWT
+for the client ID the identity token names (bundle ID or Services ID), then
+revokes the refresh token at `/auth/revoke`. Best effort, logged, never blocks
+the delete. Needs `APPLE_TEAM_ID`, `APPLE_SIGN_IN_KEY_ID` and
+`APPLE_SIGN_IN_PRIVATE_KEY` on hosted; without them nothing is sent.
+
+**Not covered:** an Apple user who set a password confirms with it, so no code
+is sent; deleting a company that leaves the account standing revokes nothing.
 
 ---
 

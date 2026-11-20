@@ -107,15 +107,28 @@ class CompanyRepository extends BaseEntityRepository<Company, CompanyApi>
 
   /// Enqueue a Danger-Zone delete. Returns the outbox row id so the caller
   /// can poll for the row's terminal state after the drain.
+  ///
+  /// An Apple user's re-authentication also hands over Apple's authorization
+  /// code ([appleAuthorizationCode]; on the web, with the [appleRedirectUri]
+  /// the sign-in window used): when the delete takes the account with it,
+  /// the server redeems the code to revoke the user's Sign in with Apple
+  /// tokens, as Apple's account-deletion guidance asks. A server without that
+  /// change ignores both fields — `DestroyCompanyRequest` had no rules.
   Future<int> deleteCompany({
     required String companyId,
     required String cancellationMessage,
+    String? appleAuthorizationCode,
+    String? appleRedirectUri,
   }) {
     return enqueueMutation(
       companyId: companyId,
       entityId: companyId,
       kind: MutationKind.delete,
-      payload: {'cancellation_message': cancellationMessage},
+      payload: {
+        'cancellation_message': cancellationMessage,
+        'apple_authorization_code': ?appleAuthorizationCode,
+        'apple_redirect_uri': ?appleRedirectUri,
+      },
     );
   }
 

@@ -509,13 +509,16 @@ class _DangerDialogBodyState extends State<_DangerDialogBody> {
       _topBannerError = null;
     });
 
+    // Apple's authorization code, which the server redeems to revoke the
+    // user's Apple tokens when this delete takes the account with it.
+    String? appleAuthorizationCode;
     switch (_credential) {
       case _DangerCredential.password:
         services.passwordCache.set(_passwordCtrl.text);
       case _DangerCredential.apple:
-        final String? token;
+        final AppleReauthentication? reauth;
         try {
-          token = await AppleSignIn.identityToken();
+          reauth = await AppleSignIn.reauthenticate();
         } on Object catch (e) {
           if (!mounted) return;
           setState(() {
@@ -524,12 +527,13 @@ class _DangerDialogBodyState extends State<_DangerDialogBody> {
           });
           return;
         }
-        if (token == null) {
+        if (reauth == null) {
           // Apple sheet dismissed — nothing happened, nothing to report.
           if (mounted) setState(() => _busy = false);
           return;
         }
-        services.passwordCache.setOAuthToken(token);
+        services.passwordCache.setOAuthToken(reauth.identityToken);
+        appleAuthorizationCode = reauth.authorizationCode;
       case _DangerCredential.microsoft:
         final String? token;
         try {
@@ -598,6 +602,12 @@ class _DangerDialogBodyState extends State<_DangerDialogBody> {
       final rowId = await services.company.deleteCompany(
         companyId: companyId,
         cancellationMessage: isHosted ? _feedbackCtrl.text : '',
+        appleAuthorizationCode: appleAuthorizationCode,
+        // A web code was issued through the sign-in window's return URL,
+        // and Apple redeems it only with the same one.
+        appleRedirectUri: appleAuthorizationCode != null && WebSignIn.isWeb
+            ? WebSignIn.appleRedirectUri
+            : null,
       );
       await services.sync.drainOnce(companyId: companyId);
       final terminal = await services.db.outboxDao.byId(rowId);

@@ -82,14 +82,32 @@ class AppleSignIn {
 
   /// The identity token for a re-authentication (`X-API-OAUTH-PASSWORD`), or
   /// null when the user cancelled or Apple issued none.
-  static Future<String?> identityToken() async {
+  static Future<String?> identityToken() async =>
+      (await reauthenticate())?.identityToken;
+
+  /// A re-authentication: the identity token, plus the authorization code
+  /// that came with it — a deleted account sends the code, which the server
+  /// redeems to revoke the user's Apple tokens (Apple's account-deletion
+  /// guidance). Null when the user cancelled or Apple issued no token.
+  static Future<AppleReauthentication?> reauthenticate() async {
     try {
       final cred = await credential();
       final token = cred.identityToken;
-      return (token == null || token.isEmpty) ? null : token;
+      if (token == null || token.isEmpty) return null;
+      final code = cred.authorizationCode;
+      return (
+        identityToken: token,
+        authorizationCode: code.isEmpty ? null : code,
+      );
     } on SignInWithAppleAuthorizationException catch (e) {
       if (e.code == AuthorizationErrorCode.canceled) return null;
       rethrow;
     }
   }
 }
+
+/// What [AppleSignIn.reauthenticate] returns.
+typedef AppleReauthentication = ({
+  String identityToken,
+  String? authorizationCode,
+});
