@@ -199,3 +199,11 @@ v1 (`com.invoiceninja.app`) becomes **Invoice Ninja Legacy** and keeps working b
 
 **The sunset**, about six months after launch: check v1 traffic by platform two weeks before; take v1 off sale on every store (its subscriptions stay); ask F-Droid to archive it; then raise the hosted minimum version; remove the Snap rollback-to-revision-76 note above (revision 76 is v1); archive the admin-portal repo.
 
+
+## The privacy manifests declare SQLite's disk-space call
+
+`ios/Runner/PrivacyInfo.xcprivacy` and `macos/Runner/PrivacyInfo.xcprivacy` declare `NSPrivacyAccessedAPICategoryDiskSpace` with reason `E174.1`.
+- **Why it's needed:** the bundled SQLite (`native/sqlite3mc/sqlite3mc_amalgamation.c`) is built with `SQLITE_ENABLE_LOCKING_STYLE` on Apple platforms. Its locking-style finder calls `statfs` / `fstatfs` (about lines 46795, 47574 and 48999), and both are on Apple's disk-space list.
+- **Why the app declares it:** the framework built from that source ships no manifest of its own, so without this entry an App Store upload gets ITMS-91053.
+- **The other entry:** `stat` / `fstat` / `lstat` are file-timestamp APIs, already covered by `C617.1`.
+- **macOS:** Apple doesn't enforce the macOS manifest at upload today; it carries the same entry so the two stay in step.
