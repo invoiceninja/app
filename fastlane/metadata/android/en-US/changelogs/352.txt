@@ -1,0 +1,7 @@
+- Run Template returns the PDF, offers only matching templates, and runs on clients, payments and tasks
+- Choose how invoice, quote, credit and purchase order PDFs are named
+- A Search button on the dashboard; Cmd/Ctrl+K opens search from anywhere
+- Saved views are kept with your account
+- Foldables keep your place when folded or unfolded
+- Expense lists show the gross amount; privacy policy and terms linked in the app
+- Many smaller fixes

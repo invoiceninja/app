@@ -258,6 +258,80 @@ List<ReleaseNotes> releasesToShow({
 
 const List<ReleaseNotes> kReleaseNotes = [
   ReleaseNotes(
+    version: '5.1.32',
+    highlights: [
+      ReleaseHighlight(
+        icon: Icons.description_outlined,
+        title: 'Run Template, improved',
+        body:
+            'Get the PDF back, see only the templates that fit, and run them '
+            'on clients, payments and tasks.',
+        target: ReleaseHighlightRoute('/invoices', module: EntityType.invoice),
+      ),
+      ReleaseHighlight(
+        icon: Icons.drive_file_rename_outline,
+        title: 'PDF file names',
+        body:
+            'Choose how invoice, quote, credit and purchase order PDFs are '
+            'named.',
+        target: ReleaseHighlightRoute('/settings/generated_numbers'),
+      ),
+      ReleaseHighlight(
+        icon: Icons.search,
+        title: 'Search from anywhere',
+        body:
+            'A Search button on the dashboard opens the command palette, which '
+            'finds records and settings.',
+        target: ReleaseHighlightRoute(
+          '/dashboard',
+          permission: 'view_dashboard',
+        ),
+      ),
+      ReleaseHighlight(
+        icon: Icons.bookmark_outline,
+        title: 'Saved views sync',
+        body:
+            'Your saved list views are kept with your account, so signing out '
+            'keeps them.',
+        target: ReleaseHighlightRoute('/invoices', module: EntityType.invoice),
+      ),
+    ],
+    items: [
+      ReleaseNoteItem(
+        'Added: Run Template returns the PDF, offers only the templates that '
+        'match the record, and runs on clients, payments and tasks too '
+        '[#197](https://github.com/invoiceninja/flutter/issues/197)',
+      ),
+      ReleaseNoteItem(
+        'Added: Settings > Generated Numbers > File Names sets how invoice, '
+        'quote, credit and purchase order PDFs are named, and downloads use '
+        "the server's file name",
+      ),
+      ReleaseNoteItem(
+        'Added: A Search button on the dashboard, and Cmd/Ctrl+K opens search '
+        'from anywhere, even while typing in a field',
+      ),
+      ReleaseNoteItem(
+        'Updated: Saved views are kept with your account, so signing out no '
+        'longer loses them',
+      ),
+      ReleaseNoteItem(
+        'Updated: On a foldable the app keeps your place when you fold or '
+        'unfold it, and splits at the fold when it is half open',
+      ),
+      ReleaseNoteItem(
+        "Updated: Expense lists show the gross amount, Inclusive Taxes moves "
+        "to the document's Settings tab, the privacy policy and terms are "
+        'linked inside the app, and on the web Firefox and Safari run the '
+        'faster WebAssembly build',
+      ),
+      ReleaseNoteItem(
+        'Fixed: Accent colours stay legible (white included), unapplied '
+        'payment amounts leave out refunds, and many smaller fixes',
+      ),
+    ],
+  ),
+  ReleaseNotes(
     version: '5.1.31',
     highlights: [
       ReleaseHighlight(
