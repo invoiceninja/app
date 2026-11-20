@@ -14,6 +14,7 @@ import 'package:admin/data/prefs/device_pref_keys.dart';
 import 'package:admin/data/repositories/_repository_helpers.dart';
 import 'package:admin/data/repositories/auth_repository.dart';
 import 'package:admin/data/repositories/sync_repository.dart';
+import 'package:admin/data/services/connectivity_watcher.dart';
 import 'package:admin/ui/core/edit/entity_edit_screen_scaffold.dart';
 import 'package:admin/ui/core/edit/generic_edit_view_model.dart';
 import 'package:admin/ui/core/list/master_detail_layout.dart';
@@ -88,19 +89,52 @@ class _Rec {
 
 const _tmpId = 'tmp_00000000-0000-4000-8000-0000000000cc';
 
-/// Saves the way a repository does without the sync wiring: a create comes
-/// back under its `tmp_` id.
+/// The server's answer to a save, given at once — after [whileWaiting],
+/// which stands in for what the user does while it is out.
+class _AwaitSync implements SyncRepository {
+  void Function()? whileWaiting;
+
+  @override
+  Future<SyncRowResult> awaitRow({
+    required int rowId,
+    required String companyId,
+    Duration timeout = const Duration(seconds: 30),
+    Duration pollInterval = const Duration(milliseconds: 200),
+    bool callerWillDisplayFailure = true,
+  }) async {
+    whileWaiting?.call();
+    return const SyncRowResult(outcome: SyncRowOutcome.success);
+  }
+
+  @override
+  Object? noSuchMethod(Invocation invocation) =>
+      throw UnimplementedError(invocation.memberName.toString());
+}
+
+/// Saves the way a repository does: a create comes back under its `tmp_`
+/// id, and the save waits on [_AwaitSync].
 class _Vm extends GenericEditViewModel<_Rec> {
-  _Vm(_Rec? existing)
-    : super(initialDraft: existing ?? const _Rec('', ''), original: existing);
+  _Vm(_Rec? existing, this.wait)
+    : super(
+        initialDraft: existing ?? const _Rec('', ''),
+        original: existing,
+        sync: wait,
+        connectivity: ConnectivityWatcher.fixed(online: true),
+        companyId: 'co',
+      );
+
+  final _AwaitSync wait;
 
   int saves = 0;
 
-  /// Stands in for an edit made while the save waited on the server.
+  /// Stands in for an edit that the save saw made while it was out.
   bool editedWhileSaving = false;
 
+  /// What the user types while the save is out.
+  set whileSaving(void Function() edit) => wait.whileWaiting = edit;
+
   @override
-  bool get editedDuringSave => editedWhileSaving;
+  bool get editedDuringSave => editedWhileSaving || super.editedDuringSave;
 
   void setName(String v) => updateDraft(_Rec(draft.id, v));
 
@@ -131,6 +165,7 @@ void main() {
     required bool stay,
     String initial = '/clients/c1/edit',
     _Rec stored = const _Rec('c1', 'Acme'),
+    _Rec? Function()? storedNow,
     Future<bool> Function(_Rec saved)? canKeepEditing,
     Widget Function(_Vm vm)? body,
     void Function(_Vm vm)? onBuilt,
@@ -147,10 +182,10 @@ void main() {
           basePath: '/clients',
           fetchExisting: (_, _, _, _) async {
             fetches++;
-            return stored;
+            return storedNow == null ? stored : storedNow();
           },
           buildVm: (_, _, _, existing) {
-            final vm = _Vm(existing);
+            final vm = _Vm(existing, _AwaitSync());
             built.add(vm);
             onBuilt?.call(vm);
             return vm;
@@ -165,7 +200,8 @@ void main() {
               Text('name ${vm.draft.name}', key: const ValueKey('body')),
           resetToEmpty: (_) {},
           entityIdOf: (draft) => draft.id,
-          carryEdit: (edited, saved) => _Rec(saved.id, edited.name),
+          carryEdit: (sent, edited, stored) =>
+              edited.name == sent.name ? stored : _Rec(stored.id, edited.name),
           saveParamFor: (action) => {'mark_sent': 'true'},
           actionsBuilder: (_, _, onTap, saveButton) => Row(
             mainAxisSize: MainAxisSize.min,
@@ -421,7 +457,9 @@ void main() {
         tester,
         stay: true,
         initial: '/clients/new',
-        onBuilt: (vm) => vm.editedWhileSaving = vm.isCreate,
+        onBuilt: (vm) {
+          if (vm.isCreate) vm.whileSaving = () => vm.setName('Globex Ltd');
+        },
       );
       built.single.setName('Globex');
       await tester.pump();
@@ -429,7 +467,7 @@ void main() {
 
       expect(pathOf(router), '/clients/$_tmpId/edit');
       expect(built, hasLength(2));
-      expect(built.last.draft, const _Rec('c1', 'Globex'));
+      expect(built.last.draft, const _Rec('c1', 'Globex Ltd'));
       expect(built.last.isDirty, isTrue);
     });
 
@@ -470,6 +508,65 @@ void main() {
 
       expect(built, hasLength(2), reason: 'reloaded');
       expect(primary().pixels, 1200);
+    });
+
+    testWidgets('a carried edit for a record that is not there is dropped, '
+        'not adopted by a later visit', (tester) async {
+      _Rec? record;
+      final router = await pump(
+        tester,
+        stay: true,
+        initial: '/clients/new',
+        onBuilt: (vm) {
+          if (vm.isCreate) vm.whileSaving = () => vm.setName('Globex Ltd');
+        },
+        storedNow: () => record,
+      );
+      built.single.setName('Globex');
+      await tester.pump();
+      await tapSave(tester);
+      expect(pathOf(router), '/clients/$_tmpId/edit');
+      expect(built, hasLength(1), reason: 'not found: no view model');
+
+      record = const _Rec('c1', 'Acme');
+      router.go('/clients');
+      await tester.pumpAndSettle();
+      router.go('/clients/$_tmpId/edit');
+      await tester.pumpAndSettle();
+
+      expect(built.last.draft, const _Rec('c1', 'Acme'));
+      expect(built.last.isDirty, isFalse);
+    });
+
+    testWidgets("a text field's own scroll is not carried", (tester) async {
+      final controller = TextEditingController(
+        text: [for (var i = 0; i < 30; i++) 'line $i'].join('\n'),
+      );
+      addTearDown(controller.dispose);
+      await pump(
+        tester,
+        stay: true,
+        body: (vm) => Material(
+          key: const ValueKey('body'),
+          child: TextField(controller: controller, maxLines: 3),
+        ),
+      );
+      ScrollPosition field() => tester
+          .state<ScrollableState>(
+            find.descendant(
+              of: find.byType(TextField),
+              matching: find.byType(Scrollable),
+            ),
+          )
+          .position;
+      field().jumpTo(40);
+      await tester.pump();
+      built.single.setName('Acme Inc');
+      await tester.pump();
+      await tapSave(tester);
+
+      expect(built, hasLength(2), reason: 'reloaded');
+      expect(field().pixels, 0);
     });
 
     testWidgets('keeps the scroll position', (tester) async {

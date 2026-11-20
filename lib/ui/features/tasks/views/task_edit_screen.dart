@@ -10,6 +10,7 @@ import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/detail/entity_detail_actions_row.dart';
 import 'package:admin/ui/core/edit/after_save_create_action.dart';
 import 'package:admin/ui/core/edit/edit_action_filter.dart';
+import 'package:admin/ui/core/edit/carry_edit_entities.dart';
 import 'package:admin/ui/core/edit/entity_edit_screen_scaffold.dart';
 import 'package:admin/ui/core/widgets/formatter_host_mixin.dart';
 import 'package:admin/ui/features/tasks/view_models/task_edit_view_model.dart';
@@ -245,12 +246,8 @@ class _TaskEditScreenState extends State<TaskEditScreen>
       },
       basePath: '/tasks',
       // An edit typed while a new record's create was out rides to the
-      // record's editor, keeping the number the server gave it
-      // (docs/after-saving.md).
-      carryEdit: (edited, saved) => edited.copyWith(
-        id: saved.id,
-        number: edited.number.trim().isEmpty ? saved.number : edited.number,
-      ),
+      // record's editor, over the server's copy (docs/after-saving.md).
+      carryEdit: carryTaskEdit,
       // An invoiced task's editor can't save it, so Save leaves for the
       // record rather than staying on a form it can't use
       // (docs/after-saving.md).

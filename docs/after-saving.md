@@ -104,21 +104,41 @@ and undone is no edit.
   keeps that view model instead of reloading.
 - **A new record**: its form still latches clean (it leaves `/x/new` either
   way, and the route's exit guard must not ask), and the edit rides to the
-  record's editor: the scaffold parks the form's draft under
-  `<basePath>/<id>`, and the editor that opens there adopts it over the stored
-  record (`adoptUnsavedDraft`), dirty. A screen says how through `carryEdit` —
-  the edited draft under the stored record's id, keeping the number the
-  server gave when the form's is blank, which a blank number would otherwise
-  give up (see "A save rebound from a tmp_ id" below). A screen without `carryEdit` loses the edit, as before.
+  record's editor. The scaffold parks the draft the save sent
+  (`lastSentDraft`) beside the form's draft, by company and
+  `<basePath>/<id>`; the editor that opens there takes it and adopts
+  (`adoptUnsavedDraft`), dirty, the screen's `carryEdit` of the two over the
+  stored record. An entry is one-shot — taken, or dropped when the record
+  can't be read — and stale after a minute. A screen without `carryEdit`
+  loses the edit, as before.
 
-Tests: `generic_edit_view_model_edited_during_save_test.dart` and the
+**Only what changed is carried.** The first version laid the whole create
+form's draft over the record the server had just made, and the next Save
+sent what that form never had: client and vendor contacts without ids (the
+server's `ClientContactRepository::save` deletes and recreates them, so ids
+and keys churn and queued references dangle), invitations without keys
+(`BaseRepository::save` soft-deletes and recreates them, losing the keys and
+the DocuNinja signing state), and blanks where the server had filled a value
+(a due date from the payment terms). `carryChangedFields` (`carry_edit.dart`)
+compares the sent and the edited draft on the wire (`toApiJson`) and lays
+only the changed top-level keys over the stored record's; a list that
+changed keeps, item by item, the stored `id` and `key` at the same place. The
+record is rebuilt from that map (`fromApi`), and each entity's function in
+`carry_edit_entities.dart` puts back what the wire does not carry — the id,
+local state, timestamps, documents, as its repository's decode overlays them
+— and every list the edit left alone, as the stored objects themselves. An
+edit that changed nothing on the wire carries nothing.
+
+Tests: `generic_edit_view_model_edited_during_save_test.dart`, `carry_edit_test.dart` and the
 scaffold cases in `entity_edit_screen_scaffold_after_saving_test.dart`.
 
 ## The reload keeps the scroll position
 
 The remount would put a long form back at the top. Just before it, the
-scaffold records every scrolled vertical scroll view under the form (a
-`GlobalKey` per generation), keyed by its place in the tree — the widget type
+scaffold records the form's own scrolled vertical scroll views (a `GlobalKey`
+per generation) — the outermost ones, never one inside a text field, whose
+offset could otherwise land on another field when a sibling comes or goes —
+each keyed by its place in the tree — the widget type
 and child index of each element on the way down. After the remount it jumps
 the scroll view at the same path back. Matching by count or by order failed on
 the wide billing documents: the PDF pane's spinner turns into a preview with

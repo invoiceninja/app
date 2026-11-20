@@ -167,14 +167,20 @@ class EntityEditScreenScaffold<T, VM extends GenericEditViewModel<T>>
 
   /// The draft a new record's form carries into the record's editor when an
   /// edit was typed while its create was out ([GenericEditViewModel.
-  /// editedDuringSave]): [edited] under [saved]'s id, keeping what the
-  /// server set that the form never showed (the number). Without it that
-  /// edit is lost, as it was before (docs/after-saving.md).
-  final T Function(T edited, T saved)? carryEdit;
+  /// editedDuringSave]): [stored] — the server's copy — with only what
+  /// changed between [sent] and [edited] laid over it, through
+  /// `carryChangedFields` (`carry_edit.dart`). Without it that edit is
+  /// lost, as it was before (docs/after-saving.md).
+  final T Function(T sent, T edited, T stored)? carryEdit;
 
   /// Edits on their way from a create form to the record's editor, by
-  /// `<basePath>/<id>`: one-shot, taken by the editor that opens there.
-  static final Map<String, Object?> _carriedEdits = {};
+  /// company and `<basePath>/<id>`: one-shot, taken (or dropped, when the
+  /// record can't be read) by the editor that opens there, and stale after
+  /// [_kCarryTtl] — a navigation that never arrived leaves nothing behind
+  /// for a later visit.
+  static final Map<String, _CarriedEdit> _carriedEdits = {};
+
+  static const _kCarryTtl = Duration(minutes: 1);
 
   /// Optional Save-button gate. Defaults to `!vm.isSaving`.
   final bool Function(VM vm)? canSave;
@@ -297,6 +303,9 @@ class _EntityEditScreenScaffoldState<T, VM extends GenericEditViewModel<T>>
       existingId,
     );
     if (!mounted) return;
+    final carried = EntityEditScreenScaffold._carriedEdits.remove(
+      '$companyId|${widget.basePath}/$existingId',
+    );
     if (existing == null) {
       // The URL names a row that isn't in local Drift (restored deep link
       // after a DB reset, stale link, row deleted elsewhere). Building the
@@ -311,12 +320,15 @@ class _EntityEditScreenScaffoldState<T, VM extends GenericEditViewModel<T>>
       return;
     }
     final vm = widget.buildVm(context, services, companyId, existing);
-    final carried = EntityEditScreenScaffold._carriedEdits.remove(
-      '${widget.basePath}/$existingId',
-    );
     final carry = widget.carryEdit;
-    if (carried is T && carry != null) {
-      vm.adoptUnsavedDraft(carry(carried, existing));
+    if (carried != null &&
+        carry != null &&
+        DateTime.now().difference(carried.at) <
+            EntityEditScreenScaffold._kCarryTtl &&
+        carried.sent is T &&
+        carried.edited is T) {
+      final draft = carry(carried.sent as T, carried.edited as T, existing);
+      if (draft != existing) vm.adoptUnsavedDraft(draft);
     }
     setState(() {
       _vm = vm;
@@ -616,14 +628,19 @@ class _EntityEditScreenScaffoldState<T, VM extends GenericEditViewModel<T>>
   static Map<String, ScrollPosition> _verticalScrollViews(BuildContext? root) {
     final out = <String, ScrollPosition>{};
     if (root == null) return out;
+    // Only the form's own scroll views: the outermost vertical ones, and none
+    // inside a text field — a multi-line field's offset could otherwise land
+    // on another field when a sibling comes or goes.
     void visit(Element element, String path) {
       var index = 0;
       element.visitChildren((child) {
         final childPath = '$path/${child.widget.runtimeType}#${index++}';
+        if (child.widget is EditableText) return;
         if (child is StatefulElement && child.state is ScrollableState) {
           final position = (child.state as ScrollableState).position;
-          if (position.axis == Axis.vertical && position.hasPixels) {
-            out[childPath] = position;
+          if (position.axis == Axis.vertical) {
+            if (position.hasPixels) out[childPath] = position;
+            return;
           }
         }
         visit(child, childPath);
@@ -721,9 +738,19 @@ class _EntityEditScreenScaffoldState<T, VM extends GenericEditViewModel<T>>
         ? await services.db.idRemapDao.resolveAnyType(savedId) ?? savedId
         : savedId;
     if (!context.mounted) return;
-    if (vm.editedDuringSave && widget.carryEdit != null) {
-      EntityEditScreenScaffold._carriedEdits['${widget.basePath}/$id'] =
-          vm.draft;
+    final sent = vm.lastSentDraft;
+    if (vm.editedDuringSave && widget.carryEdit != null && sent != null) {
+      final carried = EntityEditScreenScaffold._carriedEdits
+        ..removeWhere(
+          (_, c) =>
+              DateTime.now().difference(c.at) >=
+              EntityEditScreenScaffold._kCarryTtl,
+        );
+      carried['$_companyId|${widget.basePath}/$id'] = (
+        sent: sent,
+        edited: vm.draft,
+        at: DateTime.now(),
+      );
     }
     context.go(
       editorPathAfterCreate(
@@ -883,3 +910,7 @@ class _EntityEditScreenScaffoldState<T, VM extends GenericEditViewModel<T>>
     );
   }
 }
+
+/// An edit on its way from a create form to the record's editor — see
+/// [EntityEditScreenScaffold._carriedEdits].
+typedef _CarriedEdit = ({Object? sent, Object? edited, DateTime at});

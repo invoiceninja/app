@@ -7,6 +7,7 @@ import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/detail/entity_detail_actions_row.dart';
 import 'package:admin/ui/core/edit/after_save_create_action.dart';
 import 'package:admin/ui/core/edit/edit_action_filter.dart';
+import 'package:admin/ui/core/edit/carry_edit_entities.dart';
 import 'package:admin/ui/core/edit/entity_edit_screen_scaffold.dart';
 import 'package:admin/ui/features/products/view_models/product_edit_view_model.dart';
 import 'package:admin/ui/features/products/widgets/edit/product_edit_layout.dart';
@@ -95,8 +96,8 @@ class ProductEditScreen extends StatelessWidget {
       },
       basePath: '/products',
       // An edit typed while a new record's create was out rides to the
-      // record's editor (docs/after-saving.md).
-      carryEdit: (edited, saved) => edited.copyWith(id: saved.id),
+      // record's editor, over the server's copy (docs/after-saving.md).
+      carryEdit: carryProductEdit,
     );
   }
 }

@@ -184,6 +184,12 @@ abstract class GenericEditViewModel<T> extends ChangeNotifier {
   /// docs/after-saving.md).
   bool get editedDuringSave => _editedDuringSave;
 
+  T? _lastSentDraft;
+
+  /// The draft the last successful save sent — beside [draft], what an edit
+  /// made while it was out changed ([editedDuringSave]).
+  T? get lastSentDraft => _lastSentDraft;
+
   /// Put [edited] — a draft not saved yet — in the form, dirty, over the
   /// record it opened on: the edit a new record's form carried here.
   void adoptUnsavedDraft(T edited) => updateDraft(edited);
@@ -1017,6 +1023,7 @@ abstract class GenericEditViewModel<T> extends ChangeNotifier {
       // the record's own route either way (carrying the edit there), so it
       // latches clean — the route's exit guard must not ask about it.
       _editedDuringSave = _draft != draftAtSend;
+      _lastSentDraft = draftAtSend;
       _savedClean = isCreate || !_editedDuringSave;
       _recoveryTempId = null;
       _recreate = false;

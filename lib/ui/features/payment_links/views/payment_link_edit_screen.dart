@@ -7,6 +7,7 @@ import 'package:admin/data/models/domain/payment_link.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/detail/entity_detail_actions_row.dart';
 import 'package:admin/ui/core/edit/edit_action_filter.dart';
+import 'package:admin/ui/core/edit/carry_edit_entities.dart';
 import 'package:admin/ui/core/edit/entity_edit_screen_scaffold.dart';
 import 'package:admin/ui/features/payment_links/view_models/payment_link_edit_view_model.dart';
 import 'package:admin/ui/features/payment_links/widgets/payment_link_actions.dart';
@@ -106,8 +107,8 @@ class PaymentLinkEditScreen extends StatelessWidget {
       },
       basePath: '/settings/payment_links',
       // An edit typed while a new record's create was out rides to the
-      // record's editor (docs/after-saving.md).
-      carryEdit: (edited, saved) => edited.copyWith(id: saved.id),
+      // record's editor, over the server's copy (docs/after-saving.md).
+      carryEdit: carryPaymentLinkEdit,
     );
   }
 }

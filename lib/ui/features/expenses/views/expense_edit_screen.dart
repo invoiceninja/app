@@ -12,6 +12,7 @@ import 'package:admin/domain/expenses/receipt_scanner.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/detail/entity_detail_actions_row.dart';
 import 'package:admin/ui/core/edit/edit_action_filter.dart';
+import 'package:admin/ui/core/edit/carry_edit_entities.dart';
 import 'package:admin/ui/core/edit/entity_edit_screen_scaffold.dart';
 import 'package:admin/ui/features/expenses/view_models/expense_edit_view_model.dart';
 import 'package:admin/ui/features/expenses/widgets/edit/expense_edit_layout.dart';
@@ -184,12 +185,8 @@ class ExpenseEditScreen extends StatelessWidget {
       },
       basePath: '/expenses',
       // An edit typed while a new record's create was out rides to the
-      // record's editor, keeping the number the server gave it
-      // (docs/after-saving.md).
-      carryEdit: (edited, saved) => edited.copyWith(
-        id: saved.id,
-        number: edited.number.trim().isEmpty ? saved.number : edited.number,
-      ),
+      // record's editor, over the server's copy (docs/after-saving.md).
+      carryEdit: carryExpenseEdit,
     );
   }
 }

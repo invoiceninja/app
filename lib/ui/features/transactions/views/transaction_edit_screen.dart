@@ -14,6 +14,7 @@ import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/utils/formatting.dart';
 import 'package:admin/ui/core/detail/entity_detail_actions_row.dart';
 import 'package:admin/ui/core/edit/edit_action_filter.dart';
+import 'package:admin/ui/core/edit/carry_edit_entities.dart';
 import 'package:admin/ui/core/edit/entity_edit_screen_scaffold.dart';
 import 'package:admin/ui/core/widgets/centered_form_column.dart';
 import 'package:admin/ui/core/widgets/entity_tags_field.dart';
@@ -78,8 +79,8 @@ class TransactionEditScreen extends StatelessWidget {
       },
       basePath: '/transactions',
       // An edit typed while a new record's create was out rides to the
-      // record's editor (docs/after-saving.md).
-      carryEdit: (edited, saved) => edited.copyWith(id: saved.id),
+      // record's editor, over the server's copy (docs/after-saving.md).
+      carryEdit: carryBankTransactionEdit,
     );
   }
 }

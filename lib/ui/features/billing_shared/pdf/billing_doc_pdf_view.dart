@@ -49,7 +49,6 @@ Future<PrintingInfo> Function() billingDocPdfPrintingInfo = Printing.info;
 class BillingDocPdfMemo {
   Uint8List? bytes;
   bool deliveryNote = false;
-  String? designId;
 }
 
 class BillingDocPdfView extends StatefulWidget {
@@ -161,9 +160,7 @@ class _BillingDocPdfViewState extends State<BillingDocPdfView> {
   late bool _deliveryNote = widget.memo?.bytes != null
       ? widget.memo!.deliveryNote
       : widget.initialDeliveryNote;
-  late final String? _designId = widget.memo?.bytes != null
-      ? widget.memo!.designId
-      : null;
+  String? _designId;
   int _generation = 0;
   Timer? _debounce;
   Timer? _progressDelay;
@@ -256,8 +253,7 @@ class _BillingDocPdfViewState extends State<BillingDocPdfView> {
       if (!mounted || myGen != _generation) return;
       widget.memo
         ?..bytes = bytes
-        ..deliveryNote = _deliveryNote
-        ..designId = _designId;
+        ..deliveryNote = _deliveryNote;
       setState(() {
         _bytes = bytes;
         _build = (_) => bytes;

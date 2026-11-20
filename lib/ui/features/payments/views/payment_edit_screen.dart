@@ -7,6 +7,7 @@ import 'package:admin/domain/payment_types.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/detail/entity_detail_actions_row.dart';
 import 'package:admin/ui/core/edit/after_save_create_action.dart';
+import 'package:admin/ui/core/edit/carry_edit_entities.dart';
 import 'package:admin/ui/core/edit/entity_edit_screen_scaffold.dart';
 import 'package:admin/ui/features/payments/seed_payment_create_defaults.dart';
 import 'package:admin/ui/features/payments/view_models/payment_edit_view_model.dart';
@@ -180,12 +181,8 @@ class PaymentEditScreen extends StatelessWidget {
       },
       basePath: '/payments',
       // An edit typed while a new record's create was out rides to the
-      // record's editor, keeping the number the server gave it
-      // (docs/after-saving.md).
-      carryEdit: (edited, saved) => edited.copyWith(
-        id: saved.id,
-        number: edited.number.trim().isEmpty ? saved.number : edited.number,
-      ),
+      // record's editor, over the server's copy (docs/after-saving.md).
+      carryEdit: carryPaymentEdit,
     );
   }
 }
