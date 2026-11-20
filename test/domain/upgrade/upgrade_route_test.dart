@@ -186,7 +186,9 @@ void main() {
       'active IAP': UpgradeRoute.planScreen,
       // It may still renew in the store: no web plan on top for 60 days.
       'lapsed IAP, recent': UpgradeRoute.planScreen,
-      'lapsed IAP, no date': UpgradeRoute.planScreen,
+      // A legacy in-app account with no date we can read: off the store
+      // nothing could bill twice, and the Plan screen would be a dead end.
+      'lapsed IAP, no date': UpgradeRoute.billingPortal,
       'lapsed IAP, >60 days': UpgradeRoute.billingPortal,
       'self-hosted': UpgradeRoute.planScreen,
       'non-owner, free': UpgradeRoute.billingPortal,
@@ -291,6 +293,37 @@ void main() {
       for (final raw in ['', '  ', 'soon', '0000-00-00', '1970-01-01']) {
         expect(iapPlanEndedLongAgo(raw, now: _now), isFalse, reason: raw);
       }
+    });
+
+    test('off the store they read as long ago', () {
+      for (final raw in ['', '  ', 'soon', '0000-00-00', '1970-01-01']) {
+        expect(
+          iapPlanEndedLongAgo(raw, now: _now, ifUnreadable: true),
+          isTrue,
+          reason: raw,
+        );
+      }
+      // A readable date is read the same either way.
+      expect(
+        iapPlanEndedLongAgo(_daysAgo(10), now: _now, ifUnreadable: true),
+        isFalse,
+      );
+    });
+  });
+
+  group('a legacy lapsed in-app account (blank plan, no date)', () {
+    final legacy = _session(hasIapPlan: true);
+    test('reaches the billing portal off the store', () {
+      expect(
+        resolveUpgradeRoute(storeBilling: false, session: legacy, now: _now),
+        UpgradeRoute.billingPortal,
+      );
+    });
+    test('is not sold a second store plan on a store build', () {
+      expect(
+        resolveUpgradeRoute(storeBilling: true, session: legacy, now: _now),
+        UpgradeRoute.storeSubscriptionsEnded,
+      );
     });
   });
 

@@ -44,11 +44,18 @@ UpgradeRoute resolveUpgradeRoute({
 
   // An in-app plan that is no longer paid may still be in the store's grace or
   // billing-retry window and renew: nothing new is sold, in the store or on
-  // the web, until it has been over for [kIapRebuyAfter].
+  // the web, until it has been over for [kIapRebuyAfter]. A date we can't
+  // read fails closed only where a second store subscription is at stake: off
+  // the store a legacy in-app account with a blank `plan_expires` would
+  // otherwise never reach the billing portal at all.
   final lapsedIapRecently =
       session.hasIapPlan &&
       !session.hasActiveIapPlan &&
-      !iapPlanEndedLongAgo(session.planExpires, now: now);
+      !iapPlanEndedLongAgo(
+        session.planExpires,
+        now: now,
+        ifUnreadable: !storeBilling,
+      );
 
   if (!storeBilling) {
     // A plan bought in a store is managed in that store, never the portal;
@@ -98,13 +105,19 @@ bool canBuyForActiveAccount(AuthSession session) =>
 
 /// Whether [planExpires] (the account's `plan_expires`, a `YYYY-MM-DD` day the
 /// plan is paid through) ended more than [kIapRebuyAfter] before [now].
-/// Fails closed: blank, unparseable or a pre-2001 sentinel (`0000-00-00`)
-/// reads as recent, so no second purchase is offered on a date we can't read.
-bool iapPlanEndedLongAgo(String planExpires, {required DateTime now}) {
+/// A blank, unparseable or pre-2001 sentinel (`0000-00-00`) date answers
+/// [ifUnreadable]: false by default (fails closed, so a store build offers no
+/// second purchase on a date it can't read), true off the store, where the
+/// only thing at stake is reaching the billing portal.
+bool iapPlanEndedLongAgo(
+  String planExpires, {
+  required DateTime now,
+  bool ifUnreadable = false,
+}) {
   final raw = planExpires.trim();
-  if (raw.length < 10) return false;
+  if (raw.length < 10) return ifUnreadable;
   final day = DateTime.tryParse('${raw.substring(0, 10)}T00:00:00Z');
-  if (day == null || day.year <= 2000) return false;
+  if (day == null || day.year <= 2000) return ifUnreadable;
   final paidThrough = day.add(const Duration(days: 1));
   return now.toUtc().isAfter(paidThrough.add(kIapRebuyAfter));
 }

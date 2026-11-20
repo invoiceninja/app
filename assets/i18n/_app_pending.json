@@ -2290,6 +2290,5 @@
   "web_app_banner_get_linux": "Get the Linux app",
   "web_app_banner_dismiss": "Don't show this again",
   "store_purchase_own_account_only": "Plans bought here are applied to your own account. Switch to one of its companies to upgrade.",
-  "delete_last_company_deletes_account": "Deleting your last company deletes your account.",
-  "i_agree_to_terms_and_privacy": "I agree to the Terms of Service and Privacy Policy"
+  "delete_last_company_deletes_account": "Deleting your last company deletes your account."
 }

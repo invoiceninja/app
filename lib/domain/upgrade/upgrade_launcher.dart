@@ -136,10 +136,17 @@ Future<void> showUpgradeSheet(BuildContext context) async {
   }
   // The hosted service applies a purchase to the user's own account (the
   // config's `account_key`); while a company of another account is active,
-  // a plan bought here would never reach that company.
-  if (!svc.sellsToActiveAccount) {
+  // a plan bought here would never reach that company. A session that does
+  // not know its account key yet is not "another account".
+  if (svc.saleRefusal case final refusal?) {
     if (context.mounted) {
-      Notify.info(context, context.tr('store_purchase_own_account_only'));
+      Notify.info(
+        context,
+        context.tr(switch (refusal) {
+          SaleRefusal.unavailable => 'in_app_purchases_unavailable',
+          SaleRefusal.otherAccount => 'store_purchase_own_account_only',
+        }),
+      );
     }
     await svc.dispose();
     return;

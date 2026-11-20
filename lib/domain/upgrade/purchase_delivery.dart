@@ -174,6 +174,15 @@ const kPurchaseRetryBackoff = [
 /// swept again with a backoff ([kPurchaseRetryBackoff]) while the app runs,
 /// and whenever the app comes back to the foreground ([onAppResumed]).
 ///
+/// A transaction is posted until the hosted service has answered for good,
+/// and never again after: once applied (200) only its finish is retried, so a
+/// failed Play acknowledgement never re-posts it or refreshes the session, and
+/// a resume sweep racing the purchase stream never posts it twice. One the
+/// service refused but left with the store (any Google refusal, an Apple one
+/// with a reason that may change) is re-posted only by the sweep of a new
+/// sign-in (a launch included) and by Restore, never by a resume or a retry,
+/// and the refusal is said once per signed-in user.
+///
 /// The upgrade sheet only lists products and starts a purchase; every
 /// delivery comes through here, and the sheet follows [activity].
 ///
@@ -265,12 +274,29 @@ class PurchaseDelivery {
   Future<IapConfig?>? _configInFlight;
   String? _configOwner;
 
-  /// Purchases being posted right now, by transaction id: the launch sweep
-  /// and `Transaction.updates` can hand over the same one at once.
+  /// Purchases being posted right now, by [_transactionKey]: the launch
+  /// sweep and `Transaction.updates` can hand over the same one at once.
   final _inFlight = <String>{};
 
-  /// The pending retry sweep, and how many have been scheduled since the last
-  /// purchase was applied ([kPurchaseRetryBackoff]).
+  /// Transactions the hosted service has answered for good while the app
+  /// runs, by [_transactionKey]: applied (200), or refused with a final reason
+  /// on Apple. Only finishing them with the store is left, so none is posted
+  /// again — not by a sweep that read the store's list before the finish, not
+  /// by a retry after a failed Play acknowledgement. True once the store has
+  /// confirmed the finish.
+  final _answered = <String, bool>{};
+
+  /// Transactions the hosted service refused but left with the store, as
+  /// `'<owner>|<transaction key>'`: a resume or retry sweep skips them, and a
+  /// re-post (a sign-in's sweep, Restore) is quiet, so the refusal is said
+  /// once. In memory: a cold start says it again, once.
+  final _refused = <String>{};
+
+  /// Purchases already logged as having no transaction id to post them by.
+  final _loggedNoId = <String>{};
+
+  /// The pending retry sweep, and how many have been scheduled since a
+  /// purchase was last finished with the store ([kPurchaseRetryBackoff]).
   Timer? _retry;
   int _retries = 0;
 
@@ -318,7 +344,7 @@ class PurchaseDelivery {
     final owner = _ownerOf(session!);
     if (_sweptFor == owner) return;
     _sweptFor = owner;
-    unawaited(_sweep(owner));
+    unawaited(_sweep(owner, repostRefused: true));
   }
 
   /// The app is back in the foreground: ask the config afresh (support may
@@ -342,14 +368,30 @@ class PurchaseDelivery {
   static bool _canDeliverTo(AuthSession? session) =>
       session != null && session.isHosted;
 
-  /// Delivers what the store still holds unfinished.
-  Future<void> _sweep(String owner) async {
+  /// Delivers what the store still holds unfinished. A purchase already
+  /// answered for good is only finished; one refused but left with the store
+  /// is posted again only when [repostRefused] (a new sign-in's sweep).
+  Future<void> _sweep(String owner, {bool repostRefused = false}) async {
     try {
-      final unfinished = await billing.unfinishedPurchases();
-      if (unfinished.isEmpty) {
+      final all = await billing.unfinishedPurchases();
+      if (all.isEmpty) {
         _retries = 0;
         return;
       }
+      final unfinished = <StorePurchase>[];
+      for (final p in all) {
+        final key = _transactionKey(p);
+        if (key != null && _answered.containsKey(key)) {
+          await _finishAnswered(p, key);
+        } else if (key != null &&
+            !repostRefused &&
+            _refused.contains('$owner|$key')) {
+          continue;
+        } else {
+          unfinished.add(p);
+        }
+      }
+      if (unfinished.isEmpty) return;
       if (await config() == null) {
         // Left unfinished, and swept again on the next session update (a
         // refresh, a sign-in), the next retry and the next resume.
@@ -489,23 +531,45 @@ class PurchaseDelivery {
     _activity.add(a);
   }
 
-  /// Finishes [p] with the store. A Google acknowledgement the store did not
+  /// Finishes [p] with the store; true once the store has confirmed it (or
+  /// there was nothing to finish). A Google acknowledgement the store did not
   /// confirm is logged and swept again: Play refunds a purchase nobody
-  /// acknowledges within three days, and the server takes a re-post.
-  Future<void> _finish(StorePurchase p) async {
-    if (!p.pendingCompletePurchase) return;
+  /// acknowledges within three days.
+  Future<bool> _finish(StorePurchase p) async {
+    if (!p.pendingCompletePurchase) return true;
     try {
-      if (!await billing.completePurchase(p)) {
-        _log.warning(
-          'the store did not confirm finishing ${p.productId}, '
-          'sweeping it again',
-        );
-        _scheduleRetry();
-      }
+      if (await billing.completePurchase(p)) return true;
+      _log.warning(
+        'the store did not confirm finishing ${p.productId}, '
+        'sweeping it again',
+      );
     } catch (e) {
       _log.warning('completePurchase failed: $e');
-      _scheduleRetry();
     }
+    _scheduleRetry();
+    return false;
+  }
+
+  /// Finishes a purchase the hosted service has answered for good
+  /// ([_answered]) — the only thing left to do with it. The backoff starts
+  /// over only once the store confirms: a reset before that made every retry
+  /// of a failed Play acknowledgement the first, 30 second, step.
+  Future<void> _finishAnswered(StorePurchase p, String key) async {
+    if (_answered[key] == true) return;
+    if (await _finish(p)) {
+      _answered[key] = true;
+      _retries = 0;
+    }
+  }
+
+  /// The id that names this one transaction, never shared with a renewal: the
+  /// store's own per-transaction id (Apple's transaction id, Play's order id),
+  /// else the id it is posted under. Null when it has neither.
+  static String? _transactionKey(StorePurchase p) {
+    final id = p.purchaseId;
+    if (id != null && id.isNotEmpty) return id;
+    final posted = inAppTransactionId(p);
+    return (posted == null || posted.isEmpty) ? null : posted;
   }
 
   /// Not applied yet: left unfinished, said so, and tried again later.
@@ -519,7 +583,16 @@ class PurchaseDelivery {
   /// answered for good: a finished Apple transaction is never handed back,
   /// and Google never refunds an acknowledged one.
   Future<void> _deliver(StorePurchase p) async {
-    if (!_canDeliverTo(_auth.session.value)) {
+    final key = _transactionKey(p);
+    // Answered for good already (a sweep that read the store's list before
+    // the purchase stream's delivery finished it, a retry after a failed
+    // acknowledgement): only the finish is left, never a second post.
+    if (key != null && _answered.containsKey(key)) {
+      await _finishAnswered(p, key);
+      return;
+    }
+    final session = _auth.session.value;
+    if (!_canDeliverTo(session)) {
       // Signed out, or self-hosted (the POST would reach the wrong server):
       // keep it for a later delivery.
       _log.info(
@@ -528,6 +601,7 @@ class PurchaseDelivery {
       _emit(PurchaseActivityKind.retryLater, p);
       return;
     }
+    final owner = _ownerOf(session!);
     // Nothing paid is posted or finished until the hosted service has
     // confirmed it takes this app's purchases, and for which account.
     final config = await this.config();
@@ -544,35 +618,47 @@ class PurchaseDelivery {
       return;
     }
     // Bought for another account (another user on this Apple ID or Google
-    // account): not this user's to apply, and not ours to finish.
+    // account): not this user's to apply, and not ours to finish. Only when
+    // the config names this account's token: without one there is nothing to
+    // compare, and the server checks the token itself (`token_mismatch`) —
+    // skipping it would never deliver a renewal (purchases_enabled gates only
+    // the sale, never a delivery).
     final token = purchaseAccountToken(p, store);
+    final mine = config.appAccountToken;
     if (token != null &&
-        token.toLowerCase() != config.appAccountToken?.toLowerCase()) {
+        mine != null &&
+        token.toLowerCase() != mine.toLowerCase()) {
       _log.info('${p.productId} was bought for another account, left alone');
+      _emit(PurchaseActivityKind.retryLater, p);
       return;
     }
+    // The hosted endpoint requires `inapp_transaction_id`. Play can hand over
+    // a purchase with no order id yet: never posted (it would be a 422) and
+    // never acknowledged, so Play refunds it if it never gets one; a later
+    // hand-over may carry it.
     final purchaseId = inAppTransactionId(p);
-    final verification = p.serverVerificationData;
-    final hasId = purchaseId != null && purchaseId.isNotEmpty;
-    // Play can hand over a purchase with no order id yet; its purchase token
-    // still names it, and the server verifies it from that.
-    final byToken =
-        !hasId && store == PurchaseStore.googlePlay && verification.isNotEmpty;
-    if (!hasId && !byToken) {
-      // Nothing to name it by. Never finished: a later hand-over may carry
-      // an id, and Play would refund it the moment it was acknowledged.
-      _log.warning('no transaction id for ${p.productId}, left unfinished');
+    if (key == null || purchaseId == null || purchaseId.isEmpty) {
+      final logKey = p.serverVerificationData.isNotEmpty
+          ? p.serverVerificationData
+          : p.productId;
+      if (_loggedNoId.add(logKey)) {
+        _log.warning('no transaction id for ${p.productId}, left unfinished');
+      }
       _retryLater(p);
       return;
     }
-    final flightKey = hasId ? purchaseId : verification;
-    if (!_inFlight.add(flightKey)) return;
-    _emit(PurchaseActivityKind.delivering, p);
+    if (!_inFlight.add(key)) return;
+    // Refused before for this user: re-posted (a sign-in, Restore) without a
+    // word, so the refusal is said once.
+    final refusedKey = '$owner|$key';
+    final quiet = _refused.contains(refusedKey);
+    if (!quiet) _emit(PurchaseActivityKind.delivering, p);
+    final verification = p.serverVerificationData;
     try {
       await _apiClient.postJson(
         kSubscriptionPath,
         body: {
-          if (hasId) 'inapp_transaction_id': purchaseId,
+          'inapp_transaction_id': purchaseId,
           'key': config.accountKey,
           'plan': planSlugOf(p.productId),
           if (verification.isNotEmpty) 'verification_data': verification,
@@ -581,7 +667,7 @@ class PurchaseDelivery {
         },
       );
     } catch (e) {
-      _inFlight.remove(flightKey);
+      _inFlight.remove(key);
       if (isPermanentRejection(e)) {
         _log.warning('subscription refused (${rejectionReason(e)}): $e');
         // StoreKit hands an unfinished transaction back on every launch and
@@ -589,7 +675,15 @@ class PurchaseDelivery {
         // Apple's is finished once the refusal is final. Google's stays
         // unacknowledged: Play refunds it.
         if (store == PurchaseStore.appStore && finishesOnRejection(e)) {
-          await _finish(p);
+          _refused.remove(refusedKey);
+          _answered[key] = false;
+          await _finishAnswered(p, key);
+        } else {
+          _refused.add(refusedKey);
+        }
+        if (quiet) {
+          _log.info('${p.productId} refused again, already said');
+          return;
         }
         _emit(
           PurchaseActivityKind.rejected,
@@ -602,10 +696,11 @@ class PurchaseDelivery {
       }
       return;
     }
-    _inFlight.remove(flightKey);
-    _retries = 0;
+    _inFlight.remove(key);
+    _refused.remove(refusedKey);
+    _answered[key] = false;
     // The server has it: finish it even if the refresh below fails.
-    await _finish(p);
+    await _finishAnswered(p, key);
     try {
       // Full session snapshot — flips the plan slug everywhere.
       await _auth.refresh();

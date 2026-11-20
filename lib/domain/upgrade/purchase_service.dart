@@ -35,6 +35,13 @@ const Set<String> kProductPlans = {
   kProductEnterprisePlanYear20,
 };
 
+/// Why the purchase sheet does not open: [unavailable] — the hosted service
+/// does not take purchases right now, or the session does not yet know its
+/// active account (a cache from before 5.1.14 has no account key until the
+/// next refresh); [otherAccount] — a company of another account is active,
+/// and a plan bought here lands on the user's own account.
+enum SaleRefusal { unavailable, otherAccount }
+
 /// How often a plan bills, for the purchase sheet's disclosure (App Review
 /// 3.1.2, Play's subscriptions policy).
 enum PlanBillingPeriod { monthly, yearly }
@@ -113,10 +120,19 @@ class PurchaseService {
   /// Whether a plan bought now goes to the active company's account: the
   /// config's `account_key` is the active account's key
   /// ([IapConfig.sellsTo]). False until [loadConfig] has answered.
-  bool get sellsToActiveAccount => switch (_auth.session.value) {
-    final s? => _config.sellsTo(s),
-    null => false,
-  };
+  bool get sellsToActiveAccount => saleRefusal == null;
+
+  /// Why nothing may be sold now, or null when a plan may be. A session with
+  /// a blank account key does not know its active account yet: that is
+  /// [SaleRefusal.unavailable], never [SaleRefusal.otherAccount], or the
+  /// owner was told to switch away from their own account.
+  SaleRefusal? get saleRefusal {
+    final s = _auth.session.value;
+    if (s == null || !_config.canPurchase || s.accountKey.isEmpty) {
+      return SaleRefusal.unavailable;
+    }
+    return _config.sellsTo(s) ? null : SaleRefusal.otherAccount;
+  }
 
   /// Whether this store account already holds an active subscription to one
   /// of our plans in this app: StoreKit 2's `Transaction.currentEntitlements`

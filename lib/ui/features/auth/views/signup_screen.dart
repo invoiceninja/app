@@ -270,6 +270,16 @@ class _SignupBody extends StatelessWidget {
   }
 }
 
+/// The consent line beside the signup checkbox, built from keys every locale
+/// translates (`i_agree`, `terms_of_service`, `privacy_policy`): an app-local
+/// sentence would read English in every language until Transifex caught up.
+/// The two documents' buttons sit right below it ([LegalLinks]).
+@visibleForTesting
+String signupTermsConsentLabel(BuildContext context) =>
+    '${context.tr('i_agree')} '
+    '(${context.tr('terms_of_service')} · '
+    '${context.tr('privacy_policy')})';
+
 class _TermsCheckbox extends StatelessWidget {
   const _TermsCheckbox({required this.value, required this.onChanged});
 
@@ -295,10 +305,8 @@ class _TermsCheckbox extends StatelessWidget {
                 Expanded(
                   child: Padding(
                     padding: const EdgeInsets.only(top: 12),
-                    // Names the two documents; their buttons sit right
-                    // below, so the line doesn't list them again.
                     child: Text(
-                      context.tr('i_agree_to_terms_and_privacy'),
+                      signupTermsConsentLabel(context),
                       style: TextStyle(fontSize: 13, color: tokens.ink2),
                     ),
                   ),

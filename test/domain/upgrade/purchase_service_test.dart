@@ -75,6 +75,7 @@ void main() {
         'starts: it would land on the user\'s own account', () async {
       auth.session.value = testSession(accountKey: 'company-acct');
 
+      expect(svc.saleRefusal, SaleRefusal.otherAccount);
       expect(svc.sellsToActiveAccount, isFalse);
       await svc.buy(svc.products.value.first);
 
@@ -209,6 +210,25 @@ void main() {
       expect(await svc.loadConfig(), isTrue);
       expect(api.gets, ['/api/admin/iap/config']);
       expect(svc.sellsToActiveAccount, isTrue);
+    });
+
+    test('a session that does not know its account key yet (a cache from '
+        'before 5.1.14) is "not available yet", never "another account", and '
+        'is not sold to', () async {
+      auth.session.value = testSession(accountKey: '');
+      expect(await svc.loadConfig(), isTrue);
+      expect(svc.saleRefusal, SaleRefusal.unavailable);
+      expect(svc.sellsToActiveAccount, isFalse);
+
+      await svc.init();
+      await svc.buy(svc.products.value.first);
+      expect(billing.bought, isEmpty);
+    });
+
+    test('nothing to refuse once the config sells to this account', () async {
+      expect(svc.saleRefusal, SaleRefusal.unavailable);
+      await svc.loadConfig();
+      expect(svc.saleRefusal, isNull);
     });
 
     test('reuses the delivery\'s answer: one request', () async {

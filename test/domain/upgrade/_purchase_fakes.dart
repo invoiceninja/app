@@ -35,15 +35,18 @@ String appleTransactionJson({
 }
 
 /// A paid StoreKit 2 purchase, as the purchase stream hands it over.
+/// [transactionId] is this one transaction's id; a renewal or a second
+/// purchase has its own.
 StorePurchase applePurchase({
   String productId = 'pro_plan',
   StorePurchaseStatus status = StorePurchaseStatus.purchased,
   String? appAccountToken,
   Map<String, Object?> extra = const {},
+  String transactionId = '2000000999999',
 }) => StorePurchase(
   productId: productId,
   status: status,
-  purchaseId: '2000000999999',
+  purchaseId: transactionId,
   localVerificationData: appleTransactionJson(
     appAccountToken: appAccountToken,
     extra: extra,

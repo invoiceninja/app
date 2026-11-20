@@ -140,13 +140,33 @@ void main() {
       'launch, says nothing', (tester) async {
     await mount(tester);
 
-    billing.purchases.add([applePurchase()]);
+    billing.purchases.add([applePurchase(transactionId: 'renewal')]);
     await tester.pump();
     api.postError = const ServerException(503, 'Service Unavailable');
-    billing.purchases.add([applePurchase()]);
+    billing.purchases.add([applePurchase(transactionId: 'next')]);
     await tester.pump();
 
     expect(api.posts, hasLength(2));
     expect(toasts.toasts, isEmpty);
+  });
+
+  testWidgets('a refusal left with the store is told once, not on every '
+      'return to the foreground', (tester) async {
+    await mount(tester);
+    api.postError = const ConflictException('Bought for another account.', {
+      'reason': 'token_mismatch',
+    });
+    final p = applePurchase();
+    billing.purchases.add([p]);
+    await tester.pump();
+    expect(toasts.toasts, hasLength(1));
+
+    billing.unfinished = [p];
+    for (var i = 0; i < 3; i++) {
+      delivery.onAppResumed();
+      await tester.pump();
+    }
+    expect(api.posts, hasLength(1));
+    expect(toasts.toasts, hasLength(1));
   });
 }

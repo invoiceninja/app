@@ -7,6 +7,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart' show AppLifecycleState;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:logging/logging.dart';
 import 'package:store_services/store_services.dart';
 
 import 'package:admin/data/services/api_exception.dart';
@@ -164,17 +165,31 @@ void main() {
       });
     }
 
-    test('Google with no order id yet posts by its purchase token', () async {
+    // The hosted endpoint requires `inapp_transaction_id`
+    // (InitialPurchaseRequest): a post without it is a 422.
+    test('Google with no order id yet is not posted, not acknowledged, and '
+        'logged once', () async {
+      final warnings = <String>[];
+      final sub = Logger.root.onRecord
+          .where((r) => r.level >= Level.WARNING)
+          .listen((r) => warnings.add(r.message));
+      addTearDown(sub.cancel);
       build(TargetPlatform.android).start();
       final p = googlePurchase(orderId: null);
       await emit(p);
+      await emit(p);
 
-      final body = api.posts.single.$2!;
-      expect(body, isNot(contains('inapp_transaction_id')));
-      expect(body['verification_data'], 'play-purchase-token');
-      expect(body['key'], 'acct-key');
-      expect(billing.completed, [p]);
-      expect(kinds().last, PurchaseActivityKind.applied);
+      expect(api.posts, isEmpty);
+      // Play refunds it if it never gets an order id.
+      expect(billing.completed, isEmpty);
+      expect(kinds(), [
+        PurchaseActivityKind.retryLater,
+        PurchaseActivityKind.retryLater,
+      ]);
+      expect(
+        warnings.where((m) => m.contains('no transaction id')),
+        hasLength(1),
+      );
     });
 
     test('a refresh failing after delivery still finishes', () async {
@@ -393,6 +408,52 @@ void main() {
       expect(billing.completed, isEmpty);
     });
 
+    test('a purchase under another token, with the config naming one, says '
+        'it is not applied yet, so an open sheet is not left busy', () async {
+      build(TargetPlatform.iOS).start();
+      await emit(
+        applePurchase(appAccountToken: '11111111-2222-3333-4444-555555555555'),
+      );
+
+      expect(api.posts, isEmpty);
+      expect(kinds(), [PurchaseActivityKind.retryLater]);
+    });
+
+    for (final (name, config) in [
+      (
+        'no token',
+        const <String, Object?>{
+          'purchases_enabled': false,
+          'account_key': 'acct-key',
+        },
+      ),
+      (
+        'a non-UUID token',
+        const <String, Object?>{
+          'purchases_enabled': true,
+          'app_account_token': 'not-a-uuid',
+          'account_key': 'acct-key',
+        },
+      ),
+    ]) {
+      for (final platform in [TargetPlatform.iOS, TargetPlatform.android]) {
+        test('a config with $name still delivers a purchase that carries a '
+            'token (${platform.name}): purchases_enabled gates only the '
+            'sale', () async {
+          api.iapConfig = config;
+          build(platform).start();
+          await emit(
+            platform == TargetPlatform.iOS
+                ? applePurchase(appAccountToken: kTestAccountToken)
+                : googlePurchase(obfuscatedAccountId: kTestAccountToken),
+          );
+
+          expect(api.posts, hasLength(1));
+          expect(kinds().last, PurchaseActivityKind.applied);
+        });
+      }
+    }
+
     test("this account's token (any case) is delivered", () async {
       build(TargetPlatform.iOS).start();
       await emit(
@@ -509,20 +570,20 @@ void main() {
 
     test('asked once per user, and again for another user', () async {
       build(TargetPlatform.iOS).start();
-      await emit(applePurchase());
-      await emit(applePurchase());
+      await emit(applePurchase(transactionId: 't1'));
+      await emit(applePurchase(transactionId: 't2'));
       expect(api.gets, hasLength(1));
       expect(api.posts, hasLength(2));
 
       // A company of another account: the same user, the same config.
       auth.session.value = testSession(accountKey: 'other-acct');
       await pumpEventQueue();
-      await emit(applePurchase());
+      await emit(applePurchase(transactionId: 't3'));
       expect(api.gets, hasLength(1));
 
       auth.session.value = testSession(userId: 'someone-else');
       await pumpEventQueue();
-      await emit(applePurchase());
+      await emit(applePurchase(transactionId: 't4'));
       expect(api.gets, hasLength(2));
     });
 
@@ -548,14 +609,14 @@ void main() {
 
     test('asked afresh after a sign-out and back in', () async {
       build(TargetPlatform.iOS).start();
-      await emit(applePurchase());
+      await emit(applePurchase(transactionId: 't1'));
       expect(api.gets, hasLength(1));
 
       auth.session.value = null;
       await pumpEventQueue();
       auth.session.value = testSession();
       await pumpEventQueue();
-      await emit(applePurchase());
+      await emit(applePurchase(transactionId: 't2'));
       expect(api.gets, hasLength(2));
     });
 
@@ -658,19 +719,228 @@ void main() {
       expect(billing.completed, hasLength(1));
       expect(timers.delays, [const Duration(seconds: 30)]);
     });
+
+    test('a purchase applied but not acknowledged retries only the '
+        'acknowledgement, with the backoff growing', () async {
+      billing.completeResult = false;
+      final p = googlePurchase();
+      build(TargetPlatform.android).start();
+      await emit(p);
+      expect(api.posts, hasLength(1));
+      expect(auth.refreshes, 1);
+
+      // Play still lists it as unacknowledged.
+      billing.unfinished = [p];
+      for (var i = 0; i < 3; i++) {
+        timers.fireLast();
+        await pumpEventQueue();
+      }
+      // Never posted again, never refreshed again, nothing said again.
+      expect(api.posts, hasLength(1));
+      expect(auth.refreshes, 1);
+      expect(billing.completed, hasLength(4));
+      expect(timers.delays, const [
+        Duration(seconds: 30),
+        Duration(minutes: 2),
+        Duration(minutes: 10),
+        Duration(minutes: 10),
+      ]);
+      expect(kinds(), [
+        PurchaseActivityKind.delivering,
+        PurchaseActivityKind.applied,
+      ]);
+
+      // Play confirms: no more retries.
+      billing.completeResult = true;
+      timers.fireLast();
+      await pumpEventQueue();
+      expect(billing.completed, hasLength(5));
+      expect(timers.scheduled, hasLength(4));
+      expect(api.posts, hasLength(1));
+    });
+  });
+
+  // A refusal that leaves the purchase with the store (Apple's with a reason
+  // that may change, every Google one) must not be posted, and said, on every
+  // return to the foreground.
+  group('a refusal left with the store', () {
+    for (final platform in [TargetPlatform.iOS, TargetPlatform.android]) {
+      StorePurchase purchase() =>
+          platform == TargetPlatform.iOS ? applePurchase() : googlePurchase();
+
+      test('${platform.name}: not re-posted on resume or a retry, re-posted '
+          'quietly on a sign-in and on Restore, said once', () async {
+        api.postError = const ConflictException('Bought for another account.', {
+          'reason': 'token_mismatch',
+        });
+        final p = purchase();
+        billing.unfinished = [p];
+        final delivery = build(platform)..start();
+        await pumpEventQueue();
+        expect(api.posts, hasLength(1));
+        expect(
+          kinds().where((k) => k == PurchaseActivityKind.rejected),
+          hasLength(1),
+        );
+
+        for (var i = 0; i < 3; i++) {
+          delivery.onAppResumed();
+          await pumpEventQueue();
+        }
+        expect(api.posts, hasLength(1));
+
+        // A retry scheduled for something else sweeps it past, too.
+        billing.unfinished = [p, googlePurchase(orderId: null)];
+        delivery.onAppResumed();
+        await pumpEventQueue();
+        timers.fireLast();
+        await pumpEventQueue();
+        expect(api.posts, hasLength(1));
+        billing.unfinished = [p];
+
+        // A sign-in sweeps it again: the server's answer may have changed.
+        auth.session.value = null;
+        await pumpEventQueue();
+        auth.session.value = testSession();
+        await pumpEventQueue();
+        expect(api.posts, hasLength(2));
+
+        // Restore hands it back on the purchase stream.
+        await emit(
+          platform == TargetPlatform.iOS
+              ? applePurchase(status: StorePurchaseStatus.restored)
+              : googlePurchase(status: StorePurchaseStatus.restored),
+        );
+        expect(api.posts, hasLength(3));
+
+        // Said once, and not even "delivering" on the quiet re-posts.
+        for (final kind in [
+          PurchaseActivityKind.delivering,
+          PurchaseActivityKind.rejected,
+        ]) {
+          expect(
+            kinds().where((k) => k == kind),
+            hasLength(1),
+            reason: '$kind',
+          );
+        }
+        expect(billing.completed, isEmpty);
+      });
+    }
+
+    test('a re-post the server then applies is said', () async {
+      api.postError = const ConflictException('No account token.', {
+        'reason': 'no_token',
+      });
+      billing.unfinished = [applePurchase()];
+      build(TargetPlatform.iOS).start();
+      await pumpEventQueue();
+
+      api.postError = null;
+      auth.session.value = null;
+      await pumpEventQueue();
+      auth.session.value = testSession();
+      await pumpEventQueue();
+      expect(api.posts, hasLength(2));
+      expect(kinds(), [
+        PurchaseActivityKind.delivering,
+        PurchaseActivityKind.rejected,
+        PurchaseActivityKind.applied,
+      ]);
+    });
+
+    test('another user is told about their own refusal', () async {
+      api.postError = const ConflictException('Posted for another account.', {
+        'reason': 'account',
+      });
+      billing.unfinished = [applePurchase()];
+      build(TargetPlatform.iOS).start();
+      await pumpEventQueue();
+
+      auth.session.value = testSession(userId: 'someone-else');
+      await pumpEventQueue();
+      expect(api.posts, hasLength(2));
+      expect(
+        kinds().where((k) => k == PurchaseActivityKind.rejected),
+        hasLength(2),
+      );
+    });
+  });
+
+  // Closing the StoreKit / Play sheet resumes the app, so the resume sweep and
+  // the purchase stream hand over the same transaction.
+  group('the purchase sheet closing', () {
+    test('a resume sweep after the stream applied it posts nothing', () async {
+      final delivery = build(TargetPlatform.iOS)..start();
+      await pumpEventQueue();
+      final p = applePurchase();
+      await emit(p);
+      expect(api.posts, hasLength(1));
+
+      // The store's list was read before the finish landed; a re-post would
+      // be refused as `linked` and say "not applied" right after success.
+      api.postError = const ConflictException('Already linked.', {
+        'reason': 'linked',
+      });
+      billing.unfinished = [p];
+      delivery.onAppResumed();
+      await pumpEventQueue();
+
+      expect(api.posts, hasLength(1));
+      expect(auth.refreshes, 1);
+      expect(kinds(), [
+        PurchaseActivityKind.delivering,
+        PurchaseActivityKind.applied,
+      ]);
+    });
+
+    test('the stream handing it over after the resume sweep applied it posts '
+        'nothing', () async {
+      final delivery = build(TargetPlatform.android)..start();
+      await pumpEventQueue();
+      final p = googlePurchase();
+      billing.unfinished = [p];
+      api.postGate = Completer<void>();
+      delivery.onAppResumed();
+      await pumpEventQueue();
+      expect(api.posts, hasLength(1));
+
+      // While the sweep's post is out, and again after it was applied.
+      billing.purchases.add([p]);
+      await pumpEventQueue();
+      api.postGate!.complete();
+      await pumpEventQueue();
+      await emit(p);
+
+      expect(api.posts, hasLength(1));
+      expect(auth.refreshes, 1);
+      expect(billing.completed, [p]);
+      expect(
+        kinds().where((k) => k == PurchaseActivityKind.applied),
+        hasLength(1),
+      );
+    });
+
+    test('a renewal is a new transaction and is posted', () async {
+      build(TargetPlatform.iOS).start();
+      await emit(applePurchase(transactionId: 't1'));
+      await emit(applePurchase(transactionId: 't2'));
+      expect(api.posts, hasLength(2));
+    });
   });
 
   group('from app start', () {
     test(
       'sweeps again after a sign-out and back in to the same account',
       () async {
-        billing.unfinished = [applePurchase()];
+        billing.unfinished = [applePurchase(transactionId: 't1')];
         build(TargetPlatform.iOS).start();
         await pumpEventQueue();
         expect(api.posts, hasLength(1));
 
         auth.session.value = null;
         await pumpEventQueue();
+        billing.unfinished = [applePurchase(transactionId: 't2')];
         auth.session.value = testSession();
         await pumpEventQueue();
         expect(api.posts, hasLength(2));
@@ -758,6 +1028,7 @@ void main() {
         'app_account_token': kTestAccountToken,
         'account_key': 'other-acct',
       };
+      billing.unfinished = [applePurchase(transactionId: 'theirs')];
       launchAuth.session.value = testSession(userId: 'someone-else');
       await pumpEventQueue();
       expect(api.posts, hasLength(2));
