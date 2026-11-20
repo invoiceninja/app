@@ -40,6 +40,18 @@ import 'package:admin/utils/pdf_bytes_guard.dart';
 @visibleForTesting
 Future<PrintingInfo> Function() billingDocPdfPrintingInfo = Printing.info;
 
+/// The last good render of a [BillingDocPdfView], kept by the view's owner so
+/// a remount of the view starts from it rather than from a spinner — the edit
+/// screen's stay-in-editor Save remounts its form after every Save
+/// (docs/after-saving.md). The view writes it on every good render and clears
+/// it when it drops its PDF; it adopts it on mount and refreshes quietly over
+/// it, as for a content change (docs/pdf-preview-refresh.md).
+class BillingDocPdfMemo {
+  Uint8List? bytes;
+  bool deliveryNote = false;
+  String? designId;
+}
+
 class BillingDocPdfView extends StatefulWidget {
   const BillingDocPdfView({
     super.key,
@@ -53,7 +65,12 @@ class BillingDocPdfView extends StatefulWidget {
     this.hasUnsyncedChanges = false,
     this.autoRefreshDebounce = const Duration(milliseconds: 600),
     this.onOpenFullSize,
+    this.memo,
   });
+
+  /// Where the last good render outlives this view — see [BillingDocPdfMemo].
+  /// Null keeps it only in this view's state.
+  final BillingDocPdfMemo? memo;
 
   /// Adds a Maximize button to the toolbar, after print and share. The wide
   /// detail screen's pane passes it: there the PDF gets only part of the
@@ -141,8 +158,12 @@ class _BillingDocPdfViewState extends State<BillingDocPdfView> {
   /// The last quiet refresh failed, so the PDF on screen predates the
   /// document's latest content.
   bool _stale = false;
-  late bool _deliveryNote = widget.initialDeliveryNote;
-  String? _designId;
+  late bool _deliveryNote = widget.memo?.bytes != null
+      ? widget.memo!.deliveryNote
+      : widget.initialDeliveryNote;
+  late final String? _designId = widget.memo?.bytes != null
+      ? widget.memo!.designId
+      : null;
   int _generation = 0;
   Timer? _debounce;
   Timer? _progressDelay;
@@ -154,7 +175,17 @@ class _BillingDocPdfViewState extends State<BillingDocPdfView> {
   @override
   void initState() {
     super.initState();
-    _load();
+    final remembered = widget.memo?.bytes;
+    if (remembered != null) {
+      // The render a previous mount of this view left: on screen at once,
+      // refreshed quietly behind it.
+      _bytes = remembered;
+      _build = (_) => remembered;
+      _loading = false;
+      _load(quiet: true);
+    } else {
+      _load();
+    }
     billingDocPdfPrintingInfo()
         .then((info) {
           if (mounted) setState(() => _printingInfo = info);
@@ -223,6 +254,10 @@ class _BillingDocPdfViewState extends State<BillingDocPdfView> {
         deliveryNote: _deliveryNote,
       );
       if (!mounted || myGen != _generation) return;
+      widget.memo
+        ?..bytes = bytes
+        ..deliveryNote = _deliveryNote
+        ..designId = _designId;
       setState(() {
         _bytes = bytes;
         _build = (_) => bytes;
@@ -259,6 +294,7 @@ class _BillingDocPdfViewState extends State<BillingDocPdfView> {
         _bytes = null;
         _build = null;
         _stale = false;
+        widget.memo?.bytes = null;
       });
     }
   }

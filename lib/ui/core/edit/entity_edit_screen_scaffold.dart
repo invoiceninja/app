@@ -66,6 +66,7 @@ class EntityEditScreenScaffold<T, VM extends GenericEditViewModel<T>>
     this.basePath,
     this.canKeepEditing,
     this.reloadVm,
+    this.carryEdit,
     required this.entityIdOf,
     this.canSave,
     this.embedded = false,
@@ -163,6 +164,17 @@ class EntityEditScreenScaffold<T, VM extends GenericEditViewModel<T>>
     T existing,
   )?
   reloadVm;
+
+  /// The draft a new record's form carries into the record's editor when an
+  /// edit was typed while its create was out ([GenericEditViewModel.
+  /// editedDuringSave]): [edited] under [saved]'s id, keeping what the
+  /// server set that the form never showed (the number). Without it that
+  /// edit is lost, as it was before (docs/after-saving.md).
+  final T Function(T edited, T saved)? carryEdit;
+
+  /// Edits on their way from a create form to the record's editor, by
+  /// `<basePath>/<id>`: one-shot, taken by the editor that opens there.
+  static final Map<String, Object?> _carriedEdits = {};
 
   /// Optional Save-button gate. Defaults to `!vm.isSaving`.
   final bool Function(VM vm)? canSave;
@@ -299,6 +311,13 @@ class _EntityEditScreenScaffoldState<T, VM extends GenericEditViewModel<T>>
       return;
     }
     final vm = widget.buildVm(context, services, companyId, existing);
+    final carried = EntityEditScreenScaffold._carriedEdits.remove(
+      '${widget.basePath}/$existingId',
+    );
+    final carry = widget.carryEdit;
+    if (carried is T && carry != null) {
+      vm.adoptUnsavedDraft(carry(carried, existing));
+    }
     setState(() {
       _vm = vm;
       _ready = true;
@@ -588,51 +607,67 @@ class _EntityEditScreenScaffoldState<T, VM extends GenericEditViewModel<T>>
     );
   }
 
-  /// The pixels of every vertical scroll view under [root], in tree order.
-  static List<double> _verticalScrollOffsets(BuildContext? root) {
-    final out = <double>[];
+  /// Every vertical scroll view under [root] that is scrolled, keyed by its
+  /// place in the tree: the widget type and child index of each element on
+  /// the way down. A reload rebuilds the same tree, so the same scroll view
+  /// gets the same path — whatever else comes and goes beside it (a PDF
+  /// pane's loading state, a multi-line field), which matching by count or
+  /// order could not survive.
+  static Map<String, ScrollPosition> _verticalScrollViews(BuildContext? root) {
+    final out = <String, ScrollPosition>{};
     if (root == null) return out;
-    void visit(Element element) {
-      if (element is StatefulElement && element.state is ScrollableState) {
-        final position = (element.state as ScrollableState).position;
-        if (position.axis == Axis.vertical && position.hasPixels) {
-          out.add(position.pixels);
+    void visit(Element element, String path) {
+      var index = 0;
+      element.visitChildren((child) {
+        final childPath = '$path/${child.widget.runtimeType}#${index++}';
+        if (child is StatefulElement && child.state is ScrollableState) {
+          final position = (child.state as ScrollableState).position;
+          if (position.axis == Axis.vertical && position.hasPixels) {
+            out[childPath] = position;
+          }
         }
-      }
-      element.visitChildren(visit);
+        visit(child, childPath);
+      });
     }
 
-    (root as Element).visitChildren(visit);
+    visit(root as Element, '');
     return out;
   }
 
-  /// Put the remounted form back where it was scrolled to — only when it has
-  /// the same vertical scroll views it had, matched in tree order, so an
-  /// offset never lands on a different list.
-  void _restoreScrollOffsets(List<double> offsets) {
-    if (offsets.every((o) => o == 0)) return;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final root = _formKey.currentContext;
-      if (!mounted || root == null) return;
-      final positions = <ScrollPosition>[];
-      void visit(Element element) {
-        if (element is StatefulElement && element.state is ScrollableState) {
-          final position = (element.state as ScrollableState).position;
-          if (position.axis == Axis.vertical && position.hasPixels) {
-            positions.add(position);
-          }
-        }
-        element.visitChildren(visit);
-      }
+  static Map<String, double> _verticalScrollOffsets(BuildContext? root) => {
+    for (final MapEntry(:key, value: position) in _verticalScrollViews(
+      root,
+    ).entries)
+      if (position.pixels != 0) key: position.pixels,
+  };
 
-      (root as Element).visitChildren(visit);
-      if (positions.length != offsets.length) return;
-      for (var i = 0; i < offsets.length; i++) {
-        final position = positions[i];
-        if (!position.hasContentDimensions) continue;
+  /// Put the remounted form's scroll views back where they were, each matched
+  /// by its path ([_verticalScrollViews]). Content that arrives a few frames
+  /// late (a stream, a fetch) would clamp the jump short, so an offset past
+  /// the current extent waits a few frames for it before settling for the end.
+  void _restoreScrollOffsets(Map<String, double> offsets, {int frames = 10}) {
+    if (offsets.isEmpty) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final views = _verticalScrollViews(_formKey.currentContext);
+      final pending = <String, double>{};
+      for (final MapEntry(:key, value: offset) in offsets.entries) {
+        final position = views[key];
+        if (position == null || !position.hasContentDimensions) {
+          if (frames > 0) pending[key] = offset;
+          continue;
+        }
+        if (offset > position.maxScrollExtent && frames > 0) {
+          pending[key] = offset;
+          continue;
+        }
         position.jumpTo(
-          offsets[i].clamp(position.minScrollExtent, position.maxScrollExtent),
+          offset.clamp(position.minScrollExtent, position.maxScrollExtent),
         );
+      }
+      if (pending.isNotEmpty) {
+        _restoreScrollOffsets(pending, frames: frames - 1);
+        WidgetsBinding.instance.scheduleFrame();
       }
     });
   }
@@ -686,6 +721,10 @@ class _EntityEditScreenScaffoldState<T, VM extends GenericEditViewModel<T>>
         ? await services.db.idRemapDao.resolveAnyType(savedId) ?? savedId
         : savedId;
     if (!context.mounted) return;
+    if (vm.editedDuringSave && widget.carryEdit != null) {
+      EntityEditScreenScaffold._carriedEdits['${widget.basePath}/$id'] =
+          vm.draft;
+    }
     context.go(
       editorPathAfterCreate(
         basePath: widget.basePath!,

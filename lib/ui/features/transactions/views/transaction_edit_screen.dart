@@ -77,6 +77,9 @@ class TransactionEditScreen extends StatelessWidget {
         );
       },
       basePath: '/transactions',
+      // An edit typed while a new record's create was out rides to the
+      // record's editor (docs/after-saving.md).
+      carryEdit: (edited, saved) => edited.copyWith(id: saved.id),
     );
   }
 }

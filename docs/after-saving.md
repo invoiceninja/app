@@ -92,23 +92,48 @@ reloaded strip opens on Details, like any strip mounted after the request was
 served. Tests: `reload_skips_one_shot_extras_test.dart`,
 `open_line_item_test.dart`.
 
-## An edit typed while the save was out keeps the form open and dirty
+## An edit typed while the save was out is kept
 
 Online, `save()` waits up to 30 s for the server. An edit typed meanwhile was
 not sent; latched clean, the reload threw it away and the guard let the user
-leave without it. `GenericEditViewModel` counts `updateDraft` calls, and a save
-of an existing record that saw one after `performSave` leaves the form dirty
-(`editedDuringSave`); the scaffold then keeps that view model instead of
-reloading. A new record still latches clean: its form moves to the record's
-edit route either way. Test: `generic_edit_view_model_edited_during_save_test.dart`.
+leave without it. `save()` keeps the draft it sent and compares it, by value
+(freezed `==`), with the draft at the end (`editedDuringSave`) — an edit typed
+and undone is no edit.
+
+- **An existing record**: the form stays dirty with the edit, and the scaffold
+  keeps that view model instead of reloading.
+- **A new record**: its form still latches clean (it leaves `/x/new` either
+  way, and the route's exit guard must not ask), and the edit rides to the
+  record's editor: the scaffold parks the form's draft under
+  `<basePath>/<id>`, and the editor that opens there adopts it over the stored
+  record (`adoptUnsavedDraft`), dirty. A screen says how through `carryEdit` —
+  the edited draft under the stored record's id, keeping the number the
+  server gave when the form's is blank, which a blank number would otherwise
+  give up (see "A save rebound from a tmp_ id" below). A screen without `carryEdit` loses the edit, as before.
+
+Tests: `generic_edit_view_model_edited_during_save_test.dart` and the
+scaffold cases in `entity_edit_screen_scaffold_after_saving_test.dart`.
 
 ## The reload keeps the scroll position
 
 The remount would put a long form back at the top. Just before it, the
-scaffold reads the pixels of every vertical scroll view under the form (a
-`GlobalKey` per generation) and, after the next frame, jumps the new ones back
-— only when the form has the same number of them, matched in tree order, so an
-offset never lands on a different list.
+scaffold records every scrolled vertical scroll view under the form (a
+`GlobalKey` per generation), keyed by its place in the tree — the widget type
+and child index of each element on the way down. After the remount it jumps
+the scroll view at the same path back. Matching by count or by order failed on
+the wide billing documents: the PDF pane's spinner turns into a preview with
+scroll views of its own a frame later, and a multi-line field brings one too.
+An offset past the extent the content has so far waits up to ten frames for
+late content (a stream, a fetch) before settling for the end.
+
+## The PDF preview keeps its last render across the reload
+
+The remount also took the preview's last good render with it, so it flashed
+to a spinner after every Save. The billing layout keeps a `BillingDocPdfMemo`
+in `formUiState`; `BillingDocPdfView` writes it on every good render (and
+clears it when it drops its PDF), and a new view that finds bytes in it shows
+them at once and refreshes quietly — the `contentRevision` path of
+docs/pdf-preview-refresh.md, so a failed refresh keeps them, marked stale.
 
 ## A new record moves to its own edit route, under the real id once its create landed
 

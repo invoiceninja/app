@@ -179,6 +179,13 @@ class PaymentEditScreen extends StatelessWidget {
         );
       },
       basePath: '/payments',
+      // An edit typed while a new record's create was out rides to the
+      // record's editor, keeping the number the server gave it
+      // (docs/after-saving.md).
+      carryEdit: (edited, saved) => edited.copyWith(
+        id: saved.id,
+        number: edited.number.trim().isEmpty ? saved.number : edited.number,
+      ),
     );
   }
 }

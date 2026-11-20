@@ -2152,6 +2152,13 @@ class _PdfTab<T extends BillingDocFields> extends StatelessWidget {
   final BillingDocEditViewModel<T> vm;
   final BillingDocEditSlots slots;
 
+  /// The preview's last good render, in the view model's `formUiState`, so
+  /// the remount a stay-in-editor Save makes shows it instead of a spinner
+  /// (docs/after-saving.md).
+  BillingDocPdfMemo get _memo =>
+      vm.formUiState.putIfAbsent('billing_doc_edit.pdf', BillingDocPdfMemo.new)
+          as BillingDocPdfMemo;
+
   @override
   Widget build(BuildContext context) {
     // The server cannot render a document without its party.
@@ -2180,6 +2187,7 @@ class _PdfTab<T extends BillingDocFields> extends StatelessWidget {
             // delivery note can render.
             hasUnsyncedChanges: vm.isDirty || vm.draft.isDirty,
             fetcher: slots.pdfFetcher(context),
+            memo: _memo,
           )
         : BillingDocPdfView(
             entity: type,
@@ -2190,6 +2198,7 @@ class _PdfTab<T extends BillingDocFields> extends StatelessWidget {
             hasUnsyncedChanges: vm.isDirty || vm.draft.isDirty,
             deliveryNoteAvailable: deliveryNoteAvailable(),
             fetcher: slots.pdfFetcher(context),
+            memo: _memo,
           );
   }
 }

@@ -146,6 +146,7 @@ void main() {
       bool hasUnsyncedChanges = false,
       bool initialDeliveryNote = false,
       String entityNumber = 'INV-1',
+      BillingDocPdfMemo? memo,
     }) => tester.pumpWidget(
       MaterialApp(
         theme: buildInTheme(InTheme.light),
@@ -161,12 +162,38 @@ void main() {
             hasUnsyncedChanges: hasUnsyncedChanges,
             initialDeliveryNote: initialDeliveryNote,
             autoRefreshDebounce: const Duration(milliseconds: 50),
+            memo: memo,
           ),
         ),
       ),
     );
 
     Future<Uint8List> fails() => Future<Uint8List>.error(StateError('offline'));
+
+    // The edit screen remounts its form after a stay-in-editor Save
+    // (docs/after-saving.md); the memo it keeps lets the new view start from
+    // the last good render instead of a spinner.
+    testWidgets('a remount with a memo shows the last render at once and '
+        'refreshes it quietly', (tester) async {
+      final memo = BillingDocPdfMemo();
+      next = () async => pdfA;
+      await mount(tester, memo: memo);
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(memo.bytes, pdfA, reason: 'a good render is remembered');
+
+      // A new view (another key), its refresh still out.
+      final refresh = Completer<Uint8List>();
+      next = () => refresh.future;
+      await tester.pumpWidget(const SizedBox.shrink());
+      await mount(tester, memo: memo);
+      await tester.pump();
+      expect(find.byType(PdfPreview), findsOneWidget);
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+
+      refresh.complete(pdfB);
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(memo.bytes, pdfB);
+    });
 
     final notice = find.text(
       "This preview doesn't include your latest changes",

@@ -72,19 +72,35 @@ void main() {
     expect(vm.isDirty, isFalse);
   });
 
-  test(
-    'a new record still latches clean — its form leaves for the record',
-    () async {
-      final sync = _Sync();
-      final vm = _Vm(sync)..set('b');
-      final saving = vm.save();
-      await Future<void>.delayed(Duration.zero);
-      vm.set('c');
-      sync.reply.complete(const SyncRowResult(outcome: SyncRowOutcome.success));
+  test('a new record still latches clean, and reports the edit so its form can '
+      'carry it to the record', () async {
+    final sync = _Sync();
+    final vm = _Vm(sync)..set('b');
+    final saving = vm.save();
+    await Future<void>.delayed(Duration.zero);
+    vm.set('c');
+    sync.reply.complete(const SyncRowResult(outcome: SyncRowOutcome.success));
 
-      await saving;
-      expect(vm.editedDuringSave, isFalse);
-      expect(vm.isDirty, isFalse);
-    },
-  );
+    await saving;
+    expect(vm.editedDuringSave, isTrue);
+    expect(vm.isDirty, isFalse);
+    expect(vm.draft, 'c');
+  });
+
+  test('an edit that ends where it started is no edit', () async {
+    // Compared by value, not by count: typing a character and deleting it
+    // again leaves nothing unsaved.
+    final sync = _Sync();
+    final vm = _Vm(sync, saved: 'a')..set('b');
+    final saving = vm.save();
+    await Future<void>.delayed(Duration.zero);
+    vm
+      ..set('bx')
+      ..set('b');
+    sync.reply.complete(const SyncRowResult(outcome: SyncRowOutcome.success));
+
+    await saving;
+    expect(vm.editedDuringSave, isFalse);
+    expect(vm.isDirty, isFalse);
+  });
 }

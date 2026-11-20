@@ -105,6 +105,9 @@ class PaymentLinkEditScreen extends StatelessWidget {
         );
       },
       basePath: '/settings/payment_links',
+      // An edit typed while a new record's create was out rides to the
+      // record's editor (docs/after-saving.md).
+      carryEdit: (edited, saved) => edited.copyWith(id: saved.id),
     );
   }
 }

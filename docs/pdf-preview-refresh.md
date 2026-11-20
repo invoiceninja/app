@@ -30,6 +30,13 @@ If both seams change in one rebuild, `revision` wins. Going back from a version 
 
 **Recovery needs no trigger of its own.** When the outbox syncs, the server's echo changes the row again. That change is a new `contentRevision`, which refetches.
 
+**A remount keeps the last render when its owner hands one over.** A view
+given a `BillingDocPdfMemo` writes each good render to it, and a new view that
+finds bytes there starts from them and refreshes quietly, as for a
+`contentRevision` change. The edit screen keeps one in the form's
+`formUiState`, so the remount a stay-in-editor Save makes does not flash a
+spinner (docs/after-saving.md).
+
 ## The revision key is the whole freezed record
 
 Every live caller passes the record itself:

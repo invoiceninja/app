@@ -165,6 +165,7 @@ void main() {
               Text('name ${vm.draft.name}', key: const ValueKey('body')),
           resetToEmpty: (_) {},
           entityIdOf: (draft) => draft.id,
+          carryEdit: (edited, saved) => _Rec(saved.id, edited.name),
           saveParamFor: (action) => {'mark_sent': 'true'},
           actionsBuilder: (_, _, onTap, saveButton) => Row(
             mainAxisSize: MainAxisSize.min,
@@ -414,6 +415,63 @@ void main() {
       expect(built, hasLength(1));
     });
 
+    testWidgets('a new record carries an edit typed while its create was out '
+        'into its editor, dirty', (tester) async {
+      final router = await pump(
+        tester,
+        stay: true,
+        initial: '/clients/new',
+        onBuilt: (vm) => vm.editedWhileSaving = vm.isCreate,
+      );
+      built.single.setName('Globex');
+      await tester.pump();
+      await tapSave(tester);
+
+      expect(pathOf(router), '/clients/$_tmpId/edit');
+      expect(built, hasLength(2));
+      expect(built.last.draft, const _Rec('c1', 'Globex'));
+      expect(built.last.isDirty, isTrue);
+    });
+
+    testWidgets('keeps the scroll position when another scroll view comes '
+        'late, as a PDF pane does after its spinner', (tester) async {
+      await pump(
+        tester,
+        stay: true,
+        body: (vm) => Row(
+          key: const ValueKey('body'),
+          children: [
+            Expanded(
+              child: ListView(
+                key: const ValueKey('primary'),
+                children: [
+                  for (var i = 0; i < 100; i++)
+                    SizedBox(height: 50, child: Text('row $i')),
+                ],
+              ),
+            ),
+            const Expanded(child: _LateScrollView()),
+          ],
+        ),
+      );
+      ScrollPosition primary() => tester
+          .state<ScrollableState>(
+            find.descendant(
+              of: find.byKey(const ValueKey('primary')),
+              matching: find.byType(Scrollable),
+            ),
+          )
+          .position;
+      primary().jumpTo(1200);
+      await tester.pump();
+      built.single.setName('Acme Inc');
+      await tester.pump();
+      await tapSave(tester);
+
+      expect(built, hasLength(2), reason: 'reloaded');
+      expect(primary().pixels, 1200);
+    });
+
     testWidgets('keeps the scroll position', (tester) async {
       await pump(
         tester,
@@ -501,4 +559,30 @@ void main() {
       expect(pathOf(router), '/clients/$_tmpId');
     });
   });
+}
+
+/// Builds nothing on its first frame and a scroll view after — the shape of
+/// a PDF pane, whose spinner turns into a preview.
+class _LateScrollView extends StatefulWidget {
+  const _LateScrollView();
+
+  @override
+  State<_LateScrollView> createState() => _LateScrollViewState();
+}
+
+class _LateScrollViewState extends State<_LateScrollView> {
+  bool _ready = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() => _ready = true);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => _ready
+      ? ListView(children: const [SizedBox(height: 2000)])
+      : const SizedBox.shrink();
 }

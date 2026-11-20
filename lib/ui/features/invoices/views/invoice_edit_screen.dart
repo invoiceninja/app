@@ -304,6 +304,13 @@ class InvoiceEditScreen extends StatelessWidget {
         );
       },
       basePath: '/invoices',
+      // An edit typed while a new record's create was out rides to the
+      // record's editor, keeping the number the server gave it
+      // (docs/after-saving.md).
+      carryEdit: (edited, saved) => edited.copyWith(
+        id: saved.id,
+        number: edited.number.trim().isEmpty ? saved.number : edited.number,
+      ),
       // A plain Save stays in the editor only while the invoice may still be
       // edited — reopening a now-locked one would show the lock dialog and
       // leave anyway (docs/after-saving.md).

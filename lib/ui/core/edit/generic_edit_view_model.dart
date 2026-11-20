@@ -173,17 +173,20 @@ abstract class GenericEditViewModel<T> extends ChangeNotifier {
 
   bool _lastSaveWasDiscarded = false;
 
-  /// Counts [updateDraft] calls, so [save] can tell an edit made while it
-  /// waited on the server.
-  int _draftEdits = 0;
-
   bool _editedDuringSave = false;
 
-  /// True when the last successful save of an existing record saw the draft
-  /// change while it waited on the server (up to the online timeout): the
-  /// form stays dirty with that edit, and a stay-in-editor Save keeps this
-  /// view model rather than reloading over it (docs/after-saving.md).
+  /// True when the last successful save ended with a draft other than the
+  /// one it sent — an edit typed while it waited on the server (up to the
+  /// online timeout). That edit is not saved: an existing record's form
+  /// stays dirty with it and a stay-in-editor Save keeps this view model
+  /// rather than reloading over it; a new record's form carries it into the
+  /// record's editor (`EntityEditScreenScaffold.carryEdit`,
+  /// docs/after-saving.md).
   bool get editedDuringSave => _editedDuringSave;
+
+  /// Put [edited] — a draft not saved yet — in the form, dirty, over the
+  /// record it opened on: the edit a new record's form carried here.
+  void adoptUnsavedDraft(T edited) => updateDraft(edited);
 
   /// True when the most recent `save()` returned null because its outbox row
   /// was discarded (from the Outbox, or by a discarded parent's cascade) while
@@ -694,7 +697,6 @@ abstract class GenericEditViewModel<T> extends ChangeNotifier {
   @protected
   void updateDraft(T next) {
     _draft = next;
-    _draftEdits++;
     // A fresh edit after a save re-arms the dirty/guard machinery.
     _savedClean = false;
     notifyListeners();
@@ -932,9 +934,9 @@ abstract class GenericEditViewModel<T> extends ChangeNotifier {
           ? List<UploadSource>.of(_documents)
           : null;
       final result = await performSave();
-      // Edits from here on were made while this save was out; what it sent
-      // was the draft as it stood.
-      final editsAtSend = _draftEdits;
+      // What this save sent: a draft that differs from it by the end was
+      // edited while the save was out.
+      final draftAtSend = _draft;
       awaitedRowId = result.outboxRowId;
       if (createsHere) {
         await _queueDocumentUploads(
@@ -1012,9 +1014,10 @@ abstract class GenericEditViewModel<T> extends ChangeNotifier {
       //
       // An edit made while the save was out is not saved: an existing
       // record's form stays dirty with it. A new record's form is left for
-      // the record's own route either way, so it latches clean as before.
-      _editedDuringSave = !isCreate && _draftEdits != editsAtSend;
-      _savedClean = !_editedDuringSave;
+      // the record's own route either way (carrying the edit there), so it
+      // latches clean — the route's exit guard must not ask about it.
+      _editedDuringSave = _draft != draftAtSend;
+      _savedClean = isCreate || !_editedDuringSave;
       _recoveryTempId = null;
       _recreate = false;
       _failedAttemptRowId = null;
