@@ -3,7 +3,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/data/models/domain/client.dart';
 import 'package:admin/l10n/localization.dart';
-import 'package:admin/ui/core/widgets/clamped_text.dart';
+import 'package:admin/ui/core/widgets/notes_block.dart';
 import 'package:admin/ui/features/dashboard/widgets/card_shell.dart';
 import 'package:admin/utils/notes_html.dart';
 
@@ -34,7 +34,6 @@ class ClientDetailNotesCard extends StatelessWidget {
     final hasPrivate = privateNotes.isNotEmpty;
     final hasPublic = publicNotes.isNotEmpty;
     if (!hasPrivate && !hasPublic) return const SizedBox.shrink();
-    final theme = Theme.of(context);
     final tokens = context.inTheme;
     return DashboardCardShell(
       title: context.tr('notes'),
@@ -43,13 +42,10 @@ class ClientDetailNotesCard extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (hasPrivate)
-            _NotesBlock(
+            NotesBlock(
               label: context.tr('private_notes'),
               body: privateNotes,
-              labelColor: tokens.ink2,
-              bodyStyle: theme.textTheme.bodyMedium?.copyWith(
-                color: tokens.ink,
-              ),
+              maxLines: _kNoteLines,
             ),
           if (hasPrivate && hasPublic) ...[
             SizedBox(height: InSpacing.md(context)),
@@ -57,13 +53,10 @@ class ClientDetailNotesCard extends StatelessWidget {
             SizedBox(height: InSpacing.md(context)),
           ],
           if (hasPublic)
-            _NotesBlock(
+            NotesBlock(
               label: context.tr('public_notes'),
               body: publicNotes,
-              labelColor: tokens.ink2,
-              bodyStyle: theme.textTheme.bodyMedium?.copyWith(
-                color: tokens.ink,
-              ),
+              maxLines: _kNoteLines,
             ),
         ],
       ),
@@ -74,40 +67,3 @@ class ClientDetailNotesCard extends StatelessWidget {
 /// Enough to read a typical note whole, short enough that an essay does not
 /// take the page.
 const int _kNoteLines = 6;
-
-class _NotesBlock extends StatelessWidget {
-  const _NotesBlock({
-    required this.label,
-    required this.body,
-    required this.labelColor,
-    required this.bodyStyle,
-  });
-
-  final String label;
-  final String body;
-  final Color labelColor;
-  final TextStyle? bodyStyle;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-            color: labelColor,
-            letterSpacing: 0.4,
-          ),
-        ),
-        const SizedBox(height: InSpacing.xs),
-        // A note has no length limit; unclamped, one long one decides where
-        // everything below this card starts.
-        ClampedText(text: body, maxLines: _kNoteLines, style: bodyStyle),
-      ],
-    );
-  }
-}

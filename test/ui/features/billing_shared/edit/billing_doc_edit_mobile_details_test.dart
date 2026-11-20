@@ -6,6 +6,7 @@ import 'package:decimal/decimal.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:admin/data/models/api/client_api_model.dart';
 import 'package:admin/data/models/api/payment_term_api_model.dart';
 import 'package:admin/data/models/domain/billing/line_item.dart';
 import 'package:admin/data/models/domain/invoice.dart';
@@ -341,4 +342,49 @@ void main() {
       );
     });
   });
+
+  testWidgets('the client\'s notes sit under the picker on the Details tab '
+      '(#201)', (tester) async {
+    final m = await mount(
+      tester,
+      BillingDoc.invoice,
+      seed: (vm) => vm.selectClient('c1', const []),
+    );
+    await tester.runAsync(
+      () => m.fixture.services.clients.applyUpdateResponse(
+        companyId: kHarnessCompanyId,
+        serverResponse: const ClientApi(
+          id: 'c1',
+          name: 'Acme',
+          privateNotes: '<p>Driving distance: 42 km</p>',
+          publicNotes: 'Thanks!',
+          updatedAt: 1710000000,
+        ),
+      ),
+    );
+    await settle(tester);
+
+    final notes = find.byKey(const ValueKey('billing-party-notes'));
+    expect(notes, findsOneWidget);
+    expect(find.text('Driving distance: 42 km'), findsOneWidget);
+    expect(find.text('Thanks!'), findsOneWidget);
+    // Between the client and the number, in that order.
+    final picker = fieldLabels(tester).indexOf('Client');
+    expect(picker, isNonNegative);
+    expect(
+      tester.getTopLeft(notes).dy,
+      lessThan(
+        tester
+            .getTopLeft(
+              find.byWidgetPredicate(
+                (w) =>
+                    w is InputDecorator &&
+                    w.decoration.labelText == 'Invoice Number',
+              ),
+            )
+            .dy,
+      ),
+    );
+    await unmount(tester, m.fixture);
+  }, timeout: timeout);
 }

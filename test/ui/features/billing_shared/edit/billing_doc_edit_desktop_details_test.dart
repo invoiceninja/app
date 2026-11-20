@@ -13,6 +13,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/theme.dart';
+import 'package:admin/data/models/api/client_api_model.dart';
 import 'package:admin/ui/core/list/list_density_scope.dart';
 import 'package:admin/ui/features/billing_shared/view_models/billing_doc_edit_view_model.dart';
 import 'package:admin/ui/features/invoices/view_models/invoice_edit_view_model.dart';
@@ -248,6 +249,52 @@ void main() {
       number.bottom - box(tester, 'Discount').bottom,
       dates.bottom - box(tester, 'Partial Due Date').bottom,
     );
+    await unmount(tester, fixture);
+  }, timeout: timeout);
+
+  testWidgets('the client\'s notes sit in the party card, under the picker; '
+      'a blank note costs the card nothing (#201)', (tester) async {
+    final fixture = await mount(
+      tester,
+      BillingDoc.invoice,
+      seed: (vm) => vm.selectClient('c1', const []),
+    );
+    Future<void> seedNotes(String notes, int updatedAt) => tester.runAsync(
+      () => fixture.services.clients.applyUpdateResponse(
+        companyId: kHarnessCompanyId,
+        serverResponse: ClientApi(
+          id: 'c1',
+          name: 'Acme',
+          privateNotes: notes,
+          updatedAt: updatedAt,
+        ),
+      ),
+    );
+    final notes = find.byKey(const ValueKey('billing-party-notes'));
+
+    await seedNotes('', 1710000000);
+    await settle(tester);
+    final bare = tester.getRect(find.byKey(_cards[0])).height;
+
+    await seedNotes('<p></p>', 1710000001);
+    await settle(tester);
+    expect(notes, findsNothing);
+    expect(tester.getRect(find.byKey(_cards[0])).height, bare);
+
+    await seedNotes('<p>Special price: 80/h</p>', 1710000002);
+    await settle(tester);
+    expect(
+      find.descendant(
+        of: find.byKey(_cards[0]),
+        matching: find.text('Special price: 80/h'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      tester.getTopLeft(notes).dy,
+      greaterThanOrEqualTo(box(tester, 'Client').bottom),
+    );
+    expect(tester.getRect(find.byKey(_cards[0])).height, greaterThan(bare));
     await unmount(tester, fixture);
   }, timeout: timeout);
 }

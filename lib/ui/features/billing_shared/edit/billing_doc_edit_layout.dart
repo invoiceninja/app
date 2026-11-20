@@ -34,6 +34,7 @@ import 'package:admin/ui/features/billing_shared/edit/billing_doc_edit_desktop_s
 import 'package:admin/ui/features/billing_shared/edit/billing_doc_edit_fab.dart';
 import 'package:admin/ui/features/billing_shared/edit/billing_doc_edit_items_body.dart';
 import 'package:admin/ui/features/billing_shared/edit/billing_doc_edit_tab_strip.dart';
+import 'package:admin/ui/features/billing_shared/edit/billing_doc_party_notes.dart';
 import 'package:admin/ui/features/billing_shared/edit/billing_doc_payment_terms_button.dart';
 import 'package:admin/ui/features/billing_shared/edit/billing_doc_settings_tab.dart';
 import 'package:admin/ui/features/billing_shared/edit/billing_doc_vendor_picker.dart';
@@ -758,6 +759,13 @@ class _DetailsPanelDesktopState<T extends BillingDocFields>
         BillingDocClientPicker(vm: vm, companyId: vm.companyId)
       else
         BillingDocVendorPicker(vm: vm, companyId: vm.companyId),
+      // The client's (vendor's) own notes, under its name — #201.
+      BillingDocPartyNotes(
+        party: type.party,
+        companyId: vm.companyId,
+        partyId: _partyIdOf(type, vm.draft),
+        gap: InSpacing.md(context),
+      ),
       SizedBox(height: InSpacing.md(context)),
       _PartyContacts<T>(type: type, vm: vm, dense: true),
     ]);
@@ -1861,6 +1869,13 @@ class _DetailsTabState<T extends BillingDocFields>
               BillingDocClientPicker(vm: vm, companyId: vm.companyId)
             else
               BillingDocVendorPicker(vm: vm, companyId: vm.companyId),
+            // The client's (vendor's) own notes, under its name — #201.
+            BillingDocPartyNotes(
+              party: type.party,
+              companyId: vm.companyId,
+              partyId: _partyIdOf(type, vm.draft),
+              gap: InSpacing.md(context),
+            ),
             SizedBox(height: InSpacing.lg(context)),
             // One number field on a purchase order, labelled "PO Number" — the
             // order's own number, exactly as the desktop card, React and v1
