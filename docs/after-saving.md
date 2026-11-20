@@ -121,13 +121,31 @@ and keys churn and queued references dangle), invitations without keys
 the DocuNinja signing state), and blanks where the server had filled a value
 (a due date from the payment terms). `carryChangedFields` (`carry_edit.dart`)
 compares the sent and the edited draft on the wire (`toApiJson`) and lays
-only the changed top-level keys over the stored record's; a list that
-changed keeps, item by item, the stored `id` and `key` at the same place. The
-record is rebuilt from that map (`fromApi`), and each entity's function in
+only the changed top-level keys over the stored record's. The record is
+rebuilt from that map (`fromApi`), and each entity's function in
 `carry_edit_entities.dart` puts back what the wire does not carry — the id,
 local state, timestamps, documents, as its repository's decode overlays them
 — and every list the edit left alone, as the stored objects themselves. An
 edit that changed nothing on the wire carries nothing.
+
+A list the edit did change keeps the server's identity the way the server
+matches it, never by a place where an item may have been added or removed:
+
+- **Invitations** by contact (`keepStoredInvitations`): the server finds an
+  invitation by its key alone (`getInvitation`), so a key handed to the wrong
+  contact would be that contact's link. An invitation for a contact the
+  stored record already invites is that stored invitation (key, signing
+  state, history); one newly ticked carries no key, and the server makes it;
+  one unticked is gone.
+- **Contacts** by place only while their number is unchanged
+  (`CarriedList.byPosition`): the server updates a contact by `id` and
+  deletes the stored ones a save leaves out (`ClientContactRepository::save`).
+  A contact added or removed while the create was out can't be matched
+  safely, so the stored contacts stay and the editor says so once ("Contacts
+  changed while saving weren't kept. Add them again.").
+- **Line items** carry no identity: the server drops a line's `id` / `_id`
+  (`CleanLineItems::cleanItem`) and matches nothing by it, so the edited lines
+  go as they are.
 
 Tests: `generic_edit_view_model_edited_during_save_test.dart`, `carry_edit_test.dart` and the
 scaffold cases in `entity_edit_screen_scaffold_after_saving_test.dart`.

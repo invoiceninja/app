@@ -11,12 +11,14 @@ import 'package:admin/data/db/app_database.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/dialogs/confirm_action_dialog.dart';
 import 'package:admin/ui/core/edit/after_saving.dart';
+import 'package:admin/ui/core/edit/carry_edit.dart';
 import 'package:admin/ui/core/edit/entity_edit_scaffold.dart';
 import 'package:admin/ui/core/edit/generic_edit_view_model.dart';
 import 'package:admin/ui/core/list/master_detail_layout.dart';
 import 'package:admin/ui/core/sync/require_synced.dart';
 import 'package:admin/ui/core/utils/router_state.dart';
 import 'package:admin/ui/core/widgets/empty_state.dart';
+import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/core/widgets/form_save_scope.dart';
 import 'package:admin/ui/core/sync/unconfirmed_change_actions.dart';
 import 'package:admin/ui/core/widgets/save_failed_banner.dart';
@@ -169,9 +171,11 @@ class EntityEditScreenScaffold<T, VM extends GenericEditViewModel<T>>
   /// edit was typed while its create was out ([GenericEditViewModel.
   /// editedDuringSave]): [stored] — the server's copy — with only what
   /// changed between [sent] and [edited] laid over it, through
-  /// `carryChangedFields` (`carry_edit.dart`). Without it that edit is
-  /// lost, as it was before (docs/after-saving.md).
-  final T Function(T sent, T edited, T stored)? carryEdit;
+  /// `carryChangedFields` (`carry_edit.dart`). A list it could not carry
+  /// safely (contacts added or removed meanwhile) stays as stored, and the
+  /// user is told. Without it that edit is lost, as it was before
+  /// (docs/after-saving.md).
+  final CarriedEdit<T> Function(T sent, T edited, T stored)? carryEdit;
 
   /// Edits on their way from a create form to the record's editor, by
   /// company and `<basePath>/<id>`: one-shot, taken (or dropped, when the
@@ -327,8 +331,17 @@ class _EntityEditScreenScaffoldState<T, VM extends GenericEditViewModel<T>>
             EntityEditScreenScaffold._kCarryTtl &&
         carried.sent is T &&
         carried.edited is T) {
-      final draft = carry(carried.sent as T, carried.edited as T, existing);
-      if (draft != existing) vm.adoptUnsavedDraft(draft);
+      final result = carry(carried.sent as T, carried.edited as T, existing);
+      if (result.record != existing) vm.adoptUnsavedDraft(result.record);
+      if (result.dropped.isNotEmpty) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          Notify.warning(
+            context,
+            context.tr('contacts_changed_while_saving_not_kept'),
+          );
+        });
+      }
     }
     setState(() {
       _vm = vm;

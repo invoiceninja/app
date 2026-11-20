@@ -123,6 +123,7 @@
   "synced_with_your_account": "Synced with your account",
   "downloads_folder_help": "Where downloaded PDFs and exports are saved.",
   "hide_empty_dashboard_panels": "Hide empty dashboard panels",
+  "contacts_changed_while_saving_not_kept": "Contacts changed while saving weren't kept. Add them again.",
   "after_saving_help": "Whether Save keeps an edit screen open or goes to the record.",
   "items_section_help": "The items table on invoices, quotes and recurring invoices.",
   "lists_and_dashboard": "Lists & dashboard",

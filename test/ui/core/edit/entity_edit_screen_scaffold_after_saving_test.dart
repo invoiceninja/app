@@ -15,6 +15,7 @@ import 'package:admin/data/repositories/_repository_helpers.dart';
 import 'package:admin/data/repositories/auth_repository.dart';
 import 'package:admin/data/repositories/sync_repository.dart';
 import 'package:admin/data/services/connectivity_watcher.dart';
+import 'package:admin/ui/core/edit/carry_edit.dart';
 import 'package:admin/ui/core/edit/entity_edit_screen_scaffold.dart';
 import 'package:admin/ui/core/edit/generic_edit_view_model.dart';
 import 'package:admin/ui/core/list/master_detail_layout.dart';
@@ -200,8 +201,9 @@ void main() {
               Text('name ${vm.draft.name}', key: const ValueKey('body')),
           resetToEmpty: (_) {},
           entityIdOf: (draft) => draft.id,
-          carryEdit: (sent, edited, stored) =>
-              edited.name == sent.name ? stored : _Rec(stored.id, edited.name),
+          carryEdit: (sent, edited, stored) => CarriedEdit(
+            edited.name == sent.name ? stored : _Rec(stored.id, edited.name),
+          ),
           saveParamFor: (action) => {'mark_sent': 'true'},
           actionsBuilder: (_, _, onTap, saveButton) => Row(
             mainAxisSize: MainAxisSize.min,

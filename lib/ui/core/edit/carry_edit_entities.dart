@@ -3,7 +3,9 @@
 /// made by [carryChangedFields]. What a record's wire JSON leaves out — its
 /// local state, timestamps, documents — and every list the edit did not
 /// touch come from the stored record, as its repository's decode overlays
-/// them.
+/// them. Invitations are matched by contact ([keepStoredInvitations]),
+/// contacts by place when their number is unchanged ([CarriedList]), and line
+/// items carry no identity: the server drops theirs.
 library;
 
 import 'package:admin/ui/core/edit/carry_edit.dart';
@@ -41,34 +43,37 @@ import 'package:admin/data/models/domain/task.dart';
 import 'package:admin/data/models/domain/vendor.dart';
 
 /// [carryChangedFields] for a Invoice.
-Invoice carryInvoiceEdit(Invoice sent, Invoice edited, Invoice stored) =>
-    carryChangedFields(
-      sent: sent,
-      edited: edited,
-      stored: stored,
-      toJson: (r) => r.toApiJson(preserveTempId: true),
-      fromJson: (json) => Invoice.fromApi(InvoiceApi.fromJson(json)),
-      keepStored: (merged, stored, changed) => merged.copyWith(
-        id: stored.id,
-        isDirty: stored.isDirty,
-        isDeleted: stored.isDeleted,
-        archivedAt: stored.archivedAt,
-        createdAt: stored.createdAt,
-        updatedAt: stored.updatedAt,
-        documents: stored.documents,
-        schedule: stored.schedule,
-        lastSentDate: stored.lastSentDate,
-        lineItems: changed.contains('line_items')
-            ? merged.lineItems
-            : stored.lineItems,
-        invitations: changed.contains('invitations')
-            ? merged.invitations
-            : stored.invitations,
-      ),
-    );
+CarriedEdit<Invoice> carryInvoiceEdit(
+  Invoice sent,
+  Invoice edited,
+  Invoice stored,
+) => carryChangedFields(
+  sent: sent,
+  edited: edited,
+  stored: stored,
+  toJson: (r) => r.toApiJson(preserveTempId: true),
+  fromJson: (json) => Invoice.fromApi(InvoiceApi.fromJson(json)),
+  keepStored: (merged, stored, changed) => merged.copyWith(
+    id: stored.id,
+    isDirty: stored.isDirty,
+    isDeleted: stored.isDeleted,
+    archivedAt: stored.archivedAt,
+    createdAt: stored.createdAt,
+    updatedAt: stored.updatedAt,
+    documents: stored.documents,
+    schedule: stored.schedule,
+    lastSentDate: stored.lastSentDate,
+    lineItems: changed.contains('line_items')
+        ? merged.lineItems
+        : stored.lineItems,
+    invitations: changed.contains('invitations')
+        ? keepStoredInvitations(merged.invitations, stored.invitations)
+        : stored.invitations,
+  ),
+);
 
 /// [carryChangedFields] for a Quote.
-Quote carryQuoteEdit(Quote sent, Quote edited, Quote stored) =>
+CarriedEdit<Quote> carryQuoteEdit(Quote sent, Quote edited, Quote stored) =>
     carryChangedFields(
       sent: sent,
       edited: edited,
@@ -94,32 +99,35 @@ Quote carryQuoteEdit(Quote sent, Quote edited, Quote stored) =>
     );
 
 /// [carryChangedFields] for a Credit.
-Credit carryCreditEdit(Credit sent, Credit edited, Credit stored) =>
-    carryChangedFields(
-      sent: sent,
-      edited: edited,
-      stored: stored,
-      toJson: (r) => r.toApiJson(preserveTempId: true),
-      fromJson: (json) => Credit.fromApi(CreditApi.fromJson(json)),
-      keepStored: (merged, stored, changed) => merged.copyWith(
-        id: stored.id,
-        isDirty: stored.isDirty,
-        isDeleted: stored.isDeleted,
-        archivedAt: stored.archivedAt,
-        createdAt: stored.createdAt,
-        updatedAt: stored.updatedAt,
-        documents: stored.documents,
-        lineItems: changed.contains('line_items')
-            ? merged.lineItems
-            : stored.lineItems,
-        invitations: changed.contains('invitations')
-            ? merged.invitations
-            : stored.invitations,
-      ),
-    );
+CarriedEdit<Credit> carryCreditEdit(
+  Credit sent,
+  Credit edited,
+  Credit stored,
+) => carryChangedFields(
+  sent: sent,
+  edited: edited,
+  stored: stored,
+  toJson: (r) => r.toApiJson(preserveTempId: true),
+  fromJson: (json) => Credit.fromApi(CreditApi.fromJson(json)),
+  keepStored: (merged, stored, changed) => merged.copyWith(
+    id: stored.id,
+    isDirty: stored.isDirty,
+    isDeleted: stored.isDeleted,
+    archivedAt: stored.archivedAt,
+    createdAt: stored.createdAt,
+    updatedAt: stored.updatedAt,
+    documents: stored.documents,
+    lineItems: changed.contains('line_items')
+        ? merged.lineItems
+        : stored.lineItems,
+    invitations: changed.contains('invitations')
+        ? keepStoredInvitations(merged.invitations, stored.invitations)
+        : stored.invitations,
+  ),
+);
 
 /// [carryChangedFields] for a RecurringInvoice.
-RecurringInvoice carryRecurringInvoiceEdit(
+CarriedEdit<RecurringInvoice> carryRecurringInvoiceEdit(
   RecurringInvoice sent,
   RecurringInvoice edited,
   RecurringInvoice stored,
@@ -142,13 +150,13 @@ RecurringInvoice carryRecurringInvoiceEdit(
         ? merged.lineItems
         : stored.lineItems,
     invitations: changed.contains('invitations')
-        ? merged.invitations
+        ? keepStoredInvitations(merged.invitations, stored.invitations)
         : stored.invitations,
   ),
 );
 
 /// [carryChangedFields] for a PurchaseOrder.
-PurchaseOrder carryPurchaseOrderEdit(
+CarriedEdit<PurchaseOrder> carryPurchaseOrderEdit(
   PurchaseOrder sent,
   PurchaseOrder edited,
   PurchaseOrder stored,
@@ -170,37 +178,19 @@ PurchaseOrder carryPurchaseOrderEdit(
         ? merged.lineItems
         : stored.lineItems,
     invitations: changed.contains('invitations')
-        ? merged.invitations
+        ? keepStoredInvitations(merged.invitations, stored.invitations)
         : stored.invitations,
   ),
 );
 
 /// [carryChangedFields] for a Task.
-Task carryTaskEdit(Task sent, Task edited, Task stored) => carryChangedFields(
-  sent: sent,
-  edited: edited,
-  stored: stored,
-  toJson: (r) => r.toApiJson(preserveTempId: true),
-  fromJson: (json) => Task.fromApi(TaskApi.fromJson(json)),
-  keepStored: (merged, stored, changed) => merged.copyWith(
-    id: stored.id,
-    isDirty: stored.isDirty,
-    isDeleted: stored.isDeleted,
-    archivedAt: stored.archivedAt,
-    createdAt: stored.createdAt,
-    updatedAt: stored.updatedAt,
-    documents: stored.documents,
-  ),
-);
-
-/// [carryChangedFields] for a Expense.
-Expense carryExpenseEdit(Expense sent, Expense edited, Expense stored) =>
+CarriedEdit<Task> carryTaskEdit(Task sent, Task edited, Task stored) =>
     carryChangedFields(
       sent: sent,
       edited: edited,
       stored: stored,
       toJson: (r) => r.toApiJson(preserveTempId: true),
-      fromJson: (json) => Expense.fromApi(ExpenseApi.fromJson(json)),
+      fromJson: (json) => Task.fromApi(TaskApi.fromJson(json)),
       keepStored: (merged, stored, changed) => merged.copyWith(
         id: stored.id,
         isDirty: stored.isDirty,
@@ -212,8 +202,30 @@ Expense carryExpenseEdit(Expense sent, Expense edited, Expense stored) =>
       ),
     );
 
+/// [carryChangedFields] for a Expense.
+CarriedEdit<Expense> carryExpenseEdit(
+  Expense sent,
+  Expense edited,
+  Expense stored,
+) => carryChangedFields(
+  sent: sent,
+  edited: edited,
+  stored: stored,
+  toJson: (r) => r.toApiJson(preserveTempId: true),
+  fromJson: (json) => Expense.fromApi(ExpenseApi.fromJson(json)),
+  keepStored: (merged, stored, changed) => merged.copyWith(
+    id: stored.id,
+    isDirty: stored.isDirty,
+    isDeleted: stored.isDeleted,
+    archivedAt: stored.archivedAt,
+    createdAt: stored.createdAt,
+    updatedAt: stored.updatedAt,
+    documents: stored.documents,
+  ),
+);
+
 /// [carryChangedFields] for a RecurringExpense.
-RecurringExpense carryRecurringExpenseEdit(
+CarriedEdit<RecurringExpense> carryRecurringExpenseEdit(
   RecurringExpense sent,
   RecurringExpense edited,
   RecurringExpense stored,
@@ -236,113 +248,126 @@ RecurringExpense carryRecurringExpenseEdit(
 );
 
 /// [carryChangedFields] for a Project.
-Project carryProjectEdit(Project sent, Project edited, Project stored) =>
-    carryChangedFields(
-      sent: sent,
-      edited: edited,
-      stored: stored,
-      toJson: (r) => r.toApiJson(preserveTempId: true),
-      fromJson: (json) => Project.fromApi(ProjectApi.fromJson(json)),
-      keepStored: (merged, stored, changed) => merged.copyWith(
-        id: stored.id,
-        isDirty: stored.isDirty,
-        isDeleted: stored.isDeleted,
-        archivedAt: stored.archivedAt,
-        createdAt: stored.createdAt,
-        updatedAt: stored.updatedAt,
-        currentHours: stored.currentHours,
-        documents: stored.documents,
-      ),
-    );
+CarriedEdit<Project> carryProjectEdit(
+  Project sent,
+  Project edited,
+  Project stored,
+) => carryChangedFields(
+  sent: sent,
+  edited: edited,
+  stored: stored,
+  toJson: (r) => r.toApiJson(preserveTempId: true),
+  fromJson: (json) => Project.fromApi(ProjectApi.fromJson(json)),
+  keepStored: (merged, stored, changed) => merged.copyWith(
+    id: stored.id,
+    isDirty: stored.isDirty,
+    isDeleted: stored.isDeleted,
+    archivedAt: stored.archivedAt,
+    createdAt: stored.createdAt,
+    updatedAt: stored.updatedAt,
+    currentHours: stored.currentHours,
+    documents: stored.documents,
+  ),
+);
 
 /// [carryChangedFields] for a Client.
-Client carryClientEdit(Client sent, Client edited, Client stored) =>
-    carryChangedFields(
-      sent: sent,
-      edited: edited,
-      stored: stored,
-      toJson: (r) => r.toApiJson(preserveTempId: true),
-      fromJson: (json) => Client.fromApi(ClientApi.fromJson(json)),
-      keepStored: (merged, stored, changed) => merged.copyWith(
-        id: stored.id,
-        isDirty: stored.isDirty,
-        isDeleted: stored.isDeleted,
-        archivedAt: stored.archivedAt,
-        createdAt: stored.createdAt,
-        updatedAt: stored.updatedAt,
-        documents: stored.documents,
-        locations: stored.locations,
-        contacts: changed.contains('contacts')
-            ? merged.contacts
-            : stored.contacts,
-      ),
-    );
+CarriedEdit<Client> carryClientEdit(
+  Client sent,
+  Client edited,
+  Client stored,
+) => carryChangedFields(
+  sent: sent,
+  edited: edited,
+  stored: stored,
+  toJson: (r) => r.toApiJson(preserveTempId: true),
+  lists: const {'contacts': CarriedList.byPosition},
+  fromJson: (json) => Client.fromApi(ClientApi.fromJson(json)),
+  keepStored: (merged, stored, changed) => merged.copyWith(
+    id: stored.id,
+    isDirty: stored.isDirty,
+    isDeleted: stored.isDeleted,
+    archivedAt: stored.archivedAt,
+    createdAt: stored.createdAt,
+    updatedAt: stored.updatedAt,
+    documents: stored.documents,
+    locations: stored.locations,
+    contacts: changed.contains('contacts') ? merged.contacts : stored.contacts,
+  ),
+);
 
 /// [carryChangedFields] for a Vendor.
-Vendor carryVendorEdit(Vendor sent, Vendor edited, Vendor stored) =>
-    carryChangedFields(
-      sent: sent,
-      edited: edited,
-      stored: stored,
-      toJson: (r) => r.toApiJson(preserveTempId: true),
-      fromJson: (json) => Vendor.fromApi(VendorApi.fromJson(json)),
-      keepStored: (merged, stored, changed) => merged.copyWith(
-        id: stored.id,
-        isDirty: stored.isDirty,
-        isDeleted: stored.isDeleted,
-        archivedAt: stored.archivedAt,
-        createdAt: stored.createdAt,
-        updatedAt: stored.updatedAt,
-        documents: stored.documents,
-        contacts: changed.contains('contacts')
-            ? merged.contacts
-            : stored.contacts,
-      ),
-    );
+CarriedEdit<Vendor> carryVendorEdit(
+  Vendor sent,
+  Vendor edited,
+  Vendor stored,
+) => carryChangedFields(
+  sent: sent,
+  edited: edited,
+  stored: stored,
+  toJson: (r) => r.toApiJson(preserveTempId: true),
+  lists: const {'contacts': CarriedList.byPosition},
+  fromJson: (json) => Vendor.fromApi(VendorApi.fromJson(json)),
+  keepStored: (merged, stored, changed) => merged.copyWith(
+    id: stored.id,
+    isDirty: stored.isDirty,
+    isDeleted: stored.isDeleted,
+    archivedAt: stored.archivedAt,
+    createdAt: stored.createdAt,
+    updatedAt: stored.updatedAt,
+    documents: stored.documents,
+    contacts: changed.contains('contacts') ? merged.contacts : stored.contacts,
+  ),
+);
 
 /// [carryChangedFields] for a Payment.
-Payment carryPaymentEdit(Payment sent, Payment edited, Payment stored) =>
-    carryChangedFields(
-      sent: sent,
-      edited: edited,
-      stored: stored,
-      toJson: (r) => r.toApiJson(preserveTempId: true),
-      fromJson: (json) => Payment.fromApi(PaymentApi.fromJson(json)),
-      keepStored: (merged, stored, changed) => merged.copyWith(
-        id: stored.id,
-        isDirty: stored.isDirty,
-        isDeleted: stored.isDeleted,
-        archivedAt: stored.archivedAt,
-        createdAt: stored.createdAt,
-        updatedAt: stored.updatedAt,
-        documents: stored.documents,
-        paymentables: stored.paymentables,
-        invoices: stored.invoices,
-        credits: stored.credits,
-      ),
-    );
+CarriedEdit<Payment> carryPaymentEdit(
+  Payment sent,
+  Payment edited,
+  Payment stored,
+) => carryChangedFields(
+  sent: sent,
+  edited: edited,
+  stored: stored,
+  toJson: (r) => r.toApiJson(preserveTempId: true),
+  fromJson: (json) => Payment.fromApi(PaymentApi.fromJson(json)),
+  keepStored: (merged, stored, changed) => merged.copyWith(
+    id: stored.id,
+    isDirty: stored.isDirty,
+    isDeleted: stored.isDeleted,
+    archivedAt: stored.archivedAt,
+    createdAt: stored.createdAt,
+    updatedAt: stored.updatedAt,
+    documents: stored.documents,
+    paymentables: stored.paymentables,
+    invoices: stored.invoices,
+    credits: stored.credits,
+  ),
+);
 
 /// [carryChangedFields] for a Product.
-Product carryProductEdit(Product sent, Product edited, Product stored) =>
-    carryChangedFields(
-      sent: sent,
-      edited: edited,
-      stored: stored,
-      toJson: (r) => r.toApiJson(preserveTempId: true),
-      fromJson: (json) => Product.fromApi(ProductApi.fromJson(json)),
-      keepStored: (merged, stored, changed) => merged.copyWith(
-        id: stored.id,
-        isDirty: stored.isDirty,
-        isDeleted: stored.isDeleted,
-        archivedAt: stored.archivedAt,
-        createdAt: stored.createdAt,
-        updatedAt: stored.updatedAt,
-        documents: stored.documents,
-      ),
-    );
+CarriedEdit<Product> carryProductEdit(
+  Product sent,
+  Product edited,
+  Product stored,
+) => carryChangedFields(
+  sent: sent,
+  edited: edited,
+  stored: stored,
+  toJson: (r) => r.toApiJson(preserveTempId: true),
+  fromJson: (json) => Product.fromApi(ProductApi.fromJson(json)),
+  keepStored: (merged, stored, changed) => merged.copyWith(
+    id: stored.id,
+    isDirty: stored.isDirty,
+    isDeleted: stored.isDeleted,
+    archivedAt: stored.archivedAt,
+    createdAt: stored.createdAt,
+    updatedAt: stored.updatedAt,
+    documents: stored.documents,
+  ),
+);
 
 /// [carryChangedFields] for a BankTransaction.
-BankTransaction carryBankTransactionEdit(
+CarriedEdit<BankTransaction> carryBankTransactionEdit(
   BankTransaction sent,
   BankTransaction edited,
   BankTransaction stored,
@@ -364,7 +389,7 @@ BankTransaction carryBankTransactionEdit(
 );
 
 /// [carryChangedFields] for a ExpenseCategory.
-ExpenseCategory carryExpenseCategoryEdit(
+CarriedEdit<ExpenseCategory> carryExpenseCategoryEdit(
   ExpenseCategory sent,
   ExpenseCategory edited,
   ExpenseCategory stored,
@@ -384,7 +409,7 @@ ExpenseCategory carryExpenseCategoryEdit(
 );
 
 /// [carryChangedFields] for a PaymentLink.
-PaymentLink carryPaymentLinkEdit(
+CarriedEdit<PaymentLink> carryPaymentLinkEdit(
   PaymentLink sent,
   PaymentLink edited,
   PaymentLink stored,
