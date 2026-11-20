@@ -106,11 +106,16 @@ void main() {
       await tester.pumpAndSettle();
     }
 
+    // The row is the entry. Its heading was "Release Notes" until the
+    // palette folded its small app actions (release notes, Getting Started,
+    // Rate the app, Help, company switching) into one App category
+    // (`paletteScopeOf`), so the heading is no longer what is found.
     for (final query in ["what's new", 'changelog', 'release', 'version']) {
       testWidgets('"$query" finds the release notes', (tester) async {
         await search(tester, query);
-        expect(find.text('Release Notes'), findsOneWidget);
         expect(find.text("See what's new in v2.0.2"), findsOneWidget);
+        expect(find.byIcon(Icons.new_releases_outlined), findsOneWidget);
+        expect(find.text('App'), findsWidgets, reason: 'its category');
       });
     }
 

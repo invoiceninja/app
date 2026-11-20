@@ -556,6 +556,50 @@ void main() {
       expect(settings, ['Company Details', 'Company Address']);
     });
 
+    // The palette's app hits are matched by curated terms, not their label:
+    // "changelog" finds "See what's new in v2.0.2", "old app" Getting
+    // Started, "review" Rate the app, "bug" Contact Us. None of those labels
+    // holds the query, so the on-device filter must keep them anyway, under
+    // App (their old one-row headings are gone).
+    for (final (query, group, label) in const [
+      ('changelog', 'release_notes', "See what's new in v2.0.2"),
+      ('version', 'release_notes', "See what's new in v2.0.2"),
+      ('old app', 'getting_started', 'Getting Started'),
+      ('review', 'rate_the_app', 'Rate the app'),
+      ('bug', 'help', 'Contact Us'),
+    ]) {
+      test('an app hit found only by its terms is kept: "$query"', () {
+        final r = buildPaletteResults(
+          query: query,
+          hits: const [],
+          serverFiltered: true,
+          localHits: [_hit(group, label)],
+        );
+        expect(_titles(r), [label]);
+        expect(_headers(r), [kAppScope]);
+        final row = r.items.whereType<PaletteRow>().single;
+        expect(row.hit.scope, kAppScope);
+        expect(row.hit.tier, MatchTier.prefix);
+      });
+    }
+
+    test('an app hit found only by its terms still makes Top hits beside '
+        'a settings match', () {
+      final r = buildPaletteResults(
+        query: 'version',
+        hits: const [],
+        serverFiltered: true,
+        localHits: [
+          _hit('release_notes', "See what's new in v2.0.2"),
+          _hit('settings', 'Device Settings · App version'),
+        ],
+      );
+      final first = r.items.whereType<PaletteRow>().first;
+      expect(first.hit.title, "See what's new in v2.0.2");
+      expect(first.inTopHits, isTrue);
+      expect(r.scopes.map((s) => s.id), containsAll([kAppScope, 'settings']));
+    });
+
     test('match runs cover the typed words, merged', () {
       final r = buildPaletteResults(
         query: 'lang pro',

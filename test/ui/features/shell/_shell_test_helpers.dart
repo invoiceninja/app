@@ -120,7 +120,14 @@ class ShellFixture {
     // "A Timer is still pending even after the widget tree was disposed".
     services.refreshScheduler.dispose();
     await services.auth.dispose();
-    await db.close();
+    // Bounded: after a failed expectation flutter_test leaves the widget
+    // tree mounted ("so that we don't cause more spurious errors"), so its
+    // Drift watch streams still have listeners, and `close()` waits on
+    // their controllers — whose done events sit in the finished test's
+    // fake-async zone and never arrive. Unbounded, a failed test hung here
+    // until the 10-minute timeout instead of reporting. A passing test has
+    // unmounted the tree by now and closes at once.
+    await db.close().timeout(const Duration(seconds: 5), onTimeout: () {});
   }
 }
 
