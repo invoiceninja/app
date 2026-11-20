@@ -386,7 +386,20 @@ class TaskRepository extends BaseEntityRepository<Task, TaskApi>
       // land between this read and the write. (The tags above stay outside:
       // see TagNameResolver.)
       final resolvedId = await resolveId(task.id);
-      if (resolvedId != task.id) task = task.copyWith(id: resolvedId);
+      if (resolvedId != task.id) {
+        // The create landed while the form was open: keep the number it
+        // got (docs/after-saving.md).
+        task = task.copyWith(
+          id: resolvedId,
+          number: await numberKeptOnRebind(
+            draftNumber: task.number,
+            storedNumber: () async => (await db.taskDao.getByIds(
+              companyId: companyId,
+              ids: [resolvedId],
+            )).map(_fromRow).firstOrNull?.number,
+          ),
+        );
+      }
       final companion = _domainToCompanion(
         task,
         companyId,

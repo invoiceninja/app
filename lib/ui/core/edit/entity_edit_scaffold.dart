@@ -17,6 +17,7 @@ import 'package:admin/ui/core/edit/unsaved_label.dart';
 import 'package:admin/ui/core/list/master_detail_layout.dart';
 import 'package:admin/ui/core/unsaved_changes/unsaved_changes_scope.dart';
 import 'package:admin/ui/core/utils/platform_modifier.dart';
+import 'package:admin/ui/core/utils/text_input_focus.dart';
 import 'package:admin/ui/core/widgets/form_save_scope.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/core/widgets/shortcut_hint_scope.dart';
@@ -40,8 +41,9 @@ import 'package:admin/ui/core/utils/router_state.dart';
 ///   * [bodyBuilder]  — the form body (cards, fields)
 ///   * [resetToEmpty] — called by the discard guard when the user picks
 ///     Discard; concrete VMs implement this with their empty-draft factory
-///   * [onSaved] — what to do after a successful save. Defaults to
-///     `context.pop()` for edit mode, `context.go(detailRoute)` for create.
+///   * [onSaved] — what to do after a successful plain Save (button, Enter,
+///     ⌘S); [onSavedByAction] after a save an action made (Mark Sent, …).
+///     `EntityEditScreenScaffold` decides both (docs/after-saving.md).
 class EntityEditScaffold<T> extends StatelessWidget {
   const EntityEditScaffold({
     super.key,
@@ -51,6 +53,8 @@ class EntityEditScaffold<T> extends StatelessWidget {
     required this.bodyBuilder,
     required this.resetToEmpty,
     required this.onSaved,
+    this.onSavedByAction,
+    this.disableSaveWhenClean = false,
     this.onSaveRejected,
     this.onSaveFailed,
     this.topBanner,
@@ -75,6 +79,20 @@ class EntityEditScaffold<T> extends StatelessWidget {
   /// or go to a detail route. Awaited — async cleanup (e.g. deleting a
   /// prior dead outbox row before navigating away) is safe here.
   final FutureOr<void> Function(BuildContext context, T saved) onSaved;
+
+  /// Invoked instead of [onSaved] after a save that an action made: a
+  /// SAVE-PARAM action (Mark Sent, Mark Paid, …), or a new record's
+  /// AFTER-SAVE action that did not navigate itself. Such a save finishes the
+  /// job, so it leaves for the record even where a plain Save keeps the
+  /// editor open (docs/after-saving.md). Null ⇒ [onSaved].
+  final FutureOr<void> Function(BuildContext context, T saved)? onSavedByAction;
+
+  /// "After Saving" keeps this editor open, so an existing record with
+  /// nothing to save has a disabled Save — the sign that the save landed —
+  /// and a ⌘S / Enter on it does nothing. A focused text input counts as a
+  /// possible change: a date or notes field commits only on blur, so its
+  /// typing never reaches the draft until Save is pressed.
+  final bool disableSaveWhenClean;
 
   /// Invoked when [GenericEditViewModel.save] returns null with non-empty
   /// `fieldErrors` (i.e. the server has rejected the save — typically a
@@ -213,7 +231,7 @@ class EntityEditScaffold<T> extends StatelessWidget {
   /// model is not).
   static final Expando<bool> _confirmingSave = Expando('confirmingSave');
 
-  Future<T?> _runSave(BuildContext context) async {
+  Future<T?> _runSave(BuildContext context, {bool skipIfClean = false}) async {
     // Commit any typed-but-unblurred field before reading the draft. InDateField
     // / InTimeField / MarkdownTextField only commit on blur or Enter, but ⌘S and
     // the Save button don't blur the active field — so without this a value the
@@ -225,6 +243,12 @@ class EntityEditScaffold<T> extends StatelessWidget {
       focus.unfocus();
       await Future<void>.delayed(Duration.zero);
       if (!context.mounted) return null;
+    }
+    if (skipIfClean) {
+      // What blur committed is in the draft now; a debounced cell edit is
+      // committed here. Still nothing to send ⇒ nothing happens.
+      vm.flushPendingEdits();
+      if (_settledClean()) return null;
     }
     final confirm = confirmSave;
     if (confirm != null) {
@@ -278,8 +302,11 @@ class EntityEditScaffold<T> extends StatelessWidget {
   /// save, then on success toast + navigate via [onSaved]. For a SAVE-PARAM
   /// action the caller has already stashed the query on the VM, so the same
   /// save round-trip carries the action — nothing extra runs afterward.
-  Future<void> _onSave(BuildContext context) async {
-    final result = await _runSave(context);
+  Future<void> _onSave(BuildContext context, {bool viaAction = false}) async {
+    final result = await _runSave(
+      context,
+      skipIfClean: disableSaveWhenClean && !viaAction,
+    );
     if (result == null || !context.mounted) return;
     // On a sync-wait timeout the server hasn't confirmed yet, so a plain
     // "Saved" toast misleads the user into thinking the save landed; show
@@ -289,8 +316,20 @@ class EntityEditScaffold<T> extends StatelessWidget {
         ? 'saving_in_background'
         : 'saved';
     Notify.success(context, context.tr(toastKey));
-    await onSaved(context, result);
+    await (viaAction ? onSavedByAction ?? onSaved : onSaved)(context, result);
   }
+
+  /// An existing record with nothing for a plain Save to send — no change,
+  /// and no failed or held save waiting on a retry. [disableSaveWhenClean]
+  /// disables Save on it.
+  bool _settledClean() =>
+      !vm.isCreate &&
+      !vm.isDirty &&
+      !vm.savesAsCreate &&
+      vm.deadOutboxRowId == null &&
+      vm.unconfirmedRowId == null &&
+      vm.submitError == null &&
+      vm.fieldErrors.isEmpty;
 
   /// Overflow action-bar tap. Three buckets (see plan / CLAUDE.md):
   ///   * SAVE-PARAM  — server performs it via the save request's query.
@@ -317,7 +356,7 @@ class EntityEditScaffold<T> extends StatelessWidget {
         if (!ok || !context.mounted) return;
       }
       vm.setPendingSaveQuery(query);
-      await _onSave(context);
+      await _onSave(context, viaAction: true);
       return;
     }
 
@@ -352,7 +391,7 @@ class EntityEditScaffold<T> extends StatelessWidget {
       if (!context.mounted) return;
       if (navigated) return;
       Notify.success(context, context.tr('saved'));
-      await onSaved(context, saved);
+      await (onSavedByAction ?? onSaved)(context, saved);
       return;
     }
     // Editing an existing record: real id — dispatch owns its own
@@ -418,13 +457,13 @@ class EntityEditScaffold<T> extends StatelessWidget {
             // shortcut still works via the body's Shortcuts/Actions. The
             // saving state swaps to a fixed-size spinner (repaint-only,
             // safe) without animating the button's width.
-            final saveButton = FilledButton(
+            Widget saveButtonWith({required bool enabled}) => FilledButton(
               // Stable, locale-independent hook for integration tests
               // (demo_harness.tapSave). The label is context.tr('save'),
               // so a text/type finder is fragile — key it instead.
               key: const ValueKey('entity_edit_save'),
               style: FilledButton.styleFrom(minimumSize: const Size(64, 44)),
-              onPressed: canSave ? () => _onSave(context) : null,
+              onPressed: enabled ? () => _onSave(context) : null,
               child: vm.isSaving
                   ? const SizedBox(
                       width: 36,
@@ -439,6 +478,19 @@ class EntityEditScaffold<T> extends StatelessWidget {
                     )
                   : Text(saveLabel),
             );
+            // Stay-in-editor mode: a settled record's Save is disabled — but
+            // not while a text input has focus, whose typing may not have
+            // reached the draft yet. Focus changes don't notify the VM, so
+            // this one button listens to them (a rebuild, never a layout-time
+            // mutation, so it is safe inside the OverflowView).
+            final Widget saveButton = disableSaveWhenClean && canSave
+                ? ListenableBuilder(
+                    listenable: FocusManager.instance,
+                    builder: (context, _) => saveButtonWith(
+                      enabled: !_settledClean() || isTextInputFocused(),
+                    ),
+                  )
+                : saveButtonWith(enabled: canSave);
             // Overflow entity-action bar (Email / Mark sent / Clone / …).
             // Built by the per-entity caller. The plain [saveButton] is
             // folded in as the bar's `leading:` child so the whole cluster

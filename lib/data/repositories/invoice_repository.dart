@@ -492,7 +492,20 @@ class InvoiceRepository extends BaseEntityRepository<Invoice, InvoiceApi>
       // land between this read and the write. (The lock check above stays
       // outside — it awaits the settings cascade — and reads no id.)
       final resolvedId = await resolveId(invoice.id);
-      if (resolvedId != invoice.id) invoice = invoice.copyWith(id: resolvedId);
+      if (resolvedId != invoice.id) {
+        // The create landed while the form was open: keep the number it
+        // got (docs/after-saving.md).
+        invoice = invoice.copyWith(
+          id: resolvedId,
+          number: await numberKeptOnRebind(
+            draftNumber: invoice.number,
+            storedNumber: () async => (await db.invoiceDao.getByIds(
+              companyId: companyId,
+              ids: [resolvedId],
+            )).firstOrNull?.number,
+          ),
+        );
+      }
       await db.invoiceDao.upsert(
         _domainToCompanion(invoice, companyId, isDirty: true),
       );

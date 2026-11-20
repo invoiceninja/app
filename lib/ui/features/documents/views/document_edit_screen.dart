@@ -8,7 +8,6 @@ import 'package:admin/ui/core/detail/entity_detail_actions_row.dart';
 import 'package:admin/ui/core/edit/edit_action_filter.dart';
 import 'package:admin/ui/core/edit/entity_edit_field.dart';
 import 'package:admin/ui/core/edit/entity_edit_screen_scaffold.dart';
-import 'package:admin/ui/core/list/master_detail_layout.dart';
 import 'package:admin/ui/core/widgets/centered_form_column.dart';
 import 'package:admin/ui/core/widgets/labeled_switch_group.dart';
 import 'package:admin/ui/features/documents/view_models/document_edit_view_model.dart';
@@ -100,12 +99,7 @@ class DocumentEditScreen extends StatelessWidget {
           a as DocumentAction,
         );
       },
-      onSaved: (ctx, vm, saved) => goAfterEntitySave(
-        ctx,
-        isCreate: false,
-        basePath: '/documents',
-        savedId: saved.id,
-      ),
+      basePath: '/documents',
     );
   }
 }

@@ -45,6 +45,8 @@ import 'package:admin/ui/features/settings/widgets/trusted_certificates_section.
 import 'package:admin/utils/formatting.dart';
 import 'package:admin/ui/core/utils/router_state.dart';
 import 'package:admin/ui/features/settings/widgets/settings_tab_strip.dart';
+import 'package:admin/app/after_saving_controller.dart';
+import 'package:admin/ui/core/edit/after_saving.dart';
 
 // Search keys for the settings search, one list per tab. Colocated with the
 // screen so adding / renaming a field updates both ends in one place (see
@@ -94,6 +96,10 @@ const kDeviceSettingsPhoneSearchKeys = <String>[
 
 /// Forms tab: what an edit screen offers.
 const kDeviceSettingsFormsSearchKeys = <String>[
+  'after_saving',
+  'after_saving_help',
+  'edit_record',
+  'view_record',
   'items_section_help',
   'default_tab',
   'spell_check',
@@ -377,15 +383,56 @@ class _PhoneTab extends StatelessWidget {
   }
 }
 
-/// What an edit screen offers: the items table, and who an assignee field
-/// lists.
+/// What an edit screen offers: what Save does next, the items table, and
+/// who an assignee field lists.
 class _FormsTab extends StatelessWidget {
   const _FormsTab();
 
   @override
   Widget build(BuildContext context) {
     return const SettingsFormShell(
-      sections: [_ItemsSection(), AssignedUsersSection()],
+      sections: [
+        _AfterSavingSection(),
+        _ItemsSection(),
+        AssignedUsersSection(),
+      ],
+    );
+  }
+}
+
+/// "After Saving": whether Save keeps an edit screen open (Edit Record) or
+/// goes to the record (View Record) — docs/after-saving.md,
+/// invoiceninja/app#202. Two choices, so both stay in view (CLAUDE.md
+/// § Two-choice fields). The selection shown is the effective one, so an
+/// untouched setting reads as this device's automatic answer.
+class _AfterSavingSection extends StatelessWidget {
+  const _AfterSavingSection();
+
+  @override
+  Widget build(BuildContext context) {
+    final afterSaving = context.read<AfterSavingController?>();
+    if (afterSaving == null) return const SizedBox.shrink();
+    return FormSection(
+      title: context.tr('save'),
+      flush: true,
+      children: [
+        ValueListenableBuilder<bool?>(
+          valueListenable: afterSaving,
+          builder: (context, _, _) => SettingRow(
+            icon: const Icon(Icons.save_outlined),
+            title: context.tr('after_saving'),
+            subtitle: context.tr('after_saving_help'),
+            control: InSegmented<bool>(
+              segments: [
+                InSegment(value: true, label: context.tr('edit_record')),
+                InSegment(value: false, label: context.tr('view_record')),
+              ],
+              selected: afterSaving.staysIn(context),
+              onChanged: (stay) => afterSaving.setIn(context, stay),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

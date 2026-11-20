@@ -1219,8 +1219,18 @@ void goToCreateRoute(BuildContext context, String route) {
   GoRouter.of(context).go(route);
 }
 
+/// Where a new record's editor goes when "After Saving" keeps it open
+/// (docs/after-saving.md): the record's own edit route, in the pane mode the
+/// create form was in. Pure for unit testing.
+String editorPathAfterCreate({
+  required String basePath,
+  required String id,
+  required bool isFullView,
+}) => isFullView ? '$basePath/$id/edit?view=full' : '$basePath/$id/edit';
+
 /// Post-save navigation for an entity edit/create screen hosted in a
-/// [MasterDetailLayout]. After a **create**, route to the new row's detail
+/// [MasterDetailLayout], when the save leaves the editor — "After Saving" is
+/// View Record, or an action made the save (docs/after-saving.md). After a **create**, route to the new row's detail
 /// screen — full-width (`?view=full`) when this entity's editor opened
 /// full-width (see [editOpensFullWidth]), so the record stays on the wide
 /// canvas the user just saved from instead of collapsing into the narrow

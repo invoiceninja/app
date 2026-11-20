@@ -455,6 +455,24 @@ class _BillingDocEditLayoutState<T extends BillingDocFields>
     ),
   };
 
+  /// The narrow strip's tab, by name, kept in the view model's
+  /// `formUiState` so a stay-in-editor Save — which reloads the form — opens
+  /// on the tab the user was on (docs/after-saving.md). By name, not index:
+  /// the Documents tab goes once the record exists. A tab not there yet (the
+  /// E-Invoice gate resolves a frame or two later) opens on Details.
+  static const _kStripTabKey = 'billing_doc_edit.tab';
+
+  int _rememberedTabIndex() {
+    final name = _vm.formUiState[_kStripTabKey];
+    final index = _tabKeys.indexWhere((key) => key.name == name);
+    return index < 0 ? 0 : index;
+  }
+
+  void _rememberTab(int index) {
+    final keys = _tabKeys;
+    if (index < keys.length) _vm.formUiState[_kStripTabKey] = keys[index].name;
+  }
+
   Widget _buildMobile(BuildContext context) {
     final tokens = context.inTheme;
     // The transparency Material here covers the sticky totals; the strip
@@ -467,7 +485,10 @@ class _BillingDocEditLayoutState<T extends BillingDocFields>
           Expanded(
             child: BillingDocEditTabStrip(
               excludeInactiveFocus: _type.excludesInactiveTabFocus,
-              initialIndex: _openOnItems ? _tabKeys.indexOf(_Tab.items) : 0,
+              initialIndex: _openOnItems
+                  ? _tabKeys.indexOf(_Tab.items)
+                  : _rememberedTabIndex(),
+              onIndexChanged: _rememberTab,
               tabs: [for (final key in _tabKeys) _tabFor(context, key)],
             ),
           ),
@@ -1495,7 +1516,25 @@ class _NotesTabsCardDesktopState<T extends BillingDocFields>
         // the second controller.
         with
         TickerProviderStateMixin {
-  late TabController _ctl = TabController(length: _length, vsync: this);
+  late TabController _ctl = _controller(
+    (widget.vm.formUiState[_kNotesTabKey] as int?) ?? 0,
+  );
+
+  /// The sub-tab, kept across the reload a stay-in-editor Save makes
+  /// (docs/after-saving.md).
+  static const _kNotesTabKey = 'billing_doc_edit.notes_tab';
+
+  TabController _controller(int initialIndex) => TabController(
+    length: _length,
+    vsync: this,
+    initialIndex: initialIndex.clamp(0, _length - 1),
+  )..addListener(_rememberIndex);
+
+  void _rememberIndex() {
+    if (!_ctl.indexIsChanging) {
+      widget.vm.formUiState[_kNotesTabKey] = _ctl.index;
+    }
+  }
 
   int get _length =>
       5 + (widget.showDocuments ? 1 : 0) + (widget.showEInvoice ? 1 : 0);
@@ -1509,11 +1548,7 @@ class _NotesTabsCardDesktopState<T extends BillingDocFields>
     }
     final previousIndex = _ctl.index;
     _ctl.dispose();
-    _ctl = TabController(
-      length: _length,
-      vsync: this,
-      initialIndex: previousIndex.clamp(0, _length - 1),
-    );
+    _ctl = _controller(previousIndex);
   }
 
   @override

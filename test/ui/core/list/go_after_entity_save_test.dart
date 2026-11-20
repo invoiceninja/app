@@ -69,4 +69,22 @@ void main() {
     expect(find.text('detail e1'), findsOneWidget);
     expect(find.text('edit'), findsNothing);
   });
+
+  // "After Saving" = Edit Record: a new record's editor moves to the record's
+  // own edit route, in the pane mode the create form was in
+  // (docs/after-saving.md).
+  test('a new record stays in its editor on its own edit route', () {
+    expect(
+      editorPathAfterCreate(basePath: '/invoices', id: 'i1', isFullView: true),
+      '/invoices/i1/edit?view=full',
+    );
+    expect(
+      editorPathAfterCreate(
+        basePath: '/settings/payment_links',
+        id: 'tmp_1',
+        isFullView: false,
+      ),
+      '/settings/payment_links/tmp_1/edit',
+    );
+  });
 }

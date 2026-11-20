@@ -1306,6 +1306,7 @@ Field-level breakdown of every option under each settings panel. Source of truth
 | Downloads folder — a desktop Download is saved straight into it, with the path and an Open action in the toast; Windows / Linux can choose the folder, macOS shows Downloads read-only (local) | — | ✅ | ✅ | | |
 | Biometric Authentication toggle | — | ✅ | ✅ | ✅ | |
 | Confirm actions — "Are you sure?" before Approve / Mark Sent / Cancel / Send Now / Archive / Delete etc. (local, on by default) | — | — | ✅ | | |
+| After Saving — Save keeps an edit screen open (Edit Record) or goes to the record (View Record); automatic is Edit Record on a tablet or desktop and View Record on a phone; an action's save (Mark Sent, Email, …) always goes to the record (local; React always stays, v1's setting was desktop-only, invoiceninja/app#202) | ✅ | ✅ | ✅ | | |
 | Sync (pushes queued edits, re-downloads, shows last-updated) | — | ✅ | ✅ | ✅ | ✅ |
 | Contacts sync — push client contacts to the device address book, under a label, with an All / Assigned-to-me scope (mobile only, local, off by default) | — | — | ✅ | | |
 | Phone numbers — tap to call / Message, an optional confirm, and an outside-business-hours warning in the contact's timezone (local; tap-to-call defaults on for touch, off on desktop). Also gates the billing-doc header and list-row call buttons | — | — | ✅ | | |

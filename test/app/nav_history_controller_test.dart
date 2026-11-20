@@ -421,6 +421,21 @@ void main() {
     expect(router.path, '/quotes');
   });
 
+  test('a create that stays in its editor replaces the form with the '
+      "record's edit route — back skips the blank New screen", () {
+    // "After Saving" = Edit Record (docs/after-saving.md).
+    final c = build();
+    addTearDown(c.dispose);
+
+    router.go('/quotes');
+    router.go('/quotes/new');
+    router.go('/quotes/q_new/edit');
+
+    expect(c.stack, ['/quotes', '/quotes/q_new/edit']);
+    c.back();
+    expect(router.path, '/quotes');
+  });
+
   test('abandoning a create form for an unrelated screen also replaces it', () {
     final c = build();
     addTearDown(c.dispose);

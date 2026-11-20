@@ -244,7 +244,18 @@ class RecurringInvoiceRepository
       // land between this read and the write.
       final resolvedId = await resolveId(recurringInvoice.id);
       if (resolvedId != recurringInvoice.id) {
-        recurringInvoice = recurringInvoice.copyWith(id: resolvedId);
+        // The create landed while the form was open: keep the number it
+        // got (docs/after-saving.md).
+        recurringInvoice = recurringInvoice.copyWith(
+          id: resolvedId,
+          number: await numberKeptOnRebind(
+            draftNumber: recurringInvoice.number,
+            storedNumber: () async => (await db.recurringInvoiceDao.getByIds(
+              companyId: companyId,
+              ids: [resolvedId],
+            )).firstOrNull?.number,
+          ),
+        );
       }
 
       final companion = _domainToCompanion(

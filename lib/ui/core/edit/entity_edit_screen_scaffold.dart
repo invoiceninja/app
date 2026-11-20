@@ -9,8 +9,12 @@ import 'package:admin/app/services.dart';
 import 'package:admin/data/db/app_database.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/dialogs/confirm_action_dialog.dart';
+import 'package:admin/ui/core/edit/after_saving.dart';
 import 'package:admin/ui/core/edit/entity_edit_scaffold.dart';
 import 'package:admin/ui/core/edit/generic_edit_view_model.dart';
+import 'package:admin/ui/core/list/master_detail_layout.dart';
+import 'package:admin/ui/core/sync/require_synced.dart';
+import 'package:admin/ui/core/utils/router_state.dart';
 import 'package:admin/ui/core/widgets/empty_state.dart';
 import 'package:admin/ui/core/widgets/form_save_scope.dart';
 import 'package:admin/ui/core/sync/unconfirmed_change_actions.dart';
@@ -37,8 +41,13 @@ import 'package:admin/ui/core/widgets/sync_first_banner.dart';
 ///
 /// Per-entity screens become ~30 lines: a single
 /// `EntityEditScreenScaffold<T, VM>(...)` invocation with builders that
-/// know how to construct the VM, fetch the existing row, render the form,
-/// and navigate after save.
+/// know how to construct the VM, fetch the existing row and render the form.
+///
+/// It also owns what happens after a save (docs/after-saving.md): a plain
+/// Save keeps the editor open when "After Saving" says so — an existing
+/// record reloads from the stored copy, a new one moves to its own edit
+/// route — and otherwise, or after a save an action made, goes to the record
+/// ([goAfterEntitySave]).
 class EntityEditScreenScaffold<T, VM extends GenericEditViewModel<T>>
     extends StatefulWidget {
   const EntityEditScreenScaffold({
@@ -52,7 +61,9 @@ class EntityEditScreenScaffold<T, VM extends GenericEditViewModel<T>>
     required this.bodyBuilder,
     this.bannerBuilder,
     required this.resetToEmpty,
-    required this.onSaved,
+    this.onSaved,
+    this.basePath,
+    this.canKeepEditing,
     required this.entityIdOf,
     this.canSave,
     this.embedded = false,
@@ -114,9 +125,29 @@ class EntityEditScreenScaffold<T, VM extends GenericEditViewModel<T>>
   /// Called by the discard guard. Typically `(vm) => vm.resetToEmpty()`.
   final void Function(VM vm) resetToEmpty;
 
-  /// Invoked after a successful save and after dead-row cleanup. Caller
-  /// decides whether to pop or go to a detail route.
-  final FutureOr<void> Function(BuildContext context, VM vm, T saved) onSaved;
+  /// Replaces the scaffold's own post-save navigation, for every save — a
+  /// plain one and one an action made — after dead-row cleanup. For an
+  /// editor that is not on an entity route of its own (a gateway under
+  /// Settings) and for tests. Null ⇒ the scaffold decides, from [basePath]
+  /// and "After Saving" (docs/after-saving.md).
+  final FutureOr<void> Function(BuildContext context, VM vm, T saved)? onSaved;
+
+  /// The entity's route (`/invoices`, `/settings/payment_links`): the record
+  /// is `<basePath>/<id>`, its editor `<basePath>/<id>/edit`. Required when
+  /// [onSaved] is null.
+  final String? basePath;
+
+  /// Whether the record just saved may stay open in its editor — false
+  /// where reopening it would be refused (a now-locked invoice, an invoiced
+  /// task), so a plain Save goes to the record instead, with no dialog. Asked
+  /// only when "After Saving" keeps the editor open. Null ⇒ always.
+  final Future<bool> Function(
+    BuildContext context,
+    Services services,
+    String companyId,
+    T saved,
+  )?
+  canKeepEditing;
 
   /// Optional Save-button gate. Defaults to `!vm.isSaving`.
   final bool Function(VM vm)? canSave;
@@ -181,6 +212,11 @@ class EntityEditScreenScaffold<T, VM extends GenericEditViewModel<T>>
 class _EntityEditScreenScaffoldState<T, VM extends GenericEditViewModel<T>>
     extends State<EntityEditScreenScaffold<T, VM>> {
   VM? _vm;
+
+  /// Bumped when a stay-in-editor Save swaps in a view model reloaded from
+  /// the stored record: the form below remounts on it, so no field or tab
+  /// keeps state seeded from the view model it replaced.
+  int _generation = 0;
   bool _ready = false;
   bool _bootstrapped = false;
   bool _notFound = false;
@@ -193,6 +229,10 @@ class _EntityEditScreenScaffoldState<T, VM extends GenericEditViewModel<T>>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    assert(
+      widget.onSaved != null || widget.basePath != null,
+      'EntityEditScreenScaffold needs a basePath to navigate after a save',
+    );
     if (_bootstrapped) return;
     _bootstrapped = true;
     final services = context.read<Services>();
@@ -511,17 +551,114 @@ class _EntityEditScreenScaffoldState<T, VM extends GenericEditViewModel<T>>
     // (Expense Category and Payment Link could not be created OR edited at
     // all), and made the back-swipe / predictive-back discard guard dead code.
     // The sibling settings scaffolds already do exactly this.
-    return ListenableBuilder(
-      listenable: vm,
-      builder: (context, _) => _scaffold(context, vm),
+    return KeyedSubtree(
+      key: ValueKey(_generation),
+      child: ListenableBuilder(
+        listenable: vm,
+        builder: (context, _) => _scaffold(context, vm),
+      ),
     );
+  }
+
+  /// Leave for the record, as every save did before "After Saving".
+  void _leaveForRecord(BuildContext context, VM vm, T saved) =>
+      goAfterEntitySave(
+        context,
+        isCreate: vm.isCreate,
+        basePath: widget.basePath!,
+        savedId: widget.entityIdOf(saved),
+      );
+
+  /// After a plain Save: stay in the editor when "After Saving" says so and
+  /// the record may be edited still, else go to the record.
+  Future<void> _afterPlainSave(BuildContext context, VM vm, T saved) async {
+    if (!staysInEditorAfterSave(context)) {
+      _leaveForRecord(context, vm, saved);
+      return;
+    }
+    final services = context.read<Services>();
+    final mayStay = widget.canKeepEditing;
+    if (mayStay != null &&
+        !await mayStay(context, services, _companyId, saved)) {
+      if (context.mounted) _leaveForRecord(context, vm, saved);
+      return;
+    }
+    if (!context.mounted) return;
+    final existingId = widget.existingId;
+    if (existingId != null) {
+      if (!await _reloadAfterSave(services, vm, existingId) &&
+          context.mounted) {
+        _leaveForRecord(context, vm, saved);
+      }
+      return;
+    }
+    // A new record: its editor is `/x/<id>/edit`, under the real id once the
+    // create has landed (online, the save waited for it) and under its
+    // `tmp_` id otherwise — an editor that follows the swap like a record
+    // screen does. Staying on `/x/new` would make a second record on the
+    // next Save, and restore a blank form after a restart.
+    final savedId = widget.entityIdOf(saved);
+    if (savedId.isEmpty) {
+      _leaveForRecord(context, vm, saved);
+      return;
+    }
+    final id = isUnsynced(savedId)
+        ? await services.db.idRemapDao.resolveAnyType(savedId) ?? savedId
+        : savedId;
+    if (!context.mounted) return;
+    context.go(
+      editorPathAfterCreate(
+        basePath: widget.basePath!,
+        id: id,
+        isFullView:
+            routerStateOf(context).uri.queryParameters['view'] == 'full',
+      ),
+    );
+  }
+
+  /// Swap in a view model built from the stored record — the server's copy
+  /// once an online save landed, which carries what the server set (totals,
+  /// the number, invitation keys), so the next Save never sends the draft it
+  /// replaced. False when the record can't be read back.
+  Future<bool> _reloadAfterSave(
+    Services services,
+    VM old,
+    String existingId,
+  ) async {
+    final fresh = await widget.fetchExisting(
+      context,
+      services,
+      _companyId,
+      existingId,
+    );
+    if (!mounted || fresh == null || !identical(_vm, old)) return false;
+    final next = widget.buildVm(context, services, _companyId, fresh);
+    next.formUiState.addAll(old.formUiState);
+    setState(() {
+      _vm = next;
+      _generation++;
+    });
+    // After the frame that unmounts the form bound to it.
+    WidgetsBinding.instance.addPostFrameCallback((_) => old.dispose());
+    await _hydrateFailedSync(services, _companyId, existingId);
+    if (!mounted || !identical(_vm, next)) return true;
+    await hydrateUnconfirmed(
+      services,
+      companyId: _companyId,
+      entityType: widget.entityTypeName,
+      entityId: existingId,
+      vm: next,
+    );
+    return true;
   }
 
   Widget _scaffold(BuildContext context, VM vm) {
     final canSave = widget.canSave?.call(vm) ?? !vm.isSaving;
+    final ownsNavigation = widget.onSaved == null;
     return EntityEditScaffold<T>(
       vm: vm,
       canSave: canSave,
+      disableSaveWhenClean: ownsNavigation && staysInEditorAfterSave(context),
       embedded: widget.embedded,
       actionsBuilder: widget.actionsBuilder == null
           ? null
@@ -594,7 +731,24 @@ class _EntityEditScreenScaffoldState<T, VM extends GenericEditViewModel<T>>
         // showing the failure indefinitely.
         await _cleanupPriorDeadRow(ctx.read<Services>(), vm);
         if (!ctx.mounted) return;
-        await widget.onSaved(ctx, vm, saved);
+        final onSaved = widget.onSaved;
+        if (onSaved != null) {
+          await onSaved(ctx, vm, saved);
+        } else {
+          await _afterPlainSave(ctx, vm, saved);
+        }
+      },
+      // A save an action made finishes the job: it goes to the record
+      // whatever "After Saving" says.
+      onSavedByAction: (ctx, saved) async {
+        await _cleanupPriorDeadRow(ctx.read<Services>(), vm);
+        if (!ctx.mounted) return;
+        final onSaved = widget.onSaved;
+        if (onSaved != null) {
+          await onSaved(ctx, vm, saved);
+        } else {
+          _leaveForRecord(ctx, vm, saved);
+        }
       },
       // The edit-mode after-save action path bypasses onSaved (the action owns
       // navigation), so run the same dead-row cleanup there too.

@@ -366,7 +366,20 @@ class ProjectRepository extends BaseEntityRepository<Project, ProjectApi>
       // land between this read and the write. (The tags above stay outside:
       // see TagNameResolver.)
       final resolvedId = await resolveId(project.id);
-      if (resolvedId != project.id) project = project.copyWith(id: resolvedId);
+      if (resolvedId != project.id) {
+        // The create landed while the form was open: keep the number it
+        // got (docs/after-saving.md).
+        project = project.copyWith(
+          id: resolvedId,
+          number: await numberKeptOnRebind(
+            draftNumber: project.number,
+            storedNumber: () async => (await db.projectDao.getByIds(
+              companyId: companyId,
+              ids: [resolvedId],
+            )).firstOrNull?.number,
+          ),
+        );
+      }
       final companion = _domainToCompanion(
         project,
         companyId,

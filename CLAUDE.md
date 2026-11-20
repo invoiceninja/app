@@ -264,6 +264,7 @@ FormSaveScope(
 Reusable fields (`OverridableTextField`, `ClientEditField`) read the scope themselves. A raw single-line `TextField` reads `FormSaveScope.maybeOf(context)`, sets `textInputAction: TextInputAction.done` and pipes `onSubmitted` to `scope.trySubmit()`; a dialog with one text input wraps its body in `FormSaveScope` too. → `docs/form-fields.md`
 
 - **A labelled field is wrapped in `LabeledField` and keeps its `labelText`: above the box at Comfortable, inside under Compact.** → `docs/form-fields.md`
+- **Save stays in the editor only where After Saving says so; an action's save goes to the record.** → `docs/after-saving.md`
 - **A focused field never changes its place in the tree on state — vary a wrapper's value, never add or drop it: a remounted `EditableText` opens no input connection, so later keys are lost.** → `docs/form-fields.md`
 
 ### Empty for blank numeric fields
@@ -381,7 +382,7 @@ The generic stack does most of the work. Five framework layers do the heavy lift
 
 `EntityRegistry` (`lib/domain/entity_registry.dart`) is the orchestrator: one entry per entity in `kWiredEntityModules` / `kDisabledEntityModules` (`lib/app/entity_modules.dart`) declares path, route, icon, parent/children, password-required mutations, sidebar metadata, and the four screen builders. Both files are entity-agnostic — adding an entity touches the module specs only.
 
-Contract tests live in `test/data/repositories/_base_entity_repository_contract.dart` — register the fixture at the top of your `<entity>_repository_test.dart` for the universal coverage.
+Contract tests live in `test/data/repositories/_base_entity_repository_contract.dart` — register your entity's fixture in its repository test.
 
 ### The 13-step recipe (summary)
 
@@ -399,7 +400,7 @@ Contract tests live in `test/data/repositories/_base_entity_repository_contract.
 12. Actions + 7 translation keys (entity translation completeness test enforces) — including the mandatory `copyLink` action (`entity_copy_link_coverage_test` enforces)
 13. Tests: contract fixture + entity-specific mapper / filter / conflict tests
 
-Full step-by-step shapes, "Standard action helpers" factories, the "Non-standard actions" pattern (e.g. Invoice `markPaid` via `customActions:`), and the bundled-entity alternative live in `docs/adding-an-entity.md`. Clients and Products are the reference invocations to mirror.
+Step shapes, action helpers (non-standard ones like Invoice `markPaid` via `customActions:`) and the bundled-entity alternative: `docs/adding-an-entity.md`. Mirror Clients and Products.
 
 ### Action confirmations
 

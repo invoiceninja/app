@@ -122,6 +122,7 @@
   "device_settings_subtitle_web": "Stored in this browser only, never synced to other browsers or devices.",
   "downloads_folder_help": "Where downloaded PDFs and exports are saved.",
   "hide_empty_dashboard_panels": "Hide empty dashboard panels",
+  "after_saving_help": "Whether Save keeps an edit screen open or goes to the record.",
   "items_section_help": "The items table on invoices, quotes and recurring invoices.",
   "lists_and_dashboard": "Lists & dashboard",
   "lists_and_dashboard_help": "What appears on list pages and the dashboard.",

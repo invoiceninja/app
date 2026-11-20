@@ -248,7 +248,18 @@ class PurchaseOrderRepository
       // land between this read and the write.
       final resolvedId = await resolveId(purchaseOrder.id);
       if (resolvedId != purchaseOrder.id) {
-        purchaseOrder = purchaseOrder.copyWith(id: resolvedId);
+        // The create landed while the form was open: keep the number it
+        // got (docs/after-saving.md).
+        purchaseOrder = purchaseOrder.copyWith(
+          id: resolvedId,
+          number: await numberKeptOnRebind(
+            draftNumber: purchaseOrder.number,
+            storedNumber: () async => (await db.purchaseOrderDao.getByIds(
+              companyId: companyId,
+              ids: [resolvedId],
+            )).firstOrNull?.number,
+          ),
+        );
       }
 
       final companion = _domainToCompanion(

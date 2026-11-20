@@ -322,7 +322,20 @@ class PaymentRepository extends BaseEntityRepository<Payment, PaymentApi>
       // transaction: the landing commits its remap in one, so it cannot
       // land between this read and the write.
       final resolvedId = await resolveId(payment.id);
-      if (resolvedId != payment.id) payment = payment.copyWith(id: resolvedId);
+      if (resolvedId != payment.id) {
+        // The create landed while the form was open: keep the number it
+        // got (docs/after-saving.md).
+        payment = payment.copyWith(
+          id: resolvedId,
+          number: await numberKeptOnRebind(
+            draftNumber: payment.number,
+            storedNumber: () async => (await db.paymentDao.getByIds(
+              companyId: companyId,
+              ids: [resolvedId],
+            )).firstOrNull?.number,
+          ),
+        );
+      }
 
       final companion = _domainToCompanion(payment, companyId, isDirty: true);
       // Never re-send allocations on an update. The server's

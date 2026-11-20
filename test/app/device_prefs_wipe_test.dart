@@ -234,6 +234,12 @@ final Map<PrefKey<Object>, _Probe> _probes = {
     (s) => s.webAppBanner.dismiss(),
     (s) => !s.webAppBanner.dismissed,
   ),
+  // How this device's editors behave after a Save — a look-and-feel choice
+  // of the device, kept across a sign-out like the theme.
+  DevicePrefKeys.afterSaving: _Probe(
+    (s) => s.afterSaving.set(false, isPhone: false),
+    (s) => s.afterSaving.value == null,
+  ),
 };
 
 final _certificate = CertificateFacts(

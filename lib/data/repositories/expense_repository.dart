@@ -285,7 +285,20 @@ class ExpenseRepository extends BaseEntityRepository<Expense, ExpenseApi>
       // transaction: the landing commits its remap in one, so it cannot
       // land between this read and the write.
       final resolvedId = await resolveId(expense.id);
-      if (resolvedId != expense.id) expense = expense.copyWith(id: resolvedId);
+      if (resolvedId != expense.id) {
+        // The create landed while the form was open: keep the number it
+        // got (docs/after-saving.md).
+        expense = expense.copyWith(
+          id: resolvedId,
+          number: await numberKeptOnRebind(
+            draftNumber: expense.number,
+            storedNumber: () async => (await db.expenseDao.getByIds(
+              companyId: companyId,
+              ids: [resolvedId],
+            )).firstOrNull?.number,
+          ),
+        );
+      }
 
       final companion = _domainToCompanion(expense, companyId, isDirty: true);
       await db.expenseDao.upsert(companion);

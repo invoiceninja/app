@@ -293,7 +293,20 @@ class QuoteRepository extends BaseEntityRepository<Quote, QuoteApi>
       // transaction: the landing commits its remap in one, so it cannot
       // land between this read and the write.
       final resolvedId = await resolveId(quote.id);
-      if (resolvedId != quote.id) quote = quote.copyWith(id: resolvedId);
+      if (resolvedId != quote.id) {
+        // The create landed while the form was open: keep the number it
+        // got (docs/after-saving.md).
+        quote = quote.copyWith(
+          id: resolvedId,
+          number: await numberKeptOnRebind(
+            draftNumber: quote.number,
+            storedNumber: () async => (await db.quoteDao.getByIds(
+              companyId: companyId,
+              ids: [resolvedId],
+            )).firstOrNull?.number,
+          ),
+        );
+      }
 
       final companion = _domainToCompanion(quote, companyId, isDirty: true);
       await db.quoteDao.upsert(companion);

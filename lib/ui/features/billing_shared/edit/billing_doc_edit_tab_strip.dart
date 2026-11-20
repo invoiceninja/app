@@ -54,6 +54,7 @@ class BillingDocEditTabStrip extends StatefulWidget {
     required this.tabs,
     this.excludeInactiveFocus = false,
     this.initialIndex = 0,
+    this.onIndexChanged,
   });
 
   /// The tabs, in order. The list's **length** drives the controller, so a
@@ -76,6 +77,11 @@ class BillingDocEditTabStrip extends StatefulWidget {
   /// line (`OpenLineItemRequest`). Read once, at mount.
   final int initialIndex;
 
+  /// Told the selected tab whenever it settles on a new one — so the layout
+  /// can remember it across the reload a stay-in-editor Save makes
+  /// (docs/after-saving.md).
+  final ValueChanged<int>? onIndexChanged;
+
   @override
   State<BillingDocEditTabStrip> createState() => _BillingDocEditTabStripState();
 }
@@ -97,7 +103,12 @@ class _BillingDocEditTabStripState extends State<BillingDocEditTabStrip>
     super.initState();
     final last = widget.tabs.length - 1;
     _tab = TabController(length: widget.tabs.length, vsync: this)
-      ..index = widget.initialIndex.clamp(0, last);
+      ..index = widget.initialIndex.clamp(0, last)
+      ..addListener(_reportIndex);
+  }
+
+  void _reportIndex() {
+    if (!_tab.indexIsChanging) widget.onIndexChanged?.call(_tab.index);
   }
 
   /// Rebuild the controller when the tab COUNT changes.
@@ -123,7 +134,7 @@ class _BillingDocEditTabStripState extends State<BillingDocEditTabStrip>
       length: length,
       vsync: this,
       initialIndex: previousIndex.clamp(0, length - 1),
-    );
+    )..addListener(_reportIndex);
   }
 
   @override

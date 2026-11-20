@@ -48,6 +48,7 @@ import 'package:admin/app/router.dart';
 import 'package:admin/app/sentry_gate.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/app/sign_out_notice.dart';
+import 'package:admin/app/after_saving_controller.dart';
 import 'package:admin/app/show_seconds_controller.dart';
 import 'package:admin/app/spell_check_controller.dart';
 import 'package:admin/app/terminal_lifecycle_observer.dart';
@@ -1088,6 +1089,12 @@ class _InvoiceNinjaAppState extends State<InvoiceNinjaApp> {
         // for the same reason.
         ChangeNotifierProvider<ShowSecondsController>.value(
           value: widget.services.showSeconds,
+        ),
+        // What Save does next on an edit screen, and its Device Settings row,
+        // read as `context.read<AfterSavingController?>()` for the same reason
+        // (docs/after-saving.md).
+        ChangeNotifierProvider<AfterSavingController>.value(
+          value: widget.services.afterSaving,
         ),
         // Where a desktop download is written, read as
         // `DownloadsFolderController?` by `bytesSaver` and its Device

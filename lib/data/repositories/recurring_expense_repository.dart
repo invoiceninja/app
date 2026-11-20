@@ -259,7 +259,18 @@ class RecurringExpenseRepository
       // land between this read and the write.
       final resolvedId = await resolveId(recurringExpense.id);
       if (resolvedId != recurringExpense.id) {
-        recurringExpense = recurringExpense.copyWith(id: resolvedId);
+        // The create landed while the form was open: keep the number it
+        // got (docs/after-saving.md).
+        recurringExpense = recurringExpense.copyWith(
+          id: resolvedId,
+          number: await numberKeptOnRebind(
+            draftNumber: recurringExpense.number,
+            storedNumber: () async => (await db.recurringExpenseDao.getByIds(
+              companyId: companyId,
+              ids: [resolvedId],
+            )).firstOrNull?.number,
+          ),
+        );
       }
 
       final companion = _domainToCompanion(

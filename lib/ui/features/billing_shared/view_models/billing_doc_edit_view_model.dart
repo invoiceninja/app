@@ -68,8 +68,13 @@ abstract class GenericBillingDocEditViewModel<T>
   /// never saves and never dirties the form. It lives here because the
   /// narrow layout's `TabBarView` disposes the Items page when the user moves
   /// to another tab, and this view model is what outlives that — so coming
-  /// back from Notes lands on the tab they left, not on Products.
-  String? itemsTab;
+  /// back from Notes lands on the tab they left, not on Products. Kept in
+  /// [formUiState], so it also outlives the reload a stay-in-editor Save
+  /// makes (docs/after-saving.md).
+  String? get itemsTab => formUiState[_kItemsTabKey] as String?;
+  set itemsTab(String? name) => formUiState[_kItemsTabKey] = name;
+
+  static const _kItemsTabKey = 'billing_doc.items_tab';
 
   // ── Subclass bridge ────────────────────────────────────────────────
   //

@@ -14,7 +14,6 @@ import 'package:admin/ui/core/detail/entity_detail_actions_row.dart';
 import 'package:admin/ui/core/edit/after_save_create_action.dart';
 import 'package:admin/ui/core/edit/edit_action_filter.dart';
 import 'package:admin/ui/core/edit/entity_edit_screen_scaffold.dart';
-import 'package:admin/ui/core/list/master_detail_layout.dart';
 import 'package:admin/ui/features/billing_shared/billing_doc_type.dart';
 import 'package:admin/ui/features/billing_shared/edit/billing_doc_date_order.dart';
 import 'package:admin/ui/features/billing_shared/edit/open_line_item_request.dart';
@@ -293,12 +292,17 @@ class InvoiceEditScreen extends StatelessWidget {
               InvoiceActions.dispatch(c, services, companyId, resolved, act),
         );
       },
-      onSaved: (ctx, vm, saved) => goAfterEntitySave(
-        ctx,
-        isCreate: vm.isCreate,
-        basePath: '/invoices',
-        savedId: saved.id,
-      ),
+      basePath: '/invoices',
+      // A plain Save stays in the editor only while the invoice may still be
+      // edited — reopening a now-locked one would show the lock dialog and
+      // leave anyway (docs/after-saving.md).
+      canKeepEditing: (ctx, services, companyId, saved) async =>
+          await resolveInvoiceLockReason(
+            settings: services.settings,
+            companyId: companyId,
+            invoice: saved,
+          ) ==
+          InvoiceLockReason.none,
     );
   }
 }

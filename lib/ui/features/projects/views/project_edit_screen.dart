@@ -11,7 +11,6 @@ import 'package:admin/ui/core/detail/entity_detail_actions_row.dart';
 import 'package:admin/ui/core/edit/after_save_create_action.dart';
 import 'package:admin/ui/core/edit/edit_action_filter.dart';
 import 'package:admin/ui/core/edit/entity_edit_screen_scaffold.dart';
-import 'package:admin/ui/core/list/master_detail_layout.dart';
 import 'package:admin/ui/features/projects/view_models/project_edit_view_model.dart';
 import 'package:admin/ui/features/projects/widgets/edit/project_edit_layout.dart';
 import 'package:admin/ui/features/projects/widgets/project_actions.dart';
@@ -115,12 +114,7 @@ class ProjectEditScreen extends StatelessWidget {
               ProjectActions.dispatch(c, services, companyId, resolved, act),
         );
       },
-      onSaved: (ctx, vm, saved) => goAfterEntitySave(
-        ctx,
-        isCreate: vm.isCreate,
-        basePath: '/projects',
-        savedId: saved.id,
-      ),
+      basePath: '/projects',
     );
   }
 }

@@ -47,6 +47,7 @@ void main() {
     'how_to_tap_shown': PrefScope.account,
     'tap_to_pay_announced': PrefScope.account,
     'web_app_banner_dismissed': PrefScope.device,
+    'after_saving': PrefScope.device,
   };
 
   final names = [for (final k in DevicePrefKeys.all) k.name];

@@ -10,7 +10,6 @@ import 'package:admin/ui/core/edit/after_save_create_action.dart';
 import 'package:admin/ui/core/adaptive.dart';
 import 'package:admin/ui/core/edit/edit_action_filter.dart';
 import 'package:admin/ui/core/edit/entity_edit_screen_scaffold.dart';
-import 'package:admin/ui/core/list/master_detail_layout.dart';
 import 'package:admin/ui/features/billing_shared/billing_doc_type.dart';
 import 'package:admin/ui/features/billing_shared/edit/open_line_item_request.dart';
 import 'package:admin/ui/features/billing_shared/seed_billing_create_defaults.dart';
@@ -175,12 +174,7 @@ class CreditEditScreen extends StatelessWidget {
               CreditActions.dispatch(c, services, companyId, resolved, act),
         );
       },
-      onSaved: (ctx, vm, saved) => goAfterEntitySave(
-        ctx,
-        isCreate: vm.isCreate,
-        basePath: '/credits',
-        savedId: saved.id,
-      ),
+      basePath: '/credits',
     );
   }
 }

@@ -255,7 +255,20 @@ class CreditRepository extends BaseEntityRepository<Credit, CreditApi>
       // transaction: the landing commits its remap in one, so it cannot
       // land between this read and the write.
       final resolvedId = await resolveId(credit.id);
-      if (resolvedId != credit.id) credit = credit.copyWith(id: resolvedId);
+      if (resolvedId != credit.id) {
+        // The create landed while the form was open: keep the number it
+        // got (docs/after-saving.md).
+        credit = credit.copyWith(
+          id: resolvedId,
+          number: await numberKeptOnRebind(
+            draftNumber: credit.number,
+            storedNumber: () async => (await db.creditDao.getByIds(
+              companyId: companyId,
+              ids: [resolvedId],
+            )).firstOrNull?.number,
+          ),
+        );
+      }
 
       final companion = _domainToCompanion(credit, companyId, isDirty: true);
       await db.creditDao.upsert(companion);

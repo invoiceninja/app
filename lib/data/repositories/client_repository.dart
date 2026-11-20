@@ -492,7 +492,20 @@ class ClientRepository extends BaseEntityRepository<Client, ClientApi>
       // transaction: the landing commits its remap in one, so it cannot
       // land between this read and the write.
       final resolvedId = await resolveId(client.id);
-      if (resolvedId != client.id) client = client.copyWith(id: resolvedId);
+      if (resolvedId != client.id) {
+        // The create landed while the form was open: keep the number it
+        // got (docs/after-saving.md).
+        client = client.copyWith(
+          id: resolvedId,
+          number: await numberKeptOnRebind(
+            draftNumber: client.number,
+            storedNumber: () async => (await db.clientDao.getByIds(
+              companyId: companyId,
+              ids: [resolvedId],
+            )).firstOrNull?.number,
+          ),
+        );
+      }
 
       final companion = _domainToCompanion(client, companyId, isDirty: true);
       await db.clientDao.upsert(companion);

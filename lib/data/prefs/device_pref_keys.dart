@@ -362,6 +362,18 @@ abstract final class DevicePrefKeys {
     PrefScope.device,
   );
 
+  /// What Save on an edit screen does next: stay in the editor (`true`) or go
+  /// to the record (`false`) — Device Settings → Forms → After Saving
+  /// (`AfterSavingController`, docs/after-saving.md, invoiceninja/app#202).
+  /// No row means automatic: the editor on a tablet or a desktop, the record
+  /// on a phone. Device scope: it is how this device's editors behave, like
+  /// the theme, not something the account chose.
+  static const afterSaving = PrefKey<bool>(
+    'after_saving',
+    PrefCodec.boolean,
+    PrefScope.device,
+  );
+
   /// In the order they were added; append new keys at the end.
   static const List<PrefKey<Object>> all = [
     locale,
@@ -400,6 +412,7 @@ abstract final class DevicePrefKeys {
     howToTapShown,
     tapToPayAnnounced,
     webAppBannerDismissed,
+    afterSaving,
   ];
 
   /// The rows a data wipe leaves in place: the [PrefScope.device] keys and the

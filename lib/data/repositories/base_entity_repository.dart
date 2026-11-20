@@ -314,6 +314,27 @@ abstract class BaseEntityRepository<TDomain, TApi> {
     return real ?? maybeTempId;
   }
 
+  /// The number a save rebound from a `tmp_` id sends: the draft's, unless it
+  /// is blank and the stored record — the server's copy, written when its
+  /// create landed — has one.
+  ///
+  /// A form opened on a record before its create landed holds the blank
+  /// number the create was sent with. Sent on the update, the server stores
+  /// the blank and then gives the record the *next* number
+  /// (`ApplyNumber::run`, with `counter_number_applied` = `when_saved`), so
+  /// the number it already had is skipped. Only a rebound save: a blank on a
+  /// record the form opened with a number is the user clearing it, which
+  /// does ask the server for a new one (docs/after-saving.md).
+  @protected
+  Future<String> numberKeptOnRebind({
+    required String draftNumber,
+    required Future<String?> Function() storedNumber,
+  }) async {
+    if (draftNumber.trim().isNotEmpty) return draftNumber;
+    final stored = await storedNumber();
+    return stored == null || stored.trim().isEmpty ? draftNumber : stored;
+  }
+
   /// Enqueue an outbox row. The caller has already written the local
   /// optimistic state to Drift; this just registers the pending sync.
   ///

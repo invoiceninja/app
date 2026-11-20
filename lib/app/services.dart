@@ -8,6 +8,7 @@ import 'package:http/http.dart' as http;
 import 'package:logging/logging.dart';
 
 import 'package:admin/app/accent_color_controller.dart';
+import 'package:admin/app/after_saving_controller.dart';
 import 'package:admin/app/app_locale_resolver.dart';
 import 'package:admin/app/company_label_overrides.dart';
 import 'package:admin/app/downloads_folder_controller.dart';
@@ -408,6 +409,7 @@ class Services implements SidebarBadgeContext {
     required this.tasksView,
     required this.kanbanPrefs,
     required this.hideEmptyPanels,
+    required this.afterSaving,
     required this.defaultItemsTab,
     required this.hoursFormat,
     required this.hidePeppolStatus,
@@ -851,6 +853,12 @@ class Services implements SidebarBadgeContext {
   /// switch is flipped and its view model never notifies for a device
   /// preference.
   final HideEmptyPanelsController hideEmptyPanels;
+
+  /// "After Saving" — whether Save keeps an edit screen open or goes to the
+  /// record (Device Settings → Forms, invoiceninja/app#202). Null means
+  /// automatic (the editor except on a phone), so read it through
+  /// `staysIn(context)` (`ui/core/edit/after_saving.dart`), never `value`.
+  final AfterSavingController afterSaving;
 
   /// Which items tab a billing document opens on when its lines don't decide
   /// (React #3355) — Device Settings → Forms → Items.
@@ -2281,6 +2289,7 @@ class Services implements SidebarBadgeContext {
     final tasksView = TasksViewController(prefs: devicePrefs);
     final kanbanPrefs = KanbanPrefsController(prefs: devicePrefs);
     final hideEmptyPanels = HideEmptyPanelsController(prefs: devicePrefs);
+    final afterSaving = AfterSavingController(prefs: devicePrefs);
     final defaultItemsTab = DefaultItemsTabController(prefs: devicePrefs);
     final hoursFormat = HoursFormatController(prefs: devicePrefs);
     final hidePeppolStatus = HidePeppolStatusController(prefs: devicePrefs);
@@ -2751,6 +2760,7 @@ class Services implements SidebarBadgeContext {
       tasksView: tasksView,
       kanbanPrefs: kanbanPrefs,
       hideEmptyPanels: hideEmptyPanels,
+      afterSaving: afterSaving,
       defaultItemsTab: defaultItemsTab,
       hoursFormat: hoursFormat,
       hidePeppolStatus: hidePeppolStatus,

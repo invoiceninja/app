@@ -8,7 +8,6 @@ import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/detail/entity_detail_actions_row.dart';
 import 'package:admin/ui/core/edit/after_save_create_action.dart';
 import 'package:admin/ui/core/edit/entity_edit_screen_scaffold.dart';
-import 'package:admin/ui/core/list/master_detail_layout.dart';
 import 'package:admin/ui/features/payments/seed_payment_create_defaults.dart';
 import 'package:admin/ui/features/payments/view_models/payment_edit_view_model.dart';
 import 'package:admin/ui/features/payments/widgets/edit/payment_edit_layout.dart';
@@ -179,12 +178,7 @@ class PaymentEditScreen extends StatelessWidget {
               PaymentActions.dispatch(c, services, companyId, resolved, act),
         );
       },
-      onSaved: (ctx, vm, saved) => goAfterEntitySave(
-        ctx,
-        isCreate: vm.isCreate,
-        basePath: '/payments',
-        savedId: saved.id,
-      ),
+      basePath: '/payments',
     );
   }
 }

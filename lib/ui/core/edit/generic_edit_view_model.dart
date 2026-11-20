@@ -120,6 +120,12 @@ abstract class GenericEditViewModel<T> extends ChangeNotifier {
   T get draft => _draft;
   T? get original => _original;
 
+  /// What the form shows about itself — its selected tab — kept across the
+  /// reload a stay-in-editor Save makes: `EntityEditScreenScaffold` copies it
+  /// into the view model it builds from the stored record
+  /// (docs/after-saving.md). Keyed by the widget that owns the entry.
+  final Map<String, Object?> formUiState = {};
+
   /// True when this VM is for a brand-new entity (no existing row).
   bool get isCreate => _original == null;
 

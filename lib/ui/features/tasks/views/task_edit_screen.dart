@@ -11,7 +11,6 @@ import 'package:admin/ui/core/detail/entity_detail_actions_row.dart';
 import 'package:admin/ui/core/edit/after_save_create_action.dart';
 import 'package:admin/ui/core/edit/edit_action_filter.dart';
 import 'package:admin/ui/core/edit/entity_edit_screen_scaffold.dart';
-import 'package:admin/ui/core/list/master_detail_layout.dart';
 import 'package:admin/ui/core/widgets/formatter_host_mixin.dart';
 import 'package:admin/ui/features/tasks/view_models/task_edit_view_model.dart';
 import 'package:admin/ui/features/tasks/widgets/edit/task_edit_layout.dart';
@@ -244,12 +243,12 @@ class _TaskEditScreenState extends State<TaskEditScreen>
               TaskActions.dispatch(c, services, companyId, resolved, act),
         );
       },
-      onSaved: (ctx, vm, saved) => goAfterEntitySave(
-        ctx,
-        isCreate: vm.isCreate,
-        basePath: '/tasks',
-        savedId: saved.id,
-      ),
+      basePath: '/tasks',
+      // An invoiced task's editor can't save it, so Save leaves for the
+      // record rather than staying on a form it can't use
+      // (docs/after-saving.md).
+      canKeepEditing: (ctx, services, companyId, saved) async =>
+          !saved.isInvoiced,
     );
   }
 }

@@ -2315,5 +2315,6 @@
   "app_info_locale": "Gebietsschema",
   "app_info_text_direction": "Textrichtung",
   "app_info_display_features": "Display-Merkmale",
-  "app_info_book_posture": "Buchmodus"
+  "app_info_book_posture": "Buchmodus",
+  "after_saving_help": "Ob „Speichern“ den Bearbeitungsbildschirm offen lässt oder zum Datensatz wechselt."
 }

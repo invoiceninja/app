@@ -360,7 +360,20 @@ class VendorRepository extends BaseEntityRepository<Vendor, VendorApi>
       // transaction: the landing commits its remap in one, so it cannot
       // land between this read and the write.
       final resolvedId = await resolveId(vendor.id);
-      if (resolvedId != vendor.id) vendor = vendor.copyWith(id: resolvedId);
+      if (resolvedId != vendor.id) {
+        // The create landed while the form was open: keep the number it
+        // got (docs/after-saving.md).
+        vendor = vendor.copyWith(
+          id: resolvedId,
+          number: await numberKeptOnRebind(
+            draftNumber: vendor.number,
+            storedNumber: () async => (await db.vendorDao.getByIds(
+              companyId: companyId,
+              ids: [resolvedId],
+            )).firstOrNull?.number,
+          ),
+        );
+      }
 
       final companion = _domainToCompanion(vendor, companyId, isDirty: true);
       await db.vendorDao.upsert(companion);
