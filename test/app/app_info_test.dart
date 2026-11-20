@@ -109,16 +109,14 @@ void main() {
     );
     expect(wasm['app_info_platform'], 'Web');
     expect(wasm['app_info_user_agent'], ua);
-    expect(wasm['app_info_compiled_to'], 'WebAssembly');
-    expect(wasm['app_info_renderer'], 'skwasm');
+    expect(wasm['app_info_web_build'], 'WebAssembly (skwasm renderer)');
     expect(wasm.containsKey('app_info_os_version'), isFalse);
     expect(wasm.containsKey('app_info_impeller'), isFalse);
 
     final js = rowMap(
       appInfoRows(inputs(isWeb: true, hostSystem: ua, impeller: null), tr),
     );
-    expect(js['app_info_compiled_to'], 'JavaScript');
-    expect(js['app_info_renderer'], 'CanvasKit');
+    expect(js['app_info_web_build'], 'JavaScript (CanvasKit renderer)');
   });
 
   test('every platform has its own name', () {

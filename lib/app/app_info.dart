@@ -239,13 +239,12 @@ List<AppInfoRow> appInfoRows(AppInfoInputs i, String Function(String) tr) {
     ),
     if (i.isWeb) ...[
       AppInfoRow(tr('app_info_user_agent'), orDash(i.hostSystem)),
+      // One row, so the answer to "is this WebAssembly?" leads and the
+      // renderer's engine name only qualifies it.
       AppInfoRow(
-        tr('app_info_compiled_to'),
-        i.isWasm ? 'WebAssembly' : 'JavaScript',
-      ),
-      AppInfoRow(
-        tr('app_info_renderer'),
-        i.usesSkwasm ? 'skwasm' : 'CanvasKit',
+        tr('app_info_web_build'),
+        '${i.isWasm ? 'WebAssembly' : 'JavaScript'} '
+        '(${i.usesSkwasm ? 'skwasm' : 'CanvasKit'} renderer)',
       ),
     ] else ...[
       AppInfoRow(tr('app_info_os_version'), orDash(i.hostSystem)),
