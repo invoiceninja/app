@@ -1,8 +1,13 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart' show PointerDeviceKind;
+import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 
 import 'package:admin/app/entity_modules.dart' show DisabledEntityDispatcher;
 import 'package:admin/data/models/domain/search_result.dart';
@@ -11,6 +16,7 @@ import 'package:admin/domain/entity_type.dart';
 import 'package:admin/ui/core/widgets/key_cap.dart';
 import 'package:admin/ui/features/settings/settings_search_catalog.dart';
 import 'package:admin/ui/features/shell/widgets/command_palette.dart';
+import 'package:admin/ui/features/shell/widgets/search_palette_scope_bar.dart';
 
 import '../../../_localization_helper.dart';
 import '_shell_test_helpers.dart';
@@ -248,7 +254,7 @@ void main() {
         .where((l) => !l.trimLeft().startsWith('//'))
         .join('\n');
 
-    test('both hint spread sites are gated on isPhone', () {
+    test('both hint spread sites are gated on touch', () {
       // The footer is one `_keyboardHints` definition spread twice, so the
       // check is a short marker per site — the earlier version scanned a fixed
       // 900-char window back from each hint literal against an actual distance
@@ -264,11 +270,12 @@ void main() {
       );
       for (final m in spreads) {
         expect(
-          palette.substring(m.start - 20, m.start).contains('if (!phone)'),
+          palette.substring(m.start - 20, m.start).contains('if (!touch)'),
           isTrue,
           reason:
-              'a keyboard hint row still renders on a phone, where none of '
-              'the arrow / Enter / Esc keys can be pressed',
+              'a keyboard hint row still renders on a touch device, where '
+              'none of the arrow / Enter / Esc keys can be pressed — and a '
+              'narrow desktop window, which gets the page, must keep it',
         );
       }
       expect(
@@ -601,17 +608,19 @@ void main() {
         size: desktop,
         platform: TargetPlatform.macOS,
         body: () async {
-          // `buildFixture` installs a fail-fast client, so the search rejects
-          // and the palette lands on "No records found" — where `_move` and
-          // `_select` both early-return.
+          // Inside the debounce window nothing is up yet: `_move` and
+          // `_select` have nothing to act on. Plain `pump`, never
+          // `pumpAndSettle`: the running LinearProgressIndicator would hang
+          // it for the 10-minute timeout.
           await tester.enterText(find.byType(TextField), 'acme');
-          // `_onChanged` doesn't setState; nothing rebuilds until the debounce
-          // fires `_run`. Plain `pump`, never `pumpAndSettle`: a still-running
-          // LinearProgressIndicator would hang it for the 10-minute timeout.
-          await tester.pump(const Duration(milliseconds: 300));
           await tester.pump();
 
-          expect(find.text('No records found'), findsOneWidget);
+          expect(
+            find.text('No records found'),
+            findsNothing,
+            reason: 'a search on its way is not an empty one — no flash',
+          );
+          expect(find.byType(LinearProgressIndicator), findsOneWidget);
           expect(
             find.text('Navigate'),
             findsNothing,
@@ -625,6 +634,16 @@ void main() {
           );
           // The 2 field-chip caps plus Esc.
           expect(find.byType(KeyCap), findsNWidgets(3));
+
+          // `buildFixture` installs a fail-fast client, so the search
+          // rejects: no match, and the lists to search instead — rows that
+          // ↑↓ and Enter do act on.
+          await tester.pump(const Duration(milliseconds: 300));
+          await tester.pump();
+          expect(find.text('No records found'), findsOneWidget);
+          expect(find.textContaining('Search Clients for'), findsOneWidget);
+          expect(find.text('Navigate'), findsOneWidget);
+          expect(find.text('Select'), findsOneWidget);
         },
       );
     });
@@ -836,7 +855,9 @@ void main() {
       expect(find.text('Support Forums'), findsOneWidget);
     });
 
-    testWidgets('settings rows stop at eight', (tester) async {
+    testWidgets('settings rows stop at eight, four of them up front', (
+      tester,
+    ) async {
       // "mail" matches well over eight settings labels and no report.
       expect(
         searchSettings('mail', bundledLocalization()).length,
@@ -844,12 +865,14 @@ void main() {
       );
       await search(tester, 'mail');
       // The list is built lazily inside the card, so count its items, not
-      // the rows on screen: one Settings header plus the eight rows. No
-      // report name contains "mail", so nothing else shares the list.
+      // the rows on screen: one Settings header, the group's first four rows
+      // and a "Show all 8". No report name contains "mail", so nothing else
+      // shares the list.
       final list = tester.widget<ListView>(find.byType(ListView));
       final delegate = list.childrenDelegate as SliverChildBuilderDelegate;
-      expect(delegate.childCount, 1 + 8);
+      expect(delegate.childCount, 1 + 4 + 1);
       expect(find.text('Settings'), findsOneWidget);
+      expect(find.text('Show all 8'), findsOneWidget);
     });
   });
 
@@ -936,6 +959,373 @@ void main() {
       await tester.pumpWidget(const SizedBox());
       await tester.pump(const Duration(milliseconds: 10));
       await tester.pump(const Duration(milliseconds: 10));
+    });
+  });
+
+  // The fallback server answer — what the demo, and every server without
+  // Elasticsearch, sends: the whole company, whatever was typed
+  // (docs/search-palette.md). The palette fetches it once and filters it.
+  group('search results: filtered, ranked, grouped', () {
+    late ShellFixture fixture;
+    late int searches;
+
+    final fallbackAnswer = {
+      'clients': [
+        {'name': 'Macejkovic-Hintz', 'id': 'c1', 'path': '/clients/c1'},
+        {'name': 'Crooks-Price', 'id': 'c2', 'path': '/clients/c2'},
+        {'name': 'Prosper Ltd', 'id': 'c3', 'path': '/clients/c3'},
+        {'name': 'Langworth-Prosacco', 'id': 'c4', 'path': '/clients/c4'},
+        for (final (i, n) in const [
+          (5, 'One'),
+          (6, 'Two'),
+          (7, 'Three'),
+          (8, 'Four'),
+          (9, 'Five'),
+        ])
+          {'name': 'Zeta $n', 'id': 'c$i', 'path': '/clients/c$i'},
+      ],
+      'client_contacts': <Object>[],
+      'invoices': [
+        {'name': 'Prosper Ltd - 0042', 'id': 'i1', 'path': '/invoices/i1/edit'},
+      ],
+      'projects': [
+        {'name': 'Pro onboarding - 0007', 'id': 'p1', 'path': '/projects/p1'},
+        // More rows than Elasticsearch ever sends (its 100), which is what
+        // marks the answer as the query-blind fallback worth keeping.
+        for (var i = 0; i < 100; i++)
+          {
+            'name': 'Archive $i - ${1000 + i}',
+            'id': 'a$i',
+            'path': '/projects/a$i',
+          },
+      ],
+      'settings': <Object>[],
+    };
+
+    setUp(() async {
+      searches = 0;
+      fixture = await buildFixture(
+        companies: const [FakeCompany(id: 'c1', name: 'Acme')],
+        closeStreamsSynchronously: true,
+        httpClient: MockClient((req) async {
+          if (req.url.path.endsWith('/api/v1/search')) {
+            searches++;
+            return http.Response(
+              jsonEncode(fallbackAnswer),
+              200,
+              headers: const {'content-type': 'application/json'},
+            );
+          }
+          return http.Response('offline', 503);
+        }),
+      );
+    });
+
+    tearDown(() async => fixture.dispose());
+
+    Future<void> open(
+      WidgetTester tester, {
+      Size size = const Size(1200, 800),
+      TargetPlatform platform = TargetPlatform.macOS,
+      required Future<void> Function() body,
+    }) async {
+      debugDefaultTargetPlatformOverride = platform;
+      try {
+        tester.view.physicalSize = size;
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        await tester.pumpWidget(
+          wrapWithShell(
+            fixture.services,
+            Builder(
+              builder: (context) => TextButton(
+                onPressed: () => showCommandPalette(context),
+                child: const Text('trigger'),
+              ),
+            ),
+          ),
+        );
+        await tester.tap(find.text('trigger'));
+        await tester.pumpAndSettle();
+        await body();
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
+    }
+
+    Future<void> type(WidgetTester tester, String text) async {
+      await tester.enterText(find.byType(TextField), text);
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pump();
+      await tester.pump();
+    }
+
+    testWidgets('the query-blind answer is fetched once and filtered here', (
+      tester,
+    ) async {
+      await open(
+        tester,
+        body: () async {
+          // Queries no settings label holds, so the clients are on screen
+          // (the card builds its list lazily).
+          await type(tester, 'Prosp');
+          expect(find.text('Prosper Ltd'), findsWidgets);
+          expect(
+            find.text('Macejkovic-Hintz'),
+            findsNothing,
+            reason: 'the server sent every client; only matches may show',
+          );
+          expect(find.text('Crooks-Price'), findsNothing);
+
+          await type(tester, 'Prosa');
+          await type(tester, 'Prosac');
+          expect(find.text('Langworth-Prosacco'), findsWidgets);
+          expect(find.text('Prosper Ltd'), findsNothing);
+          expect(searches, 1, reason: 'later keystrokes filter the cache');
+        },
+      );
+    });
+
+    testWidgets('the category bar: Tab moves through it, Esc steps back', (
+      tester,
+    ) async {
+      await open(
+        tester,
+        body: () async {
+          // Prosper Ltd (a client) and its invoice.
+          await type(tester, 'prosper');
+          expect(find.text('All'), findsOneWidget);
+          expect(find.text('Category'), findsOneWidget, reason: 'Tab hint');
+          final groups = find.byType(SearchPaletteScopeBar);
+          expect(groups, findsOneWidget);
+          final scopes = tester
+              .widget<SearchPaletteScopeBar>(groups)
+              .scopes
+              .map((s) => s.id)
+              .toList();
+          expect(scopes.first, 'all');
+          expect(scopes, ['all', 'clients', 'invoices']);
+
+          await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+          await tester.pump();
+          final bar = tester.widget<SearchPaletteScopeBar>(groups);
+          expect(bar.selectedId, scopes[1]);
+          expect(
+            find.byIcon(Icons.manage_search),
+            findsOneWidget,
+            reason: 'a category ends with a search of its full list',
+          );
+
+          await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+          await tester.pump();
+          expect(
+            tester.widget<SearchPaletteScopeBar>(groups).selectedId,
+            'all',
+          );
+          expect(find.byType(Dialog), findsOneWidget, reason: 'still open');
+
+          await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+          await tester.pumpAndSettle();
+          expect(find.byType(Dialog), findsNothing);
+        },
+      );
+    });
+
+    testWidgets('⌘↓ jumps to the next group', (tester) async {
+      final semantics = tester.ensureSemantics();
+      await open(
+        tester,
+        body: () async {
+          // Top hits (Prosper Ltd), then Invoices (its 0042).
+          await type(tester, 'prosper');
+          final firstGroupRow = find.bySemanticsLabel(RegExp('^Prosper Ltd'));
+          final nextGroupRow = find.bySemanticsLabel(RegExp('^0042'));
+          expect(
+            tester.getSemantics(firstGroupRow.first),
+            isSemantics(isSelected: true),
+          );
+
+          await tester.sendKeyDownEvent(LogicalKeyboardKey.metaLeft);
+          await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+          await tester.sendKeyUpEvent(LogicalKeyboardKey.metaLeft);
+          await tester.pump();
+          expect(
+            tester.getSemantics(nextGroupRow.first),
+            isSemantics(isSelected: true),
+            reason: 'the selection moved to the next group',
+          );
+          // The announcement timer (assistive tech is on in this test).
+          await tester.pump(const Duration(seconds: 1));
+        },
+      );
+      semantics.dispose();
+    });
+
+    testWidgets('no match offers the lists to search instead', (tester) async {
+      await open(
+        tester,
+        body: () async {
+          await type(tester, 'zzzq');
+          expect(find.text('No records found'), findsOneWidget);
+          expect(find.text('Search Clients for "zzzq"'), findsOneWidget);
+          expect(find.text('Search Invoices for "zzzq"'), findsOneWidget);
+        },
+      );
+    });
+
+    testWidgets('an Enter pressed before a no-match answer opens nothing', (
+      tester,
+    ) async {
+      await open(
+        tester,
+        body: () async {
+          await tester.enterText(find.byType(TextField), 'zzqx');
+          await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+          await tester.pump(const Duration(milliseconds: 300));
+          await tester.pump();
+          expect(find.text('No records found'), findsOneWidget);
+          expect(
+            find.byType(Dialog),
+            findsOneWidget,
+            reason: 'not closed onto a list the user never picked',
+          );
+        },
+      );
+    });
+
+    testWidgets('Search on text the results already answer ends the wait', (
+      tester,
+    ) async {
+      await open(
+        tester,
+        size: const Size(412, 915),
+        platform: TargetPlatform.android,
+        body: () async {
+          await type(tester, 'Prosp');
+          expect(find.byType(LinearProgressIndicator), findsNothing);
+          // A key and its undo inside the debounce, then Search.
+          await tester.enterText(find.byType(TextField), 'Prospx');
+          await tester.enterText(find.byType(TextField), 'Prosp');
+          await tester.testTextInput.receiveAction(TextInputAction.search);
+          await tester.pump(const Duration(milliseconds: 300));
+          expect(
+            find.byType(LinearProgressIndicator),
+            findsNothing,
+            reason: 'nothing is coming, so nothing may spin',
+          );
+          expect(find.text('Prosper Ltd'), findsWidgets);
+        },
+      );
+    });
+
+    testWidgets('a pasted link leaves no category taking Tab or Esc', (
+      tester,
+    ) async {
+      await open(
+        tester,
+        body: () async {
+          await type(tester, 'prosper');
+          await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+          await tester.pump();
+          expect(
+            tester
+                .widget<SearchPaletteScopeBar>(
+                  find.byType(SearchPaletteScopeBar),
+                )
+                .selectedId,
+            isNot('all'),
+            reason: 'guard: a category is open',
+          );
+
+          await type(tester, 'invoiceninja://app/clients/abc');
+          expect(find.byType(SearchPaletteScopeBar), findsNothing);
+          expect(find.text('Category'), findsNothing, reason: 'no Tab hint');
+          await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+          await tester.pumpAndSettle();
+          expect(
+            find.byType(Dialog),
+            findsNothing,
+            reason: 'one Esc closes — no invisible category to leave first',
+          );
+        },
+      );
+    });
+
+    testWidgets('a hardware Enter opens the selection on a touch tablet', (
+      tester,
+    ) async {
+      await open(
+        tester,
+        size: const Size(1024, 1366),
+        platform: TargetPlatform.iOS,
+        body: () async {
+          await type(tester, 'zeta');
+          expect(find.byType(ClipRRect), findsWidgets, reason: 'the card');
+          // Select "Show all" with the pointer — no arrow key, which used to
+          // be the only way Enter would act on touch.
+          final mouse = await tester.createGesture(
+            kind: PointerDeviceKind.mouse,
+          );
+          await mouse.addPointer(location: Offset.zero);
+          addTearDown(mouse.removePointer);
+          await mouse.moveTo(tester.getCenter(find.text('Show all 5')));
+          await tester.pump();
+
+          await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+          await tester.pump();
+          expect(
+            find.byIcon(Icons.manage_search),
+            findsOneWidget,
+            reason: 'Enter switched to the Clients category',
+          );
+          expect(find.text('Zeta Five'), findsOneWidget);
+        },
+      );
+    });
+
+    testWidgets(
+      'a narrow desktop window gets the page, keyboard hints and all',
+      (tester) async {
+        await open(
+          tester,
+          size: const Size(400, 800),
+          body: () async {
+            expect(find.byIcon(Icons.arrow_back), findsOneWidget);
+            await type(tester, 'Pro');
+            expect(find.text('Close'), findsOneWidget, reason: 'Esc hint');
+          },
+        );
+      },
+    );
+
+    testWidgets('a short window gets the page too', (tester) async {
+      await open(
+        tester,
+        size: const Size(1200, 420),
+        body: () async {
+          expect(find.byIcon(Icons.arrow_back), findsOneWidget);
+        },
+      );
+    });
+
+    testWidgets('the soft keyboard\'s Search runs the search, opens nothing', (
+      tester,
+    ) async {
+      await open(
+        tester,
+        size: const Size(412, 915),
+        platform: TargetPlatform.android,
+        body: () async {
+          await tester.enterText(find.byType(TextField), 'Prosp');
+          await tester.testTextInput.receiveAction(TextInputAction.search);
+          await tester.pump();
+          await tester.pump();
+          expect(find.byType(Dialog), findsOneWidget, reason: 'still open');
+          expect(find.text('Prosper Ltd'), findsWidgets);
+          expect(searches, 1);
+        },
+      );
     });
   });
 }

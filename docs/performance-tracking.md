@@ -56,6 +56,7 @@ Four files, by layer. Every id is `<area>.<what>`; the title is what a person re
 | | `rich_text.legacy_html_to_markdown`, `rich_text.notes_plain_text` | 40 KB of legacy notes HTML, both directions |
 | | `startup.snapshot_load` | `jsonDecode` + `fromFullSnapshot` of a 3.4 MB cold-start `/refresh`. Nearly all SDK `jsonDecode`, which the calibration scales away — what it guards is that the full snapshot keeps dropping its 4,200 browsable rows before typing |
 | | `sync.refresh_delta_parse`, `sync.invoice_page_parse` | Typing a delta `/refresh` (50 rows × 14 entities), and one list page |
+| | `search.palette_rank_fallback` | The search palette re-ranking the largest query-blind fallback answer (~9,000 rows) on one keystroke: every row tiered and grouped, its parse and fold already cached (docs/search-palette.md) |
 | Startup | `startup.restore_session` | What `main()` awaits after the database opens: `Services.build`, restoring the session, preferences and recently viewed, warming the statics from their stored row, reading the saved route. The open itself is left out — an in-memory store is nothing like the encrypted file a device opens |
 
 **What a widget-test number is.** `flutter test` runs a debug build — JIT, asserts on — and a test

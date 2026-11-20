@@ -61,7 +61,11 @@ void main() {
         httpClient: fake,
       );
 
-      final results = await SearchApi(client).search('  acme ');
+      final response = await SearchApi(client).search('  acme ');
+      final results = response.hits;
+      // No `quotes` key: the non-Elasticsearch answer, which ignores the
+      // query, so the palette must filter it itself.
+      expect(response.serverFiltered, isFalse);
 
       expect(method, 'POST');
       expect(captured!.path, '/api/v1/search');
@@ -98,7 +102,31 @@ void main() {
 
       final results = await SearchApi(client).search('   ');
       expect(captured!.queryParameters.containsKey('search'), isFalse);
-      expect(results, isEmpty);
+      expect(results.hits, isEmpty);
+    });
+
+    test('an Elasticsearch answer — it carries a quotes key, even empty — '
+        'is marked server-filtered', () async {
+      final fake = MockClient(
+        (req) async => http.Response(
+          jsonEncode({
+            'clients': <Object>[],
+            'quotes': <Object>[],
+            'settings': <Object>[],
+          }),
+          200,
+          headers: const {'content-type': 'application/json'},
+        ),
+      );
+      final client = ApiClient(
+        credentials: _creds(),
+        passwordCache: PasswordCache(),
+        onUnauthorized: () async {},
+        httpClient: fake,
+      );
+
+      final response = await SearchApi(client).search('acme');
+      expect(response.serverFiltered, isTrue);
     });
   });
 }

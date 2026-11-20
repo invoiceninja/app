@@ -22,8 +22,14 @@ class ListFilterIntent {
     this.states,
     this.sortField,
     this.sortAscending,
+    this.search = '',
     String? token,
   }) : token = token ?? 'lfi_${DateTime.now().microsecondsSinceEpoch}';
+
+  /// Free-text search the list opens with — the search palette's "Search
+  /// Clients for 'Pro'" row, the way past the global search's caps. Empty
+  /// (the default) opens the list unsearched, as before.
+  final String search;
 
   /// Server-param → values written verbatim into the VM's `extraFilters`
   /// (e.g. `{'overdue': {'true'}}`, `{'client_status': {'expired'}}`). The

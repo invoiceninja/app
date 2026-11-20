@@ -2315,5 +2315,13 @@
   "app_info_locale": "Locale",
   "app_info_text_direction": "Text direction",
   "app_info_display_features": "Display features",
-  "app_info_book_posture": "Book posture"
+  "app_info_book_posture": "Book posture",
+  "top_hits": "Top Hits",
+  "show_all_count": "Show all :count",
+  "search_list_for": "Search :list for \":query\"",
+  "show_results_in_all": "Show :count results in All",
+  "search_results_announcement": ":count results in :categories categories",
+  "search_results_at_least_announcement": "At least :count results in :categories categories",
+  "search_scope_announcement": ":scope, :count results",
+  "search_scope_at_least_announcement": ":scope, at least :count results"
 }

@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:ui' show ImageFilter;
 
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb;
+import 'package:flutter/semantics.dart' show SemanticsBinding, SemanticsService;
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -19,7 +21,6 @@ import 'package:admin/data/repositories/auth_repository.dart';
 import 'package:admin/data/models/domain/recent_record.dart';
 import 'package:admin/data/models/domain/search_result.dart';
 import 'package:admin/domain/entity_registry.dart';
-import 'package:admin/domain/entity_type.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/adaptive.dart';
 import 'package:admin/ui/core/utils/platform_modifier.dart';
@@ -38,6 +39,13 @@ import 'package:admin/ui/features/shell/widgets/sidebar_footer_actions.dart';
 import 'package:admin/ui/features/shell/widgets/show_company_picker.dart';
 import 'package:admin/ui/features/shell/widgets/switch_company_guarded.dart';
 import 'package:admin/ui/core/fold_geometry.dart';
+import 'package:admin/app/native_window.dart';
+import 'package:admin/ui/core/list/deep_link_filter_intent.dart';
+import 'package:admin/ui/features/shell/widgets/search_palette_results.dart';
+import 'package:admin/ui/features/shell/widgets/search_palette_scope_bar.dart';
+
+export 'package:admin/ui/features/shell/widgets/search_palette_results.dart'
+    show entityTypeForSearchGroup, recordIdForSearchHit;
 
 /// Search-result group key for a pasted record deep link. Renders as its own
 /// header via `context.tr` — `link` is an existing translated key.
@@ -68,44 +76,6 @@ SearchResult? deepLinkSearchHit(String query, EntityRegistry registry) {
     id: '',
     path: raw,
   );
-}
-
-/// Maps a `POST /api/v1/search` response group key to an [EntityType] so
-/// the hit routes through the entity registry (module-enabled + permission
-/// gated). `settings` (and any unknown group) → null: the caller falls
-/// back to the server-supplied `path`. Pure + unit-tested.
-EntityType? entityTypeForSearchGroup(String group) {
-  switch (group) {
-    case 'clients':
-    case 'client_contacts':
-      return EntityType.client;
-    case 'invoices':
-      return EntityType.invoice;
-    case 'quotes':
-      return EntityType.quote;
-    case 'credits':
-      return EntityType.credit;
-    case 'payments':
-      return EntityType.payment;
-    case 'recurrings':
-    case 'recurring_invoices':
-      return EntityType.recurringInvoice;
-    case 'projects':
-      return EntityType.project;
-    case 'tasks':
-      return EntityType.task;
-    case 'products':
-      return EntityType.product;
-    case 'expenses':
-      return EntityType.expense;
-    case 'vendors':
-    case 'vendor_contacts':
-      return EntityType.vendor;
-    case 'purchase_orders':
-      return EntityType.purchaseOrder;
-    default:
-      return null; // settings + anything unknown → use server path
-  }
 }
 
 /// The group of the palette's own report hits. Also the localization key of
@@ -210,56 +180,63 @@ const _kSwitchCompanyTerms = [
 /// Most companies the palette lists for one query; the picker lists them all.
 const _kMaxCompanyHits = 8;
 
-/// Groups whose row describes a **contact**, not the record it routes to.
-///
-/// `SearchController::mapResults` puts the CONTACT's `hashed_id` in `id` and
-/// the parent in `path` (`/clients/{client_id}`), so routing by `id` opens a
-/// client/vendor that doesn't exist — the detail screen resolves nothing and
-/// renders its empty state. Only the Elasticsearch branch does this; the
-/// non-ES `clientMap` fallback happens to put the parent id in BOTH fields, so
-/// reading the parent out of `path` is correct on either backend.
-const _contactGroups = {'client_contacts', 'vendor_contacts'};
-
 /// Most settings rows the palette lists for one query — see
 /// `_CommandPaletteState._localSettingsHits`.
 const _kMaxSettingsHits = 8;
 
-/// The id to route a hit by: the parent's id for a contact row (parsed out of
-/// the server `path`), otherwise the hit's own `id`.
+/// Below this window height the palette is a page: the card sits 120 px
+/// down and caps itself at 520, which leaves a short window a field and a
+/// row or two.
+const double kPalettePageBelowHeight = 480;
+
+/// Whether the palette opens as a full-screen page rather than the floating
+/// card — a phone, or **any window too narrow or too short for the card**.
 ///
-/// Falls back to `id` when `path` is empty or has no trailing segment, so an
-/// unexpected server shape degrades to today's behavior rather than to nothing.
-String recordIdForSearchHit(SearchResult r) {
-  if (!_contactGroups.contains(r.group)) return r.id;
-  final segments = Uri.parse(
-    r.path,
-  ).pathSegments.where((s) => s.isNotEmpty).toList();
-  return segments.isEmpty ? r.id : segments.last;
+/// `Breakpoints.isPhone` alone asks about the device, so a desktop browser or
+/// a desktop window at phone width still got the card, hung 120 px down over
+/// the screen behind it. The page is what a narrow screen does everywhere
+/// else in the app. Resolved per build, never hoisted — see
+/// [showCommandPalette].
+bool paletteUsesPage(BuildContext context) {
+  if (Breakpoints.isPhone(context)) return true;
+  final size = MediaQuery.sizeOf(context);
+  return size.width < Breakpoints.wide || size.height < kPalettePageBelowHeight;
+}
+
+/// The height macOS's floating traffic lights take at the top of the window,
+/// or 0. A full-screen page on a narrow macOS window would otherwise put its
+/// back arrow under them — the shell reserves the band itself
+/// (`WindowCaptionStrip`), but a dialog route sits above the shell.
+double _macCaptionInset() {
+  if (!hostsMacCaptionRow()) return 0;
+  final chrome = NativeWindow.instance.chrome.value;
+  return chrome.hasWindowButtons ? chrome.captionHeight : 0;
 }
 
 /// Cmd/Ctrl+K global command palette. Server-backed search
-/// (`SearchApi`) across all entities + settings; arrow/enter/escape
-/// keyboard nav; selection routes via the entity registry (or the
-/// server path for settings).
+/// (`SearchApi`) across all entities + settings, filtered and ranked on the
+/// device (`search_palette_results.dart`, docs/search-palette.md); a category
+/// bar, arrow/enter/escape keyboard nav; selection routes via the entity
+/// registry (or the server path for settings).
 ///
-/// Two presentations, split on [Breakpoints.isPhone]:
+/// Two presentations, split on [paletteUsesPage]:
 ///
-///  * **Phone — a full-screen page.** The floating card left the screen behind
-///    it legible through a 0.18 scrim, and on a phone that screen is almost
-///    always an entity list whose *own* search box is pinned in the app bar
-///    (`entity_list_app_bar.dart`, a permanent 56-px `PreferredSize`). At rest
-///    the card shrink-wrapped to just its field, so the two landed ~20 px
-///    apart and read as one control: users thought they were searching the
-///    page behind (invoiceninja/flutter#102). In landscape it was three, the
-///    persistent rail's own Search box included. The page reuses the
-///    `Dialog.fullscreen` + `Scaffold` + `AppBar` shape the app already gives
-///    every other phone-width modal (`ClientCreateDialog._fullscreen`,
+///  * **A full-screen page** on a phone and in any narrow or short window.
+///    The floating card left the screen behind it legible through a 0.18
+///    scrim, and on a phone that screen is almost always an entity list whose
+///    *own* search box is pinned in the app bar (`entity_list_app_bar.dart`,
+///    a permanent 56-px `PreferredSize`). At rest the card shrink-wrapped to
+///    just its field, so the two landed ~20 px apart and read as one control:
+///    users thought they were searching the page behind
+///    (invoiceninja/flutter#102). The page reuses the `Dialog.fullscreen` +
+///    `Scaffold` + `AppBar` shape the app already gives every other
+///    phone-width modal (`ClientCreateDialog._fullscreen`,
 ///    `DesignEditScreen`) and narrow *list* search
 ///    (`TokenSearchField._openSheet` -> `FilterEntrySheet`).
-///  * **Everything else — the Spotlight card**, unchanged.
+///  * **Everything else — the Spotlight card.**
 ///
 /// `useSafeArea: false` is deliberate and each branch then owns its insets.
-/// The phone page paints edge-to-edge so its `AppBar` supplies the status-bar
+/// The page paints edge-to-edge so its `AppBar` supplies the status-bar
 /// padding and posts the `SystemUiOverlayStyle` (nothing else in `lib/` does);
 /// left to the default, the strips outside the safe area would stay bare
 /// `ModalBarrier` — which, being `barrierDismissible`, would also let a tap
@@ -267,17 +244,17 @@ String recordIdForSearchHit(SearchResult r) {
 /// `SafeArea` it has always had, so nothing changes there.
 ///
 /// Neither `MediaQuery` nor `Theme` may be read from the **caller's** context
-/// here, which is why `phone` is resolved in the builder rather than hoisted
-/// into an argument: the phone entry point is `SidebarSearchBox`, which pops
-/// the drawer in the statement before this call, and `AppDrawer` documents
-/// that the drawer's `BuildContext` does not survive that pop. Resolving it
-/// per build also keeps the palette adapting to a live resize (Android
-/// split-screen, iPad Slide Over).
+/// here, which is why the presentation is resolved in the builder rather than
+/// hoisted into an argument: the phone entry point is `SidebarSearchBox`,
+/// which pops the drawer in the statement before this call, and `AppDrawer`
+/// documents that the drawer's `BuildContext` does not survive that pop.
+/// Resolving it per build also keeps the palette adapting to a live resize
+/// (Android split-screen, iPad Slide Over, a desktop window dragged narrow).
 Future<void> showCommandPalette(BuildContext context) {
   // One key for both presentations: a foldable opening or closing while the
-  // palette is up flips `isPhone`, and without it the swap between the page
-  // and the card remounted the palette, losing the query and its results
-  // (docs/foldables.md).
+  // palette is up — or a window resized across the gate — swaps the page and
+  // the card, and without it that remounted the palette, losing the query and
+  // its results (docs/foldables.md).
   final paletteKey = GlobalKey(debugLabel: 'CommandPalette');
   return showDialog<void>(
     context: context,
@@ -286,14 +263,24 @@ Future<void> showCommandPalette(BuildContext context) {
     // same two-fields-at-once problem, just less acutely — the 0.18 Spotlight
     // scrim was tuned for a small popover anchored on a big desktop window.
     // Gated on the device, not the window, exactly like
-    // `DateRangePickerButton`'s. Invisible on a phone (the page covers it).
+    // `DateRangePickerButton`'s. Invisible behind the page.
     barrierColor: Env.isTouchPrimary
         ? Colors.black54
         : Colors.black.withValues(alpha: 0.18),
     useSafeArea: false,
     builder: (ctx) {
-      if (Breakpoints.isPhone(ctx)) {
-        return Dialog.fullscreen(child: _CommandPalette(key: paletteKey));
+      if (paletteUsesPage(ctx)) {
+        final mq = MediaQuery.of(ctx);
+        final caption = _macCaptionInset();
+        return MediaQuery(
+          // The AppBar pads itself by `padding.top`, so raising it to the
+          // caption band moves the back arrow out from under the traffic
+          // lights and keeps the bar's colour behind them.
+          data: caption > mq.padding.top
+              ? mq.copyWith(padding: mq.padding.copyWith(top: caption))
+              : mq,
+          child: Dialog.fullscreen(child: _CommandPalette(key: paletteKey)),
+        );
       }
       final tokens = ctx.inTheme;
       final isDark = Theme.of(ctx).brightness == Brightness.dark;
@@ -302,8 +289,11 @@ Future<void> showCommandPalette(BuildContext context) {
           backgroundColor: Colors.transparent,
           elevation: 0,
           alignment: Alignment.topCenter,
-          insetPadding: const EdgeInsets.only(
-            top: 120,
+          // A tablet's soft keyboard takes the bottom half of the screen, and
+          // `Dialog` already insets by it — 120 px off the top as well left
+          // the card a field and a row. Desktop keeps its Spotlight drop.
+          insetPadding: EdgeInsets.only(
+            top: Env.isTouchPrimary ? 32 : 120,
             left: 24,
             right: 24,
             bottom: 24,
@@ -347,10 +337,68 @@ class _CommandPaletteState extends State<_CommandPalette> {
   final _controller = TextEditingController();
   final _scrollController = ScrollController();
   final _selRowKey = GlobalKey();
-  Timer? _debounce;
-  List<SearchResult> _results = const [];
 
-  /// The settings hit behind each settings row in [_results], for its icon,
+  /// Shared by the field and the category bar, so a tap on a category is not
+  /// a tap *outside* the field — which on a phone dismisses the keyboard.
+  final _tapGroup = Object();
+  Timer? _debounce;
+  Timer? _announceTimer;
+
+  /// The query [_view] was built for.
+  String _query = '';
+
+  /// The server's entity hits for [_query] (settings stripped — see
+  /// [_localSettingsHits]).
+  List<SearchResult> _serverHits = const [];
+
+  /// False when [_serverHits] is the fallback answer, which ignores the query
+  /// and must be filtered on the device (`SearchResponse.serverFiltered`).
+  bool _serverFiltered = true;
+
+  /// Categories the fallback answer cut short at its limits
+  /// (`fallbackCappedScopes`) — their counts are floors.
+  Set<String> _cappedScopes = const {};
+
+  /// The fallback answer once fetched. It ignores the query, so asking again
+  /// per keystroke would fetch the same thousands of rows each time: it is
+  /// fetched once per open and every later keystroke filters it here, with
+  /// no debounce and no network.
+  List<SearchResult>? _fallbackHits;
+
+  /// The palette's own hits for [_query]: reports, app, settings.
+  List<SearchResult> _localHits = const [];
+
+  /// A pasted record link, which resolves locally and is the only hit.
+  SearchResult? _link;
+
+  /// The category shown in full, or null for All.
+  String? _scope;
+
+  /// [_query]'s rows, ranked and grouped for [_scope].
+  PaletteResults _view = PaletteResults.empty;
+
+  /// The selected row, by identity rather than index, so a re-rank, a scope
+  /// switch or a refresh cannot move it to a different record.
+  String? _selectedKey;
+
+  /// The category bar, once shown, stays until the field is cleared: one
+  /// that appeared with the first results and vanished when a narrower query
+  /// hit one category moved the list under the user's thumb on every key.
+  bool _barShown = false;
+
+  /// Set by the arrow keys. On touch the highlight is drawn only after one —
+  /// a highlighted first row means "Enter opens this", which says nothing to
+  /// a finger and reads as a stuck press.
+  bool _keyboardNav = false;
+
+  /// Enter pressed while a query was still on its way and nothing was up:
+  /// the first result opens when it lands.
+  bool _enterPending = false;
+
+  /// The query whose result count was last announced to a screen reader.
+  String _announced = '';
+
+  /// The settings hit behind each settings row in [_view], for its icon,
   /// its "Section › Tab" line and its field reveal. Kept beside the row
   /// rather than on [SearchResult], which is a data-layer model and must not
   /// import the settings UI.
@@ -358,6 +406,8 @@ class _CommandPaletteState extends State<_CommandPalette> {
     'settings hit',
   );
   bool _loading = false;
+
+  /// The selected Recent row (the at-rest list has no keys of its own).
   int _selected = 0;
   int _reqSeq = 0;
 
@@ -370,7 +420,7 @@ class _CommandPaletteState extends State<_CommandPalette> {
   /// recents to show — keyboard nav + Enter then operate on [_recents].
   bool get _recentMode =>
       !_loading &&
-      _results.isEmpty &&
+      _view.isEmpty &&
       _controller.text.trim().isEmpty &&
       _recents.isNotEmpty;
 
@@ -384,6 +434,7 @@ class _CommandPaletteState extends State<_CommandPalette> {
   void initState() {
     super.initState();
     final services = context.read<Services>();
+    _recents = services.recentlyViewed.items;
     final companyId = services.auth.session.value?.currentCompanyId;
     if (companyId != null && companyId.isNotEmpty) {
       _companySub = services.company
@@ -396,6 +447,7 @@ class _CommandPaletteState extends State<_CommandPalette> {
   void dispose() {
     unawaited(_companySub?.cancel());
     _debounce?.cancel();
+    _announceTimer?.cancel();
     _controller.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -410,7 +462,7 @@ class _CommandPaletteState extends State<_CommandPalette> {
         Scrollable.ensureVisible(
           ctx,
           alignment: 0.5,
-          duration: const Duration(milliseconds: 120),
+          duration: InMotion.of(context)(const Duration(milliseconds: 120)),
           curve: Curves.easeOut,
         );
       }
@@ -419,7 +471,32 @@ class _CommandPaletteState extends State<_CommandPalette> {
 
   void _onChanged(String q) {
     _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 250), () => _run(q));
+    if (q.trim().isEmpty) {
+      // Back to Recents, never `_run('')`: `SearchApi.search` omits the
+      // `search` param for a blank query and the server answers unfiltered.
+      _toRest();
+      return;
+    }
+    // An Enter pressed for the previous text is withdrawn by this edit.
+    _enterPending = false;
+    final registry = context.read<Services>().entityRegistry;
+    if (deepLinkSearchHit(q, registry) != null) {
+      // A pasted link is the answer — no reason to wait.
+      unawaited(_run(q));
+      return;
+    }
+    // A query answered from the cached fallback costs no request, but it does
+    // re-rank thousands of rows, so a burst of keys still settles first —
+    // just not for as long as a round-trip's debounce.
+    final wait = _fallbackHits != null
+        ? const Duration(milliseconds: 40)
+        : const Duration(milliseconds: 150);
+    _debounce = Timer(wait, () => _run(q));
+    // `_loading` from the first key, not from when the debounce fires:
+    // between the two the field held text while `_view` was still empty, and
+    // `build` took that for "No records found" — flashed on every search
+    // started from rest. The progress bar says the truth: one is coming.
+    setState(() => _loading = true);
   }
 
   /// Empties the field and returns the palette to its at-rest (Recents)
@@ -430,74 +507,247 @@ class _CommandPaletteState extends State<_CommandPalette> {
   /// check, so without the bump a response landing after the tap repopulates
   /// the list under an empty field, with nothing on screen to explain it.
   ///
-  /// It also deliberately does not route through [_onChanged] — that arms the
-  /// debounce into `_run('')`, and `SearchApi.search` omits the `search` param
-  /// for a blank query, so the server answers with an unfiltered page.
+  /// It also deliberately does not route through [_onChanged]'s debounce —
+  /// `SearchApi.search` omits the `search` param for a blank query, so the
+  /// server answers with an unfiltered page.
   void _reset() {
     _debounce?.cancel();
     _reqSeq++;
     _controller.clear();
+    _toRest();
+  }
+
+  /// The at-rest state: no query, no results, All, no category bar.
+  void _toRest() {
+    _debounce?.cancel();
+    _reqSeq++;
     setState(() {
-      _results = const [];
+      _query = '';
+      _link = null;
+      _scope = null;
+      _barShown = false;
+      _serverHits = const [];
+      _localHits = const [];
+      _view = PaletteResults.empty;
+      _selectedKey = null;
       _selected = 0;
       _loading = false;
+      _enterPending = false;
     });
   }
 
   Future<void> _run(String q) async {
     final seq = ++_reqSeq;
+    final services = context.read<Services>();
     // A pasted deep link resolves locally — no round-trip, and no other hit
     // could be what the user meant.
-    final link = deepLinkSearchHit(q, context.read<Services>().entityRegistry);
+    final link = deepLinkSearchHit(q, services.entityRegistry);
     if (link != null) {
       setState(() {
-        _results = [link];
-        _selected = 0;
+        _query = q;
+        _link = link;
+        // A link has no categories; one left open would keep taking Tab and
+        // the first Esc behind a bar that is no longer drawn.
+        _scope = null;
+        _barShown = false;
         _loading = false;
+        _rebuildView(resetSelection: true);
       });
+      _afterResults();
+      return;
+    }
+    _link = null;
+    final local = _allLocalHits(q);
+    final cached = _fallbackHits;
+    if (cached != null) {
+      setState(() {
+        _query = q;
+        _serverHits = cached;
+        _serverFiltered = false;
+        _localHits = local;
+        _loading = false;
+        _rebuildView(resetSelection: true);
+      });
+      _afterResults();
       return;
     }
     setState(() => _loading = true);
     try {
-      final r = await context.read<Services>().search.search(q);
-      if (!mounted || seq != _reqSeq) return;
+      final response = await services.search.search(q);
+      if (!mounted) return;
       // Server `settings` hits are dropped in favour of the local catalog —
-      // see [_localSettingsHits]. Everything else routes by entity group.
-      final merged = [
-        ...r.where((hit) => !hit.isSettings),
-        ..._localReportHits(q),
-        ..._localWelcomeHits(q),
-        ..._localWhatsNewHits(q),
-        ..._localRateAppHits(q),
-        ..._localHelpHits(q),
-        ..._localCompanyHits(q),
-        ..._localSettingsHits(q),
+      // see [_localSettingsHits].
+      final hits = [
+        for (final hit in response.hits)
+          if (!hit.isSettings) hit,
       ];
+      // Kept only when it is provably the query-blind fallback: no `quotes`
+      // key, every query word missing from some record, and MORE rows than
+      // Elasticsearch ever sends — an ES server from late 2024 answered
+      // without the key, and its fuzzy hits would pass the other two tests.
+      final cache =
+          _fallbackHits == null &&
+          !response.serverFiltered &&
+          hits.length > kServerSearchHitCap &&
+          answerIgnoresQuery(hits, q);
+      if (cache) _fallbackHits = hits;
+      if (seq != _reqSeq) {
+        // Superseded by a newer keystroke — but a query-blind answer serves
+        // that one too. Dropping it here meant a steady typist fetched the
+        // whole company once per pause and never kept any of it.
+        final current = _controller.text;
+        if (cache && current.trim().isNotEmpty) unawaited(_run(current));
+        return;
+      }
       setState(() {
-        _results = merged;
-        _selected = 0;
+        _query = q;
+        _serverHits = hits;
+        _serverFiltered = response.serverFiltered;
+        _cappedScopes = response.serverFiltered
+            ? const {}
+            : fallbackCappedScopes(hits);
+        _localHits = local;
         _loading = false;
+        _rebuildView(resetSelection: true);
       });
-      _revealSelected();
     } catch (_) {
       if (!mounted || seq != _reqSeq) return;
+      // An Enter pressed while waiting meant a record the server never sent;
+      // opening the first local row instead (a settings page) would be a
+      // guess.
+      _enterPending = false;
       // The server could not be asked (offline, most often). What the app
       // can answer by itself it still does — a report or a settings page is
       // found in its own catalog, not on the server.
       setState(() {
-        _results = [
-          ..._localReportHits(q),
-          ..._localWelcomeHits(q),
-          ..._localWhatsNewHits(q),
-          ..._localRateAppHits(q),
-          ..._localHelpHits(q),
-          ..._localCompanyHits(q),
-          ..._localSettingsHits(q),
-        ];
-        _selected = 0;
+        _query = q;
+        _serverHits = const [];
+        _localHits = local;
         _loading = false;
+        _rebuildView(resetSelection: true);
       });
     }
+    _afterResults();
+  }
+
+  /// The lists offered as "Search Clients for '…'" when nothing matched — the
+  /// server's answer stops at its caps, the paged list does not. Only those
+  /// this company can open.
+  List<String> _listScopes() {
+    final registry = context.read<Services>().entityRegistry;
+    return [
+      for (final scope in const ['clients', 'invoices'])
+        if (entityTypeForSearchGroup(scope) case final type?)
+          if (registry[type] case final h?)
+            if (!h.disabled && h.routePath.isNotEmpty) scope,
+    ];
+  }
+
+  /// Every hit the palette answers itself, in its fixed group order.
+  List<SearchResult> _allLocalHits(String q) => [
+    ..._localReportHits(q),
+    ..._localWelcomeHits(q),
+    ..._localWhatsNewHits(q),
+    ..._localRateAppHits(q),
+    ..._localHelpHits(q),
+    ..._localCompanyHits(q),
+    ..._localSettingsHits(q),
+  ];
+
+  /// Recomputes [_view] from the current hits, query and scope. Inside a
+  /// `setState`.
+  ///
+  /// A new query selects its first row; a scope switch or a refresh keeps
+  /// the selected record when it is still there.
+  void _rebuildView({bool resetSelection = false}) {
+    final link = _link;
+    if (link != null) {
+      _view = PaletteResults(
+        items: [
+          const PaletteHeader(kDeepLinkSearchGroup),
+          PaletteRow(
+            PaletteHit(
+              source: link,
+              scope: kDeepLinkSearchGroup,
+              title: link.name,
+              key: kDeepLinkSearchGroup,
+              tier: MatchTier.exact,
+            ),
+          ),
+        ],
+        scopes: const [],
+        total: 1,
+        totalAtLeast: false,
+      );
+    } else if (_query.trim().isEmpty) {
+      _view = PaletteResults.empty;
+    } else {
+      _view = buildPaletteResults(
+        query: _query,
+        hits: _serverHits,
+        serverFiltered: _serverFiltered,
+        localHits: _localHits,
+        serverHitCount: _serverHits.length,
+        recents: [for (final r in _recents) (r.type, r.id)],
+        cappedScopes: _serverFiltered ? const {} : _cappedScopes,
+        listScopes: _listScopes(),
+        scope: _scope,
+      );
+    }
+    if (_view.scopes.length >= 2) _barShown = true;
+    final selectable = _view.selectable;
+    if (selectable.isEmpty) {
+      _selectedKey = null;
+    } else if (resetSelection ||
+        _selectedKey == null ||
+        !selectable.any((i) => i.key == _selectedKey)) {
+      _selectedKey = selectable.first.key;
+    }
+  }
+
+  /// Once a result set lands: keep the selection in view, run an Enter that
+  /// was waiting for it, and tell a screen reader what came back.
+  void _afterResults() {
+    if (!mounted) return;
+    _revealSelected();
+    if (_enterPending) {
+      _enterPending = false;
+      // Only a record: on no match the first row is "Search Clients for …",
+      // and Enter pressed before the answer was not a request for a list.
+      final selectable = _view.selectable;
+      if (selectable.isNotEmpty && selectable.first is PaletteRow) {
+        unawaited(_select());
+      }
+    }
+    _announceTimer?.cancel();
+    // Only with assistive technology on — nothing else hears it, so nothing
+    // else should pay for the timer.
+    if (!SemanticsBinding.instance.semanticsEnabled) return;
+    // Once the typing settles — never per keystroke, which the on-device
+    // filter now answers.
+    _announceTimer = Timer(const Duration(milliseconds: 700), () {
+      if (!mounted || _query == _announced || _query.trim().isEmpty) return;
+      _announced = _query;
+      _announce(_resultsAnnouncement());
+    });
+  }
+
+  String _resultsAnnouncement() {
+    if (_view.total == 0) return context.tr('no_records_found');
+    return context.tr(
+      _view.totalAtLeast
+          ? 'search_results_at_least_announcement'
+          : 'search_results_announcement',
+      {'count': '${_view.total}', 'categories': '${_view.scopes.length}'},
+    );
+  }
+
+  void _announce(String message) {
+    SemanticsService.sendAnnouncement(
+      View.of(context),
+      message,
+      Directionality.of(context),
+    );
   }
 
   /// Reports, by name — so "aging" or "invoices" typed here opens the report
@@ -749,13 +999,173 @@ class _CommandPaletteState extends State<_CommandPalette> {
   }
 
   void _move(int delta) {
-    final n = _recentMode ? _recents.length : _results.length;
-    if (n == 0) return;
+    _keyboardNav = true;
+    if (_recentMode) {
+      final n = _recents.length;
+      setState(() {
+        _selected = (_selected + delta) % n;
+        if (_selected < 0) _selected += n;
+      });
+      _revealSelected();
+      return;
+    }
+    final items = _view.selectable;
+    if (items.isEmpty) return;
+    final at = items.indexWhere((i) => i.key == _selectedKey);
+    var next = at < 0 ? 0 : (at + delta) % items.length;
+    if (next < 0) next += items.length;
+    setState(() => _selectedKey = items[next].key);
+    _revealSelected();
+  }
+
+  /// ⌘↓ / ⌘↑ (Ctrl elsewhere): the first row of the next / previous group in
+  /// All — Spotlight's category jump, so "not a client" is one key, not a
+  /// dozen arrows. Stops at either end rather than wrapping.
+  void _jumpGroup(int direction) {
+    final items = _view.items;
+    final headers = [
+      for (var i = 0; i < items.length; i++)
+        if (items[i] is PaletteHeader) i,
+    ];
+    if (headers.length < 2) return;
+    final at = items.indexWhere((i) => i.key != null && i.key == _selectedKey);
+    final group = headers.lastIndexWhere((h) => h <= at);
+    final target = group + direction;
+    if (target < 0 || target >= headers.length) return;
+    for (var i = headers[target] + 1; i < items.length; i++) {
+      final item = items[i];
+      if (item is PaletteHeader) break;
+      if (item.key != null) {
+        _keyboardNav = true;
+        setState(() => _selectedKey = item.key);
+        _revealSelected();
+        return;
+      }
+    }
+  }
+
+  /// The categories the bar shows: every one with hits, plus the one in view
+  /// when a re-query left it empty — it stays, at 0, rather than vanishing
+  /// with the user still inside it.
+  List<PaletteScope> get _barScopes {
+    final scopes = _view.scopes;
+    final scope = _scope;
+    if (scope == null || scopes.any((s) => s.id == scope)) return scopes;
+    return [...scopes, PaletteScope(scope, 0)];
+  }
+
+  /// Whether Tab moves between categories. Not while a screen reader drives
+  /// the app: there Tab is how its user reaches the page's buttons.
+  bool _tabCyclesScopes(BuildContext context) =>
+      _barShown &&
+      _link == null &&
+      _barScopes.isNotEmpty &&
+      !MediaQuery.accessibleNavigationOf(context);
+
+  void _cycleScope(int direction) {
+    final ids = <String?>[null, for (final s in _barScopes) s.id];
+    var at = ids.indexOf(_scope);
+    if (at < 0) at = 0;
+    var next = (at + direction) % ids.length;
+    if (next < 0) next += ids.length;
+    _setScope(ids[next], announce: true);
+  }
+
+  /// Shows [scope] in full (null: All), keeping the selected record when it
+  /// is still in view — or selecting [selectKey] (the first row "Show all"
+  /// had hidden).
+  void _setScope(String? scope, {String? selectKey, bool announce = false}) {
+    final keep = selectKey ?? _selectedKey;
     setState(() {
-      _selected = (_selected + delta) % n;
-      if (_selected < 0) _selected += n;
+      _scope = scope;
+      _rebuildView();
+      if (keep != null && _view.selectable.any((i) => i.key == keep)) {
+        _selectedKey = keep;
+      }
     });
     _revealSelected();
+    if (!announce) return;
+    if (scope == null) {
+      _announce(_resultsAnnouncement());
+      return;
+    }
+    final entry = _barScopes.firstWhere(
+      (s) => s.id == scope,
+      orElse: () => PaletteScope(scope, 0),
+    );
+    _announce(
+      context.tr(
+        entry.atLeast
+            ? 'search_scope_at_least_announcement'
+            : 'search_scope_announcement',
+        {'scope': context.tr(scope), 'count': '${entry.count}'},
+      ),
+    );
+  }
+
+  /// The palette's keys, ahead of the field's own. Each returns `ignored`
+  /// when it has nothing to do, so the field keeps the key: ⌘↓ still moves
+  /// the caret on the Recents list, Tab still traverses with a screen reader.
+  ///
+  /// No Backspace-on-empty-field back to All (the Slack / GitHub gesture):
+  /// emptying the field already returns the palette to rest, category and
+  /// all, so there is never an empty field inside a category to press it in.
+  KeyEventResult _onKey(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
+      return KeyEventResult.ignored;
+    }
+    final key = event.logicalKey;
+    final keyboard = HardwareKeyboard.instance;
+    final apple =
+        defaultTargetPlatform == TargetPlatform.macOS ||
+        defaultTargetPlatform == TargetPlatform.iOS;
+    final modifier = apple ? keyboard.isMetaPressed : keyboard.isControlPressed;
+    if (key == LogicalKeyboardKey.arrowDown ||
+        key == LogicalKeyboardKey.arrowUp) {
+      final direction = key == LogicalKeyboardKey.arrowDown ? 1 : -1;
+      if (modifier) {
+        if (_recentMode || _scope != null) return KeyEventResult.ignored;
+        _jumpGroup(direction);
+        return KeyEventResult.handled;
+      }
+      if (keyboard.isShiftPressed || keyboard.isAltPressed) {
+        return KeyEventResult.ignored;
+      }
+      _move(direction);
+      return KeyEventResult.handled;
+    }
+    if (event is KeyRepeatEvent) return KeyEventResult.ignored;
+    // Enter from a hardware keyboard opens the selection — an iPad with a
+    // keyboard included, where the field's submit only runs the search (see
+    // [_submit]). Not mid-composition: an IME's Enter confirms its text.
+    // Not on desktop web: the browser submits the field on Enter whether or
+    // not a key handler took it, so the field's own `onSubmitted` is the one
+    // path there — taking it here as well selected twice.
+    if ((key == LogicalKeyboardKey.enter ||
+            key == LogicalKeyboardKey.numpadEnter) &&
+        !(kIsWeb && !Env.isTouchPrimary)) {
+      final composing = _controller.value.composing;
+      if (composing.isValid && !composing.isCollapsed) {
+        return KeyEventResult.ignored;
+      }
+      _keyboardNav = true;
+      unawaited(_select());
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.tab && _tabCyclesScopes(context)) {
+      _cycleScope(keyboard.isShiftPressed ? -1 : 1);
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.escape) {
+      // Out of a category first, then out of the palette.
+      if (_scope != null) {
+        _setScope(null, announce: true);
+      } else {
+        Navigator.of(context).pop();
+      }
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
   }
 
   /// Whether the field currently holds a followable link, i.e. whether Enter
@@ -768,7 +1178,44 @@ class _CommandPaletteState extends State<_CommandPalette> {
       ) !=
       null;
 
+  /// The soft keyboard's Search key, on touch. It runs the search now and
+  /// lowers the keyboard so the results can be seen; it opens nothing — on a
+  /// phone there is no visible selection to say what it would open. A pasted
+  /// link is the exception: the link IS the result.
+  void _onImeSubmit() {
+    if (_fieldHoldsLink(context)) {
+      unawaited(_select());
+      return;
+    }
+    _debounce?.cancel();
+    final q = _controller.text;
+    if (q.trim().isNotEmpty && q != _query) {
+      unawaited(_run(q));
+    } else {
+      // The results on screen already answer this text: end the wait the
+      // keystroke started (and drop any request for an in-between text), or
+      // the progress bar spins with nothing coming.
+      _reqSeq++;
+      setState(() => _loading = false);
+    }
+    FocusManager.instance.primaryFocus?.unfocus();
+  }
+
+  /// A select in progress: a second one (a double Enter, or the web's own
+  /// submit beside the key) must not pop the route under the palette.
+  bool _selecting = false;
+
   Future<void> _select() async {
+    if (_selecting) return;
+    _selecting = true;
+    try {
+      await _selectNow();
+    } finally {
+      _selecting = false;
+    }
+  }
+
+  Future<void> _selectNow() async {
     // The palette navigates away from whatever is on screen, so it owes the
     // same unsaved-changes prompt the sidebar / branch switcher gives. Without
     // it, a dirty editor was left behind unprompted and then tripped the guard
@@ -783,19 +1230,12 @@ class _CommandPaletteState extends State<_CommandPalette> {
       goEntityRecord(context, r.type, r.id);
       return;
     }
-    // Resolve a pasted link from the FIELD, before consulting `_results` —
-    // `_onChanged` only arms the 250 ms debounce, it does not clear the old
-    // hits, so inside that window `_results` still belongs to the *previous*
-    // query and `_selected` still indexes it. Checking the range first meant
-    // paste-then-Enter over an existing search navigated to a hit from the
-    // query the user had just replaced, which is worse than the "Enter does
-    // nothing" it was meant to fix. Reading the field is always current.
-    //
-    // Safe to take precedence: `_run` gives a link query exactly one result
-    // (`:292-299`), so when the text IS a link there is no other hit the user
-    // could have selected, and both paths end in the same `deepLinks.open`.
-    // When it is not a link this returns null and the normal path runs.
-    // Resolution is pure and synchronous, so there is nothing to wait for.
+    // Resolve a pasted link from the FIELD, before consulting `_view` —
+    // `_onChanged` only arms the debounce, it does not clear the old hits, so
+    // inside that window `_view` still belongs to the *previous* query.
+    // Reading the field is always current, and when the text IS a link there
+    // is no other hit the user could have selected. When it is not a link
+    // this returns null and the normal path runs.
     final pasted = deepLinkSearchHit(_controller.text, services.entityRegistry);
     if (pasted != null) {
       if (!await services.unsavedChangesGuard.confirmIfDirty(context)) return;
@@ -804,8 +1244,50 @@ class _CommandPaletteState extends State<_CommandPalette> {
       unawaited(services.deepLinks.open(Uri.parse(pasted.path)));
       return;
     }
-    if (_selected < 0 || _selected >= _results.length) return;
-    final r = _results[_selected];
+    final selectable = _view.selectable;
+    if (selectable.isEmpty) {
+      // Nothing up yet, but a query is on its way: open its first result
+      // when it lands, rather than swallowing the key.
+      if (_debounce?.isActive == true || _loading) _enterPending = true;
+      return;
+    }
+    final item = selectable.firstWhere(
+      (i) => i.key == _selectedKey,
+      orElse: () => selectable.first,
+    );
+    switch (item) {
+      case PaletteShowAll():
+        _setScope(item.scope, selectKey: item.firstHiddenKey, announce: true);
+      case PaletteBackToAll():
+        _setScope(null, announce: true);
+      case PaletteSearchList():
+        await _openList(item);
+      case PaletteRow():
+        await _openHit(item.hit.source);
+      case PaletteHeader():
+      case PaletteNoMatches():
+        break;
+    }
+  }
+
+  /// "Search Clients for 'Pro'": the entity's own list, searched — paged and
+  /// complete, where the palette shows at most what the server sent.
+  Future<void> _openList(PaletteSearchList item) async {
+    final services = context.read<Services>();
+    final handlers = services.entityRegistry[item.type];
+    if (handlers == null || handlers.routePath.isEmpty) return;
+    if (!await services.unsavedChangesGuard.confirmIfDirty(context)) return;
+    if (!mounted) return;
+    final router = GoRouter.of(context);
+    Navigator.of(context).pop();
+    router.go(
+      handlers.routePath,
+      extra: ListFilterIntent(search: _query.trim()),
+    );
+  }
+
+  Future<void> _openHit(SearchResult r) async {
+    final services = context.read<Services>();
     if (r.group == kRateAppSearchGroup) {
       // Nothing navigates, so no unsaved-changes prompt; and the launch runs
       // first, inside the key press or tap, before any await.
@@ -947,9 +1429,15 @@ class _CommandPaletteState extends State<_CommandPalette> {
   /// button on every touch device.
   List<Widget> _keyboardHints(BuildContext context) {
     final tokens = context.inTheme;
-    final canMove = _recentMode || _results.isNotEmpty;
+    final canMove = _recentMode || _view.selectable.isNotEmpty;
     final canSelect = canMove || _fieldHoldsLink(context);
     final runs = <Widget>[
+      // Only while Tab actually moves between categories — the same "true
+      // claims only" rule as the rest. ⌘↓ / ⌘↑ (next / previous group) is a
+      // power-user binding and lives in docs/keyboard.md, not here: four
+      // hint pairs is clutter.
+      if (_tabCyclesScopes(context))
+        KeyCapRow(keys: const ['Tab'], label: context.tr('category')),
       if (canMove)
         KeyCapRow(keys: const ['↑', '↓'], label: context.tr('navigate')),
       if (canSelect)
@@ -975,9 +1463,20 @@ class _CommandPaletteState extends State<_CommandPalette> {
     ];
   }
 
+  /// Enter in the field. On touch the soft keyboard's Search key only runs
+  /// the search ([_onImeSubmit]) — unless the arrow keys have been used, which
+  /// means a hardware keyboard and a visible selection for Enter to open.
+  void _submit(bool touch) {
+    if (touch && !_keyboardNav) {
+      _onImeSubmit();
+    } else {
+      unawaited(_select());
+    }
+  }
+
   /// The search field. Two shapes.
   ///
-  /// On a **phone** it is the `AppBar`'s title: no prefix glyph (the back
+  /// On the **page** (a phone, or a narrow window) it is the `AppBar`'s title: no prefix glyph (the back
   /// arrow owns the leading slot) and no suffix (the clear button is an
   /// `AppBar` action), at the 16-px Material search-bar size — 22 was tuned
   /// for the 680-px card and does not leave room for the placeholder beside a
@@ -985,11 +1484,11 @@ class _CommandPaletteState extends State<_CommandPalette> {
   /// 22-px row, unchanged.
   Widget _buildField(
     BuildContext context, {
-    required bool phone,
+    required bool page,
     required bool touch,
   }) {
     final tokens = context.inTheme;
-    if (phone) {
+    if (page) {
       return TextField(
         controller: _controller,
         autofocus: true,
@@ -998,8 +1497,9 @@ class _CommandPaletteState extends State<_CommandPalette> {
         autocorrect: false,
         enableSuggestions: false,
         textInputAction: TextInputAction.search,
+        groupId: _tapGroup,
         onChanged: _onChanged,
-        onSubmitted: (_) => _select(),
+        onSubmitted: (_) => _submit(touch),
         style: TextStyle(fontSize: 16, color: tokens.ink),
         decoration: InputDecoration(
           // `search_placeholder` ("Find invoices, clients, and more"), not the
@@ -1031,8 +1531,9 @@ class _CommandPaletteState extends State<_CommandPalette> {
       controller: _controller,
       autofocus: true,
       textInputAction: TextInputAction.go,
+      groupId: _tapGroup,
       onChanged: _onChanged,
-      onSubmitted: (_) => _select(),
+      onSubmitted: (_) => _submit(touch),
       style: TextStyle(fontSize: 22, color: tokens.ink),
       decoration: InputDecoration(
         prefixIcon: Icon(Icons.search, size: 26, color: tokens.ink3),
@@ -1106,6 +1607,321 @@ class _CommandPaletteState extends State<_CommandPalette> {
     );
   }
 
+  /// One row of either list — a result, a "Show all", a Recent — sharing the
+  /// highlight, hover, tap and screen-reader shape.
+  ///
+  /// The highlight follows the pointer only when the pointer MOVES
+  /// (`onHover`, not `onEnter`): a category bar appearing or a group growing
+  /// slides rows under a resting cursor, and `onEnter` then stole the
+  /// selection from the keyboard.
+  Widget _tile(
+    BuildContext context, {
+    required bool selected,
+    required bool touch,
+    required IconData? icon,
+    required Widget title,
+    required String semanticsLabel,
+    required VoidCallback onSelect,
+    required VoidCallback onTap,
+    String? subtitle,
+    String? trailing,
+    Color? iconColor,
+  }) {
+    final tokens = context.inTheme;
+    final painted = selected && (!touch || _keyboardNav);
+    return MouseRegion(
+      onHover: (_) {
+        if (!selected) onSelect();
+      },
+      child: Semantics(
+        button: true,
+        selected: selected,
+        label: semanticsLabel,
+        excludeSemantics: true,
+        onTap: onTap,
+        child: Padding(
+          key: selected ? _selRowKey : null,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: onTap,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: painted ? tokens.accentSoft : Colors.transparent,
+                borderRadius: BorderRadius.circular(InRadii.r2),
+              ),
+              child: ConstrainedBox(
+                // A floor, never a fixed height (CLAUDE.md § Design system).
+                constraints: BoxConstraints(
+                  minHeight: touch ? InSizes.touchTarget : 0,
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
+                  child: Row(
+                    children: [
+                      if (icon != null) ...[
+                        Icon(
+                          icon,
+                          size: 20,
+                          color:
+                              iconColor ??
+                              (painted ? tokens.accentInk : tokens.ink2),
+                        ),
+                        SizedBox(width: InSpacing.md(context)),
+                      ],
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            title,
+                            if (subtitle != null && subtitle.isNotEmpty)
+                              Text(
+                                subtitle,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: tokens.ink3,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                      if (trailing != null) ...[
+                        SizedBox(width: InSpacing.md(context)),
+                        Text(
+                          trailing,
+                          style: TextStyle(fontSize: 12, color: tokens.ink3),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// A row's title, its matched runs bold — without them an Elasticsearch
+  /// fuzzy hit (Pouros for "Pro") reads as a random row.
+  Widget _title(BuildContext context, PaletteHit hit) {
+    final tokens = context.inTheme;
+    final base = TextStyle(
+      fontSize: 15,
+      fontWeight: FontWeight.w500,
+      color: tokens.ink,
+    );
+    final bold = base.copyWith(fontWeight: FontWeight.w700);
+    final spans = <TextSpan>[];
+    var at = 0;
+    for (final (start, end) in hit.matches) {
+      if (start > at) spans.add(TextSpan(text: hit.title.substring(at, start)));
+      spans.add(TextSpan(text: hit.title.substring(start, end), style: bold));
+      at = end;
+    }
+    if (at < hit.title.length) {
+      spans.add(TextSpan(text: hit.title.substring(at)));
+    }
+    return Text.rich(
+      TextSpan(style: base, children: spans),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+    );
+  }
+
+  IconData _iconFor(SearchResult r, EntityRegistry registry) {
+    final type = entityTypeForSearchGroup(r.group);
+    final settingsHit = _settingsHitOf[r];
+    return r.group == kDeepLinkSearchGroup
+        ? Icons.link
+        : r.group == kReportsSearchGroup
+        ? Icons.bar_chart_outlined
+        : r.group == kWelcomeSearchGroup
+        ? Icons.waving_hand_outlined
+        : r.group == kWhatsNewSearchGroup
+        ? Icons.new_releases_outlined
+        : r.group == kRateAppSearchGroup
+        ? Icons.star_outline
+        : r.group == kCompanySearchGroup
+        ? (r.id.isEmpty ? Icons.unfold_more : Icons.business_outlined)
+        : r.group == kHelpSearchGroup
+        ? switch (r.id) {
+            _kHelpUserGuide => Icons.help_outline,
+            _kHelpForum => Icons.forum_outlined,
+            _ => Icons.mail_outline,
+          }
+        : settingsHit?.section.icon ??
+              (type != null ? registry[type]?.effectiveOutlinedIcon : null) ??
+              Icons.settings_outlined;
+  }
+
+  /// A group heading — a screen-reader heading too, so the list can be
+  /// walked group by group.
+  Widget _header(BuildContext context, String scope) {
+    final tokens = context.inTheme;
+    return Semantics(
+      header: true,
+      headingLevel: 2,
+      child: Padding(
+        padding: const EdgeInsetsDirectional.fromSTEB(20, 14, 20, 6),
+        child: Text(
+          context.tr(scope),
+          style: TextStyle(
+            // 12.5 / ink2: the 11-px ink3 it was measured under 4.5:1 on the
+            // translucent card in some palettes.
+            fontSize: 12.5,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.3,
+            color: tokens.ink2,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _itemWidget(
+    BuildContext context,
+    PaletteItem item, {
+    required bool touch,
+    required EntityRegistry registry,
+  }) {
+    final tokens = context.inTheme;
+    void selectThis() => setState(() => _selectedKey = item.key);
+    void activate() {
+      setState(() => _selectedKey = item.key);
+      unawaited(_select());
+    }
+
+    switch (item) {
+      case PaletteHeader():
+        return _header(context, item.scope);
+      case PaletteNoMatches():
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
+          child: Center(
+            child: Text(
+              context.tr('no_records_found'),
+              style: TextStyle(color: tokens.ink3),
+            ),
+          ),
+        );
+      case PaletteRow():
+        final hit = item.hit;
+        final r = hit.source;
+        final settingsHit = _settingsHitOf[r];
+        final l10n = Localization.of(context);
+        // A settings row names its section, or six "Email" rows from six
+        // pages would be indistinguishable.
+        final subtitle = settingsHit != null && l10n != null
+            ? settingsHitSubtitle(settingsHit, l10n)
+            : hit.subtitle;
+        final scopeLabel = context.tr(hit.scope);
+        return _tile(
+          context,
+          selected: item.key == _selectedKey,
+          touch: touch,
+          icon: _iconFor(r, registry),
+          title: _title(context, hit),
+          subtitle: subtitle,
+          // A top hit comes from any category, so it says which.
+          trailing: item.inTopHits ? scopeLabel : null,
+          semanticsLabel: [
+            hit.title,
+            if (subtitle != null && subtitle.isNotEmpty) subtitle,
+            scopeLabel,
+          ].join(', '),
+          onSelect: selectThis,
+          onTap: activate,
+        );
+      case PaletteShowAll():
+        final label = context.tr('show_all_count', {'count': '${item.count}'});
+        return _tile(
+          context,
+          selected: item.key == _selectedKey,
+          touch: touch,
+          // Material's chevrons mirror themselves in a right-to-left locale.
+          icon: Icons.chevron_right,
+          iconColor: tokens.accentInk,
+          title: Text(
+            label,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: tokens.accentInk,
+            ),
+          ),
+          semanticsLabel: '$label, ${context.tr(item.scope)}',
+          onSelect: selectThis,
+          onTap: activate,
+        );
+      case PaletteSearchList():
+        final label = context.tr('search_list_for', {
+          'list': context.tr(item.scope),
+          'query': _query.trim(),
+        });
+        return _tile(
+          context,
+          selected: item.key == _selectedKey,
+          touch: touch,
+          icon: Icons.manage_search,
+          iconColor: tokens.accentInk,
+          title: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: tokens.accentInk,
+            ),
+          ),
+          semanticsLabel: label,
+          onSelect: selectThis,
+          onTap: activate,
+        );
+      case PaletteBackToAll():
+        final label = context.tr('show_results_in_all', {
+          'count': '${item.count}',
+        });
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
+              child: Text(
+                context.tr('no_records_found'),
+                style: TextStyle(color: tokens.ink3),
+              ),
+            ),
+            _tile(
+              context,
+              selected: item.key == _selectedKey,
+              touch: touch,
+              icon: Icons.chevron_left,
+              iconColor: tokens.accentInk,
+              title: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: tokens.accentInk,
+                ),
+              ),
+              semanticsLabel: label,
+              onSelect: selectThis,
+              onTap: activate,
+            ),
+          ],
+        );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final tokens = context.inTheme;
@@ -1113,40 +1929,39 @@ class _CommandPaletteState extends State<_CommandPalette> {
     // again because that local lives in the dialog builder's scope, not this
     // one. Both reads are per-build on purpose — see the note there about the
     // caller's (popped) drawer context and about live resizes.
-    final phone = Breakpoints.isPhone(context);
-    // Deliberately a *different* question from `phone`. `phone` asks "is this
-    // window small and certainly keyboardless" — it picks the presentation and
-    // hides the keyboard hints, since an iPad with a Magic Keyboard can use
-    // both. `touch` asks "can this device tap" — it gates the card's close
-    // button; see `_buildField`.
+    final page = paletteUsesPage(context);
+    // Deliberately a *different* question from `page`. `page` asks "is this
+    // window too small for the card"; `touch` asks "can this device tap" — it
+    // hides the keyboard hints (a narrow DESKTOP window keeps them), gates
+    // the card's close button and the soft keyboard's Search behaviour.
     final touch = Env.isTouchPrimary;
     final services = context.read<Services>();
     final registry = services.entityRegistry;
     _recents = services.recentlyViewed.items;
-    final hasResults = _results.isNotEmpty;
+    final hasResults = !_view.isEmpty;
     final resting =
-        !_loading && _results.isEmpty && _controller.text.trim().isEmpty;
+        !_loading && _view.isEmpty && _controller.text.trim().isEmpty;
     final showRecent = resting && _recents.isNotEmpty;
-
-    // Flatten the (already group-ordered) results into a render list:
-    // a String marks a category header, an int indexes into _results.
-    final items = <Object>[];
-    String? lastGroup;
-    for (var i = 0; i < _results.length; i++) {
-      final g = _results[i].group;
-      if (g != lastGroup) {
-        items.add(g);
-        lastGroup = g;
-      }
-      items.add(i);
-    }
+    final items = _view.items;
+    final showBar = _barShown && !resting && _link == null;
 
     // Everything below the field, shared by both presentations: the card
-    // stacks it under the field in one `Column`, the phone page puts it in the
+    // stacks it under the field in one `Column`, the page puts it in the
     // `Scaffold` body while the field sits in the `AppBar`.
     final sections = <Widget>[
       if (!resting) ...[
         Container(height: 1, color: tokens.border.withValues(alpha: 0.6)),
+        if (showBar)
+          SearchPaletteScopeBar(
+            scopes: [
+              PaletteScope('all', _view.total, atLeast: _view.totalAtLeast),
+              ..._barScopes,
+            ],
+            selectedId: _scope ?? 'all',
+            tapGroup: _tapGroup,
+            onSelect: (id) =>
+                _setScope(id == 'all' ? null : id, announce: true),
+          ),
         SizedBox(
           height: 2,
           child: _loading ? const LinearProgressIndicator(minHeight: 2) : null,
@@ -1157,148 +1972,24 @@ class _CommandPaletteState extends State<_CommandPalette> {
                   addAutomaticKeepAlives: false,
                   controller: _scrollController,
                   shrinkWrap: true,
+                  keyboardDismissBehavior: touch
+                      ? ScrollViewKeyboardDismissBehavior.onDrag
+                      : ScrollViewKeyboardDismissBehavior.manual,
                   padding: const EdgeInsets.only(top: 6, bottom: 6),
                   itemCount: items.length,
-                  itemBuilder: (context, idx) {
-                    final item = items[idx];
-                    if (item is String) {
-                      return Padding(
-                        padding: const EdgeInsets.fromLTRB(20, 14, 20, 6),
-                        child: Text(
-                          context.tr(item),
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: 0.5,
-                            color: tokens.ink3,
-                          ),
-                        ),
-                      );
-                    }
-                    final i = item as int;
-                    final r = _results[i];
-                    final sel = i == _selected;
-                    final type = entityTypeForSearchGroup(r.group);
-                    final settingsHit = _settingsHitOf[r];
-                    final l10n = Localization.of(context);
-                    // A settings row names its section, or six "Email" rows
-                    // from six pages would be indistinguishable.
-                    final detail = settingsHit == null || l10n == null
-                        ? null
-                        : settingsHitSubtitle(settingsHit, l10n);
-                    final icon = r.group == kDeepLinkSearchGroup
-                        ? Icons.link
-                        : r.group == kReportsSearchGroup
-                        ? Icons.bar_chart_outlined
-                        : r.group == kWelcomeSearchGroup
-                        ? Icons.waving_hand_outlined
-                        : r.group == kWhatsNewSearchGroup
-                        ? Icons.new_releases_outlined
-                        : r.group == kRateAppSearchGroup
-                        ? Icons.star_outline
-                        : r.group == kCompanySearchGroup
-                        ? (r.id.isEmpty
-                              ? Icons.unfold_more
-                              : Icons.business_outlined)
-                        : r.group == kHelpSearchGroup
-                        ? switch (r.id) {
-                            _kHelpUserGuide => Icons.help_outline,
-                            _kHelpForum => Icons.forum_outlined,
-                            _ => Icons.mail_outline,
-                          }
-                        : settingsHit?.section.icon ??
-                              (type != null
-                                  ? registry[type]?.effectiveOutlinedIcon
-                                  : null) ??
-                              Icons.settings_outlined;
-                    return MouseRegion(
-                      onEnter: (_) {
-                        if (_selected != i) {
-                          setState(() => _selected = i);
-                        }
-                      },
-                      child: Semantics(
-                        button: true,
-                        selected: sel,
-                        label: r.name,
-                        child: Padding(
-                          key: sel ? _selRowKey : null,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 2,
-                          ),
-                          child: GestureDetector(
-                            behavior: HitTestBehavior.opaque,
-                            onTap: () {
-                              setState(() => _selected = i);
-                              _select();
-                            },
-                            child: DecoratedBox(
-                              decoration: BoxDecoration(
-                                color: sel
-                                    ? tokens.accentSoft
-                                    : Colors.transparent,
-                                borderRadius: BorderRadius.circular(InRadii.r2),
-                              ),
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 10,
-                                ),
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      icon,
-                                      size: 20,
-                                      color: sel
-                                          ? tokens.accentInk
-                                          : tokens.ink2,
-                                    ),
-                                    SizedBox(width: InSpacing.md(context)),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            r.name,
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: TextStyle(
-                                              fontSize: 15,
-                                              fontWeight: FontWeight.w600,
-                                              color: tokens.ink,
-                                            ),
-                                          ),
-                                          if (detail != null)
-                                            Text(
-                                              detail,
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                color: tokens.ink3,
-                                              ),
-                                            ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-                  },
+                  itemBuilder: (context, idx) => _itemWidget(
+                    context,
+                    items[idx],
+                    touch: touch,
+                    registry: registry,
+                  ),
                 )
               // Nothing to report while the request is still out — the
               // progress bar above already says so. `_run` sets `_loading`
-              // without clearing `_results`, so an ungated empty state filled
-              // the whole page with "No records found" on every search started
-              // from rest, then replaced itself a moment later. Invisible in
-              // the 520-px card; not on a 915-px one.
+              // without clearing the results, so an ungated empty state
+              // filled the whole page with "No records found" on every
+              // search started from rest, then replaced itself a moment
+              // later. Invisible in the 520-px card; not on a 915-px one.
               : _loading
               ? const SizedBox.shrink()
               : Padding(
@@ -1314,7 +2005,7 @@ class _CommandPaletteState extends State<_CommandPalette> {
                   ),
                 ),
         ),
-        if (!phone) ..._keyboardHints(context),
+        if (!touch) ..._keyboardHints(context),
       ],
       if (showRecent) ...[
         Container(height: 1, color: tokens.border.withValues(alpha: 0.6)),
@@ -1323,111 +2014,49 @@ class _CommandPaletteState extends State<_CommandPalette> {
             addAutomaticKeepAlives: false,
             controller: _scrollController,
             shrinkWrap: true,
+            keyboardDismissBehavior: touch
+                ? ScrollViewKeyboardDismissBehavior.onDrag
+                : ScrollViewKeyboardDismissBehavior.manual,
             padding: const EdgeInsets.only(top: 6, bottom: 6),
             children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 14, 20, 6),
-                child: Text(
-                  context.tr('recently_viewed'),
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 0.5,
-                    color: tokens.ink3,
-                  ),
-                ),
-              ),
+              _header(context, 'recently_viewed'),
               for (var i = 0; i < _recents.length; i++)
-                Builder(
-                  builder: (context) {
-                    final r = _recents[i];
-                    final sel = i == _selected;
-                    final icon =
-                        registry[r.type]?.effectiveOutlinedIcon ??
-                        Icons.history;
-                    return MouseRegion(
-                      onEnter: (_) {
-                        if (_selected != i) {
-                          setState(() => _selected = i);
-                        }
-                      },
-                      child: Semantics(
-                        button: true,
-                        selected: sel,
-                        label: r.label,
-                        child: Padding(
-                          key: sel ? _selRowKey : null,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 2,
-                          ),
-                          child: GestureDetector(
-                            behavior: HitTestBehavior.opaque,
-                            onTap: () {
-                              setState(() => _selected = i);
-                              _select();
-                            },
-                            child: DecoratedBox(
-                              decoration: BoxDecoration(
-                                color: sel
-                                    ? tokens.accentSoft
-                                    : Colors.transparent,
-                                borderRadius: BorderRadius.circular(InRadii.r2),
-                              ),
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 10,
-                                ),
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      icon,
-                                      size: 20,
-                                      color: sel
-                                          ? tokens.accentInk
-                                          : tokens.ink2,
-                                    ),
-                                    SizedBox(width: InSpacing.md(context)),
-                                    Expanded(
-                                      child: Text(
-                                        r.label,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: TextStyle(
-                                          fontSize: 15,
-                                          fontWeight: FontWeight.w600,
-                                          color: tokens.ink,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
+                _tile(
+                  context,
+                  selected: i == _selected,
+                  touch: touch,
+                  icon:
+                      registry[_recents[i].type]?.effectiveOutlinedIcon ??
+                      Icons.history,
+                  title: Text(
+                    _recents[i].label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                      color: tokens.ink,
+                    ),
+                  ),
+                  semanticsLabel: _recents[i].label,
+                  onSelect: () => setState(() => _selected = i),
+                  onTap: () {
+                    setState(() => _selected = i);
+                    unawaited(_select());
                   },
                 ),
             ],
           ),
         ),
-        if (!phone) ..._keyboardHints(context),
+        if (!touch) ..._keyboardHints(context),
       ],
     ];
 
-    final bindings = <ShortcutActivator, VoidCallback>{
-      const SingleActivator(LogicalKeyboardKey.arrowDown): () => _move(1),
-      const SingleActivator(LogicalKeyboardKey.arrowUp): () => _move(-1),
-      const SingleActivator(LogicalKeyboardKey.escape): () =>
-          Navigator.of(context).pop(),
-    };
-
-    if (phone) {
-      return CallbackShortcuts(
-        bindings: bindings,
+    if (page) {
+      return Focus(
+        canRequestFocus: false,
+        skipTraversal: true,
+        onKeyEvent: _onKey,
         child: Scaffold(
           appBar: AppBar(
             // Structural close, not history back — this is a modal route, so
@@ -1440,7 +2069,7 @@ class _CommandPaletteState extends State<_CommandPalette> {
               onPressed: () => Navigator.of(context).pop(),
             ),
             titleSpacing: 0,
-            title: _buildField(context, phone: true, touch: touch),
+            title: _buildField(context, page: true, touch: touch),
             actions: [
               // Listens to the controller on its own so a keystroke rebuilds
               // one icon rather than the whole result list.
@@ -1461,12 +2090,14 @@ class _CommandPaletteState extends State<_CommandPalette> {
       );
     }
 
-    return CallbackShortcuts(
-      bindings: bindings,
+    return Focus(
+      canRequestFocus: false,
+      skipTraversal: true,
+      onKeyEvent: _onKey,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _buildField(context, phone: false, touch: touch),
+          _buildField(context, page: false, touch: touch),
           ...sections,
         ],
       ),

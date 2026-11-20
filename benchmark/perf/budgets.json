@@ -79,6 +79,10 @@
     "rich_text.notes_plain_text": {
       "budgetMs": 11
     },
+    "search.palette_rank_fallback": {
+      "budgetMs": 9,
+      "since": "2026-11-20"
+    },
     "screens.client_record_open": {
       "regression": 0.3,
       "budgetMs": 140

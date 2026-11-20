@@ -38,6 +38,7 @@ the Flutter app) so they are explicitly **out of scope** here.
 - Visual (block) designs — five renderer gaps the client now works around: no `tasks-table` renderer, an empty `blocks` list read as a block design, unguarded `properties`, a lone block's width ignored, unknown page sizes dropping the orientation; plus an archived design never reaching the refresh bundle (**O**, § Visual designer).
 - Documents list — `GET /api/v1/documents` names no parent record, a deleted document leaves no trace a delta can see, `status=archived|deleted` reads a column the table doesn't have, and `type=` ANDs its values (the parent is **SHIPPED** 2026-10-19 ([invoiceninja#13365](https://github.com/invoiceninja/invoiceninja/pull/13365)), the rest **O**, § Documents list; the client fills "Linked to" from the records it has cached, and reads the parent once a server sends it).
 - Run Template — the PDF is behind the *reports* permission while the job needs only `view`, a failed job polls as "still working" forever, and eight of the nine controllers authorize only the first record (**O**, § Run Template; found fixing [app#197](https://github.com/invoiceninja/app/issues/197)).
+- Global search — without Elasticsearch `POST /api/v1/search` **ignores the query** and returns the whole company (up to 1000 clients with every contact, 3000 invoices, 3000 projects); with it, each hit's `name` is a translated pipe string and the score is dropped (**O**, § Global search; the client filters, parses and ranks on the device).
 
 **Shipped since this file was written** (kept for the record, no action left):
 - **§§ A–E, E2, E3** — the list filter/sort PR, merged upstream 2026-05-17 (`db4aed2c5c`) + `tag_ids` 2026-06-01.
@@ -3539,3 +3540,35 @@ it only ever sends records the user can see.
   billing document reads as "send to the client".
 - Recurring invoices still have no `template` action (§ Recurring-invoice `template` bulk action
   unsupported, above); the client no longer offers it anywhere.
+
+## Global search: the fallback ignores the query, and an ES hit is a translated string — **O (client works around both)**
+
+Found 2026-11-20 from beta feedback ("typing *Pro* lists every client"), confirmed against
+`app/Http/Controllers/SearchController.php` on `v5-develop` and a probe of the demo.
+
+1. **Without Elasticsearch, `search` is never read.** `__invoke` falls back to `clientMap` /
+   `invoiceMap` / `projectMap` when `scout.driver` isn't `elastic` (or ES throws), and none of the
+   three takes the query: the answer is up to 1000 clients (`take(1000)`) with every contact, 3000
+   invoices and 3000 projects, ordered by `updated_at` / `id`. The demo returns 26 clients, 116
+   contacts, 26 invoices and 25 projects for any query. Every self-hosted server without ES pays
+   that payload on every keystroke a client sends. **Ask:** apply `search` to the three maps (a
+   `LIKE` on name / number / contact name + email, as the list filters already do), and cap each
+   group at a page.
+2. **An ES hit's `name` is a display label, not data.** `toSearchableArray` builds it as
+   `ctrans('texts.invoice') . " " . $number . " | " . $client . " | " . $amount . " | " . $date`
+   (and `Client | <name> | <vat>`, `Project <n> | <name> | <client>`, a task's
+   `| [ <project> ] | <client> ]` with stray brackets), translated into the company locale. A
+   client has to split it on ` | ` to show a number, a client and an amount. **Ask:** return the
+   structured fields beside it — `number`, `client_name`, `amount`, `date`, `status_id`.
+3. **The score is thrown away.** The 100 hits come back grouped in a fixed key order (clients
+   first), so a client can't tell the best hit from the 100th. **Ask:** return `_score` per hit
+   (or the groups in score order), and say when the answer hit `size => 100`.
+
+**Client-side (shipped):** `SearchResponse.serverFiltered` tells the two answers apart by the
+`quotes` key (only the ES branch emits it). The palette fetches the fallback once per open and
+filters it on the device, parses both shapes and ranks every hit itself
+(`lib/ui/features/shell/widgets/search_palette_results.dart`, docs/search-palette.md). If the
+server starts filtering the fallback, nothing breaks: the device filter is a no-op over an
+already-matching set, and the palette caches the answer only when it holds a record that matches
+none of the query (`answerIgnoresQuery`) — a filtered fallback is simply asked again per query.
+

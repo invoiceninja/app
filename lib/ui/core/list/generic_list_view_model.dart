@@ -1178,7 +1178,7 @@ abstract class GenericListViewModel<T> extends ChangeNotifier {
   /// dimension" rule doesn't apply.)
   void _applyIntentState(ListFilterIntent intent) {
     _cancelPendingSearch();
-    _search = '';
+    _search = intent.search.trim();
     // `intent.states` is public API on `ListFilterIntent` but no dashboard
     // panel sets it today, so this normally takes the default branch. Routed
     // through [normalizeListStates] anyway: an empty set from a future panel

@@ -10,12 +10,14 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:admin/data/models/api/invoice_api_model.dart';
 import 'package:admin/data/models/api/login_response_api_model.dart';
+import 'package:admin/data/models/domain/search_result.dart';
 import 'package:admin/data/models/value/date.dart';
 import 'package:admin/domain/billing/totals_calculator.dart';
 import 'package:admin/domain/expenses/receipt_parser.dart';
 import 'package:admin/domain/reports/local_report_source.dart';
 import 'package:admin/domain/reports/report_engine.dart';
 import 'package:admin/domain/reports/task_items_source.dart';
+import 'package:admin/ui/features/shell/widgets/search_palette_results.dart';
 import 'package:admin/utils/legacy_html_markdown.dart';
 import 'package:admin/utils/notes_html.dart';
 
@@ -166,6 +168,36 @@ void main() {
     run: () => parseReceiptText(receipt, receiptContext).taxes.length,
   );
 
+  // The search palette on a server without Elasticsearch: the answer
+  // ignores the query and carries the whole company up to its caps, so the
+  // palette keeps it and re-ranks all of it on every keystroke
+  // (docs/search-palette.md). The rows' parse and fold are cached on first
+  // use (setUp), as they are after the first keystroke in the app.
+  late List<SearchResult> answer;
+  benchmark(
+    'search.palette_rank_fallback',
+    title:
+        'Search palette — one keystroke re-ranking the largest fallback '
+        'answer (1,000 clients, 2,000 contacts, 3,000 invoices, 3,000 projects)',
+    setUp: () {
+      answer = _fallbackSearchAnswer();
+      expect(answerIgnoresQuery(answer, 'acme 12'), isTrue);
+      final r = buildPaletteResults(
+        query: 'acme 12',
+        hits: answer,
+        serverFiltered: false,
+        cappedScopes: fallbackCappedScopes(answer),
+      );
+      expect(r.total, greaterThan(0));
+    },
+    samples: 9,
+    run: () => buildPaletteResults(
+      query: 'acme 12',
+      hits: answer,
+      serverFiltered: false,
+    ).total,
+  );
+
   late Map<String, dynamic> page;
   benchmark(
     'sync.invoice_page_parse',
@@ -271,4 +303,41 @@ Map<String, Map<String, dynamic>> _fullRows() {
     for (final key in kBrowsableDeltaJsonKeys)
       key: Map<String, dynamic>.from((company[key] as List).single as Map),
   };
+}
+
+/// `POST /api/v1/search` as a server without Elasticsearch answers it at its
+/// limits (`SearchController::clientMap` / `invoiceMap` / `projectMap`).
+List<SearchResult> _fallbackSearchAnswer() {
+  const names = ['Acme', 'Globex', 'Initech', 'Umbrella', 'Stark', 'Wayne'];
+  String client(int i) => '${names[i % names.length]} Holdings $i';
+  return [
+    for (var i = 0; i < 1000; i++)
+      SearchResult(
+        group: 'clients',
+        name: client(i),
+        id: 'c$i',
+        path: '/clients/c$i',
+      ),
+    for (var i = 0; i < 2000; i++)
+      SearchResult(
+        group: 'client_contacts',
+        name: 'Contact $i <contact$i@example.test>',
+        id: 'c${i ~/ 2}',
+        path: '/clients/c${i ~/ 2}',
+      ),
+    for (var i = 0; i < 3000; i++)
+      SearchResult(
+        group: 'invoices',
+        name: '${client(i % 1000)} - ${i.toString().padLeft(4, '0')}',
+        id: 'i$i',
+        path: '/invoices/i$i/edit',
+      ),
+    for (var i = 0; i < 3000; i++)
+      SearchResult(
+        group: 'projects',
+        name: 'Project $i - ${i.toString().padLeft(4, '0')}',
+        id: 'p$i',
+        path: '/projects/p$i',
+      ),
+  ];
 }
