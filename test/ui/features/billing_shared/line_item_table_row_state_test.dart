@@ -14,11 +14,14 @@
 // debounce, so the pending text is already committed by the time the row set
 // changes. It is pinned here as an invariant, not as a repro.
 
+import 'dart:convert';
+
 import 'package:decimal/decimal.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:admin/data/db/app_database.dart';
 import 'package:admin/data/models/domain/billing/line_item.dart';
 import 'package:admin/ui/features/billing_shared/line_item_editor/line_item_column_config.dart';
 import 'package:admin/ui/features/billing_shared/line_item_editor/line_item_table_desktop.dart';
@@ -34,11 +37,13 @@ class _Host extends StatefulWidget {
     required this.initial,
     required this.onChanged,
     required this.controller,
+    this.config = const LineItemColumnConfig(),
   });
 
   final List<LineItem> initial;
   final ValueChanged<List<LineItem>> onChanged;
   final LineItemTableDesktopController controller;
+  final LineItemColumnConfig config;
 
   @override
   State<_Host> createState() => _HostState();
@@ -56,7 +61,7 @@ class _HostState extends State<_Host> {
       setState(() => _items = next);
     },
     newItemFactory: emptyLineItem,
-    config: const LineItemColumnConfig(),
+    config: widget.config,
     controller: widget.controller,
   );
 }
@@ -291,5 +296,144 @@ void main() {
       expect(three - one, 4);
       await teardownSubtree(tester);
     });
+  });
+
+  // invoiceninja/app#203. A pause of 250 ms in the trailing "Add an item" row
+  // commits it, which promotes it from ghost to real. The promotion used to
+  // change the row's shape — a ghost-only `Opacity` around the whole body, and
+  // a tab-forward `Focus` around only the ghost's last numeric cell — so the
+  // focused field was remounted under a node that kept its focus. A new
+  // `EditableText` opens a text-input connection only on a focus CHANGE, so it
+  // never opened one: the first character stayed and every later key was
+  // dropped, on every platform, for anyone who paused after one letter to look
+  // at the product search. `hasAnyClients` is the load-bearing assertion — a
+  // fast typist keeps the text and still ends up with a deaf field.
+  group('typing into the ghost row keeps every key', () {
+    Future<void> step(WidgetTester tester, int frames) async {
+      for (var i = 0; i < frames; i++) {
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 20)),
+        );
+        await tester.pump(const Duration(milliseconds: 60));
+      }
+    }
+
+    ProductsCompanion product(String id, String key) =>
+        ProductsCompanion.insert(
+          id: id,
+          companyId: 'co1',
+          productKey: key,
+          notes: '',
+          price: '0',
+          cost: '0',
+          quantity: '1',
+          updatedAt: 1,
+          payload: jsonEncode({
+            'id': id,
+            'product_key': key,
+            'notes': '',
+            'updated_at': 1,
+          }),
+        );
+
+    /// Types [text] one character at a time into the ghost row's cell at
+    /// [cell] (product, notes, cost, quantity, discount, tax), [frames] × ~80
+    /// ms apart — 5 is past the 250 ms commit, 1 is inside it.
+    Future<void> typeIntoGhost(
+      WidgetTester tester, {
+      required int cell,
+      required String text,
+      required int frames,
+    }) async {
+      emitted = <List<LineItem>>[];
+      tester.view.physicalSize = const Size(1600, 900);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      final fixture = await buildFixture(
+        companies: [
+          const FakeCompany(
+            id: 'co1',
+            name: 'Co',
+            isAdmin: true,
+            isOwner: true,
+          ),
+        ],
+      );
+      addTearDown(fixture.dispose);
+      // Products to search, so the Item cell's options open on each key.
+      await tester.runAsync(
+        () => fixture.db.productDao.upsertAll([
+          product('p1', 'Wrench'),
+          product('p2', 'Washer'),
+        ]),
+      );
+      await tester.pumpWidget(
+        wrapWithShell(
+          fixture.services,
+          _Host(
+            initial: const [],
+            onChanged: emitted.add,
+            controller: LineItemTableDesktopController(),
+            config: const LineItemColumnConfig(showDiscount: true),
+          ),
+        ),
+      );
+      await step(tester, 12);
+
+      final target = find.byType(TextField).at(cell);
+      final editable = tester.widget<EditableText>(
+        find.descendant(of: target, matching: find.byType(EditableText)),
+      );
+      await tester.tap(target);
+      await step(tester, 4);
+      expect(editable.focusNode.hasFocus, isTrue);
+
+      var typed = '';
+      for (final ch in text.split('')) {
+        typed += ch;
+        tester.testTextInput.updateEditingValue(
+          TextEditingValue(
+            text: typed,
+            selection: TextSelection.collapsed(offset: typed.length),
+          ),
+        );
+        await step(tester, frames);
+      }
+      await step(tester, 6);
+
+      expect(editable.controller.text, text);
+      expect(editable.focusNode.hasFocus, isTrue);
+      expect(
+        tester.testTextInput.hasAnyClients,
+        isTrue,
+        reason: 'the focused cell must still own a text-input connection',
+      );
+      expect(emitted, isNotEmpty, reason: 'the ghost row was promoted');
+      await teardownSubtree(tester);
+    }
+
+    testWidgets(
+      'the Item cell, pausing after each letter',
+      (tester) => typeIntoGhost(tester, cell: 0, text: 'Wrench', frames: 5),
+      variant: const TargetPlatformVariant({
+        TargetPlatform.linux,
+        TargetPlatform.macOS,
+      }),
+    );
+
+    testWidgets(
+      'the Item cell, typed fast, stays live after the commit',
+      (tester) => typeIntoGhost(tester, cell: 0, text: 'Wrench', frames: 1),
+    );
+
+    testWidgets(
+      'the Description cell, pausing after each letter',
+      (tester) => typeIntoGhost(tester, cell: 1, text: 'Hello', frames: 5),
+    );
+
+    testWidgets(
+      'the last numeric cell (Discount), pausing after each digit',
+      (tester) => typeIntoGhost(tester, cell: 4, text: '12', frames: 5),
+    );
   });
 }

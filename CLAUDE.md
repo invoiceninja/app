@@ -264,19 +264,20 @@ FormSaveScope(
 Reusable fields (`OverridableTextField`, `ClientEditField`) read the scope themselves. A raw single-line `TextField` reads `FormSaveScope.maybeOf(context)`, sets `textInputAction: TextInputAction.done` and pipes `onSubmitted` to `scope.trySubmit()`; a dialog with one text input wraps its body in `FormSaveScope` too. → `docs/form-fields.md`
 
 - **A labelled field is wrapped in `LabeledField` and keeps its `labelText`: above the box at Comfortable, inside under Compact.** → `docs/form-fields.md`
+- **A focused field never changes its place in the tree on state — vary a wrapper's value, never add or drop it: a remounted `EditableText` opens no input connection, so later keys are lost.** → `docs/form-fields.md`
 
 ### Empty for blank numeric fields
 
-Numeric fields seeded from a non-nullable `Decimal` render **empty for zero**, not `"0"`: `decimalInputText(value)` for an `EntityEditField`'s `initial:` (never `.toString()`), `Formatter.inputMoney(value, currencyId: ...)` for money (`''` for zero), `Formatter.inputAmount(value)` for a `num`. Reference: `product_edit_screen.dart`.
+Numeric fields seeded from a non-nullable `Decimal` render **empty for zero**, not `"0"`: `decimalInputText(value)` for an `EntityEditField`'s `initial:` (never `.toString()`), `Formatter.inputMoney(value, currencyId: ...)` for money (`''` for zero), `Formatter.inputAmount(value)` for a `num`.
 
 ### Searchable pickers
 
-Any dropdown bound to a long list (countries, currencies, languages, industries, timezones — anything past ~20 options) **must** support type-to-search.
+Any dropdown past ~20 options (countries, currencies, timezones) **must** support type-to-search.
 
-- **Plain pickers**: `SearchableDropdownField<T>` (`lib/ui/core/widgets/searchable_dropdown_field.dart`) — generic on the item type; takes `displayString` + `idOf` projections.
-- **Settings pickers with cascade-override**: `OverridableSearchableDropdownField<T>` — same shape as `OverridableDropdownField`, use on settings pages.
+- **Plain pickers**: `SearchableDropdownField<T>` (`lib/ui/core/widgets/searchable_dropdown_field.dart`) — takes `displayString` + `idOf` projections.
+- **Settings pickers with cascade-override**: `OverridableSearchableDropdownField<T>` — same shape as `OverridableDropdownField`.
 
-Don't introduce new `DropdownButtonFormField`s for long lists. They're fine only for short fixed enums (~10 items max — Classification, Size, Custom Field Type).
+A `DropdownButtonFormField` is only for a short fixed enum (~10 items: Classification, Size, Custom Field Type).
 
 - **Opening a picker that already has a value shows the whole list, and that takes two cooperating rules — don't remove either.** → `docs/pickers.md`
 - **The options popover must not wrap itself in an `Align`.** → `docs/pickers.md`
@@ -309,7 +310,7 @@ Every text input declares the keyboard, capitalization and autofill its data nee
 
 ### Template variable fields
 
-Email-template `$variables` render as chips wherever a template is edited (Templates & Reminders, Send Email), because users read raw tokens as code to replace (invoiceninja/flutter#139). → `docs/template-variables.md`
+Email-template `$variables` render as chips wherever a template is edited, because users read raw tokens as code to replace (invoiceninja/flutter#139). → `docs/template-variables.md`
 
 - **Which variables a template supports is a property of the server engine, not of a list.** → `docs/template-variables.md`
 - **A single-line field can't hold chips and be edited as text,** → `docs/template-variables.md`

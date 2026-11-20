@@ -1964,7 +1964,12 @@ class _RowStateW extends State<_Row> {
         ),
       ),
     );
-    final wrapped = isGhost ? Opacity(opacity: 0.55, child: body) : body;
+    // Always the Opacity, only its value changing: dropping it when the ghost
+    // row is promoted (its first 250 ms commit) remounted the whole row under a
+    // still-focused cell, and a remounted `EditableText` opens no input
+    // connection — every key after the first was lost (invoiceninja/app#203,
+    // docs/form-fields.md). 1.0 paints the child directly, with no layer.
+    final wrapped = Opacity(opacity: isGhost ? 0.55 : 1.0, child: body);
     return MouseRegion(
       onEnter: (_) {
         if (!_hovered) setState(() => _hovered = true);
@@ -2231,9 +2236,17 @@ class _NumericCell extends StatelessWidget {
         focusedBorder: _cellBorder(tokens, focused: true),
       ),
     );
-    if (onTabForward == null) return field;
+    // Mounted whether or not there is a tab-forward, so the field keeps one
+    // place in the tree: only the ghost row's last cell has one, and the row's
+    // promotion would otherwise remount the focused field and deafen it — see
+    // the `Opacity` in `_RowStateW.build`. A pure key interceptor, never a
+    // focus or Tab stop of its own.
+    final onTabForward = this.onTabForward;
     return Focus(
+      canRequestFocus: false,
+      skipTraversal: true,
       onKeyEvent: (node, event) {
+        if (onTabForward == null) return KeyEventResult.ignored;
         if (event is! KeyDownEvent) return KeyEventResult.ignored;
         if (event.logicalKey != LogicalKeyboardKey.tab) {
           return KeyEventResult.ignored;
@@ -2245,7 +2258,7 @@ class _NumericCell extends StatelessWidget {
         // Return `handled` so Flutter's default focus-traversal doesn't
         // also advance, which would race with the post-frame focus
         // request and produce a single-frame flicker.
-        onTabForward?.call();
+        onTabForward();
         return KeyEventResult.handled;
       },
       child: field,
@@ -2640,6 +2653,17 @@ class _ProductCellState extends State<_ProductCell> {
           local = const <_ProductOption>[];
         }
         if (!mounted || seq != _searchSeq) return const <_ProductOption>[];
+
+        // `RawAutocomplete` runs this on every controller change, focused or
+        // not — so a row reseeded under an unfocused cell (a line removed
+        // ahead of it, the row turning back into the ghost) lands here too.
+        // That is no search the user typed: answer from the cache and start
+        // neither the debounce nor a server fetch, which would otherwise go
+        // out for a cell nobody is looking at.
+        if (!widget.focusNode.hasFocus) {
+          _lastOptionsCount = local.length;
+          return local;
+        }
 
         // Route on a real product match, not `local.isNotEmpty`: a non-empty
         // query with zero matches yields only a `_ProductCreate` row — that
