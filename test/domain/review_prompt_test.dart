@@ -65,7 +65,10 @@ void main() {
 
   group('reviewListingUri', () {
     test('Apple has no link until the App Store id is known', () {
-      expect(reviewListingUri(ReviewChannel.appleStore), isNull);
+      expect(
+        reviewListingUri(ReviewChannel.appleStore, appStoreId: null),
+        isNull,
+      );
       expect(
         reviewListingUri(
           ReviewChannel.appleStore,
@@ -73,6 +76,19 @@ void main() {
         ).toString(),
         'https://apps.apple.com/app/id123?action=write-review',
       );
+    });
+
+    test('kAppStoreId, once set, is the bare numeric Apple ID', () {
+      // Null until it is filled in; then digits only, or the review link
+      // reads `idid123…` and opens nothing.
+      const id = kAppStoreId;
+      if (id != null) {
+        expect(id, matches(RegExp(r'^[0-9]+$')));
+        expect(
+          reviewListingUri(ReviewChannel.appleStore).toString(),
+          'https://apps.apple.com/app/id$id?action=write-review',
+        );
+      }
     });
 
     test('each channel opens its own review page', () {

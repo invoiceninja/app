@@ -15,8 +15,13 @@ const bool kReviewPromptEnabled = bool.fromEnvironment(
 );
 
 /// The App Store's numeric Apple ID (App Store Connect → General → App
-/// Information). Null until the public listing exists; while it is, the
-/// Apple builds offer no "Rate the app" link (the native sheet needs none).
+/// Information → Apple ID; iOS and macOS share the record). While it is null
+/// the Apple builds offer no "Rate the app" link (the native sheet needs
+/// none), so a build without it is still safe to ship.
+///
+/// LAUNCH FILL-IN: replace `null` with the new record's Apple ID, digits only
+/// (`'1234567890'`, never `'id1234567890'`), the same number as the App Store
+/// links in tools/web_deploy/landing/apps.json.
 const String? kAppStoreId = null;
 
 /// The Android package, which is also the Play listing's id.
