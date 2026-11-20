@@ -2313,5 +2313,18 @@
   "app_info_locale": "Språk og region",
   "app_info_text_direction": "Tekstretning",
   "app_info_display_features": "Skjermegenskaper",
-  "app_info_book_posture": "Bokposisjon"
+  "app_info_book_posture": "Bokposisjon",
+  "device_settings_subtitle_synced_look": "Lagres på denne enheten. Temaet, paletten og de egendefinerte fargene dine synkroniseres også med kontoen din.",
+  "device_settings_subtitle_synced_look_web": "Lagres i denne nettleseren. Temaet, paletten og de egendefinerte fargene dine synkroniseres også med kontoen din.",
+  "synced_with_your_account": "Synkronisert med kontoen din",
+  "contacts_changed_while_saving_not_kept": "Kontakter som ble endret under lagringen, ble ikke beholdt. Legg dem til på nytt.",
+  "after_saving_help": "Om Lagre holder redigeringsskjermen åpen eller går til posten.",
+  "top_hits": "Topptreff",
+  "show_all_count": "Vis alle :count",
+  "search_list_for": "Søk etter «:query» i :list",
+  "show_results_in_all": "Vis :count resultater i Alle",
+  "search_results_announcement": ":count resultater i :categories kategorier",
+  "search_results_at_least_announcement": "Minst :count resultater i :categories kategorier",
+  "search_scope_announcement": ":scope, :count resultater",
+  "search_scope_at_least_announcement": ":scope, minst :count resultater"
 }

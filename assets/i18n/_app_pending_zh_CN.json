@@ -2313,5 +2313,18 @@
   "app_info_locale": "区域设置",
   "app_info_text_direction": "文字方向",
   "app_info_display_features": "显示特性",
-  "app_info_book_posture": "书本姿态"
+  "app_info_book_posture": "书本姿态",
+  "device_settings_subtitle_synced_look": "存储在此设备上。您的主题、调色板和自定义颜色也会与您的账户同步。",
+  "device_settings_subtitle_synced_look_web": "存储在此浏览器中。您的主题、调色板和自定义颜色也会与您的账户同步。",
+  "synced_with_your_account": "已与您的账户同步",
+  "contacts_changed_while_saving_not_kept": "保存期间更改的联系人未被保留。请重新添加。",
+  "after_saving_help": "选择“保存”后是保持编辑界面打开，还是转到该记录。",
+  "top_hits": "最佳匹配",
+  "show_all_count": "显示全部 :count 项",
+  "search_list_for": "在 :list 中搜索“:query”",
+  "show_results_in_all": "在“全部”中显示 :count 个结果",
+  "search_results_announcement": ":categories 个类别中有 :count 个结果",
+  "search_results_at_least_announcement": ":categories 个类别中至少有 :count 个结果",
+  "search_scope_announcement": ":scope，:count 个结果",
+  "search_scope_at_least_announcement": ":scope，至少 :count 个结果"
 }

@@ -2268,5 +2268,18 @@
   "app_info_locale": "Kalba ir regionas",
   "app_info_text_direction": "Teksto kryptis",
   "app_info_display_features": "Ekrano ypatybės",
-  "app_info_book_posture": "Knygos padėtis"
+  "app_info_book_posture": "Knygos padėtis",
+  "device_settings_subtitle_synced_look": "Saugoma šiame įrenginyje. Jūsų tema, paletė ir individualios spalvos taip pat sinchronizuojamos su jūsų paskyra.",
+  "device_settings_subtitle_synced_look_web": "Saugoma šioje naršyklėje. Jūsų tema, paletė ir individualios spalvos taip pat sinchronizuojamos su jūsų paskyra.",
+  "synced_with_your_account": "Sinchronizuojama su jūsų paskyra",
+  "contacts_changed_while_saving_not_kept": "Kontaktai, pakeisti saugant, nebuvo išlaikyti. Pridėkite juos iš naujo.",
+  "after_saving_help": "Ar Saugoti palieka redagavimo ekraną atvertą, ar pereina prie įrašo.",
+  "top_hits": "Geriausi rezultatai",
+  "show_all_count": "Rodyti visus (:count)",
+  "search_list_for": "Ieškoti „:query“ sąraše :list",
+  "show_results_in_all": "Rodyti rezultatus (:count) skirtuke Visi",
+  "search_results_announcement": "Rezultatų: :count, kategorijų: :categories",
+  "search_results_at_least_announcement": "Rezultatų: bent :count, kategorijų: :categories",
+  "search_scope_announcement": ":scope, rezultatų: :count",
+  "search_scope_at_least_announcement": ":scope, rezultatų: bent :count"
 }

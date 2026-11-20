@@ -2313,5 +2313,18 @@
   "app_info_locale": "ภาษาและภูมิภาค",
   "app_info_text_direction": "ทิศทางข้อความ",
   "app_info_display_features": "คุณสมบัติของจอแสดงผล",
-  "app_info_book_posture": "ท่าทางแบบหนังสือ"
+  "app_info_book_posture": "ท่าทางแบบหนังสือ",
+  "device_settings_subtitle_synced_look": "จัดเก็บบนอุปกรณ์นี้ ธีม จานสี และสีกำหนดเองของคุณจะซิงค์กับบัญชีของคุณด้วย",
+  "device_settings_subtitle_synced_look_web": "จัดเก็บในเบราว์เซอร์นี้ ธีม จานสี และสีกำหนดเองของคุณจะซิงค์กับบัญชีของคุณด้วย",
+  "synced_with_your_account": "ซิงค์กับบัญชีของคุณแล้ว",
+  "contacts_changed_while_saving_not_kept": "ผู้ติดต่อที่เปลี่ยนแปลงระหว่างการบันทึกไม่ได้ถูกเก็บไว้ โปรดเพิ่มอีกครั้ง",
+  "after_saving_help": "กำหนดว่าการกดบันทึกจะเปิดหน้าจอแก้ไขค้างไว้หรือไปที่ระเบียน",
+  "top_hits": "ผลลัพธ์ยอดนิยม",
+  "show_all_count": "แสดงทั้งหมด :count",
+  "search_list_for": "ค้นหา \":query\" ใน :list",
+  "show_results_in_all": "แสดงผลลัพธ์ :count รายการใน ทั้งหมด",
+  "search_results_announcement": "ผลลัพธ์ :count รายการใน :categories หมวดหมู่",
+  "search_results_at_least_announcement": "ผลลัพธ์อย่างน้อย :count รายการใน :categories หมวดหมู่",
+  "search_scope_announcement": ":scope, ผลลัพธ์ :count รายการ",
+  "search_scope_at_least_announcement": ":scope, ผลลัพธ์อย่างน้อย :count รายการ"
 }

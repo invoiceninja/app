@@ -2313,5 +2313,18 @@
   "app_info_locale": "Локализација",
   "app_info_text_direction": "Насока на текстот",
   "app_info_display_features": "Карактеристики на екранот",
-  "app_info_book_posture": "Положба „книга“"
+  "app_info_book_posture": "Положба „книга“",
+  "device_settings_subtitle_synced_look": "Се чуваат на овој уред. Вашата тема, палета и прилагодени бои се синхронизираат и со вашата сметка.",
+  "device_settings_subtitle_synced_look_web": "Се чуваат во овој прелистувач. Вашата тема, палета и прилагодени бои се синхронизираат и со вашата сметка.",
+  "synced_with_your_account": "Синхронизирано со вашата сметка",
+  "contacts_changed_while_saving_not_kept": "Контактите променети за време на зачувувањето не се задржани. Додајте ги повторно.",
+  "after_saving_help": "Дали Зачувај го остава екранот за уредување отворен или оди на записот.",
+  "top_hits": "Најдобри резултати",
+  "show_all_count": "Прикажи ги сите :count",
+  "search_list_for": "Пребарај „:query“ во :list",
+  "show_results_in_all": "Прикажи ги резултатите (:count) во Сите",
+  "search_results_announcement": "Резултати: :count во категории: :categories",
+  "search_results_at_least_announcement": "Резултати: најмалку :count во категории: :categories",
+  "search_scope_announcement": ":scope, резултати: :count",
+  "search_scope_at_least_announcement": ":scope, резултати: најмалку :count"
 }

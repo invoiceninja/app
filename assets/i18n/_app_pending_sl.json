@@ -2313,5 +2313,18 @@
   "app_info_locale": "Področne nastavitve",
   "app_info_text_direction": "Smer besedila",
   "app_info_display_features": "Značilnosti zaslona",
-  "app_info_book_posture": "Položaj knjige"
+  "app_info_book_posture": "Položaj knjige",
+  "device_settings_subtitle_synced_look": "Shranjeno v tej napravi. Vaša tema, paleta in prilagojene barve se sinhronizirajo tudi z vašim računom.",
+  "device_settings_subtitle_synced_look_web": "Shranjeno v tem brskalniku. Vaša tema, paleta in prilagojene barve se sinhronizirajo tudi z vašim računom.",
+  "synced_with_your_account": "Sinhronizirano z vašim računom",
+  "contacts_changed_while_saving_not_kept": "Kontakti, spremenjeni med shranjevanjem, niso bili ohranjeni. Znova jih dodajte.",
+  "after_saving_help": "Ali Shrani pusti zaslon za urejanje odprt ali preide na zapis.",
+  "top_hits": "Najboljši zadetki",
+  "show_all_count": "Prikaži vse (:count)",
+  "search_list_for": "Išči „:query“ na seznamu :list",
+  "show_results_in_all": "Prikaži rezultate (:count) na zavihku Vse",
+  "search_results_announcement": "Rezultati: :count v kategorijah: :categories",
+  "search_results_at_least_announcement": "Rezultati: vsaj :count v kategorijah: :categories",
+  "search_scope_announcement": ":scope, rezultati: :count",
+  "search_scope_at_least_announcement": ":scope, rezultati: vsaj :count"
 }

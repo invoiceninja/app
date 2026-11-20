@@ -2229,5 +2229,18 @@
   "app_info_locale": "ភាសា និងតំបន់",
   "app_info_text_direction": "ទិសដៅអក្សរ",
   "app_info_display_features": "លក្ខណៈពិសេសអេក្រង់",
-  "app_info_book_posture": "ឥរិយាបថសៀវភៅ"
+  "app_info_book_posture": "ឥរិយាបថសៀវភៅ",
+  "device_settings_subtitle_synced_look": "រក្សាទុកនៅលើឧបករណ៍នេះ។ ស្បែក ក្ដារលាយពណ៌ និងពណ៌ផ្ទាល់ខ្លួនរបស់អ្នកក៏ធ្វើសមកាលកម្មជាមួយគណនីរបស់អ្នកដែរ។",
+  "device_settings_subtitle_synced_look_web": "រក្សាទុកនៅក្នុងកម្មវិធីរុករកនេះ។ ស្បែក ក្ដារលាយពណ៌ និងពណ៌ផ្ទាល់ខ្លួនរបស់អ្នកក៏ធ្វើសមកាលកម្មជាមួយគណនីរបស់អ្នកដែរ។",
+  "synced_with_your_account": "បានធ្វើសមកាលកម្មជាមួយគណនីរបស់អ្នក",
+  "contacts_changed_while_saving_not_kept": "ទំនាក់ទំនងដែលបានផ្លាស់ប្តូរពេលកំពុងរក្សាទុក មិនត្រូវបានរក្សាទុកទេ។ សូមបន្ថែមពួកវាម្តងទៀត។",
+  "after_saving_help": "ថាតើ រក្សាទុក បន្តបើកអេក្រង់កែសម្រួល ឬទៅកាន់កំណត់ត្រា។",
+  "top_hits": "លទ្ធផលកំពូល",
+  "show_all_count": "បង្ហាញទាំងអស់ :count",
+  "search_list_for": "ស្វែងរក \":query\" ក្នុង :list",
+  "show_results_in_all": "បង្ហាញលទ្ធផល :count ក្នុង ទាំងអស់",
+  "search_results_announcement": "លទ្ធផល :count ក្នុង :categories ប្រភេទ",
+  "search_results_at_least_announcement": "យ៉ាងហោចណាស់លទ្ធផល :count ក្នុង :categories ប្រភេទ",
+  "search_scope_announcement": ":scope, លទ្ធផល :count",
+  "search_scope_at_least_announcement": ":scope, យ៉ាងហោចណាស់លទ្ធផល :count"
 }

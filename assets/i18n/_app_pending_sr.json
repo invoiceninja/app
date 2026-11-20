@@ -2229,5 +2229,18 @@
   "app_info_locale": "Lokalizacija",
   "app_info_text_direction": "Smer teksta",
   "app_info_display_features": "Karakteristike ekrana",
-  "app_info_book_posture": "Položaj „knjiga”"
+  "app_info_book_posture": "Položaj „knjiga”",
+  "device_settings_subtitle_synced_look": "Čuva se na ovom uređaju. Vaša tema, paleta i prilagođene boje takođe se sinhronizuju sa vašim nalogom.",
+  "device_settings_subtitle_synced_look_web": "Čuva se u ovom pregledaču. Vaša tema, paleta i prilagođene boje takođe se sinhronizuju sa vašim nalogom.",
+  "synced_with_your_account": "Sinhronizovano sa vašim nalogom",
+  "contacts_changed_while_saving_not_kept": "Kontakti promenjeni tokom čuvanja nisu zadržani. Dodajte ih ponovo.",
+  "after_saving_help": "Da li Snimi ostavlja ekran za uređivanje otvorenim ili prelazi na zapis.",
+  "top_hits": "Najbolji rezultati",
+  "show_all_count": "Prikaži sve (:count)",
+  "search_list_for": "Pretraži listu :list za „:query“",
+  "show_results_in_all": "Prikaži rezultate (:count) na kartici Sve",
+  "search_results_announcement": "Rezultati: :count u kategorijama: :categories",
+  "search_results_at_least_announcement": "Rezultati: najmanje :count u kategorijama: :categories",
+  "search_scope_announcement": ":scope, rezultati: :count",
+  "search_scope_at_least_announcement": ":scope, rezultati: najmanje :count"
 }

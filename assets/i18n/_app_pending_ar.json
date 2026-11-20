@@ -2229,5 +2229,18 @@
   "app_info_locale": "الإعدادات المحلية",
   "app_info_text_direction": "اتجاه النص",
   "app_info_display_features": "ميزات الشاشة",
-  "app_info_book_posture": "وضعية الكتاب"
+  "app_info_book_posture": "وضعية الكتاب",
+  "device_settings_subtitle_synced_look": "تُحفظ على هذا الجهاز. تتم أيضًا مزامنة السمة ولوحة الألوان والألوان المخصصة مع حسابك.",
+  "device_settings_subtitle_synced_look_web": "تُحفظ في هذا المتصفح. تتم أيضًا مزامنة السمة ولوحة الألوان والألوان المخصصة مع حسابك.",
+  "synced_with_your_account": "متزامن مع حسابك",
+  "contacts_changed_while_saving_not_kept": "لم يتم الاحتفاظ بجهات الاتصال التي تغيّرت أثناء الحفظ. أضفها مرة أخرى.",
+  "after_saving_help": "ما إذا كان حفظ يُبقي شاشة التحرير مفتوحة أو ينتقل إلى السجل.",
+  "top_hits": "أفضل النتائج",
+  "show_all_count": "عرض الكل (:count)",
+  "search_list_for": "البحث في :list عن \":query\"",
+  "show_results_in_all": "عرض النتائج (:count) في الجميع",
+  "search_results_announcement": ":count من النتائج في :categories من الفئات",
+  "search_results_at_least_announcement": "ما لا يقل عن :count من النتائج في :categories من الفئات",
+  "search_scope_announcement": ":scope، :count من النتائج",
+  "search_scope_at_least_announcement": ":scope، ما لا يقل عن :count من النتائج"
 }

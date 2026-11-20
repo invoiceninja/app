@@ -2313,5 +2313,18 @@
   "app_info_locale": "Yerel ayar",
   "app_info_text_direction": "Metin yönü",
   "app_info_display_features": "Ekran özellikleri",
-  "app_info_book_posture": "Kitap duruşu"
+  "app_info_book_posture": "Kitap duruşu",
+  "device_settings_subtitle_synced_look": "Bu cihazda saklanır. Temanız, paletiniz ve özel renkleriniz hesabınızla da senkronize edilir.",
+  "device_settings_subtitle_synced_look_web": "Bu tarayıcıda saklanır. Temanız, paletiniz ve özel renkleriniz hesabınızla da senkronize edilir.",
+  "synced_with_your_account": "Hesabınızla senkronize edildi",
+  "contacts_changed_while_saving_not_kept": "Kaydetme sırasında değiştirilen yetkililer korunmadı. Bunları yeniden ekleyin.",
+  "after_saving_help": "Kaydet düğmesinin düzenleme ekranını açık mı tutacağını yoksa kayda mı gideceğini belirler.",
+  "top_hits": "En iyi sonuçlar",
+  "show_all_count": "Tüm :count öğeyi göster",
+  "search_list_for": ":list içinde \":query\" ara",
+  "show_results_in_all": ":count sonucu Tümü sekmesinde göster",
+  "search_results_announcement": ":categories kategoride :count sonuç",
+  "search_results_at_least_announcement": ":categories kategoride en az :count sonuç",
+  "search_scope_announcement": ":scope, :count sonuç",
+  "search_scope_at_least_announcement": ":scope, en az :count sonuç"
 }

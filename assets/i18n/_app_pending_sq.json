@@ -2313,5 +2313,18 @@
   "app_info_locale": "Lokalizimi",
   "app_info_text_direction": "Drejtimi i tekstit",
   "app_info_display_features": "Veçoritë e ekranit",
-  "app_info_book_posture": "Pozicioni libër"
+  "app_info_book_posture": "Pozicioni libër",
+  "device_settings_subtitle_synced_look": "Ruhen në këtë pajisje. Tema, paleta dhe ngjyrat tuaja të personalizuara sinkronizohen gjithashtu me llogarinë tuaj.",
+  "device_settings_subtitle_synced_look_web": "Ruhen në këtë shfletues. Tema, paleta dhe ngjyrat tuaja të personalizuara sinkronizohen gjithashtu me llogarinë tuaj.",
+  "synced_with_your_account": "Sinkronizuar me llogarinë tuaj",
+  "contacts_changed_while_saving_not_kept": "Kontaktet e ndryshuara gjatë ruajtjes nuk u mbajtën. Shtojini përsëri.",
+  "after_saving_help": "Nëse Ruaj e mban të hapur ekranin e redaktimit apo shkon te regjistrimi.",
+  "top_hits": "Rezultatet kryesore",
+  "show_all_count": "Shfaq të gjitha :count",
+  "search_list_for": "Kërko “:query” në :list",
+  "show_results_in_all": "Shfaq :count rezultate te Të gjitha",
+  "search_results_announcement": ":count rezultate në :categories kategori",
+  "search_results_at_least_announcement": "Të paktën :count rezultate në :categories kategori",
+  "search_scope_announcement": ":scope, :count rezultate",
+  "search_scope_at_least_announcement": ":scope, të paktën :count rezultate"
 }

@@ -2313,5 +2313,18 @@
   "app_info_locale": "ພາສາ ແລະ ພາກພື້ນ",
   "app_info_text_direction": "ທິດທາງຂໍ້ຄວາມ",
   "app_info_display_features": "ຄຸນສົມບັດໜ້າຈໍ",
-  "app_info_book_posture": "ທ່າປຶ້ມ"
+  "app_info_book_posture": "ທ່າປຶ້ມ",
+  "device_settings_subtitle_synced_look": "ເກັບໄວ້ໃນອຸປະກອນນີ້. ຮູບແບບສີ, ຊຸດສີ ແລະ ສີທີ່ກຳນົດເອງຂອງທ່ານຍັງຊິງຄ໌ກັບບັນຊີຂອງທ່ານນຳ.",
+  "device_settings_subtitle_synced_look_web": "ເກັບໄວ້ໃນບຣາວເຊີນີ້. ຮູບແບບສີ, ຊຸດສີ ແລະ ສີທີ່ກຳນົດເອງຂອງທ່ານຍັງຊິງຄ໌ກັບບັນຊີຂອງທ່ານນຳ.",
+  "synced_with_your_account": "ຊິງຄ໌ກັບບັນຊີຂອງທ່ານແລ້ວ",
+  "contacts_changed_while_saving_not_kept": "ຜູ້ຕິດຕໍ່ທີ່ປ່ຽນແປງລະຫວ່າງການບັນທຶກບໍ່ໄດ້ຖືກເກັບໄວ້. ກະລຸນາເພີ່ມອີກຄັ້ງ.",
+  "after_saving_help": "ວ່າການກົດ ບັນທຶກ ຈະເປີດໜ້າແກ້ໄຂຄ້າງໄວ້ ຫຼື ໄປທີ່ລາຍການ.",
+  "top_hits": "ຜົນລັບຍອດນິຍົມ",
+  "show_all_count": "ສະແດງທັງໝົດ :count",
+  "search_list_for": "ຄົ້ນຫາ \":query\" ໃນ :list",
+  "show_results_in_all": "ສະແດງ :count ຜົນລັບໃນ ທັງໝົດ",
+  "search_results_announcement": ":count ຜົນລັບໃນ :categories ໝວດໝູ່",
+  "search_results_at_least_announcement": "ຢ່າງໜ້ອຍ :count ຜົນລັບໃນ :categories ໝວດໝູ່",
+  "search_scope_announcement": ":scope, :count ຜົນລັບ",
+  "search_scope_at_least_announcement": ":scope, ຢ່າງໜ້ອຍ :count ຜົນລັບ"
 }

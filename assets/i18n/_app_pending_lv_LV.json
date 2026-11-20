@@ -2314,5 +2314,18 @@
   "app_info_locale": "Valoda un reģions",
   "app_info_text_direction": "Teksta virziens",
   "app_info_display_features": "Ekrāna īpašības",
-  "app_info_book_posture": "Grāmatas pozīcija"
+  "app_info_book_posture": "Grāmatas pozīcija",
+  "device_settings_subtitle_synced_look": "Tiek glabāts šajā ierīcē. Jūsu motīvs, palete un pielāgotās krāsas tiek sinhronizētas arī ar jūsu kontu.",
+  "device_settings_subtitle_synced_look_web": "Tiek glabāts šajā pārlūkprogrammā. Jūsu motīvs, palete un pielāgotās krāsas tiek sinhronizētas arī ar jūsu kontu.",
+  "synced_with_your_account": "Sinhronizēts ar jūsu kontu",
+  "contacts_changed_while_saving_not_kept": "Saglabāšanas laikā mainītie kontakti netika paturēti. Pievienojiet tos vēlreiz.",
+  "after_saving_help": "Vai Saglabāt atstāj rediģēšanas ekrānu atvērtu vai pāriet uz ierakstu.",
+  "top_hits": "Labākie rezultāti",
+  "show_all_count": "Rādīt visus :count",
+  "search_list_for": "Meklēt “:query” sarakstā :list",
+  "show_results_in_all": "Rādīt rezultātus (:count) cilnē Visi",
+  "search_results_announcement": "Rezultāti: :count, kategorijas: :categories",
+  "search_results_at_least_announcement": "Rezultāti: vismaz :count, kategorijas: :categories",
+  "search_scope_announcement": ":scope, rezultāti: :count",
+  "search_scope_at_least_announcement": ":scope, rezultāti: vismaz :count"
 }

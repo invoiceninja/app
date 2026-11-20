@@ -2230,5 +2230,18 @@
   "app_info_locale": "Definições Regionais",
   "app_info_text_direction": "Direção do Texto",
   "app_info_display_features": "Características do Ecrã",
-  "app_info_book_posture": "Postura de Livro"
+  "app_info_book_posture": "Postura de Livro",
+  "device_settings_subtitle_synced_look": "Guardadas neste dispositivo. O seu tema, paleta e cores personalizadas também são sincronizados com a sua conta.",
+  "device_settings_subtitle_synced_look_web": "Guardadas neste navegador. O seu tema, paleta e cores personalizadas também são sincronizados com a sua conta.",
+  "synced_with_your_account": "Sincronizado com a sua conta",
+  "contacts_changed_while_saving_not_kept": "Os contatos alterados durante a gravação não foram mantidos. Adicione-os novamente.",
+  "after_saving_help": "Define se Guardar mantém o ecrã de edição aberto ou vai para o registo.",
+  "top_hits": "Principais resultados",
+  "show_all_count": "Mostrar todos os :count",
+  "search_list_for": "Pesquisar \":query\" em :list",
+  "show_results_in_all": "Mostrar :count resultados em Todos",
+  "search_results_announcement": ":count resultados em :categories categorias",
+  "search_results_at_least_announcement": "Pelo menos :count resultados em :categories categorias",
+  "search_scope_announcement": ":scope, :count resultados",
+  "search_scope_at_least_announcement": ":scope, pelo menos :count resultados"
 }

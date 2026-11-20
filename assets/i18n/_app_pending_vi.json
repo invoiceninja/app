@@ -2198,5 +2198,18 @@
   "app_info_locale": "Ngôn ngữ và vùng",
   "app_info_text_direction": "Hướng văn bản",
   "app_info_display_features": "Đặc điểm màn hình",
-  "app_info_book_posture": "Tư thế sách"
+  "app_info_book_posture": "Tư thế sách",
+  "device_settings_subtitle_synced_look": "Lưu trên thiết bị này. Giao diện, bảng màu và màu tùy chỉnh của bạn cũng được đồng bộ với tài khoản của bạn.",
+  "device_settings_subtitle_synced_look_web": "Lưu trong trình duyệt này. Giao diện, bảng màu và màu tùy chỉnh của bạn cũng được đồng bộ với tài khoản của bạn.",
+  "synced_with_your_account": "Đã đồng bộ với tài khoản của bạn",
+  "contacts_changed_while_saving_not_kept": "Các liên hệ đã thay đổi trong lúc lưu không được giữ lại. Hãy thêm lại.",
+  "after_saving_help": "Quyết định nút Lưu giữ màn hình chỉnh sửa mở hay chuyển đến hồ sơ.",
+  "top_hits": "Kết quả hàng đầu",
+  "show_all_count": "Hiện tất cả :count",
+  "search_list_for": "Tìm \":query\" trong :list",
+  "show_results_in_all": "Hiện :count kết quả trong Tất cả",
+  "search_results_announcement": ":count kết quả trong :categories danh mục",
+  "search_results_at_least_announcement": "Ít nhất :count kết quả trong :categories danh mục",
+  "search_scope_announcement": ":scope, :count kết quả",
+  "search_scope_at_least_announcement": ":scope, ít nhất :count kết quả"
 }

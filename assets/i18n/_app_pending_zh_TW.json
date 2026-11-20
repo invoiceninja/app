@@ -2230,5 +2230,18 @@
   "app_info_locale": "地區設定",
   "app_info_text_direction": "文字方向",
   "app_info_display_features": "螢幕特性",
-  "app_info_book_posture": "書本姿勢"
+  "app_info_book_posture": "書本姿勢",
+  "device_settings_subtitle_synced_look": "儲存在此裝置上。您的主題、調色盤和自訂顏色也會與您的帳戶同步。",
+  "device_settings_subtitle_synced_look_web": "儲存在此瀏覽器中。您的主題、調色盤和自訂顏色也會與您的帳戶同步。",
+  "synced_with_your_account": "已與您的帳戶同步",
+  "contacts_changed_while_saving_not_kept": "儲存期間變更的聯絡人未被保留。請重新新增。",
+  "after_saving_help": "選擇「儲存」後是保持編輯畫面開啟，還是前往該記錄。",
+  "top_hits": "最佳結果",
+  "show_all_count": "顯示全部 :count 項",
+  "search_list_for": "在 :list 中搜尋「:query」",
+  "show_results_in_all": "在「全部」中顯示 :count 個結果",
+  "search_results_announcement": ":categories 個類別中有 :count 個結果",
+  "search_results_at_least_announcement": ":categories 個類別中至少有 :count 個結果",
+  "search_scope_announcement": ":scope，:count 個結果",
+  "search_scope_at_least_announcement": ":scope，至少 :count 個結果"
 }

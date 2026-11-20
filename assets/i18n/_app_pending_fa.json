@@ -2314,5 +2314,18 @@
   "app_info_locale": "زبان و منطقه",
   "app_info_text_direction": "جهت متن",
   "app_info_display_features": "ویژگی‌های نمایشگر",
-  "app_info_book_posture": "حالت کتابی"
+  "app_info_book_posture": "حالت کتابی",
+  "device_settings_subtitle_synced_look": "روی این دستگاه ذخیره می‌شود. پوسته، پالت و رنگ‌های سفارشی شما نیز با حسابتان همگام‌سازی می‌شوند.",
+  "device_settings_subtitle_synced_look_web": "در این مرورگر ذخیره می‌شود. پوسته، پالت و رنگ‌های سفارشی شما نیز با حسابتان همگام‌سازی می‌شوند.",
+  "synced_with_your_account": "همگام‌شده با حساب شما",
+  "contacts_changed_while_saving_not_kept": "مخاطبینی که هنگام ذخیره تغییر کردند حفظ نشدند. دوباره آن‌ها را اضافه کنید.",
+  "after_saving_help": "اینکه «ذخیره» صفحهٔ ویرایش را باز نگه دارد یا به رکورد برود.",
+  "top_hits": "برترین نتایج",
+  "show_all_count": "نمایش همه :count مورد",
+  "search_list_for": "جستجوی «:query» در :list",
+  "show_results_in_all": "نمایش :count نتیجه در «همه»",
+  "search_results_announcement": ":count نتیجه در :categories دسته",
+  "search_results_at_least_announcement": "دست‌کم :count نتیجه در :categories دسته",
+  "search_scope_announcement": ":scope، :count نتیجه",
+  "search_scope_at_least_announcement": ":scope، دست‌کم :count نتیجه"
 }

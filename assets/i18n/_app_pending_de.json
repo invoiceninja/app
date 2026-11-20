@@ -2314,5 +2314,17 @@
   "app_info_text_direction": "Textrichtung",
   "app_info_display_features": "Display-Merkmale",
   "app_info_book_posture": "Buchmodus",
-  "after_saving_help": "Ob „Speichern“ den Bearbeitungsbildschirm offen lässt oder zum Datensatz wechselt."
+  "after_saving_help": "Ob „Speichern“ den Bearbeitungsbildschirm offen lässt oder zum Datensatz wechselt.",
+  "device_settings_subtitle_synced_look": "Auf diesem Gerät gespeichert. Ihr Design, Ihre Farbpalette und Ihre eigenen Farben werden zusätzlich mit Ihrem Konto synchronisiert.",
+  "device_settings_subtitle_synced_look_web": "In diesem Browser gespeichert. Ihr Design, Ihre Farbpalette und Ihre eigenen Farben werden zusätzlich mit Ihrem Konto synchronisiert.",
+  "synced_with_your_account": "Mit Ihrem Konto synchronisiert",
+  "contacts_changed_while_saving_not_kept": "Während des Speicherns geänderte Kontakte wurden nicht übernommen. Fügen Sie sie erneut hinzu.",
+  "top_hits": "Top-Treffer",
+  "show_all_count": "Alle :count anzeigen",
+  "search_list_for": "„:query“ in :list suchen",
+  "show_results_in_all": "In „Alle“ :count Ergebnisse anzeigen",
+  "search_results_announcement": ":count Ergebnisse in :categories Kategorien",
+  "search_results_at_least_announcement": "Mindestens :count Ergebnisse in :categories Kategorien",
+  "search_scope_announcement": ":scope, :count Ergebnisse",
+  "search_scope_at_least_announcement": ":scope, mindestens :count Ergebnisse"
 }

@@ -2300,5 +2300,18 @@
   "app_info_locale": "Språk och region",
   "app_info_text_direction": "Textriktning",
   "app_info_display_features": "Skärmegenskaper",
-  "app_info_book_posture": "Bokläge"
+  "app_info_book_posture": "Bokläge",
+  "device_settings_subtitle_synced_look": "Sparas på den här enheten. Ditt tema, din palett och dina anpassade färger synkas också med ditt konto.",
+  "device_settings_subtitle_synced_look_web": "Sparas i den här webbläsaren. Ditt tema, din palett och dina anpassade färger synkas också med ditt konto.",
+  "synced_with_your_account": "Synkas med ditt konto",
+  "contacts_changed_while_saving_not_kept": "Kontakter som ändrades under sparandet behölls inte. Lägg till dem igen.",
+  "after_saving_help": "Om Spara håller redigeringsvyn öppen eller går till posten.",
+  "top_hits": "Toppträffar",
+  "show_all_count": "Visa alla :count",
+  "search_list_for": "Sök efter ”:query” i :list",
+  "show_results_in_all": "Visa :count resultat i Alla",
+  "search_results_announcement": ":count resultat i :categories kategorier",
+  "search_results_at_least_announcement": "Minst :count resultat i :categories kategorier",
+  "search_scope_announcement": ":scope, :count resultat",
+  "search_scope_at_least_announcement": ":scope, minst :count resultat"
 }

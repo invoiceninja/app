@@ -2234,5 +2234,18 @@
   "app_info_locale": "Sprog og område",
   "app_info_text_direction": "Tekstretning",
   "app_info_display_features": "Skærmegenskaber",
-  "app_info_book_posture": "Bogposition"
+  "app_info_book_posture": "Bogposition",
+  "device_settings_subtitle_synced_look": "Gemmes på denne enhed. Dit tema, din palet og dine brugerdefinerede farver synkroniseres også med din konto.",
+  "device_settings_subtitle_synced_look_web": "Gemmes i denne browser. Dit tema, din palet og dine brugerdefinerede farver synkroniseres også med din konto.",
+  "synced_with_your_account": "Synkroniseret med din konto",
+  "contacts_changed_while_saving_not_kept": "Kontakter, der blev ændret under gemningen, blev ikke bevaret. Tilføj dem igen.",
+  "after_saving_help": "Om Gem holder redigeringsskærmen åben eller går til posten.",
+  "top_hits": "Topresultater",
+  "show_all_count": "Vis alle :count",
+  "search_list_for": "Søg efter \":query\" i :list",
+  "show_results_in_all": "Vis :count resultater i Alle",
+  "search_results_announcement": ":count resultater i :categories kategorier",
+  "search_results_at_least_announcement": "Mindst :count resultater i :categories kategorier",
+  "search_scope_announcement": ":scope, :count resultater",
+  "search_scope_at_least_announcement": ":scope, mindst :count resultater"
 }

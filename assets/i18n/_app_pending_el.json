@@ -2230,5 +2230,18 @@
   "app_info_locale": "Τοπικές ρυθμίσεις",
   "app_info_text_direction": "Κατεύθυνση κειμένου",
   "app_info_display_features": "Χαρακτηριστικά οθόνης",
-  "app_info_book_posture": "Στάση βιβλίου"
+  "app_info_book_posture": "Στάση βιβλίου",
+  "device_settings_subtitle_synced_look": "Αποθηκεύονται σε αυτή τη συσκευή. Το θέμα, η παλέτα και τα προσαρμοσμένα χρώματα συγχρονίζονται επίσης με τον λογαριασμό σας.",
+  "device_settings_subtitle_synced_look_web": "Αποθηκεύονται σε αυτό το πρόγραμμα περιήγησης. Το θέμα, η παλέτα και τα προσαρμοσμένα χρώματα συγχρονίζονται επίσης με τον λογαριασμό σας.",
+  "synced_with_your_account": "Συγχρονίζεται με τον λογαριασμό σας",
+  "contacts_changed_while_saving_not_kept": "Οι επαφές που άλλαξαν κατά την αποθήκευση δεν διατηρήθηκαν. Προσθέστε τις ξανά.",
+  "after_saving_help": "Αν η Αποθήκευση αφήνει ανοιχτή την οθόνη επεξεργασίας ή μεταβαίνει στην εγγραφή.",
+  "top_hits": "Κορυφαία αποτελέσματα",
+  "show_all_count": "Εμφάνιση όλων (:count)",
+  "search_list_for": "Αναζήτηση για «:query» σε :list",
+  "show_results_in_all": "Εμφάνιση :count αποτελεσμάτων στην καρτέλα Όλα",
+  "search_results_announcement": ":count αποτελέσματα σε :categories κατηγορίες",
+  "search_results_at_least_announcement": "Τουλάχιστον :count αποτελέσματα σε :categories κατηγορίες",
+  "search_scope_announcement": ":scope, :count αποτελέσματα",
+  "search_scope_at_least_announcement": ":scope, τουλάχιστον :count αποτελέσματα"
 }

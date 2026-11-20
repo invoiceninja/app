@@ -2230,5 +2230,18 @@
   "app_info_locale": "Локализация",
   "app_info_text_direction": "Посока на текста",
   "app_info_display_features": "Особености на дисплея",
-  "app_info_book_posture": "Положение „книга“"
+  "app_info_book_posture": "Положение „книга“",
+  "device_settings_subtitle_synced_look": "Съхраняват се на това устройство. Темата, палитрата и персонализираните цветове се синхронизират и с Вашия профил.",
+  "device_settings_subtitle_synced_look_web": "Съхраняват се в този браузър. Темата, палитрата и персонализираните цветове се синхронизират и с Вашия профил.",
+  "synced_with_your_account": "Синхронизира се с Вашия профил",
+  "contacts_changed_while_saving_not_kept": "Контактите, променени по време на запазването, не бяха запазени. Добавете ги отново.",
+  "after_saving_help": "Дали „Запазване“ оставя екрана за редактиране отворен, или отваря записа.",
+  "top_hits": "Най-добри резултати",
+  "show_all_count": "Покажи всички :count",
+  "search_list_for": "Търсене на „:query“ в :list",
+  "show_results_in_all": "Покажи резултатите (:count) във „Всички“",
+  "search_results_announcement": "Резултати: :count в категории: :categories",
+  "search_results_at_least_announcement": "Резултати: поне :count в категории: :categories",
+  "search_scope_announcement": ":scope, резултати: :count",
+  "search_scope_at_least_announcement": ":scope, резултати: поне :count"
 }

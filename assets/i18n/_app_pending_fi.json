@@ -2231,5 +2231,18 @@
   "app_info_locale": "Kieli ja alue",
   "app_info_text_direction": "Tekstin suunta",
   "app_info_display_features": "Näytön ominaisuudet",
-  "app_info_book_posture": "Kirja-asento"
+  "app_info_book_posture": "Kirja-asento",
+  "device_settings_subtitle_synced_look": "Tallennetaan tähän laitteeseen. Teemasi, palettisi ja mukautetut värisi synkronoidaan myös tilillesi.",
+  "device_settings_subtitle_synced_look_web": "Tallennetaan tähän selaimeen. Teemasi, palettisi ja mukautetut värisi synkronoidaan myös tilillesi.",
+  "synced_with_your_account": "Synkronoitu tilillesi",
+  "contacts_changed_while_saving_not_kept": "Tallennuksen aikana muutettuja yhteystietoja ei säilytetty. Lisää ne uudelleen.",
+  "after_saving_help": "Pitääkö Tallenna muokkausnäkymän auki vai siirtyykö se tietueeseen.",
+  "top_hits": "Parhaat osumat",
+  "show_all_count": "Näytä kaikki :count",
+  "search_list_for": "Hae ”:query” luettelosta :list",
+  "show_results_in_all": "Näytä :count tulosta välilehdellä Kaikki",
+  "search_results_announcement": ":count tulosta :categories luokassa",
+  "search_results_at_least_announcement": "Vähintään :count tulosta :categories luokassa",
+  "search_scope_announcement": ":scope, :count tulosta",
+  "search_scope_at_least_announcement": ":scope, vähintään :count tulosta"
 }

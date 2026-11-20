@@ -2229,5 +2229,18 @@
   "app_info_locale": "הגדרות אזור",
   "app_info_text_direction": "כיוון טקסט",
   "app_info_display_features": "תכונות התצוגה",
-  "app_info_book_posture": "תנוחת ספר"
+  "app_info_book_posture": "תנוחת ספר",
+  "device_settings_subtitle_synced_look": "נשמר במכשיר הזה. ערכת הנושא, ערכת הצבעים והצבעים המותאמים אישית שלך מסונכרנים גם עם החשבון שלך.",
+  "device_settings_subtitle_synced_look_web": "נשמר בדפדפן הזה. ערכת הנושא, ערכת הצבעים והצבעים המותאמים אישית שלך מסונכרנים גם עם החשבון שלך.",
+  "synced_with_your_account": "מסונכרן עם החשבון שלך",
+  "contacts_changed_while_saving_not_kept": "אנשי קשר ששונו במהלך השמירה לא נשמרו. הוסף אותם שוב.",
+  "after_saving_help": "האם \"שמור\" משאיר את מסך העריכה פתוח או עובר לרשומה.",
+  "top_hits": "התוצאות המובילות",
+  "show_all_count": "הצג את כל ה-:count",
+  "search_list_for": "חיפוש \":query\" ברשימה :list",
+  "show_results_in_all": "הצג :count תוצאות בלשונית הכל",
+  "search_results_announcement": ":count תוצאות ב-:categories קטגוריות",
+  "search_results_at_least_announcement": "לפחות :count תוצאות ב-:categories קטגוריות",
+  "search_scope_announcement": ":scope, :count תוצאות",
+  "search_scope_at_least_announcement": ":scope, לפחות :count תוצאות"
 }

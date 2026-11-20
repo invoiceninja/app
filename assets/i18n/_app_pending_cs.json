@@ -2313,5 +2313,18 @@
   "app_info_locale": "Národní prostředí",
   "app_info_text_direction": "Směr textu",
   "app_info_display_features": "Prvky displeje",
-  "app_info_book_posture": "Poloha knihy"
+  "app_info_book_posture": "Poloha knihy",
+  "device_settings_subtitle_synced_look": "Uloženo v tomto zařízení. Motiv, paleta a vlastní barvy se navíc synchronizují s vaším účtem.",
+  "device_settings_subtitle_synced_look_web": "Uloženo v tomto prohlížeči. Motiv, paleta a vlastní barvy se navíc synchronizují s vaším účtem.",
+  "synced_with_your_account": "Synchronizováno s vaším účtem",
+  "contacts_changed_while_saving_not_kept": "Kontakty změněné během ukládání nebyly zachovány. Přidejte je znovu.",
+  "after_saving_help": "Zda Uložit ponechá obrazovku úprav otevřenou, nebo přejde na záznam.",
+  "top_hits": "Nejlepší výsledky",
+  "show_all_count": "Zobrazit vše (:count)",
+  "search_list_for": "Hledat „:query“ v seznamu :list",
+  "show_results_in_all": "Zobrazit výsledky (:count) na kartě Vše",
+  "search_results_announcement": "Výsledky: :count v kategoriích: :categories",
+  "search_results_at_least_announcement": "Výsledky: alespoň :count v kategoriích: :categories",
+  "search_scope_announcement": ":scope, výsledky: :count",
+  "search_scope_at_least_announcement": ":scope, výsledky: alespoň :count"
 }

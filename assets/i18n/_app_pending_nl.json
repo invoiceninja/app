@@ -2313,5 +2313,18 @@
   "app_info_locale": "Landinstelling",
   "app_info_text_direction": "Tekstrichting",
   "app_info_display_features": "Schermkenmerken",
-  "app_info_book_posture": "Boekstand"
+  "app_info_book_posture": "Boekstand",
+  "device_settings_subtitle_synced_look": "Op dit apparaat opgeslagen. Uw thema, palet en aangepaste kleuren worden ook met uw account gesynchroniseerd.",
+  "device_settings_subtitle_synced_look_web": "In deze browser opgeslagen. Uw thema, palet en aangepaste kleuren worden ook met uw account gesynchroniseerd.",
+  "synced_with_your_account": "Gesynchroniseerd met uw account",
+  "contacts_changed_while_saving_not_kept": "Contactpersonen die tijdens het opslaan zijn gewijzigd, zijn niet bewaard. Voeg ze opnieuw toe.",
+  "after_saving_help": "Of Opslaan het bewerkingsscherm open laat of naar het record gaat.",
+  "top_hits": "Topresultaten",
+  "show_all_count": "Alle :count tonen",
+  "search_list_for": "\":query\" zoeken in :list",
+  "show_results_in_all": ":count resultaten tonen in Alles",
+  "search_results_announcement": ":count resultaten in :categories categorieën",
+  "search_results_at_least_announcement": "Minstens :count resultaten in :categories categorieën",
+  "search_scope_announcement": ":scope, :count resultaten",
+  "search_scope_at_least_announcement": ":scope, minstens :count resultaten"
 }

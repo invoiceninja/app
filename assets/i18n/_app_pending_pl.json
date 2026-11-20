@@ -2231,5 +2231,18 @@
   "app_info_locale": "Ustawienia regionalne",
   "app_info_text_direction": "Kierunek tekstu",
   "app_info_display_features": "Cechy wyświetlacza",
-  "app_info_book_posture": "Pozycja książki"
+  "app_info_book_posture": "Pozycja książki",
+  "device_settings_subtitle_synced_look": "Przechowywane na tym urządzeniu. Motyw, paleta i niestandardowe kolory są też synchronizowane z Twoim kontem.",
+  "device_settings_subtitle_synced_look_web": "Przechowywane w tej przeglądarce. Motyw, paleta i niestandardowe kolory są też synchronizowane z Twoim kontem.",
+  "synced_with_your_account": "Synchronizowane z Twoim kontem",
+  "contacts_changed_while_saving_not_kept": "Kontakty zmienione podczas zapisywania nie zostały zachowane. Dodaj je ponownie.",
+  "after_saving_help": "Czy Zapisz pozostawia ekran edycji otwarty, czy przechodzi do rekordu.",
+  "top_hits": "Najlepsze wyniki",
+  "show_all_count": "Pokaż wszystkie (:count)",
+  "search_list_for": "Szukaj „:query” na liście :list",
+  "show_results_in_all": "Pokaż wyniki (:count) na karcie Wszystko",
+  "search_results_announcement": "Wyniki: :count w kategoriach: :categories",
+  "search_results_at_least_announcement": "Wyniki: co najmniej :count w kategoriach: :categories",
+  "search_scope_announcement": ":scope, wyniki: :count",
+  "search_scope_at_least_announcement": ":scope, wyniki: co najmniej :count"
 }

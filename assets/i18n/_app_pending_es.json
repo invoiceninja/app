@@ -2313,5 +2313,18 @@
   "app_info_locale": "Configuración regional",
   "app_info_text_direction": "Dirección del texto",
   "app_info_display_features": "Características de la pantalla",
-  "app_info_book_posture": "Postura de libro"
+  "app_info_book_posture": "Postura de libro",
+  "device_settings_subtitle_synced_look": "Se guarda en este dispositivo. Su tema, paleta y colores personalizados también se sincronizan con su cuenta.",
+  "device_settings_subtitle_synced_look_web": "Se guarda en este navegador. Su tema, paleta y colores personalizados también se sincronizan con su cuenta.",
+  "synced_with_your_account": "Sincronizado con su cuenta",
+  "contacts_changed_while_saving_not_kept": "Los contactos modificados durante el guardado no se conservaron. Vuelva a agregarlos.",
+  "after_saving_help": "Si Guardar mantiene abierta la pantalla de edición o va al registro.",
+  "top_hits": "Mejores resultados",
+  "show_all_count": "Mostrar los :count",
+  "search_list_for": "Buscar \":query\" en :list",
+  "show_results_in_all": "Mostrar :count resultados en Todo",
+  "search_results_announcement": ":count resultados en :categories categorías",
+  "search_results_at_least_announcement": "Al menos :count resultados en :categories categorías",
+  "search_scope_announcement": ":scope, :count resultados",
+  "search_scope_at_least_announcement": ":scope, al menos :count resultados"
 }

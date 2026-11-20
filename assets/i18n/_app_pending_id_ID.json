@@ -2231,5 +2231,18 @@
   "app_info_locale": "Lokal",
   "app_info_text_direction": "Arah teks",
   "app_info_display_features": "Fitur layar",
-  "app_info_book_posture": "Postur buku"
+  "app_info_book_posture": "Postur buku",
+  "device_settings_subtitle_synced_look": "Disimpan di perangkat ini. Tema, palet, dan warna kustom Anda juga disinkronkan dengan akun Anda.",
+  "device_settings_subtitle_synced_look_web": "Disimpan di browser ini. Tema, palet, dan warna kustom Anda juga disinkronkan dengan akun Anda.",
+  "synced_with_your_account": "Disinkronkan dengan akun Anda",
+  "contacts_changed_while_saving_not_kept": "Kontak yang diubah saat menyimpan tidak dipertahankan. Tambahkan kembali.",
+  "after_saving_help": "Apakah Simpan tetap membuka layar edit atau beralih ke catatan.",
+  "top_hits": "Hasil teratas",
+  "show_all_count": "Tampilkan semua :count",
+  "search_list_for": "Cari \":query\" di :list",
+  "show_results_in_all": "Tampilkan :count hasil di Semua",
+  "search_results_announcement": ":count hasil dalam :categories kategori",
+  "search_results_at_least_announcement": "Setidaknya :count hasil dalam :categories kategori",
+  "search_scope_announcement": ":scope, :count hasil",
+  "search_scope_at_least_announcement": ":scope, setidaknya :count hasil"
 }

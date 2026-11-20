@@ -2313,5 +2313,18 @@
   "app_info_locale": "ロケール",
   "app_info_text_direction": "文字の方向",
   "app_info_display_features": "ディスプレイの特徴",
-  "app_info_book_posture": "ブック姿勢"
+  "app_info_book_posture": "ブック姿勢",
+  "device_settings_subtitle_synced_look": "このデバイスに保存されます。テーマ、パレット、カスタムカラーはアカウントとも同期されます。",
+  "device_settings_subtitle_synced_look_web": "このブラウザに保存されます。テーマ、パレット、カスタムカラーはアカウントとも同期されます。",
+  "synced_with_your_account": "アカウントと同期済み",
+  "contacts_changed_while_saving_not_kept": "保存中に変更されたコンタクトは保持されませんでした。もう一度追加してください。",
+  "after_saving_help": "「保存」で編集画面を開いたままにするか、レコードに移動するかを指定します。",
+  "top_hits": "トップヒット",
+  "show_all_count": ":count 件すべて表示",
+  "search_list_for": ":list で「:query」を検索",
+  "show_results_in_all": "「全て」で :count 件の結果を表示",
+  "search_results_announcement": ":categories 個のカテゴリに :count 件の結果",
+  "search_results_at_least_announcement": ":categories 個のカテゴリに :count 件以上の結果",
+  "search_scope_announcement": ":scope、:count 件の結果",
+  "search_scope_at_least_announcement": ":scope、:count 件以上の結果"
 }

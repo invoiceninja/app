@@ -2230,5 +2230,18 @@
   "app_info_locale": "Keel ja piirkond",
   "app_info_text_direction": "Teksti suund",
   "app_info_display_features": "Ekraani omadused",
-  "app_info_book_posture": "Raamatuasend"
+  "app_info_book_posture": "Raamatuasend",
+  "device_settings_subtitle_synced_look": "Salvestatakse sellesse seadmesse. Teie teema, palett ja kohandatud värvid sünkroonitakse ka teie kontoga.",
+  "device_settings_subtitle_synced_look_web": "Salvestatakse sellesse brauserisse. Teie teema, palett ja kohandatud värvid sünkroonitakse ka teie kontoga.",
+  "synced_with_your_account": "Sünkroonitud teie kontoga",
+  "contacts_changed_while_saving_not_kept": "Salvestamise ajal muudetud kontakte ei säilitatud. Lisage need uuesti.",
+  "after_saving_help": "Kas Salvesta jätab muutmisvaate avatuks või avab kirje.",
+  "top_hits": "Parimad vasted",
+  "show_all_count": "Näita kõiki :count",
+  "search_list_for": "Otsi loendist :list „:query“",
+  "show_results_in_all": "Näita :count tulemust vaates Kõik",
+  "search_results_announcement": "Tulemusi: :count, kategooriaid: :categories",
+  "search_results_at_least_announcement": "Tulemusi vähemalt :count, kategooriaid: :categories",
+  "search_scope_announcement": ":scope, tulemusi: :count",
+  "search_scope_at_least_announcement": ":scope, tulemusi vähemalt :count"
 }

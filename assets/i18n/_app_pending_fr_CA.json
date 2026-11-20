@@ -2201,5 +2201,18 @@
   "app_info_locale": "Langue et région",
   "app_info_text_direction": "Sens du texte",
   "app_info_display_features": "Particularités de l'écran",
-  "app_info_book_posture": "Position livre"
+  "app_info_book_posture": "Position livre",
+  "device_settings_subtitle_synced_look": "Enregistrés sur cet appareil. Votre thème, votre palette et vos couleurs personnalisées sont aussi synchronisés avec votre compte.",
+  "device_settings_subtitle_synced_look_web": "Enregistrés dans ce navigateur. Votre thème, votre palette et vos couleurs personnalisées sont aussi synchronisés avec votre compte.",
+  "synced_with_your_account": "Synchronisé avec votre compte",
+  "contacts_changed_while_saving_not_kept": "Les contacts modifiés pendant la sauvegarde n'ont pas été conservés. Ajoutez-les de nouveau.",
+  "after_saving_help": "Indique si Sauvegarder garde l'écran de modification ouvert ou ouvre l'enregistrement.",
+  "top_hits": "Meilleurs résultats",
+  "show_all_count": "Afficher les :count",
+  "search_list_for": "Rechercher « :query » dans :list",
+  "show_results_in_all": "Afficher les :count résultats dans Tous",
+  "search_results_announcement": ":count résultats dans :categories catégories",
+  "search_results_at_least_announcement": "Au moins :count résultats dans :categories catégories",
+  "search_scope_announcement": ":scope, :count résultats",
+  "search_scope_at_least_announcement": ":scope, au moins :count résultats"
 }

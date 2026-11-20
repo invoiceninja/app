@@ -2268,5 +2268,18 @@
   "app_info_locale": "Területi beállítás",
   "app_info_text_direction": "Szövegirány",
   "app_info_display_features": "Kijelzőjellemzők",
-  "app_info_book_posture": "Könyvállás"
+  "app_info_book_posture": "Könyvállás",
+  "device_settings_subtitle_synced_look": "Ezen az eszközön tárolódik. A téma, a paletta és az egyéni színek a fiókjával is szinkronizálódnak.",
+  "device_settings_subtitle_synced_look_web": "Ebben a böngészőben tárolódik. A téma, a paletta és az egyéni színek a fiókjával is szinkronizálódnak.",
+  "synced_with_your_account": "Szinkronizálva a fiókjával",
+  "contacts_changed_while_saving_not_kept": "A mentés közben módosított kapcsolatok nem maradtak meg. Adja hozzá őket újra.",
+  "after_saving_help": "Azt határozza meg, hogy a Mentés nyitva hagyja-e a szerkesztőképernyőt, vagy a rekordra lép.",
+  "top_hits": "Legjobb találatok",
+  "show_all_count": "Összes (:count) megjelenítése",
+  "search_list_for": "„:query” keresése itt: :list",
+  "show_results_in_all": ":count találat megjelenítése az Összes lapon",
+  "search_results_announcement": ":count találat :categories kategóriában",
+  "search_results_at_least_announcement": "Legalább :count találat :categories kategóriában",
+  "search_scope_announcement": ":scope, :count találat",
+  "search_scope_at_least_announcement": ":scope, legalább :count találat"
 }

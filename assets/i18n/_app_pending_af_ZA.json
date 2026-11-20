@@ -2230,5 +2230,18 @@
   "app_info_locale": "Taal en streek",
   "app_info_text_direction": "Teksrigting",
   "app_info_display_features": "Skermkenmerke",
-  "app_info_book_posture": "Boekposisie"
+  "app_info_book_posture": "Boekposisie",
+  "device_settings_subtitle_synced_look": "Op hierdie toestel gestoor. Jou tema, palet en pasgemaakte kleure sinkroniseer ook met jou rekening.",
+  "device_settings_subtitle_synced_look_web": "In hierdie blaaier gestoor. Jou tema, palet en pasgemaakte kleure sinkroniseer ook met jou rekening.",
+  "synced_with_your_account": "Met jou rekening gesinkroniseer",
+  "contacts_changed_while_saving_not_kept": "Kontakte wat tydens die stoor verander is, is nie behou nie. Voeg hulle weer by.",
+  "after_saving_help": "Of Stoor die redigeerskerm oop hou of na die rekord gaan.",
+  "top_hits": "Topresultate",
+  "show_all_count": "Wys al :count",
+  "search_list_for": "Soek in :list na \":query\"",
+  "show_results_in_all": "Wys :count resultate in Alles",
+  "search_results_announcement": ":count resultate in :categories kategorieë",
+  "search_results_at_least_announcement": "Minstens :count resultate in :categories kategorieë",
+  "search_scope_announcement": ":scope, :count resultate",
+  "search_scope_at_least_announcement": ":scope, minstens :count resultate"
 }
