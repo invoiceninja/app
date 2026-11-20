@@ -13,9 +13,18 @@
 // ?renderer=canvaskit forces the JavaScript build and is remembered on this
 // browser (localStorage invoiceninja.web.renderer.v1); ?renderer=auto forgets
 // it. index.html's 30-second boot watchdog sets the same key when a
-// WebAssembly boot never painted, so the next load tries CanvasKit.
+// WebAssembly boot never painted, so the next load tries CanvasKit, but only
+// for this deploy: its value names the build (inBuildTag), and a new deploy
+// tries WebAssembly again.
 // docs/web-platform-differences.md § A browser that crashes on WebAssembly
 // has a way back.
+// Names this deploy: the bootstrap's cache-busted URL and the page's base.
+// index.html computes the same tag for the watchdog's fallback.
+function inBuildTag() {
+  var s = document.querySelector('script[src*="flutter_bootstrap.js"]');
+  return 'watchdog ' + (s ? s.src : '') + ' ' + document.baseURI;
+}
+
 function inRendererConfig() {
   var key = 'invoiceninja.web.renderer.v1';
   var asked = null;
@@ -33,7 +42,11 @@ function inRendererConfig() {
   try {
     if (asked === 'canvaskit') localStorage.setItem(key, 'canvaskit');
     else if (asked === 'auto') localStorage.removeItem(key);
-    else if (localStorage.getItem(key) === 'canvaskit') forced = 'canvaskit';
+    else {
+      var stored = localStorage.getItem(key);
+      if (stored === 'canvaskit' || stored === inBuildTag()) forced = 'canvaskit';
+      else if (stored) localStorage.removeItem(key);
+    }
   } catch (e) {}
   return forced ? {renderer: forced} : {};
 }

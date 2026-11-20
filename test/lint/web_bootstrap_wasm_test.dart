@@ -71,12 +71,27 @@ void main() {
     test('the watchdog pins a WebAssembly boot that never painted', () {
       expect(index, contains("var RENDERER_KEY = '$key';"));
       expect(index, contains('if (bootIsWasm())'));
+      // Pinned for this deploy only: the value names the build ...
       expect(
         index,
-        contains("localStorage.setItem(RENDERER_KEY, 'canvaskit')"),
+        contains('localStorage.setItem(RENDERER_KEY, watchdogTag())'),
       );
-      // ... and unpins it if that boot paints after all.
+      // ... and unpinned if that boot paints after all.
       expect(index, contains('localStorage.removeItem(RENDERER_KEY)'));
+    });
+
+    test('a watchdog fallback lasts only for the deploy that set it', () {
+      // index.html and flutter_bootstrap.js name the deploy the same way,
+      // and the bootstrap drops a fallback another deploy set.
+      const tag =
+          "return 'watchdog ' + (s ? s.src : '') + ' ' + document.baseURI;";
+      expect(index, contains(tag));
+      expect(bootstrap, contains(tag));
+      expect(bootstrap, contains('stored === inBuildTag()'));
+      expect(
+        bootstrap,
+        contains('else if (stored) localStorage.removeItem(key)'),
+      );
     });
   });
 

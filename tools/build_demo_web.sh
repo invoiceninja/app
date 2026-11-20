@@ -34,7 +34,8 @@ flutter build web --wasm --release \
   --no-web-resources-cdn \
   --pwa-strategy=none \
   --base-href /admin/ \
-  --dart-define=IN_DEMO_API_TOKEN=TOKEN
+  --dart-define=IN_DEMO_API_TOKEN=TOKEN \
+  --dart-define=IN_GIT_COMMIT="$(git rev-parse --short HEAD)"
 
 # Cache-bust the app entrypoints so a single browser refresh picks up a new
 # deploy. GitHub Pages serves every file with `Cache-Control: max-age=600` and

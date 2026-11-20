@@ -220,13 +220,23 @@
       // JavaScript build (docs/web-platform-differences.md).
       var RENDERER_KEY = 'invoiceninja.web.renderer.v1';
       var pinnedByWatchdog = false;
+      // The fallback holds for this deploy only, the same tag
+      // flutter_bootstrap.js (inBuildTag) checks before honouring it.
+      function watchdogTag() {
+        var s = document.querySelector('script[src*="flutter_bootstrap.js"]');
+        return 'watchdog ' + (s ? s.src : '') + ' ' + document.baseURI;
+      }
       window.addEventListener('flutter-first-frame', function () {
         painted = true;
         // Read by Deploy to Web's boot smoke (docs/web-deploy.md).
         window.__flutterFirstFrame = true;
         // A slow boot that painted after all was not a WebAssembly crash.
         if (pinnedByWatchdog) {
-          try { localStorage.removeItem(RENDERER_KEY); } catch (e) {}
+          try {
+            if (localStorage.getItem(RENDERER_KEY) === watchdogTag()) {
+              localStorage.removeItem(RENDERER_KEY);
+            }
+          } catch (e) {}
         }
         var el = document.getElementById('loader');
         if (el && el.parentNode) el.parentNode.removeChild(el);
@@ -254,7 +264,7 @@
         if (painted) return;
         if (bootIsWasm()) {
           try {
-            localStorage.setItem(RENDERER_KEY, 'canvaskit');
+            localStorage.setItem(RENDERER_KEY, watchdogTag());
             pinnedByWatchdog = true;
           } catch (e) {}
         }
