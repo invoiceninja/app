@@ -2329,5 +2329,7 @@
   "search_scope_at_least_announcement": ":scope, mindestens :count Ergebnisse",
   "session_ended_sign_in_again": "Ihre Sitzung wurde beendet. Melden Sie sich erneut an; Ihre Daten und nicht synchronisierten Änderungen bleiben erhalten.",
   "line_item_category_taxes_calculated_on_save": "Steuern auf Positionen mit einer Steuerkategorie werden beim Speichern berechnet.",
-  "use_tax_category": "Steuerkategorie verwenden"
+  "use_tax_category": "Steuerkategorie verwenden",
+  "not_sent_session_ended": "Nicht gesendet: Die Sitzung wurde beendet, bevor der Server diese Änderung erhalten hat.",
+  "not_sent_check_then_resend": "Der Datensatz wurde inzwischen möglicherweise an anderer Stelle geändert, daher wird die Änderung nicht automatisch gesendet. Prüfen Sie den Datensatz und senden Sie die Änderung dann erneut oder verwerfen Sie sie."
 }

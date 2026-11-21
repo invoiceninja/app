@@ -13,6 +13,7 @@ import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/app/theme.dart';
 import 'package:admin/data/db/app_database.dart';
+import 'package:admin/data/db/dao/outbox_dao.dart' show kDeadTokenNotSentError;
 import 'package:admin/data/repositories/auth_repository.dart';
 import 'package:admin/data/repositories/sync_repository.dart';
 import 'package:admin/domain/entity_registry.dart';
@@ -149,21 +150,24 @@ void main() {
     await db.close();
   });
 
-  Future<int> seed({required String kind, required String entityId}) =>
-      db.outboxDao.enqueue(
-        OutboxCompanion.insert(
-          companyId: 'co',
-          entityType: 'client',
-          entityId: entityId,
-          mutationKind: kind,
-          payload: jsonEncode({'id': entityId}),
-          idempotencyKey: 'k-$kind',
-          nextAttemptAt: 0,
-          createdAt: 0,
-          state: const Value('unconfirmed'),
-          lastError: const Value('Connection reset by peer'),
-        ),
-      );
+  Future<int> seed({
+    required String kind,
+    required String entityId,
+    String lastError = 'Connection reset by peer',
+  }) => db.outboxDao.enqueue(
+    OutboxCompanion.insert(
+      companyId: 'co',
+      entityType: 'client',
+      entityId: entityId,
+      mutationKind: kind,
+      payload: jsonEncode({'id': entityId}),
+      idempotencyKey: 'k-$kind',
+      nextAttemptAt: 0,
+      createdAt: 0,
+      state: const Value('unconfirmed'),
+      lastError: Value(lastError),
+    ),
+  );
 
   Widget host() => MultiProvider(
     providers: [
@@ -217,6 +221,30 @@ void main() {
     await tester.pumpWidget(const SizedBox());
     await tester.pump(const Duration(milliseconds: 10));
   }
+
+  // A change a dead token stopped (`reviveDeadTokenRows`) never reached the
+  // server: "may have gone through" would invite a Discard.
+  testWidgets('a change a dead token stopped says it was not sent', (
+    tester,
+  ) async {
+    await seed(
+      kind: 'update',
+      entityId: 'c1',
+      lastError: kDeadTokenNotSentError,
+    );
+    await tester.pumpWidget(host());
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text(
+        'Not sent: the session ended before the server saw this change.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.textContaining('Check the record, then resend'), findsOne);
+    expect(find.textContaining("won't be sent again on its own"), findsNothing);
+    await teardownTree(tester);
+  });
 
   testWidgets('says what it is and what to do, and offers Check and Resend — '
       'never Retry', (tester) async {

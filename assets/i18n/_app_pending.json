@@ -2329,5 +2329,7 @@
   "search_scope_at_least_announcement": ":scope, at least :count results",
   "session_ended_sign_in_again": "Your session has ended. Sign in again; your data and unsynced changes are kept.",
   "line_item_category_taxes_calculated_on_save": "Taxes on lines with a tax category are calculated when you save.",
-  "use_tax_category": "Use a tax category"
+  "use_tax_category": "Use a tax category",
+  "not_sent_session_ended": "Not sent: the session ended before the server saw this change.",
+  "not_sent_check_then_resend": "It may have been changed elsewhere since, so it won't be sent on its own. Check the record, then resend or discard this change."
 }

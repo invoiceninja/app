@@ -2247,5 +2247,7 @@
   "search_scope_at_least_announcement": ":scope, wyniki: co najmniej :count",
   "session_ended_sign_in_again": "Twoja sesja została zakończona. Zaloguj się ponownie; Twoje dane i niezsynchronizowane zmiany zostały zachowane.",
   "line_item_category_taxes_calculated_on_save": "Podatki od pozycji z kategorią podatkową są obliczane podczas zapisywania.",
-  "use_tax_category": "Użyj kategorii podatku"
+  "use_tax_category": "Użyj kategorii podatku",
+  "not_sent_session_ended": "Nie wysłano: sesja zakończyła się, zanim serwer otrzymał tę zmianę.",
+  "not_sent_check_then_resend": "Rekord mógł zostać od tego czasu zmieniony gdzie indziej, więc zmiana nie zostanie wysłana automatycznie. Sprawdź rekord, a następnie wyślij ponownie lub odrzuć tę zmianę."
 }

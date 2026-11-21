@@ -229,6 +229,42 @@ void main() {
       expect(discarded, 1);
     });
 
+    // A change a dead token stopped (`reviveDeadTokenRows`) never reached
+    // the server: "may already have gone through" would invite a Discard.
+    testWidgets('a save a dead token stopped says it was not sent', (
+      tester,
+    ) async {
+      final vm = _FakeVm()
+        ..applyUnconfirmed(
+          rowId: 7,
+          isSave: true,
+          message: kDeadTokenNotSentError,
+        );
+      await pumpAt(
+        tester,
+        800,
+        Provider<Services>.value(
+          value: _FakeServices(),
+          child: SaveFailedBanner(
+            vm: vm,
+            onDiscard: () async {},
+            onRetry: () async {},
+          ),
+        ),
+      );
+
+      expect(
+        find.text(
+          'Not sent: the session ended before the server saw this change.',
+        ),
+        findsOne,
+      );
+      expect(find.textContaining('Check the record, then resend'), findsOne);
+      expect(find.text('A change may already have gone through'), findsNothing);
+      expect(find.text('Check'), findsOneWidget);
+      expect(find.text('Resend'), findsOneWidget);
+    });
+
     testWidgets('another change it waits behind is pointed to, not acted on', (
       tester,
     ) async {

@@ -478,7 +478,9 @@ class AuthRepository {
         baseUrl.isNotEmpty &&
         canonicalBaseUrl(storedBaseUrl) != canonicalBaseUrl(baseUrl);
     if (!userChanged && !serverChanged) {
-      await _reviveRowsKilledByDeadToken();
+      // Only with an identity on record: an install from before the user id
+      // was stored cannot prove these rows are this user's.
+      if (storedUserId.isNotEmpty) await _reviveRowsKilledByDeadToken();
       return;
     }
     _log.warning(
@@ -495,34 +497,45 @@ class AuthRepository {
   /// The same identity is signing back in: bring back what a dead token
   /// killed. Before 5.1.33 a 403 "Invalid token" was a plain 4xx, so the drain
   /// marked the row `dead` (`SyncRepository`'s `ServerException` arm) instead
-  /// of parking it for after the sign-in. That 403 refused the token, not the
-  /// change. A create, an upload or a comment goes back in line — and, for a
-  /// `tmp_` create, the uploads its death took down with it (as the Outbox's
-  /// Retry does); anything that could overwrite a newer server edit waits for
-  /// the user as `unconfirmed` ([OutboxDao.reviveDeadTokenRows]). Best-effort:
-  /// a failure here must not fail the sign-in.
+  /// of parking it for after the sign-in — and failed every row that
+  /// referenced a dead `tmp_` create. That 403 refused the token, not the
+  /// change. A comment or an upload goes back in line; anything that could
+  /// overwrite newer server edits or make a duplicate waits for the user as
+  /// `unconfirmed` ([OutboxDao.reviveDeadTokenRows]). A revived `tmp_`
+  /// create's dependents come back in its state, recursively, so none is ever
+  /// sent before it ([OutboxDao.reviveDependentsOfDeadTokenCreate]).
+  /// Best-effort: a failure here must not fail the sign-in.
   Future<void> _reviveRowsKilledByDeadToken() async {
     try {
       final now = DateTime.now().millisecondsSinceEpoch;
       final revived = await _db.outboxDao.reviveDeadTokenRows(now: now);
-      for (final row in revived) {
-        if (row.mutationKind == MutationKind.create.wireName &&
-            row.entityId.startsWith('tmp_')) {
-          await _db.outboxDao.retryDeadUploadsFor(
-            companyId: row.companyId,
-            entityType: row.entityType,
-            entityId: row.entityId,
-            now: now,
-          );
+      final queue = [...revived];
+      final seen = <String>{};
+      var dependents = 0;
+      while (queue.isNotEmpty) {
+        final row = queue.removeAt(0);
+        if (row.mutationKind != MutationKind.create.wireName ||
+            !row.entityId.startsWith('tmp_') ||
+            !seen.add('${row.companyId}/${row.entityId}')) {
+          continue;
         }
+        final deps = await _db.outboxDao.reviveDependentsOfDeadTokenCreate(
+          companyId: row.companyId,
+          parentTmpId: row.entityId,
+          parentState: row.state,
+          now: now,
+        );
+        dependents += deps.length;
+        queue.addAll(deps);
       }
       if (revived.isNotEmpty) {
         _log.info(
-          'Re-queued ${revived.length} outbox row(s) a dead token had failed',
+          'Brought back ${revived.length} outbox row(s) a dead token had '
+          'failed, and $dependents that depended on them',
         );
       }
     } catch (e, st) {
-      _log.warning('Could not re-queue rows a dead token had failed', e, st);
+      _log.warning('Could not bring back rows a dead token had failed', e, st);
     }
   }
 

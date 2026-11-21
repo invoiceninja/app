@@ -2246,5 +2246,7 @@
   "search_scope_at_least_announcement": ":scope，至少 :count 個結果",
   "session_ended_sign_in_again": "您的工作階段已結束。請重新登入；您的資料和未同步的變更都會保留。",
   "line_item_category_taxes_calculated_on_save": "儲存時將計算設有稅種之明細的稅額。",
-  "use_tax_category": "使用稅種"
+  "use_tax_category": "使用稅種",
+  "not_sent_session_ended": "未傳送：伺服器收到此變更之前工作階段已結束。",
+  "not_sent_check_then_resend": "此後它可能已在其他地方被變更，因此不會自動傳送。請檢查該記錄，然後重新傳送或捨棄此變更。"
 }

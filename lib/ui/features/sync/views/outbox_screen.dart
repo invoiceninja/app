@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/data/db/app_database.dart';
+import 'package:admin/data/db/dao/outbox_dao.dart' show isDeadTokenNotSent;
 import 'package:admin/data/repositories/auth_repository.dart';
 import 'package:admin/data/repositories/sync_repository.dart'
     show isCreateOfExistingRecord, isReplacedCreate, kOldFailureAge;
@@ -413,17 +414,26 @@ class _OutboxTile extends StatelessWidget {
                 ],
               ),
               // What the state asks of the user, above the technical reason.
+              // A change a dead token stopped was never sent
+              // (`reviveDeadTokenRows`): "may have gone through" would invite
+              // a Discard.
               if (row.state == 'unconfirmed') ...[
                 const SizedBox(height: InSpacing.sm),
                 Text(
-                  context.tr('may_have_been_sent_help'),
+                  context.tr(
+                    isDeadTokenNotSent(row.lastError)
+                        ? 'not_sent_check_then_resend'
+                        : 'may_have_been_sent_help',
+                  ),
                   style: TextStyle(color: tokens.ink2, fontSize: 12),
                 ),
               ],
               if (row.lastError != null && row.lastError!.isNotEmpty) ...[
                 const SizedBox(height: InSpacing.sm),
                 Text(
-                  row.lastError!,
+                  isDeadTokenNotSent(row.lastError)
+                      ? context.tr('not_sent_session_ended')
+                      : row.lastError!,
                   style: TextStyle(color: tokens.overdue, fontSize: 12),
                 ),
               ],

@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:admin/data/db/app_database.dart';
+import 'package:admin/data/db/dao/outbox_dao.dart'
+    show kDeadTokenNotSentError, kParentFailedError;
 import 'package:admin/data/models/api/login_response_api_model.dart';
 import 'package:admin/data/models/api/user_api_model.dart';
 import 'package:admin/data/repositories/auth/auth_helpers.dart';
@@ -4620,36 +4622,37 @@ void main() {
     }
 
     // Before 5.1.33 the drain marked a row `dead` on a 403 "Invalid token" —
-    // a plain 4xx then. That refused the token, not the change. But the token
-    // was rotated because the user signed in elsewhere, likely editing the
-    // same records there: an old update re-sent on its own would overwrite
-    // those edits, so it waits for the user.
-    test('the same user signing back in brings back what a dead token '
-        'killed: creates, uploads and comments to pending, the rest to '
-        'unconfirmed', () async {
-      Future<void> row(
-        String key, {
-        String companyId = 'co_a',
-        String kind = 'update',
-        String entityId = 'cl_1',
-        int? status = 403,
-        String? error = 'Invalid token',
-      }) => db.outboxDao.enqueue(
-        OutboxCompanion.insert(
-          companyId: companyId,
-          entityType: 'client',
-          entityId: entityId,
-          mutationKind: kind,
-          payload: '{}',
-          idempotencyKey: key,
-          nextAttemptAt: 0,
-          createdAt: 1,
-          state: const Value('dead'),
-          attempts: const Value(3),
-          lastStatusCode: Value(status),
-          lastError: Value(error),
-        ),
-      );
+    // a plain 4xx then — and failed every row that referenced a dead `tmp_`
+    // create. That 403 refused the token, not the change. But the token was
+    // rotated because the user signed in elsewhere, likely redoing the work
+    // there: an old update re-sent on its own would overwrite those edits,
+    // and an old create would make a duplicate, so both wait for the user.
+    Future<void> deadRow(
+      String key, {
+      String companyId = 'co_a',
+      String kind = 'update',
+      String entityId = 'cl_1',
+      String payload = '{}',
+      int? status = 403,
+      String? error = 'Invalid token',
+    }) => db.outboxDao.enqueue(
+      OutboxCompanion.insert(
+        companyId: companyId,
+        entityType: 'client',
+        entityId: entityId,
+        mutationKind: kind,
+        payload: payload,
+        idempotencyKey: key,
+        nextAttemptAt: 0,
+        createdAt: 1,
+        state: const Value('dead'),
+        attempts: const Value(3),
+        lastStatusCode: Value(status),
+        lastError: Value(error),
+      ),
+    );
+
+    Future<void> signIn() async {
       authService.queueLogin(
         _envelope(user: const UserSummaryApi(id: 'user_a')),
       );
@@ -4659,60 +4662,125 @@ void main() {
         email: 'a@example.com',
         password: 'pw',
       );
-      await row('update');
-      await row('archive', kind: 'archive', error: 'Invalid Token');
-      await row('create', kind: 'create', entityId: 'tmp_1');
-      // Taken down by its create's death, with words of its own.
-      await row(
-        'upload_of_create',
-        kind: MutationKind.documentUpload.wireName,
-        entityId: 'tmp_1',
-        status: null,
-        error: 'The record this belonged to could not be created',
-      );
-      await row('comment', kind: MutationKind.addComment.wireName);
-      await row('inactive', error: 'User inactive');
-      await row('validation', status: 422, error: 'invalid token');
-      await row('b_update', companyId: 'co_b');
-      await row(
-        'b_create',
-        companyId: 'co_b',
-        kind: 'create',
-        entityId: 'tmp_b',
-      );
+    }
+
+    Future<Map<String, OutboxRow>> rowsByKey() async => {
+      for (final r in await db.select(db.outbox).get()) r.idempotencyKey: r,
+    };
+
+    test(
+      'the same user signing back in brings back what a dead token '
+      'killed: comments and uploads to pending, everything else — creates '
+      'too — to unconfirmed, and a create\'s dependents in its state',
+      () async {
+        await signIn();
+        await deadRow('update');
+        await deadRow('archive', kind: 'archive', error: 'Invalid Token');
+        await deadRow('create', kind: 'create', entityId: 'tmp_1');
+        // 5.1.32 failed these when tmp_1's create died: an upload of the record
+        // itself, an invoice naming it, and that invoice's own dependent.
+        const parentFailed = kParentFailedError;
+        await deadRow(
+          'upload_of_create',
+          kind: MutationKind.documentUpload.wireName,
+          entityId: 'tmp_1',
+          payload: '{"id":"tmp_1"}',
+          status: null,
+          error: parentFailed,
+        );
+        await deadRow(
+          'invoice_of_create',
+          kind: 'create',
+          entityId: 'tmp_2',
+          payload: '{"client_id":"tmp_1"}',
+          status: null,
+          error: parentFailed,
+        );
+        await deadRow(
+          'payment_of_invoice',
+          kind: 'create',
+          entityId: 'tmp_3',
+          payload: '{"invoice_id":"tmp_2"}',
+          status: null,
+          error: parentFailed,
+        );
+        // Failed by a different create, which no dead token killed.
+        await deadRow(
+          'unrelated_dependent',
+          kind: 'create',
+          entityId: 'tmp_8',
+          payload: '{"client_id":"tmp_9"}',
+          status: null,
+          error: parentFailed,
+        );
+        await deadRow('comment', kind: MutationKind.addComment.wireName);
+        await deadRow(
+          'upload',
+          kind: MutationKind.documentUpload.wireName,
+          entityId: 'cl_2',
+        );
+        await deadRow('inactive', error: 'User inactive');
+        await deadRow('validation', status: 422, error: 'invalid token');
+        await deadRow('b_update', companyId: 'co_b');
+        await deadRow(
+          'b_create',
+          companyId: 'co_b',
+          kind: 'create',
+          entityId: 'tmp_b',
+        );
+        await repo.logout(data: LocalDataPolicy.keep);
+        await signIn();
+
+        final rows = await rowsByKey();
+        expect(
+          {for (final e in rows.entries) e.key: e.value.state},
+          {
+            'update': 'unconfirmed',
+            'archive': 'unconfirmed',
+            'create': 'unconfirmed',
+            'upload_of_create': 'unconfirmed',
+            'invoice_of_create': 'unconfirmed',
+            'payment_of_invoice': 'unconfirmed',
+            'unrelated_dependent': 'dead',
+            'comment': 'pending',
+            'upload': 'pending',
+            'inactive': 'dead',
+            'validation': 'dead',
+            'b_update': 'unconfirmed',
+            'b_create': 'unconfirmed',
+          },
+        );
+        for (final key in [
+          'update',
+          'create',
+          'upload_of_create',
+          'payment_of_invoice',
+          'comment',
+        ]) {
+          expect(rows[key]!.attempts, 0, reason: key);
+          expect(
+            rows[key]!.lastError,
+            kDeadTokenNotSentError,
+            reason: '$key says it was not sent',
+          );
+        }
+        expect(rows['update']!.payload, '{}');
+        expect(rows['inactive']!.attempts, 3);
+        expect(rows['inactive']!.lastError, 'User inactive');
+        expect(rows['unrelated_dependent']!.lastError, parentFailed);
+      },
+    );
+
+    // An install from before the user id was stored cannot prove the rows
+    // are this user's.
+    test('with no identity on record nothing is brought back', () async {
+      await signIn();
+      await deadRow('update');
       await repo.logout(data: LocalDataPolicy.keep);
+      await storage.delete(kAuthUserIdKey);
+      await signIn();
 
-      authService.queueLogin(
-        _envelope(user: const UserSummaryApi(id: 'user_a')),
-      );
-      await repo.login(
-        baseUrl: 'https://x',
-        isHosted: true,
-        email: 'a@example.com',
-        password: 'pw',
-      );
-
-      final rows = {
-        for (final r in await db.select(db.outbox).get()) r.idempotencyKey: r,
-      };
-      expect(rows, hasLength(9));
-      final states = {for (final e in rows.entries) e.key: e.value.state};
-      expect(states, {
-        'update': 'unconfirmed',
-        'archive': 'unconfirmed',
-        'create': 'pending',
-        'upload_of_create': 'pending',
-        'comment': 'pending',
-        'inactive': 'dead',
-        'validation': 'dead',
-        'b_update': 'unconfirmed',
-        'b_create': 'pending',
-      });
-      for (final key in ['update', 'create', 'upload_of_create', 'comment']) {
-        expect(rows[key]!.attempts, 0, reason: key);
-        expect(rows[key]!.payload, '{}', reason: key);
-      }
-      expect(rows['inactive']!.attempts, 3);
+      expect((await rowsByKey())['update']!.state, 'dead');
     });
 
     test('a DIFFERENT user signing in wipes the preserved database', () async {

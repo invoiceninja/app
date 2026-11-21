@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:admin/app/sign_out_notice.dart';
 import 'package:admin/data/prefs/device_pref_keys.dart';
 import 'package:admin/data/prefs/device_prefs_store.dart';
+import 'package:admin/data/repositories/local_data_disposer.dart';
 import 'package:admin/data/services/api_credentials.dart';
 
 /// Release builds keep no diagnostics log, so an automatic sign-out used to
@@ -85,5 +86,53 @@ void main() {
       await prefs.write(DevicePrefKeys.signOutNotice, raw);
       expect(notice().pending, isNull, reason: raw);
     }
+  });
+
+  group('endRejectedSession', () {
+    Future<
+      ({List<SignOutReason> recorded, List<(LocalDataPolicy, bool)> logouts})
+    >
+    end({required bool initial, bool flipDuringRecord = false}) async {
+      final out = (
+        recorded: <SignOutReason>[],
+        logouts: <(LocalDataPolicy, bool)>[],
+      );
+      var dead = initial;
+      await endRejectedSession(
+        deadToken: () => dead,
+        detail: () => 'GET test/api/v1/clients',
+        record: (reason, {detail}) async {
+          out.recorded.add(reason);
+          await Future<void>.delayed(Duration.zero);
+          // A sibling 403 "Invalid token" lands while the notice is written.
+          if (flipDuringRecord) dead = true;
+        },
+        logout: ({required data, forgetTokens = false}) async =>
+            out.logouts.add((data, forgetTokens)),
+      );
+      return out;
+    }
+
+    test('a 401 keeps the tokens', () async {
+      final out = await end(initial: false);
+      expect(out.recorded, [SignOutReason.sessionRejected]);
+      expect(out.logouts, [(LocalDataPolicy.keep, false)]);
+    });
+
+    test('a dead token forgets them', () async {
+      final out = await end(initial: true);
+      expect(out.recorded, [SignOutReason.tokenRejected]);
+      expect(out.logouts, [(LocalDataPolicy.keep, true)]);
+    });
+
+    test('a dead token that lands while the notice is written still forgets '
+        'them, and the notice says so', () async {
+      final out = await end(initial: false, flipDuringRecord: true);
+      expect(out.recorded, [
+        SignOutReason.sessionRejected,
+        SignOutReason.tokenRejected,
+      ]);
+      expect(out.logouts, [(LocalDataPolicy.keep, true)]);
+    });
   });
 }

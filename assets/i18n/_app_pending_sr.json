@@ -2245,5 +2245,7 @@
   "search_scope_at_least_announcement": ":scope, rezultati: najmanje :count",
   "session_ended_sign_in_again": "Vaša sesija je završena. Prijavite se ponovo; vaši podaci i nesinhronizovane izmene su sačuvani.",
   "line_item_category_taxes_calculated_on_save": "Porezi na stavkama sa poreskom kategorijom izračunavaju se pri čuvanju.",
-  "use_tax_category": "Koristi poresku kategoriju"
+  "use_tax_category": "Koristi poresku kategoriju",
+  "not_sent_session_ended": "Nije poslato: sesija je završena pre nego što je server primio ovu izmenu.",
+  "not_sent_check_then_resend": "Možda je u međuvremenu promenjeno negde drugde, pa neće biti poslato samo. Proverite zapis, a zatim ponovo pošaljite ili odbacite ovu izmenu."
 }

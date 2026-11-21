@@ -2214,5 +2214,7 @@
   "search_scope_at_least_announcement": ":scope, ít nhất :count kết quả",
   "session_ended_sign_in_again": "Phiên của bạn đã kết thúc. Hãy đăng nhập lại; dữ liệu và các thay đổi chưa đồng bộ của bạn vẫn được giữ.",
   "line_item_category_taxes_calculated_on_save": "Thuế của các dòng có danh mục thuế được tính khi bạn lưu.",
-  "use_tax_category": "Dùng loại thuế"
+  "use_tax_category": "Dùng loại thuế",
+  "not_sent_session_ended": "Chưa gửi: phiên đã kết thúc trước khi máy chủ nhận được thay đổi này.",
+  "not_sent_check_then_resend": "Bản ghi có thể đã được thay đổi ở nơi khác kể từ đó, nên thay đổi này sẽ không tự gửi. Hãy kiểm tra bản ghi, rồi gửi lại hoặc hủy thay đổi này."
 }

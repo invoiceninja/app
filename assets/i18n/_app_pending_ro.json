@@ -2317,5 +2317,7 @@
   "search_scope_at_least_announcement": ":scope, cel puțin :count rezultate",
   "session_ended_sign_in_again": "Sesiunea s-a încheiat. Autentificați-vă din nou; datele și modificările nesincronizate sunt păstrate.",
   "line_item_category_taxes_calculated_on_save": "Taxele pentru liniile cu o categorie de taxă se calculează la salvare.",
-  "use_tax_category": "Folosește o categorie fiscală"
+  "use_tax_category": "Folosește o categorie fiscală",
+  "not_sent_session_ended": "Netrimis: sesiunea s-a încheiat înainte ca serverul să primească această modificare.",
+  "not_sent_check_then_resend": "Este posibil să fi fost modificată între timp în altă parte, așa că nu va fi trimisă automat. Verificați înregistrarea, apoi retrimiteți sau renunțați la această modificare."
 }

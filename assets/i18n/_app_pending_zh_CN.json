@@ -2329,5 +2329,7 @@
   "search_scope_at_least_announcement": ":scope，至少 :count 个结果",
   "session_ended_sign_in_again": "您的会话已结束。请重新登录；您的数据和未同步的更改都会保留。",
   "line_item_category_taxes_calculated_on_save": "保存时将计算设有税务类别的行的税额。",
-  "use_tax_category": "使用税务类别"
+  "use_tax_category": "使用税务类别",
+  "not_sent_session_ended": "未发送：服务器收到此更改之前会话已结束。",
+  "not_sent_check_then_resend": "此后它可能已在别处被更改，因此不会自动发送。请检查该记录，然后重新发送或放弃此更改。"
 }

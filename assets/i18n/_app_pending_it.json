@@ -2329,5 +2329,7 @@
   "search_scope_at_least_announcement": ":scope, almeno :count risultati",
   "session_ended_sign_in_again": "La sessione è terminata. Accedi di nuovo; i tuoi dati e le modifiche non sincronizzate vengono conservati.",
   "line_item_category_taxes_calculated_on_save": "Le imposte sulle righe con una categoria fiscale vengono calcolate al salvataggio.",
-  "use_tax_category": "Usa una categoria fiscale"
+  "use_tax_category": "Usa una categoria fiscale",
+  "not_sent_session_ended": "Non inviata: la sessione è terminata prima che il server ricevesse questa modifica.",
+  "not_sent_check_then_resend": "Potrebbe essere stata modificata altrove nel frattempo, quindi non verrà inviata automaticamente. Controlla il record, poi invia di nuovo o scarta questa modifica."
 }

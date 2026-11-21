@@ -2329,5 +2329,7 @@
   "search_scope_at_least_announcement": ":scope, en az :count sonuç",
   "session_ended_sign_in_again": "Oturumunuz sona erdi. Tekrar giriş yapın; verileriniz ve senkronize edilmemiş değişiklikleriniz korunur.",
   "line_item_category_taxes_calculated_on_save": "Vergi kategorisi olan satırların vergileri kaydettiğinizde hesaplanır.",
-  "use_tax_category": "Vergi kategorisi kullan"
+  "use_tax_category": "Vergi kategorisi kullan",
+  "not_sent_session_ended": "Gönderilmedi: oturum, sunucu bu değişikliği almadan önce sona erdi.",
+  "not_sent_check_then_resend": "O zamandan beri başka bir yerde değiştirilmiş olabilir, bu yüzden kendiliğinden gönderilmeyecek. Kaydı kontrol edin, ardından bu değişikliği yeniden gönderin veya atın."
 }

@@ -2245,5 +2245,7 @@
   "search_scope_at_least_announcement": ":scope, לפחות :count תוצאות",
   "session_ended_sign_in_again": "החיבור שלך הסתיים. התחבר שוב; הנתונים שלך והשינויים שלא סונכרנו נשמרים.",
   "line_item_category_taxes_calculated_on_save": "המסים על שורות עם קטגוריית מס מחושבים בעת השמירה.",
-  "use_tax_category": "שימוש בקטגוריית מס"
+  "use_tax_category": "שימוש בקטגוריית מס",
+  "not_sent_session_ended": "לא נשלח: החיבור הסתיים לפני שהשרת קיבל את השינוי הזה.",
+  "not_sent_check_then_resend": "ייתכן שהרשומה שונתה מאז במקום אחר, ולכן השינוי לא יישלח אוטומטית. בדוק את הרשומה ואז שלח שוב או בטל את השינוי."
 }

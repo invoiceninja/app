@@ -2284,5 +2284,7 @@
   "search_scope_at_least_announcement": ":scope, legalább :count találat",
   "session_ended_sign_in_again": "A munkamenet véget ért. Jelentkezzen be újra; az adatai és a nem szinkronizált módosításai megmaradnak.",
   "line_item_category_taxes_calculated_on_save": "Az adókategóriával rendelkező tételek adói mentéskor kerülnek kiszámításra.",
-  "use_tax_category": "Adókategória használata"
+  "use_tax_category": "Adókategória használata",
+  "not_sent_session_ended": "Nincs elküldve: a munkamenet véget ért, mielőtt a szerver megkapta volna ezt a módosítást.",
+  "not_sent_check_then_resend": "Időközben máshol is módosulhatott, ezért nem lesz magától elküldve. Ellenőrizze a rekordot, majd küldje el újra vagy vesse el ezt a módosítást."
 }

@@ -2329,5 +2329,7 @@
   "search_scope_at_least_announcement": ":scope, pelo menos :count resultados",
   "session_ended_sign_in_again": "Sua sessão foi encerrada. Entre novamente; seus dados e alterações não sincronizadas são mantidos.",
   "line_item_category_taxes_calculated_on_save": "Os impostos das linhas com categoria de imposto são calculados ao salvar.",
-  "use_tax_category": "Usar uma categoria fiscal"
+  "use_tax_category": "Usar uma categoria fiscal",
+  "not_sent_session_ended": "Não enviado: a sessão foi encerrada antes de o servidor receber esta alteração.",
+  "not_sent_check_then_resend": "Ela pode ter sido alterada em outro lugar desde então, por isso não será enviada sozinha. Verifique o registro e depois reenvie ou descarte esta alteração."
 }

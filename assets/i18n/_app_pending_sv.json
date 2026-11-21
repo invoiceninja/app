@@ -2316,5 +2316,7 @@
   "search_scope_at_least_announcement": ":scope, minst :count resultat",
   "session_ended_sign_in_again": "Din session har avslutats. Logga in igen; dina data och osynkade ändringar sparas.",
   "line_item_category_taxes_calculated_on_save": "Skatter på rader med en skattekategori beräknas när du sparar.",
-  "use_tax_category": "Använd en skattekategori"
+  "use_tax_category": "Använd en skattekategori",
+  "not_sent_session_ended": "Inte skickad: sessionen avslutades innan servern tog emot ändringen.",
+  "not_sent_check_then_resend": "Den kan ha ändrats någon annanstans sedan dess, så den skickas inte av sig själv. Kontrollera posten och skicka sedan ändringen igen eller förkasta den."
 }

@@ -2250,5 +2250,7 @@
   "search_scope_at_least_announcement": ":scope, mindst :count resultater",
   "session_ended_sign_in_again": "Din session er afsluttet. Log ind igen; dine data og ikke-synkroniserede ændringer bevares.",
   "line_item_category_taxes_calculated_on_save": "Skatter på linjer med en skattekategori beregnes, når du gemmer.",
-  "use_tax_category": "Brug en skattekategori"
+  "use_tax_category": "Brug en skattekategori",
+  "not_sent_session_ended": "Ikke sendt: sessionen sluttede, før serveren modtog denne ændring.",
+  "not_sent_check_then_resend": "Den kan være ændret et andet sted siden, så den sendes ikke af sig selv. Tjek posten, og send derefter ændringen igen eller kassér den."
 }

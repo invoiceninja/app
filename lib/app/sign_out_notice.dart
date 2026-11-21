@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import 'package:admin/data/prefs/device_pref_keys.dart';
 import 'package:admin/data/prefs/device_prefs_store.dart';
+import 'package:admin/data/repositories/local_data_disposer.dart';
 import 'package:admin/data/services/api_credentials.dart';
 
 /// Why a session ended without the user signing out.
@@ -109,5 +110,38 @@ class SignOutNotice extends ChangeNotifier {
     _prefs.removeListener(_sync);
     _credentials.removeListener(_onCredentials);
     super.dispose();
+  }
+}
+
+/// The end of a session the server rejected (`ApiClient`'s `onUnauthorized`):
+/// record why, then log out keeping local data. A dead token's map is
+/// forgotten too (`forgetTokens`; the data is not), or a biometric cold start
+/// would restore it and bounce again every launch.
+///
+/// [deadToken] is read twice — for the notice, and again right before the
+/// logout: the flag is sticky across the single-flight, and a sibling 403
+/// "Invalid token" can land while the notice is being written. The notice is
+/// then written again, so it and the forgotten tokens agree.
+Future<void> endRejectedSession({
+  required bool Function() deadToken,
+  required String? Function() detail,
+  required Future<void> Function(SignOutReason reason, {String? detail}) record,
+  required Future<void> Function({
+    required LocalDataPolicy data,
+    bool forgetTokens,
+  })
+  logout,
+}) async {
+  final wasDead = deadToken();
+  try {
+    await record(
+      wasDead ? SignOutReason.tokenRejected : SignOutReason.sessionRejected,
+      detail: detail(),
+    );
+    if (!wasDead && deadToken()) {
+      await record(SignOutReason.tokenRejected, detail: detail());
+    }
+  } finally {
+    await logout(data: LocalDataPolicy.keep, forgetTokens: deadToken());
   }
 }

@@ -6,9 +6,26 @@ import 'package:admin/data/db/dao/_distinct_stream.dart';
 
 import 'package:admin/data/db/app_database.dart';
 import 'package:admin/data/db/tables/outbox_table.dart';
+
 import 'package:admin/domain/sync/mutation.dart';
 
 part 'outbox_dao.g.dart';
+
+/// What a row a dead token killed says once it is brought back
+/// ([OutboxDao.reviveDeadTokenRows]): the server refused the token before the
+/// change reached any controller, so it was not sent. Rendered as the
+/// translated `not_sent_session_ended` (`isDeadTokenNotSent`); kept in English
+/// here for the Outbox's technical details.
+const String kDeadTokenNotSentError =
+    'Not sent: the session ended before the server saw this change';
+
+/// Whether [lastError] is [kDeadTokenNotSentError].
+bool isDeadTokenNotSent(String? lastError) =>
+    lastError == kDeadTokenNotSentError;
+
+/// What the drain wrote on a row whose `tmp_` parent's create died
+/// (`SyncRepository`'s `_ParentGone.failed`, the same text since 5.1.32).
+const String kParentFailedError = 'References a record that could not be saved';
 
 /// `state` values: `pending | in_flight | unconfirmed | dead`.
 ///
@@ -1177,50 +1194,91 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
 
   /// Bring back every `dead` row a 403 "Invalid token" killed (any case — the
   /// hosted server says "Invalid Token"), across companies, and return them as
-  /// they were. That 403 refused the token, not the change: builds before
-  /// 5.1.33 marked such a row dead instead of parking it for after the sign-in
-  /// (`AuthRepository._reviveRowsKilledByDeadToken`). Keeps the payload and
-  /// idempotency key, like [retryDead].
+  /// they are now. That 403 refused the token before any controller ran, so
+  /// nothing was sent: builds before 5.1.33 marked such a row dead instead of
+  /// parking it for after the sign-in (`AuthRepository._reviveRowsKilledByDeadToken`).
+  /// Keeps the payload and idempotency key, like [retryDead], and rewrites
+  /// `last_error` to [kDeadTokenNotSentError], so the Outbox and the edit
+  /// banner say it was not sent.
   ///
-  /// A create, a document upload and a comment go back to `pending`: none of
-  /// them can overwrite anything ([_writesNoRecordField], and a create's
-  /// record is its own). Every other kind — an update, a lifecycle or bulk
-  /// action — goes `unconfirmed`, for the user's Check / Resend / Discard. The
-  /// token was rotated because the user signed in somewhere else, likely
-  /// editing the same records there, and a dead row neither held later rows
-  /// back nor compares `updated_at`: re-sent on its own, its old full payload
-  /// would overwrite the newer server edits.
+  /// Only a comment or a document upload goes back to `pending`
+  /// ([_writesNoRecordField]: it overwrites nothing, and it still waits behind
+  /// an earlier save of its record). Everything else — a create included —
+  /// goes `unconfirmed`, for the user's Check / Resend / Discard. The token was
+  /// rotated because the user signed in somewhere else, likely redoing the
+  /// same work there: a dead row held nothing back and nothing compares
+  /// `updated_at`, so an old update re-sent on its own would overwrite newer
+  /// edits, and an old create would make a second invoice or payment (and
+  /// email its receipt again).
   Future<List<OutboxRow>> reviveDeadTokenRows({required int now}) =>
       transaction(() async {
-        Expression<bool> killedByDeadToken($OutboxTable o) =>
-            o.state.equals('dead') &
-            o.lastStatusCode.equals(403) &
-            o.lastError.trim().lower().equals('invalid token');
-        Expression<bool> safeToResend($OutboxTable o) =>
-            o.mutationKind.equals(MutationKind.create.wireName) |
-            _writesNoRecordField(o);
-        final rows = await (select(outbox)..where(killedByDeadToken)).get();
-        if (rows.isEmpty) return rows;
-        await (update(
-          outbox,
-        )..where((o) => killedByDeadToken(o) & safeToResend(o))).write(
-          OutboxCompanion(
-            state: const Value('pending'),
-            attempts: const Value(0),
-            nextAttemptAt: Value(now),
-          ),
-        );
-        await (update(
-          outbox,
-        )..where((o) => killedByDeadToken(o) & safeToResend(o).not())).write(
-          OutboxCompanion(
-            state: const Value('unconfirmed'),
-            attempts: const Value(0),
-            nextAttemptAt: Value(now),
-          ),
-        );
-        return rows;
+        final rows =
+            await (select(outbox)..where(
+                  (o) =>
+                      o.state.equals('dead') &
+                      o.lastStatusCode.equals(403) &
+                      o.lastError.trim().lower().equals('invalid token'),
+                ))
+                .get();
+        return _revive(rows, now: now, pendingWhen: _writesNoRecordField);
       });
+
+  /// The dead rows of [companyId] that 5.1.32 failed because the `tmp_`
+  /// create [parentTmpId] died ([kParentFailedError], found as the drain found
+  /// them: the id in the payload, or the record itself), brought back in
+  /// [parentState] — so none is ever sent before its parent: `unconfirmed`
+  /// waits for the user like the parent. Returns them as they are now.
+  Future<List<OutboxRow>> reviveDependentsOfDeadTokenCreate({
+    required String companyId,
+    required String parentTmpId,
+    required String parentState,
+    required int now,
+  }) => transaction(() async {
+    final rows =
+        await (select(outbox)..where(
+              (o) =>
+                  o.companyId.equals(companyId) &
+                  o.state.equals('dead') &
+                  o.lastError.equals(kParentFailedError) &
+                  (o.payload.contains(parentTmpId) |
+                      o.entityId.equals(parentTmpId)),
+            ))
+            .get();
+    return _revive(
+      rows,
+      now: now,
+      pendingWhen: (_) => Constant(parentState == 'pending'),
+    );
+  });
+
+  Future<List<OutboxRow>> _revive(
+    List<OutboxRow> rows, {
+    required int now,
+    required Expression<bool> Function($OutboxTable o) pendingWhen,
+  }) async {
+    if (rows.isEmpty) return rows;
+    final ids = [for (final r in rows) r.id];
+    for (final pending in [true, false]) {
+      await (update(outbox)..where(
+            (o) =>
+                o.id.isIn(ids) &
+                o.state.equals('dead') &
+                (pending ? pendingWhen(o) : pendingWhen(o).not()),
+          ))
+          .write(
+            OutboxCompanion(
+              state: Value(pending ? 'pending' : 'unconfirmed'),
+              attempts: const Value(0),
+              nextAttemptAt: Value(now),
+              lastError: const Value(kDeadTokenNotSentError),
+            ),
+          );
+    }
+    return (select(outbox)
+          ..where((o) => o.id.isIn(ids))
+          ..orderBy([(o) => OrderingTerm(expression: o.id)]))
+        .get();
+  }
 
   /// [retryDead] for every dead document upload of one record — the uploads a
   /// rejected create of a `tmp_` record took down with it, when that create is

@@ -2246,5 +2246,7 @@
   "search_scope_at_least_announcement": ":scope, almenys :count resultats",
   "session_ended_sign_in_again": "La vostra sessió ha finalitzat. Torneu a iniciar sessió; les vostres dades i els canvis no sincronitzats es conserven.",
   "line_item_category_taxes_calculated_on_save": "Els impostos de les línies amb categoria fiscal es calculen quan deseu.",
-  "use_tax_category": "Utilitza una categoria tributària"
+  "use_tax_category": "Utilitza una categoria tributària",
+  "not_sent_session_ended": "No s'ha enviat: la sessió ha finalitzat abans que el servidor rebés aquest canvi.",
+  "not_sent_check_then_resend": "Pot ser que s'hagi canviat en un altre lloc des de llavors, així que no s'enviarà automàticament. Comproveu el registre i després torneu a enviar o descarteu aquest canvi."
 }

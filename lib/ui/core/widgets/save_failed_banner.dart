@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/data/db/app_database.dart';
+import 'package:admin/data/db/dao/outbox_dao.dart' show isDeadTokenNotSent;
 import 'package:admin/domain/sync/mutation.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/edit/generic_edit_view_model.dart';
@@ -171,6 +172,9 @@ class SaveFailedBanner extends StatelessWidget {
   Widget _unconfirmed(BuildContext context) {
     final tokens = context.inTheme;
     final isSave = vm.unconfirmedIsSave;
+    // A change a dead token stopped was never sent (`reviveDeadTokenRows`):
+    // saying it "may have gone through" would invite a Discard.
+    final notSent = isDeadTokenNotSent(vm.unconfirmedMessage);
     return Material(
       color: tokens.warningSoft,
       child: Padding(
@@ -203,14 +207,20 @@ class SaveFailedBanner extends StatelessWidget {
                       children: [
                         Text(
                           context.tr(
-                            isSave
-                                ? 'may_have_been_sent_title'
-                                : 'waiting_on_unconfirmed_change',
+                            !isSave
+                                ? 'waiting_on_unconfirmed_change'
+                                : notSent
+                                ? 'not_sent_session_ended'
+                                : 'may_have_been_sent_title',
                           ),
                           style: TextStyle(color: tokens.ink2, fontSize: 13),
                         ),
                         Text(
-                          context.tr('may_have_been_sent_help'),
+                          context.tr(
+                            notSent
+                                ? 'not_sent_check_then_resend'
+                                : 'may_have_been_sent_help',
+                          ),
                           style: TextStyle(color: tokens.ink3, fontSize: 12),
                         ),
                       ],

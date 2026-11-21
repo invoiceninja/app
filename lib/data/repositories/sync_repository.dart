@@ -12,6 +12,7 @@ import 'package:admin/data/db/app_database.dart';
 import 'package:admin/data/services/api_exception.dart';
 import 'package:admin/data/services/company_switched_exception.dart';
 import 'package:admin/data/services/request_scope.dart';
+import 'package:admin/data/db/dao/outbox_dao.dart' show kParentFailedError;
 
 final _log = Logger('SyncRepository');
 
@@ -2637,7 +2638,7 @@ class SyncRepository {
 /// Why a `tmp_` parent's dependents can no longer go out as queued
 /// (`SyncRepository._failTmpDependents`), and what the dead ones say.
 enum _ParentGone {
-  failed('References a record that could not be saved'),
+  failed(kParentFailedError),
   discarded('References a discarded unsynced record'),
   discardedUnconfirmed(
     'References a record that may already exist on the server — choose it '

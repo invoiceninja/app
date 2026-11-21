@@ -2329,5 +2329,7 @@
   "search_scope_at_least_announcement": ":scope, rezultati: vsaj :count",
   "session_ended_sign_in_again": "Vaša seja se je končala. Znova se prijavite; vaši podatki in nesinhronizirane spremembe so ohranjeni.",
   "line_item_category_taxes_calculated_on_save": "Davki na postavkah z davčno kategorijo se izračunajo ob shranjevanju.",
-  "use_tax_category": "Uporabi davčno kategorijo"
+  "use_tax_category": "Uporabi davčno kategorijo",
+  "not_sent_session_ended": "Ni poslano: seja se je končala, preden je strežnik prejel to spremembo.",
+  "not_sent_check_then_resend": "Morda je bilo medtem spremenjeno drugje, zato ne bo poslano samodejno. Preverite zapis, nato to spremembo znova pošljite ali jo zavrzite."
 }

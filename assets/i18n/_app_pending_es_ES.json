@@ -2246,5 +2246,7 @@
   "search_scope_at_least_announcement": ":scope, al menos :count resultados",
   "session_ended_sign_in_again": "Tu sesión ha finalizado. Vuelve a iniciar sesión; tus datos y los cambios sin sincronizar se conservan.",
   "line_item_category_taxes_calculated_on_save": "Los impuestos de las líneas con categoría fiscal se calculan al guardar.",
-  "use_tax_category": "Usar una categoría de impuestos"
+  "use_tax_category": "Usar una categoría de impuestos",
+  "not_sent_session_ended": "No enviado: la sesión finalizó antes de que el servidor recibiera este cambio.",
+  "not_sent_check_then_resend": "Puede que se haya modificado en otro lugar desde entonces, así que no se enviará por sí solo. Revisa el registro y luego reenvía o descarta este cambio."
 }
