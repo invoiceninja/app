@@ -1846,15 +1846,21 @@ class Services implements SidebarBadgeContext {
       // `logout()` still writes the re-lock gate, so re-entry requires
       // re-auth.
       onUnauthorized: () async {
+        final deadToken = apiClient.lastSessionRejectionWasDeadToken;
         try {
           await signOutNotice.record(
-            apiClient.lastSessionRejectionWasDeadToken
+            deadToken
                 ? SignOutReason.tokenRejected
                 : SignOutReason.sessionRejected,
             detail: apiClient.lastSessionRejection,
           );
         } finally {
-          await auth.logout(data: LocalDataPolicy.keep);
+          // A dead token's map is forgotten (the data is not), or a biometric
+          // cold start would restore it and bounce again every launch.
+          await auth.logout(
+            data: LocalDataPolicy.keep,
+            forgetTokens: deadToken,
+          );
         }
       },
       // Consulted first: a 401 under a company token the user *just* switched

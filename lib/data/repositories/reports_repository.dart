@@ -366,8 +366,9 @@ ReportError reportErrorFrom(Object e, StackTrace st) {
   if (e is ServerException) {
     // Fallback path — see the doc comment above. 403 with an upgrade
     // message lands here when the server hasn't been updated to emit
-    // the typed `PlanRequiredException`. Only true 401s are typed as
-    // `UnauthorizedException` by the client.
+    // the typed `PlanRequiredException`. A rejected session (a 401, or a
+    // 403 "Invalid token") is an `UnauthorizedException`, handled above; any
+    // other 403 lands here.
     if (e.statusCode == 403) {
       if (_messageSuggestsPlanUpgrade(e.message)) {
         return ReportError(

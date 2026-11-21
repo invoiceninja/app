@@ -25,6 +25,7 @@ import 'package:admin/data/services/token_storage.dart';
 import 'package:admin/domain/sync/refresh_sync_constants.dart';
 import 'package:admin/domain/welcome.dart';
 import 'package:admin/utils/perf_trace.dart';
+import 'package:admin/domain/sync/mutation.dart';
 
 export 'package:admin/data/repositories/local_data_disposer.dart'
     show DisposalReason, LocalDataPolicy;
@@ -476,7 +477,10 @@ class AuthRepository {
         storedBaseUrl.isNotEmpty &&
         baseUrl.isNotEmpty &&
         canonicalBaseUrl(storedBaseUrl) != canonicalBaseUrl(baseUrl);
-    if (!userChanged && !serverChanged) return;
+    if (!userChanged && !serverChanged) {
+      await _reviveRowsKilledByDeadToken();
+      return;
+    }
     _log.warning(
       'A different identity is signing in on this device '
       '(user changed: $userChanged, server changed: $serverChanged) — '
@@ -486,6 +490,38 @@ class AuthRepository {
     // Harmless when absent; keeps "a successful wipe clears the marker" true
     // on this path too.
     await _secure.delete(kAuthWipePendingKey);
+  }
+
+  /// The same identity is signing back in: send again what a dead token killed.
+  /// Before 5.1.33 a 403 "Invalid token" was a plain 4xx, so the drain marked
+  /// the row `dead` (`SyncRepository`'s `ServerException` arm) instead of
+  /// parking it for after the sign-in. That 403 refused the token, not the
+  /// change, so the row goes back in line with a fresh budget — and, for a
+  /// `tmp_` create, the uploads its death took down with it (as the Outbox's
+  /// Retry does). Best-effort: a failure here must not fail the sign-in.
+  Future<void> _reviveRowsKilledByDeadToken() async {
+    try {
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final revived = await _db.outboxDao.reviveDeadTokenRows(now: now);
+      for (final row in revived) {
+        if (row.mutationKind == MutationKind.create.wireName &&
+            row.entityId.startsWith('tmp_')) {
+          await _db.outboxDao.retryDeadUploadsFor(
+            companyId: row.companyId,
+            entityType: row.entityType,
+            entityId: row.entityId,
+            now: now,
+          );
+        }
+      }
+      if (revived.isNotEmpty) {
+        _log.info(
+          'Re-queued ${revived.length} outbox row(s) a dead token had failed',
+        );
+      }
+    } catch (e, st) {
+      _log.warning('Could not re-queue rows a dead token had failed', e, st);
+    }
   }
 
   /// The wipe half of [_wipeIfIdentityChanged]: the in-memory fan-out, the
@@ -928,7 +964,7 @@ class AuthRepository {
   /// token, and spend one self-heal refresh trying to get a good one.
   ///
   /// The rollback MUST complete before this returns. Once it does,
-  /// `_logoutFuture` clears, and the only thing protecting the rest of the
+  /// `_flight` clears, and the only thing protecting the rest of the
   /// ~14-request fan-out is that `_credentials` no longer holds the rejected
   /// token — which makes their 401s stale-credential ones that `ApiClient`
   /// swallows on its own. Make the rollback lazy and the next 401 logs the
@@ -979,7 +1015,7 @@ class AuthRepository {
       _companySwitchRejected.value = creds.companyId;
     } else {
       // Kick the heal OUT of band: it makes a network call, and running it
-      // here would put its own 401 inside the same `_logoutFuture` that is
+      // here would put its own 401 inside the same `_flight` that is
       // still settling, where it would be silently coalesced. A `Future(...)`
       // lands on a later event-loop turn, after `whenComplete` has cleared it.
       //
@@ -1344,7 +1380,20 @@ class AuthRepository {
   /// map — setting it there means a later cold start returns early and the
   /// usable-token fallback can never run again. The destructive path deletes
   /// the flag outright.
-  Future<void> logout({required LocalDataPolicy data}) async {
+  ///
+  /// [forgetTokens] (preserve paths only) deletes the stored token map but
+  /// keeps the database, the outbox and the identity: the server said the
+  /// token is dead (a 403 "Invalid token"), and a kept one would be restored
+  /// behind the biometric unlock on every cold start, only to bounce again.
+  /// All of them, not just the rejected company's: the server rotates every
+  /// one of the user's 30-day-old tokens at once (`CompanyTokenRotator`), so
+  /// the siblings are as likely dead. With no map [restore] lands on sign-in,
+  /// and the same user's sign-in keeps the data ([_wipeIfIdentityChanged]
+  /// reads the identity keys, not the tokens).
+  Future<void> logout({
+    required LocalDataPolicy data,
+    bool forgetTokens = false,
+  }) async {
     final preserveLocalData = data != LocalDataPolicy.destroy;
     // Ending a session is the most destructive thing this app does, and until
     // now it left NO trace: an involuntary logout (ApiClient's 401 handler)
@@ -1421,6 +1470,7 @@ class AuthRepository {
       // — otherwise keeping the tokens would defeat the session-timeout's
       // security purpose on a shared/unattended device (esp. web, where
       // biometric is never available). Cleared on successful re-entry.
+      if (forgetTokens) await _secure.delete(kAuthTokensKey);
       if (data == LocalDataPolicy.keep) {
         await _secure.write(kAuthSessionLockedKey, 'true');
       }

@@ -414,7 +414,10 @@ class _FakeAuth implements AuthRepository {
   final logouts = <LocalDataPolicy>[];
 
   @override
-  Future<void> logout({required LocalDataPolicy data}) async {
+  Future<void> logout({
+    required LocalDataPolicy data,
+    bool forgetTokens = false,
+  }) async {
     logouts.add(data);
     session.value = null;
   }

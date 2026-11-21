@@ -422,8 +422,8 @@ void main() {
     test(
       'logout cache resets so a second session can trigger a fresh logout',
       () async {
-        // Regression: `_logoutFuture ??=` used to stick forever, swallowing
-        // 401s in later sessions after re-login.
+        // Regression: the single-flight future (now `_flight`) used to stick
+        // forever, swallowing 401s in later sessions after re-login.
         var unauthorizedCalls = 0;
         final fake = MockClient((_) async => http.Response('nope', 401));
         final client = ApiClient(
@@ -1135,6 +1135,120 @@ void main() {
       await Future<void>.delayed(Duration.zero);
       expect(calls, isEmpty);
       expect(client.lastSessionRejection, isNull);
+    });
+
+    test(
+      'an answer that lands after the session ended ends nothing more',
+      () async {
+        // Another request's rejection already signed the user out. A late 403
+        // (or 401) must not log, rewrite the reason, or run the logout again —
+        // over a sign-in that may be just finishing.
+        for (final late in [invalidToken(), http.Response('nope', 401)]) {
+          final credentials = ValueNotifier<ApiCredentials?>(
+            const ApiCredentials(baseUrl: 'https://test', token: 't'),
+          );
+          final (:client, :calls, :sent) = clientFor(() {
+            credentials.value = null;
+            return late;
+          }, credentials: credentials);
+          Object? thrown;
+          try {
+            await client.getOne('/api/v1/clients');
+          } catch (e) {
+            thrown = e;
+          }
+          await Future<void>.delayed(Duration.zero);
+          expect(
+            thrown,
+            isA<UnauthorizedException>().having(
+              (e) => e.isStaleCredential,
+              'isStaleCredential',
+              isTrue,
+            ),
+            reason: '${late.statusCode}',
+          );
+          expect(
+            await (thrown! as UnauthorizedException).sessionEnding,
+            isTrue,
+            reason: 'there is no session left: it has ended',
+          );
+          expect(calls, isEmpty, reason: '${late.statusCode}');
+          expect(sent, ['/api/v1/clients'], reason: 'no ping either');
+          expect(client.lastSessionRejection, isNull);
+        }
+      },
+    );
+
+    test('the exception says whether the session is ending, once the veto '
+        'has answered', () async {
+      for (final veto in [true, false]) {
+        final (:client, calls: _, sent: _) = clientFor(
+          invalidToken,
+          veto: veto,
+        );
+        Object? thrown;
+        try {
+          await client.getOne('/api/v1/clients');
+        } catch (e) {
+          thrown = e;
+        }
+        expect(
+          await (thrown! as UnauthorizedException).sessionEnding,
+          veto,
+          reason: 'veto returned $veto',
+        );
+      }
+    });
+
+    test('a burst mixing 401s and a 403 records the dead token, whichever '
+        'lands last', () async {
+      final seen = <bool>[];
+      late ApiClient client;
+      client = ApiClient(
+        credentials: _creds(),
+        passwordCache: PasswordCache(),
+        onUnauthorizedCandidate: (_) async {
+          await Future<void>.delayed(const Duration(milliseconds: 50));
+          return true;
+        },
+        onUnauthorized: () async =>
+            seen.add(client.lastSessionRejectionWasDeadToken),
+        httpClient: MockClient((request) async {
+          if (request.url.path == '/api/v1/ping') {
+            await Future<void>.delayed(const Duration(milliseconds: 10));
+            return http.Response('nope', 401);
+          }
+          return request.url.path.startsWith('/api/v1/four01')
+              ? http.Response('nope', 401)
+              : invalidToken();
+        }),
+      );
+      await Future.wait([
+        client.getOne('/api/v1/clients').catchError((_) => null),
+        for (var i = 0; i < 2; i++)
+          client.getOne('/api/v1/four01/$i').catchError((_) => null),
+      ]);
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+      expect(seen, [true]);
+    });
+
+    test('a 401 whose ping answers 403 Invalid token records the dead '
+        'token', () async {
+      final calls = <String>[];
+      final client = ApiClient(
+        credentials: _creds(),
+        passwordCache: PasswordCache(),
+        onUnauthorized: () async => calls.add('logout'),
+        httpClient: MockClient(
+          (request) async => request.url.path == '/api/v1/ping'
+              ? invalidToken('Invalid Token')
+              : http.Response('nope', 401),
+        ),
+      );
+      await client.getOne('/api/v1/clients').catchError((_) => null);
+      await Future<void>.delayed(Duration.zero);
+      expect(calls, ['logout']);
+      expect(client.lastSessionRejectionWasDeadToken, isTrue);
     });
 
     test(

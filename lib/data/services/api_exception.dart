@@ -15,20 +15,35 @@ sealed class ApiException implements Exception {
 
 class UnauthorizedException extends ApiException {
   const UnauthorizedException([super.message = 'Unauthorized'])
-    : isStaleCredential = false;
+    : isStaleCredential = false,
+      sessionEnding = null;
 
   /// A 401 returned for a credential set that has since been replaced — a
   /// background request racing a company-switch / logout. The live session is
   /// still valid; `ApiClient._postFlight` deliberately swallows it rather than
   /// logging the user out, so callers treat it as an expected no-op, not a
-  /// failure worth a WARNING in the diagnostics log.
-  const UnauthorizedException.staleCredential()
+  /// failure worth a WARNING in the diagnostics log. [sessionEnding] is a true
+  /// future when there is no live session at all (it ended before this
+  /// answer arrived).
+  const UnauthorizedException.staleCredential({this.sessionEnding})
     : isStaleCredential = true,
+      super('Unauthorized');
+
+  /// The rejection `ApiClient` handed to its single-flight logout:
+  /// [sessionEnding] says, once the company-switch veto has answered, whether
+  /// the session is ending (true) or the veto kept it (false).
+  const UnauthorizedException.rejected(Future<bool> this.sessionEnding)
+    : isStaleCredential = false,
       super('Unauthorized');
 
   /// True when this 401 was discarded as stale-credential (see the named
   /// constructor); false for a genuine "session expired" 401.
   final bool isStaleCredential;
+
+  /// Whether the session is ending over this rejection, when `ApiClient`
+  /// knows; null when it does not (a stale credential under a live session,
+  /// or no session to begin with).
+  final Future<bool>? sessionEnding;
 }
 
 /// Server demands re-auth with the user's password (e.g. on delete / purge).

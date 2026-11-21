@@ -1155,6 +1155,36 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
           ) >
       0;
 
+  /// Re-arm every `dead` row a 403 "Invalid token" killed (any case — the
+  /// hosted server says "Invalid Token"), across companies, and return them as
+  /// they were. That 403 refused the token, not the change: builds before
+  /// 5.1.33 marked such a row dead instead of parking it for after the sign-in
+  /// (`AuthRepository._reviveRowsKilledByDeadToken`). Keeps the payload and
+  /// idempotency key, like [retryDead].
+  Future<List<OutboxRow>> reviveDeadTokenRows({required int now}) =>
+      transaction(() async {
+        final rows =
+            await (select(outbox)..where(
+                  (o) =>
+                      o.state.equals('dead') &
+                      o.lastStatusCode.equals(403) &
+                      o.lastError.trim().lower().equals('invalid token'),
+                ))
+                .get();
+        if (rows.isEmpty) return rows;
+        await (update(outbox)..where(
+              (o) => o.id.isIn(rows.map((r) => r.id)) & o.state.equals('dead'),
+            ))
+            .write(
+              OutboxCompanion(
+                state: const Value('pending'),
+                attempts: const Value(0),
+                nextAttemptAt: Value(now),
+              ),
+            );
+        return rows;
+      });
+
   /// [retryDead] for every dead document upload of one record — the uploads a
   /// rejected create of a `tmp_` record took down with it, when that create is
   /// retried from the Outbox (`OutboxViewModel.retry`). Returns how many.

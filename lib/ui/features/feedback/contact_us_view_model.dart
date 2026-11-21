@@ -73,8 +73,9 @@ class ContactUsRateLimited extends ContactUsSendResult {
 }
 
 /// The server refused the session itself (`UnauthorizedException` — a 401, or
-/// a 403 "Invalid token"), so `ApiClient` is already signing the user out and
-/// the sign-in screen will say why. The dialog just closes: an error toast
+/// a 403 "Invalid token") and `ApiClient` is signing the user out
+/// (`UnauthorizedException.sessionEnding`), so the sign-in screen will say
+/// why. The dialog just closes: an error toast
 /// here, "Invalid Token" with the forum link, sent the user to support over
 /// something signing in again fixes.
 class ContactUsSessionEnded extends ContactUsSendResult {
@@ -254,11 +255,13 @@ class ContactUsViewModel extends ChangeNotifier {
     } on RateLimitedException catch (e) {
       return ContactUsRateLimited(e.retryAfter);
     } on UnauthorizedException catch (e) {
-      // A stale credential is a company switch racing the send, not an ended
-      // session: it stays a failure, and the typed message stays open.
-      return e.isStaleCredential
-          ? ContactUsFailed(e)
-          : const ContactUsSessionEnded();
+      // Only an ending session closes the dialog. A company switch racing the
+      // send (a stale credential), or a rejection the company-switch veto
+      // absorbed (the switch rolled back, the session lives), stays a
+      // failure, and the typed message stays open.
+      final ending = e.sessionEnding;
+      final ended = ending != null ? await ending : !e.isStaleCredential;
+      return ended ? const ContactUsSessionEnded() : ContactUsFailed(e);
     } on ValidationException catch (e) {
       final aboutImages = e.fieldErrors.keys.any(
         (k) => k == 'attachments' || k.startsWith('attachments.'),

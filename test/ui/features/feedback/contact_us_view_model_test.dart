@@ -283,6 +283,46 @@ void main() {
     m.dispose();
   });
 
+  testWidgets('a rejection that is ending the session ends the send', (
+    tester,
+  ) async {
+    api.throwOnJson = UnauthorizedException.rejected(Future.value(true));
+    final m = vm();
+    expect(
+      await m.send(message: 'Hi', appVersion: 'v'),
+      isA<ContactUsSessionEnded>(),
+    );
+    m.dispose();
+  });
+
+  // The company-switch veto absorbed it: the switch rolled back and the
+  // session lives, so closing the dialog would lose the typed message.
+  testWidgets('a rejection the veto absorbed stays an ordinary failure', (
+    tester,
+  ) async {
+    api.throwOnJson = UnauthorizedException.rejected(Future.value(false));
+    final m = vm();
+    expect(
+      await m.send(message: 'Hi', appVersion: 'v'),
+      isA<ContactUsFailed>(),
+    );
+    m.dispose();
+  });
+
+  testWidgets('a late answer after the session already ended ends the send', (
+    tester,
+  ) async {
+    api.throwOnJson = UnauthorizedException.staleCredential(
+      sessionEnding: Future.value(true),
+    );
+    final m = vm();
+    expect(
+      await m.send(message: 'Hi', appVersion: 'v'),
+      isA<ContactUsSessionEnded>(),
+    );
+    m.dispose();
+  });
+
   testWidgets('an image too large to encode stops the send', (tester) async {
     final m = ContactUsViewModel(
       api: () => api,

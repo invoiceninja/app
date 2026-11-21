@@ -118,13 +118,19 @@ class ApiClient {
   final bool _offlineMeansUnsent;
   final CertificateTrustStore? _trust;
 
-  /// Coalesces concurrent 401s — every parallel caller that 401s while a
-  /// logout is in flight `await`s the same future.
-  Future<void>? _logoutFuture;
+  /// Coalesces concurrent rejections — every parallel caller that 401s (or
+  /// 403s "Invalid token") while a logout is in flight shares this one: the
+  /// veto and the logout, until both are done.
+  Future<void>? _flight;
 
-  /// One in-flight [_sessionStillValid] check per token, so a burst of 401s
-  /// pings the server once.
-  final Map<String, Future<bool>> _sessionChecks = {};
+  /// [_flight]'s verdict, once the veto has answered: true when the session
+  /// is ending, false when the veto kept it. What
+  /// [UnauthorizedException.sessionEnding] carries.
+  Future<bool>? _flightEnding;
+
+  /// One in-flight [_sessionCheck] per token, so a burst of 401s pings the
+  /// server once.
+  final Map<String, Future<_SessionCheck>> _sessionChecks = {};
 
   /// The request (`PUT host/path`, no query) whose 401 most recently went on
   /// to end the session — for the sign-in screen's "why you were signed out"
@@ -953,10 +959,16 @@ class ApiClient {
       // company's URL — that 401 says nothing about whether the live session
       // is still valid, so swallow it instead of dropping the user back to
       // /login.
+      //
+      // No live credentials at all is stale too: the session already ended
+      // (another request's rejection), and a late answer must not log, rewrite
+      // the reason, or run the logout again over a sign-in just finishing.
       var current = _credentialsListenable.value;
-      var isStaleCredential = current != null && current.token != creds.token;
+      var isStaleCredential = current == null || current.token != creds.token;
+      var deadToken = false;
       if (!isStaleCredential) {
-        if (await _sessionStillValid(creds)) {
+        final check = await _sessionCheck(creds);
+        if (check == _SessionCheck.valid) {
           // The token still opens `/ping`, so this 401 refused one request,
           // not the session. On this server a dead token is a 403
           // (`TokenAuth`); a 401 is an `AuthorizationException`, and ~15 form
@@ -978,7 +990,10 @@ class ApiClient {
         // out makes this 401 just as stale — a logout now would end the
         // session the user just switched into.
         current = _credentialsListenable.value;
-        isStaleCredential = current != null && current.token != creds.token;
+        isStaleCredential = current == null || current.token != creds.token;
+        // The ping's own 403 "Invalid token" says what this 401 did not: the
+        // token is dead, so the sign-in screen says so.
+        deadToken = check == _SessionCheck.deadToken;
       }
       _rejectCredential(
         response,
@@ -987,6 +1002,7 @@ class ApiClient {
         isStaleCredential: isStaleCredential,
         method: method,
         uri: uri,
+        deadToken: deadToken,
       );
     }
     // A dead token is a 403 on this server, not a 401: `TokenAuth` answers a
@@ -1006,7 +1022,7 @@ class ApiClient {
         response,
         creds,
         current: current,
-        isStaleCredential: current != null && current.token != creds.token,
+        isStaleCredential: current == null || current.token != creds.token,
         method: method,
         uri: uri,
         deadToken: true,
@@ -1037,6 +1053,10 @@ class ApiClient {
       _log.fine(
         'Discarding stale-credential ${response.statusCode} '
         '(request token no longer active)',
+      );
+      throw UnauthorizedException.staleCredential(
+        // No live credentials: the session has already ended.
+        sessionEnding: current == null ? Future.value(true) : null,
       );
     } else {
       // Fire logout detached, NOT awaited. A 401 can be raised on a request
@@ -1070,16 +1090,19 @@ class ApiClient {
         'body=${body.length > 200 ? '${body.substring(0, 200)}…' : body}',
       );
       _lastSessionRejection = '$method ${uri.host}${uri.path}';
-      _lastRejectionWasDeadToken = deadToken;
+      // Sticky for one single-flight: a burst mixing 401s and 403s records
+      // the dead token whichever answer landed last.
+      _lastRejectionWasDeadToken =
+          deadToken || (_flight != null && _lastRejectionWasDeadToken);
       // Outside this request's scope: the handling is not part of an
       // outbox row's attempt, and the rollback's heal makes requests under
       // the previous company's token that the row's scope would refuse as
       // a company switch.
-      unawaited(RequestScope.outside(() => _handleUnauthorized(creds)));
+      final sessionEnding = RequestScope.outside(
+        () => _handleUnauthorized(creds),
+      );
+      throw UnauthorizedException.rejected(sessionEnding);
     }
-    throw isStaleCredential
-        ? const UnauthorizedException.staleCredential()
-        : const UnauthorizedException();
   }
 
   /// Stable, non-reversible 8-char id for a token, for logs only. Enough to
@@ -1101,7 +1124,10 @@ class ApiClient {
   /// credential must never travel with them.
   String get credentialFingerprint => _tokenFingerprint(_creds?.token);
 
-  Future<void> _handleUnauthorized(ApiCredentials creds) {
+  /// Returns whether the session is ending over this rejection, decided when
+  /// the veto answers (not when the logout finishes): false when the veto
+  /// absorbed it — a company switch rolled back.
+  Future<bool> _handleUnauthorized(ApiCredentials creds) {
     // Coalesce parallel 401s into a single onUnauthorized call. Clear the
     // future when it completes so a subsequent session (after re-login) can
     // trigger a fresh logout if its token also goes stale.
@@ -1112,41 +1138,55 @@ class ApiClient {
     // while the veto runs share this future instead of re-entering it; those
     // arriving after it carry a token that is no longer live, so the
     // stale-credential branch above swallows them without reaching here.
-    return _logoutFuture ??= () async {
-      try {
-        final candidate = _onUnauthorizedCandidate;
-        if (candidate != null) {
-          // Fail SAFE: absorbing a 401 must be an affirmative decision, never
-          // a side effect of an error. If the veto itself throws (its remedy
-          // writes to the keychain), fall through to the logout rather than
-          // leaving the app authenticated with a token the server rejects.
-          bool shouldEnd;
+    final pending = _flightEnding;
+    if (_flight != null && pending != null) return pending;
+    final ending = Completer<bool>();
+    _flightEnding = ending.future;
+    _flight =
+        () async {
           try {
-            shouldEnd = await candidate(creds);
+            final candidate = _onUnauthorizedCandidate;
+            var shouldEnd = true;
+            if (candidate != null) {
+              // Fail SAFE: absorbing a 401 must be an affirmative decision, never
+              // a side effect of an error. If the veto itself throws (its remedy
+              // writes to the keychain), fall through to the logout rather than
+              // leaving the app authenticated with a token the server rejects.
+              try {
+                shouldEnd = await candidate(creds);
+              } catch (e, st) {
+                _log.warning(
+                  'onUnauthorizedCandidate threw; proceeding to logout',
+                  e,
+                  st,
+                );
+                shouldEnd = true;
+              }
+            }
+            ending.complete(shouldEnd);
+            if (!shouldEnd) return;
+            await _onUnauthorized();
           } catch (e, st) {
-            _log.warning(
-              'onUnauthorizedCandidate threw; proceeding to logout',
-              e,
-              st,
-            );
-            shouldEnd = true;
+            _log.warning('onUnauthorized threw', e, st);
+          } finally {
+            if (!ending.isCompleted) ending.complete(true);
           }
-          if (!shouldEnd) return;
-        }
-        await _onUnauthorized();
-      } catch (e, st) {
-        _log.warning('onUnauthorized threw', e, st);
-      }
-    }().whenComplete(() => _logoutFuture = null);
+        }().whenComplete(() {
+          _flight = null;
+          _flightEnding = null;
+        });
+    return ending.future;
   }
 
   /// Whether [creds]' token still opens `GET /api/v1/ping` — asked before an
   /// unrecognised 401 is allowed to end the session. Sent straight through
   /// [_sendNoRedirect] (its answer must not re-enter this 401 handling) and
   /// outside any outbox row's scope, like [_handleUnauthorized]. Anything but
-  /// a 2xx — a 401 or 403, no connection, a timeout — answers false, which
+  /// a 2xx — a 401 or 403, no connection, a timeout — is not [valid], which
   /// signs the user out exactly as before; only a proof keeps the session.
-  Future<bool> _sessionStillValid(ApiCredentials creds) {
+  /// A 403 "Invalid token" is [_SessionCheck.deadToken], so the sign-in
+  /// screen can say the token died.
+  Future<_SessionCheck> _sessionCheck(ApiCredentials creds) {
     final token = creds.token;
     final check = _sessionChecks[token] ??= RequestScope.outside(() async {
       try {
@@ -1155,12 +1195,16 @@ class ApiClient {
           uri: apiUri(creds.baseUrl, '/api/v1/ping'),
           headers: _buildHeaders(creds: creds, contentTypeJson: false),
         );
-        final ok = response.statusCode >= 200 && response.statusCode < 300;
-        if (ok) _onAuthenticatedResponse?.call(creds);
-        return ok;
+        if (response.statusCode >= 200 && response.statusCode < 300) {
+          _onAuthenticatedResponse?.call(creds);
+          return _SessionCheck.valid;
+        }
+        return response.statusCode == 403 && _isInvalidTokenRefusal(response)
+            ? _SessionCheck.deadToken
+            : _SessionCheck.refused;
       } catch (e) {
         _log.fine('session check after a 401 failed', e);
-        return false;
+        return _SessionCheck.refused;
       }
     });
     // A block, not `=> remove(token)`: `remove` would return `check`, and
@@ -1540,4 +1584,16 @@ class _ProbedMultipartRequest extends http.MultipartRequest
 
   @override
   http.ByteStream finalize() => _probed(super.finalize());
+}
+
+/// What `GET /api/v1/ping` said about a token ([ApiClient._sessionCheck]).
+enum _SessionCheck {
+  /// A 2xx: the token works.
+  valid,
+
+  /// A 403 "Invalid token": the server no longer knows it.
+  deadToken,
+
+  /// Anything else — another status, no connection, a timeout.
+  refused,
 }

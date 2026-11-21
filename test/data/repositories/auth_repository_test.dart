@@ -1821,6 +1821,59 @@ void main() {
       },
     );
 
+    // A dead token (403 "Invalid token") kept on disk was restored behind the
+    // biometric unlock on every cold start, only to be refused again.
+    test('a logout that forgets the tokens keeps the data, and the next cold '
+        'start lands on sign-in, not the lock screen', () async {
+      authService.queueLogin(_envelope());
+      await repo.login(
+        baseUrl: 'https://test',
+        isHosted: false,
+        email: 'a',
+        password: 'b',
+      );
+      await repo.setBiometricEnabled(true);
+      await db.outboxDao.enqueue(
+        OutboxCompanion.insert(
+          companyId: 'co_a',
+          entityType: 'client',
+          entityId: 'cl_1',
+          mutationKind: 'update',
+          payload: '{}',
+          idempotencyKey: 'idem_keep',
+          nextAttemptAt: 0,
+          createdAt: 1,
+        ),
+      );
+      final userId = await storage.read(kAuthUserIdKey);
+      await repo.logout(data: LocalDataPolicy.keep, forgetTokens: true);
+
+      expect(await storage.read(kAuthTokensKey), isNull);
+      expect(await storage.read(kAuthUserIdKey), userId);
+      expect(await db.select(db.outbox).get(), hasLength(1));
+
+      final repo2 = AuthRepository(
+        db: db,
+        authService: authService,
+        tokenStorage: storage,
+        passwordCache: PasswordCache(),
+      );
+      await repo2.restore();
+      expect(repo2.isAuthenticated, isFalse);
+      expect(repo2.requiresBiometricUnlock.value, isFalse);
+
+      // The same user signing back in is the same identity: nothing wiped.
+      authService.queueLogin(_envelope());
+      await repo2.login(
+        baseUrl: 'https://test',
+        isHosted: false,
+        email: 'a',
+        password: 'b',
+      );
+      expect(repo2.isAuthenticated, isTrue);
+      expect(await db.select(db.outbox).get(), hasLength(1));
+    });
+
     test(
       'a fresh login after a LocalDataPolicy.keep logout clears the re-lock flag',
       () async {
@@ -4564,6 +4617,65 @@ void main() {
         ),
       );
     }
+
+    // Before 5.1.33 the drain marked a row `dead` on a 403 "Invalid token" —
+    // a plain 4xx then. That refused the token, not the change.
+    test('the same user signing back in re-queues what a dead token '
+        'killed, and nothing else', () async {
+      Future<void> dead(String key, int status, String error) =>
+          db.outboxDao.enqueue(
+            OutboxCompanion.insert(
+              companyId: 'co_a',
+              entityType: 'client',
+              entityId: 'cl_$key',
+              mutationKind: 'update',
+              payload: '{}',
+              idempotencyKey: key,
+              nextAttemptAt: 0,
+              createdAt: 1,
+              state: const Value('dead'),
+              attempts: const Value(3),
+              lastStatusCode: Value(status),
+              lastError: Value(error),
+            ),
+          );
+      authService.queueLogin(
+        _envelope(user: const UserSummaryApi(id: 'user_a')),
+      );
+      await repo.login(
+        baseUrl: 'https://x',
+        isHosted: true,
+        email: 'a@example.com',
+        password: 'pw',
+      );
+      await dead('self_hosted', 403, 'Invalid token');
+      await dead('hosted', 403, 'Invalid Token');
+      await dead('inactive', 403, 'User inactive');
+      await dead('validation', 422, 'invalid token');
+      await repo.logout(data: LocalDataPolicy.keep);
+
+      authService.queueLogin(
+        _envelope(user: const UserSummaryApi(id: 'user_a')),
+      );
+      await repo.login(
+        baseUrl: 'https://x',
+        isHosted: true,
+        email: 'a@example.com',
+        password: 'pw',
+      );
+
+      final rows = {
+        for (final r in await db.select(db.outbox).get()) r.idempotencyKey: r,
+      };
+      expect(rows, hasLength(4));
+      for (final key in ['self_hosted', 'hosted']) {
+        expect(rows[key]!.state, 'pending', reason: key);
+        expect(rows[key]!.attempts, 0, reason: key);
+        expect(rows[key]!.payload, '{}', reason: key);
+      }
+      expect(rows['inactive']!.state, 'dead');
+      expect(rows['validation']!.state, 'dead');
+    });
 
     test('a DIFFERENT user signing in wipes the preserved database', () async {
       authService.queueLogin(
