@@ -191,6 +191,91 @@ void main() {
       expect(previewFitZoom(4000, 320), 0.25);
       expect(previewFitZoom(570, double.infinity), 1);
       expect(previewFitZoom(570, 0), 1);
+      // Where nothing zooms it back in (macOS, Windows), no smaller than 0.8.
+      expect(
+        previewFitZoom(570, 358, floor: kPreviewDesktopZoomFloor),
+        kPreviewDesktopZoomFloor,
+      );
+      expect(previewFitZoom(570, 560, floor: kPreviewDesktopZoomFloor), 0.95);
+    });
+
+    // HtmlEngine::buildViewButton, in every default body: an Outlook-only
+    // 600 px table inside a conditional comment.
+    const viewButton = '''
+<div class="center">
+<!--[if (gte mso 9)|(IE)]>
+<table align="center" cellspacing="0" cellpadding="0" style="width: 600px;">
+    <tr>
+    <td align="center" valign="top">
+        <![endif]-->
+        <table align="center" border="0" cellpadding="0" cellspacing="0" role="presentation" >
+        <tbody><tr>
+        <td align="center" class="new_button" style="border-radius: 2px; background-color: #f60">
+            <a href="https://x.y" target="_blank" style="display: inline-block; padding-left: 25px;">
+            <span label="cta button">Voir la facture</span>
+            </a>
+        </td>
+        </tr>
+        </tbody>
+        </table>
+<!--[if (gte mso 9)|(IE)]>
+    </td>
+    </tr>
+</table>
+<![endif]-->
+</div>''';
+
+    test('a comment does not count: the wrapper with its button is 570', () {
+      const wrapper =
+          '<!DOCTYPE html><html><body style="margin: 0;">'
+          '<table width="100%"><tr><td>'
+          '<table align="center" width="570"><tr><td><div id="content">'
+          '$viewButton'
+          '</div></td></tr></table></td></tr></table></body></html>';
+      expect(previewContentWidth(wrapper), 570);
+      // An unclosed comment runs to the end.
+      expect(
+        previewContentWidth('<div></div><!-- <table width="900">'),
+        isNull,
+      );
+    });
+
+    test('a fluid custom wrapper with the button is not scaled', () {
+      const custom =
+          '<html><body><div style="padding: 12px">'
+          '$viewButton'
+          '</div></body></html>';
+      expect(previewContentWidth(custom), isNull);
+    });
+
+    test('an @media block does not count (a responsive template)', () {
+      // Unlayer's shape: the desktop width under a query a phone does not
+      // match, the mobile rules already fit.
+      const unlayer = '''
+<style type="text/css">
+  @media only screen and (min-width: 620px) {
+    .u-row { width: 600px !important; }
+    .u-row .u-col-100 { width: 600px !important; }
+  }
+  @media (max-width: 620px) {
+    .u-row-container { max-width: 100% !important; }
+    .u-row { width: 100% !important; }
+  }
+  /* .old { width: 900px } */
+  table, td { color: #000000; }
+</style>
+<div class="u-row" style="margin: 0 auto; min-width: 320px; max-width: 600px;">x</div>''';
+      expect(previewContentWidth(unlayer), 320);
+      expect(previewFitZoom(previewContentWidth(unlayer), 358), 1);
+      // A nested block inside @media (an @supports) does not end it early,
+      // and a rule after it still counts.
+      expect(
+        previewContentWidth(
+          '<style>@media screen { @supports (display: grid) { a { b: c } } '
+          '.x { width: 700px } } .wrap { width: 540px }</style>',
+        ),
+        540,
+      );
     });
   });
 }

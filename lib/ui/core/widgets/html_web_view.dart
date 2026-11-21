@@ -25,7 +25,8 @@ const _kWindowsMaxDocumentBytes = 1900 * 1024;
 /// It is a picture, not a page ([previewHtml]): no script runs, a tapped
 /// link or form leaves the document where it is, and it reads light. It is
 /// fitted to the pane's width ([previewFitZoom]: an email is a fixed 570 px
-/// table, wider than a phone), and on touch it takes every gesture that
+/// table, wider than a phone; on desktop no smaller than 0.8, since nothing
+/// zooms it back in), and on touch it takes every gesture that
 /// lands on it ([kHtmlWebViewGestures]), so a pinch zooms it and a
 /// sideways drag pans it, even inside a `TabBarView`.
 /// docs/windows-web-view.md.
@@ -211,9 +212,21 @@ class _HtmlWebViewState extends State<HtmlWebView> {
     if (oldWidget.html == widget.html) return;
     _contentWidth = previewContentWidth(widget.html);
     final width = _paneWidth;
-    if (width != null) _zoom = previewFitZoom(_contentWidth, width);
+    if (width != null) _zoom = _fit(width);
     _show();
   }
+
+  /// Fitted fully where a pinch can zoom back in (iOS, Android); on macOS
+  /// and Windows no further than [kPreviewDesktopZoomFloor], so the text
+  /// stays readable and the rest scrolls sideways.
+  double _fit(double width) => previewFitZoom(
+    _contentWidth,
+    width,
+    floor: switch (defaultTargetPlatform) {
+      TargetPlatform.iOS || TargetPlatform.android => kPreviewTouchZoomFloor,
+      _ => kPreviewDesktopZoomFloor,
+    },
+  );
 
   /// The pane's width at the last layout.
   double? _paneWidth;
@@ -254,7 +267,7 @@ class _HtmlWebViewState extends State<HtmlWebView> {
   /// An unbounded width fits at 1, and still loads.
   void _layout(double width) {
     _paneWidth = width;
-    final zoom = previewFitZoom(_contentWidth, width);
+    final zoom = _fit(width);
     if (zoom == _zoom) return;
     _zoom = zoom;
     WidgetsBinding.instance.addPostFrameCallback((_) {

@@ -157,12 +157,34 @@ void main() {
       ),
     );
 
-    testWidgets('loads once, after layout, scaled to the pane', (tester) async {
-      await tester.pumpWidget(host(358));
-      expect(fake.loads, hasLength(1), reason: 'no unfitted first load');
-      expect(fake.loads.single, contains(':root { zoom: 0.6 !important; }'));
-      expect(fake.loads.single, isNot(contains('initial-scale=1.0')));
-    }, variant: iOS);
+    testWidgets(
+      'loads once, after layout, scaled to the pane',
+      (tester) async {
+        await tester.pumpWidget(host(358));
+        expect(fake.loads, hasLength(1), reason: 'no unfitted first load');
+        expect(fake.loads.single, contains(':root { zoom: 0.6 !important; }'));
+        expect(fake.loads.single, isNot(contains('initial-scale=1.0')));
+      },
+      variant: TargetPlatformVariant({
+        TargetPlatform.iOS,
+        TargetPlatform.android,
+      }),
+    );
+
+    testWidgets(
+      'on macOS, where nothing pinches it back, no smaller than 0.8',
+      (tester) async {
+        // macOS's WKWebView has no magnification: a fully fitted narrow pane
+        // would be stuck at 60 %. The rest of the email scrolls sideways.
+        await tester.pumpWidget(host(358));
+        expect(fake.loads.single, contains(':root { zoom: 0.8 !important; }'));
+        // A pane it nearly fits still fits fully.
+        await tester.pumpWidget(host(560));
+        await tester.pump();
+        expect(fake.loads.last, contains(':root { zoom: 0.95 !important; }'));
+      },
+      variant: TargetPlatformVariant.only(TargetPlatform.macOS),
+    );
 
     testWidgets('a wider pane reloads it unscaled; the same width does not', (
       tester,

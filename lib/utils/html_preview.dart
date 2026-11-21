@@ -96,13 +96,22 @@ String _zoomText(double zoom) {
 /// Without a script (none runs in a preview) the page cannot be measured, so
 /// this reads what the markup says: a `width="570"` attribute or an inline
 /// `width: 570px` / `min-width: 570px` on a table, cell, div or center tag,
-/// and a `width` / `min-width` in px inside a `<style>` block (not in a
-/// media query's condition). An element whose inline style makes it fluid
+/// and a `width` / `min-width` in px inside a `<style>` block. An element
+/// whose inline style makes it fluid
 /// (`width: 100%`) does not count its width attribute (the fluid-hybrid
 /// pattern, `<table width="600" style="width:100%; max-width:600px">`), and
 /// `max-width` never counts. Images do not count: an email's images are
 /// usually capped at their container (`max-width: 100%`).
-double? previewContentWidth(String html) {
+///
+/// Nothing inside a comment counts: the server's own "View invoice" button
+/// (`HtmlEngine::buildViewButton`, in every default body) carries an
+/// Outlook-only `<!--[if mso]><table style="width: 600px">` that would read
+/// the 570 px wrapper as 600 and scale a fluid template. Nothing inside an
+/// `@media` block counts either: a responsive template (Unlayer, Beefree,
+/// Foundation) sets its desktop width there, under a query a phone does not
+/// match, and its mobile rules already fit.
+double? previewContentWidth(String input) {
+  final html = input.replaceAll(RegExp(r'<!--[\s\S]*?(?:-->|$)'), '');
   double? widest;
   void take(double? w) {
     if (w == null || w <= 0) return;
@@ -160,27 +169,70 @@ double? previewContentWidth(String html) {
     r'<style\b[^>]*>([\s\S]*?)</style>',
     caseSensitive: false,
   ).allMatches(html)) {
-    for (final d in styleWidth.allMatches(block.group(1)!)) {
+    final css = _withoutMediaBlocks(
+      block.group(1)!.replaceAll(RegExp(r'/\*[\s\S]*?(?:\*/|$)'), ''),
+    );
+    for (final d in styleWidth.allMatches(css)) {
       if (d.group(3)?.toLowerCase() != 'px') continue;
-      // `@media (min-width: 620px)` is a condition, not a width.
-      final before = block.group(1)!.substring(0, d.start).trimRight();
-      if (before.endsWith('(')) continue;
       take(double.parse(d.group(2)!));
     }
   }
   return widest;
 }
 
+/// [css] without its `@media` rules, condition and block (braces matched,
+/// so a nested rule does not end it early). An unclosed block runs to the
+/// end, as a browser reads it.
+String _withoutMediaBlocks(String css) {
+  final media = RegExp(r'@media\b', caseSensitive: false);
+  final out = StringBuffer();
+  var at = 0;
+  while (true) {
+    final m = media.firstMatch(css.substring(at));
+    if (m == null) break;
+    final start = at + m.start;
+    out.write(css.substring(at, start));
+    final open = css.indexOf('{', start);
+    if (open < 0) return out.toString();
+    var depth = 0;
+    var i = open;
+    for (; i < css.length; i++) {
+      final c = css[i];
+      if (c == '{') depth++;
+      if (c == '}' && --depth == 0) break;
+    }
+    if (i >= css.length) return out.toString();
+    at = i + 1;
+  }
+  out.write(css.substring(at));
+  return out.toString();
+}
+
 /// The CSS zoom that fits a document [contentWidth] wide (from
 /// [previewContentWidth]) into a pane [paneWidth] logical px wide, allowing
 /// for the body's default 8 px margins: 1 when it already fits (or declares
-/// no width), never below 0.25. Rounded down to a step of 0.05, so a window
-/// being resized reloads the preview only every few dozen pixels, and the
-/// page still fits.
-double previewFitZoom(double? contentWidth, double paneWidth) {
+/// no width), never below [floor]. Rounded down to a step of 0.05, so a
+/// window being resized reloads the preview only every few dozen pixels,
+/// and the page still fits.
+///
+/// [floor] is [kPreviewTouchZoomFloor] where a pinch can zoom the preview
+/// back in (iOS, Android), and [kPreviewDesktopZoomFloor] where it cannot
+/// (macOS's web view has no magnification; Windows only Ctrl+wheel): there
+/// the text stays readable and the rest of the email scrolls sideways.
+double previewFitZoom(
+  double? contentWidth,
+  double paneWidth, {
+  double floor = kPreviewTouchZoomFloor,
+}) {
   if (contentWidth == null || !paneWidth.isFinite || paneWidth <= 0) return 1;
   final needed = contentWidth + 16;
   if (needed <= paneWidth) return 1;
   final steps = (paneWidth / needed * 20).floor();
-  return (steps / 20).clamp(0.25, 1.0);
+  return (steps / 20).clamp(floor, 1.0);
 }
+
+/// The smallest fit where a pinch zooms the preview back in.
+const kPreviewTouchZoomFloor = 0.25;
+
+/// The smallest fit where nothing zooms it back in (macOS, Windows).
+const kPreviewDesktopZoomFloor = 0.8;
