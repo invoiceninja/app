@@ -258,6 +258,81 @@ List<ReleaseNotes> releasesToShow({
 
 const List<ReleaseNotes> kReleaseNotes = [
   ReleaseNotes(
+    version: '5.1.33',
+    highlights: [
+      ReleaseHighlight(
+        icon: Icons.devices_outlined,
+        title: 'Stay in the editor',
+        body:
+            'Choose whether Save keeps the editor open or goes to the record.',
+        target: ReleaseHighlightRoute('/settings/device_settings'),
+      ),
+      ReleaseHighlight(
+        icon: Icons.palette_outlined,
+        title: 'Your look follows you',
+        body: 'Theme, palettes and custom colours sync with your account.',
+        target: ReleaseHighlightRoute('/settings/device_settings'),
+      ),
+      ReleaseHighlight(
+        icon: Icons.search,
+        title: 'Smarter search',
+        body:
+            'Results are ranked and grouped, with top hits and a category bar.',
+        target: ReleaseHighlightRoute(
+          '/dashboard',
+          permission: 'view_dashboard',
+        ),
+      ),
+      ReleaseHighlight(
+        icon: Icons.receipt_outlined,
+        title: 'Client notes while you write',
+        body:
+            "See the client's notes under the picker on invoices, quotes and "
+            'more.',
+        target: ReleaseHighlightRoute('/invoices', module: EntityType.invoice),
+      ),
+    ],
+    items: [
+      ReleaseNoteItem(
+        'Added: Device Settings > Forms > After Saving chooses whether Save '
+        'keeps the editor open or goes to the record. Tablets and desktops '
+        'stay in the editor by default, phones go to the record '
+        '[#202](https://github.com/invoiceninja/flutter/issues/202)',
+      ),
+      ReleaseNoteItem(
+        'Added: Your theme, palettes and custom colours sync with your '
+        'account, so they follow you to every device '
+        '[#199](https://github.com/invoiceninja/flutter/issues/199)',
+      ),
+      ReleaseNoteItem(
+        'Added: The invoice, quote, credit, recurring invoice and purchase '
+        "order editors show the client's (or vendor's) notes under the "
+        'picker [#201](https://github.com/invoiceninja/flutter/issues/201)',
+      ),
+      ReleaseNoteItem(
+        'Updated: Search ranks and groups its results, with top hits and a '
+        'category bar, and finds an invoice by part of its number or a '
+        'contact by email',
+      ),
+      ReleaseNoteItem(
+        'Updated: With Calculate Taxes on, each line item takes a tax '
+        'category instead of tax rates, so taxes no longer vanish on save. '
+        'Quotes always offer the Tasks table, and the expense picker lists '
+        'only billable expenses',
+      ),
+      ReleaseNoteItem(
+        'Fixed: Typing into the new item row no longer drops keys, and a '
+        'two-digit year such as 20.11.26 now reads as 2026 '
+        '[#203](https://github.com/invoiceninja/flutter/issues/203) '
+        '[#200](https://github.com/invoiceninja/flutter/issues/200)',
+      ),
+      ReleaseNoteItem(
+        "Fixed: When a sign-in elsewhere replaces this device's session, the "
+        'app signs out cleanly and keeps your data and unsynced changes',
+      ),
+    ],
+  ),
+  ReleaseNotes(
     version: '5.1.32',
     highlights: [
       ReleaseHighlight(
