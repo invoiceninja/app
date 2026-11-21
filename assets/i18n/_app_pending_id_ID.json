@@ -2245,5 +2245,6 @@
   "search_results_at_least_announcement": "Setidaknya :count hasil dalam :categories kategori",
   "search_scope_announcement": ":scope, :count hasil",
   "search_scope_at_least_announcement": ":scope, setidaknya :count hasil",
-  "session_ended_sign_in_again": "Sesi Anda telah berakhir. Masuk lagi; data Anda dan perubahan yang belum tersinkron tetap disimpan."
+  "session_ended_sign_in_again": "Sesi Anda telah berakhir. Masuk lagi; data Anda dan perubahan yang belum tersinkron tetap disimpan.",
+  "line_item_taxes_calculated_on_save": "Pajak dihitung dari kategori pajak setiap baris saat Anda menyimpan."
 }

@@ -2327,5 +2327,6 @@
   "search_results_at_least_announcement": "Резултати: најмалку :count во категории: :categories",
   "search_scope_announcement": ":scope, резултати: :count",
   "search_scope_at_least_announcement": ":scope, резултати: најмалку :count",
-  "session_ended_sign_in_again": "Вашата сесија заврши. Најавете се повторно; вашите податоци и несинхронизираните промени се зачувани."
+  "session_ended_sign_in_again": "Вашата сесија заврши. Најавете се повторно; вашите податоци и несинхронизираните промени се зачувани.",
+  "line_item_taxes_calculated_on_save": "Даноците се пресметуваат според даночната категорија на секоја ставка при зачувување."
 }

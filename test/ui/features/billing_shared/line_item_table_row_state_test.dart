@@ -38,12 +38,14 @@ class _Host extends StatefulWidget {
     required this.onChanged,
     required this.controller,
     this.config = const LineItemColumnConfig(),
+    this.newItemFactory = emptyLineItem,
   });
 
   final List<LineItem> initial;
   final ValueChanged<List<LineItem>> onChanged;
   final LineItemTableDesktopController controller;
   final LineItemColumnConfig config;
+  final LineItem Function() newItemFactory;
 
   @override
   State<_Host> createState() => _HostState();
@@ -60,7 +62,7 @@ class _HostState extends State<_Host> {
       widget.onChanged(next);
       setState(() => _items = next);
     },
-    newItemFactory: emptyLineItem,
+    newItemFactory: widget.newItemFactory,
     config: widget.config,
     controller: widget.controller,
   );
@@ -344,6 +346,10 @@ void main() {
       required int cell,
       required String text,
       required int frames,
+      LineItemColumnConfig config = const LineItemColumnConfig(
+        showDiscount: true,
+      ),
+      LineItem Function() newItemFactory = emptyLineItem,
     }) async {
       emitted = <List<LineItem>>[];
       tester.view.physicalSize = const Size(1600, 900);
@@ -374,7 +380,8 @@ void main() {
             initial: const [],
             onChanged: emitted.add,
             controller: LineItemTableDesktopController(),
-            config: const LineItemColumnConfig(showDiscount: true),
+            config: config,
+            newItemFactory: newItemFactory,
           ),
         ),
       );
@@ -434,6 +441,23 @@ void main() {
     testWidgets(
       'the last numeric cell (Discount), pausing after each digit',
       (tester) => typeIntoGhost(tester, cell: 4, text: '12', frames: 5),
+    );
+
+    // Calculate Taxes on: the ghost is a Physical Goods line, its tax slot a
+    // category menu rather than a rate field. Promotion must not reshape it.
+    testWidgets(
+      'the Item cell with tax categories, pausing after each letter',
+      (tester) => typeIntoGhost(
+        tester,
+        cell: 0,
+        text: 'Wrench',
+        frames: 5,
+        config: const LineItemColumnConfig(
+          showDiscount: true,
+          useTaxCategories: true,
+        ),
+        newItemFactory: () => emptyLineItem().copyWith(taxCategoryId: '1'),
+      ),
     );
   });
 }

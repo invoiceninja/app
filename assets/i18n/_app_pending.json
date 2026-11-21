@@ -2327,5 +2327,6 @@
   "search_results_at_least_announcement": "At least :count results in :categories categories",
   "search_scope_announcement": ":scope, :count results",
   "search_scope_at_least_announcement": ":scope, at least :count results",
-  "session_ended_sign_in_again": "Your session has ended. Sign in again; your data and unsynced changes are kept."
+  "session_ended_sign_in_again": "Your session has ended. Sign in again; your data and unsynced changes are kept.",
+  "line_item_taxes_calculated_on_save": "Taxes are calculated from each line's tax category when you save."
 }

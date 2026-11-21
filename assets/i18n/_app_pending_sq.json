@@ -2327,5 +2327,6 @@
   "search_results_at_least_announcement": "Të paktën :count rezultate në :categories kategori",
   "search_scope_announcement": ":scope, :count rezultate",
   "search_scope_at_least_announcement": ":scope, të paktën :count rezultate",
-  "session_ended_sign_in_again": "Seanca juaj ka përfunduar. Hyni përsëri; të dhënat tuaja dhe ndryshimet e pasinkronizuara ruhen."
+  "session_ended_sign_in_again": "Seanca juaj ka përfunduar. Hyni përsëri; të dhënat tuaja dhe ndryshimet e pasinkronizuara ruhen.",
+  "line_item_taxes_calculated_on_save": "Taksat llogariten sipas kategorisë së taksës së çdo rreshti kur ruani."
 }

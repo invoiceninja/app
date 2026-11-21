@@ -139,6 +139,9 @@ LineItemColumnConfig _hostConfig({required bool isTaskTable}) =>
     LineItemColumnConfig(
       showDiscount: true,
       taxColumnCount: 1,
+      // A client document: the server calculates its taxes when the company
+      // has Calculate Taxes on, so its lines take a tax category then.
+      useTaxCategories: true,
       isTaskTable: isTaskTable,
     );
 

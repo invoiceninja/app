@@ -6,6 +6,7 @@ import 'package:admin/data/models/domain/billing/line_item_type.dart';
 import 'package:admin/data/models/domain/company.dart';
 import 'package:admin/data/models/domain/product.dart';
 import 'package:admin/data/models/value/money.dart';
+import 'package:admin/domain/product_tax_categories.dart';
 
 part 'line_item.freezed.dart';
 
@@ -252,7 +253,14 @@ LineItem lineItemFromProduct(
     taxRate2: tax2.rate,
     taxName3: tax3.name,
     taxRate3: tax3.rate,
-    taxCategoryId: product.taxId,
+    // A product with no category bills as Physical Goods, as React fills it
+    // (`product.tax_id || '1'`): the server's Calculate Taxes reads a blank
+    // `tax_id` as the default rate, not as Override, so blank would only hide
+    // that from the line's category picker. A purchase order is never
+    // calculated and keeps the product's own value.
+    taxCategoryId: product.taxId.isEmpty && !vendorDoc
+        ? kDefaultTaxCategoryId
+        : product.taxId,
     customValue1: product.customValue1,
     customValue2: product.customValue2,
     customValue3: product.customValue3,

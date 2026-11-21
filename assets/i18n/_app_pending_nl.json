@@ -2327,5 +2327,6 @@
   "search_results_at_least_announcement": "Minstens :count resultaten in :categories categorieën",
   "search_scope_announcement": ":scope, :count resultaten",
   "search_scope_at_least_announcement": ":scope, minstens :count resultaten",
-  "session_ended_sign_in_again": "Uw sessie is beëindigd. Log opnieuw in; uw gegevens en niet-gesynchroniseerde wijzigingen blijven bewaard."
+  "session_ended_sign_in_again": "Uw sessie is beëindigd. Log opnieuw in; uw gegevens en niet-gesynchroniseerde wijzigingen blijven bewaard.",
+  "line_item_taxes_calculated_on_save": "Belastingen worden bij het opslaan berekend op basis van de belastingcategorie van elke regel."
 }

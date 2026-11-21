@@ -6,6 +6,7 @@ import 'package:admin/data/models/domain/billing/line_item.dart';
 import 'package:admin/data/models/domain/billing/line_item_custom_fields.dart';
 import 'package:admin/data/models/domain/billing/line_item_type.dart';
 import 'package:admin/data/models/domain/tax_rate.dart';
+import 'package:admin/domain/product_tax_categories.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/edit/custom_field_input.dart';
 import 'package:admin/ui/core/widgets/field_label.dart';
@@ -336,38 +337,59 @@ class _LineItemEditDialogState extends State<_LineItemEditDialog> {
                       (_taxName2, _taxRate2),
                       (_taxName3, _taxRate3),
                     ];
+                    // While the company calculates taxes the server replaces
+                    // a line's rates on save unless its category is Override
+                    // (`LineItemColumnConfig.useTaxCategories`) — so the
+                    // category leads, and the rates show only for a line
+                    // that keeps them. Picking Override Tax brings them in;
+                    // any other category takes them away. The picker stays
+                    // first whatever is picked, so nothing above a focused
+                    // field moves (invoiceninja/app#203).
+                    final showRates =
+                        !config.useTaxCategories ||
+                        taxCategoryKeepsManualRates(_draft.taxCategoryId);
                     return Column(
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        for (
-                          var i = 0;
-                          i < config.taxColumnCount && i < 3;
-                          i++
-                        ) ...[
+                        if (config.useTaxCategories) ...[
                           SizedBox(height: InSpacing.md(context)),
-                          if (freeform)
-                            _TaxRow(
-                              name: tiers[i].$1,
-                              rate: tiers[i].$2,
-                              index: i + 1,
-                            )
-                          else
-                            TaxRateTierPicker(
-                              label: '${context.tr('tax_rate')} ${i + 1}',
-                              name: tiers[i].$1.text,
-                              rate: _parseOrZero(tiers[i].$2),
-                              rates: rates,
-                              useCommaAsDecimalPlace: widget.useComma,
-                              // The controllers stay the dialog's one store
-                              // for the pair, so `_build` reads a pick the
-                              // same way it reads a typed tax.
-                              onChanged: (name, rate) => setState(() {
-                                tiers[i].$1.text = name;
-                                tiers[i].$2.text = _decimalText(rate);
-                              }),
+                          _TaxCategoryField(
+                            value: _draft.taxCategoryId,
+                            onChanged: (id) => setState(
+                              () => _draft = _draft.copyWith(taxCategoryId: id),
                             ),
+                          ),
                         ],
+                        if (showRates)
+                          for (
+                            var i = 0;
+                            i < config.taxColumnCount && i < 3;
+                            i++
+                          ) ...[
+                            SizedBox(height: InSpacing.md(context)),
+                            if (freeform)
+                              _TaxRow(
+                                name: tiers[i].$1,
+                                rate: tiers[i].$2,
+                                index: i + 1,
+                              )
+                            else
+                              TaxRateTierPicker(
+                                label: '${context.tr('tax_rate')} ${i + 1}',
+                                name: tiers[i].$1.text,
+                                rate: _parseOrZero(tiers[i].$2),
+                                rates: rates,
+                                useCommaAsDecimalPlace: widget.useComma,
+                                // The controllers stay the dialog's one store
+                                // for the pair, so `_build` reads a pick the
+                                // same way it reads a typed tax.
+                                onChanged: (name, rate) => setState(() {
+                                  tiers[i].$1.text = name;
+                                  tiers[i].$2.text = _decimalText(rate);
+                                }),
+                              ),
+                          ],
                       ],
                     );
                   },
@@ -409,6 +431,48 @@ class _LineItemEditDialogState extends State<_LineItemEditDialog> {
           ],
         ),
       ],
+    );
+  }
+}
+
+/// The line's tax category (`tax_id`) — a short fixed enum, so a plain
+/// dropdown, as the product form's is. Blank shows the label alone: a line
+/// saved before categories existed, which keeps its rates until one is picked.
+class _TaxCategoryField extends StatelessWidget {
+  const _TaxCategoryField({required this.value, required this.onChanged});
+
+  final String value;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = context.tr('tax_category');
+    return LabeledField(
+      label: label,
+      child: DropdownButtonFormField<String>(
+        key: const ValueKey('line_item_tax_category'),
+        decoration: InputDecoration(labelText: label),
+        initialValue: kProductTaxCategories.containsKey(value) ? value : null,
+        // The longest label ("Tax-free intra-community delivery") is wider
+        // than a phone's dialog: the button sizes to its widest item unless
+        // it fills the field, and then the label ellipsizes instead.
+        isExpanded: true,
+        items: [
+          for (final MapEntry(key: id, value: labelKey)
+              in kProductTaxCategories.entries)
+            DropdownMenuItem(
+              value: id,
+              child: Text(
+                context.tr(labelKey),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+        ],
+        onChanged: (v) {
+          if (v != null) onChanged(v);
+        },
+      ),
     );
   }
 }

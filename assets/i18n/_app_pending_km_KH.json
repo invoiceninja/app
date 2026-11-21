@@ -2243,5 +2243,6 @@
   "search_results_at_least_announcement": "យ៉ាងហោចណាស់លទ្ធផល :count ក្នុង :categories ប្រភេទ",
   "search_scope_announcement": ":scope, លទ្ធផល :count",
   "search_scope_at_least_announcement": ":scope, យ៉ាងហោចណាស់លទ្ធផល :count",
-  "session_ended_sign_in_again": "វគ្គរបស់អ្នកបានបញ្ចប់ហើយ។ សូមចូលម្តងទៀត។ ទិន្នន័យ និងការផ្លាស់ប្តូរដែលមិនទាន់ធ្វើសមកាលកម្មរបស់អ្នកត្រូវបានរក្សាទុក។"
+  "session_ended_sign_in_again": "វគ្គរបស់អ្នកបានបញ្ចប់ហើយ។ សូមចូលម្តងទៀត។ ទិន្នន័យ និងការផ្លាស់ប្តូរដែលមិនទាន់ធ្វើសមកាលកម្មរបស់អ្នកត្រូវបានរក្សាទុក។",
+  "line_item_taxes_calculated_on_save": "ពន្ធត្រូវបានគណនាពីប្រភេទពន្ធនៃជួរនីមួយៗ នៅពេលអ្នករក្សាទុក។"
 }

@@ -2244,5 +2244,6 @@
   "search_results_at_least_announcement": "Τουλάχιστον :count αποτελέσματα σε :categories κατηγορίες",
   "search_scope_announcement": ":scope, :count αποτελέσματα",
   "search_scope_at_least_announcement": ":scope, τουλάχιστον :count αποτελέσματα",
-  "session_ended_sign_in_again": "Η συνεδρία σας έληξε. Συνδεθείτε ξανά· τα δεδομένα σας και οι μη συγχρονισμένες αλλαγές διατηρούνται."
+  "session_ended_sign_in_again": "Η συνεδρία σας έληξε. Συνδεθείτε ξανά· τα δεδομένα σας και οι μη συγχρονισμένες αλλαγές διατηρούνται.",
+  "line_item_taxes_calculated_on_save": "Οι φόροι υπολογίζονται από την κατηγορία φόρου κάθε γραμμής κατά την αποθήκευση."
 }

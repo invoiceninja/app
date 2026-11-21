@@ -20,6 +20,7 @@ import 'package:admin/data/models/domain/product.dart';
 import 'package:admin/data/models/domain/tax_rate.dart';
 import 'package:admin/data/repositories/search_fetch.dart';
 import 'package:admin/domain/date_placeholders.dart';
+import 'package:admin/domain/product_tax_categories.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/edit/custom_field_input.dart';
 import 'package:admin/ui/core/widgets/back_dismissible_menu_anchor.dart';
@@ -592,9 +593,23 @@ class _LineItemTableDesktopState extends State<LineItemTableDesktop> {
 
     String taxLabel(String name, Decimal rate) =>
         (item == null || name.isEmpty) ? '' : '$name ${dec(rate)}%';
-    final tax = taxLabel(item?.taxName1 ?? '', item?.taxRate1 ?? Decimal.zero);
-    final tax2 = taxLabel(item?.taxName2 ?? '', item?.taxRate2 ?? Decimal.zero);
-    final tax3 = taxLabel(item?.taxName3 ?? '', item?.taxRate3 ?? Decimal.zero);
+    // A category line's row shows its category, not rates — and so does its
+    // proxy, or the row would change what it says while it is dragged.
+    final categoryKey =
+        item != null &&
+            widget.config.useTaxCategories &&
+            !taxCategoryKeepsManualRates(item.taxCategoryId)
+        ? kProductTaxCategories[item.taxCategoryId]
+        : null;
+    final tax = categoryKey != null
+        ? context.tr(categoryKey)
+        : taxLabel(item?.taxName1 ?? '', item?.taxRate1 ?? Decimal.zero);
+    final tax2 = categoryKey != null
+        ? ''
+        : taxLabel(item?.taxName2 ?? '', item?.taxRate2 ?? Decimal.zero);
+    final tax3 = categoryKey != null
+        ? ''
+        : taxLabel(item?.taxName3 ?? '', item?.taxRate3 ?? Decimal.zero);
 
     final gross = item == null ? Decimal.zero : item.cost * item.quantity;
     final total = gross == Decimal.zero
@@ -1769,6 +1784,72 @@ class _RowStateW extends State<_Row> {
       );
     }
 
+    // A category, not rates, while the company calculates taxes — see
+    // `LineItemColumnConfig.useTaxCategories`. Committed at once on the row
+    // rebuilt from its live cells, like the tax cell's pick.
+    void commitTaxCategory(String id) {
+      onCellCommit(
+        row
+            .buildItem(currentItem, useComma: useComma)
+            .copyWith(taxCategoryId: id),
+      );
+    }
+
+    final byCategory =
+        config.useTaxCategories &&
+        !taxCategoryKeepsManualRates(currentItem.taxCategoryId);
+
+    // What fills one tax slot. Only ever swapped by a pick in the slot itself
+    // (the category menu, the switch-back button) or by a product pick in the
+    // Item cell, so the field being replaced is never the focused one; the
+    // row's other cells keep their places either way (invoiceninja/app#203).
+    Widget taxSlot(int slot) {
+      if (byCategory) {
+        // Slots 2 and 3 stay as columns — the server fills all three — but a
+        // category line has nothing to enter in them.
+        if (slot != 1) return const SizedBox.shrink();
+        return _TaxCategoryCell(
+          value: currentItem.taxCategoryId,
+          // The ghost row's cells that commit at once stay inert, as its
+          // custom dropdowns do: any commit promotes it, so a pick there
+          // would add an empty line.
+          onChanged: isGhost ? null : commitTaxCategory,
+        );
+      }
+      final cell = _TaxCell(
+        companyId: companyId,
+        services: services,
+        formatter: formatter,
+        initialName: _taxNameOf(currentItem, slot),
+        initialRate: _taxRateOf(currentItem, slot),
+        onSelected: (taxRate) {
+          final name = taxRate?.name ?? '';
+          final rate = taxRate == null
+              ? Decimal.zero
+              : Decimal.parse(taxRate.rate.toString());
+          final base = row.buildItem(currentItem, useComma: useComma);
+          onCellCommit(switch (slot) {
+            1 => base.copyWith(taxName1: name, taxRate1: rate),
+            2 => base.copyWith(taxName2: name, taxRate2: rate),
+            _ => base.copyWith(taxName3: name, taxRate3: rate),
+          });
+        },
+      );
+      if (!config.useTaxCategories || slot != 1) return cell;
+      // An Override (or uncategorised) line keeps its rates, with React's
+      // way back to a category beside the first.
+      return Row(
+        children: [
+          Expanded(child: cell),
+          _UseTaxCategoryButton(
+            onPressed: isGhost
+                ? null
+                : () => commitTaxCategory(kDefaultTaxCategoryId),
+          ),
+        ],
+      );
+    }
+
     final body = FocusTraversalGroup(
       child: Container(
         padding: EdgeInsets.symmetric(
@@ -1898,28 +1979,7 @@ class _RowStateW extends State<_Row> {
                   key: ValueKey('tax_$slot'),
                   child: Padding(
                     padding: const EdgeInsetsDirectional.only(end: _kCellPadH),
-                    child: _TaxCell(
-                      companyId: companyId,
-                      services: services,
-                      formatter: formatter,
-                      initialName: _taxNameOf(currentItem, slot),
-                      initialRate: _taxRateOf(currentItem, slot),
-                      onSelected: (taxRate) {
-                        final name = taxRate?.name ?? '';
-                        final rate = taxRate == null
-                            ? Decimal.zero
-                            : Decimal.parse(taxRate.rate.toString());
-                        final base = row.buildItem(
-                          currentItem,
-                          useComma: useComma,
-                        );
-                        onCellCommit(switch (slot) {
-                          1 => base.copyWith(taxName1: name, taxRate1: rate),
-                          2 => base.copyWith(taxName2: name, taxRate2: rate),
-                          _ => base.copyWith(taxName3: name, taxRate3: rate),
-                        });
-                      },
-                    ),
+                    child: taxSlot(slot),
                   ),
                 ),
               endTotalCell(),
@@ -3470,6 +3530,129 @@ class _ChoiceSearchCellState extends State<_ChoiceSearchCell> {
           ),
         );
       },
+    );
+  }
+}
+
+/// A line's tax category, as a menu of [kProductTaxCategories] — shown in the
+/// first tax slot while the company calculates taxes, for a line whose
+/// category the server taxes by ([taxCategoryKeepsManualRates] false).
+///
+/// Override Tax is in the list: it is how a line gets its rate pickers back.
+/// Styled like `_ChoiceMenuCell` beside it — borderless, a ▾, one Tab stop.
+/// Null [onChanged] disables the cell.
+class _TaxCategoryCell extends StatelessWidget {
+  const _TaxCategoryCell({required this.value, required this.onChanged});
+
+  final String value;
+  final ValueChanged<String>? onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.inTheme;
+    final onChanged = this.onChanged;
+    final label = context.tr('tax_category');
+    final labelKey = kProductTaxCategories[value];
+    final display = labelKey == null ? '' : context.tr(labelKey);
+    return BackDismissibleMenuAnchor(
+      menuChildren: [
+        for (final MapEntry(key: id, value: key)
+            in kProductTaxCategories.entries)
+          MenuItemButton(
+            onPressed: onChanged == null ? null : () => onChanged(id),
+            leadingIcon: SizedBox(
+              width: 18,
+              child: id == value
+                  ? Icon(Icons.check, size: 16, color: tokens.ink)
+                  : null,
+            ),
+            child: Text(
+              context.tr(key),
+              style: TextStyle(fontSize: 13, color: tokens.ink),
+            ),
+          ),
+      ],
+      builder: (context, controller, _) {
+        final toggle = onChanged == null
+            ? null
+            : () => controller.isOpen ? controller.close() : controller.open();
+        return Semantics(
+          button: true,
+          enabled: toggle != null,
+          label: label,
+          value: display,
+          onTap: toggle,
+          excludeSemantics: true,
+          // A local Material for the InkWell's ink — the `Ink` rule,
+          // docs/sidebar-and-shell.md.
+          child: Material(
+            type: MaterialType.transparency,
+            child: InkWell(
+              onTap: toggle,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(
+                  minHeight: _kRowContentHeight,
+                ),
+                child: Padding(
+                  padding: const EdgeInsetsDirectional.only(start: _kCellPadH),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          display.isEmpty ? label : display,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.end,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: display.isEmpty ? tokens.ink3 : tokens.ink,
+                          ),
+                        ),
+                      ),
+                      Icon(Icons.arrow_drop_down, size: 18, color: tokens.ink3),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// The switch from an Override line's rates back to a tax category — React's
+/// ⟳ beside the first tax rate (`useResolveInputField`). Sets Physical Goods,
+/// which the category menu that replaces the rates then lets the user change.
+///
+/// A fixed 32 px slot with the button pinned to it on every platform
+/// (`docs/touch-targets.md` trap 5): the cell beside it is a flex column, and
+/// a button whose size followed the platform would resize that column.
+class _UseTaxCategoryButton extends StatelessWidget {
+  const _UseTaxCategoryButton({required this.onPressed});
+
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.inTheme;
+    return SizedBox(
+      width: 32,
+      height: _kRowContentHeight,
+      child: IconButton(
+        tooltip: context.tr('tax_category'),
+        onPressed: onPressed,
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints.tightFor(
+          width: 32,
+          height: _kRowContentHeight,
+        ),
+        style: const ButtonStyle(
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
+        icon: Icon(Icons.repeat, size: 16, color: tokens.ink3),
+      ),
     );
   }
 }

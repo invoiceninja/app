@@ -2244,5 +2244,6 @@
   "search_results_at_least_announcement": "Almenys :count resultats en :categories categories",
   "search_scope_announcement": ":scope, :count resultats",
   "search_scope_at_least_announcement": ":scope, almenys :count resultats",
-  "session_ended_sign_in_again": "La vostra sessió ha finalitzat. Torneu a iniciar sessió; les vostres dades i els canvis no sincronitzats es conserven."
+  "session_ended_sign_in_again": "La vostra sessió ha finalitzat. Torneu a iniciar sessió; les vostres dades i els canvis no sincronitzats es conserven.",
+  "line_item_taxes_calculated_on_save": "Els impostos es calculen a partir de la categoria fiscal de cada línia quan deseu."
 }

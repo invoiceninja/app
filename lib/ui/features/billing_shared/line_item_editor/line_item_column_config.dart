@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import 'package:admin/data/models/domain/billing/line_item_custom_fields.dart';
 import 'package:admin/data/models/domain/company.dart';
+import 'package:admin/domain/product_tax_categories.dart';
 
 /// Which optional columns the [LineItemEditor] shows. Driven from the
 /// active company's settings; built once per edit-screen mount.
@@ -36,10 +37,22 @@ class LineItemColumnConfig {
   /// Show the per-line discount column.
   final bool showDiscount;
 
-  /// When true, the line-item editor exposes a tax_category dropdown
-  /// instead of name + rate fields (server computes taxes). Today the
-  /// admin-portal toggle is `company.settings.calculate_taxes`. When set,
-  /// `taxColumnCount` is ignored in favor of a single category cell.
+  /// The company calculates line taxes itself (`company.calculate_taxes`),
+  /// so a line is given a tax category (`tax_id`) rather than rates.
+  ///
+  /// With it on, `InvoiceItemSum::calcTaxesAutomatically` replaces every
+  /// line's `tax_name1..3` / `tax_rate1..3` on save with what the line's
+  /// category and the client's location call for — rates typed on the line
+  /// are thrown away, which read as "saving erases my taxes". Only an
+  /// Override line keeps its own ([taxCategoryKeepsManualRates]). So a line
+  /// in any other category shows a category picker in the first tax slot and
+  /// nothing in the others, and an Override or blank one keeps the rate
+  /// pickers (React's `useResolveInputField`, admin-portal's item editor).
+  /// The slots are still [taxColumnCount] wide: the server fills all three.
+  ///
+  /// A host *asks* for this; [forCompany] grants it only when the company has
+  /// the switch on. A purchase order never asks — the server skips the
+  /// calculation on a document without a client.
   final bool useTaxCategories;
 
   /// The table holds hourly (`type_id` 2) lines — the Tasks tab of
@@ -82,11 +95,15 @@ class LineItemColumnConfig {
   ///
   /// And where the custom fields arrive: `product1..4`, or `task1..4` for a
   /// task table, the labels React and admin-portal use for the same columns.
+  ///
+  /// The one guess the null branch does make is [useTaxCategories] off: the
+  /// common case, and the one that leaves a line's rates where they were.
   LineItemColumnConfig forCompany(Company? company) => company == null
-      ? this
+      ? (useTaxCategories ? copyWith(useTaxCategories: false) : this)
       : copyWith(
           showDiscount: showDiscount && company.enableProductDiscount,
           taxColumnCount: company.enabledItemTaxRates.clamp(0, 3),
+          useTaxCategories: useTaxCategories && company.calculateTaxes,
           customFields: lineItemCustomFields(
             company.customFields,
             task: isTaskTable,

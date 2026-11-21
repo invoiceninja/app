@@ -2327,5 +2327,6 @@
   "search_results_at_least_announcement": "Au moins :count résultats dans :categories catégories",
   "search_scope_announcement": ":scope, :count résultats",
   "search_scope_at_least_announcement": ":scope, au moins :count résultats",
-  "session_ended_sign_in_again": "Votre session a pris fin. Reconnectez-vous ; vos données et vos modifications non synchronisées sont conservées."
+  "session_ended_sign_in_again": "Votre session a pris fin. Reconnectez-vous ; vos données et vos modifications non synchronisées sont conservées.",
+  "line_item_taxes_calculated_on_save": "Les taxes sont calculées selon la catégorie de taxe de chaque ligne lors de l'enregistrement."
 }

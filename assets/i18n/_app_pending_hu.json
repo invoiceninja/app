@@ -2282,5 +2282,6 @@
   "search_results_at_least_announcement": "Legalább :count találat :categories kategóriában",
   "search_scope_announcement": ":scope, :count találat",
   "search_scope_at_least_announcement": ":scope, legalább :count találat",
-  "session_ended_sign_in_again": "A munkamenet véget ért. Jelentkezzen be újra; az adatai és a nem szinkronizált módosításai megmaradnak."
+  "session_ended_sign_in_again": "A munkamenet véget ért. Jelentkezzen be újra; az adatai és a nem szinkronizált módosításai megmaradnak.",
+  "line_item_taxes_calculated_on_save": "Mentéskor az adók az egyes tételek adókategóriája alapján kerülnek kiszámításra."
 }

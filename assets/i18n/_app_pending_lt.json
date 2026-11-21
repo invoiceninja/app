@@ -2282,5 +2282,6 @@
   "search_results_at_least_announcement": "Rezultatų: bent :count, kategorijų: :categories",
   "search_scope_announcement": ":scope, rezultatų: :count",
   "search_scope_at_least_announcement": ":scope, rezultatų: bent :count",
-  "session_ended_sign_in_again": "Jūsų sesija baigėsi. Prisijunkite dar kartą; jūsų duomenys ir nesinchronizuoti pakeitimai išsaugomi."
+  "session_ended_sign_in_again": "Jūsų sesija baigėsi. Prisijunkite dar kartą; jūsų duomenys ir nesinchronizuoti pakeitimai išsaugomi.",
+  "line_item_taxes_calculated_on_save": "Mokesčiai apskaičiuojami pagal kiekvienos eilutės mokesčių kategoriją, kai išsaugote."
 }

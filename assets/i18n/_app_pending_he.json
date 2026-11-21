@@ -2243,5 +2243,6 @@
   "search_results_at_least_announcement": "לפחות :count תוצאות ב-:categories קטגוריות",
   "search_scope_announcement": ":scope, :count תוצאות",
   "search_scope_at_least_announcement": ":scope, לפחות :count תוצאות",
-  "session_ended_sign_in_again": "החיבור שלך הסתיים. התחבר שוב; הנתונים שלך והשינויים שלא סונכרנו נשמרים."
+  "session_ended_sign_in_again": "החיבור שלך הסתיים. התחבר שוב; הנתונים שלך והשינויים שלא סונכרנו נשמרים.",
+  "line_item_taxes_calculated_on_save": "המסים מחושבים לפי קטגוריית המס של כל שורה בעת השמירה."
 }

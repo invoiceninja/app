@@ -8,6 +8,7 @@ import 'package:admin/data/models/domain/billing/line_item.dart';
 import 'package:admin/data/models/domain/client.dart';
 import 'package:admin/data/models/domain/company.dart';
 import 'package:admin/data/models/value/currency.dart';
+import 'package:admin/domain/product_tax_categories.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/party_money_cell.dart';
 import 'package:admin/ui/features/billing_shared/line_item_editor/line_item_card_list_mobile.dart';
@@ -286,7 +287,8 @@ class _LineItemEditorState extends State<LineItemEditor> {
     String? currencyId, {
     required bool partyTaxExempt,
   }) {
-    return LayoutBuilder(
+    final newItemFactory = _newItemFactoryFor(effectiveConfig);
+    final layout = LayoutBuilder(
       builder: (context, constraints) {
         final wide = lineItemEditorShowsWideTable(constraints.maxWidth);
         if (wide) {
@@ -294,7 +296,7 @@ class _LineItemEditorState extends State<LineItemEditor> {
             companyId: widget.companyId,
             items: widget.items,
             onChanged: widget.onChanged,
-            newItemFactory: widget.newItemFactory,
+            newItemFactory: newItemFactory,
             config: effectiveConfig,
             currencyId: currencyId,
             productConversionRate: productConversionRate,
@@ -314,7 +316,7 @@ class _LineItemEditorState extends State<LineItemEditor> {
           companyId: widget.companyId,
           items: widget.items,
           onChanged: widget.onChanged,
-          newItemFactory: widget.newItemFactory,
+          newItemFactory: newItemFactory,
           config: effectiveConfig,
           currencyId: currencyId,
           onPickItems: widget.onPickItems,
@@ -324,6 +326,81 @@ class _LineItemEditorState extends State<LineItemEditor> {
           allowOptionalLines: widget.allowOptionalLines,
         );
       },
+    );
+    // Always the Column and the Flexible, only values varying: the config
+    // flips when the company row lands, and a wrapper that came and went with
+    // it would remount the table under a focused cell (invoiceninja/app#203,
+    // docs/form-fields.md).
+    //
+    // The layout keeps the height constraints it had before the hint
+    // existed, which a Column would loosen: the minimum the host passes down
+    // is what a phone's empty state centres in (#141), and a bounded maximum
+    // is still the most it may take. Under an unbounded height (the scrolling
+    // edit form) a flex would throw, so it is 0 there.
+    return LayoutBuilder(
+      builder: (context, constraints) => Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Flexible(
+            flex: constraints.hasBoundedHeight ? 1 : 0,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: constraints.minHeight),
+              child: layout,
+            ),
+          ),
+          _TaxesCalculatedHint(visible: effectiveConfig.useTaxCategories),
+        ],
+      ),
+    );
+  }
+
+  /// A new line starts in Physical Goods while the company calculates taxes,
+  /// as React's blank line item does: a blank category is not Override on the
+  /// server — `BaseRule` taxes it at the default rate — so a new line that
+  /// offered rate pickers would take rates the save then replaces.
+  LineItem Function() _newItemFactoryFor(LineItemColumnConfig config) {
+    final base = widget.newItemFactory;
+    if (!config.useTaxCategories) return base;
+    return () {
+      final item = base();
+      return item.taxCategoryId.isEmpty
+          ? item.copyWith(taxCategoryId: kDefaultTaxCategoryId)
+          : item;
+    };
+  }
+}
+
+/// One line under the items while the company calculates taxes: the totals
+/// above count the rates each line holds now, and the save replaces them
+/// with what each line's tax category calls for. React says nothing and lets
+/// the totals jump; this says why they will.
+class _TaxesCalculatedHint extends StatelessWidget {
+  const _TaxesCalculatedHint({required this.visible});
+
+  final bool visible;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!visible) return const SizedBox.shrink();
+    final tokens = context.inTheme;
+    return Padding(
+      padding: const EdgeInsetsDirectional.only(top: InSpacing.sm),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsetsDirectional.only(top: 1, end: 6),
+            child: Icon(Icons.info_outline, size: 16, color: tokens.ink3),
+          ),
+          Expanded(
+            child: Text(
+              context.tr('line_item_taxes_calculated_on_save'),
+              style: TextStyle(fontSize: 12, color: tokens.ink3),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

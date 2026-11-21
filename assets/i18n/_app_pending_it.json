@@ -2327,5 +2327,6 @@
   "search_results_at_least_announcement": "Almeno :count risultati in :categories categorie",
   "search_scope_announcement": ":scope, :count risultati",
   "search_scope_at_least_announcement": ":scope, almeno :count risultati",
-  "session_ended_sign_in_again": "La sessione è terminata. Accedi di nuovo; i tuoi dati e le modifiche non sincronizzate vengono conservati."
+  "session_ended_sign_in_again": "La sessione è terminata. Accedi di nuovo; i tuoi dati e le modifiche non sincronizzate vengono conservati.",
+  "line_item_taxes_calculated_on_save": "Le imposte vengono calcolate in base alla categoria fiscale di ogni riga al salvataggio."
 }

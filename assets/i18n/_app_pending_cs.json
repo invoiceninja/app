@@ -2327,5 +2327,6 @@
   "search_results_at_least_announcement": "Výsledky: alespoň :count v kategoriích: :categories",
   "search_scope_announcement": ":scope, výsledky: :count",
   "search_scope_at_least_announcement": ":scope, výsledky: alespoň :count",
-  "session_ended_sign_in_again": "Vaše relace skončila. Přihlaste se znovu; vaše data i nesynchronizované změny zůstanou zachovány."
+  "session_ended_sign_in_again": "Vaše relace skončila. Přihlaste se znovu; vaše data i nesynchronizované změny zůstanou zachovány.",
+  "line_item_taxes_calculated_on_save": "Daně se při uložení vypočítají podle daňové kategorie každé položky."
 }
