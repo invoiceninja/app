@@ -89,6 +89,20 @@
     <control>touch</control>
   </supports>
   <releases>
+    <release version="5.1.33" date="2026-11-21">
+      <description>
+        <ul>
+          <li>Choose whether Save keeps the editor open or goes to the record</li>
+          <li>Theme, palettes and custom colours sync with your account</li>
+          <li>Client notes shown under the picker in invoices, quotes and other documents</li>
+          <li>Search ranks and groups its results, with a category bar</li>
+          <li>With Calculate Taxes on, line items take a tax category</li>
+          <li>The new item row keeps every key; two-digit years read correctly</li>
+          <li>A sign-in elsewhere now signs this device out cleanly</li>
+          <li>Many smaller fixes</li>
+        </ul>
+      </description>
+    </release>
     <release version="5.1.32" date="2026-11-20">
       <description>
         <ul>
