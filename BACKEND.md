@@ -17,6 +17,7 @@ the Flutter app) so they are explicitly **out of scope** here.
 - OIDC sign-in — the callback hardcodes the React SPA, so no Flutter client (native **or** web) can complete it (**O**, blocks self-hosted SSO; same shape as the calendar-connect fix).
 - Sign in with Apple tokens are never revoked when an account is deleted (**O**, § Sign in with Apple tokens; the client already sends the authorization code, a server branch is ready).
 - OAuth re-authentication (`X-API-OAUTH-PASSWORD`) can never pass for a **Google** user — it wants an `id_token` the client can't produce, and its `Hash::check` arguments are swapped (**O**, § OAuth re-authentication; client offers Apple re-auth only).
+- The vendor "payment processed" email: about 30 locales print `:payment _date` raw instead of the date, and the subject's bare-key `strtr` doubles a vendor name that contains a variable word (**O**, § The vendor payment email; found preparing the payment-type change, 2026-11-21).
 - A sign-in anywhere rotates the user's shared 30-day-old `is_system` token, signing out every other client (v1, React, each device), and the 403 it then gets has no `error_type` (**O**, § A sign-in anywhere rotates the token every other client holds; the Flutter app now signs out cleanly on it).
 - Bulk `ids` are now existence-checked, so one stale id 422s the whole batch (**O**, shared-cache UX).
 - `POST /api/v1/tasks/bulk` with `action=bulk_update` always **500s** — `Collection::first()` returns a model, not a collection (**SHIPPED** 2026-09-23, `87528bcf0c`, v5.13.44; the client now offers task Bulk Update on servers that have it).
@@ -3614,3 +3615,21 @@ server starts filtering the fallback, nothing breaks: the device filter is a no-
 already-matching set, and the palette caches the answer only when it holds a record that matches
 none of the query (`answerIgnoresQuery`) — a filtered fallback is simply asked again per query.
 
+## The vendor payment email — a raw `:payment _date` in ~30 locales, and a doubled vendor name — **O (found 2026-11-21, against v5-develop ceaaca51ea)**
+
+Both live in `app/Jobs/Expense/VendorExpenseNotify.php`, the job behind an expense's "Notify vendor when paid". They turned up while we prepared the payment-type change (branch `feat/vendor-notification-payment-type`), which touches neither.
+
+**1. About 30 locales print the placeholder, not the date.** Their `vendor_notification_body` reads `:payment _date`, with a space Transifex put in. Laravel only replaces `:payment_date`, so the vendor sees the raw token.
+- German, for example: "Zahlung für $100.00 vom :payment _date verarbeitet."
+- zh_TW: "已處理$100.00的付款，日期為:payment _date。"
+- Fix: correct the string in Transifex for each affected locale and re-import. No code change.
+- `grep -l ':payment _date' lang/*/texts.php` lists them.
+
+**2. A bare-key `strtr` over the subject doubles parts of a vendor's name.** `$mo->variables` carries bare keys (`vendor`, `amount` and so on), and they are `strtr`'d over the subject as well as the `:`-prefixed placeholders. So a word in the vendor's name that matches a key is replaced a second time: a vendor named "the vendor co" becomes "the the vendor co co".
+- Fix: prefix the keys with `:` (or `$`), as the body's placeholders are, so only real placeholders match.
+
+**Also seen, lower priority:**
+- `email_template_body` and `email_template_subject` are swapped in that job.
+- Company custom translations are loaded before `App::setLocale(vendor locale)`, so a vendor in another language may get the company's override in the wrong language.
+
+**Client status:** nothing on the client side; the app only sets "Notify vendor when paid" on the expense.
