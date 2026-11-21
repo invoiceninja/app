@@ -20,6 +20,7 @@ void main() {
     WidgetTester tester, {
     Future<void> Function(ShellFixture fixture)? seed,
     List<Uri>? asked,
+    String clientId = '',
   }) async {
     final fixture = await buildFixture(
       companies: [
@@ -40,7 +41,7 @@ void main() {
         Scaffold(
           body: LineItemPickerBody(
             companyId: 'co1',
-            clientId: '',
+            clientId: clientId,
             showTasksAndExpenses: true,
             invoiceInclusive: false,
             excludedTaskIds: const {},
@@ -95,6 +96,34 @@ void main() {
 
     expect(find.text('Old unbilled work'), findsOneWidget);
     expect(find.textContaining('Billed '), findsNothing);
+    await _disposeTree(tester);
+  });
+
+  testWidgets("this client's older unbilled task outlives 250 of another's", (
+    tester,
+  ) async {
+    await pumpPicker(
+      tester,
+      clientId: 'c1',
+      seed: (f) async {
+        await f.db.taskDao.upsertAll([
+          for (var i = 0; i < 250; i++)
+            _taskRow(
+              'o$i',
+              'Other client $i',
+              updatedAt: 1000 + i,
+              clientId: 'c2',
+            ),
+          _taskRow('mine', 'This client work', updatedAt: 1, clientId: 'c1'),
+          _taskRow('free', 'No client work', updatedAt: 2),
+        ]);
+      },
+    );
+    await openTab(tester, 'Tasks');
+
+    expect(find.text('This client work'), findsOneWidget);
+    expect(find.text('No client work'), findsOneWidget);
+    expect(find.textContaining('Other client '), findsNothing);
     await _disposeTree(tester);
   });
 
@@ -170,16 +199,19 @@ TasksCompanion _taskRow(
   String description, {
   required int updatedAt,
   String invoiceId = '',
+  String clientId = '',
 }) => TasksCompanion.insert(
   id: id,
   companyId: 'co1',
   updatedAt: updatedAt,
   description: Value(description),
   invoiceId: Value(invoiceId),
+  clientId: Value(clientId),
   payload: jsonEncode({
     'id': id,
     'description': description,
     'invoice_id': invoiceId,
+    'client_id': clientId,
     'updated_at': updatedAt,
     'time_log': jsonEncode([
       [1700000000, 1700003600, '', true],

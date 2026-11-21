@@ -368,7 +368,14 @@ class _LineItemPickerBodyState extends State<LineItemPickerBody>
       // billing predicate rides the query (`badgeModeId`, the status tab's
       // own SQL), so the window is 250 *billable* rows — filtering after the
       // LIMIT dropped every older unbilled row behind 250 newer billed ones.
+      // The "blank or this client" rule rides it too, as a local `client_id`
+      // membership (`''` is the no-client row): applied after the LIMIT, 250
+      // unbilled rows of OTHER clients hid this one's. Local only — the
+      // server pull above stays unscoped, for the reason given there.
       const watchPages = 5;
+      final clientScope = <String, Set<String>>{
+        'client_id': {'', if (widget.clientId.isNotEmpty) widget.clientId},
+      };
       final tasks = _tabs.contains(_TabKind.tasks)
           ? (await services.tasks
                     .watchPage(
@@ -376,6 +383,7 @@ class _LineItemPickerBodyState extends State<LineItemPickerBody>
                       loadedPages: watchPages,
                       states: const {EntityState.active},
                       badgeModeId: _kTaskPickerMode,
+                      extraFilters: clientScope,
                     )
                     .first)
                 .where(
@@ -396,6 +404,7 @@ class _LineItemPickerBodyState extends State<LineItemPickerBody>
                       loadedPages: watchPages,
                       states: const {EntityState.active},
                       badgeModeId: _kExpensePickerMode,
+                      extraFilters: clientScope,
                     )
                     .first)
                 .where(
