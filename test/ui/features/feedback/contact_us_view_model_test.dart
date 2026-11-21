@@ -1,6 +1,7 @@
 // The state behind Contact Us: the opt-in capture, the slot rule, what is
 // sent, and how a failed send with images reads (docs/feedback-screenshots.md).
 
+import 'dart:async';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
@@ -306,6 +307,25 @@ void main() {
       await m.send(message: 'Hi', appVersion: 'v'),
       isA<ContactUsFailed>(),
     );
+    m.dispose();
+  });
+
+  // The veto can write to the keychain; a write that never returns must not
+  // leave the dialog spinning on "sending" forever.
+  testWidgets('a session decision that never comes is taken as ended after '
+      'the timeout', (tester) async {
+    api.throwOnJson = UnauthorizedException.rejected(Completer<bool>().future);
+    final m = vm();
+    ContactUsSendResult? result;
+    unawaited(m.send(message: 'Hi', appVersion: 'v').then((r) => result = r));
+    await tester.pump(
+      kContactUsSessionDecisionTimeout - const Duration(seconds: 1),
+    );
+    expect(result, isNull);
+    expect(m.sending, isTrue);
+    await tester.pump(const Duration(seconds: 2));
+    expect(result, isA<ContactUsSessionEnded>());
+    expect(m.sending, isFalse);
     m.dispose();
   });
 

@@ -492,13 +492,15 @@ class AuthRepository {
     await _secure.delete(kAuthWipePendingKey);
   }
 
-  /// The same identity is signing back in: send again what a dead token killed.
-  /// Before 5.1.33 a 403 "Invalid token" was a plain 4xx, so the drain marked
-  /// the row `dead` (`SyncRepository`'s `ServerException` arm) instead of
-  /// parking it for after the sign-in. That 403 refused the token, not the
-  /// change, so the row goes back in line with a fresh budget — and, for a
+  /// The same identity is signing back in: bring back what a dead token
+  /// killed. Before 5.1.33 a 403 "Invalid token" was a plain 4xx, so the drain
+  /// marked the row `dead` (`SyncRepository`'s `ServerException` arm) instead
+  /// of parking it for after the sign-in. That 403 refused the token, not the
+  /// change. A create, an upload or a comment goes back in line — and, for a
   /// `tmp_` create, the uploads its death took down with it (as the Outbox's
-  /// Retry does). Best-effort: a failure here must not fail the sign-in.
+  /// Retry does); anything that could overwrite a newer server edit waits for
+  /// the user as `unconfirmed` ([OutboxDao.reviveDeadTokenRows]). Best-effort:
+  /// a failure here must not fail the sign-in.
   Future<void> _reviveRowsKilledByDeadToken() async {
     try {
       final now = DateTime.now().millisecondsSinceEpoch;

@@ -44,6 +44,10 @@ class FeedbackAttachment {
   );
 }
 
+/// How long a send waits to hear whether its rejection is ending the session
+/// (`UnauthorizedException.sessionEnding`) before assuming it is.
+const Duration kContactUsSessionDecisionTimeout = Duration(seconds: 10);
+
 /// How a send ended.
 sealed class ContactUsSendResult {
   const ContactUsSendResult();
@@ -260,7 +264,14 @@ class ContactUsViewModel extends ChangeNotifier {
       // absorbed (the switch rolled back, the session lives), stays a
       // failure, and the typed message stays open.
       final ending = e.sessionEnding;
-      final ended = ending != null ? await ending : !e.isStaleCredential;
+      final ended = ending != null
+          // Bounded: the veto can write to the keychain, and a hung write
+          // would spin "sending" forever. Past it, assume the usual outcome.
+          ? await ending.timeout(
+              kContactUsSessionDecisionTimeout,
+              onTimeout: () => true,
+            )
+          : !e.isStaleCredential;
       return ended ? const ContactUsSessionEnded() : ContactUsFailed(e);
     } on ValidationException catch (e) {
       final aboutImages = e.fieldErrors.keys.any(

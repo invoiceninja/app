@@ -1155,33 +1155,50 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
           ) >
       0;
 
-  /// Re-arm every `dead` row a 403 "Invalid token" killed (any case — the
+  /// Bring back every `dead` row a 403 "Invalid token" killed (any case — the
   /// hosted server says "Invalid Token"), across companies, and return them as
   /// they were. That 403 refused the token, not the change: builds before
   /// 5.1.33 marked such a row dead instead of parking it for after the sign-in
   /// (`AuthRepository._reviveRowsKilledByDeadToken`). Keeps the payload and
   /// idempotency key, like [retryDead].
+  ///
+  /// A create, a document upload and a comment go back to `pending`: none of
+  /// them can overwrite anything ([_writesNoRecordField], and a create's
+  /// record is its own). Every other kind — an update, a lifecycle or bulk
+  /// action — goes `unconfirmed`, for the user's Check / Resend / Discard. The
+  /// token was rotated because the user signed in somewhere else, likely
+  /// editing the same records there, and a dead row neither held later rows
+  /// back nor compares `updated_at`: re-sent on its own, its old full payload
+  /// would overwrite the newer server edits.
   Future<List<OutboxRow>> reviveDeadTokenRows({required int now}) =>
       transaction(() async {
-        final rows =
-            await (select(outbox)..where(
-                  (o) =>
-                      o.state.equals('dead') &
-                      o.lastStatusCode.equals(403) &
-                      o.lastError.trim().lower().equals('invalid token'),
-                ))
-                .get();
+        Expression<bool> killedByDeadToken($OutboxTable o) =>
+            o.state.equals('dead') &
+            o.lastStatusCode.equals(403) &
+            o.lastError.trim().lower().equals('invalid token');
+        Expression<bool> safeToResend($OutboxTable o) =>
+            o.mutationKind.equals(MutationKind.create.wireName) |
+            _writesNoRecordField(o);
+        final rows = await (select(outbox)..where(killedByDeadToken)).get();
         if (rows.isEmpty) return rows;
-        await (update(outbox)..where(
-              (o) => o.id.isIn(rows.map((r) => r.id)) & o.state.equals('dead'),
-            ))
-            .write(
-              OutboxCompanion(
-                state: const Value('pending'),
-                attempts: const Value(0),
-                nextAttemptAt: Value(now),
-              ),
-            );
+        await (update(
+          outbox,
+        )..where((o) => killedByDeadToken(o) & safeToResend(o))).write(
+          OutboxCompanion(
+            state: const Value('pending'),
+            attempts: const Value(0),
+            nextAttemptAt: Value(now),
+          ),
+        );
+        await (update(
+          outbox,
+        )..where((o) => killedByDeadToken(o) & safeToResend(o).not())).write(
+          OutboxCompanion(
+            state: const Value('unconfirmed'),
+            attempts: const Value(0),
+            nextAttemptAt: Value(now),
+          ),
+        );
         return rows;
       });
 
