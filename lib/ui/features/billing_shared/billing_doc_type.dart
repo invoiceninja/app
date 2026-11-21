@@ -83,6 +83,14 @@ enum BillingDocType {
     BillingDocType.credit || BillingDocType.purchaseOrder => false,
   };
 
+  /// Whether the Tasks tab is offered on this document whatever "Show Tasks
+  /// Table" says — only a quote. A quote estimates hours that have not been
+  /// logged yet, so its hourly lines are typed, not picked; with the setting
+  /// off (the default) there was nowhere to type more than the one task line
+  /// the picker could add. React's quote edit page always renders the Tasks
+  /// tab (`pages/quotes/edit/Edit.tsx`). Implies [offersTasksTable].
+  bool get alwaysOffersTasksTable => this == BillingDocType.quote;
+
   // ── The record screen's spec ────────────────────────────────────────
   //
   // What the shared record (detail) layout in `billing_shared/detail/` needs

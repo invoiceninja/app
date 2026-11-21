@@ -28,6 +28,7 @@ import 'package:admin/data/repositories/tax_rate_repository.dart';
 import 'package:admin/data/services/invoices_api.dart';
 import 'package:admin/domain/entity_state.dart';
 import 'package:admin/l10n/company_labels_scope.dart';
+import 'package:admin/ui/features/billing_shared/billing_doc_type.dart';
 import 'package:admin/ui/features/billing_shared/items/billing_doc_items_tabs.dart';
 import 'package:admin/ui/features/billing_shared/line_item_editor/line_item_editor.dart';
 import 'package:admin/ui/features/invoices/view_models/invoice_edit_view_model.dart';
@@ -210,6 +211,7 @@ void main() {
     required _CompanyRepo repo,
     List<LineItem> lines = const [],
     bool offerTasksTab = true,
+    bool alwaysOfferTasksTab = false,
     double width = 1200,
     double minHeight = 0,
     InvoiceEditViewModel? reuse,
@@ -257,6 +259,7 @@ void main() {
                       rowErrors: null,
                       onPickItems: () {},
                       offerTasksTab: offerTasksTab,
+                      alwaysOfferTasksTab: alwaysOfferTasksTab,
                     ),
                   ),
                 ),
@@ -323,6 +326,51 @@ void main() {
       );
       expect(find.text('Products (1)'), findsOneWidget);
       expect(find.text('Tasks (1)'), findsOneWidget);
+      await unmount(tester);
+    });
+  });
+
+  // A quote estimates hours not yet logged, so they are typed, not picked —
+  // and with "Show Tasks Table" off (the default) the picker's one task line
+  // was the most a quote could hold (React always renders the quote's tab).
+  group('a quote always offers the Tasks tab', () {
+    testWidgets('"Show Tasks Table" off → Products | Tasks on a quote', (
+      tester,
+    ) async {
+      final vm = await pump(
+        tester,
+        repo: _CompanyRepo(_company(showTasksTable: false)),
+        alwaysOfferTasksTab: true,
+      );
+      expect(find.byType(TabBar), findsOneWidget);
+      expect(find.text('Tasks'), findsOneWidget);
+
+      await tester.tap(find.text('Tasks'));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Description'),
+        'Discovery workshop',
+      );
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump();
+      expect(vm.draft.lineItems, hasLength(1));
+      expect(vm.draft.lineItems.single.typeId, LineItemType.task);
+      expect(find.text('Tasks (1)'), findsOneWidget);
+      await unmount(tester);
+    });
+
+    testWidgets('an invoice with the setting off still hides it', (
+      tester,
+    ) async {
+      await pump(
+        tester,
+        repo: _CompanyRepo(_company(showTasksTable: false)),
+        // As the layout passes it: `BillingDocType.invoice` offers the tab
+        // only through the setting.
+        offerTasksTab: BillingDocType.invoice.offersTasksTable,
+        alwaysOfferTasksTab: BillingDocType.invoice.alwaysOffersTasksTable,
+      );
+      expect(find.byType(TabBar), findsNothing);
       await unmount(tester);
     });
   });

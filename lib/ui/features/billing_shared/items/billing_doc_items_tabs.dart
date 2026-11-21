@@ -24,8 +24,9 @@ import 'package:admin/ui/features/billing_shared/view_models/billing_doc_edit_vi
 /// Modes:
 ///   * **Only products, and no Tasks tab on offer** → one `LineItemEditor`
 ///     over the full list, no tab chrome.
-///   * **Any task or expense line present, or the company's "Show Tasks
-///     Table" setting on a document that [offerTasksTab]s** → a `TabBar`
+///   * **Any task or expense line present, the company's "Show Tasks
+///     Table" setting on a document that [offerTasksTab]s, or a document
+///     that [alwaysOfferTasksTab]s (a quote)** → a `TabBar`
 ///     above one `LineItemEditor` per type. Each editor sees the filtered
 ///     subset for its type. Edits are merged back into the full list (via
 ///     [mergeBackByType]) preserving the relative position of rows in the
@@ -67,6 +68,7 @@ class BillingDocItemsTabs extends StatefulWidget {
     required this.onPickItems,
     this.showStockQuantity = false,
     this.offerTasksTab = false,
+    this.alwaysOfferTasksTab = false,
     this.onCreateTaskFromLineItem,
     this.allowOptionalLines = false,
   });
@@ -90,6 +92,11 @@ class BillingDocItemsTabs extends StatefulWidget {
   /// `BillingDocType.offersTasksTable`. A document that already has one shows
   /// the tab whatever this says.
   final bool offerTasksTab;
+
+  /// This document keeps a Tasks tab whatever "Show Tasks Table" says — a
+  /// quote (`BillingDocType.alwaysOffersTasksTable`), whose hourly lines are
+  /// typed estimates rather than picked logged time.
+  final bool alwaysOfferTasksTab;
 
   /// Invoice / quote hosts only — schedule a line's work as a dated task
   /// (invoiceninja/flutter#88). Forwarded to ALL THREE tabs: an expense line is
@@ -442,7 +449,10 @@ class _BillingDocItemsTabsState extends State<BillingDocItemsTabs>
     return _tabs[ctl.index.clamp(0, _tabs.length - 1)];
   }
 
-  bool get _showTasks => _hasTasks || (widget.offerTasksTab && _showTasksTable);
+  bool get _showTasks =>
+      _hasTasks ||
+      widget.alwaysOfferTasksTab ||
+      (widget.offerTasksTab && _showTasksTable);
 
   List<_LineKind> _visibleTabs() => <_LineKind>[
     _LineKind.products,

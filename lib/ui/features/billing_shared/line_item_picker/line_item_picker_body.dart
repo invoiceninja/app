@@ -32,6 +32,14 @@ import 'package:admin/ui/features/billing_shared/line_item_picker/quick_product_
 import 'package:admin/utils/formatting.dart';
 import 'package:admin/utils/search_fold.dart';
 
+/// The `client_status` value (server) and status-tab mode (Drift) the
+/// picker's Tasks tab lists: logged and not yet invoiced.
+const _kTaskPickerMode = 'uninvoiced';
+
+/// The same pair for the Expenses tab: billable and not yet invoiced — never
+/// `uninvoiced`, which also matches a non-billable overhead expense.
+const _kExpensePickerMode = 'pending';
+
 /// Tabbed multi-select picker body for the billing-doc edit screens.
 ///
 /// Three tabs — Products / Tasks / Expenses — surface as available based on
@@ -306,8 +314,17 @@ class _LineItemPickerBodyState extends State<LineItemPickerBody>
     // assigned to the active draft's client. Narrowing on the server would
     // drop the unassigned half. The local `where(...)` clause below
     // re-applies the "blank-or-match" rule.
-    final filters = <String, Set<String>>{
-      'client_status': {'uninvoiced'},
+    //
+    // Tasks ask for `uninvoiced`; expenses for `pending` — billable
+    // (`should_be_invoiced`) and on no invoice yet, the server's own
+    // `ExpenseFilters::client_status` arm. `uninvoiced` listed company
+    // overhead (a client-less, non-billable expense) on every client's
+    // document; admin-portal's picker lists billable expenses only too.
+    const taskFilters = <String, Set<String>>{
+      'client_status': {_kTaskPickerMode},
+    };
+    const expenseFilters = <String, Set<String>>{
+      'client_status': {_kExpensePickerMode},
     };
     // Page through the filtered result set (capped) with `ignoreCursor:true`
     // so the browsable list's keyset cursor is untouched. Cap protects the
@@ -322,6 +339,7 @@ class _LineItemPickerBodyState extends State<LineItemPickerBody>
         bool ignoreCursor,
       })
       ensurePage,
+      Map<String, Set<String>> filters,
     ) async {
       const maxPages = 5;
       for (var page = 1; page <= maxPages; page++) {
@@ -339,14 +357,17 @@ class _LineItemPickerBodyState extends State<LineItemPickerBody>
     try {
       await Future.wait([
         if (_tabs.contains(_TabKind.tasks))
-          loadAll(services.tasks.ensurePageLoaded),
+          loadAll(services.tasks.ensurePageLoaded, taskFilters),
         if (_tabs.contains(_TabKind.expenses))
-          loadAll(services.expenses.ensurePageLoaded),
+          loadAll(services.expenses.ensurePageLoaded, expenseFilters),
       ]);
       // 5 pages × 50 rows = 250, matching the server-side cap in `loadAll`.
       // Anything beyond that is reachable via the in-picker filter (which
       // hits the server search seam for products; for tasks/expenses the
-      // 250-row window is the working set and search is local).
+      // 250-row window is the working set and search is local). The
+      // billing predicate rides the query (`badgeModeId`, the status tab's
+      // own SQL), so the window is 250 *billable* rows — filtering after the
+      // LIMIT dropped every older unbilled row behind 250 newer billed ones.
       const watchPages = 5;
       final tasks = _tabs.contains(_TabKind.tasks)
           ? (await services.tasks
@@ -354,6 +375,7 @@ class _LineItemPickerBodyState extends State<LineItemPickerBody>
                       companyId: widget.companyId,
                       loadedPages: watchPages,
                       states: const {EntityState.active},
+                      badgeModeId: _kTaskPickerMode,
                     )
                     .first)
                 .where(
@@ -373,11 +395,12 @@ class _LineItemPickerBodyState extends State<LineItemPickerBody>
                       companyId: widget.companyId,
                       loadedPages: watchPages,
                       states: const {EntityState.active},
+                      badgeModeId: _kExpensePickerMode,
                     )
                     .first)
                 .where(
                   (e) =>
-                      !e.isInvoiced &&
+                      e.isPending &&
                       !e.isDeleted &&
                       !widget.excludedExpenseIds.contains(e.id) &&
                       (e.clientId.isEmpty || e.clientId == widget.clientId),

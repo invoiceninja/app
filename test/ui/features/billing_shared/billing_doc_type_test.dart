@@ -124,6 +124,15 @@ void main() {
         p: false,
         r: true,
       });
+      // Only a quote shows the Tasks tab with "Show Tasks Table" off — its
+      // hourly lines are typed estimates, not picked logged time.
+      expect(of((t) => t.alwaysOffersTasksTable), {
+        i: false,
+        q: true,
+        c: false,
+        p: false,
+        r: false,
+      });
     });
 
     test('terms / footer defaults, and the recurring invoice has none', () {
