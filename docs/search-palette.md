@@ -142,9 +142,12 @@ do so the field keeps the key.
   way, the first result opens when it lands — only a record (never "Search Clients for …"), and
   not if the text changed since or the request failed (offline, the first local row would be a
   guess). A hardware Enter is taken in `_onKey`, ahead of the field, so it opens the selection on a
-  touch tablet with a keyboard too; never mid-composition, and **not on desktop web**, where the
+  touch tablet with a keyboard too; never mid-composition, and **not on web at all**, where the
   browser submits the field on Enter whether or not a handler took the key — two paths selected
-  twice. `_select` is guarded against re-entry as well. ← / → stay with the text caret (a "←/→ after ↓" mode was
+  twice (touch web included: there `_submit` alone decides). Enter while a search is pending and
+  the field no longer matches `_query` sets `_enterPending`, so it opens the new text's first
+  result when it lands, never the row the previous query selected; a tapped row still opens at
+  once. `_select` is guarded against re-entry as well. ← / → stay with the text caret (a "←/→ after ↓" mode was
   proposed and rejected: hidden, fights the caret, flips in RTL).
 - **No Backspace-on-empty-field back to All** (the Slack / GitHub gesture): emptying the field
   already returns the palette to rest, so there is never an empty field inside a category.
@@ -158,7 +161,12 @@ do so the field keeps the key.
   hardware keyboard's Enter never reaches this path (see § Keys). On text the results already
   answer it ends the wait the keystroke started, or the progress bar spins with nothing coming.
 - **No selection is painted on touch until an arrow key is pressed** — a highlighted first row reads
-  as a stuck press.
+  as a stuck press. So the first ↑ or ↓ on a touch device with a hardware keyboard only shows the
+  selection (row 1, or the first recent) and moves nothing; the next one moves. Rows announce
+  `selected` only when it is painted.
+- **Counts read in the singular for one** (`show_one_result_in_all` and the six
+  `*_one_*_announcement` keys): `searchResultsAnnouncementKey` and `searchScopeAnnouncementKey`
+  pick the key.
 - Both lists dismiss the keyboard on drag.
 
 ## A narrow or short window gets the page, never the card
