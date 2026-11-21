@@ -92,10 +92,10 @@ Rules that turn into bugs or CI failures if forgotten. Read this block first.
 - **Auth user data flows in through `/refresh`, not `GET /users/{id}`** (412-gated). `_persistAndActivate` upserts each `data[N].user` into `users` on every login/refresh; `auth.refresh()` is a full session snapshot, not for incidental work — never call `UsersApi.get` from incidental paths.
 - **A synced preference lives only in `company_user.settings`, under a `flutter_` key (`patchSettings`) — never in React's `react_settings`.** → `docs/user-settings-storage.md`
 - **Every write goes through the outbox.** Repositories never call mutation endpoints directly. (Accepted exceptions, each a synchronous UI flow that can't queue: the calendar-connection OAuth handshake/`setCalendars`/`disconnect` in `CalendarConnectionRepository`, `QuickbooksRepository`, the passkey ceremony in `PasskeyRepository` (its challenge expires in five minutes), DocuNinja (`DocuNinjaApi`, another service with server-side state machines, and `DocuNinjaLoginApi`'s Invoice Ninja-side account calls), `TerminalRepository` (a card is taken live; the server records every charge itself), and `SupportApi` (Contact Us) — see their class docs.)
-- **Every list query is scoped by `company_id`.** Use `CompanyScopedDao` — direct table access bypassing the DAO fails a lint check.
-- **Idempotency keys are stable across retries** — generated when the outbox row is created, reused on every retry.
+- **Every list query is scoped by `company_id`.** Use `CompanyScopedDao`; bypassing it fails a lint check.
+- **Idempotency keys are stable across retries** — generated with the outbox row, reused on every retry.
 - **Format money / dates / addresses through `Formatter`** (`lib/utils/formatting.dart`). `Formatter.money(amount, clientCurrencyId: ...)` runs the per-client → company currency cascade + Euro override; `Formatter.date(date.toIso())` honors company `date_format_id`. Never render `Date.toIso()`, `DateFormat`, or `MaterialLocalizations.formatMediumDate` directly — `toIso()` is for storage/API/Drift keys only. Build the `Formatter` once per screen via `services.formatterFor(companyId)` and pass it down. Parse user input via `parseDecimal(input, useCommaAsDecimalPlace: ...)`.
-- **No `vm.<entityName>` / `vm.<entityName>s` aliases on list/detail VMs.** Canonical accessors are `vm.item` (detail) and `vm.items` (list), defined on the generic bases.
+- **No `vm.<entityName>` / `vm.<entityName>s` aliases on list/detail VMs.** Use `vm.item` (detail) / `vm.items` (list), on the generic bases.
 - **Imports are `package:admin/...` inside `lib/`, never relative** — `export`s and both branches of an `if (dart.library.io)` seam included; `test/lint/package_imports_test.dart` is the gate. **A test importing a test helper stays relative by design — don't "fix" it**; only a relative path into `lib/` is banned there. → `docs/architecture.md`
 - **`lib/data/**` must not reach `lib/ui/**`, not even transitively.** → `docs/architecture.md`
 - **CI runs in UTC; the dev machines here don't.** A fixture whose expectation depends on a calendar day or wall-clock time sits in the ~11:00–13:00 UTC band (the same local day from UTC−11 to UTC+10); `DateTime.toLocal()` is the trap and task time-log grouping (`_isoDay`, `lib/domain/tasks/task_invoice_notes.dart`) the live example. Check with `TZ=UTC flutter test <file>` before pushing.
@@ -153,7 +153,7 @@ See `docs/architecture.md` for the offline-first write pipeline (Drift→outbox�
 
 ## Design system (v2)
 
-Token-based visual language; the Dart port is the sole source of truth.
+Token-based visual language.
 
 - `lib/app/design_tokens.dart` — **the source of truth** for colors, radii, shadows, type. Read tokens via `context.inTheme.<name>` (e.g. `context.inTheme.surface`). **No new color constants** outside `InTheme`. `InRadii` / `InSpacing` are brightness-independent.
 - `lib/app/theme.dart` — wires `InTheme.light` / `InTheme.dark` into `ThemeData` (incl. per-component button/shape themes).
@@ -191,7 +191,6 @@ Token-based visual language; the Dart port is the sole source of truth.
 - **A viewport can be too *short* for optional chrome, and `Breakpoints` cannot answer that.** → `docs/sidebar-and-shell.md`
 - **The main menu is a *preference*, and the two halves of that fail in opposite directions.** → `docs/sidebar-and-shell.md`
 - **Settings and Outbox are chrome, not destinations — they are pinned below the nav list, and their selected state drops the accent.** → `docs/sidebar-and-shell.md`
-
 
 - **On a narrow viewport nothing above a screen owns a `Scaffold`, so every full-page host must bring its own — and a missing one costs keyboard avoidance, silently.** → `docs/sidebar-and-shell.md`
 - **A scroll view under a `RefreshIndicator` that is handed a `controller:` must ask for `physics: const AlwaysScrollableScrollPhysics()` — the controller switches that default off, and a list shorter than its viewport can then never be pulled (`test/lint/refresh_indicator_physics_test.dart`).** → `docs/pull-to-refresh.md`
@@ -413,7 +412,7 @@ Every surface calls `guardedOnTap(context, item)`, never `item.onTap`; surfaces 
 
 ## Sync — non-obvious rules
 
-- Outbox FIFO is **per company, strict global id order** (`OutboxDao.nextReady`); per (company, entity_type) ordering is a future need. → `docs/sync.md`
+- Outbox FIFO is **per company, strict global id order** (`OutboxDao.nextReady`). → `docs/sync.md`
 - Every outbound request sends `Idempotency-Key: <uuid from the outbox row>`, generated once at row creation and never regenerated — **but the server ignores it, so it does not make a retry safe.** What a re-send may do is `MutationKind.deliverySafety`. → `docs/sync.md`
 - Logout / company-switch with active (pending / in-flight) outbox rows **prompts** the user (sync now / discard / cancel) — never silently drops user data.
 - **A change that may already have reached the server goes `unconfirmed` and is never re-sent on its own** — it waits for Check / Resend / Discard and holds back later changes to its record; a write the server accepted is done, whatever fails after it. → `docs/sync.md`
@@ -426,6 +425,7 @@ Every surface calls `guardedOnTap(context, item)`, never `item.onTap`; surfaces 
 - **412 Precondition Failed = password-required.** → `docs/sync.md`
 - 401 forces `AuthRepository.logout()` and a redirect to `/login` — **unless it is a permission denial** (Laravel's message, or `/ping` still answers → `PermissionDeniedException`, which ends nothing → `docs/sync.md` § A permission denial is a 401 too). **Single-flight**: parallel 401s wait on the same logout future. **An involuntary 401's logout keeps local data (`LocalDataPolicy.keep`); only a deliberate sign-out wipes.** → `docs/sync.md`
 - **A rejected *company* token fails the switch, not the session.** → `docs/sync.md`
+- **A dead token is a 403 ("Invalid token", any case) and ends the session like a 401 — veto, single-flight, `LocalDataPolicy.keep`; every other 403 is a refusal.** → `docs/sync.md`
 - **A forced logout logs a WARNING naming the request.** → `docs/sync.md`
 - The `x-minimum-client-version` response header is checked on every request; below threshold throws `ClientTooOldException`.
 - 422 validation errors carry `Map<String, List<String>> fieldErrors`. Edit forms surface these inline.

@@ -2326,5 +2326,6 @@
   "search_results_announcement": "ผลลัพธ์ :count รายการใน :categories หมวดหมู่",
   "search_results_at_least_announcement": "ผลลัพธ์อย่างน้อย :count รายการใน :categories หมวดหมู่",
   "search_scope_announcement": ":scope, ผลลัพธ์ :count รายการ",
-  "search_scope_at_least_announcement": ":scope, ผลลัพธ์อย่างน้อย :count รายการ"
+  "search_scope_at_least_announcement": ":scope, ผลลัพธ์อย่างน้อย :count รายการ",
+  "session_ended_sign_in_again": "เซสชันของคุณสิ้นสุดแล้ว ลงชื่อเข้าใช้อีกครั้ง ข้อมูลและการเปลี่ยนแปลงที่ยังไม่ซิงค์ของคุณยังคงถูกเก็บไว้"
 }

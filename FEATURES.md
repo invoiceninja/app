@@ -91,6 +91,7 @@ the honest default.
 | Single-flight 401 → logout coordination | ✅ | ✅ | ✅ | ✅ | |
 | A 401 that refuses one request ends nothing — the session is checked with `/ping` before a 401 signs anyone out (the task timer's "Insufficient permissions" used to) | — | — | ✅ | | |
 | Sign-in screen says why the last session ended on its own (inactivity, or a rejected session with the request) | — | — | ✅ | | |
+| A dead token (403 "Invalid token", e.g. rotated by the server after a sign-in elsewhere) ends the session like a 401, keeping local data, and the sign-in screen says so | ❌ | ❌ | ✅ | | |
 | Minimum-client-version gate | ✅ | ✅ | ✅ | ✅ | |
 | Multi-company switching within session | ✅ | ✅ | ✅ | ✅ | |
 | Password confirmation modal for destructive actions | ✅ | ✅ | ✅ | ✅ | |

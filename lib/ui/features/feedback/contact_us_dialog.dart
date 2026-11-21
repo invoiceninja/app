@@ -228,6 +228,10 @@ class _ContactUsDialogState extends State<_ContactUsDialog> {
             messenger: m,
           );
         }
+      case ContactUsSessionEnded():
+        // No toast: the router is on its way to /login, and the sign-in
+        // screen's notice says why.
+        navigator.pop();
       case ContactUsImagesRefused():
         setState(() => _imagesRefused = true);
       case ContactUsImageTooLarge():

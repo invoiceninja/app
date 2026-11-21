@@ -1018,6 +1018,283 @@ void main() {
     });
   });
 
+  group('ApiClient 403 Invalid token: a dead token ends the session', () {
+    // The server answers a token it no longer knows with 403, not 401:
+    // `TokenAuth` "Invalid token", the hosted `SetDb` "Invalid Token". And it
+    // rotates a user's shared token whenever they sign in anywhere else once
+    // the token is 30 days old (`CompanyTokenRotator`). The 403 used to fall
+    // through to a plain ServerException, so every request on the device
+    // failed with "Invalid token" forever (docs/sync.md).
+
+    http.Response invalidToken([String message = 'Invalid token']) =>
+        http.Response(
+          jsonEncode({'message': message, 'errors': <String, Object>{}}),
+          403,
+          headers: {'content-type': 'application/json'},
+        );
+
+    ({ApiClient client, List<String> calls, List<String> sent}) clientFor(
+      http.Response Function() respond, {
+      bool veto = true,
+      ValueListenable<ApiCredentials?>? credentials,
+    }) {
+      final calls = <String>[];
+      final sent = <String>[];
+      final client = ApiClient(
+        credentials: credentials ?? _creds(),
+        passwordCache: PasswordCache(),
+        onUnauthorized: () async => calls.add('logout'),
+        onUnauthorizedCandidate: (_) async {
+          calls.add('veto');
+          return veto;
+        },
+        httpClient: MockClient((request) async {
+          sent.add(request.url.path);
+          return respond();
+        }),
+      );
+      return (client: client, calls: calls, sent: sent);
+    }
+
+    test('it ends the session like a 401, and says it was the token', () async {
+      final (:client, :calls, sent: _) = clientFor(invalidToken);
+      await expectLater(
+        client.getOne('/api/v1/clients'),
+        throwsA(
+          isA<UnauthorizedException>().having(
+            (e) => e.isStaleCredential,
+            'isStaleCredential',
+            isFalse,
+          ),
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+      expect(calls, ['veto', 'logout']);
+      expect(client.lastSessionRejection, 'GET test/api/v1/clients');
+      expect(client.lastSessionRejectionWasDeadToken, isTrue);
+    });
+
+    test('the hosted casing and stray whitespace are the same', () async {
+      for (final message in ['Invalid Token', '  invalid TOKEN ']) {
+        final (:client, :calls, sent: _) = clientFor(
+          () => invalidToken(message),
+        );
+        await expectLater(
+          client.getOne('/api/v1/clients'),
+          throwsA(isA<UnauthorizedException>()),
+          reason: message,
+        );
+        await Future<void>.delayed(Duration.zero);
+        expect(calls, ['veto', 'logout'], reason: message);
+      }
+    });
+
+    test('a refused write parks as unauthorized too', () async {
+      final (:client, :calls, sent: _) = clientFor(invalidToken);
+      await expectLater(
+        client.mutate(
+          method: 'PUT',
+          path: '/api/v1/tasks/t1',
+          idempotencyKey: 'k',
+          body: const {},
+        ),
+        throwsA(isA<UnauthorizedException>()),
+      );
+      await Future<void>.delayed(Duration.zero);
+      expect(calls, ['veto', 'logout']);
+    });
+
+    test('no /ping is asked: the message names the token', () async {
+      final (client: client, calls: _, :sent) = clientFor(invalidToken);
+      await client.getOne('/api/v1/clients').catchError((_) => null);
+      await Future<void>.delayed(Duration.zero);
+      expect(sent, ['/api/v1/clients']);
+    });
+
+    test('a stale credential ends nothing', () async {
+      final credentials = ValueNotifier<ApiCredentials?>(
+        const ApiCredentials(baseUrl: 'https://test', token: 'old'),
+      );
+      final (:client, :calls, sent: _) = clientFor(() {
+        credentials.value = const ApiCredentials(
+          baseUrl: 'https://test',
+          token: 'new',
+        );
+        return invalidToken();
+      }, credentials: credentials);
+      await expectLater(
+        client.getOne('/api/v1/clients'),
+        throwsA(
+          isA<UnauthorizedException>().having(
+            (e) => e.isStaleCredential,
+            'isStaleCredential',
+            isTrue,
+          ),
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+      expect(calls, isEmpty);
+      expect(client.lastSessionRejection, isNull);
+    });
+
+    test(
+      'the company-switch veto hears it, and can keep the session',
+      () async {
+        // A just-switched-into company's token fails the switch, not the
+        // session (`AuthRepository.handleUnauthorized`).
+        final (:client, :calls, sent: _) = clientFor(invalidToken, veto: false);
+        await expectLater(
+          client.getOne('/api/v1/clients'),
+          throwsA(isA<UnauthorizedException>()),
+        );
+        await Future<void>.delayed(Duration.zero);
+        expect(calls, ['veto']);
+      },
+    );
+
+    test('a burst of 403s and 401s logs out once', () async {
+      var logouts = 0;
+      final client = ApiClient(
+        credentials: _creds(),
+        passwordCache: PasswordCache(),
+        onUnauthorized: () async {
+          logouts++;
+          await Future<void>.delayed(const Duration(milliseconds: 50));
+        },
+        httpClient: MockClient((request) async {
+          if (request.url.path == '/api/v1/ping') return invalidToken();
+          return request.url.path.startsWith('/api/v1/four01')
+              ? http.Response('nope', 401)
+              : invalidToken();
+        }),
+      );
+      await Future.wait([
+        for (var i = 0; i < 3; i++)
+          client.getOne('/api/v1/clients/$i').catchError((_) => null),
+        for (var i = 0; i < 2; i++)
+          client.getOne('/api/v1/four01/$i').catchError((_) => null),
+      ]);
+      expect(logouts, 1);
+    });
+
+    test('a DocuNinja call whose refusal is an answer ends nothing', () async {
+      final (:client, :calls, sent: _) = clientFor(invalidToken);
+      await expectLater(
+        client.postJson('/api/docuninja/login', unauthorizedIsAnswer: true),
+        throwsA(
+          isA<ServerException>().having((e) => e.statusCode, 'status', 403),
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+      expect(calls, isEmpty);
+    });
+
+    group('every other 403 is still a refusal', () {
+      Future<void> expectRefusal(http.Response response, Matcher thrown) async {
+        final (:client, :calls, sent: _) = clientFor(() => response);
+        await expectLater(client.getOne('/api/v1/x'), throwsA(thrown));
+        await Future<void>.delayed(Duration.zero);
+        expect(calls, isEmpty);
+        expect(client.lastSessionRejection, isNull);
+      }
+
+      http.Response json403(Map<String, Object> body) => http.Response(
+        jsonEncode(body),
+        403,
+        headers: {'content-type': 'application/json'},
+      );
+
+      test('User inactive', () async {
+        await expectRefusal(
+          json403({'message': 'User inactive'}),
+          isA<ServerException>().having((e) => e.statusCode, 'status', 403),
+        );
+      });
+
+      test('the unpaid-plan 403', () async {
+        await expectRefusal(
+          json403({
+            'message': 'Feature not available with free / unpaid account.',
+          }),
+          isA<ServerException>().having((e) => e.statusCode, 'status', 403),
+        );
+      });
+
+      test('a password 403', () async {
+        await expectRefusal(
+          json403({
+            'message': 'Invalid password',
+            'error_type': 'password_protected',
+          }),
+          isA<PasswordRequiredException>(),
+        );
+      });
+
+      test('a plan_required 403', () async {
+        await expectRefusal(
+          json403({
+            'message': 'Premium feature',
+            'error_type': 'plan_required',
+          }),
+          isA<PlanRequiredException>(),
+        );
+      });
+
+      test('a message that only mentions the token', () async {
+        await expectRefusal(
+          json403({'message': 'Invalid token for this route'}),
+          isA<ServerException>(),
+        );
+      });
+
+      test('a non-JSON 403', () async {
+        await expectRefusal(
+          http.Response('Invalid token', 403),
+          isA<ServerException>(),
+        );
+      });
+    });
+
+    group('diagnostics', () {
+      late List<LogRecord> records;
+      late StreamSubscription<LogRecord> sub;
+
+      setUp(() {
+        records = [];
+        sub = Logger.root.onRecord.listen(records.add);
+      });
+
+      tearDown(() => sub.cancel());
+
+      test('the forced logout is a WARNING naming the request, never the '
+          'token', () async {
+        final client = ApiClient(
+          credentials: _creds(
+            const ApiCredentials(
+              baseUrl: 'https://test',
+              token: 'secret-token-value',
+              companyId: 'co_a',
+            ),
+          ),
+          passwordCache: PasswordCache(),
+          onUnauthorized: () async {},
+          httpClient: MockClient((_) async => invalidToken('Invalid Token')),
+        );
+        await client.getOne('/api/v1/clients').catchError((_) => null);
+
+        final warning = records.firstWhere(
+          (r) =>
+              r.level >= Level.WARNING && r.message.contains('forced logout'),
+        );
+        expect(warning.message, contains('403'));
+        expect(warning.message, contains('/api/v1/clients'));
+        expect(warning.message, contains('co_a'));
+        expect(warning.message, contains('Invalid Token'));
+        expect(warning.message, isNot(contains('secret-token-value')));
+      });
+    });
+  });
+
   group('ApiClient mutation headers', () {
     test('mutate forwards the caller-supplied Idempotency-Key', () async {
       String? captured;

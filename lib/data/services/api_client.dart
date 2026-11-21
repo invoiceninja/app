@@ -132,6 +132,12 @@ class ApiClient {
   String? get lastSessionRejection => _lastSessionRejection;
   String? _lastSessionRejection;
 
+  /// Whether that rejection was a 403 "Invalid token" — a token the server no
+  /// longer knows (rotated or revoked) — rather than a 401, so the sign-in
+  /// screen can say the session ended and the data is kept.
+  bool get lastSessionRejectionWasDeadToken => _lastRejectionWasDeadToken;
+  bool _lastRejectionWasDeadToken = false;
+
   ApiCredentials? get _creds => _credentialsListenable.value;
 
   /// GET — `path` is relative (e.g. `/api/v1/clients`).
@@ -974,57 +980,106 @@ class ApiClient {
         current = _credentialsListenable.value;
         isStaleCredential = current != null && current.token != creds.token;
       }
-      if (isStaleCredential) {
-        // Expected race (company-switch / logout): the 401 says nothing about
-        // the live session, so swallow it rather than dropping to /login.
-        // Logged at `fine` (not `warning`) so it stays out of the WARNING+
-        // diagnostics log; the thrown exception carries the flag so callers
-        // can skip re-logging it too.
-        _log.fine(
-          'Discarding stale-credential 401 (request token no longer active)',
-        );
-      } else {
-        // Fire logout detached, NOT awaited. A 401 can be raised on a request
-        // issued from inside an outbox drain (`SyncRepository.drainOnce`, whose
-        // future is registered in `_inFlight`). `onUnauthorized` -> `auth.logout`
-        // -> `onBeforeLogout` = `sync.cancel`, and `cancel()` awaits every
-        // `_inFlight` future — including the very drain blocked here. Awaiting
-        // logout would close that cycle into a permanent self-deadlock. Throwing
-        // `UnauthorizedException` immediately lets the drain unwind (its catch
-        // parks the row without sending), the `_inFlight` slot clears, and the
-        // concurrently-running `logout()` then settles `sync.cancel()` and
-        // proceeds to wipe the DB — so the logout-before-wipe ordering still
-        // holds. `_handleUnauthorized` coalesces parallel 401s and swallows its
-        // own errors, so the detached future is safe to drop.
-        //
-        // Log BEFORE firing: this is the only involuntary session-ending path
-        // in the app, and it used to be completely silent — a forced logout
-        // showed up in the diagnostics log only as the downstream
-        // `Not authenticated` failures of whatever ran next, naming neither
-        // the endpoint nor the company. The query string is deliberately
-        // dropped (it can carry a user's `filter=` search term) and tokens
-        // are fingerprinted, never written out; the body is the single most
-        // diagnostic field, since the server's own 401 message distinguishes
-        // an invalid token from a permissions rejection.
-        final body = response.body;
-        _log.warning(
-          'forced logout on 401: $method ${uri.host}${uri.path} '
-          'company=${creds.companyId.isEmpty ? '<unknown>' : creds.companyId} '
-          'reqToken=${_tokenFingerprint(creds.token)} '
-          'liveToken=${_tokenFingerprint(current?.token)} '
-          'body=${body.length > 200 ? '${body.substring(0, 200)}…' : body}',
-        );
-        _lastSessionRejection = '$method ${uri.host}${uri.path}';
-        // Outside this request's scope: the handling is not part of an
-        // outbox row's attempt, and the rollback's heal makes requests under
-        // the previous company's token that the row's scope would refuse as
-        // a company switch.
-        unawaited(RequestScope.outside(() => _handleUnauthorized(creds)));
-      }
-      throw isStaleCredential
-          ? const UnauthorizedException.staleCredential()
-          : const UnauthorizedException();
+      _rejectCredential(
+        response,
+        creds,
+        current: current,
+        isStaleCredential: isStaleCredential,
+        method: method,
+        uri: uri,
+      );
     }
+    // A dead token is a 403 on this server, not a 401: `TokenAuth` answers a
+    // token it cannot find with 403 "Invalid token", the hosted `SetDb` with
+    // 403 "Invalid Token" — and the server rotates a user's shared token on
+    // their sign-in anywhere else once it is 30 days old
+    // (`CompanyTokenRotator`), so this device's token dies under it. Before
+    // this, the 403 fell through to a plain `ServerException`, and every
+    // request after it failed with "Invalid token" forever (docs/sync.md).
+    // No `/ping`: the message names the token, not one request's permission.
+    if (response.statusCode == 403 &&
+        !unauthorizedIsAnswer &&
+        creds.token.isNotEmpty &&
+        _isInvalidTokenRefusal(response)) {
+      final current = _credentialsListenable.value;
+      _rejectCredential(
+        response,
+        creds,
+        current: current,
+        isStaleCredential: current != null && current.token != creds.token,
+        method: method,
+        uri: uri,
+        deadToken: true,
+      );
+    }
+  }
+
+  /// The end of a rejected credential — a 401 the `/ping` did not rescue, or
+  /// a 403 "Invalid token": swallowed when [creds] is no longer the live
+  /// credential set, else logged and handed to [_handleUnauthorized] (veto,
+  /// single-flight logout). Always throws [UnauthorizedException], which an
+  /// outbox drain reads as "park the row, send nothing".
+  Never _rejectCredential(
+    http.Response response,
+    ApiCredentials creds, {
+    required ApiCredentials? current,
+    required bool isStaleCredential,
+    required String method,
+    required Uri uri,
+    bool deadToken = false,
+  }) {
+    if (isStaleCredential) {
+      // Expected race (company-switch / logout): the rejection says nothing
+      // about the live session, so swallow it rather than dropping to /login.
+      // Logged at `fine` (not `warning`) so it stays out of the WARNING+
+      // diagnostics log; the thrown exception carries the flag so callers
+      // can skip re-logging it too.
+      _log.fine(
+        'Discarding stale-credential ${response.statusCode} '
+        '(request token no longer active)',
+      );
+    } else {
+      // Fire logout detached, NOT awaited. A 401 can be raised on a request
+      // issued from inside an outbox drain (`SyncRepository.drainOnce`, whose
+      // future is registered in `_inFlight`). `onUnauthorized` -> `auth.logout`
+      // -> `onBeforeLogout` = `sync.cancel`, and `cancel()` awaits every
+      // `_inFlight` future — including the very drain blocked here. Awaiting
+      // logout would close that cycle into a permanent self-deadlock. Throwing
+      // `UnauthorizedException` immediately lets the drain unwind (its catch
+      // parks the row without sending), the `_inFlight` slot clears, and the
+      // concurrently-running `logout()` then settles `sync.cancel()` and
+      // proceeds to wipe the DB — so the logout-before-wipe ordering still
+      // holds. `_handleUnauthorized` coalesces parallel 401s and swallows its
+      // own errors, so the detached future is safe to drop.
+      //
+      // Log BEFORE firing: this is the only involuntary session-ending path
+      // in the app, and it used to be completely silent — a forced logout
+      // showed up in the diagnostics log only as the downstream
+      // `Not authenticated` failures of whatever ran next, naming neither
+      // the endpoint nor the company. The query string is deliberately
+      // dropped (it can carry a user's `filter=` search term) and tokens
+      // are fingerprinted, never written out; the body is the single most
+      // diagnostic field, since the server's own 401 message distinguishes
+      // an invalid token from a permissions rejection.
+      final body = response.body;
+      _log.warning(
+        'forced logout on ${response.statusCode}: $method ${uri.host}${uri.path} '
+        'company=${creds.companyId.isEmpty ? '<unknown>' : creds.companyId} '
+        'reqToken=${_tokenFingerprint(creds.token)} '
+        'liveToken=${_tokenFingerprint(current?.token)} '
+        'body=${body.length > 200 ? '${body.substring(0, 200)}…' : body}',
+      );
+      _lastSessionRejection = '$method ${uri.host}${uri.path}';
+      _lastRejectionWasDeadToken = deadToken;
+      // Outside this request's scope: the handling is not part of an
+      // outbox row's attempt, and the rollback's heal makes requests under
+      // the previous company's token that the row's scope would refuse as
+      // a company switch.
+      unawaited(RequestScope.outside(() => _handleUnauthorized(creds)));
+    }
+    throw isStaleCredential
+        ? const UnauthorizedException.staleCredential()
+        : const UnauthorizedException();
   }
 
   /// Stable, non-reversible 8-char id for a token, for logs only. Enough to
@@ -1129,6 +1184,15 @@ class ApiClient {
       return null;
     }
   }
+
+  /// Whether a 403 is the server refusing the token itself ([kInvalidTokenMessage],
+  /// either casing) rather than one request.
+  static bool _isInvalidTokenRefusal(http.Response response) =>
+      _jsonMessage(
+        response,
+        response.headers['content-type'] ?? '',
+      )?.toLowerCase() ==
+      kInvalidTokenMessage;
 
   /// The server's message when a 401 is a permission denial rather than a
   /// rejected session, else null. Exact match on the one message a policy or

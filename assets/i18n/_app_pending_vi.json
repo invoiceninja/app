@@ -2211,5 +2211,6 @@
   "search_results_announcement": ":count kết quả trong :categories danh mục",
   "search_results_at_least_announcement": "Ít nhất :count kết quả trong :categories danh mục",
   "search_scope_announcement": ":scope, :count kết quả",
-  "search_scope_at_least_announcement": ":scope, ít nhất :count kết quả"
+  "search_scope_at_least_announcement": ":scope, ít nhất :count kết quả",
+  "session_ended_sign_in_again": "Phiên của bạn đã kết thúc. Hãy đăng nhập lại; dữ liệu và các thay đổi chưa đồng bộ của bạn vẫn được giữ."
 }

@@ -2243,5 +2243,6 @@
   "search_results_announcement": "Резултати: :count в категории: :categories",
   "search_results_at_least_announcement": "Резултати: поне :count в категории: :categories",
   "search_scope_announcement": ":scope, резултати: :count",
-  "search_scope_at_least_announcement": ":scope, резултати: поне :count"
+  "search_scope_at_least_announcement": ":scope, резултати: поне :count",
+  "session_ended_sign_in_again": "Сесията ви приключи. Влезте отново; данните ви и несинхронизираните промени се запазват."
 }

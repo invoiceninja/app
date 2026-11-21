@@ -2326,5 +2326,6 @@
   "search_results_announcement": "Rezultati: :count v kategorijah: :categories",
   "search_results_at_least_announcement": "Rezultati: vsaj :count v kategorijah: :categories",
   "search_scope_announcement": ":scope, rezultati: :count",
-  "search_scope_at_least_announcement": ":scope, rezultati: vsaj :count"
+  "search_scope_at_least_announcement": ":scope, rezultati: vsaj :count",
+  "session_ended_sign_in_again": "Vaša seja se je končala. Znova se prijavite; vaši podatki in nesinhronizirane spremembe so ohranjeni."
 }

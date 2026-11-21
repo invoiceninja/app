@@ -11,6 +11,7 @@ import 'package:admin/data/repositories/user_repository.dart';
 import 'package:admin/data/repositories/user_settings_repository.dart'
     show kUserSettingsWireName;
 import 'package:admin/data/services/api_client.dart';
+import 'package:admin/data/services/api_exception.dart';
 import 'package:admin/data/services/auth_service.dart';
 import 'package:admin/data/services/password_cache.dart';
 import 'package:admin/data/services/token_storage.dart';
@@ -1572,6 +1573,53 @@ void main() {
         expect(repo.companySwitchRejected.value, 'co_b');
       },
     );
+
+    // The server answers a dead token with 403 "Invalid token" (hosted:
+    // "Invalid Token"), which now takes the same path as a 401: a token the
+    // user just switched into fails the switch, anything else the session.
+    http.Response invalidToken() => http.Response(
+      '{"message":"Invalid Token","errors":{}}',
+      403,
+      headers: {'content-type': 'application/json'},
+    );
+
+    test('a 403 Invalid token under a just-switched-into company rolls back '
+        'instead of logging out', () async {
+      await loginTwo();
+      final client = wired(
+        MockClient(
+          (req) async => req.url.path == '/api/v1/refresh'
+              ? http.Response('boom', 500)
+              : invalidToken(),
+        ),
+      );
+      repo.apiClient = client;
+
+      expect(await repo.switchCompany('co_b'), SwitchCompanyResult.ok);
+      await expectLater(
+        client.getOne('/api/v1/clients'),
+        throwsA(isA<UnauthorizedException>()),
+      );
+      await pumpEventQueue();
+
+      expect(repo.credentials.value, isNotNull);
+      expect(repo.session.value!.currentCompanyId, 'co_a');
+      expect(repo.credentials.value!.token, 'tok_a');
+      expect(repo.companySwitchRejected.value, 'co_b');
+    });
+
+    test('a 403 Invalid token outside any company switch logs out', () async {
+      await loginTwo();
+      final client = wired(MockClient((_) async => invalidToken()));
+      repo.apiClient = client;
+
+      try {
+        await client.getOne('/api/v1/clients');
+      } catch (_) {}
+      await pumpEventQueue();
+
+      expect(repo.credentials.value, isNull);
+    });
 
     test('a 401 outside any company switch still logs out', () async {
       // The genuine revocation path — token revoked, "end all sessions",

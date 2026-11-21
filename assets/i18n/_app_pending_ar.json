@@ -2242,5 +2242,6 @@
   "search_results_announcement": ":count من النتائج في :categories من الفئات",
   "search_results_at_least_announcement": "ما لا يقل عن :count من النتائج في :categories من الفئات",
   "search_scope_announcement": ":scope، :count من النتائج",
-  "search_scope_at_least_announcement": ":scope، ما لا يقل عن :count من النتائج"
+  "search_scope_at_least_announcement": ":scope، ما لا يقل عن :count من النتائج",
+  "session_ended_sign_in_again": "انتهت جلستك. سجّل الدخول مرة أخرى؛ سيتم الاحتفاظ ببياناتك وتغييراتك غير المتزامنة."
 }

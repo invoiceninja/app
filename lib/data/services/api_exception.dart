@@ -134,6 +134,13 @@ class PermissionDeniedException extends ServerException {
 /// meaning what it always did.
 const String kPermissionDeniedMessage = 'this action is unauthorized.';
 
+/// The 403 message for a token the server no longer knows, lower-cased:
+/// `TokenAuth` says "Invalid token", the hosted `SetDb` / `SetDbByCompanyKey`
+/// "Invalid Token" — hardcoded English, not `ctrans`. Matched **exactly**, so
+/// "User inactive", the unpaid-plan 403 and the password 403s are unchanged.
+/// `ApiClient._postFlight` ends the session on it like a 401 (docs/sync.md).
+const String kInvalidTokenMessage = 'invalid token';
+
 /// Body fragment that identifies [RecordDeletedException] on the wire. Server
 /// side it's a hardcoded English literal in `ChecksEntityStatus::disallowUpdate()`
 /// (not `ctrans`), so it's locale-stable. Single source of truth for both the

@@ -2243,5 +2243,6 @@
   "search_results_announcement": ":count resultate in :categories kategorieë",
   "search_results_at_least_announcement": "Minstens :count resultate in :categories kategorieë",
   "search_scope_announcement": ":scope, :count resultate",
-  "search_scope_at_least_announcement": ":scope, minstens :count resultate"
+  "search_scope_at_least_announcement": ":scope, minstens :count resultate",
+  "session_ended_sign_in_again": "Jou sessie het geëindig. Meld weer aan; jou data en ongesinkroniseerde veranderinge word bewaar."
 }

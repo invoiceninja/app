@@ -1066,7 +1066,7 @@ class _NewWebAppNotice extends StatelessWidget {
 }
 
 /// Why the last session ended on its own (`SignOutNotice`) — the web's idle
-/// timeout, or a 401 the server confirmed. Without it an automatic sign-out
+/// timeout, a 401 the server confirmed, or a token it no longer knows. Without it an automatic sign-out
 /// left the user here with no idea why. Renders nothing when there is nothing
 /// to say, or when the screen is pumped without the root provider.
 class _SignOutNoticeCard extends StatelessWidget {
@@ -1085,6 +1085,7 @@ class _SignOutNoticeCard extends StatelessWidget {
         final message = context.tr(switch (pending.reason) {
           SignOutReason.inactivity => 'inactive_logout',
           SignOutReason.sessionRejected => 'session_expired',
+          SignOutReason.tokenRejected => 'session_ended_sign_in_again',
         });
         final detail = pending.detail;
         return Padding(

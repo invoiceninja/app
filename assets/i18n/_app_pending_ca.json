@@ -2243,5 +2243,6 @@
   "search_results_announcement": ":count resultats en :categories categories",
   "search_results_at_least_announcement": "Almenys :count resultats en :categories categories",
   "search_scope_announcement": ":scope, :count resultats",
-  "search_scope_at_least_announcement": ":scope, almenys :count resultats"
+  "search_scope_at_least_announcement": ":scope, almenys :count resultats",
+  "session_ended_sign_in_again": "La vostra sessió ha finalitzat. Torneu a iniciar sessió; les vostres dades i els canvis no sincronitzats es conserven."
 }

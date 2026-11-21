@@ -2326,5 +2326,6 @@
   "search_results_announcement": ":count ຜົນລັບໃນ :categories ໝວດໝູ່",
   "search_results_at_least_announcement": "ຢ່າງໜ້ອຍ :count ຜົນລັບໃນ :categories ໝວດໝູ່",
   "search_scope_announcement": ":scope, :count ຜົນລັບ",
-  "search_scope_at_least_announcement": ":scope, ຢ່າງໜ້ອຍ :count ຜົນລັບ"
+  "search_scope_at_least_announcement": ":scope, ຢ່າງໜ້ອຍ :count ຜົນລັບ",
+  "session_ended_sign_in_again": "ເຊດຊັນຂອງທ່ານສິ້ນສຸດແລ້ວ. ກະລຸນາເຂົ້າສູ່ລະບົບອີກຄັ້ງ; ຂໍ້ມູນ ແລະ ການປ່ຽນແປງທີ່ຍັງບໍ່ໄດ້ຊິງຄ໌ຂອງທ່ານຖືກເກັບໄວ້."
 }

@@ -2243,5 +2243,6 @@
   "search_results_announcement": "Rezultati: :count u kategorijama: :categories",
   "search_results_at_least_announcement": "Rezultati: najmanje :count u kategorijama: :categories",
   "search_scope_announcement": ":scope, rezultati: :count",
-  "search_scope_at_least_announcement": ":scope, rezultati: najmanje :count"
+  "search_scope_at_least_announcement": ":scope, rezultati: najmanje :count",
+  "session_ended_sign_in_again": "Vaša sesija je završila. Prijavite se ponovno; vaši podaci i nesinkronizirane promjene su sačuvani."
 }

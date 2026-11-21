@@ -2326,5 +2326,6 @@
   "search_results_announcement": ":count resultados en :categories categorías",
   "search_results_at_least_announcement": "Al menos :count resultados en :categories categorías",
   "search_scope_announcement": ":scope, :count resultados",
-  "search_scope_at_least_announcement": ":scope, al menos :count resultados"
+  "search_scope_at_least_announcement": ":scope, al menos :count resultados",
+  "session_ended_sign_in_again": "Su sesión ha finalizado. Vuelva a iniciar sesión; sus datos y los cambios sin sincronizar se conservan."
 }

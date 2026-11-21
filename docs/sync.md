@@ -62,11 +62,38 @@ What changed:
 
 Pinned by `api_client_test.dart` ("a permission denial is not a dead session" — including the list of 401s that must *still* log out when the ping fails too — and "the session is checked before it ends") and end to end by `client_detail_screen_test.dart` ("a record the server will not give this user"), which fails with the session ended if the check is removed.
 
-**Open, and not changed here:** the app does nothing on the 403 a dead token actually produces (`ServerException(403)`), so a token revoked mid-session leaves the user signed in with every request failing. React signs out on 401 and toasts on 403, mirroring the same inversion. Worth settling with the server rather than by another message sniff — `BACKEND.md` § 401 and 403 are the wrong way round.
+**The 403 a dead token produces is handled now** — it ends the session like a 401, without the ping: § A dead token is a 403 and ends the session like a 401. React signs out on 401 and toasts on 403, mirroring the same inversion; `BACKEND.md` § 401 and 403 are the wrong way round asks the server for an `error_type` instead of the message match.
 
 ## An involuntary 401's logout keeps local data
 
 **An involuntary 401's logout keeps local data (`LocalDataPolicy.keep`); only a deliberate sign-out wipes.** An involuntary 401 is the same user, and wiping the Drift DB (outbox included) over a server-side token change is not a trade worth making. `logout()` still writes the re-lock gate, and `onSessionReset` / `onBeforeLogout` (the cross-user-leak fan-out) run on the preserve path anyway.
+
+## A dead token is a 403 and ends the session like a 401
+
+**A 403 whose JSON `message` is "Invalid token" (either casing) under the live token ends the session like a 401 — veto, single-flight, `LocalDataPolicy.keep` — and every other 403 is still a refusal.**
+
+**Why it happens to users who did nothing.** Since v5.13.23 (`273efd5ffb`, 2026-06-01) the server rotates tokens: `LoginController::hydrateCompanyUser` calls `CompanyTokenRotator::rotateDueTokensForUser` on every sign-in, which replaces each of the user's `is_system` company tokens created more than 30 days ago with a fresh `Str::random(64)`. That token is shared by every client the user has (this app on each device, the v1 app, React), so a sign-in *anywhere* with a 30-day-old token kills the one this device holds. Its next request gets:
+
+| Server | Body | Source |
+|---|---|---|
+| Self-hosted (`TokenAuth`) | 403 `{"message":"Invalid token"}` | `app/Http/Middleware/TokenAuth.php:46` |
+| Hosted (`SetDb`, multi-db) | 403 `{"message":"Invalid Token","errors":{}}` | `app/Http/Middleware/SetDb.php:32` (also `SetDbByCompanyKey`) |
+
+Neither carries an `error_type`. Before this the app ended a session only on a 401, so the 403 became `ServerException(403, 'Invalid token')`: every screen read "Failed to load: Invalid token", Contact Us toasted "Invalid Token" with the forum link, and nothing short of signing out by hand recovered — 5.1.32 users were stuck there.
+
+**What `_postFlight` does.** After the 401 branch: a 403, not `unauthorizedIsAnswer` (DocuNinja's handshake), sent with a non-empty token, whose JSON `message` trimmed and lower-cased equals `kInvalidTokenMessage` (`'invalid token'`), goes through `_rejectCredential` — the same tail the 401 branch ends in:
+
+- a request whose token is no longer the live one is swallowed (`UnauthorizedException.staleCredential`, logged at `fine`);
+- otherwise it logs the § A forced logout logs a WARNING naming the request line (`forced logout on 403: …`, token fingerprinted) and fires `_handleUnauthorized` detached, so the `onUnauthorizedCandidate` veto runs first — a token the user *just switched into* fails the switch and rolls back (§ A rejected company token fails the switch, not the session), never the session — and parallel 401s and 403s share one logout;
+- it throws `UnauthorizedException`, so an outbox row parks for after the sign-in instead of dying.
+
+**No `/ping`.** The 401 path asks the server because a 401 here is usually a permission denial (§ A permission denial is a 401 too). This message names the token itself, and a ping under the same dead token would only 403 again.
+
+**The match is exact**, so the other 403s are unchanged: `User inactive` (a soft-deleted user — the session is dead too, but nothing re-signing-in fixes), the hosted unpaid-plan `Feature not available with free / unpaid account.`, the password 403s (`PasswordRequiredException`), `error_type: plan_required` (`PlanRequiredException`), and anything non-JSON.
+
+**What the user sees.** `ApiClient.lastSessionRejectionWasDeadToken` tells `services.dart`'s `onUnauthorized` to record `SignOutReason.tokenRejected`, and the sign-in card says `session_ended_sign_in_again` ("Your session has ended. Sign in again; your data and unsynced changes are kept.") with the refused request under it. Contact Us maps a non-stale `UnauthorizedException` to `ContactUsSessionEnded` and just closes — no toast; the sign-in card carries the reason. A stale one stays `ContactUsFailed`, so a company switch racing the send keeps the typed message.
+
+Pinned by `api_client_test.dart` ("ApiClient 403 Invalid token: a dead token ends the session" — both casings, the stale credential, the veto, one logout for a burst of 403s and 401s, no ping, DocuNinja, every other 403, the WARNING), `auth_repository_test.dart` ("a 403 Invalid token under a just-switched-into company rolls back…" and "…outside any company switch logs out"), `login_sign_out_notice_test.dart` and `contact_us_dialog_test.dart` / `contact_us_view_model_test.dart`. The server side — a per-client token, or not rotating one in use, and an `error_type` on this 403 — is `BACKEND.md` § A sign-in anywhere rotates the token every other client holds.
 
 ## A forced logout logs a WARNING naming the request
 

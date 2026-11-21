@@ -13,6 +13,12 @@ enum SignOutReason {
 
   /// A 401 the server's `/ping` confirmed (`ApiClient`'s session check).
   sessionRejected,
+
+  /// A 403 "Invalid token": the server no longer knows this device's token —
+  /// it rotates a user's shared token on their sign-in anywhere else once it
+  /// is 30 days old (docs/sync.md). Stored by name, so an older build reading
+  /// it decodes no notice, never a wrong one.
+  tokenRejected,
 }
 
 /// The reason the last session ended on its own, kept for the sign-in screen

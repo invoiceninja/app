@@ -2247,5 +2247,6 @@
   "search_results_announcement": ":count resultater i :categories kategorier",
   "search_results_at_least_announcement": "Mindst :count resultater i :categories kategorier",
   "search_scope_announcement": ":scope, :count resultater",
-  "search_scope_at_least_announcement": ":scope, mindst :count resultater"
+  "search_scope_at_least_announcement": ":scope, mindst :count resultater",
+  "session_ended_sign_in_again": "Din session er afsluttet. Log ind igen; dine data og ikke-synkroniserede ændringer bevares."
 }

@@ -2281,5 +2281,6 @@
   "search_results_announcement": "Rezultatų: :count, kategorijų: :categories",
   "search_results_at_least_announcement": "Rezultatų: bent :count, kategorijų: :categories",
   "search_scope_announcement": ":scope, rezultatų: :count",
-  "search_scope_at_least_announcement": ":scope, rezultatų: bent :count"
+  "search_scope_at_least_announcement": ":scope, rezultatų: bent :count",
+  "session_ended_sign_in_again": "Jūsų sesija baigėsi. Prisijunkite dar kartą; jūsų duomenys ir nesinchronizuoti pakeitimai išsaugomi."
 }

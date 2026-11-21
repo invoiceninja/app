@@ -257,6 +257,32 @@ void main() {
     m.dispose();
   });
 
+  // A dead session (a 401, or the 403 "Invalid token" a rotated token gets)
+  // used to come back as a failure: an "Invalid Token" toast pointing at the
+  // forum, while ApiClient was already signing the user out.
+  testWidgets('a rejected session ends the send, not as a failure', (
+    tester,
+  ) async {
+    api.throwOnJson = const UnauthorizedException();
+    final m = vm();
+    expect(
+      await m.send(message: 'Hi', appVersion: 'v'),
+      isA<ContactUsSessionEnded>(),
+    );
+    m.dispose();
+  });
+
+  testWidgets('a stale credential (a company switch racing the send) stays '
+      'an ordinary failure', (tester) async {
+    api.throwOnJson = const UnauthorizedException.staleCredential();
+    final m = vm();
+    expect(
+      await m.send(message: 'Hi', appVersion: 'v'),
+      isA<ContactUsFailed>(),
+    );
+    m.dispose();
+  });
+
   testWidgets('an image too large to encode stops the send', (tester) async {
     final m = ContactUsViewModel(
       api: () => api,

@@ -2243,5 +2243,6 @@
   "search_results_announcement": "Tulemusi: :count, kategooriaid: :categories",
   "search_results_at_least_announcement": "Tulemusi vähemalt :count, kategooriaid: :categories",
   "search_scope_announcement": ":scope, tulemusi: :count",
-  "search_scope_at_least_announcement": ":scope, tulemusi vähemalt :count"
+  "search_scope_at_least_announcement": ":scope, tulemusi vähemalt :count",
+  "session_ended_sign_in_again": "Teie seanss on lõppenud. Logige uuesti sisse; teie andmed ja sünkroonimata muudatused säilivad."
 }

@@ -1848,7 +1848,9 @@ class Services implements SidebarBadgeContext {
       onUnauthorized: () async {
         try {
           await signOutNotice.record(
-            SignOutReason.sessionRejected,
+            apiClient.lastSessionRejectionWasDeadToken
+                ? SignOutReason.tokenRejected
+                : SignOutReason.sessionRejected,
             detail: apiClient.lastSessionRejection,
           );
         } finally {

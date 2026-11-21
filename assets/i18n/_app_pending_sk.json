@@ -2243,5 +2243,6 @@
   "search_results_announcement": "Výsledky: :count v kategóriách: :categories",
   "search_results_at_least_announcement": "Výsledky: aspoň :count v kategóriách: :categories",
   "search_scope_announcement": ":scope, výsledky: :count",
-  "search_scope_at_least_announcement": ":scope, výsledky: aspoň :count"
+  "search_scope_at_least_announcement": ":scope, výsledky: aspoň :count",
+  "session_ended_sign_in_again": "Vaša relácia sa skončila. Prihláste sa znova; vaše údaje aj nesynchronizované zmeny zostanú zachované."
 }

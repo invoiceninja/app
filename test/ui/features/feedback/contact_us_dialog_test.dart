@@ -4,7 +4,10 @@
 
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 
+import 'package:admin/app/sign_out_notice.dart';
 import 'package:admin/ui/features/feedback/contact_us_dialog.dart';
 
 import '../shell/_shell_test_helpers.dart';
@@ -16,10 +19,15 @@ void main() {
     WidgetTester tester, {
     required bool isHosted,
     String? serverVersion,
+    http.Client? httpClient,
   }) async {
     final fixture = await buildFixture(
       companies: const [FakeCompany(id: 'c1', name: 'Acme')],
       isHosted: isHosted,
+      httpClient: httpClient,
+      // The sign-out a dead token triggers drops Drift watch streams, whose
+      // deferred close would otherwise outlive the test.
+      closeStreamsSynchronously: httpClient != null,
     );
     addTearDown(fixture.dispose);
     fixture.services.serverVersion.value = serverVersion;
@@ -104,6 +112,48 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
     }
     expect(find.byType(AlertDialog), findsNothing);
+  });
+
+  // A rotated token: the server answers 403 "Invalid Token" (hosted `SetDb`).
+  // The dialog used to toast "Invalid Token" with the forum link while every
+  // request went on failing; now the session ends, the dialog just closes and
+  // the sign-in screen says why.
+  testWidgets('a dead token closes the dialog with no error toast', (
+    tester,
+  ) async {
+    final fixture = await pump(
+      tester,
+      isHosted: true,
+      httpClient: MockClient(
+        (request) async => request.url.path.contains('support')
+            ? http.Response(
+                '{"message":"Invalid Token","errors":{}}',
+                403,
+                headers: {'content-type': 'application/json'},
+              )
+            : throw http.ClientException('offline (test fixture)'),
+      ),
+    );
+    await openDialog(tester);
+    await tester.enterText(find.byType(TextField), 'Something broke');
+    await tester.pump();
+    await tester.tap(find.text('Send'));
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(find.byType(AlertDialog), findsNothing);
+    expect(find.textContaining('Invalid Token'), findsNothing);
+    expect(
+      find.text(
+        "Your message couldn't be sent. You can ask on the support forum "
+        'instead.',
+      ),
+      findsNothing,
+    );
+    expect(
+      fixture.services.signOutNotice.pending?.reason,
+      SignOutReason.tokenRejected,
+    );
   });
 
   // The dialog builder runs again whenever anything above the navigator

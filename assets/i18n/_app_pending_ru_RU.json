@@ -2326,5 +2326,6 @@
   "search_results_announcement": "Результатов: :count, категорий: :categories",
   "search_results_at_least_announcement": "Результатов: не менее :count, категорий: :categories",
   "search_scope_announcement": ":scope, результатов: :count",
-  "search_scope_at_least_announcement": ":scope, результатов: не менее :count"
+  "search_scope_at_least_announcement": ":scope, результатов: не менее :count",
+  "session_ended_sign_in_again": "Сеанс завершён. Войдите снова; ваши данные и несинхронизированные изменения сохранены."
 }

@@ -80,6 +80,31 @@ void main() {
     expect(find.text('PUT invoicing.co/api/v1/tasks/abc'), findsOneWidget);
   });
 
+  // A 403 "Invalid token": the server rotated this device's token after the
+  // user signed in somewhere else. Not "expired" — and the user needs to hear
+  // that signing back in loses nothing.
+  testWidgets('a dead token says the session ended and the data is kept', (
+    tester,
+  ) async {
+    await pumpLogin(tester);
+    await notice.record(
+      SignOutReason.tokenRejected,
+      detail: 'GET invoicing.co/api/v1/clients',
+    );
+    await tester.pump();
+
+    expect(_key('login_sign_out_notice'), findsOneWidget);
+    expect(
+      find.text(
+        'Your session has ended. Sign in again; your data and unsynced '
+        'changes are kept.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Your session has expired.'), findsNothing);
+    expect(find.text('GET invoicing.co/api/v1/clients'), findsOneWidget);
+  });
+
   testWidgets('inactivity says so, and ✕ dismisses it', (tester) async {
     await pumpLogin(tester);
     await notice.record(SignOutReason.inactivity);

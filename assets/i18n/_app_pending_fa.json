@@ -2327,5 +2327,6 @@
   "search_results_announcement": ":count نتیجه در :categories دسته",
   "search_results_at_least_announcement": "دست‌کم :count نتیجه در :categories دسته",
   "search_scope_announcement": ":scope، :count نتیجه",
-  "search_scope_at_least_announcement": ":scope، دست‌کم :count نتیجه"
+  "search_scope_at_least_announcement": ":scope، دست‌کم :count نتیجه",
+  "session_ended_sign_in_again": "نشست شما پایان یافت. دوباره وارد شوید؛ داده‌ها و تغییرات همگام‌سازی‌نشده شما حفظ می‌شوند."
 }

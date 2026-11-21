@@ -2326,5 +2326,6 @@
   "search_results_announcement": ":categories 個のカテゴリに :count 件の結果",
   "search_results_at_least_announcement": ":categories 個のカテゴリに :count 件以上の結果",
   "search_scope_announcement": ":scope、:count 件の結果",
-  "search_scope_at_least_announcement": ":scope、:count 件以上の結果"
+  "search_scope_at_least_announcement": ":scope、:count 件以上の結果",
+  "session_ended_sign_in_again": "セッションが終了しました。もう一度サインインしてください。データと未同期の変更は保持されています。"
 }

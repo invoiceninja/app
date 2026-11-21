@@ -2244,5 +2244,6 @@
   "search_results_announcement": "Wyniki: :count w kategoriach: :categories",
   "search_results_at_least_announcement": "Wyniki: co najmniej :count w kategoriach: :categories",
   "search_scope_announcement": ":scope, wyniki: :count",
-  "search_scope_at_least_announcement": ":scope, wyniki: co najmniej :count"
+  "search_scope_at_least_announcement": ":scope, wyniki: co najmniej :count",
+  "session_ended_sign_in_again": "Twoja sesja została zakończona. Zaloguj się ponownie; Twoje dane i niezsynchronizowane zmiany zostały zachowane."
 }

@@ -72,6 +72,15 @@ class ContactUsRateLimited extends ContactUsSendResult {
   final Duration? retryAfter;
 }
 
+/// The server refused the session itself (`UnauthorizedException` — a 401, or
+/// a 403 "Invalid token"), so `ApiClient` is already signing the user out and
+/// the sign-in screen will say why. The dialog just closes: an error toast
+/// here, "Invalid Token" with the forum link, sent the user to support over
+/// something signing in again fixes.
+class ContactUsSessionEnded extends ContactUsSendResult {
+  const ContactUsSessionEnded();
+}
+
 class ContactUsFailed extends ContactUsSendResult {
   const ContactUsFailed(this.error);
   final Object error;
@@ -244,6 +253,12 @@ class ContactUsViewModel extends ChangeNotifier {
       return const ContactUsSent();
     } on RateLimitedException catch (e) {
       return ContactUsRateLimited(e.retryAfter);
+    } on UnauthorizedException catch (e) {
+      // A stale credential is a company switch racing the send, not an ended
+      // session: it stays a failure, and the typed message stays open.
+      return e.isStaleCredential
+          ? ContactUsFailed(e)
+          : const ContactUsSessionEnded();
     } on ValidationException catch (e) {
       final aboutImages = e.fieldErrors.keys.any(
         (k) => k == 'attachments' || k.startsWith('attachments.'),

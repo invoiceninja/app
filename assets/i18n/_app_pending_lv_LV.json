@@ -2327,5 +2327,6 @@
   "search_results_announcement": "Rezultāti: :count, kategorijas: :categories",
   "search_results_at_least_announcement": "Rezultāti: vismaz :count, kategorijas: :categories",
   "search_scope_announcement": ":scope, rezultāti: :count",
-  "search_scope_at_least_announcement": ":scope, rezultāti: vismaz :count"
+  "search_scope_at_least_announcement": ":scope, rezultāti: vismaz :count",
+  "session_ended_sign_in_again": "Jūsu sesija ir beigusies. Piesakieties vēlreiz; jūsu dati un nesinhronizētās izmaiņas tiek saglabātas."
 }

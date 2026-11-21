@@ -17,6 +17,7 @@ the Flutter app) so they are explicitly **out of scope** here.
 - OIDC sign-in — the callback hardcodes the React SPA, so no Flutter client (native **or** web) can complete it (**O**, blocks self-hosted SSO; same shape as the calendar-connect fix).
 - Sign in with Apple tokens are never revoked when an account is deleted (**O**, § Sign in with Apple tokens; the client already sends the authorization code, a server branch is ready).
 - OAuth re-authentication (`X-API-OAUTH-PASSWORD`) can never pass for a **Google** user — it wants an `id_token` the client can't produce, and its `Hash::check` arguments are swapped (**O**, § OAuth re-authentication; client offers Apple re-auth only).
+- A sign-in anywhere rotates the user's shared 30-day-old `is_system` token, signing out every other client (v1, React, each device), and the 403 it then gets has no `error_type` (**O**, § A sign-in anywhere rotates the token every other client holds; the Flutter app now signs out cleanly on it).
 - Bulk `ids` are now existence-checked, so one stale id 422s the whole batch (**O**, shared-cache UX).
 - `POST /api/v1/tasks/bulk` with `action=bulk_update` always **500s** — `Collection::first()` returns a model, not a collection (**SHIPPED** 2026-09-23, `87528bcf0c`, v5.13.44; the client now offers task Bulk Update on servers that have it).
 - Company write — partial login envelope + full-replace PUT force a client fetch-gate (**O**).
@@ -3134,9 +3135,46 @@ Either order fixes it; the first is the smaller change for existing clients.
 ### Client status
 
 The Flutter app matches the one message exactly (`This action is unauthorized.` →
-`PermissionDeniedException`, no sign-out) and leaves every other 401 alone. It still takes no
-action on a 403 `Invalid token`, so a token revoked mid-session leaves the user signed in with
-every request failing; an `error_type` would let it sign out on that, and only that.
+`PermissionDeniedException`, no sign-out) and asks `/ping` before any other 401 ends the session.
+Since 2026-11-21 it also ends the session on a 403 whose message is exactly `Invalid token` /
+`Invalid Token` (docs/sync.md § A dead token is a 403 and ends the session like a 401) — the
+same English-message sniff an `error_type: "invalid_token"` would replace.
+
+---
+
+## A sign-in anywhere rotates the token every other client holds — **O (client signs out cleanly; the server should not kill a token in use)**
+
+**Provenance** — 2026-11-21, read against `v5-develop`; found chasing Flutter 5.1.32 users stuck on
+"Failed to load: Invalid token" and a Contact Us toast "Invalid Token".
+
+- Since `273efd5ffb` (2026-06-01, v5.13.23) `LoginController::hydrateCompanyUser` (`:600`) calls
+  `CompanyTokenRotator::rotateDueTokensForUser($user)` on **every** sign-in — `finalizeLogin`
+  (password), the socialite and OAuth paths, and account creation. `/refresh` does not rotate.
+- That replaces each of the user's `is_system` company tokens whose `created_at` is 30+ days old
+  with `Str::random(64)`.
+- The `is_system` token is one per (company, user), shared by **every client the user runs**: the
+  v2 Flutter app on each device, the v1 app, React. So a sign-in on any one of them, once the token
+  is 30 days old, kills the session on all the others. Their next request gets 403
+  `{"message":"Invalid token"}` (`TokenAuth.php:46`) or, hosted, 403 `{"message":"Invalid Token"}`
+  (`SetDb.php:32`) — with **no `error_type`**, and as a 403, which every first-party client was
+  built to read as "refused", not "signed out" (§ 401 and 403 are the wrong way round).
+- Effect before the client fix: the Flutter app stayed signed in with every request failing, and
+  the user had to sign out by hand. v1 and React behave the same way on a 403.
+
+### Requested change
+
+1. **Don't rotate a token that is still in use** — rotate only one idle for N days
+   (`company_tokens.updated_at` / a `last_used_at`), or rotate the *signing-in* client's token
+   only. Or give each client its own token (`CreateCompanyToken` per device / user agent, the way
+   API tokens already work), so rotating one never touches the others.
+2. **Mark the 403**: `error_type: "invalid_token"` on `TokenAuth`'s and `SetDb` /
+   `SetDbByCompanyKey`'s "Invalid token" answers, so a client can end the session on that signal
+   instead of an English message (also asked in § 401 and 403 are the wrong way round).
+
+### Client status
+
+The Flutter app (2026-11-21) ends the session on the exact message, keeping local data and unsynced
+changes, and tells the user on the sign-in screen; a rotation still signs every other client out.
 
 ---
 

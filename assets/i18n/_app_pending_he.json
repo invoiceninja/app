@@ -2242,5 +2242,6 @@
   "search_results_announcement": ":count תוצאות ב-:categories קטגוריות",
   "search_results_at_least_announcement": "לפחות :count תוצאות ב-:categories קטגוריות",
   "search_scope_announcement": ":scope, :count תוצאות",
-  "search_scope_at_least_announcement": ":scope, לפחות :count תוצאות"
+  "search_scope_at_least_announcement": ":scope, לפחות :count תוצאות",
+  "session_ended_sign_in_again": "החיבור שלך הסתיים. התחבר שוב; הנתונים שלך והשינויים שלא סונכרנו נשמרים."
 }

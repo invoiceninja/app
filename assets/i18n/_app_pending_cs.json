@@ -2326,5 +2326,6 @@
   "search_results_announcement": "Výsledky: :count v kategoriích: :categories",
   "search_results_at_least_announcement": "Výsledky: alespoň :count v kategoriích: :categories",
   "search_scope_announcement": ":scope, výsledky: :count",
-  "search_scope_at_least_announcement": ":scope, výsledky: alespoň :count"
+  "search_scope_at_least_announcement": ":scope, výsledky: alespoň :count",
+  "session_ended_sign_in_again": "Vaše relace skončila. Přihlaste se znovu; vaše data i nesynchronizované změny zůstanou zachovány."
 }
