@@ -875,6 +875,11 @@ abstract class GenericEditViewModel<T> extends ChangeNotifier {
 
   Future<T?> save() async {
     if (_isSaving) return null;
+    // A new record this form already created: another Save would create it
+    // twice. The form is on its way to the record (`onSaved` awaits a few
+    // reads before it navigates), and that window is not one to make a
+    // duplicate in (docs/after-saving.md).
+    if (isCreate && _lastSentDraft != null) return null;
     T? saved;
     try {
       saved = await _save();
@@ -939,10 +944,11 @@ abstract class GenericEditViewModel<T> extends ChangeNotifier {
       final batch = createsHere && isCreate
           ? List<UploadSource>.of(_documents)
           : null;
-      final result = await performSave();
-      // What this save sent: a draft that differs from it by the end was
-      // edited while the save was out.
+      // What this save sends — taken before the local write, which awaits
+      // too: a draft that differs from it by the end was edited while the
+      // save was out (a keystroke during the write included).
       final draftAtSend = _draft;
+      final result = await performSave();
       awaitedRowId = result.outboxRowId;
       if (createsHere) {
         await _queueDocumentUploads(

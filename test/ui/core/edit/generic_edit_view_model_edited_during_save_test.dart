@@ -40,9 +40,17 @@ class _Vm extends GenericEditViewModel<String> {
 
   void set(String v) => updateDraft(v);
 
+  /// Holds the local write open, when set.
+  Completer<void>? write;
+  int writes = 0;
+
   @override
-  Future<SaveResult<String>> performSave() async =>
-      SaveResult(entity: draft, outboxRowId: 1);
+  Future<SaveResult<String>> performSave() async {
+    writes++;
+    final sent = draft;
+    await write?.future;
+    return SaveResult(entity: sent, outboxRowId: 1);
+  }
 }
 
 void main() {
@@ -102,5 +110,34 @@ void main() {
     await saving;
     expect(vm.editedDuringSave, isFalse);
     expect(vm.isDirty, isFalse);
+  });
+
+  test('a keystroke during the local write is an edit too', () async {
+    final sync = _Sync();
+    final vm = _Vm(sync, saved: 'a')..set('b');
+    vm.write = Completer<void>();
+    final saving = vm.save();
+    await Future<void>.delayed(Duration.zero);
+    vm.set('c');
+    vm.write!.complete();
+    await Future<void>.delayed(Duration.zero);
+    sync.reply.complete(const SyncRowResult(outcome: SyncRowOutcome.success));
+
+    expect(await saving, 'b');
+    expect(vm.editedDuringSave, isTrue);
+    expect(vm.isDirty, isTrue);
+  });
+
+  test('a new record already created is not created again', () async {
+    // The form is on its way to the record: onSaved awaits a few reads
+    // before it navigates, and a Save in that window made it twice.
+    final sync = _Sync()
+      ..reply.complete(const SyncRowResult(outcome: SyncRowOutcome.success));
+    final vm = _Vm(sync)..set('b');
+    expect(await vm.save(), 'b');
+
+    vm.set('c');
+    expect(await vm.save(), isNull);
+    expect(vm.writes, 1);
   });
 }

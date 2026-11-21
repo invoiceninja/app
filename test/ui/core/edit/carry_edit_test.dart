@@ -208,6 +208,65 @@ void main() {
     });
   });
 
+  test('an invoice keeps what its wire JSON leaves out: tax info, the '
+      'e-invoice backup, reminders sent, the lock', () {
+    final sent = Invoice.fromApi(const InvoiceApi(clientId: 'c1'));
+    final stored = Invoice.fromApi(
+      const InvoiceApi(
+        id: 'i1',
+        clientId: 'c1',
+        taxInfo: {'region': 'EU'},
+        backup: {'guid': 'g1'},
+        reminder1Sent: '2026-11-01',
+        isLocked: true,
+      ),
+    );
+
+    final carried = carryInvoiceEdit(
+      sent,
+      sent.copyWith(publicNotes: 'Thank you'),
+      stored,
+    ).record;
+
+    expect(carried.publicNotes, 'Thank you');
+    expect(carried.taxInfo, stored.taxInfo);
+    expect(carried.backup, stored.backup);
+    expect(carried.reminder1Sent, stored.reminder1Sent);
+    expect(carried.isLocked, isTrue);
+  });
+
+  test('a quote untick keeps the remaining contact its own key', () {
+    final sent = Quote.fromApi(
+      const QuoteApi(
+        clientId: 'c1',
+        invitations: [
+          InvitationApi(clientContactId: 'ct1'),
+          InvitationApi(clientContactId: 'ct2'),
+        ],
+      ),
+    );
+    final stored = Quote.fromApi(
+      const QuoteApi(
+        id: 'q1',
+        clientId: 'c1',
+        invitations: [
+          InvitationApi(id: 'iv1', key: 'k1', clientContactId: 'ct1'),
+          InvitationApi(id: 'iv2', key: 'k2', clientContactId: 'ct2'),
+        ],
+      ),
+    );
+
+    final carried = carryQuoteEdit(
+      sent,
+      sent.copyWith(invitations: [sent.invitations.last]),
+      stored,
+    ).record;
+
+    expect(carried.invitations.map((i) => (i.clientContactId, i.key)), [
+      ('ct2', 'k2'),
+    ]);
+  });
+
   test('a quote carries a changed field and keeps its number', () {
     final sent = Quote.fromApi(const QuoteApi(clientId: 'c1'));
     final stored = Quote.fromApi(

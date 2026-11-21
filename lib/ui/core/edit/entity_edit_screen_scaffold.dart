@@ -5,7 +5,6 @@ import 'package:material_ui/material_ui.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
-import 'package:admin/app/after_saving_controller.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/data/db/app_database.dart';
 import 'package:admin/l10n/localization.dart';
@@ -615,21 +614,90 @@ class _EntityEditScreenScaffoldState<T, VM extends GenericEditViewModel<T>>
     // (Expense Category and Payment Link could not be created OR edited at
     // all), and made the back-swipe / predictive-back discard guard dead code.
     // The sibling settings scaffolds already do exactly this.
-    // "After Saving" decides whether Save is disabled on a settled record,
-    // so a change in Device Settings reaches an editor already open.
-    final afterSaving = context.read<AfterSavingController?>();
     return KeyedSubtree(
       key: ValueKey(_generation),
       child: KeyedSubtree(
         key: _formKey,
         child: ListenableBuilder(
-          listenable: afterSaving == null
-              ? vm
-              : Listenable.merge([vm, afterSaving]),
+          listenable: vm,
           builder: (context, _) => _scaffold(context, vm),
         ),
       ),
     );
+  }
+
+  /// The place of [target] under [root], as [_verticalScrollViews] writes
+  /// one, or null when it isn't under it.
+  static String? _pathOf(Element root, Element target) {
+    String? found;
+    void visit(Element element, String path) {
+      var index = 0;
+      element.visitChildren((child) {
+        if (found != null) return;
+        final childPath = '$path/${child.widget.runtimeType}#${index++}';
+        if (identical(child, target)) {
+          found = childPath;
+          return;
+        }
+        visit(child, childPath);
+      });
+    }
+
+    visit(root, '');
+    return found;
+  }
+
+  /// The element at [path] under [root], or null.
+  static Element? _elementAt(Element root, String path) {
+    Element? found;
+    void visit(Element element, String at) {
+      var index = 0;
+      element.visitChildren((child) {
+        if (found != null) return;
+        final childPath = '$at/${child.widget.runtimeType}#${index++}';
+        if (childPath == path) {
+          found = child;
+        } else if (path.startsWith('$childPath/')) {
+          visit(child, childPath);
+        }
+      });
+    }
+
+    visit(root, '');
+    return found;
+  }
+
+  /// Give the focus back to the field that had it when the save began — the
+  /// save took it away to commit the field. On the same form, that node; on
+  /// a reloaded one, the focus node at the same place in the new tree, a few
+  /// frames given for it to build (docs/after-saving.md).
+  void _refocus(FocusNode? node, {String? path, int frames = 10}) {
+    if (path == null) {
+      final context = node?.context;
+      if (node != null &&
+          context != null &&
+          context.mounted &&
+          node.canRequestFocus) {
+        node.requestFocus();
+      }
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final root = _formKey.currentContext as Element?;
+      final element = root == null ? null : _elementAt(root, path);
+      // The node the field hands its `Focus` (a text field always does). Read
+      // off the widget, not looked up: `Focus.of` from here would make the
+      // element depend on its own scope.
+      final target = element?.widget;
+      final found = target is Focus ? target.focusNode : null;
+      if (found != null && found.canRequestFocus) {
+        found.requestFocus();
+      } else if (frames > 0) {
+        _refocus(null, path: path, frames: frames - 1);
+        WidgetsBinding.instance.scheduleFrame();
+      }
+    });
   }
 
   /// Every vertical scroll view under [root] that is scrolled, keyed by its
@@ -730,7 +798,10 @@ class _EntityEditScreenScaffoldState<T, VM extends GenericEditViewModel<T>>
     if (existingId != null) {
       // An edit made while the save was out is still only in this form,
       // which stays dirty with it: a reload would throw it away.
-      if (vm.editedDuringSave) return;
+      if (vm.editedDuringSave) {
+        _refocus(focusAtSaveOf(vm));
+        return;
+      }
       if (!await _reloadAfterSave(services, vm, existingId) &&
           context.mounted) {
         _leaveForRecord(context, vm, saved);
@@ -791,6 +862,12 @@ class _EntityEditScreenScaffoldState<T, VM extends GenericEditViewModel<T>>
       existingId,
     );
     if (!mounted || fresh == null || !identical(_vm, old)) return false;
+    // An edit typed since the save came back (while the record was read):
+    // this form holds it, dirty, and a reload would throw it away.
+    if (old.isDirty) {
+      _refocus(focusAtSaveOf(old));
+      return true;
+    }
     final next = (widget.reloadVm ?? widget.buildVm)(
       context,
       services,
@@ -799,12 +876,18 @@ class _EntityEditScreenScaffoldState<T, VM extends GenericEditViewModel<T>>
     );
     next.formUiState.addAll(old.formUiState);
     final offsets = _verticalScrollOffsets(_formKey.currentContext);
+    final root = _formKey.currentContext as Element?;
+    final focused = focusAtSaveOf(old)?.context;
+    final focusPath = root == null || focused == null || !focused.mounted
+        ? null
+        : _pathOf(root, focused as Element);
     setState(() {
       _vm = next;
       _generation++;
       _formKey = GlobalKey();
     });
     _restoreScrollOffsets(offsets);
+    if (focusPath != null) _refocus(null, path: focusPath);
     // After the frame that unmounts the form bound to it.
     WidgetsBinding.instance.addPostFrameCallback((_) => old.dispose());
     await _hydrateFailedSync(services, _companyId, existingId);
@@ -821,11 +904,9 @@ class _EntityEditScreenScaffoldState<T, VM extends GenericEditViewModel<T>>
 
   Widget _scaffold(BuildContext context, VM vm) {
     final canSave = widget.canSave?.call(vm) ?? !vm.isSaving;
-    final ownsNavigation = widget.onSaved == null;
     return EntityEditScaffold<T>(
       vm: vm,
       canSave: canSave,
-      disableSaveWhenClean: ownsNavigation && staysInEditorAfterSave(context),
       embedded: widget.embedded,
       actionsBuilder: widget.actionsBuilder == null
           ? null

@@ -167,6 +167,7 @@ void main() {
     String initial = '/clients/c1/edit',
     _Rec stored = const _Rec('c1', 'Acme'),
     _Rec? Function()? storedNow,
+    void Function(int fetch)? onFetch,
     Future<bool> Function(_Rec saved)? canKeepEditing,
     Widget Function(_Vm vm)? body,
     void Function(_Vm vm)? onBuilt,
@@ -183,6 +184,7 @@ void main() {
           basePath: '/clients',
           fetchExisting: (_, _, _, _) async {
             fetches++;
+            onFetch?.call(fetches);
             return storedNow == null ? stored : storedNow();
           },
           buildVm: (_, _, _, existing) {
@@ -298,9 +300,9 @@ void main() {
 
   group('Edit Record', () {
     testWidgets('an existing record stays open, reloaded from the stored '
-        'copy, with Save disabled until the next change', (tester) async {
+        'copy', (tester) async {
       final router = await pump(tester, stay: true);
-      expect(saveEnabled(tester), isFalse, reason: 'nothing to save yet');
+      expect(saveEnabled(tester), isTrue, reason: 'Save is never disabled');
 
       built.single
         ..formUiState['tab'] = 2
@@ -322,7 +324,7 @@ void main() {
         reason: 'the selected tab rides across the reload',
       );
       expect(find.text('name Acme'), findsOneWidget, reason: 'stored copy');
-      expect(saveEnabled(tester), isFalse);
+      expect(saveEnabled(tester), isTrue);
 
       // Leaving now needs no Discard prompt.
       router.go('/clients');
@@ -396,43 +398,16 @@ void main() {
       expect(pathOf(router), '/clients/c1');
     });
 
-    testWidgets('Enter / ⌘S on an unchanged record saves nothing', (
-      tester,
-    ) async {
+    testWidgets('Save on an unchanged record saves — a re-save can make the '
+        'server recalculate', (tester) async {
       await pump(tester, stay: true);
       final form = tester.element(find.byKey(const ValueKey('body')));
       // What Enter in a field (and the banner's Retry) reaches; ⌘S runs the
       // same handler.
       FormSaveScope.maybeOf(form)!.trySubmit();
       await tester.pumpAndSettle();
-      expect(built.first.saves, 0);
-    });
-
-    testWidgets('a focused text field keeps Save enabled — its typing may not '
-        'have reached the draft', (tester) async {
-      final focus = FocusNode();
-      addTearDown(focus.dispose);
-      await pump(tester, stay: true);
-      expect(saveEnabled(tester), isFalse);
-      // Any focused text input counts; mount one beside the form.
-      final overlay = tester.state<OverlayState>(find.byType(Overlay).first);
-      final entry = OverlayEntry(
-        builder: (_) => Align(
-          alignment: Alignment.topLeft,
-          child: SizedBox(
-            width: 100,
-            child: Material(child: TextField(focusNode: focus)),
-          ),
-        ),
-      );
-      overlay.insert(entry);
-      addTearDown(entry.remove);
-      await tester.pump();
-      focus.requestFocus();
-      await tester.pump();
-      await tester.pump();
-      expect(focus.hasPrimaryFocus, isTrue);
-      expect(saveEnabled(tester), isTrue);
+      expect(built.first.saves, 1);
+      expect(built, hasLength(2), reason: 'reloaded');
     });
   });
 
@@ -602,45 +577,62 @@ void main() {
       );
     });
 
-    testWidgets('Enter on an unchanged record keeps the focus in its field', (
-      tester,
-    ) async {
-      final focus = FocusNode();
-      addTearDown(focus.dispose);
+    testWidgets('Enter in a field, a Save that stays: the focus is back in '
+        'that field', (tester) async {
       await pump(
         tester,
         stay: true,
         body: (vm) => Material(
           key: const ValueKey('body'),
-          child: TextField(focusNode: focus),
+          child: Column(
+            children: [
+              const TextField(key: ValueKey('first')),
+              TextField(key: const ValueKey('name'), onChanged: vm.setName),
+            ],
+          ),
         ),
       );
-      focus.requestFocus();
+      await tester.tap(find.byKey(const ValueKey('name')));
+      await tester.enterText(find.byKey(const ValueKey('name')), 'Acme Inc');
       await tester.pump();
       final form = tester.element(find.byKey(const ValueKey('body')));
       FormSaveScope.maybeOf(form)!.trySubmit();
       await tester.pumpAndSettle();
 
-      expect(built.single.saves, 0);
-      expect(focus.hasPrimaryFocus, isTrue);
+      expect(built, hasLength(2), reason: 'reloaded');
+      final name = tester.state<EditableTextState>(
+        find.descendant(
+          of: find.byKey(const ValueKey('name')),
+          matching: find.byType(EditableText),
+        ),
+      );
+      expect(name.widget.focusNode.hasFocus, isTrue);
     });
 
-    testWidgets('a change in Device Settings reaches an editor already open', (
-      tester,
-    ) async {
-      await pump(tester, stay: true);
-      expect(saveEnabled(tester), isFalse);
-
-      await afterSaving.set(false, isPhone: false);
+    testWidgets('an edit typed while the record was read back keeps the form: '
+        'no reload over it', (tester) async {
+      final router = await pump(
+        tester,
+        stay: true,
+        onFetch: (n) {
+          if (n == 2) built.first.setName('typed while reading');
+        },
+      );
+      built.single.setName('Acme Inc');
       await tester.pump();
-      expect(saveEnabled(tester), isTrue, reason: 'View Record never disables');
+      await tapSave(tester);
+
+      expect(pathOf(router), '/clients/c1/edit');
+      expect(fetches, 2);
+      expect(built, hasLength(1), reason: 'not swapped');
+      expect(built.single.draft.name, 'typed while reading');
+      expect(built.single.isDirty, isTrue);
     });
   });
 
   group('View Record', () {
     testWidgets('an existing record goes to the record', (tester) async {
       final router = await pump(tester, stay: false);
-      expect(saveEnabled(tester), isTrue, reason: 'Save is never disabled');
       built.single.setName('Acme Inc');
       await tester.pump();
       await tapSave(tester);

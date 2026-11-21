@@ -5,6 +5,7 @@ import 'package:drift/drift.dart'
     show Value, BooleanExpressionOperators, Table, TableInfo, Variable;
 import 'package:logging/logging.dart';
 
+import 'package:admin/domain/record_identity.dart';
 import 'package:admin/data/db/dao/base_entity_dao.dart';
 import 'package:admin/data/db/app_database.dart';
 import 'package:admin/data/db/dao/billing_extra_filters.dart';
@@ -494,7 +495,7 @@ class InvoiceRepository extends BaseEntityRepository<Invoice, InvoiceApi>
       final resolvedId = await resolveId(invoice.id);
       if (resolvedId != invoice.id) {
         // The create landed while the form was open: keep the number it
-        // got (docs/after-saving.md).
+        // got (docs/after-saving.md) ...
         invoice = invoice.copyWith(
           id: resolvedId,
           number: await numberKeptOnRebind(
@@ -505,6 +506,20 @@ class InvoiceRepository extends BaseEntityRepository<Invoice, InvoiceApi>
             )).firstOrNull?.number,
           ),
         );
+        // ... and the keys the server gave its invitations, matched by
+        // contact, with their signing state.
+        final stored = (await db.invoiceDao.getByIds(
+          companyId: companyId,
+          ids: [resolvedId],
+        )).map(_fromRow).firstOrNull;
+        if (stored != null) {
+          invoice = invoice.copyWith(
+            invitations: invitationsByContact(
+              invoice.invitations,
+              stored.invitations,
+            ),
+          );
+        }
       }
       await db.invoiceDao.upsert(
         _domainToCompanion(invoice, companyId, isDirty: true),

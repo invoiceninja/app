@@ -325,6 +325,56 @@ abstract class BaseEntityRepository<TDomain, TApi> {
   /// the number it already had is skipped. Only a rebound save: a blank on a
   /// record the form opened with a number is the user clearing it, which
   /// does ask the server for a new one (docs/after-saving.md).
+  /// The ids the server gave a new record's [listKey] items ([ids], in its
+  /// order), written into the updates of it queued before its create landed
+  /// — an offline form that stayed open and saved again sends its contacts
+  /// without ids, and the server deletes and recreates contacts a save sends
+  /// without them (`ClientContactRepository::save`). By place, and only where
+  /// a payload's list has as many items as the server's: one whose length
+  /// changed can't be matched (docs/after-saving.md). Run after the create's
+  /// reply was applied, which rewrote the rows' `tmp_` id to [realId].
+  @protected
+  Future<void> fillQueuedListIds({
+    required String companyId,
+    required String realId,
+    required String listKey,
+    required List<String> ids,
+  }) async {
+    final rows = await db.outboxDao.pendingRowsForEntity(
+      companyId: companyId,
+      entityType: entityTypeName,
+      entityId: realId,
+      mutationKind: MutationKind.update.wireName,
+    );
+    for (final row in rows) {
+      final Object? payload;
+      try {
+        payload = jsonDecode(row.payload);
+      } on FormatException {
+        continue;
+      }
+      if (payload is! Map<String, dynamic>) continue;
+      final items = payload[listKey];
+      if (items is! List || items.length != ids.length) continue;
+      var changed = false;
+      for (var i = 0; i < items.length; i++) {
+        final item = items[i];
+        if (item is Map<String, dynamic> &&
+            (item['id'] == null || item['id'] == '') &&
+            ids[i].isNotEmpty) {
+          item['id'] = ids[i];
+          changed = true;
+        }
+      }
+      if (changed) {
+        await db.outboxDao.updatePayload(
+          id: row.id,
+          payload: jsonEncode(payload),
+        );
+      }
+    }
+  }
+
   @protected
   Future<String> numberKeptOnRebind({
     required String draftNumber,

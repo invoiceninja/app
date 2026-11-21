@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:drift/drift.dart'
     show Value, BooleanExpressionOperators, Table, TableInfo, Variable;
 
+import 'package:admin/domain/record_identity.dart';
 import 'package:admin/data/db/dao/billing_extra_filters.dart';
 import 'package:admin/data/db/dao/base_entity_dao.dart';
 import 'package:admin/data/repositories/ensure_loaded_outcome.dart';
@@ -362,7 +363,7 @@ class VendorRepository extends BaseEntityRepository<Vendor, VendorApi>
       final resolvedId = await resolveId(vendor.id);
       if (resolvedId != vendor.id) {
         // The create landed while the form was open: keep the number it
-        // got (docs/after-saving.md).
+        // got (docs/after-saving.md) ...
         vendor = vendor.copyWith(
           id: resolvedId,
           number: await numberKeptOnRebind(
@@ -373,6 +374,22 @@ class VendorRepository extends BaseEntityRepository<Vendor, VendorApi>
             )).firstOrNull?.number,
           ),
         );
+        // ... and the ids the server gave its contacts, or the next Save
+        // would make the server delete and recreate them.
+        final stored = (await db.vendorDao.getByIds(
+          companyId: companyId,
+          ids: [resolvedId],
+        )).map(_fromRow).firstOrNull;
+        if (stored != null) {
+          vendor = vendor.copyWith(
+            contacts: idsByPosition(
+              vendor.contacts,
+              stored.contacts,
+              idOf: (c) => c.id,
+              withId: (c, id) => c.copyWith(id: id),
+            ),
+          );
+        }
       }
 
       final companion = _domainToCompanion(vendor, companyId, isDirty: true);
@@ -475,14 +492,23 @@ class VendorRepository extends BaseEntityRepository<Vendor, VendorApi>
     required String companyId,
     required String tempId,
     required VendorApi serverResponse,
-  }) => applyCreateResponseTemplate(
-    companyId: companyId,
-    tempId: tempId,
-    realId: serverResponse.id,
-    companion: _apiToCompanion(serverResponse, companyId),
-    upsert: db.vendorDao.upsert,
-    deleteById: (id) => db.vendorDao.deleteById(companyId: companyId, id: id),
-  );
+  }) => db.transaction(() async {
+    await applyCreateResponseTemplate(
+      companyId: companyId,
+      tempId: tempId,
+      realId: serverResponse.id,
+      companion: _apiToCompanion(serverResponse, companyId),
+      upsert: db.vendorDao.upsert,
+      deleteById: (id) => db.vendorDao.deleteById(companyId: companyId, id: id),
+    );
+    // Updates queued before the create landed name its contacts without ids.
+    await fillQueuedListIds(
+      companyId: companyId,
+      realId: serverResponse.id,
+      listKey: 'contacts',
+      ids: [for (final c in serverResponse.contacts) c.id],
+    );
+  });
 
   @override
   Future<void> applyUpdateResponse({

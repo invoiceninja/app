@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:drift/drift.dart' show Value, BooleanExpressionOperators;
 import 'package:logging/logging.dart';
 
+import 'package:admin/domain/record_identity.dart';
 import 'package:admin/data/db/dao/billing_extra_filters.dart';
 import 'package:admin/data/db/app_database.dart';
 import 'package:admin/data/db/dao/base_entity_dao.dart';
@@ -249,7 +250,7 @@ class PurchaseOrderRepository
       final resolvedId = await resolveId(purchaseOrder.id);
       if (resolvedId != purchaseOrder.id) {
         // The create landed while the form was open: keep the number it
-        // got (docs/after-saving.md).
+        // got (docs/after-saving.md) ...
         purchaseOrder = purchaseOrder.copyWith(
           id: resolvedId,
           number: await numberKeptOnRebind(
@@ -260,6 +261,20 @@ class PurchaseOrderRepository
             )).firstOrNull?.number,
           ),
         );
+        // ... and the keys the server gave its invitations, matched by
+        // contact, with their signing state.
+        final stored = (await db.purchaseOrderDao.getByIds(
+          companyId: companyId,
+          ids: [resolvedId],
+        )).map(_fromRow).firstOrNull;
+        if (stored != null) {
+          purchaseOrder = purchaseOrder.copyWith(
+            invitations: invitationsByContact(
+              purchaseOrder.invitations,
+              stored.invitations,
+            ),
+          );
+        }
       }
 
       final companion = _domainToCompanion(

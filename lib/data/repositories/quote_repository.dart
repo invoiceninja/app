@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:drift/drift.dart' show Value, BooleanExpressionOperators;
 import 'package:logging/logging.dart';
 
+import 'package:admin/domain/record_identity.dart';
 import 'package:admin/data/db/dao/base_entity_dao.dart';
 import 'package:admin/data/db/app_database.dart';
 import 'package:admin/data/db/dao/billing_extra_filters.dart';
@@ -295,7 +296,7 @@ class QuoteRepository extends BaseEntityRepository<Quote, QuoteApi>
       final resolvedId = await resolveId(quote.id);
       if (resolvedId != quote.id) {
         // The create landed while the form was open: keep the number it
-        // got (docs/after-saving.md).
+        // got (docs/after-saving.md) ...
         quote = quote.copyWith(
           id: resolvedId,
           number: await numberKeptOnRebind(
@@ -306,6 +307,20 @@ class QuoteRepository extends BaseEntityRepository<Quote, QuoteApi>
             )).firstOrNull?.number,
           ),
         );
+        // ... and the keys the server gave its invitations, matched by
+        // contact, with their signing state.
+        final stored = (await db.quoteDao.getByIds(
+          companyId: companyId,
+          ids: [resolvedId],
+        )).map(_fromRow).firstOrNull;
+        if (stored != null) {
+          quote = quote.copyWith(
+            invitations: invitationsByContact(
+              quote.invitations,
+              stored.invitations,
+            ),
+          );
+        }
       }
 
       final companion = _domainToCompanion(quote, companyId, isDirty: true);

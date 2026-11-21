@@ -63,6 +63,15 @@ CarriedEdit<Invoice> carryInvoiceEdit(
     documents: stored.documents,
     schedule: stored.schedule,
     lastSentDate: stored.lastSentDate,
+    // Read-only on the wire (`toApiJson` omits them), so the stored record's.
+    taxInfo: stored.taxInfo,
+    backup: stored.backup,
+    sync: stored.sync,
+    reminder1Sent: stored.reminder1Sent,
+    reminder2Sent: stored.reminder2Sent,
+    reminder3Sent: stored.reminder3Sent,
+    reminderLastSent: stored.reminderLastSent,
+    isLocked: stored.isLocked,
     lineItems: changed.contains('line_items')
         ? merged.lineItems
         : stored.lineItems,
@@ -93,7 +102,7 @@ CarriedEdit<Quote> carryQuoteEdit(Quote sent, Quote edited, Quote stored) =>
             ? merged.lineItems
             : stored.lineItems,
         invitations: changed.contains('invitations')
-            ? merged.invitations
+            ? keepStoredInvitations(merged.invitations, stored.invitations)
             : stored.invitations,
       ),
     );

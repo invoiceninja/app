@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:decimal/decimal.dart';
 import 'package:drift/drift.dart' show Value, BooleanExpressionOperators;
 
+import 'package:admin/domain/record_identity.dart';
 import 'package:admin/data/db/app_database.dart';
 import 'package:admin/data/db/dao/base_entity_dao.dart';
 import 'package:admin/data/db/dao/billing_extra_filters.dart';
@@ -245,7 +246,7 @@ class RecurringInvoiceRepository
       final resolvedId = await resolveId(recurringInvoice.id);
       if (resolvedId != recurringInvoice.id) {
         // The create landed while the form was open: keep the number it
-        // got (docs/after-saving.md).
+        // got (docs/after-saving.md) ...
         recurringInvoice = recurringInvoice.copyWith(
           id: resolvedId,
           number: await numberKeptOnRebind(
@@ -256,6 +257,20 @@ class RecurringInvoiceRepository
             )).firstOrNull?.number,
           ),
         );
+        // ... and the keys the server gave its invitations, matched by
+        // contact, with their signing state.
+        final stored = (await db.recurringInvoiceDao.getByIds(
+          companyId: companyId,
+          ids: [resolvedId],
+        )).map(_fromRow).firstOrNull;
+        if (stored != null) {
+          recurringInvoice = recurringInvoice.copyWith(
+            invitations: invitationsByContact(
+              recurringInvoice.invitations,
+              stored.invitations,
+            ),
+          );
+        }
       }
 
       final companion = _domainToCompanion(

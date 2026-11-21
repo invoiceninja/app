@@ -98,7 +98,10 @@ Online, `save()` waits up to 30 s for the server. An edit typed meanwhile was
 not sent; latched clean, the reload threw it away and the guard let the user
 leave without it. `save()` keeps the draft it sent and compares it, by value
 (freezed `==`), with the draft at the end (`editedDuringSave`) — an edit typed
-and undone is no edit.
+and undone is no edit. The draft is taken before the local write, which awaits
+too, so a keystroke during it counts. And the scaffold looks once more right
+before it swaps the reloaded view model in: an edit typed while the record was
+read back keeps the form as it is, dirty, rather than going under the reload.
 
 - **An existing record**: the form stays dirty with the edit, and the scaffold
   keeps that view model instead of reloading.
@@ -179,13 +182,15 @@ Staying on `/x/new` would make a second record on the next Save (`isCreate`
 stays true), and a restart would restore a blank form. The scaffold resolves
 the saved `tmp_` id through `id_remap` (`resolveAnyType`): the real id after an
 online save, which waited for the create; the `tmp_` id offline or after a
-timeout — an editor on it follows the swap the way a record screen does, and
-shows `SyncFirstBanner`. Leaving `/x/new` replaces its history entry
+timeout. An editor on a `tmp_` id stays on that route when the create lands
+— it does not reload onto the server's copy — and shows `SyncFirstBanner`; its
+next Save is rebound to the real id by the repository, which then takes what
+the server gave the record and the draft lacks (the next section). Leaving `/x/new` replaces its history entry
 (`isTransientCreateRoute`), and the edit route sits under the record's, so
 Back and ✕ land on the record. A new record's Documents tab goes with the
 create form: a saved record's files are on its record screen.
 
-## A save rebound from a tmp_ id keeps the number the create got
+## A save rebound from a tmp_ id keeps the number the create got, and the ids of its contacts and invitations
 
 `toApiJson` always sends `number`. A form opened on a record before its create
 landed holds the blank number the create was sent with; when that record is
@@ -208,24 +213,44 @@ vendor, payment). Only on a rebind: a blank number on a record the form opened
 with a number is the user clearing it, which does ask the server for a new
 one.
 
+The same draft names its contacts without ids and its invitations without
+keys. The server deletes and recreates contacts a save sends without ids
+(`ClientContactRepository::save`), so the rebind also gives the draft's
+contacts the stored ids — by place, and only while the lists are as long
+(`idsByPosition`, `lib/domain/record_identity.dart`); a contact added or
+removed meanwhile can't be matched, and that list goes as it is. Invitations
+take the stored invitation for the same contact, key and signing state
+(`invitationsByContact`): the key goes on the wire only with `can_sign`, which
+the server applies with it (client and vendor, and the five billing
+documents).
+
 An update queued *before* its record's create lands (offline: create, stay,
 Save again) carries the blank number in its payload. When the create lands,
 `OutboxDao.rewriteTempIdInPayloads` — which rewrites the queued rows' `tmp_` id
 — also drops a blank `number` from such an update, so the server keeps the
-number the create got; a number the user typed is sent as is.
+number the create got; a number the user typed is sent as is. Its contacts get
+the ids from the create's reply, by place on the same rule
+(`BaseEntityRepository.fillQueuedListIds`, from the client and vendor
+`applyCreateResponse`). Its keyless invitations are left: the server soft-
+deletes the invitations whose keys a save leaves out and then restores the
+trashed one for the same contact (`BaseRepository::save`), so the key — and,
+unless the request says otherwise, `can_sign` — survive.
 
-## Save is disabled on an unchanged existing record while the editor stays open
+## Save stays enabled, gives the focus back, and never creates twice
 
-With Edit Record, Save on an existing record with nothing to send (no change,
-no failed or held save, not a re-create) is disabled — the sign that the save
-landed — and ⌘S / Enter on it do nothing (`disableSaveWhenClean`). A focused
-text input counts as a possible change: a date, time or notes field commits
-only on blur or Enter, so the Save button listens to focus changes and stays
-enabled while one is focused; pressing it unfocuses, flushes, and saves only if
-something changed — and, when nothing did, hands the focus back to the field.
-With no text field focused, ⌘S on a settled record leaves the focus alone. The
-scaffold listens to the controller, so a change in Device Settings reaches an
-editor already open. SAVE-PARAM actions never need a change.
+Save is enabled on an unchanged record too, as in React: a re-save makes the
+server recalculate, and a click during a line-item cell's 250 ms commit is not
+swallowed (a first version disabled it while the editor stayed open).
+
+The save takes the focus away to commit the field the user was in; a Save
+that keeps the editor open gives it back. The scaffold notes the focused node
+when the save begins (`focusAtSaveOf`); on a form that stays, that node gets it
+again, and on a reloaded one the focus node at the same place in the new tree
+— the same path the scroll restore uses — a few frames given for it to build.
+
+A new record's form, once its create succeeded, refuses another Save
+(`save()` returns null): `onSaved` awaits a few reads before it navigates away,
+and a Save in that window made the record twice.
 
 Tests: `test/ui/core/edit/entity_edit_screen_scaffold_after_saving_test.dart`,
 `test/app/after_saving_controller_test.dart`,
