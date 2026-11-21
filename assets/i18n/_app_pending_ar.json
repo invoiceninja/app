@@ -2204,6 +2204,7 @@
   "web_app_banner_get_linux": "احصل على تطبيق Linux",
   "web_app_banner_dismiss": "عدم إظهار هذا مرة أخرى",
   "store_purchase_own_account_only": "يتم تطبيق الخطط المشتراة هنا على حسابك الخاص. انتقل إلى إحدى شركاته للترقية.",
+  "store_legacy_play_subscription_replaced": "سيتم إلغاء اشتراكك في تطبيق Invoice Ninja Legacy واسترداد قيمة الوقت غير المستخدم منه بمجرد تفعيل اشتراكك الجديد.",
   "delete_last_company_deletes_account": "حذف آخر شركة لديك يحذف حسابك.",
   "app_info": "معلومات التطبيق",
   "app_info_copy_all": "نسخ الكل",

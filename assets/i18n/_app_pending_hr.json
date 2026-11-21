@@ -2205,6 +2205,7 @@
   "web_app_banner_get_linux": "Preuzmi aplikaciju za Linux",
   "web_app_banner_dismiss": "Ne prikazuj ponovno",
   "store_purchase_own_account_only": "Planovi kupljeni ovdje primjenjuju se na vaš vlastiti korisnički račun. Za nadogradnju se prebacite na jedno od njegovih poduzeća.",
+  "store_legacy_play_subscription_replaced": "Vaša pretplata u aplikaciji Invoice Ninja Legacy bit će otkazana, a neiskorišteno vrijeme vraćeno čim nova pretplata postane aktivna.",
   "delete_last_company_deletes_account": "Brisanjem posljednjeg poduzeća briše se vaš korisnički račun.",
   "app_info": "Podaci o aplikaciji",
   "app_info_copy_all": "Kopiraj sve",

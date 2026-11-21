@@ -1,10 +1,17 @@
 import 'package:admin/data/repositories/auth/auth_session.dart';
+import 'package:admin/domain/upgrade/purchase_delivery.dart';
 
 /// Where an Upgrade tap goes. [resolveUpgradeRoute] picks one; `launchUpgrade`
 /// carries it out.
 enum UpgradeRoute {
   /// The in-app purchase sheet (store builds only).
   purchaseSheet,
+
+  /// The in-app purchase sheet for an owner whose live plan is a Legacy-app
+  /// Google Play subscription, saying that the Legacy one is cancelled and its
+  /// unused time refunded once the new one is active
+  /// ([offersLegacyPlayReplacement]). Android store builds only.
+  legacyPlayReplacement,
 
   /// The store's own subscription management, for a live in-app plan.
   storeSubscriptions,
@@ -33,10 +40,17 @@ const kIapRebuyAfter = Duration(days: 60);
 /// Store builds never return [UpgradeRoute.billingPortal]: they may not send
 /// anyone to an external purchase (App Store 3.1.1(a), Play Payments 4).
 /// Elsewhere (desktop, web, F-Droid) nothing returns [UpgradeRoute.purchaseSheet].
+///
+/// An active in-app plan goes to the store's subscription management, unless
+/// the hosted [config] says a purchase replaces it
+/// ([offersLegacyPlayReplacement]): [store] is `storeOfBuild`, and with no
+/// [config] (not asked, or no answer) nothing is offered over a store plan.
 UpgradeRoute resolveUpgradeRoute({
   required bool storeBilling,
   required AuthSession? session,
   required DateTime now,
+  PurchaseStore? store,
+  IapConfig? config,
 }) {
   // A self-hosted server has no hosted plan to buy, and the purchase POST
   // would reach that server.
@@ -66,7 +80,16 @@ UpgradeRoute resolveUpgradeRoute({
     return UpgradeRoute.billingPortal;
   }
 
-  if (session.hasActiveIapPlan) return UpgradeRoute.storeSubscriptions;
+  if (session.hasActiveIapPlan) {
+    return canBuyForActiveAccount(session) &&
+            offersLegacyPlayReplacement(
+              store: store,
+              session: session,
+              config: config,
+            )
+        ? UpgradeRoute.legacyPlayReplacement
+        : UpgradeRoute.storeSubscriptions;
+  }
 
   // Billed on the web (a paid plan, or a trial, which hosted runs on a card):
   // a store purchase would bill twice, and the portal is off limits here.
@@ -94,6 +117,27 @@ bool planManagedOnWeb({
   required AuthSession? session,
 }) =>
     storeBilling && session != null && session.isHosted && session.isWebBilled;
+
+/// Whether a plan bought now replaces [session]'s Legacy-app Google Play
+/// subscription, which the hosted service then revokes with a prorated refund
+/// (admin-module S8): only on the server's explicit word
+/// ([IapConfig.replacesLegacyPlay]), for a sale that lands on the active
+/// account ([IapConfig.sellsTo]), on a Play build ([store]), for an active
+/// in-app plan. Never on an Apple build: a Legacy App Store subscriber changes
+/// plan inside the Legacy app's subscription group, and the server never
+/// replaces one. Fails closed on anything less, so a new-app subscriber is
+/// never sold a second subscription.
+bool offersLegacyPlayReplacement({
+  required PurchaseStore? store,
+  required AuthSession session,
+  required IapConfig? config,
+}) =>
+    store == PurchaseStore.googlePlay &&
+    session.isHosted &&
+    session.hasActiveIapPlan &&
+    config != null &&
+    config.replacesLegacyPlay &&
+    config.sellsTo(session);
 
 /// Whether the signed-in user may buy a plan in-app for the active company's
 /// account: they own the active company. Which account a purchase lands on is

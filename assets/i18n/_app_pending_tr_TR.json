@@ -2288,6 +2288,7 @@
   "web_app_banner_get_linux": "Linux uygulamasını edinin",
   "web_app_banner_dismiss": "Bunu bir daha gösterme",
   "store_purchase_own_account_only": "Burada satın alınan planlar kendi hesabınıza uygulanır. Yükseltmek için hesabınızın şirketlerinden birine geçin.",
+  "store_legacy_play_subscription_replaced": "Yeni aboneliğiniz etkinleştiğinde Invoice Ninja Legacy uygulamasındaki aboneliğiniz iptal edilecek ve kullanılmayan süre iade edilecek.",
   "delete_last_company_deletes_account": "Son şirketinizi silmek hesabınızı siler.",
   "app_info": "Uygulama bilgileri",
   "app_info_copy_all": "Tümünü kopyala",

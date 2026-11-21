@@ -8,6 +8,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:admin/data/repositories/auth/auth_session.dart';
+import 'package:admin/domain/upgrade/purchase_delivery.dart';
 import 'package:admin/domain/upgrade/store_build.dart';
 import 'package:admin/domain/upgrade/upgrade_route.dart';
 
@@ -174,6 +175,143 @@ void main() {
         resolveUpgradeRoute(storeBilling: true, session: s, now: _now),
         UpgradeRoute.planScreen,
       );
+    });
+  });
+
+  // S8: a Legacy-app (`com.invoiceninja.app`) Play subscriber buys in the new
+  // app and the hosted service revokes the Legacy subscription with a
+  // prorated refund. Only on the config's explicit `replaces_v1_play`, only on
+  // Play, and never for anyone else with a store plan.
+  group('Legacy Play replacement', () {
+    const token = '6f1c2a54-9d0e-5b7f-8a3c-1e2d3f4a5b6c';
+    IapConfig config({
+      bool replaces = true,
+      bool enabled = true,
+      String accountKey = 'acct-key',
+    }) => IapConfig(
+      purchasesEnabled: enabled,
+      appAccountToken: token,
+      accountKey: accountKey,
+      replacesLegacyPlay: replaces,
+    );
+    final activeIap = _accounts['active IAP']!;
+
+    UpgradeRoute route({
+      bool storeBilling = true,
+      AuthSession? session,
+      PurchaseStore? store = PurchaseStore.googlePlay,
+      IapConfig? iapConfig,
+    }) => resolveUpgradeRoute(
+      storeBilling: storeBilling,
+      session: session ?? activeIap,
+      now: _now,
+      store: store,
+      config: iapConfig,
+    );
+
+    test('a Play build sends an offered owner to the purchase sheet', () {
+      expect(route(iapConfig: config()), UpgradeRoute.legacyPlayReplacement);
+      expect(
+        offersLegacyPlayReplacement(
+          store: PurchaseStore.googlePlay,
+          session: activeIap,
+          config: config(),
+        ),
+        isTrue,
+      );
+    });
+
+    test('never on an Apple build: a Legacy App Store subscriber changes '
+        "level in the Legacy app's subscription group", () {
+      expect(
+        route(store: PurchaseStore.appStore, iapConfig: config()),
+        UpgradeRoute.storeSubscriptions,
+      );
+    });
+
+    test('fails closed: no config, or one that does not say so', () {
+      expect(route(), UpgradeRoute.storeSubscriptions);
+      expect(
+        route(store: null, iapConfig: config()),
+        isNot(UpgradeRoute.legacyPlayReplacement),
+      );
+      // A new-app subscriber: the server takes purchases but replaces nothing.
+      expect(
+        route(iapConfig: config(replaces: false)),
+        UpgradeRoute.storeSubscriptions,
+      );
+      expect(
+        route(iapConfig: config(enabled: false)),
+        UpgradeRoute.storeSubscriptions,
+      );
+      expect(
+        route(iapConfig: IapConfig.fromJson(const {'purchases_enabled': true})),
+        UpgradeRoute.storeSubscriptions,
+      );
+    });
+
+    test('never for a company of another account, or a non-owner', () {
+      expect(
+        route(iapConfig: config(accountKey: 'their-acct')),
+        UpgradeRoute.storeSubscriptions,
+      );
+      final member = _session(
+        plan: 'pro',
+        planExpires: '2026-12-19',
+        hasIapPlan: true,
+        isOwner: false,
+      );
+      expect(
+        route(session: member, iapConfig: config()),
+        UpgradeRoute.storeSubscriptions,
+      );
+    });
+
+    test('only for an active store plan: every other account routes as '
+        'before', () {
+      const before = {
+        'free': UpgradeRoute.purchaseSheet,
+        'trial': UpgradeRoute.planScreen,
+        'web-paid': UpgradeRoute.planScreen,
+        // It may still renew in the store: nothing is sold over it.
+        'lapsed IAP, recent': UpgradeRoute.storeSubscriptionsEnded,
+        'lapsed IAP, no date': UpgradeRoute.storeSubscriptionsEnded,
+        'lapsed IAP, >60 days': UpgradeRoute.purchaseSheet,
+        'self-hosted': UpgradeRoute.planScreen,
+        'non-owner, free': UpgradeRoute.planScreen,
+      };
+      for (final MapEntry(key: account, value: expected) in before.entries) {
+        expect(
+          route(session: _accounts[account], iapConfig: config()),
+          expected,
+          reason: account,
+        );
+      }
+    });
+
+    test('off the store the plan stays text on the Plan screen', () {
+      expect(
+        route(storeBilling: false, iapConfig: config()),
+        UpgradeRoute.planScreen,
+      );
+    });
+
+    test('the config says so only with exactly true', () {
+      Map<String, Object?> json(Object? v) => {
+        'purchases_enabled': true,
+        'app_account_token': token,
+        'account_key': 'acct-key',
+        'replaces_v1_play': v,
+      };
+      expect(IapConfig.fromJson(json(true)).replacesLegacyPlay, isTrue);
+      for (final v in [null, false, 'true', 1]) {
+        expect(
+          IapConfig.fromJson(json(v)).replacesLegacyPlay,
+          isFalse,
+          reason: '$v',
+        );
+      }
+      expect(IapConfig.closed.replacesLegacyPlay, isFalse);
     });
   });
 

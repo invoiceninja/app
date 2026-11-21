@@ -8,6 +8,7 @@ import 'package:flutter/services.dart' show PlatformException;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:store_services/store_services.dart';
 
+import 'package:admin/data/repositories/auth_repository.dart';
 import 'package:admin/data/services/api_exception.dart';
 import 'package:admin/domain/upgrade/purchase_delivery.dart';
 import 'package:admin/domain/upgrade/purchase_service.dart';
@@ -205,6 +206,84 @@ void main() {
   // service says it takes in-app purchases and has given this account a
   // token. Until it can verify them, a sheet would take money for a plan
   // that can't be applied.
+  // A live store plan is sold over only when the hosted config says the
+  // purchase replaces a Legacy-app Play subscription (`replaces_v1_play`,
+  // admin-module S8); anything else would bill twice.
+  group('a live store plan', () {
+    AuthSession storePlan() => testSession().copyWith(
+      plan: 'pro',
+      planExpires: '2099-01-01',
+      hasIapPlan: true,
+    );
+
+    Future<PurchaseService> serviceOn(
+      TargetPlatform platform, {
+      bool replaces = true,
+    }) async {
+      final a = FakeAuth(storePlan());
+      final d = PurchaseDelivery(
+        apiClient: FakeApi()
+          ..iapConfig = {
+            'purchases_enabled': true,
+            'app_account_token': kTestAccountToken,
+            'account_key': 'acct-key',
+            'replaces_v1_play': replaces,
+          },
+        auth: a,
+        billing: FakeBilling(),
+        platform: platform,
+      );
+      final s = PurchaseService(auth: a, delivery: d);
+      addTearDown(() async {
+        await s.dispose();
+        await d.dispose();
+      });
+      await s.loadConfig();
+      return s;
+    }
+
+    test('is refused when the config replaces nothing (a new-app '
+        'subscriber), and a purchase never starts', () async {
+      auth.session.value = storePlan();
+      await svc.loadConfig();
+      await svc.init();
+
+      expect(svc.saleRefusal, SaleRefusal.activeStorePlan);
+      expect(svc.replacesLegacyPlay, isFalse);
+      await svc.buy(svc.products.value.first);
+      expect(billing.bought, isEmpty);
+    });
+
+    test('is sold over on Play when the config replaces a Legacy '
+        'subscription', () async {
+      final s = await serviceOn(TargetPlatform.android);
+      expect(s.saleRefusal, isNull);
+      expect(s.replacesLegacyPlay, isTrue);
+    });
+
+    test('never on Apple, whatever the config says', () async {
+      for (final platform in [TargetPlatform.iOS, TargetPlatform.macOS]) {
+        final s = await serviceOn(platform);
+        expect(s.saleRefusal, SaleRefusal.activeStorePlan, reason: '$platform');
+        expect(s.replacesLegacyPlay, isFalse, reason: '$platform');
+      }
+    });
+
+    test('a Play config that replaces nothing is refused too', () async {
+      final s = await serviceOn(TargetPlatform.android, replaces: false);
+      expect(s.saleRefusal, SaleRefusal.activeStorePlan);
+    });
+
+    test(
+      'an account with no store plan is never told it replaces one',
+      () async {
+        await svc.loadConfig();
+        expect(svc.saleRefusal, isNull);
+        expect(svc.replacesLegacyPlay, isFalse);
+      },
+    );
+  });
+
   group('loadConfig', () {
     test('asks the hosted config and opens when it says so', () async {
       expect(await svc.loadConfig(), isTrue);

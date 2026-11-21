@@ -2243,6 +2243,7 @@
   "web_app_banner_get_linux": "Gauti Linux programą",
   "web_app_banner_dismiss": "Daugiau nerodyti",
   "store_purchase_own_account_only": "Čia įsigyti planai pritaikomi jūsų pačių paskyrai. Norėdami atnaujinti planą, persijunkite į vieną iš jos įmonių.",
+  "store_legacy_play_subscription_replaced": "Jūsų prenumerata programėlėje Invoice Ninja Legacy bus atšaukta, o už nepanaudotą laiką bus grąžinti pinigai, kai tik nauja prenumerata taps aktyvi.",
   "delete_last_company_deletes_account": "Ištrynus paskutinę įmonę, ištrinama ir jūsų paskyra.",
   "app_info": "Programos informacija",
   "app_info_copy_all": "Kopijuoti viską",

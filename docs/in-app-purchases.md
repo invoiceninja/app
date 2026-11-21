@@ -13,6 +13,18 @@ A store build is `isStoreBillingBuild`: a store package build (`StoreReview.isSt
 
 Tests: `test/domain/upgrade/upgrade_route_test.dart`, `test/ui/features/settings/widgets/plan_gate_copy_test.dart`, `test/ui/features/settings/views/basic/account_management/plan_hosted_actions_test.dart`.
 
+## A store plan is sold over only when the config says it replaces a Legacy Play subscription
+
+An account with an active in-app plan (`hasActiveIapPlan`) is sent to the store's subscription management, never the purchase sheet, with one exception: a Legacy-app (`com.invoiceninja.app`) Google Play subscriber, whom the hosted service offers a new-app purchase (admin-module S8, behind `NINJA_IAP_PLAY_MIGRATION_REFUND`). Once that purchase is applied, the server revokes the Legacy subscription with a prorated refund, and the sheet says so (`store_legacy_play_subscription_replaced`, above the plans). `resolveUpgradeRoute` answers `legacyPlayReplacement` only when `offersLegacyPlayReplacement` holds:
+
+- the build sells through Play (`storeOfBuild == PurchaseStore.googlePlay`). Never on Apple: a Legacy App Store subscriber changes level inside the Legacy app's subscription group, and the server never replaces one;
+- the config says exactly `replaces_v1_play: true` (`IapConfig.replacesLegacyPlay`), and sells to the active account (`IapConfig.sellsTo`: enabled, a UUID token, the active account's `account_key`);
+- the owner of the active company, with an active in-app plan. A recently lapsed plan still gets `storeSubscriptionsEnded`.
+
+`purchases_enabled: true` is not the signal. The server also answers it for a store link whose `plan_expires` has just passed while the session still reads the plan as paid (a store billing retry): read as an offer, that would sell a new-app subscriber a second subscription and tell them it cancels a Legacy one. With no config, or one that does not say so, the route stays `storeSubscriptions` (fails closed). `launchUpgrade` and the Plan card ask the config only for an owner's active plan on a Play build, and the sheet checks again: `PurchaseService.saleRefusal` answers `activeStorePlan` for a live store plan the purchase would not replace, and `buy()` refuses it.
+
+Tests: `test/domain/upgrade/upgrade_route_test.dart` (Legacy Play replacement), `purchase_service_test.dart` (a live store plan), `upgrade_sheet_test.dart`, `plan_hosted_actions_test.dart` (a Legacy Play subscriber).
+
 ## Nothing is posted or finished until the config answers 200
 
 `PurchaseDelivery` (built by `Services` on a store build only, and started at app launch so StoreKit hands over `Transaction.updates`) owns the hosted config, `GET kIapConfigPath`. It asks once per signed-in user and active company (base URL, user id and company id, `_scopeOf`): the server answers for the company of the token it is asked with (`InAppPurchaseController::show` checks that the user owns that company and that it belongs to the user's own account before it names `account_key`), so a switch to another company asks afresh and sweeps again, re-posting a refusal left with the store too. It keeps any 200, one without `account_key` included, and asks again after any failure, after a sign-out, on a company switch and when the app returns to the foreground. The purchase sheet (`PurchaseService.loadConfig`) reads the same answer: there is no second request.
@@ -48,4 +60,4 @@ Every delivery posts `key` = the config's `account_key`, exactly: the account th
 
 ## Where the translations live
 
-The purchase copy is app-local, in `assets/i18n/_app_pending.json` (`store_*`, `plan_billed_in_app_store`, `plan_managed_on_web`, `in_app_purchases_unavailable`, `restore_purchases_help`), with each shipped locale's translation in `_app_pending_<locale>.json` (docs/translated-string-rendering.md). A store's own name appears only in the copy for that store's build (`storeOfBuild`): App Review rejects a build that names another platform's store.
+The purchase copy is app-local, in `assets/i18n/_app_pending.json` (`store_*`, including `store_legacy_play_subscription_replaced`, `plan_billed_in_app_store`, `plan_managed_on_web`, `in_app_purchases_unavailable`, `restore_purchases_help`), with each shipped locale's translation in `_app_pending_<locale>.json` (docs/translated-string-rendering.md). A store's own name appears only in the copy for that store's build (`storeOfBuild`): App Review rejects a build that names another platform's store.

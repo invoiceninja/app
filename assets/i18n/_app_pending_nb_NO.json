@@ -2288,6 +2288,7 @@
   "web_app_banner_get_linux": "Hent Linux-appen",
   "web_app_banner_dismiss": "Ikke vis dette igjen",
   "store_purchase_own_account_only": "Abonnementer kjøpt her gjelder din egen konto. Bytt til et av firmaene dens for å oppgradere.",
+  "store_legacy_play_subscription_replaced": "Abonnementet ditt i Invoice Ninja Legacy-appen blir kansellert og den ubrukte tiden refundert når det nye abonnementet ditt er aktivt.",
   "delete_last_company_deletes_account": "Hvis du sletter det siste firmaet ditt, slettes kontoen din.",
   "app_info": "Appinfo",
   "app_info_copy_all": "Kopier alt",

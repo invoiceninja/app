@@ -2276,6 +2276,7 @@
   "web_app_banner_get_linux": "Descărcați aplicația pentru Linux",
   "web_app_banner_dismiss": "Nu mai afișa",
   "store_purchase_own_account_only": "Planurile cumpărate aici se aplică propriului dumneavoastră cont. Comutați la una dintre companiile acestuia pentru a face upgrade.",
+  "store_legacy_play_subscription_replaced": "Abonamentul tău din aplicația Invoice Ninja Legacy va fi anulat, iar timpul neutilizat îți va fi rambursat imediat ce noul abonament devine activ.",
   "delete_last_company_deletes_account": "Ștergerea ultimei dumneavoastră companii vă șterge contul.",
   "app_info": "Informații aplicație",
   "app_info_copy_all": "Copiați tot",

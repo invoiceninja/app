@@ -41,6 +41,7 @@ void main() {
     WidgetTester tester,
     TargetPlatform platform, {
     bool alreadySubscribed = false,
+    bool replacesLegacyPlay = false,
   }) async {
     billing = FakeBilling();
     api = FakeApi();
@@ -83,6 +84,7 @@ void main() {
                     service: svc,
                     store: delivery.store,
                     alreadySubscribed: alreadySubscribed,
+                    replacesLegacyPlay: replacesLegacyPlay,
                   ),
                 ),
                 child: const Text('open'),
@@ -134,6 +136,32 @@ void main() {
     expect(find.text(_googleTerms), findsOneWidget);
     expect(find.textContaining('Apple'), findsNothing);
     expect(find.byKey(const ValueKey('legal_privacy_policy')), findsOneWidget);
+  });
+
+  // S8: a Legacy-app Play subscriber's purchase replaces that subscription.
+  const legacyNotice =
+      'Your subscription in the Invoice Ninja Legacy app will be cancelled '
+      'and its unused time refunded once your new subscription is active.';
+
+  testWidgets('a purchase that replaces a Legacy Play subscription says it is '
+      'cancelled and refunded, above the plans', (tester) async {
+    await openSheet(tester, TargetPlatform.android, replacesLegacyPlay: true);
+
+    expect(find.text(legacyNotice), findsOneWidget);
+    expect(find.text('Pro'), findsOneWidget);
+    expect(find.text(_googleTerms), findsOneWidget);
+    expect(
+      tester.getTopLeft(find.text(legacyNotice)).dy,
+      lessThan(tester.getTopLeft(find.text('Pro')).dy),
+    );
+  });
+
+  testWidgets('no Legacy notice on any other sale', (tester) async {
+    await openSheet(tester, TargetPlatform.android);
+    expect(
+      find.byKey(const ValueKey('store_replaces_legacy_play')),
+      findsNothing,
+    );
   });
 
   testWidgets('the billed amount is the most prominent figure on a plan', (

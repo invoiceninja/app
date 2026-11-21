@@ -2289,6 +2289,7 @@
   "web_app_banner_get_linux": "Iegūt Linux lietotni",
   "web_app_banner_dismiss": "Vairs nerādīt",
   "store_purchase_own_account_only": "Šeit iegādātie plāni tiek piemēroti jūsu pašu kontam. Lai jauninātu, pārslēdzieties uz kādu no tā uzņēmumiem.",
+  "store_legacy_play_subscription_replaced": "Jūsu abonements lietotnē Invoice Ninja Legacy tiks atcelts un neizmantotais laiks atmaksāts, tiklīdz jaunais abonements būs aktīvs.",
   "delete_last_company_deletes_account": "Dzēšot pēdējo uzņēmumu, tiek dzēsts jūsu konts.",
   "app_info": "Informācija par lietotni",
   "app_info_copy_all": "Kopēt visu",

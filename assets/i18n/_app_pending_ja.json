@@ -2288,6 +2288,7 @@
   "web_app_banner_get_linux": "Linux アプリを入手",
   "web_app_banner_dismiss": "今後表示しない",
   "store_purchase_own_account_only": "ここで購入したプランはご自身のアカウントに適用されます。アップグレードするには、そのアカウントの会社のいずれかに切り替えてください。",
+  "store_legacy_play_subscription_replaced": "新しいサブスクリプションが有効になると、Invoice Ninja Legacy アプリのサブスクリプションはキャンセルされ、未使用期間分が返金されます。",
   "delete_last_company_deletes_account": "最後の会社を削除すると、アカウントも削除されます。",
   "app_info": "アプリ情報",
   "app_info_copy_all": "すべてコピー",

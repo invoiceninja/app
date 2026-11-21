@@ -167,6 +167,85 @@ void main() {
     });
   });
 
+  // S8: the hosted config offers a Legacy-app Play subscriber a purchase
+  // (`replaces_v1_play`), and the server cancels and refunds the Legacy
+  // subscription once the new one is applied.
+  group('store build, a Legacy Play subscriber', () {
+    const legacyNotice =
+        'Your subscription in the Invoice Ninja Legacy app will be cancelled '
+        'and its unused time refunded once your new subscription is active.';
+
+    PurchaseDelivery deliveryWith({required bool replaces}) {
+      final delivery = PurchaseDelivery(
+        apiClient: FakeApi()
+          ..iapConfig = {
+            'purchases_enabled': true,
+            'app_account_token': kTestAccountToken,
+            'account_key': 'acct-key',
+            'replaces_v1_play': replaces,
+          },
+        auth: FakeAuth(_activeIap),
+        billing: FakeBilling(),
+        platform: defaultTargetPlatform,
+      );
+      addTearDown(delivery.dispose);
+      return delivery;
+    }
+
+    testWidgets('on Play, the offer gets Change Plan, the notice and Manage', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        _activeIap,
+        storeBuild: true,
+        purchases: deliveryWith(replaces: true),
+      );
+
+      expect(find.text(legacyNotice), findsOneWidget);
+      final button = tester.widget<ButtonStyleButton>(
+        find.ancestor(
+          of: find.text('Manage Plan').last,
+          matching: find.bySubtype<ButtonStyleButton>(),
+        ),
+      );
+      expect(button, isA<FilledButton>());
+      expect(button.onPressed, isNotNull);
+      expect(find.text('Manage subscription'), findsOneWidget);
+      expect(find.text(_billedInStore), findsNothing);
+    });
+
+    testWidgets('a config that replaces nothing (a new-app subscriber) '
+        'keeps Manage subscription only', (tester) async {
+      await _pump(
+        tester,
+        _activeIap,
+        storeBuild: true,
+        purchases: deliveryWith(replaces: false),
+      );
+
+      expect(find.text(legacyNotice), findsNothing);
+      expect(find.text(_billedInStore), findsOneWidget);
+      expect(find.bySubtype<FilledButton>(), findsNothing);
+    });
+
+    testWidgets('never on an Apple build', (tester) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+      addTearDown(() => debugDefaultTargetPlatformOverride = null);
+      await _pump(
+        tester,
+        _activeIap,
+        storeBuild: true,
+        purchases: deliveryWith(replaces: true),
+      );
+
+      expect(find.text(legacyNotice), findsNothing);
+      expect(find.text(_billedInStore), findsOneWidget);
+      expect(find.bySubtype<FilledButton>(), findsNothing);
+      debugDefaultTargetPlatformOverride = null;
+    });
+  });
+
   group('store build, not the owner', () {
     // Which account a purchase lands on is the hosted config's answer, read
     // when the sheet opens; only the owner check is the card's.

@@ -2206,6 +2206,7 @@
   "web_app_banner_get_linux": "Dapatkan aplikasi Linux",
   "web_app_banner_dismiss": "Jangan tampilkan lagi",
   "store_purchase_own_account_only": "Paket yang dibeli di sini diterapkan ke akun Anda sendiri. Beralihlah ke salah satu perusahaan akun tersebut untuk meningkatkan paket.",
+  "store_legacy_play_subscription_replaced": "Langganan Anda di aplikasi Invoice Ninja Legacy akan dibatalkan dan sisa waktunya dikembalikan setelah langganan baru Anda aktif.",
   "delete_last_company_deletes_account": "Menghapus perusahaan terakhir Anda akan menghapus akun Anda.",
   "app_info": "Info aplikasi",
   "app_info_copy_all": "Salin semua",

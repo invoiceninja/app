@@ -2206,6 +2206,7 @@
   "web_app_banner_get_linux": "Hanki Linux-sovellus",
   "web_app_banner_dismiss": "Älä näytä tätä uudelleen",
   "store_purchase_own_account_only": "Tässä ostetut paketit liitetään omaan tiliisi. Vaihda johonkin sen yrityksistä päivittääksesi.",
+  "store_legacy_play_subscription_replaced": "Tilauksesi Invoice Ninja Legacy -sovelluksessa perutaan ja käyttämätön aika hyvitetään, kun uusi tilauksesi on voimassa.",
   "delete_last_company_deletes_account": "Viimeisen yrityksesi poistaminen poistaa tilisi.",
   "app_info": "Sovelluksen tiedot",
   "app_info_copy_all": "Kopioi kaikki",

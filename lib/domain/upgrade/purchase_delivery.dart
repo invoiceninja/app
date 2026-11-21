@@ -95,6 +95,7 @@ class IapConfig {
     required this.purchasesEnabled,
     this.appAccountToken,
     this.accountKey = '',
+    this.replacesLegacyPlay = false,
   });
 
   /// Fail-closed default: no purchases, nothing delivered.
@@ -115,6 +116,17 @@ class IapConfig {
   /// delivery posts. Blank when the server sent none: such a service is not
   /// ready, and nothing is sold or delivered.
   final String accountKey;
+
+  /// `replaces_v1_play`: the account's live store plan is a Legacy-app
+  /// (`com.invoiceninja.app`) Google Play subscription, and a purchase made
+  /// now replaces it: once the new one is applied, the hosted service revokes
+  /// the Legacy one with a prorated refund (admin-module S8, behind
+  /// `NINJA_IAP_PLAY_MIGRATION_REFUND`). The only way an account that already
+  /// has a store plan reaches the purchase sheet: `purchases_enabled` alone
+  /// can't say it, since it is also true for a store link whose
+  /// `plan_expires` has just passed while the session still reads it as paid
+  /// (a store billing retry). False unless the server says exactly `true`.
+  final bool replacesLegacyPlay;
 
   /// Whether a paid purchase may be posted under this answer.
   bool get canDeliver => accountKey.isNotEmpty;
@@ -147,6 +159,7 @@ class IapConfig {
           ? token.trim()
           : null,
       accountKey: key is String ? key.trim() : '',
+      replacesLegacyPlay: json['replaces_v1_play'] == true,
     );
   }
 }

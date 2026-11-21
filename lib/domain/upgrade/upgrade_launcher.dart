@@ -40,10 +40,24 @@ Future<void> launchUpgrade(BuildContext context) async {
   }
   if (!context.mounted) return;
   final session = services.auth.session.value;
+  final storeBilling = isStoreBillingBuild;
+  final store = storeOfBuild;
+  // An active store plan is sold over only when the hosted config says the
+  // purchase replaces a Legacy-app Play subscription; the config is asked
+  // (once per user and company, PurchaseDelivery) only where it could.
+  final config =
+      storeBilling &&
+          store == PurchaseStore.googlePlay &&
+          (session?.hasActiveIapPlan ?? false)
+      ? await services.purchases?.config()
+      : null;
+  if (!context.mounted) return;
   final route = resolveUpgradeRoute(
-    storeBilling: isStoreBillingBuild,
+    storeBilling: storeBilling,
     session: session,
     now: DateTime.now(),
+    store: store,
+    config: config,
   );
   switch (route) {
     case UpgradeRoute.billingPortal:
@@ -56,6 +70,9 @@ Future<void> launchUpgrade(BuildContext context) async {
       Notify.info(context, context.tr('store_subscription_ended_renew'));
       await openManageSubscriptions();
     case UpgradeRoute.purchaseSheet:
+    case UpgradeRoute.legacyPlayReplacement:
+      // The sheet reads the same config, and says the Legacy subscription is
+      // replaced only on its word (PurchaseService.replacesLegacyPlay).
       await showUpgradeSheet(context);
   }
 }
@@ -138,17 +155,22 @@ Future<void> showUpgradeSheet(BuildContext context) async {
   // config's `account_key`); while a company of another account is active,
   // a plan bought here would never reach that company. A session that does
   // not know its account key yet is not "another account".
+  //
+  // A live store plan is sold over only when the purchase replaces a Legacy
+  // Play subscription (the config's `replaces_v1_play`): anything else is
+  // managed in the store, never billed twice.
   if (svc.saleRefusal case final refusal?) {
-    if (context.mounted) {
-      Notify.info(
-        context,
-        context.tr(switch (refusal) {
-          SaleRefusal.unavailable => 'in_app_purchases_unavailable',
-          SaleRefusal.otherAccount => 'store_purchase_own_account_only',
-        }),
-      );
-    }
     await svc.dispose();
+    final message = switch (refusal) {
+      SaleRefusal.unavailable => 'in_app_purchases_unavailable',
+      SaleRefusal.otherAccount => 'store_purchase_own_account_only',
+      SaleRefusal.activeStorePlan => null,
+    };
+    if (message == null) {
+      await openManageSubscriptions();
+    } else if (context.mounted) {
+      Notify.info(context, context.tr(message));
+    }
     return;
   }
   // A store account that already subscribes in this app would be billed
@@ -166,6 +188,7 @@ Future<void> showUpgradeSheet(BuildContext context) async {
       service: svc,
       store: delivery!.store,
       alreadySubscribed: alreadySubscribed,
+      replacesLegacyPlay: svc.replacesLegacyPlay,
     ),
   );
   await svc.dispose();
@@ -183,6 +206,7 @@ class UpgradeSheet extends StatefulWidget {
     required this.service,
     required this.store,
     this.alreadySubscribed = false,
+    this.replacesLegacyPlay = false,
   });
 
   final PurchaseService service;
@@ -195,6 +219,12 @@ class UpgradeSheet extends StatefulWidget {
   /// entitlements, Play's owned subscriptions): say so and offer Restore,
   /// instead of selling a second.
   final bool alreadySubscribed;
+
+  /// A plan bought here replaces the account's Legacy-app Google Play
+  /// subscription ([PurchaseService.replacesLegacyPlay]): say that the Legacy
+  /// one is cancelled, and its unused time refunded, once the new one is
+  /// active.
+  final bool replacesLegacyPlay;
 
   @override
   State<UpgradeSheet> createState() => _UpgradeSheetState();
@@ -289,6 +319,14 @@ class _UpgradeSheetState extends State<UpgradeSheet> {
                 ),
               )
             else ...[
+              if (widget.replacesLegacyPlay)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Text(
+                    key: const ValueKey('store_replaces_legacy_play'),
+                    context.tr('store_legacy_play_subscription_replaced'),
+                  ),
+                ),
               ValueListenableBuilder<bool>(
                 valueListenable: service.busy,
                 builder: (context, busy, _) => ValueListenableBuilder(

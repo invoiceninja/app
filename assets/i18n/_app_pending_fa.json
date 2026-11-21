@@ -2289,6 +2289,7 @@
   "web_app_banner_get_linux": "دریافت برنامه Linux",
   "web_app_banner_dismiss": "دیگر نشان داده نشود",
   "store_purchase_own_account_only": "طرح‌هایی که اینجا خریداری می‌شوند روی حساب خود شما اعمال می‌شوند. برای ارتقا، به یکی از شرکت‌های آن بروید.",
+  "store_legacy_play_subscription_replaced": "اشتراک شما در برنامه Invoice Ninja Legacy لغو می‌شود و مبلغ زمان استفاده‌نشده آن پس از فعال شدن اشتراک جدیدتان بازپرداخت می‌شود.",
   "delete_last_company_deletes_account": "حذف آخرین شرکت شما، حساب شما را حذف می‌کند.",
   "app_info": "اطلاعات برنامه",
   "app_info_copy_all": "کپی همه",

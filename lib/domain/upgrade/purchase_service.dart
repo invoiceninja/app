@@ -7,6 +7,7 @@ import 'package:store_services/store_services.dart';
 
 import 'package:admin/data/repositories/auth_repository.dart';
 import 'package:admin/domain/upgrade/purchase_delivery.dart';
+import 'package:admin/domain/upgrade/upgrade_route.dart';
 
 /// App Store / Play product identifiers for the hosted plans. Mirrors
 /// admin-portal's `kProductPlans` (legacy `lib/constants.dart`). The server
@@ -39,8 +40,10 @@ const Set<String> kProductPlans = {
 /// does not take purchases right now, or the session does not yet know its
 /// active account (a cache from before 5.1.14 has no account key until the
 /// next refresh); [otherAccount] — a company of another account is active,
-/// and a plan bought here lands on the user's own account.
-enum SaleRefusal { unavailable, otherAccount }
+/// and a plan bought here lands on the user's own account; [activeStorePlan]
+/// — the account's plan is a live store subscription the purchase would not
+/// replace ([offersLegacyPlayReplacement]), so it would bill twice.
+enum SaleRefusal { unavailable, otherAccount, activeStorePlan }
 
 /// How often a plan bills, for the purchase sheet's disclosure (App Review
 /// 3.1.2, Play's subscriptions policy).
@@ -131,7 +134,25 @@ class PurchaseService {
     if (s == null || !_config.canPurchase || s.accountKey.isEmpty) {
       return SaleRefusal.unavailable;
     }
-    return _config.sellsTo(s) ? null : SaleRefusal.otherAccount;
+    if (!_config.sellsTo(s)) return SaleRefusal.otherAccount;
+    if (s.hasActiveIapPlan && !replacesLegacyPlay) {
+      return SaleRefusal.activeStorePlan;
+    }
+    return null;
+  }
+
+  /// Whether a plan bought now replaces the account's Legacy-app Google Play
+  /// subscription, which the hosted service then cancels with a prorated
+  /// refund ([offersLegacyPlayReplacement]): the sheet says so. False until
+  /// [loadConfig] has answered.
+  bool get replacesLegacyPlay {
+    final s = _auth.session.value;
+    return s != null &&
+        offersLegacyPlayReplacement(
+          store: _delivery.store,
+          session: s,
+          config: _config,
+        );
   }
 
   /// Whether this store account already holds an active subscription to one

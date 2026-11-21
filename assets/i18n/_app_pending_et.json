@@ -2205,6 +2205,7 @@
   "web_app_banner_get_linux": "Hangi Linuxi rakendus",
   "web_app_banner_dismiss": "Ära näita seda uuesti",
   "store_purchase_own_account_only": "Siin ostetud paketid rakendatakse teie enda kontole. Paketi uuendamiseks lülituge mõnele selle konto ettevõttele.",
+  "store_legacy_play_subscription_replaced": "Teie tellimus rakenduses Invoice Ninja Legacy tühistatakse ja kasutamata aja eest makstakse raha tagasi, kui uus tellimus on aktiivne.",
   "delete_last_company_deletes_account": "Viimase ettevõtte kustutamine kustutab teie konto.",
   "app_info": "Rakenduse teave",
   "app_info_copy_all": "Kopeeri kõik",

@@ -2243,6 +2243,7 @@
   "web_app_banner_get_linux": "Linux-alkalmazás letöltése",
   "web_app_banner_dismiss": "Ne jelenjen meg többé",
   "store_purchase_own_account_only": "Az itt vásárolt csomagok az Ön saját fiókjára vonatkoznak. A csomag frissítéséhez váltson a fiók egyik cégére.",
+  "store_legacy_play_subscription_replaced": "A(z) Invoice Ninja Legacy alkalmazásban lévő előfizetését lemondjuk, és a fel nem használt időt visszatérítjük, amint az új előfizetése aktív.",
   "delete_last_company_deletes_account": "Az utolsó cég törlése a fiókját is törli.",
   "app_info": "Alkalmazásinformáció",
   "app_info_copy_all": "Összes másolása",

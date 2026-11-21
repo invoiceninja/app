@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/data/repositories/auth/auth_session.dart';
+import 'package:admin/domain/upgrade/purchase_delivery.dart';
 import 'package:admin/domain/upgrade/store_build.dart';
 import 'package:admin/domain/upgrade/upgrade_launcher.dart';
 import 'package:admin/domain/upgrade/upgrade_route.dart';
@@ -234,13 +235,53 @@ class _TrialProgress extends StatelessWidget {
   }
 }
 
-class _HostedActionsCard extends StatelessWidget {
+class _HostedActionsCard extends StatefulWidget {
   const _HostedActionsCard({required this.session});
 
   final AuthSession session;
 
   @override
+  State<_HostedActionsCard> createState() => _HostedActionsCardState();
+}
+
+class _HostedActionsCardState extends State<_HostedActionsCard> {
+  /// The hosted config, asked only where it can change the route: an owner's
+  /// active store plan on a Play build, which the config may offer to
+  /// replace (a Legacy-app Play subscription, `replaces_v1_play`). Asked
+  /// again for a new session; PurchaseDelivery keeps the answer, so that is
+  /// no second request.
+  Future<IapConfig?>? _config;
+  AuthSession? _configFor;
+
+  Future<IapConfig?>? _configFuture(AuthSession session) {
+    final asks =
+        isStoreBillingBuild &&
+        storeOfBuild == PurchaseStore.googlePlay &&
+        session.hasActiveIapPlan &&
+        canBuyForActiveAccount(session);
+    if (!asks) return null;
+    if (_config == null || !identical(_configFor, session)) {
+      _configFor = session;
+      _config =
+          context.read<Services>().purchases?.config() ?? Future.value(null);
+    }
+    return _config;
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final future = _configFuture(widget.session);
+    if (future == null) return _card(context, null);
+    // Until the config answers (or with no answer), the store plan is
+    // managed in the store: nothing is offered over it.
+    return FutureBuilder<IapConfig?>(
+      future: future,
+      builder: (context, snapshot) => _card(context, snapshot.data),
+    );
+  }
+
+  Widget _card(BuildContext context, IapConfig? config) {
+    final session = widget.session;
     final tokens = context.inTheme;
     final storeBilling = isStoreBillingBuild;
     final hint = TextStyle(color: tokens.ink2);
@@ -256,6 +297,8 @@ class _HostedActionsCard extends StatelessWidget {
       storeBilling: storeBilling,
       session: session,
       now: DateTime.now(),
+      store: storeOfBuild,
+      config: config,
     );
 
     Widget explained(String key, {bool manage = false}) => FormSection(
@@ -308,8 +351,12 @@ class _HostedActionsCard extends StatelessWidget {
             : null;
       case UpgradeRoute.storeSubscriptionsEnded:
       case UpgradeRoute.purchaseSheet:
+      case UpgradeRoute.legacyPlayReplacement:
         disabledReason = null;
     }
+    // A Legacy-app Play subscriber may buy here: the new plan replaces the
+    // Legacy one, which the hosted service then cancels and refunds.
+    final replacesLegacy = route == UpgradeRoute.legacyPlayReplacement;
     final canUpgrade = disabledReason == null;
     // Decide button label: free → "Upgrade Plan"; paid → "Change Plan";
     // trial → "Upgrade Plan" so the user knows they're paying.
@@ -320,6 +367,12 @@ class _HostedActionsCard extends StatelessWidget {
     return FormSection(
       title: context.tr('change_plan'),
       children: [
+        if (replacesLegacy)
+          Text(
+            key: const ValueKey('plan_replaces_legacy_play'),
+            context.tr('store_legacy_play_subscription_replaced'),
+            style: hint,
+          ),
         Align(
           alignment: AlignmentDirectional.centerStart,
           child: Wrap(
@@ -337,6 +390,15 @@ class _HostedActionsCard extends StatelessWidget {
                 label: Text(context.tr(labelKey)),
                 onPressed: canUpgrade ? () => launchUpgrade(context) : null,
               ),
+              if (replacesLegacy)
+                OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(160, 40),
+                  ),
+                  icon: const Icon(Icons.open_in_new, size: 18),
+                  label: Text(context.tr('manage_subscription')),
+                  onPressed: () => unawaited(openManageSubscriptions()),
+                ),
             ],
           ),
         ),

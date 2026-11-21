@@ -2288,6 +2288,7 @@
   "web_app_banner_get_linux": "Merrni aplikacionin për Linux",
   "web_app_banner_dismiss": "Mos e shfaq më",
   "store_purchase_own_account_only": "Planet e blera këtu zbatohen në llogarinë tuaj. Kaloni te një nga kompanitë e saj për ta përmirësuar.",
+  "store_legacy_play_subscription_replaced": "Abonimi juaj në aplikacionin Invoice Ninja Legacy do të anulohet dhe koha e papërdorur do t'ju rimbursohet sapo abonimi i ri të jetë aktiv.",
   "delete_last_company_deletes_account": "Fshirja e kompanisë suaj të fundit fshin llogarinë tuaj.",
   "app_info": "Informacioni i aplikacionit",
   "app_info_copy_all": "Kopjo të gjitha",

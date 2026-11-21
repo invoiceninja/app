@@ -2205,6 +2205,7 @@
   "web_app_banner_get_linux": "取得 Linux 應用程式",
   "web_app_banner_dismiss": "不再顯示",
   "store_purchase_own_account_only": "在此購買的資費案會套用至您自己的帳戶。請切換至該帳戶的其中一間公司以進行升級。",
+  "store_legacy_play_subscription_replaced": "新訂閱生效後，您在 Invoice Ninja Legacy 應用程式中的訂閱將會取消，未使用的時間將退款。",
   "delete_last_company_deletes_account": "刪除您的最後一間公司將會刪除您的帳戶。",
   "app_info": "應用程式資訊",
   "app_info_copy_all": "全部複製",

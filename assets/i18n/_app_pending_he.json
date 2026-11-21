@@ -2204,6 +2204,7 @@
   "web_app_banner_get_linux": "הורד את האפליקציה ל-Linux",
   "web_app_banner_dismiss": "אל תציג שוב",
   "store_purchase_own_account_only": "תוכניות שנרכשות כאן מוחלות על החשבון שלך. עבור לאחת החברות שלו כדי לשדרג.",
+  "store_legacy_play_subscription_replaced": "המינוי שלך באפליקציה Invoice Ninja Legacy יבוטל והזמן שלא נוצל יוחזר לך ברגע שהמינוי החדש שלך יהיה פעיל.",
   "delete_last_company_deletes_account": "מחיקת החברה האחרונה שלך מוחקת את החשבון שלך.",
   "app_info": "מידע על האפליקציה",
   "app_info_copy_all": "העתק הכול",

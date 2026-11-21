@@ -2288,6 +2288,7 @@
   "web_app_banner_get_linux": "รับแอปสำหรับ Linux",
   "web_app_banner_dismiss": "ไม่ต้องแสดงอีก",
   "store_purchase_own_account_only": "แผนที่ซื้อที่นี่จะนำไปใช้กับบัญชีของคุณเอง สลับไปยังบริษัทหนึ่งในบัญชีนั้นเพื่ออัปเกรด",
+  "store_legacy_play_subscription_replaced": "การสมัครใช้งานของคุณในแอป Invoice Ninja Legacy จะถูกยกเลิกและคืนเงินสำหรับเวลาที่ยังไม่ได้ใช้ เมื่อการสมัครใช้งานใหม่ของคุณเริ่มใช้งาน",
   "delete_last_company_deletes_account": "การลบบริษัทสุดท้ายของคุณจะลบบัญชีของคุณด้วย",
   "app_info": "ข้อมูลแอป",
   "app_info_copy_all": "คัดลอกทั้งหมด",

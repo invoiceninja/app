@@ -2288,6 +2288,7 @@
   "web_app_banner_get_linux": "ຮັບແອັບສຳລັບ Linux",
   "web_app_banner_dismiss": "ບໍ່ຕ້ອງສະແດງອີກ",
   "store_purchase_own_account_only": "ແຜນການທີ່ຊື້ຢູ່ບ່ອນນີ້ຈະຖືກນຳໃຊ້ກັບບັນຊີຂອງທ່ານເອງ. ສະຫຼັບໄປຫາບໍລິສັດໜຶ່ງຂອງບັນຊີນັ້ນເພື່ອຍົກລະດັບ.",
+  "store_legacy_play_subscription_replaced": "ການສະໝັກໃຊ້ຂອງທ່ານໃນແອັບ Invoice Ninja Legacy ຈະຖືກຍົກເລີກ ແລະ ເວລາທີ່ຍັງບໍ່ໄດ້ໃຊ້ຈະຖືກຄືນເງິນ ເມື່ອການສະໝັກໃຊ້ໃໝ່ຂອງທ່ານເລີ່ມໃຊ້ງານ.",
   "delete_last_company_deletes_account": "ການລຶບບໍລິສັດສຸດທ້າຍຂອງທ່ານຈະລຶບບັນຊີຂອງທ່ານນຳ.",
   "app_info": "ຂໍ້ມູນແອັບ",
   "app_info_copy_all": "ສຳເນົາທັງໝົດ",

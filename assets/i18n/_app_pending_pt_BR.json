@@ -2288,6 +2288,7 @@
   "web_app_banner_get_linux": "Baixar o App para Linux",
   "web_app_banner_dismiss": "Não Mostrar Novamente",
   "store_purchase_own_account_only": "Os planos comprados aqui são aplicados à sua própria conta. Mude para uma das empresas dela para fazer o upgrade.",
+  "store_legacy_play_subscription_replaced": "Sua assinatura no app Invoice Ninja Legacy será cancelada e o tempo não utilizado será reembolsado assim que sua nova assinatura estiver ativa.",
   "delete_last_company_deletes_account": "Excluir sua última empresa exclui sua conta.",
   "app_info": "Informações do App",
   "app_info_copy_all": "Copiar Tudo",

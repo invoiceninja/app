@@ -2288,6 +2288,7 @@
   "web_app_banner_get_linux": "Stáhnout aplikaci pro Linux",
   "web_app_banner_dismiss": "Už nezobrazovat",
   "store_purchase_own_account_only": "Tarify zakoupené zde se použijí pro váš vlastní účet. Pro upgrade přepněte na některou z jeho firem.",
+  "store_legacy_play_subscription_replaced": "Vaše předplatné v aplikaci Invoice Ninja Legacy bude zrušeno a nevyužitá doba vám bude vrácena, jakmile bude nové předplatné aktivní.",
   "delete_last_company_deletes_account": "Smazáním poslední firmy smažete svůj účet.",
   "app_info": "Informace o aplikaci",
   "app_info_copy_all": "Kopírovat vše",
