@@ -811,21 +811,40 @@ class SyncRepository {
   /// — the parent may exist there, and the invoice made offline for it is the
   /// user's work. Dependents are marked dead, saying so, as for a failure.
   ///
-  /// Terminates: every branch removes the row from the `pending` set
-  /// (`markDead` flips state, ghost-delete removes it) and
-  /// `pendingRowsReferencing` is pending-only, so the still-pending set
-  /// strictly shrinks each step (also breaks any hypothetical reference
-  /// cycle).
+  /// A discard also takes the `unconfirmed` dependents ([includeUnconfirmed],
+  /// carried down the recursion): a dead-token revival brings a `tmp_`
+  /// create's dependents back `unconfirmed` with it
+  /// (`OutboxDao.reviveDependentsOfDeadTokenCreate`), and left behind they
+  /// kept the attention count and the sign-out prompt up for a record that is
+  /// gone. They are marked dead, never deleted — an unconfirmed create may
+  /// have reached the server. A failed parent leaves them alone.
+  ///
+  /// Terminates: every branch removes the row from the set it was read from
+  /// (`markDead` flips state, ghost-delete removes it), and only `pending` and
+  /// `unconfirmed` rows are read, so that set strictly shrinks each step (also
+  /// breaks any hypothetical reference cycle).
   Future<void> _failTmpDependents(
     String companyId,
     String parentTmpId,
-    _ParentGone why,
-  ) async {
+    _ParentGone why, {
+    bool? includeUnconfirmed,
+  }) async {
     if (!parentTmpId.startsWith('tmp_')) return;
-    final deps = await db.outboxDao.pendingRowsReferencing(
-      companyId: companyId,
-      needle: parentTmpId,
-    );
+    final withUnconfirmed = includeUnconfirmed ?? why != _ParentGone.failed;
+    final deps = [
+      ...await db.outboxDao.pendingRowsReferencing(
+        companyId: companyId,
+        needle: parentTmpId,
+      ),
+    ];
+    if (withUnconfirmed) {
+      deps.addAll(
+        await db.outboxDao.unconfirmedRowsReferencing(
+          companyId: companyId,
+          needle: parentTmpId,
+        ),
+      );
+    }
     for (final dep in deps) {
       final isGhostDep =
           MutationKind.tryParse(dep.mutationKind) == MutationKind.create &&
@@ -835,7 +854,9 @@ class SyncRepository {
                 tempId: dep.entityId,
               ) ==
               null;
-      if (why == _ParentGone.discarded && isGhostDep) {
+      if (why == _ParentGone.discarded &&
+          isGhostDep &&
+          dep.state != 'unconfirmed') {
         // Same best-effort rule as the primary row — and it matters more
         // here: this cleanup runs *after* the user's row was deleted, so a
         // throw would reject a discard that already succeeded.
@@ -850,7 +871,12 @@ class SyncRepository {
           entityType: dep.entityType,
           entityId: dep.entityId,
         );
-        await _failTmpDependents(companyId, dep.entityId, why);
+        await _failTmpDependents(
+          companyId,
+          dep.entityId,
+          why,
+          includeUnconfirmed: withUnconfirmed,
+        );
       } else {
         // Said only for the active company: another company's rows are in
         // its own Outbox, and the shell's View opens this one's. Not for an
@@ -884,6 +910,7 @@ class SyncRepository {
             // A level down, the record referenced is this dependent — dead
             // now, not one that may exist on the server.
             why == _ParentGone.discardedUnconfirmed ? _ParentGone.failed : why,
+            includeUnconfirmed: withUnconfirmed,
           );
         }
       }

@@ -851,6 +851,20 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
           ))
           .get();
 
+  /// [pendingRowsReferencing] for `unconfirmed` rows — what a discarded
+  /// parent's cascade also has to settle (`SyncRepository._failTmpDependents`).
+  Future<List<OutboxRow>> unconfirmedRowsReferencing({
+    required String companyId,
+    required String needle,
+  }) =>
+      (select(outbox)..where(
+            (o) =>
+                o.companyId.equals(companyId) &
+                o.state.equals('unconfirmed') &
+                o.payload.contains(needle),
+          ))
+          .get();
+
   Future<List<OutboxRow>> pendingRowsForCompany(String companyId) =>
       (select(outbox)..where(
             (o) => o.companyId.equals(companyId) & o.state.equals('pending'),

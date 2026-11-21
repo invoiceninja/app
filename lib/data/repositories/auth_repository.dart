@@ -478,9 +478,12 @@ class AuthRepository {
         baseUrl.isNotEmpty &&
         canonicalBaseUrl(storedBaseUrl) != canonicalBaseUrl(baseUrl);
     if (!userChanged && !serverChanged) {
-      // Only with an identity on record: an install from before the user id
-      // was stored cannot prove these rows are this user's.
-      if (storedUserId.isNotEmpty) await _reviveRowsKilledByDeadToken();
+      // Only when both sides name a user: an install from before the user id
+      // was stored, or a response without one, cannot prove these rows are
+      // this user's.
+      if (storedUserId.isNotEmpty && incomingUserId.isNotEmpty) {
+        await _reviveRowsKilledByDeadToken();
+      }
       return;
     }
     _log.warning(

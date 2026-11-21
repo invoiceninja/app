@@ -3112,6 +3112,55 @@ void main() {
       expect(child?.lastError, contains('may already exist on the server'));
     });
 
+    // A dead-token revival brings a tmp_ create back `unconfirmed` with its
+    // dependents (`reviveDependentsOfDeadTokenCreate`). The cascade read only
+    // `pending` rows, so discarding the parent left them unconfirmed — the
+    // attention count and the sign-out prompt stayed up for a record that is
+    // gone.
+    test('discarding an unconfirmed create settles its unconfirmed '
+        'dependents too, down the tree, and deletes none', () async {
+      final repo = _TestRepo(db: db);
+      final engine = engineWith(repo);
+      final parentId = await enqueueClient(
+        entityId: 'tmp_parent',
+        kind: MutationKind.create,
+      );
+      await db.outboxDao.markUnconfirmed(id: parentId, error: 'reset');
+      Future<int> unconfirmed(String entityId, String references) async {
+        final id = await db.outboxDao.enqueue(
+          OutboxCompanion.insert(
+            companyId: 'co',
+            entityType: 'client',
+            entityId: entityId,
+            mutationKind: 'create',
+            payload: jsonEncode({'id': entityId, 'parent': references}),
+            idempotencyKey: 'k-$entityId',
+            nextAttemptAt: 0,
+            createdAt: 0,
+          ),
+        );
+        await db.outboxDao.markUnconfirmed(id: id, error: 'not sent');
+        return id;
+      }
+
+      final childId = await unconfirmed('tmp_child', 'tmp_parent');
+      final grandchildId = await unconfirmed('tmp_grandchild', 'tmp_child');
+      final unrelatedId = await unconfirmed('tmp_other', 'tmp_elsewhere');
+
+      expect(await engine.discardOutboxRow(parentId), isTrue);
+
+      expect(repo.localDeletes, [('co', 'tmp_parent')]);
+      for (final id in [childId, grandchildId]) {
+        final row = await rawRow(id);
+        expect(row?.state, 'dead', reason: 'kept, never deleted');
+      }
+      expect(
+        (await rawRow(childId))?.lastError,
+        contains('may already exist on the server'),
+      );
+      expect((await rawRow(unrelatedId))?.state, 'unconfirmed');
+    });
+
     test('discardOutboxRow on an in_flight ghost create only drops the '
         'outbox row — the network attempt may still be landing', () async {
       final repo = _TestRepo(db: db);

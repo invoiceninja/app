@@ -4783,6 +4783,23 @@ void main() {
       expect((await rowsByKey())['update']!.state, 'dead');
     });
 
+    // Nor when the sign-in names no user: the stored id alone proves
+    // nothing about who is signing in now.
+    test('a sign-in that names no user brings nothing back', () async {
+      await signIn();
+      await deadRow('update');
+      await repo.logout(data: LocalDataPolicy.keep);
+      authService.queueLogin(_envelope(user: const UserSummaryApi(id: '')));
+      await repo.login(
+        baseUrl: 'https://x',
+        isHosted: true,
+        email: 'a@example.com',
+        password: 'pw',
+      );
+
+      expect((await rowsByKey())['update']!.state, 'dead');
+    });
+
     test('a DIFFERENT user signing in wipes the preserved database', () async {
       authService.queueLogin(
         _envelope(user: const UserSummaryApi(id: 'user_a')),
