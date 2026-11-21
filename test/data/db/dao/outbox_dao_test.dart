@@ -5,6 +5,8 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:admin/data/db/app_database.dart';
+import 'package:admin/data/repositories/user_settings_repository.dart';
+import 'package:admin/domain/sync/mutation.dart';
 
 /// Targeted tests for the three Outbox screen / 422-surface entry points
 /// added on top of the existing dao. The broader state-machine coverage
@@ -240,6 +242,113 @@ void main() {
       expect(await db.outboxDao.hasAnyRows(), isFalse);
       await enqueue(state: 'dead');
       expect(await db.outboxDao.hasAnyRows(), isTrue);
+    });
+  });
+
+  group('a settings row that only re-sends the appearance is no unsynced '
+      'work', () {
+    // The push `AppearanceSyncController` queues for each company it finds
+    // with an older copy — the user never made that change there.
+    const appearanceOnly = UserSettingsChange(
+      patch: {
+        'flutter_appearance.theme_mode': 'dark',
+        'flutter_appearance.updated_at': 5,
+      },
+    );
+    final withSavedView = appearanceOnly.merge(
+      const UserSettingsChange(
+        patch: {
+          'flutter_saved_views.v1': {'n': 1},
+        },
+      ),
+    );
+
+    Future<int> enqueueSettings(
+      UserSettingsChange change, {
+      required String companyId,
+      String state = 'pending',
+    }) => db.outboxDao.enqueue(
+      OutboxCompanion.insert(
+        companyId: companyId,
+        entityType: kUserSettingsWireName,
+        entityId: 'u1',
+        mutationKind: 'update',
+        payload: change.encode(),
+        idempotencyKey: 'k_$companyId$state',
+        nextAttemptAt: 0,
+        createdAt: 0,
+        state: Value(state),
+      ),
+    );
+
+    test('it prompts nowhere and keeps no store from a wipe', () async {
+      await enqueueSettings(appearanceOnly, companyId: 'a');
+      await enqueueSettings(appearanceOnly, companyId: 'b', state: 'in_flight');
+      await enqueueSettings(appearanceOnly, companyId: 'c', state: 'dead');
+      await enqueueSettings(
+        appearanceOnly,
+        companyId: 'd',
+        state: 'unconfirmed',
+      );
+
+      expect(await db.outboxDao.pendingCountForCompany('a'), 0);
+      expect(await db.outboxDao.pendingCountForCompany('b'), 0);
+      expect(await db.outboxDao.companiesWithActiveRows(), isEmpty);
+      expect(await db.outboxDao.companiesWithUnsyncedRows(), isEmpty);
+      expect(await db.outboxDao.attentionCountAll(), 0);
+      expect(await db.outboxDao.companiesWithAttentionRows(), isEmpty);
+      // It still drains, and the Outbox still lists it.
+      expect(
+        await db.outboxDao.nextReady(companyId: 'a', now: 1),
+        hasLength(1),
+      );
+      expect(await db.outboxDao.hasAnyRows(), isTrue);
+    });
+
+    test('merged with any other setting it counts again', () async {
+      await enqueueSettings(withSavedView, companyId: 'a');
+      await enqueueSettings(withSavedView, companyId: 'c', state: 'dead');
+
+      expect(await db.outboxDao.pendingCountForCompany('a'), 1);
+      expect(await db.outboxDao.companiesWithActiveRows(), ['a']);
+      expect(
+        await db.outboxDao.companiesWithUnsyncedRows(),
+        unorderedEquals(['a', 'c']),
+      );
+      expect(await db.outboxDao.attentionCountAll(), 1);
+      expect(await db.outboxDao.companiesWithAttentionRows(), ['c']);
+    });
+
+    test('a row beside it still counts', () async {
+      await enqueueSettings(appearanceOnly, companyId: 'a');
+      await enqueue(companyId: 'a', idempotencyKey: 'client');
+      expect(await db.outboxDao.pendingCountForCompany('a'), 1);
+      expect(await db.outboxDao.companiesWithActiveRows(), ['a']);
+    });
+
+    test('the Dart twin agrees with the SQL', () {
+      expect(
+        isDeviceDerivedSettingsRow(
+          entityType: kUserSettingsWireName,
+          payload: appearanceOnly.encode(),
+        ),
+        isTrue,
+      );
+      expect(
+        isDeviceDerivedSettingsRow(
+          entityType: kUserSettingsWireName,
+          payload: withSavedView.encode(),
+        ),
+        isFalse,
+      );
+      // Only a settings row can carry the marker.
+      expect(
+        isDeviceDerivedSettingsRow(
+          entityType: 'client',
+          payload: appearanceOnly.encode(),
+        ),
+        isFalse,
+      );
     });
   });
 

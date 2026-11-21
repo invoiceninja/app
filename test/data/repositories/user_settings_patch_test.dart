@@ -530,6 +530,55 @@ void main() {
       },
     );
 
+    test('a queued appearance-only change is marked device-derived, and '
+        'loses the mark once it carries anything else', () async {
+      await seedRow();
+      await repo.patchSettings(
+        companyId: companyId,
+        patch: record.toSettingsPatch(),
+      );
+      var row = (await rows()).single;
+      expect(
+        isDeviceDerivedSettingsRow(
+          entityType: row.entityType,
+          payload: row.payload,
+        ),
+        isTrue,
+      );
+      expect(await db.outboxDao.pendingCountForCompany(companyId), 0);
+
+      // A saved view collapses into the same pending row.
+      await repo.patchSettings(
+        companyId: companyId,
+        patch: {
+          'flutter_saved_views.v1': {'name': 'Mine'},
+        },
+      );
+      row = (await rows()).single;
+      expect(
+        isDeviceDerivedSettingsRow(
+          entityType: row.entityType,
+          payload: row.payload,
+        ),
+        isFalse,
+      );
+      expect(await db.outboxDao.pendingCountForCompany(companyId), 1);
+      expect(changeOf(row).patch.keys, contains('flutter_saved_views.v1'));
+    });
+
+    test('a column change is never device-derived', () {
+      expect(
+        const UserSettingsChange(
+          patch: {'flutter_appearance.theme_mode': 'dark'},
+          columns: {
+            'EntityType.client': ['name'],
+          },
+        ).isDeviceDerived,
+        isFalse,
+      );
+      expect(const UserSettingsChange().isDeviceDerived, isFalse);
+    });
+
     test('watchAllSettings holds every company of the signed-in user, and '
         'no one else\'s', () async {
       await seedRow(extra: {'k': 1});

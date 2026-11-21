@@ -44,14 +44,17 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
   /// already have wiped it. (Badges use [watchPendingCount], unaffected.)
   /// `unconfirmed` is left out with `dead`: no drain sends it, so counting it
   /// here would leave "Sync first" waiting forever. [attentionCountAll]
-  /// counts both.
+  /// counts both. A row that only re-sends what the device re-derives
+  /// ([isDeviceDerivedSettingsRow]) is no change of the user's, so it is not
+  /// counted, here or in any guard below.
   Future<int> pendingCountForCompany(String companyId) async {
     final count = outbox.id.count();
     final q = selectOnly(outbox)
       ..addColumns([count])
       ..where(
         outbox.companyId.equals(companyId) &
-            outbox.state.isIn(const ['pending', 'in_flight']),
+            outbox.state.isIn(const ['pending', 'in_flight']) &
+            _isDeviceDerivedSettings(outbox).not(),
       );
     final row = await q.getSingle();
     return row.read(count) ?? 0;
@@ -81,7 +84,10 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
   Future<List<String>> companiesWithAttentionRows() async {
     final q = selectOnly(outbox, distinct: true)
       ..addColumns([outbox.companyId])
-      ..where(outbox.state.isIn(const ['dead', 'unconfirmed']))
+      ..where(
+        outbox.state.isIn(const ['dead', 'unconfirmed']) &
+            _isDeviceDerivedSettings(outbox).not(),
+      )
       ..orderBy([OrderingTerm(expression: outbox.companyId)]);
     final rows = await q.get();
     return [for (final r in rows) r.read(outbox.companyId)!];
@@ -96,7 +102,10 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
   Future<List<String>> companiesWithActiveRows() async {
     final q = selectOnly(outbox, distinct: true)
       ..addColumns([outbox.companyId])
-      ..where(outbox.state.isIn(const ['pending', 'in_flight']));
+      ..where(
+        outbox.state.isIn(const ['pending', 'in_flight']) &
+            _isDeviceDerivedSettings(outbox).not(),
+      );
     final rows = await q.get();
     return [
       for (final row in rows)
@@ -114,7 +123,8 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
   /// unsynced work.
   Future<List<String>> companiesWithUnsyncedRows() async {
     final q = selectOnly(outbox, distinct: true)
-      ..addColumns([outbox.companyId]);
+      ..addColumns([outbox.companyId])
+      ..where(_isDeviceDerivedSettings(outbox).not());
     final rows = await q.get();
     return [
       for (final row in rows)
@@ -129,7 +139,10 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     final count = outbox.id.count();
     final q = selectOnly(outbox)
       ..addColumns([count])
-      ..where(outbox.state.isIn(const ['dead', 'unconfirmed']));
+      ..where(
+        outbox.state.isIn(const ['dead', 'unconfirmed']) &
+            _isDeviceDerivedSettings(outbox).not(),
+      );
     final row = await q.getSingle();
     return row.read(count) ?? 0;
   }
@@ -319,6 +332,13 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
       o.mutationKind.equals(MutationKind.documentUpload.wireName) |
       (o.mutationKind.equals(MutationKind.update.wireName) &
           o.payload.contains(kUploadDocumentActionJson));
+
+  /// [isDeviceDerivedSettingsRow], in SQL — keep the two in step. A settings
+  /// row that only re-sends what the device re-derives (the appearance): no
+  /// unsynced work of the user's, so no prompt or wipe guard counts it.
+  Expression<bool> _isDeviceDerivedSettings($OutboxTable o) =>
+      o.entityType.equals(kUserSettingsEntityType) &
+      o.payload.contains(kDeviceDerivedSettingsJson);
 
   /// [writesNoRecordField], in SQL — keep the two in step. A document upload
   /// or an activity note: neither changes a field of its record.

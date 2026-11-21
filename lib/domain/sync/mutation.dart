@@ -647,6 +647,38 @@ bool writesNoRecordField({
     mutationKind == MutationKind.addComment.wireName ||
     isDocumentUploadRow(mutationKind: mutationKind, payload: payload);
 
+/// The `entity_type` of a `company_user.settings` row — what
+/// `UserSettingsRepository` calls `kUserSettingsWireName`.
+const String kUserSettingsEntityType = 'user_settings';
+
+/// How a `user_settings` row that changes only keys the device re-derives
+/// marks itself in its stored payload: `UserSettingsChange.encode` adds it
+/// when the change touches nothing but those keys, and recomputes it on
+/// every merge. No value can forge it — `jsonEncode` escapes the quotes in
+/// a user's own text.
+const String kDeviceDerivedSettingsJson = '"device_derived":true';
+
+/// Whether an outbox row only re-sends settings the device already holds and
+/// re-derives — today the appearance (`flutter_appearance`,
+/// `AppearanceSyncController`), pushed to each company as it becomes active.
+///
+/// Such a row is no unsynced work of the user's: losing it costs nothing the
+/// next activation won't push again, and the user never made the change it
+/// carries for that company. So it neither prompts at a company switch or a
+/// sign-out nor keeps a session end from wiping the store
+/// (`OutboxDao.pendingCountForCompany`, `companiesWithActiveRows`,
+/// `companiesWithUnsyncedRows`, `attentionCountAll`,
+/// `companiesWithAttentionRows`). It still drains, and still shows in the
+/// Outbox. A row that also carries another setting (a saved view, the
+/// dashboard) does not match and still counts. The DAO's SQL twin is
+/// `OutboxDao._isDeviceDerivedSettings` — keep the two in step.
+bool isDeviceDerivedSettingsRow({
+  required String entityType,
+  required String payload,
+}) =>
+    entityType == kUserSettingsEntityType &&
+    payload.contains(kDeviceDerivedSettingsJson);
+
 /// [MutationKind.deliverySafety], made stricter by what this row's decoded
 /// [payload] actually asks for. Only ever escalates: a payload can turn a
 /// plain save into a payment, never a create into something harmless.

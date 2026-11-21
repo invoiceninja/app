@@ -94,4 +94,6 @@ They were device-local until invoiceninja/app#199: a user changed their colours,
 
 **Where the code is.** `reconcileAppearance` (`lib/domain/appearance_sync.dart`) is the pure decision; `AppearanceSyncController` (`lib/app/appearance_sync_controller.dart`) watches every company's settings for the signed-in user (`UserSettingsRepository.watchAllSettings`), the session and the theme, and applies it. Adoption goes through `ThemeController.adoptSynced` because `DevicePrefsStore` notifies only on a load or a wipe, never on a write: a reconcile in `applyServerSettings` writing the rows would leave the theme on screen unchanged. `adoptSynced` takes a palette with its overrides; the setters clear a palette's overrides when the palette changes, which an adoption must not.
 
+**A queued push of the appearance alone is no unsynced work.** Its row carries `"device_derived":true`, so the company-switch and sign-out prompts and the wipe guards leave it out; merged with any other setting it counts again (`docs/sync.md` § A settings row that only re-sends the appearance is no unsynced work).
+
 Tests: `test/domain/appearance_sync_test.dart`, `test/app/appearance_sync_controller_test.dart`, `test/app/theme_controller_test.dart`.

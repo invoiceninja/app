@@ -10,13 +10,14 @@ import 'package:admin/domain/entity_type.dart';
 import 'package:admin/domain/sync/mutation.dart';
 import 'package:admin/data/db/app_database.dart';
 import 'package:admin/data/repositories/saved_views_sync.dart';
+import 'package:admin/domain/appearance_sync.dart';
 
 final _log = Logger('UserSettingsRepository');
 
 /// `entity_type` value used in the outbox row for user settings updates.
 /// `EntityRegistry` routes rows with this wire name to the
 /// `UserSettingsSyncDispatcher`.
-const String kUserSettingsWireName = 'user_settings';
+const String kUserSettingsWireName = kUserSettingsEntityType;
 
 /// `entity_type` of the outbox rows an earlier build queued to write
 /// `company_user.react_settings`. Nothing queues one any more — this app
@@ -435,6 +436,11 @@ class UserSettingsRepository {
 /// React client and is never written (`docs/user-settings-storage.md`).
 const String kAppSettingsKeyPrefix = 'flutter_';
 
+/// The settings keys the device holds a copy of and pushes to each company
+/// as it becomes active, so a queued write of them alone is re-derivable
+/// rather than the user's unsynced work (`UserSettingsChange.isDeviceDerived`).
+const Set<String> kDeviceDerivedSettingsKeys = {kAppearanceSettingsKey};
+
 /// What one `user_settings` outbox row changes: dotted paths into the
 /// settings object ([patch], a null value removes the key) and whole
 /// `table_columns` entries ([columns], null removes one — their keys contain
@@ -450,7 +456,25 @@ class UserSettingsChange {
     columns: {...columns, ...later.columns},
   );
 
-  String encode() => jsonEncode({'patch': patch, 'columns': columns});
+  /// Whether this change writes only keys the device holds and re-derives
+  /// ([kDeviceDerivedSettingsKeys]) — no columns, and every patched path under
+  /// one of them. Its row is then no unsynced work of the user's
+  /// ([isDeviceDerivedSettingsRow]).
+  bool get isDeviceDerived =>
+      columns.isEmpty &&
+      patch.isNotEmpty &&
+      patch.keys.every(
+        (k) => kDeviceDerivedSettingsKeys.contains(k.split('.').first),
+      );
+
+  /// The stored payload. A [isDeviceDerived] change carries
+  /// [kDeviceDerivedSettingsJson], recomputed on every encode, so a merge
+  /// that adds any other key drops it.
+  String encode() => jsonEncode({
+    'patch': patch,
+    'columns': columns,
+    if (isDeviceDerived) 'device_derived': true,
+  });
 
   /// The change [payload] carries, or null for a row an earlier build queued,
   /// whose payload is the whole PUT body (`company_user`).
