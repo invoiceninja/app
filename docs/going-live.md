@@ -186,7 +186,7 @@ v1 (`com.invoiceninja.app`) becomes **Invoice Ninja Legacy** and keeps working b
 - v1's App Store subscription products stay on sale for good: removing one stops its renewals. Never delete either app's store record or its notification setup.
 - An App Store v1 subscriber changes level in Apple's subscription settings, inside v1's group. A Play v1 subscriber keeps v1's subscription, and its plan comes with them. Cancelling the v1 subscription with a prorated refund when they buy in the new app applies only once the hosted billing has that migration step; until then, nothing (v1's prompt, the listings, the email, support) may promise it.
 - Never stop a v1 that a store still lists: take it off sale first, then raise the minimum version.
-- The stop is server-only: hosted `MINIMUM_CLIENT_VERSION=5.1.0` (every v1 is 5.0.x, the new app 5.1.x), then `config:cache` and a worker restart. Self-hosted servers keep their own minimum.
+- The stop is server-only: a server release sets `minimum_client_version` to `5.1.0` in `config/ninja.php` (every v1 is 5.0.x, the new app 5.1.x). It is a constant, not an env override: David declined one (invoiceninja/invoiceninja#13478), because an override needs another intervention to unset. So the stop reaches self-hosted servers too, when they update past that release. Self-hosted users are told to move to the new app before updating.
 - Ask Play support in writing whether unpublishing an app cancels its subscriptions before unpublishing v1 on Play.
 
 **v1's releases** (admin-portal: `develop` → `master` for iOS, macOS, Android and F-Droid; the `flutter-3.19.6` branch for Windows, every change cherry-picked there):
