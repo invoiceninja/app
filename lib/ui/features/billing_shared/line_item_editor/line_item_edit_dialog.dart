@@ -347,7 +347,7 @@ class _LineItemEditDialogState extends State<_LineItemEditDialog> {
                     // field moves (invoiceninja/app#203).
                     final showRates =
                         !config.useTaxCategories ||
-                        taxCategoryKeepsManualRates(_draft.taxCategoryId);
+                        taxCategoryKeepsManualRates(_draft.savedTaxCategoryId);
                     return Column(
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -355,7 +355,9 @@ class _LineItemEditDialogState extends State<_LineItemEditDialog> {
                         if (config.useTaxCategories) ...[
                           SizedBox(height: InSpacing.md(context)),
                           _TaxCategoryField(
-                            value: _draft.taxCategoryId,
+                            // A blank category shows the one the server will
+                            // save it under (`taxCategoryAsSaved`).
+                            value: _draft.savedTaxCategoryId,
                             onChanged: (id) => setState(
                               () => _draft = _draft.copyWith(taxCategoryId: id),
                             ),
@@ -436,8 +438,8 @@ class _LineItemEditDialogState extends State<_LineItemEditDialog> {
 }
 
 /// The line's tax category (`tax_id`) — a short fixed enum, so a plain
-/// dropdown, as the product form's is. Blank shows the label alone: a line
-/// saved before categories existed, which keeps its rates until one is picked.
+/// dropdown, as the product form's is. An id outside the catalog shows the
+/// label alone.
 class _TaxCategoryField extends StatelessWidget {
   const _TaxCategoryField({required this.value, required this.onChanged});
 

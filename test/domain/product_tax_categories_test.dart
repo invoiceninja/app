@@ -38,12 +38,18 @@ void main() {
     }
   });
 
-  test('only Override and a blank category keep a line\'s manual rates', () {
-    expect(taxCategoryKeepsManualRates(''), isTrue);
+  test('only Override keeps a line\'s manual rates', () {
     expect(taxCategoryKeepsManualRates(kOverrideTaxCategoryId), isTrue);
     for (final id in kProductTaxCategories.keys) {
       if (id == kOverrideTaxCategoryId) continue;
       expect(taxCategoryKeepsManualRates(id), isFalse, reason: id);
     }
+  });
+
+  test('a blank category saves as the server fills it (CleanLineItems)', () {
+    expect(taxCategoryAsSaved('', hourly: true), '2');
+    expect(taxCategoryAsSaved('', hourly: false), '1');
+    expect(taxCategoryAsSaved('7', hourly: true), '7');
+    expect(taxCategoryAsSaved('5', hourly: false), '5');
   });
 }

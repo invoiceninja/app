@@ -35,18 +35,34 @@ const Map<String, String> kProductTaxCategories = <String, String>{
 /// the tax names and rates typed on it while Calculate Taxes is on.
 const String kOverrideTaxCategoryId = '7';
 
-/// The category a line falls back to when Calculate Taxes needs one: React's
-/// blank line item and its product pick both use Physical Goods.
+/// The category a standard line falls back to — Physical Goods, what the
+/// server gives a blank `tax_id` on any line that is not hourly
+/// (`CleanLineItems`), and what React's blank line item and product pick use.
 const String kDefaultTaxCategoryId = '1';
 
-/// Whether a line in category [taxCategoryId] keeps its own tax rates while
-/// the company's Calculate Taxes is on.
+/// The category an hourly (`type_id` 2) line falls back to — Services, what
+/// `CleanLineItems` gives a blank `tax_id` on a task line. US states that
+/// exempt services (`US/Rule::taxService`) tax it at zero, so stamping such a
+/// line Physical Goods would add sales tax the server never would.
+const String kServicesTaxCategoryId = '2';
+
+/// The category the server will save a line under: its own [taxCategoryId],
+/// or — when blank — what `CleanLineItems` fills in before any tax is worked
+/// out: Services for an [hourly] line, Physical Goods for any other.
 ///
-/// Override (`7`) does by definition — `BaseRule::override` leaves the line's
-/// rates alone. A blank id is treated the same way, as React treats it
-/// (`useResolveInputField`): a line saved before categories existed, whose
-/// rates the user should still be able to see and correct. Every other
-/// category's rates are recalculated by the server on save
-/// (`InvoiceItemSum::calcTaxesAutomatically`), whatever the line carried.
+/// A blank id is therefore never Override on the server. Read through this
+/// wherever a line's category is shown or decided on, so a blank line shows
+/// the category it will really be taxed by.
+String taxCategoryAsSaved(String taxCategoryId, {required bool hourly}) =>
+    taxCategoryId.isNotEmpty
+    ? taxCategoryId
+    : (hourly ? kServicesTaxCategoryId : kDefaultTaxCategoryId);
+
+/// Whether a line in category [taxCategoryId] keeps its own tax rates while
+/// the company's Calculate Taxes is on — Override (`7`) only:
+/// `BaseRule::override` leaves the line's rates alone, and every other
+/// category's are recalculated on save (`InvoiceItemSum::calcTaxesAutomatically`),
+/// whatever the line carried. Pass the id through [taxCategoryAsSaved] first:
+/// a blank one is saved as a real category, never as Override.
 bool taxCategoryKeepsManualRates(String taxCategoryId) =>
-    taxCategoryId.isEmpty || taxCategoryId == kOverrideTaxCategoryId;
+    taxCategoryId == kOverrideTaxCategoryId;

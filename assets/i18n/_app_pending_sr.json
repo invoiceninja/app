@@ -2244,5 +2244,5 @@
   "search_scope_announcement": ":scope, rezultati: :count",
   "search_scope_at_least_announcement": ":scope, rezultati: najmanje :count",
   "session_ended_sign_in_again": "Vaša sesija je završena. Prijavite se ponovo; vaši podaci i nesinhronizovane izmene su sačuvani.",
-  "line_item_taxes_calculated_on_save": "Porezi se pri čuvanju izračunavaju prema poreskoj kategoriji svake stavke."
+  "line_item_category_taxes_calculated_on_save": "Porezi na stavkama sa poreskom kategorijom izračunavaju se pri čuvanju."
 }

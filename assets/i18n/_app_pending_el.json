@@ -2245,5 +2245,5 @@
   "search_scope_announcement": ":scope, :count αποτελέσματα",
   "search_scope_at_least_announcement": ":scope, τουλάχιστον :count αποτελέσματα",
   "session_ended_sign_in_again": "Η συνεδρία σας έληξε. Συνδεθείτε ξανά· τα δεδομένα σας και οι μη συγχρονισμένες αλλαγές διατηρούνται.",
-  "line_item_taxes_calculated_on_save": "Οι φόροι υπολογίζονται από την κατηγορία φόρου κάθε γραμμής κατά την αποθήκευση."
+  "line_item_category_taxes_calculated_on_save": "Οι φόροι στις γραμμές με κατηγορία φόρου υπολογίζονται κατά την αποθήκευση."
 }

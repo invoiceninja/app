@@ -46,9 +46,15 @@ class LineItemColumnConfig {
   /// are thrown away, which read as "saving erases my taxes". Only an
   /// Override line keeps its own ([taxCategoryKeepsManualRates]). So a line
   /// in any other category shows a category picker in the first tax slot and
-  /// nothing in the others, and an Override or blank one keeps the rate
-  /// pickers (React's `useResolveInputField`, admin-portal's item editor).
+  /// nothing in the others, and an Override one keeps the rate pickers
+  /// (React's `useResolveInputField`, admin-portal's item editor). A blank
+  /// category reads as the one the server will save — Services on an hourly
+  /// line, else Physical Goods (`taxCategoryAsSaved`) — never as Override.
   /// The slots are still [taxColumnCount] wide: the server fills all three.
+  ///
+  /// Like React, this follows the switch alone: the server also skips the
+  /// calculation for a free hosted account, a paid or cancelled invoice and
+  /// a region it has no rules for, and there Override is the way to rates.
   ///
   /// A host *asks* for this; [forCompany] grants it only when the company has
   /// the switch on. A purchase order never asks — the server skips the

@@ -2245,5 +2245,5 @@
   "search_scope_announcement": ":scope, výsledky: :count",
   "search_scope_at_least_announcement": ":scope, výsledky: aspoň :count",
   "session_ended_sign_in_again": "Vaša relácia sa skončila. Prihláste sa znova; vaše údaje aj nesynchronizované zmeny zostanú zachované.",
-  "line_item_taxes_calculated_on_save": "Dane sa pri uložení vypočítajú podľa daňovej kategórie každej položky."
+  "line_item_category_taxes_calculated_on_save": "Dane pri položkách s daňovou kategóriou sa vypočítajú pri uložení."
 }

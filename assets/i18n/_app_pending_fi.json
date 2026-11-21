@@ -2246,5 +2246,5 @@
   "search_scope_announcement": ":scope, :count tulosta",
   "search_scope_at_least_announcement": ":scope, vähintään :count tulosta",
   "session_ended_sign_in_again": "Istuntosi on päättynyt. Kirjaudu uudelleen sisään; tietosi ja synkronoimattomat muutokset säilyvät.",
-  "line_item_taxes_calculated_on_save": "Verot lasketaan jokaisen rivin veroluokan mukaan, kun tallennat."
+  "line_item_category_taxes_calculated_on_save": "Veroluokan sisältävien rivien verot lasketaan, kun tallennat."
 }

@@ -167,10 +167,13 @@ class _FakeServices implements Services {
 
 Company _company({
   bool showTasksTable = true,
+  bool calculateTaxes = false,
   Map<String, dynamic>? translations,
 }) => Company(
   id: 'co',
   showTasksTable: showTasksTable,
+  calculateTaxes: calculateTaxes,
+  enabledItemTaxRates: calculateTaxes ? 1 : 0,
   settings: CompanySettings(translations: translations),
 );
 
@@ -617,6 +620,74 @@ void main() {
       await tester.enterText(hours.first, '1:30');
       await tester.pump(const Duration(milliseconds: 300));
       expect(vm.draft.lineItems.single.quantity, Decimal.parse('1.5'));
+      await unmount(tester);
+    });
+
+    // With Calculate Taxes on, a new line starts in the category the server
+    // would give a blank one (`CleanLineItems`): Services on a task line —
+    // which a US state exempting services taxes at zero — Physical Goods on a
+    // product line. Through the real editor, not an injected factory.
+    Future<LineItem> typeALine(
+      WidgetTester tester, {
+      required bool calculateTaxes,
+      required bool onTasks,
+    }) async {
+      final vm = await pump(
+        tester,
+        repo: _CompanyRepo(_company(calculateTaxes: calculateTaxes)),
+      );
+      if (onTasks) {
+        await tester.tap(find.text('Tasks'));
+        await tester.pumpAndSettle();
+      }
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Description'),
+        'Design review',
+      );
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pump();
+      expect(vm.draft.lineItems, hasLength(1));
+      return vm.draft.lineItems.single;
+    }
+
+    testWidgets('Calculate Taxes on: a typed task line is Services', (
+      tester,
+    ) async {
+      final line = await typeALine(tester, calculateTaxes: true, onTasks: true);
+      expect(line.typeId, LineItemType.task);
+      expect(line.taxCategoryId, '2');
+      expect(
+        find.text(
+          'Taxes on lines with a tax category are calculated when '
+          'you save.',
+        ),
+        findsOneWidget,
+      );
+      await unmount(tester);
+    });
+
+    testWidgets('Calculate Taxes on: a typed product line is Physical Goods', (
+      tester,
+    ) async {
+      final line = await typeALine(
+        tester,
+        calculateTaxes: true,
+        onTasks: false,
+      );
+      expect(line.taxCategoryId, '1');
+      await unmount(tester);
+    });
+
+    testWidgets('Calculate Taxes off: a typed line keeps no category', (
+      tester,
+    ) async {
+      final line = await typeALine(
+        tester,
+        calculateTaxes: false,
+        onTasks: true,
+      );
+      expect(line.taxCategoryId, '');
+      expect(find.textContaining('calculated when you save'), findsNothing);
       await unmount(tester);
     });
 

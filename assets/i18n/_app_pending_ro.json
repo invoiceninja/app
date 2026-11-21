@@ -2316,5 +2316,5 @@
   "search_scope_announcement": ":scope, :count rezultate",
   "search_scope_at_least_announcement": ":scope, cel puțin :count rezultate",
   "session_ended_sign_in_again": "Sesiunea s-a încheiat. Autentificați-vă din nou; datele și modificările nesincronizate sunt păstrate.",
-  "line_item_taxes_calculated_on_save": "Taxele se calculează pe baza categoriei de taxă a fiecărei linii la salvare."
+  "line_item_category_taxes_calculated_on_save": "Taxele pentru liniile cu o categorie de taxă se calculează la salvare."
 }

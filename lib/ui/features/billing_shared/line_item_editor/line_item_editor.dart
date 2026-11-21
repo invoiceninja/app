@@ -8,7 +8,6 @@ import 'package:admin/data/models/domain/billing/line_item.dart';
 import 'package:admin/data/models/domain/client.dart';
 import 'package:admin/data/models/domain/company.dart';
 import 'package:admin/data/models/value/currency.dart';
-import 'package:admin/domain/product_tax_categories.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/party_money_cell.dart';
 import 'package:admin/ui/features/billing_shared/line_item_editor/line_item_card_list_mobile.dart';
@@ -355,17 +354,18 @@ class _LineItemEditorState extends State<LineItemEditor> {
     );
   }
 
-  /// A new line starts in Physical Goods while the company calculates taxes,
-  /// as React's blank line item does: a blank category is not Override on the
-  /// server — `BaseRule` taxes it at the default rate — so a new line that
-  /// offered rate pickers would take rates the save then replaces.
+  /// A new line starts in the category the server would give it while the
+  /// company calculates taxes — Services on an hourly (Tasks tab) line,
+  /// Physical Goods on any other (`CleanLineItems`; React's blank line item
+  /// is Physical Goods). Stamped rather than left blank so the payload says
+  /// what the picker showed.
   LineItem Function() _newItemFactoryFor(LineItemColumnConfig config) {
     final base = widget.newItemFactory;
     if (!config.useTaxCategories) return base;
     return () {
       final item = base();
       return item.taxCategoryId.isEmpty
-          ? item.copyWith(taxCategoryId: kDefaultTaxCategoryId)
+          ? item.copyWith(taxCategoryId: item.savedTaxCategoryId)
           : item;
     };
   }
@@ -395,7 +395,7 @@ class _TaxesCalculatedHint extends StatelessWidget {
           ),
           Expanded(
             child: Text(
-              context.tr('line_item_taxes_calculated_on_save'),
+              context.tr('line_item_category_taxes_calculated_on_save'),
               style: TextStyle(fontSize: 12, color: tokens.ink3),
             ),
           ),

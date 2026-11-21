@@ -94,6 +94,12 @@ extension LineItemAccessors on LineItem {
   /// Convenience: `cost * quantity` (pre-discount, pre-tax).
   Decimal get gross => cost * quantity;
 
+  /// The tax category the server will save this line under — a blank
+  /// [taxCategoryId] reads as Services on an hourly line and Physical Goods on
+  /// any other ([taxCategoryAsSaved]).
+  String get savedTaxCategoryId =>
+      taxCategoryAsSaved(taxCategoryId, hourly: typeId == LineItemType.task);
+
   /// True when no user-meaningful identifier has been touched. Used by
   /// the desktop inline-editable table to decide whether to keep a
   /// trailing empty row visible (matches admin-portal's
@@ -253,13 +259,13 @@ LineItem lineItemFromProduct(
     taxRate2: tax2.rate,
     taxName3: tax3.name,
     taxRate3: tax3.rate,
-    // A product with no category bills as Physical Goods, as React fills it
-    // (`product.tax_id || '1'`): the server's Calculate Taxes reads a blank
-    // `tax_id` as the default rate, not as Override, so blank would only hide
-    // that from the line's category picker. A purchase order is never
-    // calculated and keeps the product's own value.
+    // A product with no category gets the one the server would give the line
+    // (`CleanLineItems`): Services on an hourly row, else Physical Goods, as
+    // React fills it (`product.tax_id || '1'`). Blank is never Override on
+    // the server, so it would only hide that from the line's category picker.
+    // A purchase order is never calculated and keeps the product's own value.
     taxCategoryId: product.taxId.isEmpty && !vendorDoc
-        ? kDefaultTaxCategoryId
+        ? taxCategoryAsSaved('', hourly: hourly)
         : product.taxId,
     customValue1: product.customValue1,
     customValue2: product.customValue2,

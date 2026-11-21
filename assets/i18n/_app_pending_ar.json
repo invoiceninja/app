@@ -2244,5 +2244,5 @@
   "search_scope_announcement": ":scope، :count من النتائج",
   "search_scope_at_least_announcement": ":scope، ما لا يقل عن :count من النتائج",
   "session_ended_sign_in_again": "انتهت جلستك. سجّل الدخول مرة أخرى؛ سيتم الاحتفاظ ببياناتك وتغييراتك غير المتزامنة.",
-  "line_item_taxes_calculated_on_save": "تُحسب الضرائب من فئة الضريبة لكل بند عند الحفظ."
+  "line_item_category_taxes_calculated_on_save": "تُحسب الضرائب على البنود التي لها فئة ضريبية عند الحفظ."
 }

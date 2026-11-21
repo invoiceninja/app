@@ -11,6 +11,7 @@ import 'package:admin/data/models/domain/group_setting.dart';
 import 'package:admin/data/models/domain/project.dart';
 import 'package:admin/data/models/domain/task.dart';
 import 'package:admin/domain/expense_invoice_line_item.dart';
+import 'package:admin/domain/product_tax_categories.dart';
 import 'package:admin/domain/tasks/task_invoice_notes.dart';
 import 'package:admin/domain/tasks/task_rate.dart';
 import 'package:admin/l10n/localization.dart';
@@ -132,6 +133,9 @@ LineItem taskToLineItem(
     ),
     quantity: taskBillableHours(task, now: now),
     typeId: LineItemType.task,
+    // Services, what the server gives a blank task line (`CleanLineItems`) —
+    // stamped so the category picker and the payload agree.
+    taxCategoryId: kServicesTaxCategoryId,
     taskId: task.id,
     // The server's own converter copies these across
     // (`ProjectRepository::invoice`), and v1 does too — without them a

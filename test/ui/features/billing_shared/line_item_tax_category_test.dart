@@ -14,6 +14,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/theme.dart';
 import 'package:admin/data/models/domain/billing/line_item.dart';
+import 'package:admin/data/models/domain/billing/line_item_type.dart';
 import 'package:admin/data/models/domain/company.dart';
 import 'package:admin/data/models/domain/company_settings.dart';
 import 'package:admin/data/models/domain/product.dart';
@@ -146,6 +147,21 @@ void main() {
       expect(lineItemFromProduct(product('')).taxCategoryId, '1');
     });
 
+    test(
+      'onto an hourly row with none is Services, as the server fills it',
+      () {
+        final hourly = emptyLineItem().copyWith(typeId: LineItemType.task);
+        expect(
+          lineItemFromProduct(product(''), base: hourly).taxCategoryId,
+          '2',
+        );
+        expect(
+          lineItemFromProduct(product('3'), base: hourly).taxCategoryId,
+          '3',
+        );
+      },
+    );
+
     test('on a purchase order keeps its blank', () {
       expect(
         lineItemFromProduct(product(''), vendorDoc: true).taxCategoryId,
@@ -252,6 +268,64 @@ void main() {
       await teardown(tester);
     });
 
+    testWidgets('a blank category shows the one the server will save', (
+      tester,
+    ) async {
+      await pump(
+        tester,
+        items: [
+          _line(''),
+          _line('').copyWith(typeId: LineItemType.task),
+        ],
+        config: _categories,
+      );
+
+      expect(
+        find.descendant(of: slot(0), matching: find.text('Physical Goods')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: slot(1), matching: find.text('Services')),
+        findsOneWidget,
+      );
+      expect(rateField(0), findsNothing);
+      expect(rateField(1), findsNothing);
+      await teardown(tester);
+    });
+
+    testWidgets('focus follows a category switch to the control replacing it', (
+      tester,
+    ) async {
+      await pump(tester, items: [_line('1')], config: _categories);
+      bool focusedIn(Finder f) {
+        final focus = FocusManager.instance.primaryFocus?.context;
+        if (focus == null) return false;
+        return find
+            .descendant(
+              of: f,
+              matching: find.byElementPredicate((e) => e == focus),
+            )
+            .evaluate()
+            .isNotEmpty;
+      }
+
+      await tester.tap(
+        find.descendant(of: slot(0), matching: find.text('Physical Goods')),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Override Tax').last);
+      await tester.pumpAndSettle();
+      expect(focusedIn(rateField(0)), isTrue, reason: 'onto the rate field');
+
+      await tester.tap(
+        find.descendant(of: slot(0), matching: find.byIcon(Icons.repeat)),
+      );
+      await tester.pumpAndSettle();
+      expect(rateField(0), findsNothing);
+      expect(focusedIn(slot(0)), isTrue, reason: 'onto the category menu');
+      await teardown(tester);
+    });
+
     testWidgets('the ghost row shows its category but cannot commit one', (
       tester,
     ) async {
@@ -329,6 +403,18 @@ void main() {
       );
       expect(find.text('Tax Name 1'), findsNothing);
       expect(find.text('Tax Rate 1'), findsNothing);
+    });
+
+    testWidgets('a blank line shows the category the server will save', (
+      tester,
+    ) async {
+      await open(tester, initial: _line(''), config: _categories);
+
+      expect(
+        find.descendant(of: category(), matching: find.text('Physical Goods')),
+        findsOneWidget,
+      );
+      expect(find.text('Tax Name 1'), findsNothing);
     });
 
     testWidgets('an Override line shows its rate fields', (tester) async {

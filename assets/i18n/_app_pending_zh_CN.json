@@ -2328,5 +2328,5 @@
   "search_scope_announcement": ":scope，:count 个结果",
   "search_scope_at_least_announcement": ":scope，至少 :count 个结果",
   "session_ended_sign_in_again": "您的会话已结束。请重新登录；您的数据和未同步的更改都会保留。",
-  "line_item_taxes_calculated_on_save": "保存时将根据每行的税务类别计算税额。"
+  "line_item_category_taxes_calculated_on_save": "保存时将计算设有税务类别的行的税额。"
 }

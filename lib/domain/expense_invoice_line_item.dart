@@ -2,6 +2,7 @@ import 'package:decimal/decimal.dart';
 
 import 'package:admin/data/models/domain/billing/line_item.dart';
 import 'package:admin/data/models/domain/expense.dart';
+import 'package:admin/domain/product_tax_categories.dart';
 
 /// Builds the invoice line item for the "Invoice expense" / "Add to invoice"
 /// expense actions. A pure mapping (no `BuildContext`) so the billing math is
@@ -46,6 +47,9 @@ LineItem expenseInvoiceLineItem(
   final base = invoiceInclusive ? expense.grossAmount : expense.netAmount;
   final item = emptyLineItem().copyWith(
     expenseId: expense.id,
+    // Physical Goods, as React's expense line is — and what the server gives
+    // a blank one (`CleanLineItems`), so the category picker shows the truth.
+    taxCategoryId: kDefaultTaxCategoryId,
     notes: expense.publicNotes,
     quantity: Decimal.one,
     cost: base * fx,

@@ -23,6 +23,7 @@ import 'package:admin/domain/date_placeholders.dart';
 import 'package:admin/domain/product_tax_categories.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/edit/custom_field_input.dart';
+import 'package:admin/ui/core/list/entity_list_constants.dart';
 import 'package:admin/ui/core/widgets/back_dismissible_menu_anchor.dart';
 import 'package:admin/ui/core/widgets/in_date_field.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
@@ -598,8 +599,8 @@ class _LineItemTableDesktopState extends State<LineItemTableDesktop> {
     final categoryKey =
         item != null &&
             widget.config.useTaxCategories &&
-            !taxCategoryKeepsManualRates(item.taxCategoryId)
-        ? kProductTaxCategories[item.taxCategoryId]
+            !taxCategoryKeepsManualRates(item.savedTaxCategoryId)
+        ? kProductTaxCategories[item.savedTaxCategoryId]
         : null;
     final tax = categoryKey != null
         ? context.tr(categoryKey)
@@ -1582,6 +1583,10 @@ class _Row extends StatefulWidget {
 class _RowStateW extends State<_Row> {
   bool _hovered = false;
 
+  /// A category switch in the tax slot is being committed: the control that
+  /// replaces the one used takes focus as it mounts, then this clears.
+  bool _focusTaxSlot = false;
+
   /// The row's ⋮ holds keyboard focus — it shows while it does.
   bool _menuFocused = false;
 
@@ -1788,6 +1793,9 @@ class _RowStateW extends State<_Row> {
     // `LineItemColumnConfig.useTaxCategories`. Committed at once on the row
     // rebuilt from its live cells, like the tax cell's pick.
     void commitTaxCategory(String id) {
+      // The control the user just used is replaced by the one for the new
+      // category; focus follows to it rather than falling to the page.
+      _focusTaxSlot = true;
       onCellCommit(
         row
             .buildItem(currentItem, useComma: useComma)
@@ -1795,56 +1803,77 @@ class _RowStateW extends State<_Row> {
       );
     }
 
+    // A blank category reads as the one the server will save — never as
+    // Override, which is the only category that keeps the line's rates.
+    final category = currentItem.savedTaxCategoryId;
     final byCategory =
-        config.useTaxCategories &&
-        !taxCategoryKeepsManualRates(currentItem.taxCategoryId);
+        config.useTaxCategories && !taxCategoryKeepsManualRates(category);
+    final autofocusTax = _focusTaxSlot;
+    if (autofocusTax) {
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _focusTaxSlot = false,
+      );
+    }
 
-    // What fills one tax slot. Only ever swapped by a pick in the slot itself
-    // (the category menu, the switch-back button) or by a product pick in the
-    // Item cell, so the field being replaced is never the focused one; the
-    // row's other cells keep their places either way (invoiceninja/app#203).
+    // What fills one tax slot. Slot 1 is always the same `Row` — the cell and
+    // the switch-back button's slot — so neither the company row landing nor
+    // a category change re-parents a focused rate field (invoiceninja/app#203).
+    // Only a pick in the slot itself (the category menu, the switch-back
+    // button) or a product pick in the Item cell swaps the cell inside it, so
+    // the field replaced is never the focused one.
     Widget taxSlot(int slot) {
+      final Widget cell;
       if (byCategory) {
         // Slots 2 and 3 stay as columns — the server fills all three — but a
         // category line has nothing to enter in them.
         if (slot != 1) return const SizedBox.shrink();
-        return _TaxCategoryCell(
-          value: currentItem.taxCategoryId,
+        cell = _TaxCategoryCell(
+          value: category,
+          autofocus: autofocusTax,
           // The ghost row's cells that commit at once stay inert, as its
           // custom dropdowns do: any commit promotes it, so a pick there
           // would add an empty line.
           onChanged: isGhost ? null : commitTaxCategory,
         );
+      } else {
+        cell = _TaxCell(
+          companyId: companyId,
+          services: services,
+          formatter: formatter,
+          autofocus: autofocusTax && slot == 1,
+          initialName: _taxNameOf(currentItem, slot),
+          initialRate: _taxRateOf(currentItem, slot),
+          onSelected: (taxRate) {
+            final name = taxRate?.name ?? '';
+            final rate = taxRate == null
+                ? Decimal.zero
+                : Decimal.parse(taxRate.rate.toString());
+            final base = row.buildItem(currentItem, useComma: useComma);
+            onCellCommit(switch (slot) {
+              1 => base.copyWith(taxName1: name, taxRate1: rate),
+              2 => base.copyWith(taxName2: name, taxRate2: rate),
+              _ => base.copyWith(taxName3: name, taxRate3: rate),
+            });
+          },
+        );
       }
-      final cell = _TaxCell(
-        companyId: companyId,
-        services: services,
-        formatter: formatter,
-        initialName: _taxNameOf(currentItem, slot),
-        initialRate: _taxRateOf(currentItem, slot),
-        onSelected: (taxRate) {
-          final name = taxRate?.name ?? '';
-          final rate = taxRate == null
-              ? Decimal.zero
-              : Decimal.parse(taxRate.rate.toString());
-          final base = row.buildItem(currentItem, useComma: useComma);
-          onCellCommit(switch (slot) {
-            1 => base.copyWith(taxName1: name, taxRate1: rate),
-            2 => base.copyWith(taxName2: name, taxRate2: rate),
-            _ => base.copyWith(taxName3: name, taxRate3: rate),
-          });
-        },
-      );
-      if (!config.useTaxCategories || slot != 1) return cell;
-      // An Override (or uncategorised) line keeps its rates, with React's
-      // way back to a category beside the first.
+      if (slot != 1) return cell;
       return Row(
         children: [
           Expanded(child: cell),
+          // An Override line keeps its rates, with React's way back to a
+          // category beside the first — the category the server would give
+          // the line, as a new one gets.
           _UseTaxCategoryButton(
+            visible: config.useTaxCategories && !byCategory,
             onPressed: isGhost
                 ? null
-                : () => commitTaxCategory(kDefaultTaxCategoryId),
+                : () => commitTaxCategory(
+                    taxCategoryAsSaved(
+                      '',
+                      hourly: currentItem.typeId == LineItemType.task,
+                    ),
+                  ),
           ),
         ],
       );
@@ -3542,10 +3571,17 @@ class _ChoiceSearchCellState extends State<_ChoiceSearchCell> {
 /// Styled like `_ChoiceMenuCell` beside it — borderless, a ▾, one Tab stop.
 /// Null [onChanged] disables the cell.
 class _TaxCategoryCell extends StatelessWidget {
-  const _TaxCategoryCell({required this.value, required this.onChanged});
+  const _TaxCategoryCell({
+    required this.value,
+    required this.onChanged,
+    this.autofocus = false,
+  });
 
   final String value;
   final ValueChanged<String>? onChanged;
+
+  /// Take focus on mount — it has just replaced the control the user used.
+  final bool autofocus;
 
   @override
   Widget build(BuildContext context) {
@@ -3589,6 +3625,7 @@ class _TaxCategoryCell extends StatelessWidget {
             type: MaterialType.transparency,
             child: InkWell(
               onTap: toggle,
+              autofocus: autofocus,
               child: ConstrainedBox(
                 constraints: const BoxConstraints(
                   minHeight: _kRowContentHeight,
@@ -3623,32 +3660,36 @@ class _TaxCategoryCell extends StatelessWidget {
 }
 
 /// The switch from an Override line's rates back to a tax category — React's
-/// ⟳ beside the first tax rate (`useResolveInputField`). Sets Physical Goods,
-/// which the category menu that replaces the rates then lets the user change.
+/// ⟳ beside the first tax rate (`useResolveInputField`). Sets the category
+/// the server would give the line, which the menu that replaces the rates
+/// then lets the user change.
 ///
-/// A fixed 32 px slot with the button pinned to it on every platform
-/// (`docs/touch-targets.md` trap 5): the cell beside it is a flex column, and
-/// a button whose size followed the platform would resize that column.
+/// Always mounted beside the first tax cell, collapsing to nothing while not
+/// [visible], so the cell's place in the tree never depends on it
+/// (invoiceninja/app#203). Its slot is sized from the touch branch and the
+/// button pinned to it (`docs/touch-targets.md` trap 5), the way
+/// `EntityActionsPopupButton` sits in `colWMoreMenu()`.
 class _UseTaxCategoryButton extends StatelessWidget {
-  const _UseTaxCategoryButton({required this.onPressed});
+  const _UseTaxCategoryButton({required this.visible, required this.onPressed});
 
+  final bool visible;
   final VoidCallback? onPressed;
 
   @override
   Widget build(BuildContext context) {
+    if (!visible) return const SizedBox.shrink();
     final tokens = context.inTheme;
+    final size = actionButtonSize();
     return SizedBox(
-      width: 32,
-      height: _kRowContentHeight,
+      width: size,
       child: IconButton(
         tooltip: context.tr('tax_category'),
         onPressed: onPressed,
-        padding: EdgeInsets.zero,
-        constraints: const BoxConstraints.tightFor(
-          width: 32,
-          height: _kRowContentHeight,
-        ),
-        style: const ButtonStyle(
+        style: IconButton.styleFrom(
+          fixedSize: Size.square(size),
+          minimumSize: Size.zero,
+          maximumSize: Size.infinite,
+          padding: EdgeInsets.zero,
           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
         ),
         icon: Icon(Icons.repeat, size: 16, color: tokens.ink3),
@@ -3665,11 +3706,16 @@ class _TaxCell extends StatefulWidget {
     required this.initialName,
     required this.initialRate,
     required this.onSelected,
+    this.autofocus = false,
   });
 
   final String companyId;
   final Services services;
   final Formatter? formatter;
+
+  /// Take focus on mount — it has just replaced the category menu the user
+  /// picked Override Tax from.
+  final bool autofocus;
   final String initialName;
   final Decimal initialRate;
   final ValueChanged<TaxRate?> onSelected;
@@ -3795,6 +3841,7 @@ class _TaxCellState extends State<_TaxCell> {
             return TextField(
               controller: controller,
               focusNode: focusNode,
+              autofocus: widget.autofocus,
               // On native touch nothing else can close the popover — see
               // `picker_dismissal.dart`. On desktop this is the SDK default.
               onTapOutside: dismissPickerOnTapOutside(focusNode),

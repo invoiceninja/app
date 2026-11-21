@@ -2328,5 +2328,5 @@
   "search_scope_announcement": ":scope, результатов: :count",
   "search_scope_at_least_announcement": ":scope, результатов: не менее :count",
   "session_ended_sign_in_again": "Сеанс завершён. Войдите снова; ваши данные и несинхронизированные изменения сохранены.",
-  "line_item_taxes_calculated_on_save": "Налоги рассчитываются по налоговой категории каждой строки при сохранении."
+  "line_item_category_taxes_calculated_on_save": "Налоги по строкам с налоговой категорией рассчитываются при сохранении."
 }

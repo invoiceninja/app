@@ -2328,5 +2328,5 @@
   "search_scope_announcement": ":scope, :count resultados",
   "search_scope_at_least_announcement": ":scope, al menos :count resultados",
   "session_ended_sign_in_again": "Su sesión ha finalizado. Vuelva a iniciar sesión; sus datos y los cambios sin sincronizar se conservan.",
-  "line_item_taxes_calculated_on_save": "Los impuestos se calculan según la categoría de impuesto de cada línea al guardar."
+  "line_item_category_taxes_calculated_on_save": "Los impuestos de las líneas con categoría de impuesto se calculan al guardar."
 }

@@ -2328,5 +2328,5 @@
   "search_scope_announcement": ":scope, ผลลัพธ์ :count รายการ",
   "search_scope_at_least_announcement": ":scope, ผลลัพธ์อย่างน้อย :count รายการ",
   "session_ended_sign_in_again": "เซสชันของคุณสิ้นสุดแล้ว ลงชื่อเข้าใช้อีกครั้ง ข้อมูลและการเปลี่ยนแปลงที่ยังไม่ซิงค์ของคุณยังคงถูกเก็บไว้",
-  "line_item_taxes_calculated_on_save": "ภาษีจะคำนวณจากหมวดหมู่ภาษีของแต่ละรายการเมื่อคุณบันทึก"
+  "line_item_category_taxes_calculated_on_save": "ภาษีของรายการที่มีหมวดหมู่ภาษีจะคำนวณเมื่อคุณบันทึก"
 }

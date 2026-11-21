@@ -64,12 +64,20 @@ class ProductEditTaxesSection extends StatelessWidget {
                         kProductTaxCategories.containsKey(vm.draft.taxId)
                         ? vm.draft.taxId
                         : null,
+                    // "Tax-free intra-community delivery" (category 10) is
+                    // wider than a phone's field: fill the field and let the
+                    // label ellipsize rather than overflow.
+                    isExpanded: true,
                     items: [
                       for (final MapEntry(key: id, value: labelKey)
                           in kProductTaxCategories.entries)
                         DropdownMenuItem(
                           value: id,
-                          child: Text(context.tr(labelKey)),
+                          child: Text(
+                            context.tr(labelKey),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                     ],
                     onChanged: (v) => vm.setTaxId(v ?? ''),

@@ -2245,5 +2245,5 @@
   "search_scope_announcement": ":scope，:count 個結果",
   "search_scope_at_least_announcement": ":scope，至少 :count 個結果",
   "session_ended_sign_in_again": "您的工作階段已結束。請重新登入；您的資料和未同步的變更都會保留。",
-  "line_item_taxes_calculated_on_save": "儲存時將依每一行的稅務類別計算稅額。"
+  "line_item_category_taxes_calculated_on_save": "儲存時將計算設有稅務類別之行的稅額。"
 }
