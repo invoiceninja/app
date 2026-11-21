@@ -234,6 +234,14 @@ const _notesSubtabs = [
   'Documents',
 ];
 
+/// The items Products / Tasks strip a document shows with no hourly line and
+/// "Show Tasks Table" off: only a quote, whose Tasks tab is always offered
+/// (`BillingDocType.alwaysOffersTasksTable`, React's quote page). On the
+/// desktop it sits above the notes sub-tabs.
+List<List<String>> _itemsStrip(BillingDoc doc) => [
+  if (doc == BillingDoc.quote) ['Products', 'Tasks'],
+];
+
 /// The documents that grow an E-Invoice tab when the company enables it.
 const _hasEInvoice = {
   BillingDoc.invoice,
@@ -321,7 +329,7 @@ void main() {
       ) async {
         final fixture = await mount(tester, doc, 1440);
         expect(fieldLabels(tester), _desktop[doc]);
-        expect(tabBarLabels(tester), [_notesSubtabs]);
+        expect(tabBarLabels(tester), [..._itemsStrip(doc), _notesSubtabs]);
         await unmount(tester, fixture);
       }, timeout: timeout);
 
@@ -354,9 +362,27 @@ void main() {
       ) async {
         final fixture = await mount(tester, doc, 1440, eInvoice: true);
         expect(tabBarLabels(tester), [
+          ..._itemsStrip(doc),
           [..._notesSubtabs, if (_hasEInvoice.contains(doc)) 'E-Invoice'],
         ]);
         await unmount(tester, fixture);
+      }, timeout: timeout);
+
+      testWidgets('the Items tab: a Tasks strip only on a quote', (
+        tester,
+      ) async {
+        // Phone and tablet alike: the strip is under the Items tab, after the
+        // top strip — the same one the desktop shows above its notes.
+        for (final width in [390.0, 900.0]) {
+          final fixture = await mount(tester, doc, width);
+          await showTab(tester, tabBarLabels(tester).first.indexOf('Items'));
+          expect(
+            tabBarLabels(tester).skip(1).toList(),
+            _itemsStrip(doc),
+            reason: 'at $width px',
+          );
+          await unmount(tester, fixture);
+        }
       }, timeout: timeout);
 
       testWidgets('desktop: an Add Items button under the table, no FAB', (
