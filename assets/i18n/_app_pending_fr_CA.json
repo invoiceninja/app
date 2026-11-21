@@ -2219,5 +2219,12 @@
   "line_item_category_taxes_calculated_on_save": "Les taxes des lignes ayant une catégorie de taxe sont calculées lors de l'enregistrement.",
   "use_tax_category": "Utiliser une catégorie de taxe",
   "not_sent_session_ended": "Non envoyée : la session a pris fin avant que le serveur reçoive cette modification.",
-  "not_sent_check_then_resend": "Elle a peut-être été modifiée ailleurs depuis, elle ne sera donc pas envoyée automatiquement. Vérifiez l'enregistrement, puis renvoyez ou abandonnez cette modification."
+  "not_sent_check_then_resend": "Elle a peut-être été modifiée ailleurs depuis, elle ne sera donc pas envoyée automatiquement. Vérifiez l'enregistrement, puis renvoyez ou abandonnez cette modification.",
+  "show_one_result_in_all": "Afficher le :count résultat dans Tous",
+  "search_one_result_announcement": ":count résultat dans :categories catégorie",
+  "search_at_least_one_result_announcement": "Au moins :count résultat dans :categories catégorie",
+  "search_results_one_category_announcement": ":count résultats dans :categories catégorie",
+  "search_results_at_least_one_category_announcement": "Au moins :count résultats dans :categories catégorie",
+  "search_scope_one_result_announcement": ":scope, :count résultat",
+  "search_scope_at_least_one_result_announcement": ":scope, au moins :count résultat"
 }

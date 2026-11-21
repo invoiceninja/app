@@ -21,6 +21,7 @@
 library;
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart' show StringCharacters;
 
 import 'package:admin/data/models/domain/search_result.dart';
 import 'package:admin/domain/entity_type.dart';
@@ -952,6 +953,12 @@ List<(int, int)> _matchRuns(_Prepared hit, List<String> words) {
     }
   }
   if (runs.isEmpty) return const [];
+  return snapHighlightRuns(hit.parsed.title, _mergeRuns(runs));
+}
+
+/// [runs] sorted and merged where they overlap.
+List<(int, int)> _mergeRuns(List<(int, int)> runs) {
+  if (runs.isEmpty) return const [];
   runs.sort((a, b) => a.$1.compareTo(b.$1));
   final merged = <(int, int)>[runs.first];
   for (final r in runs.skip(1)) {
@@ -964,6 +971,81 @@ List<(int, int)> _matchRuns(_Prepared hit, List<String> words) {
   }
   return merged;
 }
+
+/// [runs] (`[start, end)` UTF-16 offsets into [title], sorted and merged)
+/// widened so the bold `TextSpan` each becomes never splits what is drawn as
+/// one glyph — the palette bolds each run in its own span, and a span edge is
+/// a shaping edge:
+///
+///  * **Every edge lands on a grapheme boundary** (`characters`): a Thai,
+///    Lao or Khmer vowel sign or tone mark, or an accent typed as a
+///    combining mark, stays on its letter instead of floating free.
+///  * **Never just after a virama or a Khmer coeng**, where the next
+///    consonant is drawn as a subscript of the one before.
+///  * **A word in a joining script (Arabic, Persian, Syriac, N'Ko,
+///    Mongolian) is bolded whole**: a letter there takes its shape from its
+///    neighbours, and a span edge inside the word draws both sides as if
+///    the word ended there.
+///
+/// Latin-only titles come back as they are.
+List<(int, int)> snapHighlightRuns(String title, List<(int, int)> runs) {
+  if (runs.isEmpty) return runs;
+  if (!title.codeUnits.any((c) => c >= 0x0300)) return runs;
+  final bounds = <int>{0};
+  var at = 0;
+  for (final g in title.characters) {
+    at += g.length;
+    bounds.add(at);
+  }
+  bool joinsAcross(int b) =>
+      b > 0 && b < title.length && _kViramas.contains(title.codeUnitAt(b - 1));
+  bool isEdge(int b) => bounds.contains(b) && !joinsAcross(b);
+  bool isSpace(int c) => c == 0x20 || c == 0x09 || c == 0x0a || c == 0xa0;
+  final out = <(int, int)>[];
+  for (final (start, end) in runs) {
+    var s = start.clamp(0, title.length);
+    var e = end.clamp(0, title.length);
+    while (s > 0 && !isEdge(s)) {
+      s--;
+    }
+    while (e < title.length && !isEdge(e)) {
+      e++;
+    }
+    var wordStart = s;
+    while (wordStart > 0 && !isSpace(title.codeUnitAt(wordStart - 1))) {
+      wordStart--;
+    }
+    var wordEnd = e;
+    while (wordEnd < title.length && !isSpace(title.codeUnitAt(wordEnd))) {
+      wordEnd++;
+    }
+    final word = title.substring(wordStart, wordEnd);
+    if (word.codeUnits.any(_joins)) {
+      s = wordStart;
+      e = wordEnd;
+    }
+    if (e > s) out.add((s, e));
+  }
+  return _mergeRuns(out);
+}
+
+/// A virama, or the Khmer coeng: the consonant after it is drawn joined to
+/// the one before, though `characters` puts a boundary between them.
+const _kViramas = {
+  0x094D, 0x09CD, 0x0A4D, 0x0ACD, 0x0B4D, 0x0BCD, 0x0C4D, 0x0CCD, //
+  0x0D4D, 0x0DCA, 0x1039, 0x103A, 0x17D2, 0x1A60,
+};
+
+/// A letter of a script whose letters join their neighbours.
+bool _joins(int c) =>
+    (c >= 0x0600 && c <= 0x074F) || // Arabic, Syriac
+    (c >= 0x0750 && c <= 0x077F) || // Arabic Supplement
+    (c >= 0x07C0 && c <= 0x07FF) || // N'Ko
+    (c >= 0x0840 && c <= 0x085F) || // Mandaic
+    (c >= 0x0870 && c <= 0x08FF) || // Arabic Extended-A / -B
+    (c >= 0x1800 && c <= 0x18AF) || // Mongolian
+    (c >= 0xFB50 && c <= 0xFDFF) || // Arabic Presentation Forms-A
+    (c >= 0xFE70 && c <= 0xFEFF); // Arabic Presentation Forms-B
 
 class _Ranked {
   const _Ranked({

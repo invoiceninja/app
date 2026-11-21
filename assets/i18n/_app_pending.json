@@ -2331,5 +2331,12 @@
   "line_item_category_taxes_calculated_on_save": "Taxes on lines with a tax category are calculated when you save.",
   "use_tax_category": "Use a tax category",
   "not_sent_session_ended": "Not sent: the session ended before the server saw this change.",
-  "not_sent_check_then_resend": "It may have been changed elsewhere since, so it won't be sent on its own. Check the record, then resend or discard this change."
+  "not_sent_check_then_resend": "It may have been changed elsewhere since, so it won't be sent on its own. Check the record, then resend or discard this change.",
+  "show_one_result_in_all": "Show :count result in All",
+  "search_one_result_announcement": ":count result in :categories category",
+  "search_at_least_one_result_announcement": "At least :count result in :categories category",
+  "search_results_one_category_announcement": ":count results in :categories category",
+  "search_results_at_least_one_category_announcement": "At least :count results in :categories category",
+  "search_scope_one_result_announcement": ":scope, :count result",
+  "search_scope_at_least_one_result_announcement": ":scope, at least :count result"
 }

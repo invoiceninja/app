@@ -2247,5 +2247,12 @@
   "line_item_category_taxes_calculated_on_save": "ពន្ធលើជួរដែលមានប្រភេទពន្ធ ត្រូវបានគណនានៅពេលអ្នករក្សាទុក។",
   "use_tax_category": "ប្រើប្រភេទពន្ធ",
   "not_sent_session_ended": "មិនបានផ្ញើ៖ វគ្គបានបញ្ចប់មុនពេលម៉ាស៊ីនមេទទួលបានការផ្លាស់ប្តូរនេះ។",
-  "not_sent_check_then_resend": "វាអាចត្រូវបានផ្លាស់ប្តូរនៅកន្លែងផ្សេងតាំងពីពេលនោះ ដូច្នេះវានឹងមិនផ្ញើដោយខ្លួនឯងទេ។ សូមពិនិត្យកំណត់ត្រា បន្ទាប់មកផ្ញើម្តងទៀត ឬបោះបង់ការផ្លាស់ប្តូរនេះ។"
+  "not_sent_check_then_resend": "វាអាចត្រូវបានផ្លាស់ប្តូរនៅកន្លែងផ្សេងតាំងពីពេលនោះ ដូច្នេះវានឹងមិនផ្ញើដោយខ្លួនឯងទេ។ សូមពិនិត្យកំណត់ត្រា បន្ទាប់មកផ្ញើម្តងទៀត ឬបោះបង់ការផ្លាស់ប្តូរនេះ។",
+  "show_one_result_in_all": "បង្ហាញលទ្ធផល :count ក្នុង ទាំងអស់",
+  "search_one_result_announcement": "លទ្ធផល :count ក្នុង :categories ប្រភេទ",
+  "search_at_least_one_result_announcement": "យ៉ាងហោចណាស់លទ្ធផល :count ក្នុង :categories ប្រភេទ",
+  "search_results_one_category_announcement": "លទ្ធផល :count ក្នុង :categories ប្រភេទ",
+  "search_results_at_least_one_category_announcement": "យ៉ាងហោចណាស់លទ្ធផល :count ក្នុង :categories ប្រភេទ",
+  "search_scope_one_result_announcement": ":scope, លទ្ធផល :count",
+  "search_scope_at_least_one_result_announcement": ":scope, យ៉ាងហោចណាស់លទ្ធផល :count"
 }

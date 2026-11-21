@@ -613,4 +613,47 @@ void main() {
       expect(hit.matches, [(0, 4), (10, 13)]);
     });
   });
+
+  group('a highlight never splits a glyph', () {
+    test('a Latin title keeps its runs', () {
+      expect(snapHighlightRuns('Prosper Ltd', [(0, 3)]), [(0, 3)]);
+    });
+
+    test('a Thai vowel or tone mark stays on its letter', () {
+      // ท + ี + ่ is one grapheme; a run of just the consonant left the
+      // marks to float in a span of their own.
+      expect(snapHighlightRuns('ที่ดิน', [(0, 1)]), [(0, 3)]);
+    });
+
+    test('a Khmer coeng keeps its subscript consonant', () {
+      // ក + ្ (coeng) + ក: the second ក is drawn under the first.
+      expect(snapHighlightRuns('ក្ក', [(0, 2)]), [(0, 3)]);
+    });
+
+    test('an Arabic word is bolded whole', () {
+      // شركة النور — a run inside the first word takes the word.
+      expect(snapHighlightRuns('شركة النور', [(1, 3)]), [(0, 4)]);
+      expect(snapHighlightRuns('شركة النور', [(6, 8)]), [(5, 10)]);
+    });
+
+    test('only the word in a joining script is widened', () {
+      expect(snapHighlightRuns('Acme شركة', [(0, 2)]), [(0, 2)]);
+    });
+
+    test('runs that meet once widened are merged', () {
+      expect(snapHighlightRuns('شركة', [(0, 1), (2, 3)]), [(0, 4)]);
+    });
+
+    test('the match runs a hit carries are snapped', () {
+      final r = buildPaletteResults(
+        query: 'ت',
+        hits: [_hit('clients', 'شركة التقنية', id: 'c1')],
+        serverFiltered: true,
+        localHits: const [],
+        serverHitCount: 1,
+      );
+      final hit = r.items.whereType<PaletteRow>().single.hit;
+      expect(hit.matches, [(5, 12)], reason: 'the whole second word');
+    });
+  });
 }

@@ -2248,5 +2248,12 @@
   "line_item_category_taxes_calculated_on_save": "Els impostos de les línies amb categoria fiscal es calculen quan deseu.",
   "use_tax_category": "Utilitza una categoria tributària",
   "not_sent_session_ended": "No s'ha enviat: la sessió ha finalitzat abans que el servidor rebés aquest canvi.",
-  "not_sent_check_then_resend": "Pot ser que s'hagi canviat en un altre lloc des de llavors, així que no s'enviarà automàticament. Comproveu el registre i després torneu a enviar o descarteu aquest canvi."
+  "not_sent_check_then_resend": "Pot ser que s'hagi canviat en un altre lloc des de llavors, així que no s'enviarà automàticament. Comproveu el registre i després torneu a enviar o descarteu aquest canvi.",
+  "show_one_result_in_all": "Mostra el :count resultat a Tot",
+  "search_one_result_announcement": ":count resultat en :categories categoria",
+  "search_at_least_one_result_announcement": "Almenys :count resultat en :categories categoria",
+  "search_results_one_category_announcement": ":count resultats en :categories categoria",
+  "search_results_at_least_one_category_announcement": "Almenys :count resultats en :categories categoria",
+  "search_scope_one_result_announcement": ":scope, :count resultat",
+  "search_scope_at_least_one_result_announcement": ":scope, almenys :count resultat"
 }

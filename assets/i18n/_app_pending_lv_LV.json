@@ -2332,5 +2332,12 @@
   "line_item_category_taxes_calculated_on_save": "Nodokļi rindām ar nodokļu kategoriju tiek aprēķināti, kad saglabājat.",
   "use_tax_category": "Izmantot nodokļu kategoriju",
   "not_sent_session_ended": "Nav nosūtīts: sesija beidzās, pirms serveris saņēma šīs izmaiņas.",
-  "not_sent_check_then_resend": "Tās, iespējams, kopš tā laika ir mainītas citur, tāpēc tās netiks nosūtītas automātiski. Pārbaudiet ierakstu un pēc tam nosūtiet šīs izmaiņas vēlreiz vai atmetiet tās."
+  "not_sent_check_then_resend": "Tās, iespējams, kopš tā laika ir mainītas citur, tāpēc tās netiks nosūtītas automātiski. Pārbaudiet ierakstu un pēc tam nosūtiet šīs izmaiņas vēlreiz vai atmetiet tās.",
+  "show_one_result_in_all": "Rādīt rezultātu (:count) cilnē Visi",
+  "search_one_result_announcement": "Rezultāts: :count, kategorija: :categories",
+  "search_at_least_one_result_announcement": "Rezultāts: vismaz :count, kategorija: :categories",
+  "search_results_one_category_announcement": "Rezultāti: :count, kategorija: :categories",
+  "search_results_at_least_one_category_announcement": "Rezultāti: vismaz :count, kategorija: :categories",
+  "search_scope_one_result_announcement": ":scope, rezultāts: :count",
+  "search_scope_at_least_one_result_announcement": ":scope, rezultāts: vismaz :count"
 }

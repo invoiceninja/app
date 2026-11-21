@@ -2331,5 +2331,12 @@
   "line_item_category_taxes_calculated_on_save": "Налоги по строкам с налоговой категорией рассчитываются при сохранении.",
   "use_tax_category": "Использовать налоговую категорию",
   "not_sent_session_ended": "Не отправлено: сеанс завершился до того, как сервер получил это изменение.",
-  "not_sent_check_then_resend": "Запись могла быть изменена в другом месте за это время, поэтому изменение не будет отправлено автоматически. Проверьте запись, затем отправьте изменение снова или отмените его."
+  "not_sent_check_then_resend": "Запись могла быть изменена в другом месте за это время, поэтому изменение не будет отправлено автоматически. Проверьте запись, затем отправьте изменение снова или отмените его.",
+  "show_one_result_in_all": "Показать результат (:count) на вкладке «Все»",
+  "search_one_result_announcement": "Результат: :count, категория: :categories",
+  "search_at_least_one_result_announcement": "Результат: не менее :count, категория: :categories",
+  "search_results_one_category_announcement": "Результатов: :count, категория: :categories",
+  "search_results_at_least_one_category_announcement": "Результатов: не менее :count, категория: :categories",
+  "search_scope_one_result_announcement": ":scope, результат: :count",
+  "search_scope_at_least_one_result_announcement": ":scope, результат: не менее :count"
 }

@@ -2331,5 +2331,12 @@
   "line_item_category_taxes_calculated_on_save": "Daně u položek s daňovou kategorií se vypočítají při uložení.",
   "use_tax_category": "Použít daňovou kategorii",
   "not_sent_session_ended": "Neodesláno: relace skončila dřív, než server tuto změnu obdržel.",
-  "not_sent_check_then_resend": "Mezitím mohl být záznam změněn jinde, proto se neodešle automaticky. Zkontrolujte záznam a pak tuto změnu odešlete znovu nebo ji zahoďte."
+  "not_sent_check_then_resend": "Mezitím mohl být záznam změněn jinde, proto se neodešle automaticky. Zkontrolujte záznam a pak tuto změnu odešlete znovu nebo ji zahoďte.",
+  "show_one_result_in_all": "Zobrazit výsledek (:count) na kartě Vše",
+  "search_one_result_announcement": "Výsledek: :count v kategorii: :categories",
+  "search_at_least_one_result_announcement": "Výsledek: alespoň :count v kategorii: :categories",
+  "search_results_one_category_announcement": "Výsledky: :count v kategorii: :categories",
+  "search_results_at_least_one_category_announcement": "Výsledky: alespoň :count v kategorii: :categories",
+  "search_scope_one_result_announcement": ":scope, výsledek: :count",
+  "search_scope_at_least_one_result_announcement": ":scope, výsledek: alespoň :count"
 }

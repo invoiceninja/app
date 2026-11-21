@@ -2248,5 +2248,12 @@
   "line_item_category_taxes_calculated_on_save": "Maksukategooriaga ridade maksud arvutatakse salvestamisel.",
   "use_tax_category": "Kasuta maksukategooriat",
   "not_sent_session_ended": "Saatmata: seanss lõppes enne, kui server selle muudatuse sai.",
-  "not_sent_check_then_resend": "Seda võidi vahepeal mujal muuta, seega seda ei saadeta automaatselt. Kontrollige kirjet ja seejärel saatke see muudatus uuesti või loobuge sellest."
+  "not_sent_check_then_resend": "Seda võidi vahepeal mujal muuta, seega seda ei saadeta automaatselt. Kontrollige kirjet ja seejärel saatke see muudatus uuesti või loobuge sellest.",
+  "show_one_result_in_all": "Näita :count tulemus vaates Kõik",
+  "search_one_result_announcement": "Tulemusi: :count, kategooriaid: :categories",
+  "search_at_least_one_result_announcement": "Tulemusi vähemalt :count, kategooriaid: :categories",
+  "search_results_one_category_announcement": "Tulemusi: :count, kategooriaid: :categories",
+  "search_results_at_least_one_category_announcement": "Tulemusi vähemalt :count, kategooriaid: :categories",
+  "search_scope_one_result_announcement": ":scope, tulemusi: :count",
+  "search_scope_at_least_one_result_announcement": ":scope, tulemusi vähemalt :count"
 }

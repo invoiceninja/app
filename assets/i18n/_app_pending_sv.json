@@ -2318,5 +2318,12 @@
   "line_item_category_taxes_calculated_on_save": "Skatter på rader med en skattekategori beräknas när du sparar.",
   "use_tax_category": "Använd en skattekategori",
   "not_sent_session_ended": "Inte skickad: sessionen avslutades innan servern tog emot ändringen.",
-  "not_sent_check_then_resend": "Den kan ha ändrats någon annanstans sedan dess, så den skickas inte av sig själv. Kontrollera posten och skicka sedan ändringen igen eller förkasta den."
+  "not_sent_check_then_resend": "Den kan ha ändrats någon annanstans sedan dess, så den skickas inte av sig själv. Kontrollera posten och skicka sedan ändringen igen eller förkasta den.",
+  "show_one_result_in_all": "Visa :count resultat i Alla",
+  "search_one_result_announcement": ":count resultat i :categories kategori",
+  "search_at_least_one_result_announcement": "Minst :count resultat i :categories kategori",
+  "search_results_one_category_announcement": ":count resultat i :categories kategori",
+  "search_results_at_least_one_category_announcement": "Minst :count resultat i :categories kategori",
+  "search_scope_one_result_announcement": ":scope, :count resultat",
+  "search_scope_at_least_one_result_announcement": ":scope, minst :count resultat"
 }

@@ -2319,5 +2319,12 @@
   "line_item_category_taxes_calculated_on_save": "Taxele pentru liniile cu o categorie de taxă se calculează la salvare.",
   "use_tax_category": "Folosește o categorie fiscală",
   "not_sent_session_ended": "Netrimis: sesiunea s-a încheiat înainte ca serverul să primească această modificare.",
-  "not_sent_check_then_resend": "Este posibil să fi fost modificată între timp în altă parte, așa că nu va fi trimisă automat. Verificați înregistrarea, apoi retrimiteți sau renunțați la această modificare."
+  "not_sent_check_then_resend": "Este posibil să fi fost modificată între timp în altă parte, așa că nu va fi trimisă automat. Verificați înregistrarea, apoi retrimiteți sau renunțați la această modificare.",
+  "show_one_result_in_all": "Afișați :count rezultat în Tot",
+  "search_one_result_announcement": ":count rezultat în :categories categorie",
+  "search_at_least_one_result_announcement": "Cel puțin :count rezultat în :categories categorie",
+  "search_results_one_category_announcement": ":count rezultate în :categories categorie",
+  "search_results_at_least_one_category_announcement": "Cel puțin :count rezultate în :categories categorie",
+  "search_scope_one_result_announcement": ":scope, :count rezultat",
+  "search_scope_at_least_one_result_announcement": ":scope, cel puțin :count rezultat"
 }

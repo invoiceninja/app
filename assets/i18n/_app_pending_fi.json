@@ -2249,5 +2249,12 @@
   "line_item_category_taxes_calculated_on_save": "Veroluokan sisältävien rivien verot lasketaan, kun tallennat.",
   "use_tax_category": "Käytä veroluokkaa",
   "not_sent_session_ended": "Ei lähetetty: istunto päättyi ennen kuin palvelin sai tämän muutoksen.",
-  "not_sent_check_then_resend": "Sitä on ehkä muutettu sen jälkeen muualla, joten sitä ei lähetetä automaattisesti. Tarkista tietue ja lähetä sitten tämä muutos uudelleen tai hylkää se."
+  "not_sent_check_then_resend": "Sitä on ehkä muutettu sen jälkeen muualla, joten sitä ei lähetetä automaattisesti. Tarkista tietue ja lähetä sitten tämä muutos uudelleen tai hylkää se.",
+  "show_one_result_in_all": "Näytä :count tulos välilehdellä Kaikki",
+  "search_one_result_announcement": ":count tulos :categories luokassa",
+  "search_at_least_one_result_announcement": "Vähintään :count tulos :categories luokassa",
+  "search_results_one_category_announcement": ":count tulosta :categories luokassa",
+  "search_results_at_least_one_category_announcement": "Vähintään :count tulosta :categories luokassa",
+  "search_scope_one_result_announcement": ":scope, :count tulos",
+  "search_scope_at_least_one_result_announcement": ":scope, vähintään :count tulos"
 }

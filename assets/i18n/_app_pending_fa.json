@@ -2332,5 +2332,12 @@
   "line_item_category_taxes_calculated_on_save": "مالیات ردیف‌هایی که دسته مالیاتی دارند هنگام ذخیره محاسبه می‌شود.",
   "use_tax_category": "استفاده از دسته مالیاتی",
   "not_sent_session_ended": "ارسال نشد: نشست پیش از آنکه سرور این تغییر را دریافت کند پایان یافت.",
-  "not_sent_check_then_resend": "ممکن است از آن زمان در جای دیگری تغییر کرده باشد، بنابراین خودکار ارسال نمی‌شود. رکورد را بررسی کنید، سپس این تغییر را دوباره ارسال یا رها کنید."
+  "not_sent_check_then_resend": "ممکن است از آن زمان در جای دیگری تغییر کرده باشد، بنابراین خودکار ارسال نمی‌شود. رکورد را بررسی کنید، سپس این تغییر را دوباره ارسال یا رها کنید.",
+  "show_one_result_in_all": "نمایش :count نتیجه در «همه»",
+  "search_one_result_announcement": ":count نتیجه در :categories دسته",
+  "search_at_least_one_result_announcement": "دست‌کم :count نتیجه در :categories دسته",
+  "search_results_one_category_announcement": ":count نتیجه در :categories دسته",
+  "search_results_at_least_one_category_announcement": "دست‌کم :count نتیجه در :categories دسته",
+  "search_scope_one_result_announcement": ":scope، :count نتیجه",
+  "search_scope_at_least_one_result_announcement": ":scope، دست‌کم :count نتیجه"
 }

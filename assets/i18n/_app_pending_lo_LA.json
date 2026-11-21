@@ -2331,5 +2331,12 @@
   "line_item_category_taxes_calculated_on_save": "ພາສີຂອງລາຍການທີ່ມີປະເພດພາສີຈະຖືກຄິດໄລ່ເມື່ອທ່ານບັນທຶກ.",
   "use_tax_category": "ໃຊ້ໝວດພາສີ",
   "not_sent_session_ended": "ບໍ່ໄດ້ສົ່ງ: ເຊດຊັນສິ້ນສຸດກ່ອນທີ່ເຊີບເວີຈະໄດ້ຮັບການປ່ຽນແປງນີ້.",
-  "not_sent_check_then_resend": "ມັນອາດຈະຖືກປ່ຽນແປງຢູ່ບ່ອນອື່ນຕັ້ງແຕ່ນັ້ນ, ສະນັ້ນມັນຈະບໍ່ຖືກສົ່ງເອງ. ກວດເບິ່ງບັນທຶກ, ແລ້ວສົ່ງຄືນ ຫຼື ຍົກເລີກການປ່ຽນແປງນີ້."
+  "not_sent_check_then_resend": "ມັນອາດຈະຖືກປ່ຽນແປງຢູ່ບ່ອນອື່ນຕັ້ງແຕ່ນັ້ນ, ສະນັ້ນມັນຈະບໍ່ຖືກສົ່ງເອງ. ກວດເບິ່ງບັນທຶກ, ແລ້ວສົ່ງຄືນ ຫຼື ຍົກເລີກການປ່ຽນແປງນີ້.",
+  "show_one_result_in_all": "ສະແດງ :count ຜົນລັບໃນ ທັງໝົດ",
+  "search_one_result_announcement": ":count ຜົນລັບໃນ :categories ໝວດໝູ່",
+  "search_at_least_one_result_announcement": "ຢ່າງໜ້ອຍ :count ຜົນລັບໃນ :categories ໝວດໝູ່",
+  "search_results_one_category_announcement": ":count ຜົນລັບໃນ :categories ໝວດໝູ່",
+  "search_results_at_least_one_category_announcement": "ຢ່າງໜ້ອຍ :count ຜົນລັບໃນ :categories ໝວດໝູ່",
+  "search_scope_one_result_announcement": ":scope, :count ຜົນລັບ",
+  "search_scope_at_least_one_result_announcement": ":scope, ຢ່າງໜ້ອຍ :count ຜົນລັບ"
 }

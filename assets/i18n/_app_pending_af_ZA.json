@@ -2248,5 +2248,12 @@
   "line_item_category_taxes_calculated_on_save": "Belasting op reëls met 'n belastingkategorie word bereken wanneer jy stoor.",
   "use_tax_category": "Gebruik 'n belastingkategorie",
   "not_sent_session_ended": "Nie gestuur nie: die sessie het geëindig voordat die bediener hierdie verandering gesien het.",
-  "not_sent_check_then_resend": "Dit is dalk intussen elders verander, so dit sal nie vanself gestuur word nie. Gaan die rekord na en stuur dan hierdie verandering weer of gooi dit weg."
+  "not_sent_check_then_resend": "Dit is dalk intussen elders verander, so dit sal nie vanself gestuur word nie. Gaan die rekord na en stuur dan hierdie verandering weer of gooi dit weg.",
+  "show_one_result_in_all": "Wys :count resultaat in Alles",
+  "search_one_result_announcement": ":count resultaat in :categories kategorie",
+  "search_at_least_one_result_announcement": "Minstens :count resultaat in :categories kategorie",
+  "search_results_one_category_announcement": ":count resultate in :categories kategorie",
+  "search_results_at_least_one_category_announcement": "Minstens :count resultate in :categories kategorie",
+  "search_scope_one_result_announcement": ":scope, :count resultaat",
+  "search_scope_at_least_one_result_announcement": ":scope, minstens :count resultaat"
 }

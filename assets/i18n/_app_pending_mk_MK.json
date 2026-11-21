@@ -2331,5 +2331,12 @@
   "line_item_category_taxes_calculated_on_save": "Даноците на ставките со даночна категорија се пресметуваат при зачувување.",
   "use_tax_category": "Користи даночна категорија",
   "not_sent_session_ended": "Не е испратено: сесијата заврши пред серверот да ја прими оваа промена.",
-  "not_sent_check_then_resend": "Можеби оттогаш е променето на друго место, па нема да се испрати само. Проверете го записот, па испратете ја повторно или отфрлете ја оваа промена."
+  "not_sent_check_then_resend": "Можеби оттогаш е променето на друго место, па нема да се испрати само. Проверете го записот, па испратете ја повторно или отфрлете ја оваа промена.",
+  "show_one_result_in_all": "Прикажи го резултатот (:count) во Сите",
+  "search_one_result_announcement": "Резултат: :count во категорија: :categories",
+  "search_at_least_one_result_announcement": "Резултат: најмалку :count во категорија: :categories",
+  "search_results_one_category_announcement": "Резултати: :count во категорија: :categories",
+  "search_results_at_least_one_category_announcement": "Резултати: најмалку :count во категорија: :categories",
+  "search_scope_one_result_announcement": ":scope, резултат: :count",
+  "search_scope_at_least_one_result_announcement": ":scope, резултат: најмалку :count"
 }

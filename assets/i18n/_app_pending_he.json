@@ -2247,5 +2247,12 @@
   "line_item_category_taxes_calculated_on_save": "המסים על שורות עם קטגוריית מס מחושבים בעת השמירה.",
   "use_tax_category": "שימוש בקטגוריית מס",
   "not_sent_session_ended": "לא נשלח: החיבור הסתיים לפני שהשרת קיבל את השינוי הזה.",
-  "not_sent_check_then_resend": "ייתכן שהרשומה שונתה מאז במקום אחר, ולכן השינוי לא יישלח אוטומטית. בדוק את הרשומה ואז שלח שוב או בטל את השינוי."
+  "not_sent_check_then_resend": "ייתכן שהרשומה שונתה מאז במקום אחר, ולכן השינוי לא יישלח אוטומטית. בדוק את הרשומה ואז שלח שוב או בטל את השינוי.",
+  "show_one_result_in_all": "הצג :count תוצאה בלשונית הכל",
+  "search_one_result_announcement": ":count תוצאה ב-:categories קטגוריה",
+  "search_at_least_one_result_announcement": "לפחות :count תוצאה ב-:categories קטגוריה",
+  "search_results_one_category_announcement": ":count תוצאות ב-:categories קטגוריה",
+  "search_results_at_least_one_category_announcement": "לפחות :count תוצאות ב-:categories קטגוריה",
+  "search_scope_one_result_announcement": ":scope, :count תוצאה",
+  "search_scope_at_least_one_result_announcement": ":scope, לפחות :count תוצאה"
 }

@@ -2248,5 +2248,12 @@
   "line_item_category_taxes_calculated_on_save": "Porezi na stavkama s poreznom kategorijom izračunavaju se pri spremanju.",
   "use_tax_category": "Koristi poreznu kategoriju",
   "not_sent_session_ended": "Nije poslano: sesija je završila prije nego što je poslužitelj primio ovu promjenu.",
-  "not_sent_check_then_resend": "Možda je u međuvremenu promijenjeno negdje drugdje, pa se neće poslati samo. Provjerite zapis, a zatim ponovno pošaljite ili odbacite ovu promjenu."
+  "not_sent_check_then_resend": "Možda je u međuvremenu promijenjeno negdje drugdje, pa se neće poslati samo. Provjerite zapis, a zatim ponovno pošaljite ili odbacite ovu promjenu.",
+  "show_one_result_in_all": "Prikaži rezultat (:count) na kartici Svi",
+  "search_one_result_announcement": "Rezultat: :count u kategoriji: :categories",
+  "search_at_least_one_result_announcement": "Rezultat: najmanje :count u kategoriji: :categories",
+  "search_results_one_category_announcement": "Rezultati: :count u kategoriji: :categories",
+  "search_results_at_least_one_category_announcement": "Rezultati: najmanje :count u kategoriji: :categories",
+  "search_scope_one_result_announcement": ":scope, rezultat: :count",
+  "search_scope_at_least_one_result_announcement": ":scope, rezultat: najmanje :count"
 }

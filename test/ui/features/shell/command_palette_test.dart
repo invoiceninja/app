@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -9,11 +10,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
+import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/entity_modules.dart' show DisabledEntityDispatcher;
 import 'package:admin/data/models/domain/search_result.dart';
 import 'package:admin/domain/entity_registry.dart';
 import 'package:admin/domain/entity_type.dart';
 import 'package:admin/ui/core/widgets/key_cap.dart';
+import 'package:admin/ui/features/shell/widgets/company_picker.dart';
 import 'package:admin/ui/features/settings/settings_search_catalog.dart';
 import 'package:admin/ui/features/shell/widgets/command_palette.dart';
 import 'package:admin/ui/features/shell/widgets/search_palette_scope_bar.dart';
@@ -1326,6 +1329,292 @@ void main() {
           expect(searches, 1);
         },
       );
+    });
+
+    testWidgets('on a touch tablet the first arrow shows the selection', (
+      tester,
+    ) async {
+      final semantics = tester.ensureSemantics();
+      await open(
+        tester,
+        size: const Size(1024, 1366),
+        platform: TargetPlatform.iOS,
+        body: () async {
+          await type(tester, 'zeta');
+          final one = find.bySemanticsLabel(RegExp('^Zeta One'));
+          final two = find.bySemanticsLabel(RegExp('^Zeta Two'));
+          expect(
+            tester.getSemantics(one),
+            isSemantics(isSelected: false),
+            reason: 'nothing is painted on touch, so nothing is announced',
+          );
+
+          await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+          await tester.pump();
+          expect(
+            tester.getSemantics(one),
+            isSemantics(isSelected: true),
+            reason: 'the first ↓ shows the first row rather than skip it',
+          );
+
+          await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+          await tester.pump();
+          expect(tester.getSemantics(two), isSemantics(isSelected: true));
+          await tester.pump(const Duration(seconds: 1));
+        },
+      );
+      semantics.dispose();
+    });
+
+    testWidgets('on a touch tablet the first ↑ does not wrap to the end', (
+      tester,
+    ) async {
+      final semantics = tester.ensureSemantics();
+      await open(
+        tester,
+        size: const Size(1024, 1366),
+        platform: TargetPlatform.iOS,
+        body: () async {
+          await type(tester, 'zeta');
+          await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
+          await tester.pump();
+          expect(
+            tester.getSemantics(find.bySemanticsLabel(RegExp('^Zeta One'))),
+            isSemantics(isSelected: true),
+          );
+          await tester.pump(const Duration(seconds: 1));
+        },
+      );
+      semantics.dispose();
+    });
+
+    testWidgets('Enter inside the debounce opens the new text\'s result', (
+      tester,
+    ) async {
+      await open(
+        tester,
+        body: () async {
+          // Zeta One is selected; its record is what a stale Enter opened.
+          await type(tester, 'zeta');
+          await tester.enterText(find.byType(TextField), 'switch company');
+          await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+          await tester.pump(const Duration(milliseconds: 100));
+          await tester.pumpAndSettle();
+          expect(
+            find.byType(CompanyPicker),
+            findsOneWidget,
+            reason: 'Enter waited for "switch company" and opened its row',
+          );
+          await tester.pumpWidget(const SizedBox());
+          await tester.pump(const Duration(milliseconds: 10));
+          await tester.pump(const Duration(milliseconds: 10));
+        },
+      );
+    });
+
+    testWidgets('the category bar fades into what is behind it', (
+      tester,
+    ) async {
+      await open(
+        tester,
+        size: const Size(412, 915),
+        platform: TargetPlatform.android,
+        body: () async {
+          await type(tester, 'prosper');
+          expect(
+            tester
+                .widget<SearchPaletteScopeBar>(
+                  find.byType(SearchPaletteScopeBar),
+                )
+                .fadeColor,
+            InTheme.light.bg,
+            reason: 'the page is Dialog.fullscreen on bg, not the card',
+          );
+        },
+      );
+    });
+
+    testWidgets('the card\'s category bar fades into surface', (tester) async {
+      await open(
+        tester,
+        body: () async {
+          await type(tester, 'prosper');
+          expect(
+            tester
+                .widget<SearchPaletteScopeBar>(
+                  find.byType(SearchPaletteScopeBar),
+                )
+                .fadeColor,
+            InTheme.light.surface,
+          );
+        },
+      );
+    });
+  });
+
+  // A fallback group at its limit (1000 clients) is a floor for the whole
+  // open, however its answer landed.
+  group('a capped fallback keeps its floor', () {
+    late ShellFixture fixture;
+    late Completer<void> gate;
+    late int searches;
+
+    final answer = {
+      'clients': [
+        {'name': 'Other Co', 'id': 'o1', 'path': '/clients/o1'},
+        for (var i = 0; i < 999; i++)
+          {'name': 'Zeta $i', 'id': 'z$i', 'path': '/clients/z$i'},
+      ],
+      'client_contacts': <Object>[],
+      'invoices': [
+        {'name': 'Zeta 1 - 0001', 'id': 'i1', 'path': '/invoices/i1/edit'},
+      ],
+      'projects': <Object>[],
+      'settings': <Object>[],
+    };
+
+    setUp(() async {
+      gate = Completer<void>();
+      searches = 0;
+      fixture = await buildFixture(
+        companies: const [FakeCompany(id: 'c1', name: 'Acme')],
+        closeStreamsSynchronously: true,
+        httpClient: MockClient((req) async {
+          if (req.url.path.endsWith('/api/v1/search')) {
+            searches++;
+            await gate.future;
+            return http.Response(
+              jsonEncode(answer),
+              200,
+              headers: const {'content-type': 'application/json'},
+            );
+          }
+          return http.Response('offline', 503);
+        }),
+      );
+    });
+
+    tearDown(() async => fixture.dispose());
+
+    testWidgets('even when the answer lands after a newer keystroke', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(1200, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await tester.pumpWidget(
+        wrapWithShell(
+          fixture.services,
+          Builder(
+            builder: (context) => TextButton(
+              onPressed: () => showCommandPalette(context),
+              child: const Text('trigger'),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('trigger'));
+      await tester.pumpAndSettle();
+
+      final field = find.byType(TextField);
+      await tester.enterText(field, 'Zeta');
+      // The debounce fires; the request waits at the gate.
+      await tester.pump(const Duration(milliseconds: 200));
+      // A newer text supersedes it before it lands.
+      await tester.enterText(field, '');
+      await tester.enterText(field, 'Zeta 1');
+      gate.complete();
+      // The answer is decoded off the fake clock; give it real time, a
+      // round per await, pumping in between.
+      for (var i = 0; i < 6; i++) {
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 50)),
+        );
+        await tester.pump();
+      }
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pump();
+      expect(searches, 1, reason: 'guard: one request, superseded');
+
+      final bar = tester.widget<SearchPaletteScopeBar>(
+        find.byType(SearchPaletteScopeBar),
+      );
+      final clients = bar.scopes.firstWhere((s) => s.id == 'clients');
+      expect(clients.atLeast, isTrue, reason: 'a group at its limit');
+      expect(bar.scopes.first.atLeast, isTrue, reason: 'and so All');
+    });
+  });
+
+  group('counts read singular at one', () {
+    test('the settled announcement', () {
+      expect(
+        searchResultsAnnouncementKey(1, 1, atLeast: false),
+        'search_one_result_announcement',
+      );
+      expect(
+        searchResultsAnnouncementKey(1, 1, atLeast: true),
+        'search_at_least_one_result_announcement',
+      );
+      expect(
+        searchResultsAnnouncementKey(5, 1, atLeast: false),
+        'search_results_one_category_announcement',
+      );
+      expect(
+        searchResultsAnnouncementKey(95, 1, atLeast: true),
+        'search_results_at_least_one_category_announcement',
+      );
+      expect(
+        searchResultsAnnouncementKey(5, 2, atLeast: false),
+        'search_results_announcement',
+      );
+      expect(
+        searchResultsAnnouncementKey(95, 3, atLeast: true),
+        'search_results_at_least_announcement',
+      );
+    });
+
+    test('a category\'s count', () {
+      expect(
+        searchScopeAnnouncementKey(1, atLeast: false),
+        'search_scope_one_result_announcement',
+      );
+      expect(
+        searchScopeAnnouncementKey(1, atLeast: true),
+        'search_scope_at_least_one_result_announcement',
+      );
+      expect(
+        searchScopeAnnouncementKey(0, atLeast: false),
+        'search_scope_announcement',
+      );
+      expect(
+        searchScopeAnnouncementKey(2, atLeast: true),
+        'search_scope_at_least_announcement',
+      );
+    });
+
+    test('every variant has its English, in the singular', () {
+      final pending = pendingStrings();
+      expect(pending['show_one_result_in_all'], 'Show :count result in All');
+      expect(
+        pending['search_one_result_announcement'],
+        ':count result in :categories category',
+      );
+      expect(
+        pending['search_results_one_category_announcement'],
+        ':count results in :categories category',
+      );
+      expect(
+        pending['search_scope_one_result_announcement'],
+        ':scope, :count result',
+      );
+      for (final key in const [
+        'search_at_least_one_result_announcement',
+        'search_results_at_least_one_category_announcement',
+        'search_scope_at_least_one_result_announcement',
+      ]) {
+        expect(pending[key], isNotNull, reason: key);
+      }
     });
   });
 }

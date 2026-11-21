@@ -2331,5 +2331,12 @@
   "line_item_category_taxes_calculated_on_save": "Taksat e rreshtave me kategori takse llogariten kur ruani.",
   "use_tax_category": "Përdor një kategori takse",
   "not_sent_session_ended": "Nuk u dërgua: seanca përfundoi para se serveri të merrte këtë ndryshim.",
-  "not_sent_check_then_resend": "Mund të jetë ndryshuar diku tjetër që atëherë, ndaj nuk do të dërgohet vetvetiu. Kontrolloni regjistrimin, pastaj ridërgojeni ose hidheni poshtë këtë ndryshim."
+  "not_sent_check_then_resend": "Mund të jetë ndryshuar diku tjetër që atëherë, ndaj nuk do të dërgohet vetvetiu. Kontrolloni regjistrimin, pastaj ridërgojeni ose hidheni poshtë këtë ndryshim.",
+  "show_one_result_in_all": "Shfaq :count rezultat te Të gjitha",
+  "search_one_result_announcement": ":count rezultat në :categories kategori",
+  "search_at_least_one_result_announcement": "Të paktën :count rezultat në :categories kategori",
+  "search_results_one_category_announcement": ":count rezultate në :categories kategori",
+  "search_results_at_least_one_category_announcement": "Të paktën :count rezultate në :categories kategori",
+  "search_scope_one_result_announcement": ":scope, :count rezultat",
+  "search_scope_at_least_one_result_announcement": ":scope, të paktën :count rezultat"
 }

@@ -9,6 +9,17 @@ import 'package:admin/ui/core/widgets/ltr_value.dart';
 import 'package:admin/ui/features/shell/widgets/search_palette_results.dart';
 import 'package:admin/ui/features/shell/widgets/sidebar_badge.dart';
 
+/// The key of a category's spoken count — "Clients, 23 results", "Clients,
+/// 1 result", "Clients, at least 23 results". One and many only; a language
+/// with more plural forms words its translation around the number.
+String searchScopeAnnouncementKey(int count, {required bool atLeast}) =>
+    switch ((count == 1, atLeast)) {
+      (true, false) => 'search_scope_one_result_announcement',
+      (true, true) => 'search_scope_at_least_one_result_announcement',
+      (false, false) => 'search_scope_announcement',
+      (false, true) => 'search_scope_at_least_announcement',
+    };
+
 /// The search palette's category bar: All, then every category with hits,
 /// each with its count (docs/search-palette.md).
 ///
@@ -25,6 +36,7 @@ class SearchPaletteScopeBar extends StatefulWidget {
     required this.selectedId,
     required this.onSelect,
     this.tapGroup,
+    this.fadeColor,
     super.key,
   });
 
@@ -36,6 +48,12 @@ class SearchPaletteScopeBar extends StatefulWidget {
   /// The search field's `TapRegion` group: a tap on a category is then not a
   /// tap outside the field, so the soft keyboard stays up.
   final Object? tapGroup;
+
+  /// What the edge fades fade into: the colour behind the bar. The card is
+  /// `surface`, the full-screen page `bg` (`Dialog.fullscreen`, as behind a
+  /// list's status strip) — a `surface` fade on `bg` is a smear at each
+  /// edge. Null: `surface`.
+  final Color? fadeColor;
 
   @override
   State<SearchPaletteScopeBar> createState() => _SearchPaletteScopeBarState();
@@ -148,27 +166,29 @@ class _SearchPaletteScopeBarState extends State<SearchPaletteScopeBar> {
 
   /// A gradient hinting at more categories past one edge, shown only while
   /// there are — the same gate as the status strip's.
-  Widget _edgeFade(InTheme tokens, {required bool leading}) =>
-      PositionedDirectional(
-        top: 0,
-        bottom: 0,
-        start: leading ? 0 : null,
-        end: leading ? null : 0,
-        child: Container(
-          width: 24,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: leading
-                  ? AlignmentDirectional.centerEnd
-                  : AlignmentDirectional.centerStart,
-              end: leading
-                  ? AlignmentDirectional.centerStart
-                  : AlignmentDirectional.centerEnd,
-              colors: [tokens.surface.withValues(alpha: 0), tokens.surface],
-            ),
+  Widget _edgeFade(InTheme tokens, {required bool leading}) {
+    final color = widget.fadeColor ?? tokens.surface;
+    return PositionedDirectional(
+      top: 0,
+      bottom: 0,
+      start: leading ? 0 : null,
+      end: leading ? null : 0,
+      child: Container(
+        width: 24,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: leading
+                ? AlignmentDirectional.centerEnd
+                : AlignmentDirectional.centerStart,
+            end: leading
+                ? AlignmentDirectional.centerStart
+                : AlignmentDirectional.centerEnd,
+            colors: [color.withValues(alpha: 0), color],
           ),
         ),
-      );
+      ),
+    );
+  }
 }
 
 class _ScopeTab extends StatelessWidget {
@@ -194,9 +214,7 @@ class _ScopeTab extends StatelessWidget {
       active: active,
     );
     final announced = context.tr(
-      scope.atLeast
-          ? 'search_scope_at_least_announcement'
-          : 'search_scope_announcement',
+      searchScopeAnnouncementKey(scope.count, atLeast: scope.atLeast),
       {'scope': label, 'count': '${scope.count}'},
     );
     return Semantics(

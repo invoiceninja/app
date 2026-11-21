@@ -2216,5 +2216,12 @@
   "line_item_category_taxes_calculated_on_save": "Thuế của các dòng có danh mục thuế được tính khi bạn lưu.",
   "use_tax_category": "Dùng loại thuế",
   "not_sent_session_ended": "Chưa gửi: phiên đã kết thúc trước khi máy chủ nhận được thay đổi này.",
-  "not_sent_check_then_resend": "Bản ghi có thể đã được thay đổi ở nơi khác kể từ đó, nên thay đổi này sẽ không tự gửi. Hãy kiểm tra bản ghi, rồi gửi lại hoặc hủy thay đổi này."
+  "not_sent_check_then_resend": "Bản ghi có thể đã được thay đổi ở nơi khác kể từ đó, nên thay đổi này sẽ không tự gửi. Hãy kiểm tra bản ghi, rồi gửi lại hoặc hủy thay đổi này.",
+  "show_one_result_in_all": "Hiện :count kết quả trong Tất cả",
+  "search_one_result_announcement": ":count kết quả trong :categories danh mục",
+  "search_at_least_one_result_announcement": "Ít nhất :count kết quả trong :categories danh mục",
+  "search_results_one_category_announcement": ":count kết quả trong :categories danh mục",
+  "search_results_at_least_one_category_announcement": "Ít nhất :count kết quả trong :categories danh mục",
+  "search_scope_one_result_announcement": ":scope, :count kết quả",
+  "search_scope_at_least_one_result_announcement": ":scope, ít nhất :count kết quả"
 }

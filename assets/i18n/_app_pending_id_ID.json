@@ -2249,5 +2249,12 @@
   "line_item_category_taxes_calculated_on_save": "Pajak pada baris dengan kategori pajak dihitung saat Anda menyimpan.",
   "use_tax_category": "Gunakan kategori pajak",
   "not_sent_session_ended": "Tidak terkirim: sesi berakhir sebelum server menerima perubahan ini.",
-  "not_sent_check_then_resend": "Mungkin telah diubah di tempat lain sejak saat itu, jadi tidak akan dikirim dengan sendirinya. Periksa catatannya, lalu kirim ulang atau buang perubahan ini."
+  "not_sent_check_then_resend": "Mungkin telah diubah di tempat lain sejak saat itu, jadi tidak akan dikirim dengan sendirinya. Periksa catatannya, lalu kirim ulang atau buang perubahan ini.",
+  "show_one_result_in_all": "Tampilkan :count hasil di Semua",
+  "search_one_result_announcement": ":count hasil dalam :categories kategori",
+  "search_at_least_one_result_announcement": "Setidaknya :count hasil dalam :categories kategori",
+  "search_results_one_category_announcement": ":count hasil dalam :categories kategori",
+  "search_results_at_least_one_category_announcement": "Setidaknya :count hasil dalam :categories kategori",
+  "search_scope_one_result_announcement": ":scope, :count hasil",
+  "search_scope_at_least_one_result_announcement": ":scope, setidaknya :count hasil"
 }

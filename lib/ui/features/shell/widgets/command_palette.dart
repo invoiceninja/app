@@ -25,6 +25,7 @@ import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/adaptive.dart';
 import 'package:admin/ui/core/utils/platform_modifier.dart';
 import 'package:admin/ui/core/widgets/key_cap.dart';
+import 'package:admin/ui/core/widgets/ltr_value.dart';
 import 'package:admin/ui/features/reports/helpers/report_access.dart';
 import 'package:admin/ui/features/reports/views/reports_gallery_screen.dart';
 import 'package:admin/ui/features/settings/settings_search_catalog.dart';
@@ -76,6 +77,30 @@ SearchResult? deepLinkSearchHit(String query, EntityRegistry registry) {
     id: '',
     path: raw,
   );
+}
+
+/// The key of the spoken result count once a query settles — "23 results in
+/// 4 categories", "1 result in 1 category", "At least 90 results in 1
+/// category". One and many only; a language with more plural forms words its
+/// translation around the number.
+String searchResultsAnnouncementKey(
+  int count,
+  int categories, {
+  required bool atLeast,
+}) {
+  if (count == 1) {
+    return atLeast
+        ? 'search_at_least_one_result_announcement'
+        : 'search_one_result_announcement';
+  }
+  if (categories == 1) {
+    return atLeast
+        ? 'search_results_at_least_one_category_announcement'
+        : 'search_results_one_category_announcement';
+  }
+  return atLeast
+      ? 'search_results_at_least_announcement'
+      : 'search_results_announcement';
 }
 
 /// The group of the palette's own report hits. Also the localization key of
@@ -564,6 +589,7 @@ class _CommandPaletteState extends State<_CommandPalette> {
         _query = q;
         _serverHits = cached;
         _serverFiltered = false;
+        _cappedScopes = fallbackCappedScopes(cached);
         _localHits = local;
         _loading = false;
         _rebuildView(resetSelection: true);
@@ -590,7 +616,13 @@ class _CommandPaletteState extends State<_CommandPalette> {
           !response.serverFiltered &&
           hits.length > kServerSearchHitCap &&
           answerIgnoresQuery(hits, q);
-      if (cache) _fallbackHits = hits;
+      if (cache) {
+        _fallbackHits = hits;
+        // Set with the cache, not only below: a cached answer that lands
+        // superseded is re-run from the cache, which skips that assignment,
+        // and the floor was lost for the rest of the open.
+        _cappedScopes = fallbackCappedScopes(hits);
+      }
       if (seq != _reqSeq) {
         // Superseded by a newer keystroke — but a query-blind answer serves
         // that one too. Dropping it here meant a steady typist fetched the
@@ -735,9 +767,11 @@ class _CommandPaletteState extends State<_CommandPalette> {
   String _resultsAnnouncement() {
     if (_view.total == 0) return context.tr('no_records_found');
     return context.tr(
-      _view.totalAtLeast
-          ? 'search_results_at_least_announcement'
-          : 'search_results_announcement',
+      searchResultsAnnouncementKey(
+        _view.total,
+        _view.scopes.length,
+        atLeast: _view.totalAtLeast,
+      ),
       {'count': '${_view.total}', 'categories': '${_view.scopes.length}'},
     );
   }
@@ -999,6 +1033,15 @@ class _CommandPaletteState extends State<_CommandPalette> {
   }
 
   void _move(int delta) {
+    // On touch the selection is not painted until an arrow key is pressed
+    // ([_tile]), so the first press only shows it: moving as well put the
+    // first ↓ on the second row and wrapped the first ↑ to the last — the
+    // user never saw the row they skipped.
+    if (Env.isTouchPrimary && !_keyboardNav) {
+      setState(() => _keyboardNav = true);
+      _revealSelected();
+      return;
+    }
     _keyboardNav = true;
     if (_recentMode) {
       final n = _recents.length;
@@ -1095,9 +1138,7 @@ class _CommandPaletteState extends State<_CommandPalette> {
     );
     _announce(
       context.tr(
-        entry.atLeast
-            ? 'search_scope_at_least_announcement'
-            : 'search_scope_announcement',
+        searchScopeAnnouncementKey(entry.count, atLeast: entry.atLeast),
         {'scope': context.tr(scope), 'count': '${entry.count}'},
       ),
     );
@@ -1138,12 +1179,13 @@ class _CommandPaletteState extends State<_CommandPalette> {
     // Enter from a hardware keyboard opens the selection — an iPad with a
     // keyboard included, where the field's submit only runs the search (see
     // [_submit]). Not mid-composition: an IME's Enter confirms its text.
-    // Not on desktop web: the browser submits the field on Enter whether or
-    // not a key handler took it, so the field's own `onSubmitted` is the one
-    // path there — taking it here as well selected twice.
+    // Not on web, touch or not: the browser submits the field on Enter
+    // whether or not a key handler took it, so the field's own `onSubmitted`
+    // is the one path there and [_submit] decides what it does — taking it
+    // here as well selected twice.
     if ((key == LogicalKeyboardKey.enter ||
             key == LogicalKeyboardKey.numpadEnter) &&
-        !(kIsWeb && !Env.isTouchPrimary)) {
+        !kIsWeb) {
       final composing = _controller.value.composing;
       if (composing.isValid && !composing.isCollapsed) {
         return KeyEventResult.ignored;
@@ -1205,17 +1247,20 @@ class _CommandPaletteState extends State<_CommandPalette> {
   /// submit beside the key) must not pop the route under the palette.
   bool _selecting = false;
 
-  Future<void> _select() async {
+  /// Opens the selected row. [tapped]: the user picked a row they can see,
+  /// which opens even while a newer text's search is on its way — only a key
+  /// waits for the rows that text will bring.
+  Future<void> _select({bool tapped = false}) async {
     if (_selecting) return;
     _selecting = true;
     try {
-      await _selectNow();
+      await _selectNow(tapped: tapped);
     } finally {
       _selecting = false;
     }
   }
 
-  Future<void> _selectNow() async {
+  Future<void> _selectNow({required bool tapped}) async {
     // The palette navigates away from whatever is on screen, so it owes the
     // same unsaved-changes prompt the sidebar / branch switcher gives. Without
     // it, a dirty editor was left behind unprompted and then tripped the guard
@@ -1245,12 +1290,17 @@ class _CommandPaletteState extends State<_CommandPalette> {
       return;
     }
     final selectable = _view.selectable;
-    if (selectable.isEmpty) {
-      // Nothing up yet, but a query is on its way: open its first result
-      // when it lands, rather than swallowing the key.
-      if (_debounce?.isActive == true || _loading) _enterPending = true;
+    final searchPending = _debounce?.isActive == true || _loading;
+    // Nothing up yet, or what is up answers an older text (the debounce or
+    // the round trip is still running): open the first result of THIS text
+    // when it lands, rather than swallowing the key or opening the previous
+    // query's selected row.
+    if (searchPending &&
+        (selectable.isEmpty || (!tapped && _controller.text != _query))) {
+      _enterPending = true;
       return;
     }
+    if (selectable.isEmpty) return;
     final item = selectable.firstWhere(
       (i) => i.key == _selectedKey,
       orElse: () => selectable.first,
@@ -1624,18 +1674,24 @@ class _CommandPaletteState extends State<_CommandPalette> {
     required VoidCallback onSelect,
     required VoidCallback onTap,
     String? subtitle,
+    bool subtitleIsValue = false,
     String? trailing,
     Color? iconColor,
   }) {
     final tokens = context.inTheme;
     final painted = selected && (!touch || _keyboardNav);
+    final subtitleStyle = TextStyle(fontSize: 12, color: tokens.ink3);
     return MouseRegion(
       onHover: (_) {
         if (!selected) onSelect();
       },
       child: Semantics(
         button: true,
-        selected: selected,
+        // What is painted, not what Enter would open: on touch nothing is
+        // highlighted until an arrow key, and a screen reader saying
+        // "selected" over a row that looks like every other one is a claim
+        // the screen does not make.
+        selected: painted,
         label: semanticsLabel,
         excludeSemantics: true,
         onTap: onTap,
@@ -1678,15 +1734,21 @@ class _CommandPaletteState extends State<_CommandPalette> {
                           children: [
                             title,
                             if (subtitle != null && subtitle.isNotEmpty)
-                              Text(
-                                subtitle,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: tokens.ink3,
-                                ),
-                              ),
+                              // An email reads left to right in every
+                              // language (CLAUDE.md § Localization).
+                              subtitleIsValue
+                                  ? LtrText(
+                                      subtitle,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: subtitleStyle,
+                                    )
+                                  : Text(
+                                      subtitle,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: subtitleStyle,
+                                    ),
                           ],
                         ),
                       ),
@@ -1728,12 +1790,27 @@ class _CommandPaletteState extends State<_CommandPalette> {
     if (at < hit.title.length) {
       spans.add(TextSpan(text: hit.title.substring(at)));
     }
+    // A document number or an email is a value: laid out left to right in
+    // every language, as `LtrText` would (CLAUDE.md § Localization) — which
+    // takes a plain string, and this title carries its bold runs.
+    final ambient = Directionality.of(context);
+    final ltrValue = ambient == TextDirection.rtl && _isValueTitle(hit);
     return Text.rich(
       TextSpan(style: base, children: spans),
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
+      textDirection: ltrValue ? TextDirection.ltr : null,
+      textAlign: ltrValue ? physicalTextAlign(TextAlign.start, ambient) : null,
     );
   }
+
+  /// Whether [hit]'s title is a value rather than a name: a document's
+  /// number, or the email a nameless contact reads as.
+  static bool _isValueTitle(PaletteHit hit) =>
+      (hit.number != null && hit.title == hit.number) ||
+      _kEmailShape.hasMatch(hit.title);
+
+  static final _kEmailShape = RegExp(r'^[^\s@]+@[^\s@]+$');
 
   IconData _iconFor(SearchResult r, EntityRegistry registry) {
     final type = entityTypeForSearchGroup(r.group);
@@ -1795,7 +1872,7 @@ class _CommandPaletteState extends State<_CommandPalette> {
     void selectThis() => setState(() => _selectedKey = item.key);
     void activate() {
       setState(() => _selectedKey = item.key);
-      unawaited(_select());
+      unawaited(_select(tapped: true));
     }
 
     switch (item) {
@@ -1829,6 +1906,10 @@ class _CommandPaletteState extends State<_CommandPalette> {
           icon: _iconFor(r, registry),
           title: _title(context, hit),
           subtitle: subtitle,
+          subtitleIsValue:
+              settingsHit == null &&
+              subtitle != null &&
+              _kEmailShape.hasMatch(subtitle.trim()),
           // A top hit comes from any category, so it says which.
           trailing: item.inTopHits ? scopeLabel : null,
           semanticsLabel: [
@@ -1886,9 +1967,10 @@ class _CommandPaletteState extends State<_CommandPalette> {
           onTap: activate,
         );
       case PaletteBackToAll():
-        final label = context.tr('show_results_in_all', {
-          'count': '${item.count}',
-        });
+        final label = context.tr(
+          item.count == 1 ? 'show_one_result_in_all' : 'show_results_in_all',
+          {'count': '${item.count}'},
+        );
         return Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -1959,6 +2041,8 @@ class _CommandPaletteState extends State<_CommandPalette> {
             ],
             selectedId: _scope ?? 'all',
             tapGroup: _tapGroup,
+            // The page is `Dialog.fullscreen` on `bg`; the card is `surface`.
+            fadeColor: page ? tokens.bg : tokens.surface,
             onSelect: (id) =>
                 _setScope(id == 'all' ? null : id, announce: true),
           ),
@@ -2042,7 +2126,7 @@ class _CommandPaletteState extends State<_CommandPalette> {
                   onSelect: () => setState(() => _selected = i),
                   onTap: () {
                     setState(() => _selected = i);
-                    unawaited(_select());
+                    unawaited(_select(tapped: true));
                   },
                 ),
             ],

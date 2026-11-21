@@ -2331,5 +2331,12 @@
   "line_item_category_taxes_calculated_on_save": "Steuern auf Positionen mit einer Steuerkategorie werden beim Speichern berechnet.",
   "use_tax_category": "Steuerkategorie verwenden",
   "not_sent_session_ended": "Nicht gesendet: Die Sitzung wurde beendet, bevor der Server diese Änderung erhalten hat.",
-  "not_sent_check_then_resend": "Der Datensatz wurde inzwischen möglicherweise an anderer Stelle geändert, daher wird die Änderung nicht automatisch gesendet. Prüfen Sie den Datensatz und senden Sie die Änderung dann erneut oder verwerfen Sie sie."
+  "not_sent_check_then_resend": "Der Datensatz wurde inzwischen möglicherweise an anderer Stelle geändert, daher wird die Änderung nicht automatisch gesendet. Prüfen Sie den Datensatz und senden Sie die Änderung dann erneut oder verwerfen Sie sie.",
+  "show_one_result_in_all": "In „Alle“ :count Ergebnis anzeigen",
+  "search_one_result_announcement": ":count Ergebnis in :categories Kategorie",
+  "search_at_least_one_result_announcement": "Mindestens :count Ergebnis in :categories Kategorie",
+  "search_results_one_category_announcement": ":count Ergebnisse in :categories Kategorie",
+  "search_results_at_least_one_category_announcement": "Mindestens :count Ergebnisse in :categories Kategorie",
+  "search_scope_one_result_announcement": ":scope, :count Ergebnis",
+  "search_scope_at_least_one_result_announcement": ":scope, mindestens :count Ergebnis"
 }

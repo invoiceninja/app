@@ -2331,5 +2331,12 @@
   "line_item_category_taxes_calculated_on_save": "Avgifter på linjer med en avgiftskategori beregnes når du lagrer.",
   "use_tax_category": "Bruk en avgiftskategori",
   "not_sent_session_ended": "Ikke sendt: økten ble avsluttet før serveren mottok denne endringen.",
-  "not_sent_check_then_resend": "Den kan ha blitt endret et annet sted siden, så den sendes ikke av seg selv. Sjekk posten, og send deretter endringen på nytt eller forkast den."
+  "not_sent_check_then_resend": "Den kan ha blitt endret et annet sted siden, så den sendes ikke av seg selv. Sjekk posten, og send deretter endringen på nytt eller forkast den.",
+  "show_one_result_in_all": "Vis :count resultat i Alle",
+  "search_one_result_announcement": ":count resultat i :categories kategori",
+  "search_at_least_one_result_announcement": "Minst :count resultat i :categories kategori",
+  "search_results_one_category_announcement": ":count resultater i :categories kategori",
+  "search_results_at_least_one_category_announcement": "Minst :count resultater i :categories kategori",
+  "search_scope_one_result_announcement": ":scope, :count resultat",
+  "search_scope_at_least_one_result_announcement": ":scope, minst :count resultat"
 }

@@ -2331,5 +2331,12 @@
   "line_item_category_taxes_calculated_on_save": "税金のカテゴリがある明細の税金は保存時に計算されます。",
   "use_tax_category": "税金のカテゴリを使用",
   "not_sent_session_ended": "未送信: サーバーがこの変更を受け取る前にセッションが終了しました。",
-  "not_sent_check_then_resend": "その後ほかの場所で変更された可能性があるため、自動では送信されません。レコードを確認してから、この変更を再送信または破棄してください。"
+  "not_sent_check_then_resend": "その後ほかの場所で変更された可能性があるため、自動では送信されません。レコードを確認してから、この変更を再送信または破棄してください。",
+  "show_one_result_in_all": "「全て」で :count 件の結果を表示",
+  "search_one_result_announcement": ":categories 個のカテゴリに :count 件の結果",
+  "search_at_least_one_result_announcement": ":categories 個のカテゴリに :count 件以上の結果",
+  "search_results_one_category_announcement": ":categories 個のカテゴリに :count 件の結果",
+  "search_results_at_least_one_category_announcement": ":categories 個のカテゴリに :count 件以上の結果",
+  "search_scope_one_result_announcement": ":scope、:count 件の結果",
+  "search_scope_at_least_one_result_announcement": ":scope、:count 件以上の結果"
 }

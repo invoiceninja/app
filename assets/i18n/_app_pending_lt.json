@@ -2286,5 +2286,12 @@
   "line_item_category_taxes_calculated_on_save": "Eilučių su mokesčių kategorija mokesčiai apskaičiuojami, kai išsaugote.",
   "use_tax_category": "Naudoti mokesčių kategoriją",
   "not_sent_session_ended": "Neišsiųsta: sesija baigėsi anksčiau, nei serveris gavo šį pakeitimą.",
-  "not_sent_check_then_resend": "Nuo tada jis galėjo būti pakeistas kitur, todėl nebus išsiųstas savaime. Patikrinkite įrašą, tada išsiųskite šį pakeitimą dar kartą arba jo atsisakykite."
+  "not_sent_check_then_resend": "Nuo tada jis galėjo būti pakeistas kitur, todėl nebus išsiųstas savaime. Patikrinkite įrašą, tada išsiųskite šį pakeitimą dar kartą arba jo atsisakykite.",
+  "show_one_result_in_all": "Rodyti rezultatą (:count) skirtuke Visi",
+  "search_one_result_announcement": "Rezultatų: :count, kategorijų: :categories",
+  "search_at_least_one_result_announcement": "Rezultatų: bent :count, kategorijų: :categories",
+  "search_results_one_category_announcement": "Rezultatų: :count, kategorijų: :categories",
+  "search_results_at_least_one_category_announcement": "Rezultatų: bent :count, kategorijų: :categories",
+  "search_scope_one_result_announcement": ":scope, rezultatų: :count",
+  "search_scope_at_least_one_result_announcement": ":scope, rezultatų: bent :count"
 }
