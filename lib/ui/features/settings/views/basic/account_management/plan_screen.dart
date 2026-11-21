@@ -248,8 +248,9 @@ class _HostedActionsCardState extends State<_HostedActionsCard> {
   /// The hosted config, asked only where it can change the route: an owner's
   /// active store plan on a Play build, which the config may offer to
   /// replace (a Legacy-app Play subscription, `replaces_v1_play`). Asked
-  /// again for a new session; PurchaseDelivery keeps the answer, so that is
-  /// no second request.
+  /// again for a new session (a delivered purchase refreshes it, and
+  /// PurchaseDelivery forgets the answer then); otherwise PurchaseDelivery
+  /// keeps the answer, so that is no second request.
   Future<IapConfig?>? _config;
   AuthSession? _configFor;
 
@@ -262,8 +263,12 @@ class _HostedActionsCardState extends State<_HostedActionsCard> {
     if (!asks) return null;
     if (_config == null || !identical(_configFor, session)) {
       _configFor = session;
-      _config =
-          context.read<Services>().purchases?.config() ?? Future.value(null);
+      _config = replacementConfigFor(
+        storeBilling: isStoreBillingBuild,
+        store: storeOfBuild,
+        session: session,
+        purchases: () => context.read<Services>().purchases,
+      );
     }
     return _config;
   }

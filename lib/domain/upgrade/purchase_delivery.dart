@@ -148,6 +148,14 @@ class IapConfig {
     caseSensitive: false,
   );
 
+  /// This answer without [replacesLegacyPlay]: for an answer that may predate
+  /// a change of the account's plan.
+  IapConfig withoutReplacement() => IapConfig(
+    purchasesEnabled: purchasesEnabled,
+    appAccountToken: appAccountToken,
+    accountKey: accountKey,
+  );
+
   /// Reads the config response; anything of the wrong shape is [closed].
   factory IapConfig.fromJson(Object? json) {
     if (json is! Map<String, dynamic>) return closed;
@@ -295,6 +303,15 @@ class PurchaseDelivery {
   Future<IapConfig?>? _configInFlight;
   String? _configScope;
 
+  /// Bumped by [_forgetConfig]: an answer asked before it may describe a plan
+  /// the account no longer has, so it is not kept.
+  int _configGeneration = 0;
+
+  /// The active session's store-plan state ([_planStateOf]) when last seen:
+  /// a change (a delivered purchase, a refresh after a revoke) forgets the
+  /// config, whose `replaces_v1_play` was an answer about the old plan.
+  String? _planState;
+
   /// Purchases being posted right now, by [_transactionKey]: the launch
   /// sweep and `Transaction.updates` can hand over the same one at once.
   final _inFlight = <String>{};
@@ -351,8 +368,8 @@ class PurchaseDelivery {
       // Signed out (or self-hosted): the next hosted session, even the same
       // user's, sweeps and asks for the config afresh.
       _sweptFor = null;
-      _config = null;
-      _configFor = null;
+      _forgetConfig();
+      _planState = null;
       _retry?.cancel();
       _retry = null;
       _retries = 0;
@@ -362,7 +379,10 @@ class PurchaseDelivery {
       _onPurchases,
       onError: (Object e) => _log.warning('purchaseStream error: $e'),
     );
-    final scope = _scopeOf(session!);
+    final planState = _planStateOf(session!);
+    if (_planState != null && _planState != planState) _forgetConfig();
+    _planState = planState;
+    final scope = _scopeOf(session);
     if (_sweptFor == scope) return;
     _sweptFor = scope;
     unawaited(_sweep(_ownerOf(session), repostRefused: true));
@@ -375,8 +395,7 @@ class PurchaseDelivery {
     if (_disposed || !_started) return;
     final session = _auth.session.value;
     if (!_canDeliverTo(session)) return;
-    _config = null;
-    _configFor = null;
+    _forgetConfig();
     unawaited(_sweep(_ownerOf(session!)));
   }
 
@@ -389,6 +408,32 @@ class PurchaseDelivery {
   /// for the company of the token it is asked with — whether the user owns
   /// it, and whether it belongs to the user's own account decide
   /// `account_key` — so the config is per active company, not per user.
+  /// What the config's sale answer depends on in the session: whether the
+  /// account has a store plan, and which.
+  static String _planStateOf(AuthSession session) =>
+      '${session.hasIapPlan}|${session.plan}|${session.planExpires}';
+
+  /// Drops the kept config, and keeps no answer already on the wire: the next
+  /// [config] asks afresh. Called when the answer may be about a plan the
+  /// account no longer has (a delivered purchase, a plan change, a resume).
+  void _forgetConfig() {
+    _config = null;
+    _configFor = null;
+    _configInFlight = null;
+    _configScope = null;
+    _configGeneration++;
+  }
+
+  /// After a delivered purchase: the kept answer still names the account and
+  /// its token (so the next delivery asks nothing), but no longer offers to
+  /// replace a Legacy plan, and no answer already on the wire is kept.
+  void _dropReplacement() {
+    _config = _config?.withoutReplacement();
+    _configInFlight = null;
+    _configScope = null;
+    _configGeneration++;
+  }
+
   static String _scopeOf(AuthSession session) =>
       '${_ownerOf(session)}|${session.currentCompanyId}';
 
@@ -510,6 +555,7 @@ class PurchaseDelivery {
   }
 
   Future<IapConfig?> _askConfig(String scope) async {
+    final generation = _configGeneration;
     final IapConfig answer;
     try {
       answer = IapConfig.fromJson(await _apiClient.getOne(kIapConfigPath));
@@ -526,6 +572,11 @@ class PurchaseDelivery {
     // are still the current ones.
     final now = _auth.session.value;
     if (now == null || _scopeOf(now) != scope) return null;
+    if (generation != _configGeneration) {
+      // Asked before the plan changed: good for delivering (the account and
+      // its token are the same), never for selling over a store plan.
+      return answer.withoutReplacement();
+    }
     _config = answer;
     _configFor = scope;
     return answer;
@@ -757,6 +808,9 @@ class PurchaseDelivery {
     _inFlight.remove(key);
     _refused.remove(refusedKey);
     _answered[key] = false;
+    // The account's plan is this purchase now: a kept `replaces_v1_play`
+    // answered for the Legacy plan it replaced, and must not sell again.
+    _dropReplacement();
     // The server has it: finish it even if the refresh below fails.
     await _finishAnswered(p, key);
     try {

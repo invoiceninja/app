@@ -3,6 +3,8 @@
 // manages an in-app plan in the store, and doesn't sell over a web-billed
 // plan. Desktop, the web and F-Droid keep the portal button.
 
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
@@ -14,6 +16,7 @@ import 'package:admin/app/theme.dart';
 import 'package:admin/data/repositories/auth_repository.dart';
 import 'package:admin/domain/upgrade/purchase_delivery.dart';
 import 'package:admin/domain/upgrade/store_build.dart';
+import 'package:admin/domain/upgrade/upgrade_launcher.dart';
 import 'package:admin/ui/features/settings/views/basic/account_management/plan_screen.dart';
 import 'package:admin/utils/formatting.dart';
 
@@ -93,6 +96,7 @@ Future<void> _pump(
   AuthSession session, {
   required bool storeBuild,
   PurchaseDelivery? purchases,
+  AuthRepository? auth,
 }) async {
   debugStoreBillingOverride = storeBuild;
   await tester.pumpWidget(
@@ -102,7 +106,7 @@ Future<void> _pump(
       supportedLocales: kTestSupportedLocales,
       home: Provider<Services>.value(
         value: _FakeServices(
-          auth: _FakeAuth(ValueNotifier(session)),
+          auth: auth ?? _FakeAuth(ValueNotifier(session)),
           purchases: purchases,
         ),
         child: const Scaffold(body: AccountManagementPlanScreen()),
@@ -227,6 +231,103 @@ void main() {
       expect(find.text(legacyNotice), findsNothing);
       expect(find.text(_billedInStore), findsOneWidget);
       expect(find.bySubtype<FilledButton>(), findsNothing);
+    });
+
+    testWidgets('stops offering it once a purchase is delivered', (
+      tester,
+    ) async {
+      final api = FakeApi()
+        ..iapConfig = {
+          'purchases_enabled': true,
+          'app_account_token': kTestAccountToken,
+          'account_key': 'acct-key',
+          'replaces_v1_play': true,
+        };
+      final billing = FakeBilling();
+      final auth = FakeAuth(_activeIap);
+      final delivery = PurchaseDelivery(
+        apiClient: api,
+        auth: auth,
+        billing: billing,
+        platform: defaultTargetPlatform,
+        timer: FakeTimers().call,
+      )..start();
+      addTearDown(delivery.dispose);
+      await _pump(
+        tester,
+        _activeIap,
+        storeBuild: true,
+        purchases: delivery,
+        auth: auth,
+      );
+      expect(find.text(legacyNotice), findsOneWidget);
+
+      // Applied: the server revoked the Legacy subscription, and the
+      // refresh hands over a new snapshot of the (unchanged) store plan.
+      api.iapConfig = {...api.iapConfig! as Map, 'replaces_v1_play': false};
+      billing.purchases.add([googlePurchase()]);
+      await tester.pumpAndSettle();
+      expect(api.posts, hasLength(1));
+      auth.session.value = _activeIap.copyWith();
+      await tester.pumpAndSettle();
+
+      expect(find.text(legacyNotice), findsNothing);
+      expect(find.text(_billedInStore), findsOneWidget);
+    });
+
+    testWidgets('one Upgrade at a time: a second tap while the config is '
+        'asked does nothing', (tester) async {
+      final api = FakeApi()
+        ..iapConfig = {
+          'purchases_enabled': true,
+          'app_account_token': kTestAccountToken,
+          'account_key': 'acct-key',
+          'replaces_v1_play': true,
+        };
+      final auth = FakeAuth(_activeIap);
+      final delivery = PurchaseDelivery(
+        apiClient: api,
+        auth: auth,
+        billing: FakeBilling(),
+        platform: defaultTargetPlatform,
+        timer: FakeTimers().call,
+      )..start();
+      addTearDown(delivery.dispose);
+      await _pump(
+        tester,
+        _activeIap,
+        storeBuild: true,
+        purchases: delivery,
+        auth: auth,
+      );
+      final context = tester.element(find.text(legacyNotice));
+
+      // The config is asked afresh (a resume), and is slow to answer.
+      api.iapConfig = {...api.iapConfig! as Map, 'replaces_v1_play': false};
+      api.getGate = Completer<void>();
+      delivery.onAppResumed();
+      final first = launchUpgrade(context);
+      await tester.pump();
+      expect(upgradeInProgress, isTrue);
+
+      var secondDone = false;
+      unawaited(launchUpgrade(context).then((_) => secondDone = true));
+      await tester.pump();
+      expect(secondDone, isTrue);
+      expect(upgradeInProgress, isTrue);
+
+      // It replaces nothing now: Manage subscription, and the guard lets go.
+      // The config's answer runs on the test's clock; the store page opens
+      // through a platform channel, which answers on the real one.
+      api.getGate!.complete();
+      for (var i = 0; i < 20 && upgradeInProgress; i++) {
+        await tester.pump();
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 20)),
+        );
+      }
+      expect(upgradeInProgress, isFalse);
+      await first;
     });
 
     testWidgets('never on an Apple build', (tester) async {

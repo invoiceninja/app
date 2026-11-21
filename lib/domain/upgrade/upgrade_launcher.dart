@@ -8,6 +8,7 @@ import 'package:store_services/store_services.dart';
 
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/services.dart';
+import 'package:admin/data/repositories/auth/auth_session.dart';
 import 'package:admin/domain/upgrade/purchase_delivery.dart';
 import 'package:admin/domain/upgrade/purchase_service.dart';
 import 'package:admin/domain/upgrade/store_build.dart';
@@ -28,8 +29,59 @@ import 'package:admin/utils/url_safety.dart';
 /// second subscription while one may still bill.
 ///
 /// Where each tap goes is [resolveUpgradeRoute]'s pure decision
-/// (upgrade_route.dart); this carries it out.
+/// (upgrade_route.dart); this carries it out. One at a time: a second tap
+/// while one is still deciding (asking for the user's name, or the hosted
+/// config) or has its sheet open does nothing.
 Future<void> launchUpgrade(BuildContext context) async {
+  if (_upgradeInProgress) return;
+  _upgradeInProgress = true;
+  try {
+    await _launchUpgrade(context);
+  } finally {
+    _upgradeInProgress = false;
+  }
+}
+
+bool _upgradeInProgress = false;
+
+/// Whether a [launchUpgrade] is still running.
+@visibleForTesting
+bool get upgradeInProgress => _upgradeInProgress;
+
+/// How long an Upgrade tap waits for the hosted config before it treats the
+/// answer as no: the store plan is then managed in the store (fails closed).
+const kUpgradeConfigTimeout = Duration(seconds: 8);
+
+/// The hosted config, for the one case it can change where Upgrade goes: an
+/// owner's active store plan on a Play build, which the config may offer to
+/// replace (`replaces_v1_play`, [offersLegacyPlayReplacement]). Null for
+/// everyone else (no request, and [purchases] is not read), and on no answer
+/// within [timeout].
+Future<IapConfig?> replacementConfigFor({
+  required bool storeBilling,
+  required PurchaseStore? store,
+  required AuthSession? session,
+  required PurchaseDelivery? Function() purchases,
+  Duration timeout = kUpgradeConfigTimeout,
+}) async {
+  if (!storeBilling ||
+      store != PurchaseStore.googlePlay ||
+      session == null ||
+      !session.isHosted ||
+      !session.hasActiveIapPlan ||
+      !canBuyForActiveAccount(session)) {
+    return null;
+  }
+  final delivery = purchases();
+  if (delivery == null) return null;
+  try {
+    return await delivery.config().timeout(timeout);
+  } on TimeoutException {
+    return null;
+  }
+}
+
+Future<void> _launchUpgrade(BuildContext context) async {
   final services = context.read<Services>();
   // Hosted billing needs the user's first and last name (React #3341): ask
   // before checkout — required here, where elsewhere it's only a nudge — and
@@ -45,12 +97,12 @@ Future<void> launchUpgrade(BuildContext context) async {
   // An active store plan is sold over only when the hosted config says the
   // purchase replaces a Legacy-app Play subscription; the config is asked
   // (once per user and company, PurchaseDelivery) only where it could.
-  final config =
-      storeBilling &&
-          store == PurchaseStore.googlePlay &&
-          (session?.hasActiveIapPlan ?? false)
-      ? await services.purchases?.config()
-      : null;
+  final config = await replacementConfigFor(
+    storeBilling: storeBilling,
+    store: store,
+    session: session,
+    purchases: () => services.purchases,
+  );
   if (!context.mounted) return;
   final route = resolveUpgradeRoute(
     storeBilling: storeBilling,

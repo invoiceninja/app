@@ -1195,7 +1195,7 @@ Field-level breakdown of every option under each settings panel. Source of truth
 | State-aware upgrade copy (trial / trialing / expired-renew / upgrade) | ✅ | ✅ | ✅ | ✅ | |
 | Hosted upgrade via App Store / Play IAP (Windows / Linux / web → portal; macOS is a store-billing build) | — | ✅ | 🟡 | ✅ | |
 | Manage an App Store subscription in-app (the App Store subscriptions page on iOS and macOS, Play's on Android) | — | — | ✅ | | |
-| Move a Legacy-app Google Play subscription to the new app (the purchase sheet says the Legacy one is cancelled and its unused time refunded; Android only) | — | — | 🟡 | | App side done, fails closed until the hosted config sends `replaces_v1_play` (proposed for admin-module#39, S8) |
+| Move a Legacy-app Google Play subscription to the new app (the purchase sheet says the Legacy one is cancelled and its unused time refunded; Android only) | — | — | 🟡 | | App side done; the hosted config's `replaces_v1_play` is in admin-module#39 (f671a3f, S8), and the app fails closed until that deploys with `NINJA_IAP_PLAY_MIGRATION_REFUND` on |
 | Purchase sheet disclosure (each plan's name, billing period and price, the store's auto-renew and cancel terms, privacy policy and terms links) | — | 🟡 | ✅ | | v1 shows Apple's renewal text and a terms link |
 | Store purchases delivered from app start (renewals, approvals and interrupted purchases; Restore on the Plan tab) | — | ❌ | ✅ | | |
 | Privacy policy and terms of service links in the app (sign-up, About, purchase sheet) | ✅ | ✅ | ✅ | | |

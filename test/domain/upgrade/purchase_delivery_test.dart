@@ -496,6 +496,85 @@ void main() {
   // `GET /api/admin/iap/config` with a 200. Until it has, for this session,
   // nothing is posted and nothing paid is finished: a server without the
   // route must never be handed a purchase.
+  // `replaces_v1_play` answers for the plan the account had when it was
+  // asked: once a purchase is delivered (it replaced that plan) or the plan
+  // changes, the kept answer must not sell over the new store plan.
+  group('the config after the plan changes', () {
+    Map<String, Object?> configWith({required bool replaces}) => {
+      'purchases_enabled': true,
+      'app_account_token': kTestAccountToken,
+      'account_key': 'acct-key',
+      'replaces_v1_play': replaces,
+    };
+
+    test('a delivered purchase drops the kept offer, and asks nothing more '
+        'to deliver the next', () async {
+      api.iapConfig = configWith(replaces: true);
+      final delivery = build(TargetPlatform.android)..start();
+      expect((await delivery.config())!.replacesLegacyPlay, isTrue);
+      final asked = api.gets.length;
+
+      await emit(googlePurchase());
+      expect(kinds(), contains(PurchaseActivityKind.applied));
+
+      final after = (await delivery.config())!;
+      expect(after.replacesLegacyPlay, isFalse);
+      expect(after.accountKey, 'acct-key');
+      expect(after.appAccountToken, kTestAccountToken);
+      expect(api.gets.length, asked);
+    });
+
+    test('an answer asked before the delivery landed is never kept, and '
+        'never offers the replacement', () async {
+      api.iapConfig = configWith(replaces: true);
+      final delivery = build(TargetPlatform.android)..start();
+      await delivery.config();
+
+      // The Play dialog closes (a resume) while the purchase is posted: the
+      // resume's config request answers for the Legacy plan.
+      api.postGate = Completer<void>();
+      await emit(googlePurchase());
+      api.getGate = Completer<void>();
+      delivery.onAppResumed();
+      final early = delivery.config();
+      await pumpEventQueue();
+
+      api.postGate!.complete();
+      await pumpEventQueue();
+      expect(kinds(), contains(PurchaseActivityKind.applied));
+
+      api.iapConfig = configWith(replaces: false);
+      api.getGate!.complete();
+      api.getGate = null;
+      expect((await early)?.replacesLegacyPlay ?? false, isFalse);
+
+      final asked = api.gets.length;
+      expect((await delivery.config())!.replacesLegacyPlay, isFalse);
+      expect(api.gets.length, asked + 1);
+    });
+
+    test("a change of the session's store plan forgets it", () async {
+      api.iapConfig = configWith(replaces: true);
+      final delivery = build(TargetPlatform.android)..start();
+      await delivery.config();
+      final asked = api.gets.length;
+
+      // The same plan, a fresh snapshot: kept.
+      auth.session.value = auth.session.value!.copyWith();
+      await delivery.config();
+      expect(api.gets.length, asked);
+
+      api.iapConfig = configWith(replaces: false);
+      auth.session.value = auth.session.value!.copyWith(
+        plan: 'enterprise',
+        hasIapPlan: true,
+        planExpires: '2099-01-01',
+      );
+      expect((await delivery.config())!.replacesLegacyPlay, isFalse);
+      expect(api.gets.length, asked + 1);
+    });
+  });
+
   group('the hosted config gate', () {
     final unknown = <String, Object>{
       '404 (no route)': const ServerException(404, 'Route does not exist'),

@@ -197,10 +197,15 @@ class FakeApi implements ApiClient {
   };
   final gets = <String>[];
 
+  /// Holds [getOne]'s answer, read when the request was made, until
+  /// completed, when set: a config request on the wire.
+  Completer<void>? getGate;
+
   @override
   Future<dynamic> getOne(String path) async {
     gets.add(path);
     final answer = iapConfig;
+    await getGate?.future;
     if (answer is Exception) throw answer;
     return answer;
   }
