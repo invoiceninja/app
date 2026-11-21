@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_flutter_windows/webview_flutter_windows.dart';
@@ -22,7 +23,12 @@ const _kWindowsMaxDocumentBytes = 1900 * 1024;
 /// instead.
 ///
 /// It is a picture, not a page ([previewHtml]): no script runs, a tapped
-/// link or form leaves the document where it is, and it reads light. docs/windows-web-view.md.
+/// link or form leaves the document where it is, and it reads light. It is
+/// fitted to the pane's width ([previewFitZoom]: an email is a fixed 570 px
+/// table, wider than a phone), and on touch it takes every gesture that
+/// lands on it ([kHtmlWebViewGestures]), so a pinch zooms it and a
+/// sideways drag pans it, even inside a `TabBarView`.
+/// docs/windows-web-view.md.
 class HtmlWebView extends StatefulWidget {
   const HtmlWebView({
     super.key,
@@ -57,6 +63,20 @@ class HtmlWebView extends StatefulWidget {
   State<HtmlWebView> createState() => _HtmlWebViewState();
 }
 
+/// The gestures a `webview_flutter` preview claims: all of them, at once.
+///
+/// With none (the default) a platform view only gets the gestures no
+/// Flutter recognizer around it wants, and the Email screen's `TabBarView`
+/// is a horizontal drag: it won every pinch and every sideways pan, so the
+/// email could be neither zoomed nor moved (and on iOS the web view's own
+/// gestures wait for Flutter's arena to give up on them). Swiping between
+/// the tabs still works everywhere but over the preview itself; the tab
+/// strip is the way across there. No host puts a preview inside a vertical
+/// scroll view (its frame is always bounded), so nothing loses a drag.
+final Set<Factory<OneSequenceGestureRecognizer>> kHtmlWebViewGestures = {
+  Factory<OneSequenceGestureRecognizer>(EagerGestureRecognizer.new),
+};
+
 class _HtmlWebViewState extends State<HtmlWebView> {
   WebViewController? _flutter;
 
@@ -73,7 +93,20 @@ class _HtmlWebViewState extends State<HtmlWebView> {
   /// smaller one comes.
   bool _tooLarge = false;
 
-  String get _document => previewHtml(widget.html);
+  /// The widest fixed width [HtmlWebView.html] declares ([previewContentWidth]),
+  /// read once per document rather than on every layout.
+  late double? _contentWidth = previewContentWidth(widget.html);
+
+  /// The zoom that fits it into the pane, from the last layout; null until
+  /// the first, which is when the document first loads (a load at 1 and
+  /// another once the width is known would flash).
+  double? _zoom;
+
+  /// The document a web view was last handed, so a layout that does not
+  /// change the zoom (or a rebuild) reloads nothing.
+  String? _shown;
+
+  String get _document => previewHtml(widget.html, zoom: _zoom ?? 1);
 
   @override
   void initState() {
@@ -111,7 +144,8 @@ class _HtmlWebViewState extends State<HtmlWebView> {
     if (defaultTargetPlatform != TargetPlatform.macOS) {
       controller.setBackgroundColor(widget.background);
     }
-    _flutter = controller..loadHtmlString(_document);
+    // The document loads after the first layout ([_layout]), fitted to it.
+    _flutter = controller;
   }
 
   bool _fitsWindows(String document) =>
@@ -146,6 +180,7 @@ class _HtmlWebViewState extends State<HtmlWebView> {
         return;
       }
       await controller.loadStringContent(document);
+      _shown = document;
     } on Object {
       // A WebView2 that started but will not take the page (its browser
       // process failed): the fallback, not a blank box.
@@ -155,15 +190,9 @@ class _HtmlWebViewState extends State<HtmlWebView> {
     }
     if (!mounted) return _release();
     setState(() => _windows = controller);
-    // Changed during that last load: the newest one, or the fallback.
-    final now = _document;
-    if (now == document) return;
-    if (_fitsWindows(now)) {
-      unawaited(controller.loadStringContent(now));
-    } else {
-      _release();
-      setState(() => _tooLarge = true);
-    }
+    // Changed during that last load (an edit, or the first layout's zoom):
+    // the newest one, or the fallback.
+    _show();
   }
 
   /// Lets WebView2 go (the widget left, or never needed it).
@@ -180,24 +209,57 @@ class _HtmlWebViewState extends State<HtmlWebView> {
   void didUpdateWidget(covariant HtmlWebView oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.html == widget.html) return;
+    _contentWidth = previewContentWidth(widget.html);
+    final width = _paneWidth;
+    if (width != null) _zoom = previewFitZoom(_contentWidth, width);
+    _show();
+  }
+
+  /// The pane's width at the last layout.
+  double? _paneWidth;
+
+  /// Hands the web view the document as it is now (the newest edit, fitted
+  /// to the newest width), unless it already has it.
+  void _show() {
     final document = _document;
-    unawaited(_flutter?.loadHtmlString(document));
+    if (document == _shown) return;
+    final flutter = _flutter;
+    if (flutter != null) {
+      _shown = document;
+      unawaited(flutter.loadHtmlString(document));
+      return;
+    }
     if (!isWindowsWebView || _failed) return;
     final fits = _fitsWindows(document);
     final windows = _windows;
     if (windows != null) {
       if (fits) {
+        _shown = document;
         unawaited(windows.loadStringContent(document));
       } else {
         _release();
-        _tooLarge = true;
+        _shown = null;
+        if (mounted) setState(() => _tooLarge = true);
       }
     } else if (_tooLarge && fits) {
       // A smaller document after one too large: WebView2 again.
-      _tooLarge = false;
+      if (mounted) setState(() => _tooLarge = false);
       unawaited(_startWindows());
     }
-    // A WebView2 still starting loads the new document when it is up.
+    // A WebView2 still starting loads the newest document when it is up.
+  }
+
+  /// Called with the pane's width on every layout: a new width that changes
+  /// the fit reloads the document after this frame (never during layout).
+  /// An unbounded width fits at 1, and still loads.
+  void _layout(double width) {
+    _paneWidth = width;
+    final zoom = previewFitZoom(_contentWidth, width);
+    if (zoom == _zoom) return;
+    _zoom = zoom;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _show();
+    });
   }
 
   @override
@@ -208,14 +270,24 @@ class _HtmlWebViewState extends State<HtmlWebView> {
 
   @override
   Widget build(BuildContext context) {
-    final flutter = _flutter;
-    if (flutter != null) return WebViewWidget(controller: flutter);
-    final windows = _windows;
-    if (windows != null) return Webview(windows);
-    if (_failed || _tooLarge || !HtmlWebView.supported) {
+    if (!HtmlWebView.supported || _failed || _tooLarge) {
       return widget.fallback(context);
     }
-    // WebView2 is starting.
-    return const SizedBox.expand();
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        _layout(constraints.maxWidth);
+        final flutter = _flutter;
+        if (flutter != null) {
+          return WebViewWidget(
+            controller: flutter,
+            gestureRecognizers: kHtmlWebViewGestures,
+          );
+        }
+        final windows = _windows;
+        if (windows != null) return Webview(windows);
+        // WebView2 is starting.
+        return const SizedBox.expand();
+      },
+    );
   }
 }
