@@ -279,7 +279,10 @@ class _EntityEditScreenScaffoldState<T, VM extends GenericEditViewModel<T>>
     final services = context.read<Services>();
     _companyId = services.auth.session.value!.currentCompanyId;
     if (widget.existingId == null) {
-      final vm = widget.buildVm(context, services, _companyId, null);
+      final vm = widget.buildVm(context, services, _companyId, null)
+        // This form leaves `/x/new` once its create is saved; a Save in the
+        // moment before it does must not create the record twice.
+        ..leavesAfterCreate = true;
       // Files picked on a create form are copies the app owns until queued;
       // the form hands them back through this when it lets go of one. Lazy,
       // so a test's fake `Services` is only asked if a file is discarded.

@@ -133,11 +133,25 @@ void main() {
     // before it navigates, and a Save in that window made it twice.
     final sync = _Sync()
       ..reply.complete(const SyncRowResult(outcome: SyncRowOutcome.success));
-    final vm = _Vm(sync)..set('b');
+    final vm = _Vm(sync)
+      ..leavesAfterCreate = true
+      ..set('b');
     expect(await vm.save(), 'b');
 
     vm.set('c');
     expect(await vm.save(), isNull);
     expect(vm.writes, 1);
+  });
+
+  test('a form that stays mounted after its create may save again', () async {
+    // The invoice designer: its performSave turns the next save into an
+    // update of the record it created.
+    final sync = _Sync()
+      ..reply.complete(const SyncRowResult(outcome: SyncRowOutcome.success));
+    final vm = _Vm(sync)..set('b');
+    await vm.save();
+    vm.set('c');
+    expect(await vm.save(), 'c');
+    expect(vm.writes, 2);
   });
 }

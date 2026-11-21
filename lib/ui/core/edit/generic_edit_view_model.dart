@@ -184,6 +184,13 @@ abstract class GenericEditViewModel<T> extends ChangeNotifier {
   /// docs/after-saving.md).
   bool get editedDuringSave => _editedDuringSave;
 
+  /// Set by a host whose create form leaves for the record once it is saved
+  /// (`EntityEditScreenScaffold`): such a form refuses a second Save after
+  /// its create succeeded. Off for a form that stays mounted and saves the
+  /// created record again (the invoice designer) — its own `performSave`
+  /// turns the next save into an update.
+  bool leavesAfterCreate = false;
+
   T? _lastSentDraft;
 
   /// The draft the last successful save sent — beside [draft], what an edit
@@ -875,11 +882,10 @@ abstract class GenericEditViewModel<T> extends ChangeNotifier {
 
   Future<T?> save() async {
     if (_isSaving) return null;
-    // A new record this form already created: another Save would create it
-    // twice. The form is on its way to the record (`onSaved` awaits a few
-    // reads before it navigates), and that window is not one to make a
-    // duplicate in (docs/after-saving.md).
-    if (isCreate && _lastSentDraft != null) return null;
+    // A new record this form already created, on a form that leaves for the
+    // record once it is saved: another Save would create it twice, and
+    // `onSaved` awaits a few reads before it navigates (docs/after-saving.md).
+    if (leavesAfterCreate && isCreate && _lastSentDraft != null) return null;
     T? saved;
     try {
       saved = await _save();
