@@ -203,6 +203,56 @@ void main() {
       expect(saved.entity.contacts.map((c) => c.id), ['', '']);
     });
 
+    test(
+      'a primary that is not first: each queued contact gets its own id',
+      () async {
+        // The form keeps the user's order; the server returns primary first.
+        final repo = ClientRepository(db: db, api: _FakeClientsApi());
+        final created = await repo.create(
+          companyId: 'co',
+          draft: Client.fromApi(
+            const ClientApi(
+              name: 'Acme',
+              contacts: [
+                ContactApi(firstName: 'Ada'),
+                ContactApi(firstName: 'Bo', isPrimary: true),
+              ],
+            ),
+          ),
+        );
+        await repo.save(
+          companyId: 'co',
+          client: created.entity.copyWith(publicNotes: 'Call first'),
+        );
+
+        await repo.applyCreateResponse(
+          companyId: 'co',
+          tempId: created.entity.id,
+          serverResponse: const ClientApi(
+            id: 'cl_3',
+            name: 'Acme',
+            contacts: [
+              ContactApi(id: 'ct_b', firstName: 'Bo', isPrimary: true),
+              ContactApi(id: 'ct_a', firstName: 'Ada'),
+            ],
+          ),
+        );
+
+        final rows = await db.outboxDao.nextReady(
+          companyId: 'co',
+          now: 1 << 60,
+        );
+        final update = rows.singleWhere((r) => r.mutationKind == 'update');
+        final contacts =
+            (jsonDecode(update.payload) as Map<String, dynamic>)['contacts']
+                as List;
+        expect(
+          [for (final c in contacts) (c['first_name'], c['id'])],
+          [('Ada', 'ct_a'), ('Bo', 'ct_b')],
+        );
+      },
+    );
+
     test('an invoice rebound from the tmp_ id takes the stored invitation, '
         'key and signing state, by contact', () async {
       final repo = InvoiceRepository(

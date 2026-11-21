@@ -216,9 +216,17 @@ one.
 The same draft names its contacts without ids and its invitations without
 keys. The server deletes and recreates contacts a save sends without ids
 (`ClientContactRepository::save`), so the rebind also gives the draft's
-contacts the stored ids — by place, and only while the lists are as long
-(`idsByPosition`, `lib/domain/record_identity.dart`); a contact added or
-removed meanwhile can't be matched, and that list goes as it is. Invitations
+contacts the stored ids (`withStoredContactIds`,
+`lib/domain/record_identity.dart`) — but only where it is sure which contact
+is which, since a contact given another's id takes that one's portal link
+(`contact_key`), password and invitations. Place alone is not enough: the
+server stores and returns contacts primary first (`orderBy is_primary desc`,
+and its contact repositories sort what a save sends the same way), where the
+form keeps the user's order. So a unique email matches first; the rest are
+paired in the server's order and stand only as the same person by name with no
+email on either side; and a list of another length, or any pair that doesn't
+stand — a contact removed and another added in its place — goes as the draft
+has it. Invitations
 take the stored invitation for the same contact, key and signing state
 (`invitationsByContact`): the key goes on the wire only with `can_sign`, which
 the server applies with it (client and vendor, and the five billing
@@ -229,9 +237,10 @@ Save again) carries the blank number in its payload. When the create lands,
 `OutboxDao.rewriteTempIdInPayloads` — which rewrites the queued rows' `tmp_` id
 — also drops a blank `number` from such an update, so the server keeps the
 number the create got; a number the user typed is sent as is. Its contacts get
-the ids from the create's reply, by place on the same rule
-(`BaseEntityRepository.fillQueuedListIds`, from the client and vendor
-`applyCreateResponse`). Its keyless invitations are left: the server soft-
+the ids from the create's reply on the same rule
+(`BaseEntityRepository.fillQueuedContactIds`, from the client and vendor
+`applyCreateResponse`, matching on the payload's `email`, names and
+`is_primary`). Its keyless invitations are left: the server soft-
 deletes the invitations whose keys a save leaves out and then restores the
 trashed one for the same contact (`BaseRepository::save`), so the key — and,
 unless the request says otherwise, `can_sign` — survive.
@@ -247,6 +256,11 @@ that keeps the editor open gives it back. The scaffold notes the focused node
 when the save begins (`focusAtSaveOf`); on a form that stays, that node gets it
 again, and on a reloaded one the focus node at the same place in the new tree
 — the same path the scroll restore uses — a few frames given for it to build.
+
+A held Enter repeats, and each repeat submitted the field again — a save per
+repeat with Save always enabled. `FormSaveScope.trySubmit` submits once per
+press and ignores the repeats until the key is up; a soft keyboard's Done,
+with no key held, always submits.
 
 A new record's form, once its create succeeded, refuses another Save
 (`save()` returns null): `onSaved` awaits a few reads before it navigates away,

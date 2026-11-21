@@ -382,10 +382,16 @@ class VendorRepository extends BaseEntityRepository<Vendor, VendorApi>
         )).map(_fromRow).firstOrNull;
         if (stored != null) {
           vendor = vendor.copyWith(
-            contacts: idsByPosition(
+            contacts: withStoredContactIds(
               vendor.contacts,
               stored.contacts,
-              idOf: (c) => c.id,
+              identityOf: (c) => (
+                id: c.id,
+                email: c.email,
+                firstName: c.firstName,
+                lastName: c.lastName,
+                isPrimary: c.isPrimary,
+              ),
               withId: (c, id) => c.copyWith(id: id),
             ),
           );
@@ -502,11 +508,20 @@ class VendorRepository extends BaseEntityRepository<Vendor, VendorApi>
       deleteById: (id) => db.vendorDao.deleteById(companyId: companyId, id: id),
     );
     // Updates queued before the create landed name its contacts without ids.
-    await fillQueuedListIds(
+    await fillQueuedContactIds(
       companyId: companyId,
       realId: serverResponse.id,
-      listKey: 'contacts',
-      ids: [for (final c in serverResponse.contacts) c.id],
+      stored: [
+        for (final c in serverResponse.contacts)
+          (
+            id: c.id,
+            // Server-minted for an email-less contact: no email to match on.
+            email: isPortalPlaceholderEmail(c.email) ? '' : c.email,
+            firstName: c.firstName,
+            lastName: c.lastName,
+            isPrimary: c.isPrimary,
+          ),
+      ],
     );
   });
 

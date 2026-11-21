@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
 /// Provides the surrounding form's save callback to descendant fields so a
@@ -25,7 +26,37 @@ class FormSaveScope extends InheritedWidget {
       context.dependOnInheritedWidgetOfExactType<FormSaveScope>();
 
   void trySubmit() {
-    if (enabled) onSubmit();
+    if (!enabled) return;
+    // A held Enter repeats, and each repeat submits the field again — one
+    // save per repeat now that Save is always enabled. Only the press
+    // submits; a repeat of it is ignored until the key comes back up. A
+    // submit with no Enter held (a soft keyboard's Done) always goes.
+    if (_enterHeld()) {
+      if (_submittedThisPress) return;
+      _submittedThisPress = true;
+      _watchRelease();
+    }
+    onSubmit();
+  }
+
+  static bool _submittedThisPress = false;
+  static bool _watching = false;
+
+  static bool _enterHeld() {
+    final keyboard = HardwareKeyboard.instance;
+    return keyboard.isPhysicalKeyPressed(PhysicalKeyboardKey.enter) ||
+        keyboard.isPhysicalKeyPressed(PhysicalKeyboardKey.numpadEnter);
+  }
+
+  static void _watchRelease() {
+    if (_watching) return;
+    _watching = true;
+    HardwareKeyboard.instance.addHandler(_onKey);
+  }
+
+  static bool _onKey(KeyEvent event) {
+    if (event is KeyUpEvent && !_enterHeld()) _submittedThisPress = false;
+    return false;
   }
 
   @override
