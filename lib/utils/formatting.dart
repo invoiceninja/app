@@ -716,6 +716,18 @@ bool? _monthBeforeDay(String? pattern) {
   return month < day;
 }
 
+/// Whether the short D/M shortcuts (`3/4`, `0304`, `040326`) read the month
+/// first on a company with [pattern]: only when its month comes before its
+/// day ([_monthBeforeDay] — US formats, id 7 `EEE MMM d, yyyy`) and it does
+/// not open with the year. A year-first pattern (`yyyy-MM-dd`) keeps them
+/// day-first, as they always were: an ISO / Swedish user's `3/4` is 3 April.
+bool _shortcutMonthFirst(String? pattern) {
+  final monthFirst = _monthBeforeDay(pattern);
+  if (monthFirst != true) return false;
+  final year = pattern!.indexOf('y');
+  return year < 0 || year > pattern.indexOf('M');
+}
+
 /// Quick-shortcut paths checked first by [parseDateInput]: keywords,
 /// signed offsets, bare day numbers, compact digit strings. Returns
 /// `null` if no shortcut matched — the caller falls through to the
@@ -763,7 +775,7 @@ DateTime? _tryDateShortcut(
   // From here on, we need a pure-digit string (or one with a single
   // slash). Reject anything else so we don't accidentally swallow input
   // the strict patterns would prefer to handle.
-  final monthFirst = _monthBeforeDay(activePattern) ?? false;
+  final monthFirst = _shortcutMonthFirst(activePattern);
 
   // Slash form: `D/M` or `M/D` with 1-2 digit parts, current year.
   if (input.contains('/') && !input.contains(' ')) {

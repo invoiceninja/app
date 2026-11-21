@@ -835,9 +835,28 @@ void main() {
             parseDateInput('5/14', activePattern: 'EEE MMM d, yyyy', now: now),
             DateTime(2026, 5, 14),
           );
+          // A year-first pattern keeps the shortcuts day-first, as they
+          // always were — its month-before-day order does not reach them.
+          expect(
+            parseDateInput('3/4', activePattern: 'yyyy-MM-dd', now: now),
+            DateTime(2026, 4, 3),
+          );
+          expect(
+            parseDateInput('0304', activePattern: 'yyyy-MM-dd', now: now),
+            DateTime(2026, 4, 3),
+          );
+          expect(
+            parseDateInput('040326', activePattern: 'yyyy-MM-dd', now: now),
+            DateTime(2026, 3, 4),
+          );
           expect(
             parseDateInput('5/14', activePattern: 'yyyy-MM-dd', now: now),
-            DateTime(2026, 5, 14),
+            isNull,
+          );
+          // US formats stay month-first.
+          expect(
+            parseDateInput('3/4', activePattern: 'MM/dd/yyyy', now: now),
+            DateTime(2026, 3, 4),
           );
           expect(
             parseDateInput('14/5', activePattern: 'dd/MMM/yyyy', now: now),
