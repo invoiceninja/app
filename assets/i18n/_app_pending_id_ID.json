@@ -2246,5 +2246,6 @@
   "search_scope_announcement": ":scope, :count hasil",
   "search_scope_at_least_announcement": ":scope, setidaknya :count hasil",
   "session_ended_sign_in_again": "Sesi Anda telah berakhir. Masuk lagi; data Anda dan perubahan yang belum tersinkron tetap disimpan.",
-  "line_item_category_taxes_calculated_on_save": "Pajak pada baris dengan kategori pajak dihitung saat Anda menyimpan."
+  "line_item_category_taxes_calculated_on_save": "Pajak pada baris dengan kategori pajak dihitung saat Anda menyimpan.",
+  "use_tax_category": "Gunakan kategori pajak"
 }

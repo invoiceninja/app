@@ -177,9 +177,10 @@ void main() {
       WidgetTester tester, {
       required List<LineItem> items,
       required LineItemColumnConfig config,
+      double width = 1600,
     }) async {
       emitted = <List<LineItem>>[];
-      tester.view.physicalSize = const Size(1600, 900);
+      tester.view.physicalSize = Size(width, 900);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.reset);
       final fixture = await buildFixture(
@@ -293,38 +294,42 @@ void main() {
       await teardown(tester);
     });
 
-    testWidgets('focus follows a category switch to the control replacing it', (
-      tester,
-    ) async {
-      await pump(tester, items: [_line('1')], config: _categories);
-      bool focusedIn(Finder f) {
-        final focus = FocusManager.instance.primaryFocus?.context;
-        if (focus == null) return false;
-        return find
-            .descendant(
-              of: f,
-              matching: find.byElementPredicate((e) => e == focus),
-            )
-            .evaluate()
-            .isNotEmpty;
-      }
+    testWidgets(
+      'focus follows a category switch to the control replacing it',
+      (tester) async {
+        await pump(tester, items: [_line('1')], config: _categories);
+        bool focusedIn(Finder f) {
+          final focus = FocusManager.instance.primaryFocus?.context;
+          if (focus == null) return false;
+          return find
+              .descendant(
+                of: f,
+                matching: find.byElementPredicate((e) => e == focus),
+              )
+              .evaluate()
+              .isNotEmpty;
+        }
 
-      await tester.tap(
-        find.descendant(of: slot(0), matching: find.text('Physical Goods')),
-      );
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Override Tax').last);
-      await tester.pumpAndSettle();
-      expect(focusedIn(rateField(0)), isTrue, reason: 'onto the rate field');
+        await tester.tap(
+          find.descendant(of: slot(0), matching: find.text('Physical Goods')),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Override Tax').last);
+        await tester.pumpAndSettle();
+        expect(focusedIn(rateField(0)), isTrue, reason: 'onto the rate field');
 
-      await tester.tap(
-        find.descendant(of: slot(0), matching: find.byIcon(Icons.repeat)),
-      );
-      await tester.pumpAndSettle();
-      expect(rateField(0), findsNothing);
-      expect(focusedIn(slot(0)), isTrue, reason: 'onto the category menu');
-      await teardown(tester);
-    });
+        await tester.tap(
+          find.descendant(of: slot(0), matching: find.byIcon(Icons.repeat)),
+        );
+        await tester.pumpAndSettle();
+        expect(rateField(0), findsNothing);
+        expect(focusedIn(slot(0)), isTrue, reason: 'onto the category menu');
+        await teardown(tester);
+      },
+      // A desktop: on touch the rate field is deliberately not focused (it
+      // would raise the keyboard) — the case below.
+      variant: TargetPlatformVariant.only(TargetPlatform.macOS),
+    );
 
     testWidgets('the ghost row shows its category but cannot commit one', (
       tester,
@@ -343,6 +348,74 @@ void main() {
       expect(emitted, isEmpty);
       await teardown(tester);
     });
+
+    group('at the narrowest wide table (700 px)', () {
+      testWidgets('slot 1 is two units wide, headed Tax Category, and the '
+          'category carries its full name as a tooltip', (tester) async {
+        await pump(
+          tester,
+          items: [_line('1'), _line('7')],
+          config: _categories,
+          width: 700,
+        );
+
+        expect(tester.widget<Expanded>(slot(0)).flex, 2);
+        expect(find.text('TAX CATEGORY'), findsOneWidget);
+        expect(find.text('TAX'), findsNothing);
+        expect(
+          find.descendant(
+            of: slot(0),
+            matching: find.byWidgetPredicate(
+              (w) => w is Tooltip && w.message == 'Physical Goods',
+            ),
+          ),
+          findsOneWidget,
+        );
+        // The Override line's rate field keeps room beside the button.
+        expect(tester.getSize(rateField(1)).width, greaterThan(48));
+        await teardown(tester);
+      });
+
+      testWidgets('with Calculate Taxes off the slot stays one unit, "Tax"', (
+        tester,
+      ) async {
+        await pump(tester, items: [_line('1')], config: _rates, width: 700);
+
+        expect(tester.widget<Expanded>(slot(0)).flex, 1);
+        expect(find.text('TAX'), findsOneWidget);
+        await teardown(tester);
+      });
+    });
+
+    testWidgets('the switch-back button names its action', (tester) async {
+      await pump(tester, items: [_line('7')], config: _categories);
+
+      expect(
+        find.descendant(
+          of: slot(0),
+          matching: find.byTooltip('Use a tax category'),
+        ),
+        findsOneWidget,
+      );
+      await teardown(tester);
+    });
+
+    testWidgets('on touch, picking Override does not raise the keyboard', (
+      tester,
+    ) async {
+      await pump(tester, items: [_line('1')], config: _categories);
+
+      await tester.tap(
+        find.descendant(of: slot(0), matching: find.text('Physical Goods')),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Override Tax').last);
+      await tester.pumpAndSettle();
+
+      expect(rateField(0), findsOneWidget);
+      expect(tester.testTextInput.hasAnyClients, isFalse);
+      await teardown(tester);
+    }, variant: TargetPlatformVariant.only(TargetPlatform.iOS));
 
     testWidgets('Calculate Taxes off: every line keeps its rate field', (
       tester,

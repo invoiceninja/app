@@ -2328,5 +2328,6 @@
   "search_scope_announcement": ":scope, :count resultaten",
   "search_scope_at_least_announcement": ":scope, minstens :count resultaten",
   "session_ended_sign_in_again": "Uw sessie is beëindigd. Log opnieuw in; uw gegevens en niet-gesynchroniseerde wijzigingen blijven bewaard.",
-  "line_item_category_taxes_calculated_on_save": "Belastingen op regels met een belastingcategorie worden berekend bij het opslaan."
+  "line_item_category_taxes_calculated_on_save": "Belastingen op regels met een belastingcategorie worden berekend bij het opslaan.",
+  "use_tax_category": "Een belastingcategorie gebruiken"
 }

@@ -100,7 +100,10 @@ double _minTableWidth(BuildContext context, LineItemColumnConfig config) {
   if (config.customFields.isEmpty) return 0;
   // Item 3 + Description 3 + Unit Cost + Quantity + Line Total, then the
   // optional discount and tax columns — the flexes `_Row` lays out.
-  final flexUnits = 9 + (config.showDiscount ? 1 : 0) + config.taxColumnCount;
+  var flexUnits = 9 + (config.showDiscount ? 1 : 0);
+  for (var slot = 1; slot <= config.taxColumnCount; slot++) {
+    flexUnits += _taxSlotFlex(config, slot);
+  }
   var width =
       InSpacing.lg(context) * 2 +
       _kDragColWidth +
@@ -129,6 +132,14 @@ OutlineInputBorder _cellBorder(InTheme tokens, {bool focused = false}) =>
 
 const int _kItemFlex = 2;
 const int _kDescriptionFlex = 3;
+
+/// The flex of tax slot [slot]. While the company calculates taxes the first
+/// slot holds a category name ("Physical Goods", "Reduced Tax") — or, on an
+/// Override line, a rate field with the switch-back button beside it — and a
+/// single unit (~52 px at a 700 px table) cut either to a few letters. The
+/// header, the rows and the drag proxy all read it, so they stay aligned.
+int _taxSlotFlex(LineItemColumnConfig config, int slot) =>
+    config.useTaxCategories && slot == 1 ? 2 : 1;
 
 /// Controller for [LineItemTableDesktop]. Hosted by the per-entity edit
 /// layout so it can register [flushPending] as a `beforeSave` hook on
@@ -701,7 +712,11 @@ class _LineItemTableDesktopState extends State<LineItemTableDesktop> {
                 align: AlignmentDirectional.centerEnd,
               ),
             if (widget.config.taxColumnCount >= 1)
-              cell(tax, align: AlignmentDirectional.centerEnd),
+              cell(
+                tax,
+                flex: _taxSlotFlex(widget.config, 1),
+                align: AlignmentDirectional.centerEnd,
+              ),
             if (widget.config.taxColumnCount >= 2)
               cell(tax2, align: AlignmentDirectional.centerEnd),
             if (widget.config.taxColumnCount >= 3)
@@ -1207,11 +1222,17 @@ class _ColumnHeader extends StatelessWidget {
           // honoured all three; the desktop table rendered only the first, so a
           // multi-rate company could enter one tax on a phone and not on a
           // desktop — the same invoice totalling differently by viewport.
+          //
+          // While the company calculates taxes, slot 1 holds the line's tax
+          // category (rates only on an Override line), so it is headed so.
           for (var slot = 1; slot <= config.taxColumnCount; slot++)
             cell(
-              config.taxColumnCount > 1
+              config.useTaxCategories && slot == 1
+                  ? context.tr('tax_category')
+                  : config.taxColumnCount > 1
                   ? '${label('tax')} $slot'
                   : label('tax'),
+              flex: _taxSlotFlex(config, slot),
               align: AlignmentDirectional.centerEnd,
             ),
           cell(label('line_total'), align: AlignmentDirectional.centerEnd),
@@ -1840,7 +1861,9 @@ class _RowStateW extends State<_Row> {
           companyId: companyId,
           services: services,
           formatter: formatter,
-          autofocus: autofocusTax && slot == 1,
+          // Not on touch: focusing the rate field there raises the soft
+          // keyboard over a menu pick that asked for no typing.
+          autofocus: autofocusTax && slot == 1 && !Env.isTouchPrimary,
           initialName: _taxNameOf(currentItem, slot),
           initialRate: _taxRateOf(currentItem, slot),
           onSelected: (taxRate) {
@@ -2006,6 +2029,7 @@ class _RowStateW extends State<_Row> {
               for (var slot = 1; slot <= config.taxColumnCount; slot++)
                 Expanded(
                   key: ValueKey('tax_$slot'),
+                  flex: _taxSlotFlex(config, slot),
                   child: Padding(
                     padding: const EdgeInsetsDirectional.only(end: _kCellPadH),
                     child: taxSlot(slot),
@@ -3612,42 +3636,55 @@ class _TaxCategoryCell extends StatelessWidget {
         final toggle = onChanged == null
             ? null
             : () => controller.isOpen ? controller.close() : controller.open();
-        return Semantics(
-          button: true,
-          enabled: toggle != null,
-          label: label,
-          value: display,
-          onTap: toggle,
-          excludeSemantics: true,
-          // A local Material for the InkWell's ink — the `Ink` rule,
-          // docs/sidebar-and-shell.md.
-          child: Material(
-            type: MaterialType.transparency,
-            child: InkWell(
-              onTap: toggle,
-              autofocus: autofocus,
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(
-                  minHeight: _kRowContentHeight,
-                ),
-                child: Padding(
-                  padding: const EdgeInsetsDirectional.only(start: _kCellPadH),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          display.isEmpty ? label : display,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          textAlign: TextAlign.end,
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: display.isEmpty ? tokens.ink3 : tokens.ink,
+        // The full name on hover / long-press: a narrow column still cuts a
+        // long one ("Tax-free intra-community delivery"). Always mounted,
+        // only its message varying.
+        return Tooltip(
+          message: display.isEmpty ? label : display,
+          excludeFromSemantics: true,
+          child: Semantics(
+            button: true,
+            enabled: toggle != null,
+            label: label,
+            value: display,
+            onTap: toggle,
+            excludeSemantics: true,
+            // A local Material for the InkWell's ink — the `Ink` rule,
+            // docs/sidebar-and-shell.md.
+            child: Material(
+              type: MaterialType.transparency,
+              child: InkWell(
+                onTap: toggle,
+                autofocus: autofocus,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(
+                    minHeight: _kRowContentHeight,
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsetsDirectional.only(
+                      start: _kCellPadH,
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            display.isEmpty ? label : display,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.end,
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: display.isEmpty ? tokens.ink3 : tokens.ink,
+                            ),
                           ),
                         ),
-                      ),
-                      Icon(Icons.arrow_drop_down, size: 18, color: tokens.ink3),
-                    ],
+                        Icon(
+                          Icons.arrow_drop_down,
+                          size: 18,
+                          color: tokens.ink3,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -3683,7 +3720,8 @@ class _UseTaxCategoryButton extends StatelessWidget {
     return SizedBox(
       width: size,
       child: IconButton(
-        tooltip: context.tr('tax_category'),
+        // Not "Tax Category" — that names the column; this is the action.
+        tooltip: context.tr('use_tax_category'),
         onPressed: onPressed,
         style: IconButton.styleFrom(
           fixedSize: Size.square(size),

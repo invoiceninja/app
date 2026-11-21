@@ -2328,5 +2328,6 @@
   "search_scope_announcement": ":scope, :count resultater",
   "search_scope_at_least_announcement": ":scope, minst :count resultater",
   "session_ended_sign_in_again": "Økten er avsluttet. Logg inn igjen; dataene dine og endringer som ikke er synkronisert, beholdes.",
-  "line_item_category_taxes_calculated_on_save": "Avgifter på linjer med en avgiftskategori beregnes når du lagrer."
+  "line_item_category_taxes_calculated_on_save": "Avgifter på linjer med en avgiftskategori beregnes når du lagrer.",
+  "use_tax_category": "Bruk en avgiftskategori"
 }

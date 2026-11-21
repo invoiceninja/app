@@ -2328,5 +2328,6 @@
   "search_scope_announcement": ":scope, :count Ergebnisse",
   "search_scope_at_least_announcement": ":scope, mindestens :count Ergebnisse",
   "session_ended_sign_in_again": "Ihre Sitzung wurde beendet. Melden Sie sich erneut an; Ihre Daten und nicht synchronisierten Änderungen bleiben erhalten.",
-  "line_item_category_taxes_calculated_on_save": "Steuern auf Positionen mit einer Steuerkategorie werden beim Speichern berechnet."
+  "line_item_category_taxes_calculated_on_save": "Steuern auf Positionen mit einer Steuerkategorie werden beim Speichern berechnet.",
+  "use_tax_category": "Steuerkategorie verwenden"
 }

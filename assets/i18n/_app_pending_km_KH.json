@@ -2244,5 +2244,6 @@
   "search_scope_announcement": ":scope, លទ្ធផល :count",
   "search_scope_at_least_announcement": ":scope, យ៉ាងហោចណាស់លទ្ធផល :count",
   "session_ended_sign_in_again": "វគ្គរបស់អ្នកបានបញ្ចប់ហើយ។ សូមចូលម្តងទៀត។ ទិន្នន័យ និងការផ្លាស់ប្តូរដែលមិនទាន់ធ្វើសមកាលកម្មរបស់អ្នកត្រូវបានរក្សាទុក។",
-  "line_item_category_taxes_calculated_on_save": "ពន្ធលើជួរដែលមានប្រភេទពន្ធ ត្រូវបានគណនានៅពេលអ្នករក្សាទុក។"
+  "line_item_category_taxes_calculated_on_save": "ពន្ធលើជួរដែលមានប្រភេទពន្ធ ត្រូវបានគណនានៅពេលអ្នករក្សាទុក។",
+  "use_tax_category": "ប្រើប្រភេទពន្ធ"
 }

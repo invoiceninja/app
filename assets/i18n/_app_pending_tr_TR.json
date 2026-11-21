@@ -2328,5 +2328,6 @@
   "search_scope_announcement": ":scope, :count sonuç",
   "search_scope_at_least_announcement": ":scope, en az :count sonuç",
   "session_ended_sign_in_again": "Oturumunuz sona erdi. Tekrar giriş yapın; verileriniz ve senkronize edilmemiş değişiklikleriniz korunur.",
-  "line_item_category_taxes_calculated_on_save": "Vergi kategorisi olan satırların vergileri kaydettiğinizde hesaplanır."
+  "line_item_category_taxes_calculated_on_save": "Vergi kategorisi olan satırların vergileri kaydettiğinizde hesaplanır.",
+  "use_tax_category": "Vergi kategorisi kullan"
 }

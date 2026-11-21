@@ -2328,5 +2328,6 @@
   "search_scope_announcement": ":scope、:count 件の結果",
   "search_scope_at_least_announcement": ":scope、:count 件以上の結果",
   "session_ended_sign_in_again": "セッションが終了しました。もう一度サインインしてください。データと未同期の変更は保持されています。",
-  "line_item_category_taxes_calculated_on_save": "税区分のある明細の税金は保存時に計算されます。"
+  "line_item_category_taxes_calculated_on_save": "税金のカテゴリがある明細の税金は保存時に計算されます。",
+  "use_tax_category": "税金のカテゴリを使用"
 }

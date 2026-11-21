@@ -2283,5 +2283,6 @@
   "search_scope_announcement": ":scope, :count találat",
   "search_scope_at_least_announcement": ":scope, legalább :count találat",
   "session_ended_sign_in_again": "A munkamenet véget ért. Jelentkezzen be újra; az adatai és a nem szinkronizált módosításai megmaradnak.",
-  "line_item_category_taxes_calculated_on_save": "Az adókategóriával rendelkező tételek adói mentéskor kerülnek kiszámításra."
+  "line_item_category_taxes_calculated_on_save": "Az adókategóriával rendelkező tételek adói mentéskor kerülnek kiszámításra.",
+  "use_tax_category": "Adókategória használata"
 }

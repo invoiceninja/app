@@ -2246,5 +2246,6 @@
   "search_scope_announcement": ":scope, wyniki: :count",
   "search_scope_at_least_announcement": ":scope, wyniki: co najmniej :count",
   "session_ended_sign_in_again": "Twoja sesja została zakończona. Zaloguj się ponownie; Twoje dane i niezsynchronizowane zmiany zostały zachowane.",
-  "line_item_category_taxes_calculated_on_save": "Podatki od pozycji z kategorią podatkową są obliczane podczas zapisywania."
+  "line_item_category_taxes_calculated_on_save": "Podatki od pozycji z kategorią podatkową są obliczane podczas zapisywania.",
+  "use_tax_category": "Użyj kategorii podatku"
 }

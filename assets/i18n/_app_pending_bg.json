@@ -2245,5 +2245,6 @@
   "search_scope_announcement": ":scope, резултати: :count",
   "search_scope_at_least_announcement": ":scope, резултати: поне :count",
   "session_ended_sign_in_again": "Сесията ви приключи. Влезте отново; данните ви и несинхронизираните промени се запазват.",
-  "line_item_category_taxes_calculated_on_save": "Данъците на редовете с данъчна категория се изчисляват при запазване."
+  "line_item_category_taxes_calculated_on_save": "Данъците на редовете с данъчна категория се изчисляват при запазване.",
+  "use_tax_category": "Използване на данъчна категория"
 }

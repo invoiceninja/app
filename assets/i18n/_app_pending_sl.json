@@ -2328,5 +2328,6 @@
   "search_scope_announcement": ":scope, rezultati: :count",
   "search_scope_at_least_announcement": ":scope, rezultati: vsaj :count",
   "session_ended_sign_in_again": "Vaša seja se je končala. Znova se prijavite; vaši podatki in nesinhronizirane spremembe so ohranjeni.",
-  "line_item_category_taxes_calculated_on_save": "Davki na postavkah z davčno kategorijo se izračunajo ob shranjevanju."
+  "line_item_category_taxes_calculated_on_save": "Davki na postavkah z davčno kategorijo se izračunajo ob shranjevanju.",
+  "use_tax_category": "Uporabi davčno kategorijo"
 }

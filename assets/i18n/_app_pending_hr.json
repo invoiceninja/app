@@ -2245,5 +2245,6 @@
   "search_scope_announcement": ":scope, rezultati: :count",
   "search_scope_at_least_announcement": ":scope, rezultati: najmanje :count",
   "session_ended_sign_in_again": "Vaša sesija je završila. Prijavite se ponovno; vaši podaci i nesinkronizirane promjene su sačuvani.",
-  "line_item_category_taxes_calculated_on_save": "Porezi na stavkama s poreznom kategorijom izračunavaju se pri spremanju."
+  "line_item_category_taxes_calculated_on_save": "Porezi na stavkama s poreznom kategorijom izračunavaju se pri spremanju.",
+  "use_tax_category": "Koristi poreznu kategoriju"
 }

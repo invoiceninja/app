@@ -2245,5 +2245,6 @@
   "search_scope_announcement": ":scope, :count resultats",
   "search_scope_at_least_announcement": ":scope, almenys :count resultats",
   "session_ended_sign_in_again": "La vostra sessió ha finalitzat. Torneu a iniciar sessió; les vostres dades i els canvis no sincronitzats es conserven.",
-  "line_item_category_taxes_calculated_on_save": "Els impostos de les línies amb categoria fiscal es calculen quan deseu."
+  "line_item_category_taxes_calculated_on_save": "Els impostos de les línies amb categoria fiscal es calculen quan deseu.",
+  "use_tax_category": "Utilitza una categoria tributària"
 }

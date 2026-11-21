@@ -2328,5 +2328,6 @@
   "search_scope_announcement": ":scope, :count resultados",
   "search_scope_at_least_announcement": ":scope, pelo menos :count resultados",
   "session_ended_sign_in_again": "Sua sessão foi encerrada. Entre novamente; seus dados e alterações não sincronizadas são mantidos.",
-  "line_item_category_taxes_calculated_on_save": "Os impostos das linhas com categoria de imposto são calculados ao salvar."
+  "line_item_category_taxes_calculated_on_save": "Os impostos das linhas com categoria de imposto são calculados ao salvar.",
+  "use_tax_category": "Usar uma categoria fiscal"
 }

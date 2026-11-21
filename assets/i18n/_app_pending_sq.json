@@ -2328,5 +2328,6 @@
   "search_scope_announcement": ":scope, :count rezultate",
   "search_scope_at_least_announcement": ":scope, të paktën :count rezultate",
   "session_ended_sign_in_again": "Seanca juaj ka përfunduar. Hyni përsëri; të dhënat tuaja dhe ndryshimet e pasinkronizuara ruhen.",
-  "line_item_category_taxes_calculated_on_save": "Taksat e rreshtave me kategori takse llogariten kur ruani."
+  "line_item_category_taxes_calculated_on_save": "Taksat e rreshtave me kategori takse llogariten kur ruani.",
+  "use_tax_category": "Përdor një kategori takse"
 }

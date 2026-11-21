@@ -2329,5 +2329,6 @@
   "search_scope_announcement": ":scope, rezultāti: :count",
   "search_scope_at_least_announcement": ":scope, rezultāti: vismaz :count",
   "session_ended_sign_in_again": "Jūsu sesija ir beigusies. Piesakieties vēlreiz; jūsu dati un nesinhronizētās izmaiņas tiek saglabātas.",
-  "line_item_category_taxes_calculated_on_save": "Nodokļi rindām ar nodokļu kategoriju tiek aprēķināti, kad saglabājat."
+  "line_item_category_taxes_calculated_on_save": "Nodokļi rindām ar nodokļu kategoriju tiek aprēķināti, kad saglabājat.",
+  "use_tax_category": "Izmantot nodokļu kategoriju"
 }

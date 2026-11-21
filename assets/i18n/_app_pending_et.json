@@ -2245,5 +2245,6 @@
   "search_scope_announcement": ":scope, tulemusi: :count",
   "search_scope_at_least_announcement": ":scope, tulemusi vähemalt :count",
   "session_ended_sign_in_again": "Teie seanss on lõppenud. Logige uuesti sisse; teie andmed ja sünkroonimata muudatused säilivad.",
-  "line_item_category_taxes_calculated_on_save": "Maksukategooriaga ridade maksud arvutatakse salvestamisel."
+  "line_item_category_taxes_calculated_on_save": "Maksukategooriaga ridade maksud arvutatakse salvestamisel.",
+  "use_tax_category": "Kasuta maksukategooriat"
 }

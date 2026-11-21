@@ -2245,5 +2245,6 @@
   "search_scope_announcement": ":scope, :count resultate",
   "search_scope_at_least_announcement": ":scope, minstens :count resultate",
   "session_ended_sign_in_again": "Jou sessie het geëindig. Meld weer aan; jou data en ongesinkroniseerde veranderinge word bewaar.",
-  "line_item_category_taxes_calculated_on_save": "Belasting op reëls met 'n belastingkategorie word bereken wanneer jy stoor."
+  "line_item_category_taxes_calculated_on_save": "Belasting op reëls met 'n belastingkategorie word bereken wanneer jy stoor.",
+  "use_tax_category": "Gebruik 'n belastingkategorie"
 }

@@ -3529,6 +3529,10 @@ Email now queues `POST /payments/bulk {action: 'email'}` (as React does). Record
 
 `ProductController::bulk` (around line 479 on v5-develop) applies `set_tax_id` to every id in the request without the `$user->can('edit', $product)` check the other bulk actions use, so a user who may only view products can change their tax category. The app only offers the action with `edit_product`, so this is server-side only. Report it to David privately (permissions), with the one-line guard as the fix.
 
+### Product bulk `set_tax_id`'s `tax_id` rule is malformed — **O (found 2026-11-21)**
+
+`BulkProductRequest` (~38) has `'tax_id' => 'nullable|required_if:action,set_tax_id,in:1,2,3,4,5,6,7,8,9'`: the `in:` list is run together with `required_if`'s arguments (no `|`), so it is read as more values of `action`, and no `in:` check ever runs — any `tax_id` is accepted. Fixed as written (`|in:1,…,9`), it would 422 a bulk set to `10` (`PRODUCT_INTRA_COMMUNITY`, which `BaseRule::tax` and the e-invoice standards already use, and which the app now offers). **Fix:** `required_if:action,set_tax_id|in:1,2,3,4,5,6,7,8,9,10`. **Client:** nothing to do; the bulk Set Tax Category offers 1–10.
+
 ## Run Template — a job the caller may start but not read back, a failure that looks like progress, and a first-record-only permission check — **O (found fixing [app#197](https://github.com/invoiceninja/app/issues/197), verified 2026-11-18 against v5-develop)**
 
 Run Template is `POST /api/v1/<entities>/bulk {action: template, ids, template_id, send_email}`,

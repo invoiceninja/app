@@ -2246,5 +2246,6 @@
   "search_scope_announcement": ":scope, :count résultats",
   "search_scope_at_least_announcement": ":scope, au moins :count résultats",
   "session_ended_sign_in_again": "Votre session a pris fin. Reconnectez-vous ; vos données et vos modifications non synchronisées sont conservées.",
-  "line_item_category_taxes_calculated_on_save": "Les taxes des lignes ayant une catégorie de taxe sont calculées lors de l'enregistrement."
+  "line_item_category_taxes_calculated_on_save": "Les taxes des lignes ayant une catégorie de taxe sont calculées lors de l'enregistrement.",
+  "use_tax_category": "Utiliser une catégorie de taxe"
 }
