@@ -36,8 +36,14 @@ void main() {
   http.Response json(Object body, [int status = 200]) => http.Response(
     jsonEncode(body),
     status,
-    headers: const {'content-type': 'application/json'},
+    // Every Invoice Ninja response carries it (the global Cors middleware).
+    headers: const {
+      'content-type': 'application/json',
+      'x-app-version': '5.12.0',
+    },
   );
+
+  const ninja = {'x-app-version': '5.12.0'};
 
   Future<LoginPrecheck?> run(AuthService svc) => svc.precheck(
     baseUrl: 'https://ninja.example.com',
@@ -94,6 +100,62 @@ void main() {
     });
   });
 
+  group('AuthService.precheck — an answer Invoice Ninja did not send', () {
+    // A company website, a typo'd domain that resolves, a wrong path: no
+    // `X-APP-VERSION`, so step 1 says so instead of asking for the password.
+    test('a web page with no X-APP-VERSION keeps step 1', () {
+      final svc = serviceReturning(
+        (_) => http.Response('<html>Welcome</html>', 200),
+      );
+      expect(run(svc), throwsA(isA<UnexpectedResponseException>()));
+    });
+
+    test('a bare 404 / 405 with no X-APP-VERSION keeps step 1', () {
+      for (final status in [404, 405]) {
+        final svc = serviceReturning((_) => http.Response('Not Found', status));
+        expect(
+          run(svc),
+          throwsA(
+            isA<UnexpectedResponseException>().having(
+              (e) => e.statusCode,
+              'statusCode',
+              status,
+            ),
+          ),
+        );
+      }
+    });
+
+    test('a 5xx without it still fails open (maintenance mode)', () async {
+      final svc = serviceReturning((_) => http.Response('Down', 503));
+      expect(await run(svc), isNull);
+    });
+
+    test('a real answer is taken even without the header', () async {
+      final svc = serviceReturning(
+        (_) => http.Response(
+          jsonEncode({
+            'methods': ['password'],
+          }),
+          200,
+        ),
+      );
+      expect(await run(svc), isNotNull);
+    });
+
+    test('the hosted service is never second-guessed', () async {
+      final svc = serviceReturning((_) => http.Response('<html>', 200));
+      expect(
+        await svc.precheck(
+          baseUrl: 'https://invoicing.co',
+          isHosted: true,
+          email: 'user@example.com',
+        ),
+        isNull,
+      );
+    });
+  });
+
   group('AuthService.precheck — fails open (returns null)', () {
     test('404 from a server without the endpoint', () async {
       final svc = serviceReturning((_) => json({'message': 'Not found'}, 404));
@@ -111,7 +173,9 @@ void main() {
     });
 
     test('non-JSON body', () async {
-      final svc = serviceReturning((_) => http.Response('<html>nope', 200));
+      final svc = serviceReturning(
+        (_) => http.Response('<html>nope', 200, headers: ninja),
+      );
       expect(await run(svc), isNull);
     });
 
@@ -122,7 +186,7 @@ void main() {
 
     test('405 from a server whose router only knows GET there', () async {
       final svc = serviceReturning(
-        (_) => http.Response('Method Not Allowed', 405),
+        (_) => http.Response('Method Not Allowed', 405, headers: ninja),
       );
       expect(await run(svc), isNull);
     });

@@ -219,6 +219,38 @@ class ServerException extends ApiException {
   final Map<String, dynamic>? body;
 }
 
+/// A sign-in request (`AuthService`) was answered with a redirect, which is
+/// never followed: a password must not travel on to an address the user did
+/// not type, and `dart:io` would follow only a 303, as a GET, which the
+/// server then refuses ("Method not supported for this route").
+///
+/// Seen when an `http://` address reaches a server that sends everything to
+/// its `https://` one, or a server moved. [suggestedBaseUrl] is the server
+/// address the redirect points at, when its target is the same route under
+/// another base (`baseUrlFromRedirect`); the login screen offers it.
+class ServerRedirectException extends ServerException {
+  const ServerRedirectException(
+    int statusCode, {
+    this.location,
+    this.suggestedBaseUrl,
+  }) : super(statusCode, 'The server redirected the request');
+
+  /// The response's `Location` header, as sent.
+  final String? location;
+
+  /// The base URL the same request would have reached, or null when the
+  /// redirect went somewhere else (a home page, a login page).
+  final String? suggestedBaseUrl;
+}
+
+/// The server answered a sign-in request with something that is not an
+/// Invoice Ninja JSON response (a web page, an empty body): the URL is most
+/// likely not an Invoice Ninja server. [statusCode] is the HTTP status.
+class UnexpectedResponseException extends ServerException {
+  const UnexpectedResponseException(int statusCode)
+    : super(statusCode, 'The server did not answer as Invoice Ninja does');
+}
+
 class NetworkException extends ApiException {
   const NetworkException(super.message);
 }

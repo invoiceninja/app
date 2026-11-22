@@ -14,6 +14,7 @@ import 'package:admin/data/services/passkey_readiness.dart';
 import 'package:admin/data/services/tls/certificate_trust_store.dart';
 import 'package:admin/ui/core/widgets/notify.dart' show formatNotifyError;
 import 'package:admin/ui/features/auth/view_models/social_sign_in.dart';
+import 'package:admin/utils/local_network_host.dart';
 import 'package:admin/data/services/passkey_failure.dart';
 
 final _passkeyLog = Logger('LoginViewModel.passkey');
@@ -72,8 +73,10 @@ class LoginViewModel extends ChangeNotifier {
     this.passkeyAuthenticator = const PlatformPasskeyAuthenticator(),
     this.served,
     bool? isWeb,
+    bool? pageIsSecure,
     bool? isDemoBuild,
   }) : _isWeb = isWeb ?? kIsWeb,
+       _pageIsSecure = pageIsSecure ?? (kIsWeb && Uri.base.scheme == 'https'),
        _isDemoBuild = isDemoBuild ?? Env.isDemoBuild {
     // A page an Invoice Ninja server served signs in to that server, hosted or
     // not; the view drops the server choice (docs/web-deploy.md).
@@ -122,6 +125,11 @@ class LoginViewModel extends ChangeNotifier {
   /// The browser hides why a connection failed, so on web a self-hosted
   /// network error also suggests the certificate. Injectable for tests.
   final bool _isWeb;
+
+  /// This is a web page loaded over https, whose browser refuses any
+  /// `http://` request to a server off this machine (mixed content).
+  /// Injectable for tests.
+  final bool _pageIsSecure;
 
   /// True = use `Env.hostedApiUrl`; false = use [urlOverride]. When [served],
   /// the page's server is used either way and this keeps only its other
@@ -282,6 +290,28 @@ class LoginViewModel extends ChangeNotifier {
   String? get emailErrorKey => _emailErrorKey;
   String? _urlErrorKey;
   String? get urlErrorKey => _urlErrorKey;
+  Map<String, String> _urlErrorParams = const {};
+
+  /// The placeholders [urlErrorKey] fills (`:url`).
+  Map<String, String> get urlErrorParams => _urlErrorParams;
+
+  /// The server address a redirect pointed at (`ServerRedirectException`),
+  /// offered under the URL field with a button that adopts it
+  /// ([useSuggestedUrl]). Null when there is none.
+  String? _urlSuggestion;
+  String? get urlSuggestion => _urlSuggestion;
+
+  /// Bumped when the VM, not the user, changes [urlOverride]
+  /// ([useSuggestedUrl]), so the view re-creates the field with the new text.
+  int _urlFieldRevision = 0;
+  int get urlFieldRevision => _urlFieldRevision;
+
+  void _clearUrlError() {
+    _urlErrorKey = null;
+    _urlErrorParams = const {};
+    _urlSuggestion = null;
+  }
+
   String? _otpErrorKey;
   String? get otpErrorKey => _otpErrorKey;
 
@@ -311,7 +341,7 @@ class LoginViewModel extends ChangeNotifier {
     _openServerUrl = null;
     _untrustedCertificate = null;
     _emailErrorKey = null;
-    _urlErrorKey = null;
+    _clearUrlError();
     _otpErrorKey = null;
     _fieldErrors = const {};
   }
@@ -331,7 +361,7 @@ class LoginViewModel extends ChangeNotifier {
   void setHosted(bool value) {
     if (served != null || isHosted == value) return;
     isHosted = value;
-    _urlErrorKey = null;
+    _clearUrlError();
     // Different origin → the previous host's answer no longer applies.
     _invalidatePrecheck();
     _forgetPasskeyReadiness();
@@ -342,15 +372,43 @@ class LoginViewModel extends ChangeNotifier {
     final next = value.trim();
     if (next == urlOverride) return;
     final trustedBefore = trustedCertificateForUrl?.key;
+    final insecureBefore = warnsInsecureUrl;
     urlOverride = next;
     // The answer belongs to the previous server.
     _invalidatePrecheck();
     _forgetPasskeyReadiness();
     if (_urlErrorKey != null ||
-        trustedCertificateForUrl?.key != trustedBefore) {
-      _urlErrorKey = null;
+        trustedCertificateForUrl?.key != trustedBefore ||
+        warnsInsecureUrl != insecureBefore) {
+      _clearUrlError();
       _notify();
     }
+  }
+
+  /// Adopts [urlSuggestion] as the server URL (the view then continues).
+  void useSuggestedUrl() {
+    final suggestion = _urlSuggestion;
+    if (suggestion == null || busy) return;
+    setUrlOverride(suggestion);
+    _clearUrlError();
+    _urlFieldRevision++;
+    _notify();
+  }
+
+  /// Whether the URL field should say its connection is not encrypted: an
+  /// `http://` address to a server off the local network. Allowed, as the
+  /// legacy app allowed it, but the password and every invoice then cross
+  /// the internet readable by anyone on the way.
+  bool get warnsInsecureUrl {
+    if (isHosted || !offersServerChoice) return false;
+    final url = resolveSelfHostedBaseUrl(
+      urlOverride,
+      allowInsecureHttpAnywhere: true,
+    ).url;
+    final uri = url == null ? null : Uri.tryParse(url);
+    return uri != null &&
+        uri.scheme.toLowerCase() == 'http' &&
+        !isLocalNetworkHost(uri.host);
   }
 
   /// What this device already trusts for the server in the URL field — the
@@ -539,7 +597,9 @@ class LoginViewModel extends ChangeNotifier {
       return true;
     } on NetworkException catch (e) {
       // Before `ApiException`, which it extends.
-      _onNetworkError(e, baseUrl: baseUrl);
+      if (!_explainUnreachableUrl(e, baseUrl)) {
+        _onNetworkError(e, baseUrl: baseUrl);
+      }
       return false;
     } on ValidationException catch (e) {
       _fieldErrors = e.fieldErrors.containsKey('email')
@@ -550,7 +610,15 @@ class LoginViewModel extends ChangeNotifier {
             };
       return false;
     } on ApiException catch (e) {
-      _setError(message: e.message);
+      // The URL field is on screen: a wrong address is said under it.
+      final wrong = _wrongServerAnswer(e, baseUrl);
+      if (wrong != null) {
+        _urlErrorKey = wrong.key;
+        _urlErrorParams = wrong.params;
+        _urlSuggestion = wrong.suggestion;
+      } else {
+        _setError(message: e.message);
+      }
       return false;
     } on Object catch (e) {
       // Login is the one screen a user cannot route around — never let an
@@ -579,19 +647,31 @@ class LoginViewModel extends ChangeNotifier {
   /// Resolve the base URL for a request. Hosted builds skip validation (the
   /// URL is a compile-time const).
   ///
-  /// Debug builds allow http to any host (local dev against an unencrypted
-  /// server); release restricts http to local network addresses. The policy
-  /// itself lives in the pure [resolveSelfHostedBaseUrl] so it stays testable.
+  /// `http://` is allowed to any server, as the legacy app allowed it (the
+  /// field warns, [warnsInsecureUrl]), except from a page loaded over https,
+  /// whose browser would block it. The policy itself lives in the pure
+  /// [resolveSelfHostedBaseUrl] so it stays testable.
   ({String? url, String? errorKey}) _resolveBaseUrl() {
     final page = served;
     // The page's own origin: no http-only-on-LAN rule, it is where this page
     // was loaded from.
     if (page != null) return (url: page.apiUrl, errorKey: null);
     if (isHosted) return (url: Env.hostedApiUrl, errorKey: null);
-    return resolveSelfHostedBaseUrl(
+    final resolved = resolveSelfHostedBaseUrl(
       urlOverride,
       allowInsecureHttpAnywhere: kDebugMode,
     );
+    // A page loaded over https may not call an http server: the browser
+    // blocks it before it is sent, and reports only a network error. Only
+    // this machine (`localhost`, `127.0.0.1`, `::1`) is exempt.
+    final uri = resolved.url == null ? null : Uri.tryParse(resolved.url!);
+    if (_pageIsSecure &&
+        uri != null &&
+        uri.scheme.toLowerCase() == 'http' &&
+        !_isLoopbackHost(uri.host)) {
+      return (url: null, errorKey: 'http_server_blocked_on_secure_page');
+    }
+    return resolved;
   }
 
   /// [_resolveBaseUrl] for a step-2 request. The URL field isn't on screen
@@ -600,6 +680,74 @@ class LoginViewModel extends ChangeNotifier {
     final resolved = _resolveBaseUrl();
     if (resolved.url == null) _setError(key: resolved.errorKey);
     return resolved.url;
+  }
+
+  /// Step 1 on a native self-hosted sign-in could not reach the server: said
+  /// under the URL field, where the fix nearly always is, rather than as a
+  /// toast of the socket's own words. A host typed without a scheme was tried
+  /// as `https://`, so a server that only speaks `http://` (a LAN box on port
+  /// 8080) is offered that address too. False — the toast — for a refused
+  /// certificate (its own dialog), the hosted service, and the web, whose
+  /// toast offers to open the server for a self-signed certificate.
+  bool _explainUnreachableUrl(NetworkException e, String baseUrl) {
+    if (isHosted ||
+        served != null ||
+        _isWeb ||
+        e is UntrustedCertificateException) {
+      return false;
+    }
+    final uri = Uri.tryParse(baseUrl);
+    _urlErrorKey = 'server_url_unreachable';
+    _urlErrorParams = {
+      'host': uri == null || uri.host.isEmpty ? baseUrl : uri.authority,
+    };
+    final typed = urlOverride.trim().toLowerCase();
+    if (uri != null &&
+        uri.scheme == 'https' &&
+        !typed.startsWith('https://') &&
+        !typed.startsWith('http://')) {
+      _urlSuggestion = uri.replace(scheme: 'http').toString();
+    }
+    return true;
+  }
+
+  /// A self-hosted server's answer that means the URL is wrong, as an
+  /// explanation; null for any other answer (and for the hosted service,
+  /// whose URL the user does not type).
+  ///
+  ///  * a redirect to the same route under another address — the `https://`
+  ///    one, a moved server — says that address ([urlSuggestion]);
+  ///  * any other redirect, or a POST that arrived as a GET (a browser
+  ///    follows a 301 that way), says the server redirected the sign-in;
+  ///  * a 404 / 405, or an answer that is not Invoice Ninja's JSON (a web
+  ///    page), says no Invoice Ninja server answered there.
+  ({String key, Map<String, String> params, String? suggestion})?
+  _wrongServerAnswer(ApiException e, String baseUrl) {
+    if (isHosted || served != null || e is! ServerException) return null;
+    if (e is ServerRedirectException) {
+      final suggested = e.suggestedBaseUrl;
+      if (suggested != null && suggested != baseUrl) {
+        return (
+          key: 'server_url_moved',
+          params: {'url': suggested},
+          suggestion: suggested,
+        );
+      }
+      return (key: 'server_url_redirected', params: const {}, suggestion: null);
+    }
+    if (AuthService.isPostArrivedAsGet(e.statusCode, e.message)) {
+      return (key: 'server_url_redirected', params: const {}, suggestion: null);
+    }
+    if (e is UnexpectedResponseException ||
+        e.statusCode == 404 ||
+        e.statusCode == 405) {
+      return (
+        key: 'server_url_not_invoice_ninja',
+        params: {'url': baseUrl},
+        suggestion: null,
+      );
+    }
+    return null;
   }
 
   /// The server told us this account has TOTP, so `/login` without a code is
@@ -667,7 +815,12 @@ class LoginViewModel extends ChangeNotifier {
       _onNetworkError(e, baseUrl: baseUrl);
       return false;
     } on ApiException catch (e) {
-      _setError(message: e.message);
+      final wrong = _wrongServerAnswer(e, baseUrl);
+      if (wrong != null) {
+        _setError(key: wrong.key, params: wrong.params);
+      } else {
+        _setError(message: e.message);
+      }
       return false;
     } on Object catch (e) {
       // Login is the one screen a user cannot route around, and it was the one
@@ -1039,6 +1192,7 @@ class LoginViewModel extends ChangeNotifier {
 ///
 /// Policy:
 ///  * a bare host (no scheme) is assumed `https://`;
+///  * a trailing `/api/v1` (the API address the legacy app showed) is dropped;
 ///  * `https://` is always allowed;
 ///  * `http://` is allowed to any host, as the legacy app allowed: a
 ///    self-hosted server without TLS is the admin's choice to make
@@ -1059,6 +1213,10 @@ class LoginViewModel extends ChangeNotifier {
       raw = 'https://$raw';
     }
   }
+  // The legacy app took the API address (`https://host/api/v1`) and dropped
+  // the suffix (`cleanApiUrl`); every route is appended to this base, so a
+  // kept suffix reached `/api/v1/api/v1/login`, which does not exist.
+  raw = raw.replaceFirst(RegExp(r'/api/v1/*$', caseSensitive: false), '');
   final uri = raw.isEmpty ? null : Uri.tryParse(raw);
   if (uri == null || uri.host.isEmpty || uri.userInfo.isNotEmpty) {
     return (url: null, errorKey: 'invalid_url');
@@ -1067,4 +1225,15 @@ class LoginViewModel extends ChangeNotifier {
   if (scheme == 'https') return (url: raw, errorKey: null);
   if (scheme == 'http') return (url: raw, errorKey: null);
   return (url: null, errorKey: 'invalid_url');
+}
+
+/// Whether [host] is this machine, which a browser lets an https page reach
+/// over `http://` (a "potentially trustworthy" origin, so no mixed content).
+bool _isLoopbackHost(String host) {
+  final h = host.toLowerCase();
+  return h == 'localhost' ||
+      h.endsWith('.localhost') ||
+      h == '::1' ||
+      h == '[::1]' ||
+      RegExp(r'^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$').hasMatch(h);
 }

@@ -341,6 +341,30 @@ void main() {
         );
       });
 
+      test('drops a trailing /api/v1, as the legacy app did', () {
+        expect(
+          check('https://ninja.example.com/api/v1').url,
+          'https://ninja.example.com',
+        );
+        expect(
+          check('https://ninja.example.com/api/v1/').url,
+          'https://ninja.example.com',
+        );
+        expect(
+          check('http://10.0.0.5:8000/ninja/API/V1').url,
+          'http://10.0.0.5:8000/ninja',
+        );
+        expect(
+          check('ninja.example.com/api/v1').url,
+          'https://ninja.example.com',
+        );
+        // Only as a suffix: a path that merely contains it is kept.
+        expect(
+          check('https://h.example/api/v1x').url,
+          'https://h.example/api/v1x',
+        );
+      });
+
       test('malformed input still reports invalid_url', () {
         expect(check('').errorKey, 'invalid_url');
         expect(check('https://').errorKey, 'invalid_url');
@@ -493,7 +517,12 @@ void main() {
       final vm = vmWith(svc);
       expect(await vm.continueToCredentials(), isFalse);
       expect(vm.step, LoginStep.email);
-      expect(vm.errorKey, 'network_error_with_message');
+      // Under the URL field, where the fix is — not a toast of socket text.
+      expect(vm.urlErrorKey, 'server_url_unreachable');
+      expect(vm.urlErrorParams, {'host': 'ninja.example.com'});
+      expect(vm.hasRequestError, isFalse);
+      // The user typed https://, so http:// is not second-guessed.
+      expect(vm.urlSuggestion, isNull);
       // Not cached: a typo'd URL fixed in place must be re-asked.
       await vm.continueToCredentials();
       expect(svc.calls, 2);
@@ -915,5 +944,247 @@ void main() {
         expect(svc.resetEmails, ['edited@b.test']);
       });
     });
+  });
+
+  group('a URL that is not the server (redirects, other sites)', () {
+    LoginViewModel vmWith(
+      _ScriptedAuthService svc, {
+      String url = 'http://ninja.example.com',
+      bool? pageIsSecure,
+    }) {
+      final repo = AuthRepository(
+        db: db,
+        authService: svc,
+        tokenStorage: InMemoryTokenStorage(),
+        passwordCache: PasswordCache(),
+      );
+      return LoginViewModel(auth: repo, pageIsSecure: pageIsSecure)
+        ..setHosted(false)
+        ..setUrlOverride(url)
+        ..setEmail('a@b.test')
+        ..setPassword('pw');
+    }
+
+    test(
+      'a redirect to the https address says it under the URL field, with it',
+      () async {
+        final svc = _ScriptedAuthService(
+          precheckError: const ServerRedirectException(
+            301,
+            location: 'https://ninja.example.com/api/v1/login/precheck',
+            suggestedBaseUrl: 'https://ninja.example.com',
+          ),
+        );
+        final vm = vmWith(svc);
+
+        expect(await vm.continueToCredentials(), isFalse);
+
+        expect(vm.step, LoginStep.email);
+        expect(vm.urlErrorKey, 'server_url_moved');
+        expect(vm.urlErrorParams, {'url': 'https://ninja.example.com'});
+        expect(vm.urlSuggestion, 'https://ninja.example.com');
+        // Under the field, never also toasted.
+        expect(vm.hasRequestError, isFalse);
+      },
+    );
+
+    test(
+      'adopting the suggestion replaces the URL and re-creates the field',
+      () {
+        final svc = _ScriptedAuthService(
+          precheckError: const ServerRedirectException(
+            308,
+            suggestedBaseUrl: 'https://ninja.example.com',
+          ),
+        );
+        final vm = vmWith(svc);
+        return vm.continueToCredentials().then((_) {
+          final revision = vm.urlFieldRevision;
+          vm.useSuggestedUrl();
+          expect(vm.urlOverride, 'https://ninja.example.com');
+          expect(vm.urlFieldRevision, revision + 1);
+          expect(vm.urlErrorKey, isNull);
+          expect(vm.urlSuggestion, isNull);
+        });
+      },
+    );
+
+    test('typing in the field drops the suggestion', () async {
+      final vm = vmWith(
+        _ScriptedAuthService(
+          precheckError: const ServerRedirectException(
+            301,
+            suggestedBaseUrl: 'https://ninja.example.com',
+          ),
+        ),
+      );
+      await vm.continueToCredentials();
+      vm.setUrlOverride('http://ninja.example.org');
+      expect(vm.urlSuggestion, isNull);
+      expect(vm.urlErrorKey, isNull);
+    });
+
+    test('a redirect anywhere else says the sign-in was redirected', () async {
+      final vm = vmWith(
+        _ScriptedAuthService(
+          precheckError: const ServerRedirectException(
+            302,
+            location: 'https://ninja.example.com/login',
+          ),
+        ),
+      );
+      await vm.continueToCredentials();
+      expect(vm.urlErrorKey, 'server_url_redirected');
+      expect(vm.urlSuggestion, isNull);
+    });
+
+    test(
+      'a POST that arrived as a GET ("Method not supported") is a redirect',
+      () async {
+        final vm = vmWith(
+          _ScriptedAuthService(
+            result: const LoginPrecheck(
+              methods: {'password'},
+              secretRequired: false,
+            ),
+            loginError: const ServerException(
+              404,
+              'Method not supported for this route',
+            ),
+          ),
+        );
+        expect(await vm.continueToCredentials(), isTrue);
+        expect(await vm.submit(), isFalse);
+        expect(vm.errorKey, 'server_url_redirected');
+        expect(vm.errorMessage, isNull);
+      },
+    );
+
+    test(
+      'a 404, a 405 or a web page at /login says no server is there',
+      () async {
+        for (final error in const [
+          ServerException(404, 'Route does not exist'),
+          ServerException(405, 'Not Allowed'),
+          UnexpectedResponseException(200),
+        ]) {
+          final vm = vmWith(
+            _ScriptedAuthService(loginError: error),
+            url: 'https://ninja.example.com',
+          );
+          await vm.continueToCredentials();
+          expect(await vm.submit(), isFalse);
+          expect(vm.errorKey, 'server_url_not_invoice_ninja', reason: '$error');
+          expect(vm.errorParams, {'url': 'https://ninja.example.com'});
+        }
+      },
+    );
+
+    test('a server error keeps the server\'s own words', () async {
+      final vm = vmWith(
+        _ScriptedAuthService(
+          loginError: const ServerException(400, 'Invalid credentials'),
+        ),
+      );
+      await vm.continueToCredentials();
+      await vm.submit();
+      expect(vm.errorKey, isNull);
+      expect(vm.errorMessage, 'Invalid credentials');
+    });
+
+    test('warns about http:// to a server off the local network only', () {
+      final vm = vmWith(_ScriptedAuthService());
+      expect(vm.warnsInsecureUrl, isTrue);
+      vm.setUrlOverride('https://ninja.example.com');
+      expect(vm.warnsInsecureUrl, isFalse);
+      vm.setUrlOverride('http://192.168.1.20:8000');
+      expect(vm.warnsInsecureUrl, isFalse);
+      vm.setUrlOverride('ninja.example.com');
+      expect(vm.warnsInsecureUrl, isFalse, reason: 'a bare host is https');
+      vm.setUrlOverride('http://ninja.example.com');
+      vm.setHosted(true);
+      expect(vm.warnsInsecureUrl, isFalse);
+    });
+
+    test('the warning appears as the user types (the view is told)', () {
+      final vm = vmWith(_ScriptedAuthService(), url: 'https://n.example.com');
+      var notified = 0;
+      vm.addListener(() => notified++);
+      vm.setUrlOverride('http://n.example.com');
+      expect(notified, 1);
+    });
+
+    test('an https web page refuses an http server off this machine', () async {
+      final svc = _ScriptedAuthService();
+      final vm = vmWith(svc, pageIsSecure: true);
+      expect(await vm.continueToCredentials(), isFalse);
+      expect(vm.urlErrorKey, 'http_server_blocked_on_secure_page');
+      expect(svc.calls, 0, reason: 'nothing is sent');
+
+      vm.setUrlOverride('http://localhost:8000');
+      expect(await vm.continueToCredentials(), isTrue);
+    });
+  });
+
+  group('an unreachable self-hosted server', () {
+    LoginViewModel vmWith(_ScriptedAuthService svc, String url) {
+      final repo = AuthRepository(
+        db: db,
+        authService: svc,
+        tokenStorage: InMemoryTokenStorage(),
+        passwordCache: PasswordCache(),
+      );
+      return LoginViewModel(auth: repo, isWeb: false)
+        ..setHosted(false)
+        ..setUrlOverride(url)
+        ..setEmail('a@b.test');
+    }
+
+    test('a host typed without a scheme is offered on http:// too', () async {
+      final vm = vmWith(
+        _ScriptedAuthService(
+          precheckError: const NetworkException('Connection refused'),
+        ),
+        '192.168.0.10:8080',
+      );
+      expect(await vm.continueToCredentials(), isFalse);
+      expect(vm.urlErrorKey, 'server_url_unreachable');
+      expect(vm.urlErrorParams, {'host': '192.168.0.10:8080'});
+      expect(vm.urlSuggestion, 'http://192.168.0.10:8080');
+
+      vm.useSuggestedUrl();
+      expect(vm.urlOverride, 'http://192.168.0.10:8080');
+    });
+
+    test('the hosted service keeps the network toast', () async {
+      final repo = AuthRepository(
+        db: db,
+        authService: _ScriptedAuthService(
+          precheckError: const NetworkException('offline'),
+        ),
+        tokenStorage: InMemoryTokenStorage(),
+        passwordCache: PasswordCache(),
+      );
+      final vm = LoginViewModel(auth: repo, isWeb: false)..setEmail('a@b.test');
+      await vm.continueToCredentials();
+      expect(vm.errorKey, 'network_error_with_message');
+      expect(vm.urlErrorKey, isNull);
+    });
+
+    test(
+      'a page that is not Invoice Ninja is said under the URL field',
+      () async {
+        final vm = vmWith(
+          _ScriptedAuthService(
+            precheckError: const UnexpectedResponseException(200),
+          ),
+          'www.example.com',
+        );
+        expect(await vm.continueToCredentials(), isFalse);
+        expect(vm.step, LoginStep.email);
+        expect(vm.urlErrorKey, 'server_url_not_invoice_ninja');
+        expect(vm.urlErrorParams, {'url': 'https://www.example.com'});
+      },
+    );
   });
 }

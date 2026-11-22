@@ -190,7 +190,8 @@ class _Answers extends http.BaseClient {
     return http.StreamedResponse(
       Stream.value('{}'.codeUnits),
       200,
-      headers: {'content-type': 'application/json'},
+      // An Invoice Ninja server's answer: it always carries its version.
+      headers: {'content-type': 'application/json', 'x-app-version': '5.12.0'},
     );
   }
 }

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/semantics.dart';
 import 'package:go_router/go_router.dart';
@@ -427,26 +429,48 @@ class _LoginScreenState extends State<LoginScreen> {
         SizedBox(height: InSpacing.lg(context)),
       ],
       if (!vm.isHosted && serverChoice) ...[
-        AuthField(
-          key: const ValueKey('login_url'),
-          label: context.tr('server_url'),
-          hint: 'https://invoice.example.com  ·  http://192.168.0.10:8080',
-          initialValue: vm.urlOverride,
-          // Read-only rather than disabled while Continue is in flight: a
-          // disabled field drops focus and doesn't give it back.
-          readOnly: busy,
-          keyboardType: TextInputType.url,
-          autofillHints: const [AutofillHints.url],
-          errorText: vm.urlErrorKey == null
-              ? null
-              : context.tr(vm.urlErrorKey!),
-          textInputAction: TextInputAction.next,
-          onChanged: vm.setUrlOverride,
-          // Enter moves on to the email rather than submitting a form whose
-          // email is still empty.
-          onEditingComplete: () {},
-          onSubmitted: (_) => _emailFocus.requestFocus(),
+        // Re-created with the new text when the VM changes the URL (an
+        // adopted redirect, [LoginViewModel.useSuggestedUrl]).
+        KeyedSubtree(
+          key: ValueKey('login_url_field_${vm.urlFieldRevision}'),
+          child: AuthField(
+            key: const ValueKey('login_url'),
+            label: context.tr('server_url'),
+            hint: 'https://invoice.example.com  ·  http://192.168.0.10:8080',
+            initialValue: vm.urlOverride,
+            // Read-only rather than disabled while Continue is in flight: a
+            // disabled field drops focus and doesn't give it back.
+            readOnly: busy,
+            keyboardType: TextInputType.url,
+            autofillHints: const [AutofillHints.url],
+            errorText: vm.urlErrorKey == null
+                ? null
+                : context.tr(vm.urlErrorKey!, vm.urlErrorParams),
+            textInputAction: TextInputAction.next,
+            onChanged: vm.setUrlOverride,
+            // Enter moves on to the email rather than submitting a form whose
+            // email is still empty.
+            onEditingComplete: () {},
+            onSubmitted: (_) => _emailFocus.requestFocus(),
+          ),
         ),
+        if (vm.urlSuggestion case final suggestion?)
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: TextButton.icon(
+              key: const ValueKey('login_use_suggested_url'),
+              onPressed: busy
+                  ? null
+                  : () {
+                      vm.useSuggestedUrl();
+                      unawaited(_onContinue());
+                    },
+              icon: const Icon(Icons.arrow_forward, size: 16),
+              label: Text(context.tr('use_server_url', {'url': suggestion})),
+            ),
+          )
+        else if (vm.warnsInsecureUrl && vm.urlErrorKey == null)
+          const _InsecureUrlLine(),
         if (vm.trustedCertificateForUrl != null)
           _TrustedCertificateLine(
             onForget: busy ? null : vm.forgetTrustedCertificate,
@@ -611,6 +635,9 @@ class _LoginScreenState extends State<LoginScreen> {
           onPressed: busy ? null : _onRecover,
         ),
       ),
+      // Said again where the password is typed: the URL field, which said
+      // it first, is no longer on screen.
+      if (vm.warnsInsecureUrl) const _InsecureUrlLine(),
       if (showOtp) ...[
         SizedBox(height: InSpacing.md(context)),
         AuthField(
@@ -994,6 +1021,39 @@ class _SegmentButton extends StatelessWidget {
 /// Under the Server URL field when this device already trusts a certificate
 /// for that server: says so, and is the one place to take it back before
 /// signing in — Device Settings isn't reachable from the login screen.
+/// Under an `http://` address to a server off the local network: allowed, as
+/// the legacy app allowed it, but nothing sent over it is encrypted.
+class _InsecureUrlLine extends StatelessWidget {
+  const _InsecureUrlLine();
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.inTheme;
+    return Padding(
+      key: const ValueKey('login_insecure_url'),
+      padding: const EdgeInsets.only(top: InSpacing.xs),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 1),
+            child: Icon(Icons.lock_open, size: 16, color: tokens.warning),
+          ),
+          const SizedBox(width: InSpacing.sm),
+          Expanded(
+            child: Text(
+              context.tr('insecure_server_url_warning'),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: tokens.ink2),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _TrustedCertificateLine extends StatelessWidget {
   const _TrustedCertificateLine({required this.onForget});
 

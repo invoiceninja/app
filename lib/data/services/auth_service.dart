@@ -51,13 +51,25 @@ class AuthService {
     Duration? timeout,
   }) async {
     final ticket = _trust?.rejectionSerial ?? 0;
+    final http.Response response;
     try {
-      final request = _http.post(url, headers: headers, body: body);
-      final response = await (timeout == null
-          ? request
-          : request.timeout(timeout));
+      // `_http.post`, but never following a redirect: a password must not
+      // travel on to an address the user did not type, and `dart:io` follows
+      // a POST only through a 303, as a GET the server then refuses ("Method
+      // not supported for this route"). A browser follows one regardless.
+      final request = http.Request('POST', url)
+        ..followRedirects = false
+        ..headers.addAll(headers);
+      if (body is String) {
+        request.body = body;
+      } else if (body is Map) {
+        request.bodyFields = body.cast<String, String>();
+      } else if (body != null) {
+        throw ArgumentError('Invalid request body "$body".');
+      }
+      final pending = _http.send(request).then(http.Response.fromStream);
+      response = await (timeout == null ? pending : pending.timeout(timeout));
       _trust?.noteReached(url.host, url.port);
-      return response;
     } on TimeoutException {
       // Not `e.message`: `Future.timeout` always sets it to "Future not
       // completed", which would reach the user verbatim.
@@ -84,6 +96,39 @@ class AuthService {
           ) ??
           NetworkException(e.toString());
     }
+    if (response.statusCode >= 300 && response.statusCode < 400) {
+      final location = response.headers['location'];
+      throw ServerRedirectException(
+        response.statusCode,
+        location: location,
+        suggestedBaseUrl: baseUrlFromRedirect(url, location),
+      );
+    }
+    return response;
+  }
+
+  /// Whether a sign-in POST reached the server as a GET: Invoice Ninja
+  /// answers a route it has under another method with a 404 "Method not
+  /// supported for this route" (`Handler`, `MethodNotAllowedHttpException`).
+  /// Every route this service posts to exists only as a POST, so that answer
+  /// means a redirect turned the POST into a GET on the way (a browser
+  /// follows a 301 / 302 that way; `dart:io` a 303).
+  static bool isPostArrivedAsGet(int statusCode, String? message) =>
+      statusCode == 404 &&
+      (message ?? '').toLowerCase().contains('method not supported');
+
+  /// The JSON object a successful sign-in answers with. Anything else (a web
+  /// page, an empty body) is [UnexpectedResponseException]: the URL is not an
+  /// Invoice Ninja server, and the login screen says so rather than showing a
+  /// `FormatException`.
+  static Map<String, dynamic> _jsonObject(http.Response response) {
+    try {
+      final decoded = jsonDecode(response.body);
+      if (decoded is Map<String, dynamic>) return decoded;
+    } on FormatException {
+      // Below.
+    }
+    throw UnexpectedResponseException(response.statusCode);
   }
 
   /// POST `/api/v1/login`. The request body matches the existing app:
@@ -114,7 +159,7 @@ class AuthService {
       }),
     );
     _raiseIfError(response);
-    final json = jsonDecode(response.body) as Map<String, dynamic>;
+    final json = _jsonObject(response);
     // Every response this service parses is a full snapshot (the server sends
     // each company's whole dataset on a sign-in), so none of them types the
     // browsable entity arrays — see [LoginResponseApi.fromFullSnapshot].
@@ -178,7 +223,7 @@ class AuthService {
       }),
     );
     _raiseIfError(response);
-    final json = jsonDecode(response.body) as Map<String, dynamic>;
+    final json = _jsonObject(response);
     return LoginResponseApi.fromFullSnapshot(json);
   }
 
@@ -198,10 +243,18 @@ class AuthService {
   /// floor and returns a uniform payload for unknown accounts, so this leaks
   /// no account-existence signal.
   ///
-  /// **Fails open, except for two answers that mean "fix step 1 first":**
+  /// **Fails open, except for answers that mean "fix step 1 first":**
   ///  * the server can't be reached (offline, a typo'd self-hosted URL, or no
   ///    answer within [interactiveTimeout]) → throws [NetworkException];
-  ///  * the server rejects the address (422) → throws [ValidationException].
+  ///  * the server rejects the address (422) → throws [ValidationException];
+  ///  * the request was redirected (an `http://` address on a server that
+  ///    sends everything to `https://`, a moved server) → throws
+  ///    [ServerRedirectException], or, where the redirect was followed as a
+  ///    GET, a [ServerException] that [isPostArrivedAsGet] recognizes. A login
+  ///    would be redirected the same way, so this is no unanswered precheck;
+  ///  * a self-hosted answer that is neither an answer nor from Invoice Ninja
+  ///    (no `X-APP-VERSION` header, below 500) → throws
+  ///    [UnexpectedResponseException]: the URL is some other website.
   ///
   /// Every other failure — an older server that 404s / 405s the route, a rate
   /// limit, a 5xx, a malformed body, a body without a `methods` list —
@@ -222,6 +275,29 @@ class AuthService {
       timeout: interactiveTimeout,
     );
     if (response.statusCode == 422) _raiseIfError(response);
+    // The route exists, but the POST arrived as a GET: something in front
+    // of the server redirected it (a browser follows a 301 / 302 as a GET).
+    // A login would arrive the same way, so this is not "no answer".
+    if (isPostArrivedAsGet(response.statusCode, _messageOf(response))) {
+      _raiseIfError(response);
+    }
+    final answer = _precheckAnswer(response);
+    if (answer != null) return answer;
+    // No answer, and nothing says Invoice Ninja sent it: every response the
+    // server makes, an older server's 404 for this route included, carries
+    // `X-APP-VERSION` (its global `Cors` middleware). A company website, a
+    // typo'd domain that resolves or a wrong path does not, and would be
+    // handed the password next. A 5xx is let through: a server in
+    // maintenance mode answers before that middleware runs.
+    if (!isHosted &&
+        response.statusCode < 500 &&
+        !response.headers.containsKey('x-app-version')) {
+      throw UnexpectedResponseException(response.statusCode);
+    }
+    return null;
+  }
+
+  static LoginPrecheck? _precheckAnswer(http.Response response) {
     if (response.statusCode < 200 || response.statusCode >= 300) return null;
     try {
       final json = jsonDecode(response.body);
@@ -314,7 +390,7 @@ class AuthService {
       },
     );
     _raiseIfError(response);
-    final json = jsonDecode(response.body) as Map<String, dynamic>;
+    final json = _jsonObject(response);
     return LoginResponseApi.fromFullSnapshot(json);
   }
 
@@ -372,7 +448,7 @@ class AuthService {
       }),
     );
     _raiseIfError(response);
-    final json = jsonDecode(response.body) as Map<String, dynamic>;
+    final json = _jsonObject(response);
     return LoginResponseApi.fromFullSnapshot(json);
   }
 
@@ -405,7 +481,7 @@ class AuthService {
       }),
     );
     _raiseIfError(response);
-    final json = jsonDecode(response.body) as Map<String, dynamic>;
+    final json = _jsonObject(response);
     return LoginResponseApi.fromFullSnapshot(json);
   }
 

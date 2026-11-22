@@ -2,11 +2,11 @@
 /// link-local, or CGNAT/Tailscale — or a non-publicly-routable local hostname
 /// suffix.
 ///
-/// Used by the self-hosted login flow ([resolveSelfHostedBaseUrl]) to decide
-/// when plain (cleartext) `http://` is acceptable: a server on the user's own
-/// network is a far smaller risk than an arbitrary public host. Public /
-/// routable hosts return `false`, so the login screen keeps requiring
-/// `https://` for them in release builds.
+/// Used by the self-hosted login flow (`LoginViewModel.warnsInsecureUrl`) to
+/// decide when plain (cleartext) `http://` goes unremarked: a server on the
+/// user's own network is a far smaller risk than an arbitrary public host.
+/// `http://` to a public / routable host (`false` here) is allowed too, as the
+/// legacy app allowed it, but the URL field says it is not encrypted.
 ///
 /// Pure Dart (no `dart:io`) so it runs on web and is unit-testable in
 /// isolation. [host] is expected to be a [Uri.host] value (IPv6 brackets

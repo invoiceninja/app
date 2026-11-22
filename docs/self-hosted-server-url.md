@@ -1,0 +1,26 @@
+# The self-hosted server URL: what is accepted, and what a wrong one says
+
+Companion to CLAUDE.md § Sync — non-obvious rules. What the login screen's server URL field accepts (`resolveSelfHostedBaseUrl`), how a sign-in request treats a redirect (`AuthService._post`), and how each kind of wrong address is explained (`LoginViewModel._wrongServerAnswer`, `_explainUnreachableUrl`). The certificate side, a server whose certificate the device refuses, is `docs/trusting-a-self-hosted-certificate.md`.
+
+## A sign-in request never follows a redirect, and a wrong self-hosted URL is said under the URL field
+
+**What is accepted.** A bare host is tried as `https://`. `http://` is allowed to any host, as the legacy app allowed it (bd296fb2, after a self-hosted Flatpak user was refused): a server without TLS is the admin's choice. A trailing `/api/v1` is dropped, as v1's `cleanApiUrl` dropped it; every route is appended to the base (`apiUri`), so a kept suffix asked for `/api/v1/api/v1/login`, a route that does not exist. A URL with credentials in it is refused.
+
+**`http://` is allowed, but said.** An `http://` address to a server off the local network (`isLocalNetworkHost`: loopback, private ranges, `.local` / `.lan` / `.internal` / `.home.arpa`) shows a "Not encrypted" line under the URL field and again under the password field (step 2 has no URL field, and the password is what travels). Nothing at the OS layer would stop it: `dart:io` owns its sockets, so Android's cleartext policy and iOS ATS never see the request (no manifest or ATS change is needed or wanted). A web page loaded over https is the exception: its browser blocks an `http://` request to anything but this machine (mixed content) and reports only "XMLHttpRequest error", so `_resolveBaseUrl` refuses it first (`http_server_blocked_on_secure_page`); `localhost`, `127.x` and `::1` are let through, as browsers let them through.
+
+**Why no redirect is followed.** A password must not travel on to an address the user did not type. And `dart:io` follows a POST only through a 303, as a GET; a browser follows a 301 / 302 the same way. The server then answers its own route under the wrong method with a 404 `{"message":"Method not supported for this route"}` (`app/Exceptions/Handler.php`, `MethodNotAllowedHttpException`), which reached the user verbatim. That is the likely shape of the Flatpak report: an address that was redirected (an `http://` one on a server that sends everything to `https://`, or a moved server). `AuthService._post` now sends every sign-in POST with `followRedirects = false` and turns a 3xx into `ServerRedirectException`, whose `suggestedBaseUrl` (`baseUrlFromRedirect`) is the base the same route moved to: `http://host/api/v1/login` to `https://host/api/v1/login` gives `https://host`; a redirect to a home page or a login page gives none. On the web the browser follows regardless, so the "Method not supported" 404 is read as the same redirect (`AuthService.isPostArrivedAsGet`): every route `AuthService` posts to exists only as a POST.
+
+**What each wrong address says.** Step 1 (Continue, the precheck) says it under the URL field, where the fix is; step 2 (Sign in) toasts the same text.
+
+| What happened | Key | Offered |
+|---|---|---|
+| Redirected to the same route under another base | `server_url_moved` (`:url`) | **Use :url**, which adopts the address and continues |
+| Redirected anywhere else, or the POST arrived as a GET | `server_url_redirected` | |
+| A 404 / 405 at `/login`, or an answer that is not Invoice Ninja's JSON (`UnexpectedResponseException`) | `server_url_not_invoice_ninja` (`:url`) | |
+| Could not connect (DNS, refused, timed out), native self-hosted only | `server_url_unreachable` (`:host`) | **Use http://…** when the user typed no scheme (an http-only LAN box on 8080) |
+
+A refused certificate keeps its own dialog, the hosted service keeps the network toast (its URL is not typed), and the web keeps the toast that offers to open the server (a self-signed certificate is the one thing a web page cannot fix).
+
+**Not Invoice Ninja, caught before the password.** The precheck fails open: an older server without the route, a rate limit or a 5xx must never block a login. But a company website, a typo'd domain that resolves or a wrong path also "failed" the precheck, so the next step asked for the password and posted it there. Every response the server makes carries `X-APP-VERSION`, an older server's 404 for the missing precheck route included: its global `Cors` middleware sets it (`app/Http/Kernel.php` `$middleware`, `app/Http/Middleware/Cors.php`), and exposes it to browsers. So a self-hosted precheck that is no answer, has no `X-APP-VERSION` and is below 500 is `UnexpectedResponseException`, and step 1 says no Invoice Ninja server answered there. A 5xx is let through: maintenance mode (`CheckForMaintenanceMode`) answers before `Cors` runs.
+
+**Tests.** `test/data/services/auth_service_redirect_test.dart` (no redirect followed, the suggested base, the arrived-as-GET precheck, a web page at `/login`, `baseUrlFromRedirect`), `auth_service_precheck_test.dart` (the `X-APP-VERSION` gate and what still fails open), and `login_view_model_test.dart` (the `/api/v1` suffix, each message, the suggestion, the http offer, the warning and the web refusal).
