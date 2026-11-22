@@ -4,6 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:admin/ui/core/widgets/html_web_view.dart';
 import 'package:flutter_widget_from_html_core/flutter_widget_from_html_core.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+// ignore: depend_on_referenced_packages
+import 'package:webview_flutter_platform_interface/webview_flutter_platform_interface.dart';
 
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/theme.dart';
@@ -45,6 +47,83 @@ class _SlowTemplatesApi extends _FakeTemplatesApi {
     await Future<void>.delayed(const Duration(milliseconds: 200));
     return super.render(template: template, subject: subject, body: body);
   }
+}
+
+/// Records what the preview loads, without a native web view.
+class _FakeWebViewPlatform extends WebViewPlatform {
+  final loads = <String>[];
+
+  @override
+  PlatformWebViewController createPlatformWebViewController(
+    PlatformWebViewControllerCreationParams params,
+  ) => _FakeController(params, loads);
+
+  @override
+  PlatformNavigationDelegate createPlatformNavigationDelegate(
+    PlatformNavigationDelegateCreationParams params,
+  ) => _FakeNavigationDelegate(params);
+
+  @override
+  PlatformWebViewWidget createPlatformWebViewWidget(
+    PlatformWebViewWidgetCreationParams params,
+  ) => _FakeWidget(params);
+}
+
+class _FakeController extends PlatformWebViewController {
+  _FakeController(super.params, this.loads) : super.implementation();
+
+  final List<String> loads;
+
+  @override
+  Future<void> loadHtmlString(String html, {String? baseUrl}) async =>
+      loads.add(html);
+
+  @override
+  Future<void> setJavaScriptMode(JavaScriptMode javaScriptMode) async {}
+
+  @override
+  Future<void> setBackgroundColor(Color color) async {}
+
+  @override
+  Future<void> setPlatformNavigationDelegate(
+    PlatformNavigationDelegate handler,
+  ) async {}
+}
+
+class _FakeNavigationDelegate extends PlatformNavigationDelegate {
+  _FakeNavigationDelegate(super.params) : super.implementation();
+
+  @override
+  Future<void> setOnNavigationRequest(
+    NavigationRequestCallback onNavigationRequest,
+  ) async {}
+}
+
+class _FakeWidget extends PlatformWebViewWidget {
+  _FakeWidget(super.params) : super.implementation();
+
+  @override
+  Widget build(BuildContext context) => const SizedBox.expand();
+}
+
+/// A fixed 570 px email, as the server's wrapper is.
+class _WideTemplatesApi extends _FakeTemplatesApi {
+  @override
+  Future<TemplatePreview> render({
+    required String template,
+    required String subject,
+    required String body,
+    String entity = '',
+    String entityId = '',
+  }) async => TemplatePreview(
+    subject: subject,
+    body: body,
+    wrapper:
+        '<html><body><table width="570"><tr><td>$body</td></tr>'
+        '</table></body></html>',
+    rawSubject: subject,
+    rawBody: body,
+  );
 }
 
 void main() {
@@ -159,4 +238,78 @@ void main() {
       }
     },
   );
+
+  testWidgets('a zoom control over the email: the only zoom a desktop has', (
+    tester,
+  ) async {
+    // "You can't zoom in or out to see the email preview" (beta): macOS's
+    // web view has no magnification, and WebView2 gets no Ctrl+wheel.
+    final previous = WebViewPlatform.instance;
+    final fake = _FakeWebViewPlatform();
+    WebViewPlatform.instance = fake;
+    addTearDown(() {
+      if (previous != null) WebViewPlatform.instance = previous;
+    });
+    final controller = PreviewController(api: _WideTemplatesApi());
+    addTearDown(controller.dispose);
+    controller.schedule(
+      template: 'invoice',
+      subject: 'Welcome',
+      body: '<p>Hello</p>',
+      immediate: true,
+    );
+    await tester.pumpWidget(host(controller));
+    await tester.pumpAndSettle();
+
+    // A 500 px pane fits the 570 px email at the desktop floor.
+    String level() => tester
+        .widget<Text>(
+          find.descendant(
+            of: find.byKey(const ValueKey('preview_zoom_level')),
+            matching: find.byType(Text),
+          ),
+        )
+        .data!;
+    expect(level(), '80%');
+    expect(find.byKey(const ValueKey('preview_zoom_fit')), findsNothing);
+
+    await tester.tap(find.byKey(const ValueKey('preview_zoom_out')));
+    await tester.pumpAndSettle();
+    expect(level(), '75%');
+    expect(fake.loads.last, contains(':root { zoom: 0.75 !important; }'));
+    expect(find.byKey(const ValueKey('preview_zoom_fit')), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('preview_zoom_in')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('preview_zoom_in')));
+    await tester.pumpAndSettle();
+    expect(level(), '90%');
+
+    await tester.tap(find.byKey(const ValueKey('preview_zoom_fit')));
+    await tester.pumpAndSettle();
+    expect(level(), '80%');
+    expect(fake.loads.last, contains(':root { zoom: 0.8 !important; }'));
+    expect(find.byKey(const ValueKey('preview_zoom_fit')), findsNothing);
+  }, variant: TargetPlatformVariant.only(TargetPlatform.macOS));
+
+  testWidgets('no zoom control where the email is not a web view', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+    try {
+      final controller = PreviewController(api: _FakeTemplatesApi());
+      addTearDown(controller.dispose);
+      controller.schedule(
+        template: 'invoice',
+        subject: 'Welcome',
+        body: '<p>Hello</p>',
+        immediate: true,
+      );
+      await tester.pumpWidget(host(controller));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('preview_zoom_in')), findsNothing);
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
 }

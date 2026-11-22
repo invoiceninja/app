@@ -25,8 +25,8 @@ const _kWindowsMaxDocumentBytes = 1900 * 1024;
 /// It is a picture, not a page ([previewHtml]): no script runs, a tapped
 /// link or form leaves the document where it is, and it reads light. It is
 /// fitted to the pane's width ([previewFitZoom]: an email is a fixed 570 px
-/// table, wider than a phone; on desktop no smaller than 0.8, since nothing
-/// zooms it back in), and on touch it takes every gesture that
+/// table, wider than a phone; on desktop no smaller than 0.8), unless the
+/// host passes a [zoom] of the user's choosing, and on touch it takes every gesture that
 /// lands on it ([kHtmlWebViewGestures]), so a pinch zooms it and a
 /// sideways drag pans it, even inside a `TabBarView`.
 /// docs/windows-web-view.md.
@@ -36,9 +36,22 @@ class HtmlWebView extends StatefulWidget {
     required this.html,
     required this.fallback,
     this.background = const Color(0x00000000),
+    this.zoom,
+    this.onFitZoom,
   });
 
   final String html;
+
+  /// The zoom to show the document at, chosen by the user (the preview's
+  /// zoom control); null fits it to the pane ([previewFitZoom]). The only
+  /// zoom macOS and Windows have: macOS's web view has no magnification, and
+  /// WebView2 here gets no Ctrl+wheel (the plugin forwards a wheel event
+  /// without its modifier keys).
+  final double? zoom;
+
+  /// Told the fitted zoom whenever a layout changes it, so a zoom control
+  /// can start from it and show it.
+  final ValueChanged<double>? onFitZoom;
 
   /// What shows where there is no web view.
   final WidgetBuilder fallback;
@@ -107,7 +120,10 @@ class _HtmlWebViewState extends State<HtmlWebView> {
   /// change the zoom (or a rebuild) reloads nothing.
   String? _shown;
 
-  String get _document => previewHtml(widget.html, zoom: _zoom ?? 1);
+  String get _document => previewHtml(widget.html, zoom: _shownZoom);
+
+  /// The user's zoom, else the fit; 1 until the first layout.
+  double get _shownZoom => widget.zoom ?? _zoom ?? 1;
 
   @override
   void initState() {
@@ -209,24 +225,48 @@ class _HtmlWebViewState extends State<HtmlWebView> {
   @override
   void didUpdateWidget(covariant HtmlWebView oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.html == widget.html) return;
+    if (oldWidget.html == widget.html) {
+      // The user zoomed (or went back to the fit): reload at the new zoom.
+      if (oldWidget.zoom != widget.zoom && _zoom != null) _show();
+      return;
+    }
     _contentWidth = previewContentWidth(widget.html);
     final width = _paneWidth;
-    if (width != null) _zoom = _fit(width);
+    if (width != null) {
+      final zoom = _fit(width);
+      if (zoom != _zoom) {
+        _zoom = zoom;
+        _reportFit(zoom);
+      }
+    }
     _show();
   }
 
-  /// Fitted fully where a pinch can zoom back in (iOS, Android); on macOS
-  /// and Windows no further than [kPreviewDesktopZoomFloor], so the text
-  /// stays readable and the rest scrolls sideways.
-  double _fit(double width) => previewFitZoom(
-    _contentWidth,
-    width,
-    floor: switch (defaultTargetPlatform) {
-      TargetPlatform.iOS || TargetPlatform.android => kPreviewTouchZoomFloor,
-      _ => kPreviewDesktopZoomFloor,
-    },
-  );
+  void _reportFit(double zoom) {
+    final onFit = widget.onFitZoom;
+    if (onFit == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _zoom == zoom) onFit(zoom);
+    });
+  }
+
+  /// Fitted fully where a pinch can zoom back in (iOS, Android), to the
+  /// hundredth (a phone's width changes only on rotation); on macOS and
+  /// Windows no further than [kPreviewDesktopZoomFloor], so the text stays
+  /// readable and the rest scrolls sideways, in steps of 0.05 (a window
+  /// being resized reloads only every few dozen pixels).
+  double _fit(double width) {
+    final touch = switch (defaultTargetPlatform) {
+      TargetPlatform.iOS || TargetPlatform.android => true,
+      _ => false,
+    };
+    return previewFitZoom(
+      _contentWidth,
+      width,
+      floor: touch ? kPreviewTouchZoomFloor : kPreviewDesktopZoomFloor,
+      steps: touch ? 100 : 20,
+    );
+  }
 
   /// The pane's width at the last layout.
   double? _paneWidth;
@@ -270,6 +310,7 @@ class _HtmlWebViewState extends State<HtmlWebView> {
     final zoom = _fit(width);
     if (zoom == _zoom) return;
     _zoom = zoom;
+    _reportFit(zoom);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _show();
     });

@@ -121,6 +121,19 @@ void main() {
         contains(':root { zoom: 0.7 !important; }'),
       );
       expect(previewHtml('<p>x</p>'), isNot(contains('zoom')));
+      // The zoom control zooms in too, and a hundredth survives.
+      expect(
+        previewHtml('<p>x</p>', zoom: 1.25),
+        contains(':root { zoom: 1.25 !important; }'),
+      );
+      expect(
+        previewHtml('<p>x</p>', zoom: 2),
+        contains(':root { zoom: 2 !important; }'),
+      );
+      expect(
+        previewHtml('<p>x</p>', zoom: 0.61),
+        contains(':root { zoom: 0.61 !important; }'),
+      );
     });
 
     test("the server's email wrapper is 570 wide, and fits a phone", () {
@@ -188,7 +201,10 @@ void main() {
     });
 
     test('the zoom has a floor, and an unbounded pane is left alone', () {
-      expect(previewFitZoom(4000, 320), 0.25);
+      // On touch never below 0.5: one stray 1200 px spacer shrank a whole
+      // email to 4 px text at the old 0.25.
+      expect(previewFitZoom(4000, 320), kPreviewTouchZoomFloor);
+      expect(kPreviewTouchZoomFloor, 0.5);
       expect(previewFitZoom(570, double.infinity), 1);
       expect(previewFitZoom(570, 0), 1);
       // Where nothing zooms it back in (macOS, Windows), no smaller than 0.8.
@@ -265,7 +281,8 @@ void main() {
   table, td { color: #000000; }
 </style>
 <div class="u-row" style="margin: 0 auto; min-width: 320px; max-width: 600px;">x</div>''';
-      expect(previewContentWidth(unlayer), 320);
+      // Its max-width query makes it responsive: shown at its own size.
+      expect(previewContentWidth(unlayer), isNull);
       expect(previewFitZoom(previewContentWidth(unlayer), 358), 1);
       // A nested block inside @media (an @supports) does not end it early,
       // and a rule after it still counts.
@@ -277,5 +294,50 @@ void main() {
         540,
       );
     });
+  });
+
+  test('a desktop-first template that narrows itself on a phone is not '
+      'scaled', () {
+    // The classic responsive email: 600 px, 100 % under a max-width query.
+    // A phone matches it, so the email already fits, as Mail shows it.
+    const responsive = '''
+<style>
+  .container { width: 600px; }
+  @media only screen and (max-width: 480px) {
+    .container { width: 100% !important; }
+  }
+</style>
+<table class="container" width="600"><tr><td>x</td></tr></table>''';
+    expect(previewContentWidth(responsive), isNull);
+    expect(
+      previewContentWidth(
+        '<style>@media screen and (max-device-width: 480px) { a {} }</style>'
+        '<table width="600"></table>',
+      ),
+      isNull,
+    );
+    // A min-width query alone (desktop-up) is no such promise.
+    expect(
+      previewContentWidth(
+        '<style>@media (min-width: 620px) { .x { width: 600px } }</style>'
+        '<table width="570"></table>',
+      ),
+      570,
+    );
+  });
+
+  test('a phone fits to the hundredth', () {
+    expect(previewFitZoom(570, 358, steps: 100), 0.61);
+    expect(previewFitZoom(570, 358), 0.6);
+  });
+
+  test('the zoom control steps like a browser, and stops at the ends', () {
+    expect(previewZoomStep(1, zoomIn: true), 1.1);
+    expect(previewZoomStep(1, zoomIn: false), 0.9);
+    // From a fit between steps, to the next step either way.
+    expect(previewZoomStep(0.61, zoomIn: true), 0.67);
+    expect(previewZoomStep(0.61, zoomIn: false), 0.5);
+    expect(previewZoomStep(2, zoomIn: true), 2);
+    expect(previewZoomStep(0.25, zoomIn: false), 0.25);
   });
 }

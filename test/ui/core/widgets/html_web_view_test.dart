@@ -143,7 +143,12 @@ void main() {
     // The phone the bug came from.
     final iOS = TargetPlatformVariant.only(TargetPlatform.iOS);
 
-    Widget host(double width, {String html = _email}) => MaterialApp(
+    Widget host(
+      double width, {
+      String html = _email,
+      double? zoom,
+      ValueChanged<double>? onFitZoom,
+    }) => MaterialApp(
       home: Align(
         alignment: AlignmentDirectional.topStart,
         child: SizedBox(
@@ -151,18 +156,49 @@ void main() {
           height: 600,
           child: HtmlWebView(
             html: html,
+            zoom: zoom,
+            onFitZoom: onFitZoom,
             fallback: (_) => const Text('fallback'),
           ),
         ),
       ),
     );
 
+    testWidgets('a zoom the user chose reloads at it, and Fit goes back', (
+      tester,
+    ) async {
+      // The zoom control: macOS and Windows have no other zoom at all.
+      await tester.pumpWidget(host(358));
+      expect(fake.loads.single, contains('zoom: 0.8 !important'));
+      await tester.pumpWidget(host(358, zoom: 1.25));
+      expect(fake.loads.last, contains(':root { zoom: 1.25 !important; }'));
+      // Kept across a new document (each debounced edit is one).
+      await tester.pumpWidget(host(358, zoom: 1.25, html: '<p>Edited</p>'));
+      expect(fake.loads.last, contains(':root { zoom: 1.25 !important; }'));
+      expect(fake.loads.last, contains('Edited'));
+      await tester.pumpWidget(host(358, html: '<p>Edited</p>'));
+      expect(fake.loads.last, isNot(contains('zoom:')));
+    }, variant: TargetPlatformVariant.only(TargetPlatform.macOS));
+
+    testWidgets('the fit is reported, for the zoom control to show', (
+      tester,
+    ) async {
+      final fits = <double>[];
+      await tester.pumpWidget(host(358, onFitZoom: fits.add));
+      await tester.pump();
+      expect(fits, [0.61]);
+      await tester.pumpWidget(host(800, onFitZoom: fits.add));
+      await tester.pump();
+      expect(fits, [0.61, 1]);
+    }, variant: iOS);
+
     testWidgets(
       'loads once, after layout, scaled to the pane',
       (tester) async {
         await tester.pumpWidget(host(358));
         expect(fake.loads, hasLength(1), reason: 'no unfitted first load');
-        expect(fake.loads.single, contains(':root { zoom: 0.6 !important; }'));
+        // To the hundredth on a phone: 358 / (570 + 16).
+        expect(fake.loads.single, contains(':root { zoom: 0.61 !important; }'));
         expect(fake.loads.single, isNot(contains('initial-scale=1.0')));
       },
       variant: TargetPlatformVariant({

@@ -25,15 +25,17 @@
 ///
 /// - **It fits the pane, and a finger can zoom it**: the document's own
 ///   viewport tags are dropped for one of ours (`width=device-width,
-///   initial-scale=1`, user scaling left on), and a [zoom] below 1 (from
-///   [previewFitZoom]) scales the whole page down with CSS `zoom` on the
-///   root, so a 570 px email table lays out whole on a 390 px phone. CSS
+///   initial-scale=1`, user scaling left on), and a [zoom] other than 1
+///   (from [previewFitZoom], or the preview's zoom control) scales the whole
+///   page with CSS `zoom` on the root, so a 570 px email table lays out whole on a 390 px phone. CSS
 ///   zoom, not a wider viewport, because only iOS honours a viewport tag
 ///   (`webview_flutter_android` turns the wide viewport off, and macOS and
 ///   WebView2 ignore it) and zoom works on all four. A pinch then zooms in
 ///   from there (docs/windows-web-view.md).
 String previewHtml(String html, {double zoom = 1}) {
-  final fit = zoom < 1 ? ':root { zoom: ${_zoomText(zoom)} !important; }' : '';
+  final fit = zoom > 0 && zoom != 1
+      ? ':root { zoom: ${_zoomText(zoom)} !important; }'
+      : '';
   final head =
       '<meta http-equiv="Content-Security-Policy" '
       "content=\"script-src 'none'; object-src 'none'; base-uri 'none'; "
@@ -86,8 +88,11 @@ String previewHtml(String html, {double zoom = 1}) {
 }
 
 String _zoomText(double zoom) {
-  final text = zoom.toStringAsFixed(2);
-  return text.endsWith('0') ? zoom.toStringAsFixed(1) : text;
+  var text = zoom.toStringAsFixed(2);
+  while (text.endsWith('0')) {
+    text = text.substring(0, text.length - 1);
+  }
+  return text.endsWith('.') ? text.substring(0, text.length - 1) : text;
 }
 
 /// The widest fixed layout width, in CSS px, that [html] declares, or null
@@ -102,6 +107,12 @@ String _zoomText(double zoom) {
 /// pattern, `<table width="600" style="width:100%; max-width:600px">`), and
 /// `max-width` never counts. Images do not count: an email's images are
 /// usually capped at their container (`max-width: 100%`).
+///
+/// A template with an `@media (max-width: …)` rule is responsive: it was
+/// written to narrow itself on a small screen (the classic
+/// `.container { width: 600px }` with a `max-width: 480px` override to
+/// 100 %), so it declares no width here and is shown at its own size, as a
+/// phone's mail app shows it.
 ///
 /// Nothing inside a comment counts: the server's own "View invoice" button
 /// (`HtmlEngine::buildViewButton`, in every default body) carries an
@@ -165,13 +176,20 @@ double? previewContentWidth(String input) {
       if (a != null) take(double.parse(a.group(1)!));
     }
   }
-  for (final block in RegExp(
-    r'<style\b[^>]*>([\s\S]*?)</style>',
-    caseSensitive: false,
-  ).allMatches(html)) {
-    final css = _withoutMediaBlocks(
+  final styles = [
+    for (final block in RegExp(
+      r'<style\b[^>]*>([\s\S]*?)</style>',
+      caseSensitive: false,
+    ).allMatches(html))
       block.group(1)!.replaceAll(RegExp(r'/\*[\s\S]*?(?:\*/|$)'), ''),
-    );
+  ];
+  final responsive = RegExp(
+    r'@media\b[^{]*max-(?:device-)?width',
+    caseSensitive: false,
+  );
+  if (styles.any(responsive.hasMatch)) return null;
+  for (final style in styles) {
+    final css = _withoutMediaBlocks(style);
     for (final d in styleWidth.allMatches(css)) {
       if (d.group(3)?.toLowerCase() != 'px') continue;
       take(double.parse(d.group(2)!));
@@ -217,22 +235,61 @@ String _withoutMediaBlocks(String css) {
 ///
 /// [floor] is [kPreviewTouchZoomFloor] where a pinch can zoom the preview
 /// back in (iOS, Android), and [kPreviewDesktopZoomFloor] where it cannot
-/// (macOS's web view has no magnification; Windows only Ctrl+wheel): there
-/// the text stays readable and the rest of the email scrolls sideways.
+/// (macOS's web view has no magnification, and WebView2 here gets no
+/// Ctrl+wheel): there the text stays readable, the rest of the email scrolls
+/// sideways, and the preview's own zoom control zooms out further.
+///
+/// [steps] per 1.0: 20 (0.05) by default; a phone, whose width changes only
+/// on rotation, fits to the hundredth.
 double previewFitZoom(
   double? contentWidth,
   double paneWidth, {
   double floor = kPreviewTouchZoomFloor,
+  int steps = 20,
 }) {
   if (contentWidth == null || !paneWidth.isFinite || paneWidth <= 0) return 1;
   final needed = contentWidth + 16;
   if (needed <= paneWidth) return 1;
-  final steps = (paneWidth / needed * 20).floor();
-  return (steps / 20).clamp(floor, 1.0);
+  final n = (paneWidth / needed * steps).floor();
+  return (n / steps).clamp(floor, 1.0);
 }
 
-/// The smallest fit where a pinch zooms the preview back in.
-const kPreviewTouchZoomFloor = 0.25;
+/// The smallest fit where a pinch zooms the preview back in: below it the
+/// text is too small to read at all, and one stray wide declaration (a
+/// 1200 px spacer) would shrink the whole email to it.
+const kPreviewTouchZoomFloor = 0.5;
 
 /// The smallest fit where nothing zooms it back in (macOS, Windows).
 const kPreviewDesktopZoomFloor = 0.8;
+
+/// The zoom control's steps (the preview's − / +), as a browser's.
+const kPreviewZoomSteps = <double>[
+  0.25,
+  0.33,
+  0.5,
+  0.67,
+  0.75,
+  0.8,
+  0.9,
+  1,
+  1.1,
+  1.25,
+  1.5,
+  1.75,
+  2,
+];
+
+/// The next zoom step from [current], out ([zoomIn] false) or in; [current]
+/// itself when there is none further that way.
+double previewZoomStep(double current, {required bool zoomIn}) {
+  if (zoomIn) {
+    for (final step in kPreviewZoomSteps) {
+      if (step > current + 0.001) return step;
+    }
+  } else {
+    for (final step in kPreviewZoomSteps.reversed) {
+      if (step < current - 0.001) return step;
+    }
+  }
+  return current;
+}

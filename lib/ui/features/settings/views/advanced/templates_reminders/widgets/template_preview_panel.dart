@@ -2,9 +2,12 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter_widget_from_html_core/flutter_widget_from_html_core.dart';
 
 import 'package:admin/app/design_tokens.dart';
+import 'package:admin/app/env.dart';
 import 'package:admin/data/services/templates_api.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/html_web_view.dart';
+import 'package:admin/ui/core/widgets/ltr_value.dart';
+import 'package:admin/utils/html_preview.dart';
 import 'package:admin/ui/features/settings/views/advanced/templates_reminders/preview_controller.dart';
 
 /// Live preview of the rendered email template. Listens to a
@@ -206,13 +209,28 @@ class _PreviewError extends StatelessWidget {
   }
 }
 
-class _PreviewBody extends StatelessWidget {
+/// The subject and the email. Keeps the user's zoom across previews (each
+/// debounced edit is a new one), and the fit the web view reported, for the
+/// zoom control to start from.
+class _PreviewBody extends StatefulWidget {
   const _PreviewBody({required this.preview});
 
   final TemplatePreview preview;
 
   @override
+  State<_PreviewBody> createState() => _PreviewBodyState();
+}
+
+class _PreviewBodyState extends State<_PreviewBody> {
+  /// The user's zoom; null fits the email to the pane.
+  double? _zoom;
+
+  /// The fit the web view last reported.
+  double _fit = 1;
+
+  @override
   Widget build(BuildContext context) {
+    final preview = widget.preview;
     return LayoutBuilder(
       builder: (context, c) {
         // A native web view where there is one; the HtmlWidget render
@@ -222,13 +240,27 @@ class _PreviewBody extends StatelessWidget {
           // An email is read on white, whatever the app's theme: on a dark
           // surface a transparent web view showed dark text on dark.
           background: Colors.white,
+          zoom: _zoom,
+          onFitZoom: (fit) {
+            if (mounted && fit != _fit) setState(() => _fit = fit);
+          },
           fallback: (_) => _HtmlPreview(body: preview.body),
         );
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,
           children: [
-            _PreviewSubjectBar(subject: preview.subject),
+            _PreviewSubjectBar(
+              subject: preview.subject,
+              // Only a web view zooms; the fallback reflows to its width.
+              zoom: HtmlWebView.supported
+                  ? _PreviewZoom(
+                      zoom: _zoom ?? _fit,
+                      fitted: _zoom == null,
+                      onZoom: (zoom) => setState(() => _zoom = zoom),
+                    )
+                  : null,
+            ),
             if (c.hasBoundedHeight)
               Expanded(child: body)
             else
@@ -241,18 +273,24 @@ class _PreviewBody extends StatelessWidget {
 }
 
 class _PreviewSubjectBar extends StatelessWidget {
-  const _PreviewSubjectBar({required this.subject});
+  const _PreviewSubjectBar({required this.subject, this.zoom});
 
   final String subject;
+
+  /// The zoom control, at the end of the bar.
+  final Widget? zoom;
 
   @override
   Widget build(BuildContext context) {
     final t = context.inTheme;
     final theme = Theme.of(context);
     return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: InSpacing.lg(context),
-        vertical: InSpacing.md(context),
+      padding: EdgeInsetsDirectional.only(
+        start: InSpacing.lg(context),
+        // The zoom buttons carry their own padding.
+        end: zoom == null ? InSpacing.lg(context) : InSpacing.xs,
+        top: zoom == null ? InSpacing.md(context) : InSpacing.xs,
+        bottom: zoom == null ? InSpacing.md(context) : InSpacing.xs,
       ),
       decoration: BoxDecoration(
         color: t.surfaceAlt,
@@ -275,8 +313,97 @@ class _PreviewSubjectBar extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
             ),
           ),
+          ?zoom,
         ],
       ),
+    );
+  }
+}
+
+/// − 60 % + over the email, and a Fit button once the user has zoomed. The
+/// one zoom a desktop has (macOS's web view has no magnification, and
+/// WebView2 here gets no Ctrl+wheel), and on touch it says the email can be
+/// zoomed at all, beside the pinch. A beta user could do neither
+/// ("You can't zoom in or out to see the email preview").
+class _PreviewZoom extends StatelessWidget {
+  const _PreviewZoom({
+    required this.zoom,
+    required this.fitted,
+    required this.onZoom,
+  });
+
+  /// The zoom on screen: the user's, or the fit.
+  final double zoom;
+
+  /// Whether that is the fit (no Fit button then).
+  final bool fitted;
+
+  /// A new zoom; null goes back to the fit.
+  final ValueChanged<double?> onZoom;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.inTheme;
+    final touch = Env.isTouchPrimary;
+    Widget button({
+      required Key key,
+      required IconData icon,
+      required String tooltip,
+      required VoidCallback? onPressed,
+    }) => IconButton(
+      key: key,
+      tooltip: tooltip,
+      icon: Icon(icon, size: 18),
+      onPressed: onPressed,
+      // A 44 px target on touch, never inflated to 48 in the bar; compact
+      // with a pointer (docs/touch-targets.md).
+      constraints: touch
+          ? const BoxConstraints.tightFor(width: 44, height: 44)
+          : null,
+      style: touch
+          ? const ButtonStyle(tapTargetSize: MaterialTapTargetSize.shrinkWrap)
+          : null,
+      visualDensity: touch ? null : VisualDensity.compact,
+    );
+    final out = previewZoomStep(zoom, zoomIn: false);
+    final inward = previewZoomStep(zoom, zoomIn: true);
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        button(
+          key: const ValueKey('preview_zoom_out'),
+          icon: Icons.remove,
+          tooltip: context.tr('zoom_out'),
+          onPressed: out == zoom ? null : () => onZoom(out),
+        ),
+        Semantics(
+          liveRegion: true,
+          child: SizedBox(
+            width: 44,
+            child: LtrText(
+              '${(zoom * 100).round()}%',
+              key: const ValueKey('preview_zoom_level'),
+              textAlign: TextAlign.center,
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: t.ink2),
+            ),
+          ),
+        ),
+        button(
+          key: const ValueKey('preview_zoom_in'),
+          icon: Icons.add,
+          tooltip: context.tr('zoom_in'),
+          onPressed: inward == zoom ? null : () => onZoom(inward),
+        ),
+        if (!fitted)
+          button(
+            key: const ValueKey('preview_zoom_fit'),
+            icon: Icons.fit_screen_outlined,
+            tooltip: context.tr('fit_to_width'),
+            onPressed: () => onZoom(null),
+          ),
+      ],
     );
   }
 }
