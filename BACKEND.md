@@ -3633,3 +3633,19 @@ Both live in `app/Jobs/Expense/VendorExpenseNotify.php`, the job behind an expen
 - Company custom translations are loaded before `App::setLocale(vendor locale)`, so a vendor in another language may get the company's override in the wrong language.
 
 **Client status:** nothing on the client side; the app only sets "Notify vendor when paid" on the expense.
+
+## Future features asked for in the old app's store reviews — **O (after launch; found 2026-11-22 reviewing 418 v1 reviews across the App Store, Play and Microsoft)**
+
+Not bugs: features real users asked for, each needing the server first. Collected for after launch.
+
+**1. Product categories.** A user can't group products, for example "Parts" and "Labour". One Play review (1★) gave up over it: "it doesn't give option of creating product categories which is a must have". The server has no product category: `products` has `tax_id`, which is the tax category, but nothing for grouping. A start would be a per-company category list, bundled like `expense_categories`, plus `products.category_id`, a filter, and a CSV import column. The clients would then add a picker, a list column and a filter.
+
+**2. Import column mapping that fills itself in.**
+- Two reviews complained. "Importing and mapping is wildly inaccurate, tedious and frustrating" (Play 3★). "When I import invoices the import fields don't autopopulate" (Microsoft 4★).
+- The app already applies the `hints` that `POST /api/v1/preimport` returns (`ImportController::setImportHints`). So what's left is how well the server matches.
+- **Worth doing:**
+  - Collect the headers that real exports use: QuickBooks, FreshBooks, Wave, Zoho and Excel templates.
+  - Add them as synonyms.
+  - Treat a tie between equal scores as a hint to the field the entity's own prefix names, not as no hint at all.
+
+**Client status:** nothing to do until the server has them.
