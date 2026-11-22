@@ -2339,5 +2339,17 @@
   "search_results_one_category_announcement": "ผลลัพธ์ :count รายการใน :categories หมวดหมู่",
   "search_results_at_least_one_category_announcement": "ผลลัพธ์อย่างน้อย :count รายการใน :categories หมวดหมู่",
   "search_scope_one_result_announcement": ":scope, ผลลัพธ์ :count รายการ",
-  "search_scope_at_least_one_result_announcement": ":scope, ผลลัพธ์อย่างน้อย :count รายการ"
+  "search_scope_at_least_one_result_announcement": ":scope, ผลลัพธ์อย่างน้อย :count รายการ",
+  "free_plan_signup_note": "แพ็กเกจฟรี: ลูกค้าได้สูงสุด :count ราย และบริษัทเดียว อัปเกรดได้ทุกเมื่อเพื่อเพิ่มลูกค้าได้ไม่จำกัด",
+  "free_plan_clients_used": "ใช้ไปแล้ว :used จาก :limit ลูกค้าฟรี",
+  "free_plan_clients_over": "คุณมีลูกค้า :count ราย แพ็กเกจฟรีอนุญาต :limit ราย ลูกค้าที่มีอยู่จึงยังคงอยู่ แต่การเพิ่มลูกค้าใหม่ต้องอัปเกรด",
+  "free_plan_clients_over_short": "คุณมีลูกค้า :count ราย แพ็กเกจฟรีอนุญาต :limit ราย",
+  "free_plan_client_limit_reached": "แพ็กเกจฟรีรวมลูกค้า :count ราย อัปเกรดเพื่อเพิ่มอีก",
+  "free_plan_clients_count_note": "ลูกค้าที่เก็บถาวรและที่ลบแล้วจะนับรวมในขีดจำกัดด้วย",
+  "free_plan_up_to_clients": "ลูกค้าสูงสุด :count ราย",
+  "free_plan_one_company": "บริษัทเดียว",
+  "free_plan_up_to_companies": "บริษัทสูงสุด :count แห่ง",
+  "free_plan_limits": "ขีดจำกัดของแพ็กเกจฟรี",
+  "free_plan_includes_clients": "แพ็กเกจฟรีรวมลูกค้า :count ราย",
+  "pro_trial_ends_on": "ช่วงทดลองใช้ Pro ของคุณจะสิ้นสุดในวันที่ :date หลังจากนั้น หากไม่มีแพ็กเกจแบบชำระเงิน แพ็กเกจฟรีอนุญาตลูกค้า :count ราย"
 }

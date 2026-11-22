@@ -9,6 +9,7 @@ import 'package:admin/ui/core/list/entity_column_picker_sheet.dart';
 import 'package:admin/ui/core/list/generic_list_view_model.dart';
 import 'package:admin/ui/core/list/saved_views_button.dart';
 import 'package:admin/ui/core/widgets/shortcut_tooltip.dart';
+import 'package:admin/ui/features/clients/widgets/client_limit.dart';
 
 /// One [InSizes.headerRow]-tall slot for something that sits BESIDE the
 /// search field in a header row — a button, or the whole selection row.
@@ -149,7 +150,16 @@ class EntityListTopRow<T> extends StatelessWidget {
     // `_RenderInputPadding` collapses to invalid constraints when an
     // `Expanded` sibling sits next to it.
     final button = FilledButton.icon(
-      onPressed: canCreate ? () => context.go(newRoute) : null,
+      onPressed: canCreate
+          ? () {
+              // The Free plan's client cap (docs/free-plan-limits.md).
+              if (newRoute == kNewClientRoute &&
+                  interceptNewClientAtLimit(context)) {
+                return;
+              }
+              context.go(newRoute);
+            }
+          : null,
       icon: const Icon(Icons.add, size: 18),
       label: Text(context.tr(labelKey)),
       style: FilledButton.styleFrom(

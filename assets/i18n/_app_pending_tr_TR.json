@@ -2339,5 +2339,17 @@
   "search_results_one_category_announcement": ":categories kategoride :count sonuç",
   "search_results_at_least_one_category_announcement": ":categories kategoride en az :count sonuç",
   "search_scope_one_result_announcement": ":scope, :count sonuç",
-  "search_scope_at_least_one_result_announcement": ":scope, en az :count sonuç"
+  "search_scope_at_least_one_result_announcement": ":scope, en az :count sonuç",
+  "free_plan_signup_note": "Ücretsiz plan: en fazla :count müşteri ve bir şirket. Sınırsız müşteri için istediğiniz zaman yükseltin.",
+  "free_plan_clients_used": ":limit ücretsiz müşteriden :used kullanıldı",
+  "free_plan_clients_over": ":count müşteriniz var. Ücretsiz plan :limit müşteriye izin verir; mevcut müşterileriniz korunur, ancak daha fazla eklemek için yükseltme gerekir.",
+  "free_plan_clients_over_short": ":count müşteriniz var. Ücretsiz plan :limit müşteriye izin verir.",
+  "free_plan_client_limit_reached": "Ücretsiz plan :count müşteri içerir. Daha fazla eklemek için yükseltin.",
+  "free_plan_clients_count_note": "Arşivlenmiş ve silinmiş müşteriler de sınıra dahildir.",
+  "free_plan_up_to_clients": "En fazla :count müşteri",
+  "free_plan_one_company": "Bir şirket",
+  "free_plan_up_to_companies": "En fazla :count şirket",
+  "free_plan_limits": "Ücretsiz plan sınırları",
+  "free_plan_includes_clients": "Ücretsiz plan :count müşteri içerir.",
+  "pro_trial_ends_on": "Pro denemeniz :date tarihinde sona eriyor. Sonrasında, ücretli bir plan olmadan, Ücretsiz plan :count müşteriye izin verir."
 }

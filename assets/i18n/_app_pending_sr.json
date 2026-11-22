@@ -2255,5 +2255,17 @@
   "search_results_one_category_announcement": "Rezultati: :count u kategoriji: :categories",
   "search_results_at_least_one_category_announcement": "Rezultati: najmanje :count u kategoriji: :categories",
   "search_scope_one_result_announcement": ":scope, rezultat: :count",
-  "search_scope_at_least_one_result_announcement": ":scope, rezultat: najmanje :count"
+  "search_scope_at_least_one_result_announcement": ":scope, rezultat: najmanje :count",
+  "free_plan_signup_note": "Besplatni paket: do :count klijenata i jedna firma. Nadogradite bilo kada za neograničen broj klijenata.",
+  "free_plan_clients_used": "Iskorišćeno :used od :limit besplatnih klijenata",
+  "free_plan_clients_over": "Imate :count klijenata. Besplatni paket dozvoljava :limit, pa se vaši postojeći klijenti zadržavaju, ali za dodavanje novih potrebna je nadogradnja.",
+  "free_plan_clients_over_short": "Imate :count klijenata. Besplatni paket dozvoljava :limit.",
+  "free_plan_client_limit_reached": "Besplatni paket uključuje :count klijenata. Nadogradite da biste dodali još.",
+  "free_plan_clients_count_note": "Arhivirani i obrisani klijenti se takođe računaju u ograničenje.",
+  "free_plan_up_to_clients": "Do :count klijenata",
+  "free_plan_one_company": "Jedna firma",
+  "free_plan_up_to_companies": "Do :count firmi",
+  "free_plan_limits": "Ograničenja besplatnog paketa",
+  "free_plan_includes_clients": "Besplatni paket uključuje :count klijenata.",
+  "pro_trial_ends_on": "Vaš probni period za Pro ističe :date. Nakon toga, bez plaćenog paketa, besplatni paket dozvoljava :count klijenata."
 }

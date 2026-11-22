@@ -2255,5 +2255,17 @@
   "search_results_one_category_announcement": "លទ្ធផល :count ក្នុង :categories ប្រភេទ",
   "search_results_at_least_one_category_announcement": "យ៉ាងហោចណាស់លទ្ធផល :count ក្នុង :categories ប្រភេទ",
   "search_scope_one_result_announcement": ":scope, លទ្ធផល :count",
-  "search_scope_at_least_one_result_announcement": ":scope, យ៉ាងហោចណាស់លទ្ធផល :count"
+  "search_scope_at_least_one_result_announcement": ":scope, យ៉ាងហោចណាស់លទ្ធផល :count",
+  "free_plan_signup_note": "គម្រោងឥតគិតថ្លៃ៖ អតិថិជនរហូតដល់ :count និងក្រុមហ៊ុនមួយ។ ដំឡើងកំណែបានគ្រប់ពេលសម្រាប់អតិថិជនគ្មានដែនកំណត់។",
+  "free_plan_clients_used": "បានប្រើ :used ក្នុងចំណោម :limit អតិថិជនឥតគិតថ្លៃ",
+  "free_plan_clients_over": "អ្នកមានអតិថិជន :count។ គម្រោងឥតគិតថ្លៃអនុញ្ញាត :limit ដូច្នេះអតិថិជនដែលមានស្រាប់របស់អ្នកត្រូវបានរក្សាទុក ប៉ុន្តែការបន្ថែមទៀតតម្រូវឱ្យដំឡើងកំណែ។",
+  "free_plan_clients_over_short": "អ្នកមានអតិថិជន :count។ គម្រោងឥតគិតថ្លៃអនុញ្ញាត :limit។",
+  "free_plan_client_limit_reached": "គម្រោងឥតគិតថ្លៃរួមបញ្ចូលអតិថិជន :count។ ដំឡើងកំណែដើម្បីបន្ថែមទៀត។",
+  "free_plan_clients_count_note": "អតិថិជនដែលបានទុកក្នុងបណ្ណសារ និងបានលុប ក៏ត្រូវរាប់ក្នុងដែនកំណត់ដែរ។",
+  "free_plan_up_to_clients": "អតិថិជនរហូតដល់ :count",
+  "free_plan_one_company": "ក្រុមហ៊ុនមួយ",
+  "free_plan_up_to_companies": "ក្រុមហ៊ុនរហូតដល់ :count",
+  "free_plan_limits": "ដែនកំណត់គម្រោងឥតគិតថ្លៃ",
+  "free_plan_includes_clients": "គម្រោងឥតគិតថ្លៃរួមបញ្ចូលអតិថិជន :count។",
+  "pro_trial_ends_on": "ការសាកល្បង Pro របស់អ្នកបញ្ចប់នៅ :date។ បន្ទាប់ពីនោះ បើគ្មានគម្រោងបង់ប្រាក់ គម្រោងឥតគិតថ្លៃអនុញ្ញាតអតិថិជន :count។"
 }

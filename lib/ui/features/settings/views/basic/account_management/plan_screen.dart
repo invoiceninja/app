@@ -6,6 +6,8 @@ import 'package:provider/provider.dart';
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/data/repositories/auth/auth_session.dart';
+import 'package:admin/domain/upgrade/client_limit.dart';
+import 'package:admin/domain/upgrade/client_usage.dart';
 import 'package:admin/domain/upgrade/purchase_delivery.dart';
 import 'package:admin/domain/upgrade/store_build.dart';
 import 'package:admin/domain/upgrade/upgrade_launcher.dart';
@@ -16,6 +18,7 @@ import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/form_save_scope.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
+import 'package:admin/ui/features/clients/widgets/client_limit.dart';
 import 'package:admin/ui/features/settings/widgets/form_section.dart';
 import 'package:admin/ui/features/settings/widgets/settings_form_shell.dart';
 import 'package:admin/ui/core/fold_geometry.dart';
@@ -103,6 +106,11 @@ class AccountManagementPlanScreen extends StatelessWidget {
           subtitle: context.tr('account_management_subtitle'),
           sections: [
             _PlanStatusCard(session: value),
+            // What the hosted Free plan includes, with live usage
+            // (docs/free-plan-limits.md). Never self-hosted, which has no
+            // limits.
+            if (freePlanClientLimit(value) case final limit?)
+              _FreePlanLimitsCard(session: value, limit: limit),
             // Self-hosted only, and mutually exclusive with the hosted card
             // below — `showWhiteLabelCard` owns that guard, because
             // `isWhiteLabeled` alone is true on hosted too.
@@ -151,8 +159,12 @@ class _PlanStatusCard extends StatelessWidget {
     // told it's on a free trial (with a bogus bar: the transformer never
     // sends `num_trial_days`, so the progress math clamps to 0).
     final isTrialing = session.isHosted && session.isTrial;
+    // A hosted trial as the server really sends it (`plan: pro` and its end
+    // date; `isTrial` cannot see it there — see [hostedTrialEndsOn]). Its end
+    // is when the Free plan's client cap starts to apply, so it is said here.
+    final trialEnds = hostedTrialEndsOn(session);
     final planLabel = context.tr(planHeadlineKey(session));
-    final headline = isTrialing
+    final headline = isTrialing || trialEnds != null
         ? '$planLabel • ${context.tr('free_trial')}'
         : planLabel;
     // Hosted: the plan's renewal date. Self-hosted: the white-label license's
@@ -162,6 +174,7 @@ class _PlanStatusCard extends StatelessWidget {
     // self-hosted branch deliberately skips the `isTrial` check above, or the
     // date would disappear during the exact fortnight it matters most.
     final showExpiry =
+        trialEnds == null &&
         session.planExpires.isNotEmpty &&
         (session.isHosted
             ? (!session.isTrial && session.plan.isNotEmpty)
@@ -191,9 +204,112 @@ class _PlanStatusCard extends StatelessWidget {
           SizedBox(height: InSpacing.md(context)),
           _TrialProgress(session: session),
         ],
+        if (trialEnds != null) ...[
+          SizedBox(height: InSpacing.sm),
+          Text(
+            key: const ValueKey('plan_trial_ends'),
+            context.tr('pro_trial_ends_on', {
+              'date': _expiryDisplay(context, session),
+              'count': formatClientCount(
+                context,
+                session.hostedClientCount > 0
+                    ? session.hostedClientCount
+                    : kFreePlanClientLimit,
+              ),
+            }),
+            style: theme.textTheme.bodyMedium?.copyWith(color: tokens.ink2),
+          ),
+        ],
         // Self-hosted: nothing more to render on this card — the White Label
         // section below owns Purchase/Renew/Apply License, and there's no
         // hosted-billing portal to link to.
+      ],
+    );
+  }
+}
+
+/// What a hosted Free plan includes, said plainly so nobody meets the cap as
+/// a surprise: the clients used of the cap (the server's total, refreshed on
+/// opening — [ClientUsage]), the companies, and that archived and deleted
+/// clients count too. An account over the cap (a plan or trial that lapsed)
+/// is told its clients are kept. Upgrade is the Change Plan card's below.
+class _FreePlanLimitsCard extends StatefulWidget {
+  const _FreePlanLimitsCard({required this.session, required this.limit});
+
+  final AuthSession session;
+  final int limit;
+
+  @override
+  State<_FreePlanLimitsCard> createState() => _FreePlanLimitsCardState();
+}
+
+class _FreePlanLimitsCardState extends State<_FreePlanLimitsCard> {
+  ClientUsage? _usage;
+
+  @override
+  void initState() {
+    super.initState();
+    _usage = context.read<ClientUsage?>();
+    unawaited(_usage?.refresh(maxAge: const Duration(seconds: 15)));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final usage = _usage;
+    if (usage == null) return _card(context, null);
+    return ListenableBuilder(
+      listenable: usage,
+      builder: (context, _) => _card(context, usage.quota),
+    );
+  }
+
+  Widget _card(BuildContext context, ClientQuota? quota) {
+    final theme = Theme.of(context);
+    final tokens = context.inTheme;
+    final body = theme.textTheme.bodyMedium?.copyWith(color: tokens.ink);
+    final hint = theme.textTheme.bodySmall?.copyWith(color: tokens.ink2);
+    final companies = widget.session.hostedCompanyCount;
+    final String clientsLine;
+    if (quota == null) {
+      clientsLine = context.tr('free_plan_up_to_clients', {
+        'count': formatClientCount(context, widget.limit),
+      });
+    } else if (quota.state == ClientQuotaState.overLimit) {
+      clientsLine = clientLimitReachedMessage(
+        context,
+        limit: quota.limit,
+        used: quota.used,
+      );
+    } else {
+      clientsLine = clientUsageMessage(context, quota);
+    }
+    return FormSection(
+      key: const ValueKey('plan_free_limits'),
+      title: context.tr('free_plan_limits'),
+      children: [
+        Text(
+          clientsLine,
+          key: const ValueKey('plan_free_clients'),
+          style: body,
+        ),
+        if (quota != null)
+          ClipRRect(
+            borderRadius: BorderRadius.circular(InRadii.r1),
+            child: LinearProgressIndicator(
+              value: (quota.used / quota.limit).clamp(0.0, 1.0),
+              minHeight: 6,
+              backgroundColor: tokens.border,
+            ),
+          ),
+        Text(
+          companies > 1
+              ? context.tr('free_plan_up_to_companies', {
+                  'count': formatClientCount(context, companies),
+                })
+              : context.tr('free_plan_one_company'),
+          style: body,
+        ),
+        Text(context.tr('free_plan_clients_count_note'), style: hint),
       ],
     );
   }

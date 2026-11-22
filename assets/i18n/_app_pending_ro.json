@@ -2327,5 +2327,17 @@
   "search_results_one_category_announcement": ":count rezultate în :categories categorie",
   "search_results_at_least_one_category_announcement": "Cel puțin :count rezultate în :categories categorie",
   "search_scope_one_result_announcement": ":scope, :count rezultat",
-  "search_scope_at_least_one_result_announcement": ":scope, cel puțin :count rezultat"
+  "search_scope_at_least_one_result_announcement": ":scope, cel puțin :count rezultat",
+  "free_plan_signup_note": "Plan gratuit: până la :count clienți și o firmă. Faceți upgrade oricând pentru clienți nelimitați.",
+  "free_plan_clients_used": ":used din :limit clienți gratuiți folosiți",
+  "free_plan_clients_over": "Aveți :count clienți. Planul gratuit permite :limit, așa că clienții existenți sunt păstrați, dar pentru a adăuga alții este nevoie de upgrade.",
+  "free_plan_clients_over_short": "Aveți :count clienți. Planul gratuit permite :limit.",
+  "free_plan_client_limit_reached": "Planul gratuit include :count clienți. Faceți upgrade pentru a adăuga mai mulți.",
+  "free_plan_clients_count_note": "Clienții arhivați și cei șterși se numără și ei în limită.",
+  "free_plan_up_to_clients": "Până la :count clienți",
+  "free_plan_one_company": "O firmă",
+  "free_plan_up_to_companies": "Până la :count firme",
+  "free_plan_limits": "Limitele planului gratuit",
+  "free_plan_includes_clients": "Planul gratuit include :count clienți.",
+  "pro_trial_ends_on": "Perioada de probă Pro se încheie pe :date. După aceea, fără un plan plătit, planul gratuit permite :count clienți."
 }

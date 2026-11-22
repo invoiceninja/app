@@ -1183,6 +1183,7 @@ Field-level breakdown of every option under each settings panel. Source of truth
 | Days-left countdown | ✅ | ✅ | ✅ | ✅ | |
 | Change Plan (action) | ✅ | ✅ | ✅ | ✅ | |
 | Upgrade Plan (action) | ✅ | ✅ | ✅ | ✅ | |
+| Free plan limits said up front (signup line; Plan card with live "3 of 5 clients used"; clients-list usage line; Upgrade dialog before a New client the server would refuse; an account over the cap told its clients are kept; the `limit_clients` 422 with Upgrade; a hosted trial's end) | ❌ | ❌ | ✅ | | |
 | Pro/Enterprise gating: advanced-settings banner + field disable | ✅ | ✅ | ✅ | ✅ | |
 | Pro/Enterprise gating: sidebar lock icons + search-result tier chips | ✅ | — | ✅ | ✅ | |
 | Pro/Enterprise gating: trial-aware (trialing users keep paid features) | ✅ | ✅ | ✅ | ✅ | |

@@ -2340,5 +2340,17 @@
   "search_results_one_category_announcement": "Rezultāti: :count, kategorija: :categories",
   "search_results_at_least_one_category_announcement": "Rezultāti: vismaz :count, kategorija: :categories",
   "search_scope_one_result_announcement": ":scope, rezultāts: :count",
-  "search_scope_at_least_one_result_announcement": ":scope, rezultāts: vismaz :count"
+  "search_scope_at_least_one_result_announcement": ":scope, rezultāts: vismaz :count",
+  "free_plan_signup_note": "Bezmaksas plāns: līdz :count klientiem un viens uzņēmums. Jebkurā laikā jauniniet plānu neierobežotam klientu skaitam.",
+  "free_plan_clients_used": "Izmantoti :used no :limit bezmaksas klientiem",
+  "free_plan_clients_over": "Jums ir :count klienti. Bezmaksas plāns atļauj :limit, tāpēc esošie klienti tiek saglabāti, bet, lai pievienotu vairāk, nepieciešams jaunināt plānu.",
+  "free_plan_clients_over_short": "Jums ir :count klienti. Bezmaksas plāns atļauj :limit.",
+  "free_plan_client_limit_reached": "Bezmaksas plāns ietver :count klientus. Jauniniet plānu, lai pievienotu vairāk.",
+  "free_plan_clients_count_note": "Arhivētie un dzēstie klienti arī tiek ieskaitīti limitā.",
+  "free_plan_up_to_clients": "Līdz :count klientiem",
+  "free_plan_one_company": "Viens uzņēmums",
+  "free_plan_up_to_companies": "Līdz :count uzņēmumiem",
+  "free_plan_limits": "Bezmaksas plāna ierobežojumi",
+  "free_plan_includes_clients": "Bezmaksas plāns ietver :count klientus.",
+  "pro_trial_ends_on": "Jūsu Pro izmēģinājums beidzas :date. Pēc tam, bez maksas plāna, bezmaksas plāns atļauj :count klientus."
 }

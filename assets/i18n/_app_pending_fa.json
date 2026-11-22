@@ -2340,5 +2340,17 @@
   "search_results_one_category_announcement": ":count نتیجه در :categories دسته",
   "search_results_at_least_one_category_announcement": "دست‌کم :count نتیجه در :categories دسته",
   "search_scope_one_result_announcement": ":scope، :count نتیجه",
-  "search_scope_at_least_one_result_announcement": ":scope، دست‌کم :count نتیجه"
+  "search_scope_at_least_one_result_announcement": ":scope، دست‌کم :count نتیجه",
+  "free_plan_signup_note": "طرح رایگان: حداکثر :count مشتری و یک شرکت. هر زمان برای مشتریان نامحدود ارتقا دهید.",
+  "free_plan_clients_used": ":used از :limit مشتری رایگان استفاده شده",
+  "free_plan_clients_over": "شما :count مشتری دارید. طرح رایگان :limit مشتری را مجاز می‌داند، بنابراین مشتریان فعلی شما حفظ می‌شوند، اما افزودن مشتری بیشتر نیاز به ارتقا دارد.",
+  "free_plan_clients_over_short": "شما :count مشتری دارید. طرح رایگان :limit مشتری را مجاز می‌داند.",
+  "free_plan_client_limit_reached": "طرح رایگان شامل :count مشتری است. برای افزودن بیشتر ارتقا دهید.",
+  "free_plan_clients_count_note": "مشتریان بایگانی‌شده و حذف‌شده نیز در محدودیت شمرده می‌شوند.",
+  "free_plan_up_to_clients": "حداکثر :count مشتری",
+  "free_plan_one_company": "یک شرکت",
+  "free_plan_up_to_companies": "حداکثر :count شرکت",
+  "free_plan_limits": "محدودیت‌های طرح رایگان",
+  "free_plan_includes_clients": "طرح رایگان شامل :count مشتری است.",
+  "pro_trial_ends_on": "دوره آزمایشی Pro شما در :date به پایان می‌رسد. پس از آن، بدون طرح پولی، طرح رایگان :count مشتری را مجاز می‌داند."
 }

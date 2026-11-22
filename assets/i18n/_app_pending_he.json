@@ -2255,5 +2255,17 @@
   "search_results_one_category_announcement": ":count תוצאות ב-:categories קטגוריה",
   "search_results_at_least_one_category_announcement": "לפחות :count תוצאות ב-:categories קטגוריה",
   "search_scope_one_result_announcement": ":scope, :count תוצאה",
-  "search_scope_at_least_one_result_announcement": ":scope, לפחות :count תוצאה"
+  "search_scope_at_least_one_result_announcement": ":scope, לפחות :count תוצאה",
+  "free_plan_signup_note": "תוכנית חינמית: עד :count לקוחות וחברה אחת. אפשר לשדרג בכל עת ללקוחות ללא הגבלה.",
+  "free_plan_clients_used": "נוצלו :used מתוך :limit לקוחות חינמיים",
+  "free_plan_clients_over": "יש לך :count לקוחות. התוכנית החינמית מאפשרת :limit, כך שהלקוחות הקיימים שלך נשמרים, אבל הוספת לקוחות נוספים מחייבת שדרוג.",
+  "free_plan_clients_over_short": "יש לך :count לקוחות. התוכנית החינמית מאפשרת :limit.",
+  "free_plan_client_limit_reached": "התוכנית החינמית כוללת :count לקוחות. שדרג כדי להוסיף עוד.",
+  "free_plan_clients_count_note": "לקוחות בארכיון ולקוחות שנמחקו נספרים גם הם במגבלה.",
+  "free_plan_up_to_clients": "עד :count לקוחות",
+  "free_plan_one_company": "חברה אחת",
+  "free_plan_up_to_companies": "עד :count חברות",
+  "free_plan_limits": "מגבלות התוכנית החינמית",
+  "free_plan_includes_clients": "התוכנית החינמית כוללת :count לקוחות.",
+  "pro_trial_ends_on": "תקופת הניסיון של Pro מסתיימת ב-:date. לאחר מכן, ללא תוכנית בתשלום, התוכנית החינמית מאפשרת :count לקוחות."
 }

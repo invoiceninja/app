@@ -2339,5 +2339,17 @@
   "search_results_one_category_announcement": "Výsledky: :count v kategorii: :categories",
   "search_results_at_least_one_category_announcement": "Výsledky: alespoň :count v kategorii: :categories",
   "search_scope_one_result_announcement": ":scope, výsledek: :count",
-  "search_scope_at_least_one_result_announcement": ":scope, výsledek: alespoň :count"
+  "search_scope_at_least_one_result_announcement": ":scope, výsledek: alespoň :count",
+  "free_plan_signup_note": "Bezplatný tarif: až :count klientů a jedna firma. Kdykoli můžete přejít na vyšší tarif s neomezeným počtem klientů.",
+  "free_plan_clients_used": "Využito :used z :limit bezplatných klientů",
+  "free_plan_clients_over": "Máte :count klientů. Bezplatný tarif umožňuje :limit, takže vaši stávající klienti zůstanou zachováni, ale přidání dalších vyžaduje vyšší tarif.",
+  "free_plan_clients_over_short": "Máte :count klientů. Bezplatný tarif umožňuje :limit.",
+  "free_plan_client_limit_reached": "Bezplatný tarif zahrnuje :count klientů. Pro přidání dalších přejděte na vyšší tarif.",
+  "free_plan_clients_count_note": "Do limitu se počítají i archivovaní a smazaní klienti.",
+  "free_plan_up_to_clients": "Až :count klientů",
+  "free_plan_one_company": "Jedna firma",
+  "free_plan_up_to_companies": "Až :count firem",
+  "free_plan_limits": "Limity bezplatného tarifu",
+  "free_plan_includes_clients": "Bezplatný tarif zahrnuje :count klientů.",
+  "pro_trial_ends_on": "Vaše zkušební verze Pro končí :date. Poté, bez placeného tarifu, bezplatný tarif umožňuje :count klientů."
 }

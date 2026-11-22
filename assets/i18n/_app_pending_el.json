@@ -2256,5 +2256,17 @@
   "search_results_one_category_announcement": ":count αποτελέσματα σε :categories κατηγορία",
   "search_results_at_least_one_category_announcement": "Τουλάχιστον :count αποτελέσματα σε :categories κατηγορία",
   "search_scope_one_result_announcement": ":scope, :count αποτέλεσμα",
-  "search_scope_at_least_one_result_announcement": ":scope, τουλάχιστον :count αποτέλεσμα"
+  "search_scope_at_least_one_result_announcement": ":scope, τουλάχιστον :count αποτέλεσμα",
+  "free_plan_signup_note": "Δωρεάν πρόγραμμα: έως :count πελάτες και μία εταιρεία. Αναβαθμίστε οποιαδήποτε στιγμή για απεριόριστους πελάτες.",
+  "free_plan_clients_used": "Χρησιμοποιούνται :used από :limit δωρεάν πελάτες",
+  "free_plan_clients_over": "Έχετε :count πελάτες. Το Δωρεάν πρόγραμμα επιτρέπει :limit, οπότε οι υπάρχοντες πελάτες σας διατηρούνται, αλλά για να προσθέσετε περισσότερους χρειάζεται αναβάθμιση.",
+  "free_plan_clients_over_short": "Έχετε :count πελάτες. Το Δωρεάν πρόγραμμα επιτρέπει :limit.",
+  "free_plan_client_limit_reached": "Το Δωρεάν πρόγραμμα περιλαμβάνει :count πελάτες. Αναβαθμίστε για να προσθέσετε περισσότερους.",
+  "free_plan_clients_count_note": "Οι αρχειοθετημένοι και οι διαγραμμένοι πελάτες μετρούν επίσης στο όριο.",
+  "free_plan_up_to_clients": "Έως :count πελάτες",
+  "free_plan_one_company": "Μία εταιρεία",
+  "free_plan_up_to_companies": "Έως :count εταιρείες",
+  "free_plan_limits": "Όρια Δωρεάν προγράμματος",
+  "free_plan_includes_clients": "Το Δωρεάν πρόγραμμα περιλαμβάνει :count πελάτες.",
+  "pro_trial_ends_on": "Η δοκιμαστική περίοδος Pro λήγει στις :date. Μετά από αυτό, χωρίς πληρωμένο πρόγραμμα, το Δωρεάν πρόγραμμα επιτρέπει :count πελάτες."
 }

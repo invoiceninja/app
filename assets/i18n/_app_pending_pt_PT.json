@@ -2256,5 +2256,17 @@
   "search_results_one_category_announcement": ":count resultados em :categories categoria",
   "search_results_at_least_one_category_announcement": "Pelo menos :count resultados em :categories categoria",
   "search_scope_one_result_announcement": ":scope, :count resultado",
-  "search_scope_at_least_one_result_announcement": ":scope, pelo menos :count resultado"
+  "search_scope_at_least_one_result_announcement": ":scope, pelo menos :count resultado",
+  "free_plan_signup_note": "Plano gratuito: até :count clientes e uma empresa. Faça a atualização a qualquer momento para ter clientes ilimitados.",
+  "free_plan_clients_used": ":used de :limit clientes gratuitos utilizados",
+  "free_plan_clients_over": "Tem :count clientes. O plano gratuito permite :limit, por isso os seus clientes atuais são mantidos, mas adicionar mais requer uma atualização.",
+  "free_plan_clients_over_short": "Tem :count clientes. O plano gratuito permite :limit.",
+  "free_plan_client_limit_reached": "O plano gratuito inclui :count clientes. Faça a atualização para adicionar mais.",
+  "free_plan_clients_count_note": "Os clientes arquivados e eliminados também contam para o limite.",
+  "free_plan_up_to_clients": "Até :count clientes",
+  "free_plan_one_company": "Uma empresa",
+  "free_plan_up_to_companies": "Até :count empresas",
+  "free_plan_limits": "Limites do plano gratuito",
+  "free_plan_includes_clients": "O plano gratuito inclui :count clientes.",
+  "pro_trial_ends_on": "A sua avaliação do Pro termina a :date. Depois disso, sem um plano pago, o plano gratuito permite :count clientes."
 }

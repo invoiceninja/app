@@ -6,6 +6,7 @@ import 'package:admin/app/serving_server.dart';
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/data/services/web_sign_in.dart';
+import 'package:admin/domain/upgrade/client_limit.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/form_save_scope.dart';
 import 'package:admin/ui/core/widgets/google_logo.dart';
@@ -178,7 +179,21 @@ class _SignupBody extends StatelessWidget {
                     value: vm.acceptedTerms,
                     onChanged: vm.setAcceptedTerms,
                   ),
-                  const SizedBox(height: InSpacing.xl),
+                  SizedBox(height: InSpacing.md(context)),
+                  // What Free includes, said before the account exists rather
+                  // than learned from a refused sixth client — the surprise
+                  // behind the previous app's one-star reviews. Signup is
+                  // hosted-only, so it is never shown to a self-hosted user
+                  // (docs/free-plan-limits.md).
+                  Text(
+                    key: const ValueKey('signup_free_plan_note'),
+                    context.tr('free_plan_signup_note', {
+                      'count': '$kFreePlanClientLimit',
+                    }),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: tokens.ink2, fontSize: 13),
+                  ),
+                  SizedBox(height: InSpacing.lg(context)),
                   FilledButton.icon(
                     key: const ValueKey('signup_submit'),
                     onPressed: vm.busy ? null : () => _onSubmit(context),

@@ -2224,5 +2224,17 @@
   "search_results_one_category_announcement": ":count kết quả trong :categories danh mục",
   "search_results_at_least_one_category_announcement": "Ít nhất :count kết quả trong :categories danh mục",
   "search_scope_one_result_announcement": ":scope, :count kết quả",
-  "search_scope_at_least_one_result_announcement": ":scope, ít nhất :count kết quả"
+  "search_scope_at_least_one_result_announcement": ":scope, ít nhất :count kết quả",
+  "free_plan_signup_note": "Gói miễn phí: tối đa :count khách hàng và một công ty. Nâng cấp bất cứ lúc nào để có khách hàng không giới hạn.",
+  "free_plan_clients_used": "Đã dùng :used trên :limit khách hàng miễn phí",
+  "free_plan_clients_over": "Bạn có :count khách hàng. Gói miễn phí cho phép :limit, vì vậy các khách hàng hiện có của bạn được giữ lại, nhưng muốn thêm nữa thì cần nâng cấp.",
+  "free_plan_clients_over_short": "Bạn có :count khách hàng. Gói miễn phí cho phép :limit.",
+  "free_plan_client_limit_reached": "Gói miễn phí bao gồm :count khách hàng. Nâng cấp để thêm nữa.",
+  "free_plan_clients_count_note": "Khách hàng đã lưu trữ và đã xóa cũng được tính vào giới hạn.",
+  "free_plan_up_to_clients": "Tối đa :count khách hàng",
+  "free_plan_one_company": "Một công ty",
+  "free_plan_up_to_companies": "Tối đa :count công ty",
+  "free_plan_limits": "Giới hạn của gói miễn phí",
+  "free_plan_includes_clients": "Gói miễn phí bao gồm :count khách hàng.",
+  "pro_trial_ends_on": "Bản dùng thử Pro của bạn kết thúc vào :date. Sau đó, nếu không có gói trả phí, gói miễn phí cho phép :count khách hàng."
 }

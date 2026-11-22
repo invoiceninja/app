@@ -2339,5 +2339,17 @@
   "search_results_one_category_announcement": ":count resultaten in :categories categorie",
   "search_results_at_least_one_category_announcement": "Minstens :count resultaten in :categories categorie",
   "search_scope_one_result_announcement": ":scope, :count resultaat",
-  "search_scope_at_least_one_result_announcement": ":scope, minstens :count resultaat"
+  "search_scope_at_least_one_result_announcement": ":scope, minstens :count resultaat",
+  "free_plan_signup_note": "Gratis abonnement: tot :count klanten en één bedrijf. Upgrade op elk moment voor onbeperkt klanten.",
+  "free_plan_clients_used": ":used van :limit gratis klanten gebruikt",
+  "free_plan_clients_over": "U hebt :count klanten. Het gratis abonnement staat er :limit toe, dus uw bestaande klanten blijven behouden, maar voor meer klanten is een upgrade nodig.",
+  "free_plan_clients_over_short": "U hebt :count klanten. Het gratis abonnement staat er :limit toe.",
+  "free_plan_client_limit_reached": "Het gratis abonnement omvat :count klanten. Upgrade om er meer toe te voegen.",
+  "free_plan_clients_count_note": "Gearchiveerde en verwijderde klanten tellen ook mee voor de limiet.",
+  "free_plan_up_to_clients": "Tot :count klanten",
+  "free_plan_one_company": "Eén bedrijf",
+  "free_plan_up_to_companies": "Tot :count bedrijven",
+  "free_plan_limits": "Limieten van het gratis abonnement",
+  "free_plan_includes_clients": "Het gratis abonnement omvat :count klanten.",
+  "pro_trial_ends_on": "Uw Pro-proefperiode eindigt op :date. Daarna staat het gratis abonnement zonder betaald abonnement :count klanten toe."
 }

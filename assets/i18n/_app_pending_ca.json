@@ -2256,5 +2256,17 @@
   "search_results_one_category_announcement": ":count resultats en :categories categoria",
   "search_results_at_least_one_category_announcement": "Almenys :count resultats en :categories categoria",
   "search_scope_one_result_announcement": ":scope, :count resultat",
-  "search_scope_at_least_one_result_announcement": ":scope, almenys :count resultat"
+  "search_scope_at_least_one_result_announcement": ":scope, almenys :count resultat",
+  "free_plan_signup_note": "Pla gratuït: fins a :count clients i una empresa. Actualitzeu quan vulgueu per tenir clients il·limitats.",
+  "free_plan_clients_used": ":used de :limit clients gratuïts utilitzats",
+  "free_plan_clients_over": "Teniu :count clients. El pla gratuït en permet :limit, de manera que es conserven els clients existents, però per afegir-ne més cal actualitzar.",
+  "free_plan_clients_over_short": "Teniu :count clients. El pla gratuït en permet :limit.",
+  "free_plan_client_limit_reached": "El pla gratuït inclou :count clients. Actualitzeu per afegir-ne més.",
+  "free_plan_clients_count_note": "Els clients arxivats i eliminats també compten per al límit.",
+  "free_plan_up_to_clients": "Fins a :count clients",
+  "free_plan_one_company": "Una empresa",
+  "free_plan_up_to_companies": "Fins a :count empreses",
+  "free_plan_limits": "Límits del pla gratuït",
+  "free_plan_includes_clients": "El pla gratuït inclou :count clients.",
+  "pro_trial_ends_on": "La prova de Pro acaba el :date. Després, sense un pla de pagament, el pla gratuït permet :count clients."
 }

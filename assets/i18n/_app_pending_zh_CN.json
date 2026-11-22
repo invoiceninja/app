@@ -2339,5 +2339,17 @@
   "search_results_one_category_announcement": ":categories 个类别中有 :count 个结果",
   "search_results_at_least_one_category_announcement": ":categories 个类别中至少有 :count 个结果",
   "search_scope_one_result_announcement": ":scope，:count 个结果",
-  "search_scope_at_least_one_result_announcement": ":scope，至少 :count 个结果"
+  "search_scope_at_least_one_result_announcement": ":scope，至少 :count 个结果",
+  "free_plan_signup_note": "免费版：最多 :count 个客户和一家公司。随时升级即可拥有无限客户。",
+  "free_plan_clients_used": "已使用 :used / :limit 个免费客户",
+  "free_plan_clients_over": "您有 :count 个客户。免费版允许 :limit 个，因此您现有的客户会保留，但添加更多客户需要升级。",
+  "free_plan_clients_over_short": "您有 :count 个客户。免费版允许 :limit 个。",
+  "free_plan_client_limit_reached": "免费版包含 :count 个客户。升级以添加更多。",
+  "free_plan_clients_count_note": "已归档和已删除的客户也计入限额。",
+  "free_plan_up_to_clients": "最多 :count 个客户",
+  "free_plan_one_company": "一家公司",
+  "free_plan_up_to_companies": "最多 :count 家公司",
+  "free_plan_limits": "免费版限额",
+  "free_plan_includes_clients": "免费版包含 :count 个客户。",
+  "pro_trial_ends_on": "您的 Pro 试用将于 :date 结束。之后若无付费方案，免费版允许 :count 个客户。"
 }

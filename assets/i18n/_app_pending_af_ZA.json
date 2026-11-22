@@ -2256,5 +2256,17 @@
   "search_results_one_category_announcement": ":count resultate in :categories kategorie",
   "search_results_at_least_one_category_announcement": "Minstens :count resultate in :categories kategorie",
   "search_scope_one_result_announcement": ":scope, :count resultaat",
-  "search_scope_at_least_one_result_announcement": ":scope, minstens :count resultaat"
+  "search_scope_at_least_one_result_announcement": ":scope, minstens :count resultaat",
+  "free_plan_signup_note": "Gratis plan: tot :count kliënte en een maatskappy. Gradeer enige tyd op vir onbeperkte kliënte.",
+  "free_plan_clients_used": ":used van :limit gratis kliënte gebruik",
+  "free_plan_clients_over": "Jy het :count kliënte. Die Gratis plan laat :limit toe, so jou bestaande kliënte bly behoue, en om meer by te voeg vereis 'n opgradering.",
+  "free_plan_clients_over_short": "Jy het :count kliënte. Die Gratis plan laat :limit toe.",
+  "free_plan_client_limit_reached": "Die Gratis plan sluit :count kliënte in. Gradeer op om meer by te voeg.",
+  "free_plan_clients_count_note": "Geargiveerde en geskrapte kliënte tel ook teen die limiet.",
+  "free_plan_up_to_clients": "Tot :count kliënte",
+  "free_plan_one_company": "Een maatskappy",
+  "free_plan_up_to_companies": "Tot :count maatskappye",
+  "free_plan_limits": "Gratis plan se limiete",
+  "free_plan_includes_clients": "Die Gratis plan sluit :count kliënte in.",
+  "pro_trial_ends_on": "Jou Pro-proeftydperk eindig op :date. Daarna, sonder 'n betaalde plan, laat die Gratis plan :count kliënte toe."
 }

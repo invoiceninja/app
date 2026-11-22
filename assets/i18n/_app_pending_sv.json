@@ -2326,5 +2326,17 @@
   "search_results_one_category_announcement": ":count resultat i :categories kategori",
   "search_results_at_least_one_category_announcement": "Minst :count resultat i :categories kategori",
   "search_scope_one_result_announcement": ":scope, :count resultat",
-  "search_scope_at_least_one_result_announcement": ":scope, minst :count resultat"
+  "search_scope_at_least_one_result_announcement": ":scope, minst :count resultat",
+  "free_plan_signup_note": "Gratisplan: upp till :count kunder och ett företag. Uppgradera när som helst för obegränsat antal kunder.",
+  "free_plan_clients_used": ":used av :limit gratis kunder använda",
+  "free_plan_clients_over": "Du har :count kunder. Gratisplanen tillåter :limit, så dina befintliga kunder behålls, men för att lägga till fler krävs en uppgradering.",
+  "free_plan_clients_over_short": "Du har :count kunder. Gratisplanen tillåter :limit.",
+  "free_plan_client_limit_reached": "Gratisplanen omfattar :count kunder. Uppgradera för att lägga till fler.",
+  "free_plan_clients_count_note": "Arkiverade och raderade kunder räknas också mot gränsen.",
+  "free_plan_up_to_clients": "Upp till :count kunder",
+  "free_plan_one_company": "Ett företag",
+  "free_plan_up_to_companies": "Upp till :count företag",
+  "free_plan_limits": "Gratisplanens gränser",
+  "free_plan_includes_clients": "Gratisplanen omfattar :count kunder.",
+  "pro_trial_ends_on": "Din Pro-provperiod slutar :date. Därefter, utan en betald plan, tillåter gratisplanen :count kunder."
 }

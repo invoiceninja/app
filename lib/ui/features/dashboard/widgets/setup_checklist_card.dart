@@ -9,10 +9,12 @@ import 'package:admin/app/services.dart';
 import 'package:admin/app/welcome_controller.dart';
 import 'package:admin/domain/setup_checklist.dart';
 import 'package:admin/domain/terminal/terminal_eligibility.dart';
+import 'package:admin/domain/upgrade/client_usage.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/l10n/tap_to_pay_names.dart';
 import 'package:admin/ui/core/utils/haptics.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
+import 'package:admin/ui/features/clients/widgets/client_limit.dart';
 import 'package:admin/ui/features/dashboard/view_models/setup_checklist_view_model.dart';
 import 'package:admin/ui/features/dashboard/widgets/dashboard_density.dart';
 
@@ -562,11 +564,20 @@ class _ChecklistRow extends StatelessWidget {
     final complete = row.isComplete;
     final failed = row.state == ChecklistRowState.failed;
     final action = complete ? null : _action;
-    final body = switch (row.state) {
+    var body = switch (row.state) {
       ChecklistRowState.uploading => context.tr('checklist_logo_uploading'),
       ChecklistRowState.failed => context.tr('checklist_logo_failed'),
       _ => context.tr(bodyKey, {'name': tapToPayNameFor(context, bodyKey)}),
     };
+    // A new hosted Free plan account hears its client cap once, where it is
+    // about to add clients (docs/free-plan-limits.md).
+    final clientLimit = row.item == SetupChecklistItem.clients
+        ? context.read<ClientUsage?>()?.limit
+        : null;
+    if (clientLimit != null && row.state == ChecklistRowState.todo) {
+      body =
+          '$body ${context.tr('free_plan_includes_clients', {'count': formatClientCount(context, clientLimit)})}';
+    }
     final touch = Env.isTouchPrimary;
 
     // The row's action: Retry, the next step's button(s), or a chevron.

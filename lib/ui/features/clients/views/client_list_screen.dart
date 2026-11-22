@@ -18,6 +18,7 @@ import 'package:admin/domain/bulk_update_columns.dart';
 import 'package:admin/ui/features/bulk_update/bulk_update_dialog.dart';
 import 'package:admin/ui/features/clients/widgets/bulk_assign_group_dialog.dart';
 import 'package:admin/ui/features/clients/widgets/client_list_column_headers.dart';
+import 'package:admin/ui/features/clients/widgets/client_limit.dart';
 import 'package:admin/ui/features/clients/widgets/client_list_empty_state.dart';
 import 'package:admin/ui/features/clients/widgets/client_list_tile.dart';
 import 'package:admin/ui/features/clients/widgets/overdue_clients_scope.dart';
@@ -55,6 +56,12 @@ class ClientListScreen extends StatelessWidget {
         embedded: embedded,
         // The company-wide figure, so never over a list narrowed to one group.
         showListTotals: gid == null,
+        // "3 of 5 free clients used · Upgrade" on a hosted Free plan; draws
+        // nothing otherwise (docs/free-plan-limits.md). The company's whole
+        // count, so never over a group's tab.
+        headerBanner: gid == null && !embedded
+            ? const ClientUsageBanner()
+            : null,
         // Stage a draft pre-assigned to this group (route query is dropped on
         // the cross-branch jump; the create screen reads the staged draft).
         embeddedNewOverride: gid == null

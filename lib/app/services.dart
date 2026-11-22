@@ -175,6 +175,7 @@ import 'package:admin/domain/expenses/receipt_scanner.dart';
 import 'package:admin/domain/quick_create.dart';
 import 'package:admin/domain/sidebar_badge_modes.dart';
 import 'package:admin/domain/sync/sync_dispatcher.dart';
+import 'package:admin/domain/upgrade/client_usage.dart';
 import 'package:admin/domain/upgrade/purchase_delivery.dart';
 import 'package:admin/ui/features/docuninja/widgets/docuninja_embed_surface.dart';
 import 'package:admin/ui/core/detail/related_tab_counts.dart';
@@ -1076,6 +1077,23 @@ class Services implements SidebarBadgeContext {
     api: EntityTotalsApi(apiClient),
     dashboard: dashboard,
   )..activeCompanyId = () => auth.credentials.value?.companyId;
+
+  /// A hosted Free plan account's client count against its cap, for the
+  /// clients list's usage line, the Plan screen and the New-client gate
+  /// (docs/free-plan-limits.md). The total is the server's — every client,
+  /// archived and deleted included, as `CanStoreClientsRule` counts them —
+  /// and it asks nothing for a session without the cap. `late` so it shares
+  /// [auth] and [clients] without a constructor parameter; provided at the
+  /// root by `main.dart`, so widgets read it as `ClientUsage?`.
+  late final ClientUsage clientUsage = ClientUsage(
+    session: auth.session,
+    fetchCount: () =>
+        clients.api.count(filters: const {'status': 'active,archived,deleted'}),
+    watchQueuedCreates: (companyId) => db.outboxDao.watchQueuedCreateCount(
+      companyId: companyId,
+      entityType: 'client',
+    ),
+  );
 
   /// What a file shared into the app from another one does: open New Expense
   /// with it attached (invoiceninja/flutter#173). Fed by `AppShareIntake`;

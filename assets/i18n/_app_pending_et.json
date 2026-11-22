@@ -2256,5 +2256,17 @@
   "search_results_one_category_announcement": "Tulemusi: :count, kategooriaid: :categories",
   "search_results_at_least_one_category_announcement": "Tulemusi vähemalt :count, kategooriaid: :categories",
   "search_scope_one_result_announcement": ":scope, tulemusi: :count",
-  "search_scope_at_least_one_result_announcement": ":scope, tulemusi vähemalt :count"
+  "search_scope_at_least_one_result_announcement": ":scope, tulemusi vähemalt :count",
+  "free_plan_signup_note": "Tasuta pakett: kuni :count klienti ja üks ettevõte. Piiramatu arvu klientide jaoks uuenda paketti igal ajal.",
+  "free_plan_clients_used": "Kasutatud :used / :limit tasuta klienti",
+  "free_plan_clients_over": "Sul on :count klienti. Tasuta pakett lubab :limit, seega sinu olemasolevad kliendid säilivad, kuid uute lisamiseks on vaja paketti uuendada.",
+  "free_plan_clients_over_short": "Sul on :count klienti. Tasuta pakett lubab :limit.",
+  "free_plan_client_limit_reached": "Tasuta pakett sisaldab :count klienti. Rohkemate lisamiseks uuenda paketti.",
+  "free_plan_clients_count_note": "Arhiveeritud ja kustutatud kliendid lähevad samuti piirangu hulka.",
+  "free_plan_up_to_clients": "Kuni :count klienti",
+  "free_plan_one_company": "Üks ettevõte",
+  "free_plan_up_to_companies": "Kuni :count ettevõtet",
+  "free_plan_limits": "Tasuta paketi piirangud",
+  "free_plan_includes_clients": "Tasuta pakett sisaldab :count klienti.",
+  "pro_trial_ends_on": "Sinu Pro prooviperiood lõpeb :date. Pärast seda, ilma tasulise paketita, lubab Tasuta pakett :count klienti."
 }

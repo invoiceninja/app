@@ -8,6 +8,8 @@ import 'package:admin/data/models/domain/client.dart';
 import 'package:admin/data/models/domain/group_setting.dart';
 import 'package:admin/data/models/value/currency.dart';
 import 'package:admin/data/models/value/language.dart';
+import 'package:admin/domain/upgrade/client_limit.dart';
+import 'package:admin/domain/upgrade/client_usage.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/adaptive.dart';
 import 'package:admin/ui/core/dialogs/discard_changes_dialog.dart';
@@ -17,6 +19,7 @@ import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
 import 'package:admin/ui/core/widgets/searchable_dropdown_field.dart';
 import 'package:admin/ui/features/clients/view_models/client_edit_view_model.dart';
+import 'package:admin/ui/features/clients/widgets/client_limit.dart';
 import 'package:admin/ui/features/clients/widgets/edit/client_edit_country_field.dart';
 import 'package:admin/ui/features/settings/widgets/plain_radio_field.dart';
 import 'package:admin/ui/core/fold_geometry.dart';
@@ -37,6 +40,9 @@ Future<Client?> showClientCreateDialog(
   required String companyId,
   String initialName = '',
 }) {
+  // The Free plan's client cap: the Upgrade dialog, not a form the server
+  // would refuse (docs/free-plan-limits.md).
+  if (interceptNewClientAtLimit(context)) return Future.value();
   return showDialog<Client>(
     context: context,
     anchorPoint: foldAnchorPoint(context),
@@ -253,6 +259,25 @@ class _ClientCreateDialogState extends State<_ClientCreateDialog>
       // run `clearFailedSync()`, which wipes `fieldErrors`, leaving the user
       // staring at a form that reports nothing at all. The ghost is cleaned up
       // on a successful re-save (below) or on cancel (`_handleClose`).
+      //
+      // The Free plan's client cap is keyed on `id`, a field this form has
+      // not got, so no tab would show it: say so, with Upgrade
+      // (docs/free-plan-limits.md).
+      if (isClientLimitRejection(_vm.fieldErrors)) {
+        final usage = context.read<ClientUsage?>();
+        final limit =
+            usage?.limit ??
+            _services.auth.session.value?.hostedClientCount ??
+            0;
+        if (limit > 0) {
+          await showClientLimitDialog(
+            context,
+            limit: limit,
+            used: usage?.quota?.used,
+          );
+          return;
+        }
+      }
       _jumpToFirstErrorTab();
       return;
     }

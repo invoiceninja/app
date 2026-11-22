@@ -2294,5 +2294,17 @@
   "search_results_one_category_announcement": ":count találat :categories kategóriában",
   "search_results_at_least_one_category_announcement": "Legalább :count találat :categories kategóriában",
   "search_scope_one_result_announcement": ":scope, :count találat",
-  "search_scope_at_least_one_result_announcement": ":scope, legalább :count találat"
+  "search_scope_at_least_one_result_announcement": ":scope, legalább :count találat",
+  "free_plan_signup_note": "Ingyenes csomag: legfeljebb :count ügyfél és egy cég. Bármikor válthat nagyobb csomagra korlátlan ügyfélszámért.",
+  "free_plan_clients_used": ":used / :limit ingyenes ügyfél felhasználva",
+  "free_plan_clients_over": ":count ügyfele van. Az ingyenes csomag :limit ügyfelet enged, így a meglévő ügyfelei megmaradnak, de újak hozzáadásához csomagváltás szükséges.",
+  "free_plan_clients_over_short": ":count ügyfele van. Az ingyenes csomag :limit ügyfelet enged.",
+  "free_plan_client_limit_reached": "Az ingyenes csomag :count ügyfelet tartalmaz. Váltson nagyobb csomagra továbbiak hozzáadásához.",
+  "free_plan_clients_count_note": "Az archivált és a törölt ügyfelek is beleszámítanak a korlátba.",
+  "free_plan_up_to_clients": "Legfeljebb :count ügyfél",
+  "free_plan_one_company": "Egy cég",
+  "free_plan_up_to_companies": "Legfeljebb :count cég",
+  "free_plan_limits": "Az ingyenes csomag korlátai",
+  "free_plan_includes_clients": "Az ingyenes csomag :count ügyfelet tartalmaz.",
+  "pro_trial_ends_on": "A Pro próbaidőszaka :date napon lejár. Ezután fizetős csomag nélkül az ingyenes csomag :count ügyfelet enged."
 }

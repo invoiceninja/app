@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/env.dart';
 import 'package:admin/app/services.dart';
+import 'package:admin/ui/features/clients/widgets/client_limit.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/adaptive.dart';
 import 'package:admin/ui/core/list/master_detail_nav_scope.dart';
@@ -1208,6 +1209,9 @@ void _toggleFullScreenInUrl(
 /// slide-over panel (the redirect dedup won't re-promote it). `route`
 /// carries no query, so compare against `matchedLocation`.
 void goToCreateRoute(BuildContext context, String route) {
+  // A hosted Free plan at its client cap gets the Upgrade dialog instead of a
+  // form the server would refuse (docs/free-plan-limits.md).
+  if (route == kNewClientRoute && interceptNewClientAtLimit(context)) return;
   // Bump the create route's seed generation (and clear any stale staged draft)
   // so the keyed `/new` route recreates the create screen — a blank "New" even
   // when a seeded create was left mounted (go_router would reuse it otherwise).

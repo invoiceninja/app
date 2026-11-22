@@ -2339,5 +2339,17 @@
   "search_results_one_category_announcement": "Результатов: :count, категория: :categories",
   "search_results_at_least_one_category_announcement": "Результатов: не менее :count, категория: :categories",
   "search_scope_one_result_announcement": ":scope, результат: :count",
-  "search_scope_at_least_one_result_announcement": ":scope, результат: не менее :count"
+  "search_scope_at_least_one_result_announcement": ":scope, результат: не менее :count",
+  "free_plan_signup_note": "Бесплатный тариф: до :count клиентов и одна компания. Перейдите на платный тариф в любой момент, чтобы снять ограничение на число клиентов.",
+  "free_plan_clients_used": "Использовано :used из :limit бесплатных клиентов",
+  "free_plan_clients_over": "У вас :count клиентов. Бесплатный тариф допускает :limit, поэтому существующие клиенты сохраняются, но для добавления новых нужен платный тариф.",
+  "free_plan_clients_over_short": "У вас :count клиентов. Бесплатный тариф допускает :limit.",
+  "free_plan_client_limit_reached": "Бесплатный тариф включает :count клиентов. Перейдите на платный тариф, чтобы добавить больше.",
+  "free_plan_clients_count_note": "Архивные и удалённые клиенты тоже учитываются в лимите.",
+  "free_plan_up_to_clients": "До :count клиентов",
+  "free_plan_one_company": "Одна компания",
+  "free_plan_up_to_companies": "До :count компаний",
+  "free_plan_limits": "Ограничения бесплатного тарифа",
+  "free_plan_includes_clients": "Бесплатный тариф включает :count клиентов.",
+  "pro_trial_ends_on": "Пробный период Pro заканчивается :date. После этого, без платного тарифа, бесплатный тариф допускает :count клиентов."
 }

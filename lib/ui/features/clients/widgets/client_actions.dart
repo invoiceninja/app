@@ -26,6 +26,7 @@ import 'package:admin/ui/core/sync/require_synced.dart';
 import 'package:admin/ui/core/utils/mail_actions.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/core/widgets/party_call_button.dart';
+import 'package:admin/ui/features/clients/widgets/client_limit.dart';
 import 'package:admin/ui/features/clients/widgets/client_portal.dart';
 import 'package:admin/ui/features/clients/widgets/detail/assign_group_dialog.dart';
 import 'package:admin/ui/features/clients/widgets/detail/merge_client_dialog.dart';
@@ -686,6 +687,8 @@ class ClientActions {
         // to the list from the list popup is a no-op.
         if (context.mounted) context.go('/clients');
       case ClientAction.clone:
+        // A clone is a new client: the Free plan's cap applies.
+        if (interceptNewClientAtLimit(context)) return;
         final draft = client.copyWith(
           id: '',
           number: '',

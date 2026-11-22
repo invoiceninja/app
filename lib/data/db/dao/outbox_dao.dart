@@ -306,6 +306,26 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     return q.map((row) => row.read(count) ?? 0).watchSingle();
   }
 
+  /// Live count of [entityType] creates for [companyId] still on their way
+  /// to the server (`pending` / `in_flight`) — records the server's own total
+  /// does not hold yet. The Free plan client gate adds it to that total
+  /// (`ClientUsage`), and its fall is the cue to ask the server again.
+  Stream<int> watchQueuedCreateCount({
+    required String companyId,
+    required String entityType,
+  }) {
+    final count = outbox.id.count();
+    final q = selectOnly(outbox)
+      ..addColumns([count])
+      ..where(
+        outbox.companyId.equals(companyId) &
+            outbox.entityType.equals(entityType) &
+            outbox.mutationKind.equals(MutationKind.create.wireName) &
+            outbox.state.isIn(const ['pending', 'in_flight']),
+      );
+    return q.map((row) => row.read(count) ?? 0).watchSingle();
+  }
+
   Stream<int> watchDeadCount({required String companyId}) {
     final count = outbox.id.count();
     final q = selectOnly(outbox)

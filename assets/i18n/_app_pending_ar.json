@@ -2255,5 +2255,17 @@
   "search_results_one_category_announcement": ":count من النتائج في :categories فئة",
   "search_results_at_least_one_category_announcement": "ما لا يقل عن :count من النتائج في :categories فئة",
   "search_scope_one_result_announcement": ":scope، :count نتيجة",
-  "search_scope_at_least_one_result_announcement": ":scope، ما لا يقل عن :count نتيجة"
+  "search_scope_at_least_one_result_announcement": ":scope، ما لا يقل عن :count نتيجة",
+  "free_plan_signup_note": "الخطة المجانية: حتى :count عملاء وشركة واحدة. قم بالترقية في أي وقت للحصول على عملاء غير محدودين.",
+  "free_plan_clients_used": "تم استخدام :used من :limit عملاء مجانيين",
+  "free_plan_clients_over": "لديك :count عملاء. تسمح الخطة المجانية بـ :limit، لذا يتم الاحتفاظ بعملائك الحاليين، وإضافة المزيد تتطلب ترقية.",
+  "free_plan_clients_over_short": "لديك :count عملاء. تسمح الخطة المجانية بـ :limit.",
+  "free_plan_client_limit_reached": "تتضمن الخطة المجانية :count عملاء. قم بالترقية لإضافة المزيد.",
+  "free_plan_clients_count_note": "يُحتسب العملاء المؤرشفون والمحذوفون ضمن الحد.",
+  "free_plan_up_to_clients": "حتى :count عملاء",
+  "free_plan_one_company": "شركة واحدة",
+  "free_plan_up_to_companies": "حتى :count شركات",
+  "free_plan_limits": "حدود الخطة المجانية",
+  "free_plan_includes_clients": "تتضمن الخطة المجانية :count عملاء.",
+  "pro_trial_ends_on": "تنتهي الفترة التجريبية لخطة Pro في :date. بعد ذلك، بدون خطة مدفوعة، تسمح الخطة المجانية بـ :count عملاء."
 }

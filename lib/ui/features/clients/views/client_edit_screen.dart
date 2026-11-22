@@ -11,6 +11,7 @@ import 'package:admin/ui/core/edit/carry_edit_entities.dart';
 import 'package:admin/ui/core/edit/entity_edit_screen_scaffold.dart';
 import 'package:admin/ui/features/clients/view_models/client_edit_view_model.dart';
 import 'package:admin/ui/features/clients/widgets/client_actions.dart';
+import 'package:admin/ui/features/clients/widgets/client_limit.dart';
 import 'package:admin/ui/features/clients/widgets/edit/client_edit_layout.dart';
 
 /// Edit + Create form for a Client. The outer scaffold owns VM lifecycle,
@@ -84,6 +85,9 @@ class ClientEditScreen extends StatelessWidget {
             : ctx.tr('edit');
       },
       bodyBuilder: (ctx, vm) => ClientEditLayout(vm: vm),
+      // The hosted Free plan's client cap: at it on a create, or a save the
+      // server refused for it (docs/free-plan-limits.md).
+      bannerBuilder: (ctx, vm) => ClientLimitFormBanner(vm: vm),
       resetToEmpty: (vm) => vm.resetToEmpty(),
       entityIdOf: (c) => c.id,
       actionsBuilder: (ctx, vm, onTap, saveButton) =>

@@ -42,6 +42,7 @@ import 'package:admin/ui/features/shell/widgets/sync_event_listener.dart';
 import 'package:admin/ui/features/tasks/widgets/running_timer_pill.dart';
 import 'package:admin/ui/core/utils/router_state.dart';
 import 'package:admin/ui/core/fold_geometry.dart';
+import 'package:admin/ui/features/clients/widgets/client_limit.dart';
 
 /// Persistent shell for the authenticated app.
 ///
@@ -493,6 +494,8 @@ class _ScaffoldWithNavState extends State<ScaffoldWithNav> {
     // `State.mounted` (not `context.mounted`) — `context` below is this
     // State's, and the analyzer only accepts the matching guard.
     if (!mounted) return;
+    // The Free plan's client cap (docs/free-plan-limits.md).
+    if (route == kNewClientRoute && interceptNewClientAtLimit(context)) return;
     context.go(route);
   }
 

@@ -72,6 +72,7 @@ import 'package:admin/data/services/web_sign_in.dart';
 import 'package:admin/domain/expenses/receipt_scanner.dart';
 import 'package:admin/domain/upgrade/purchase_delivery.dart'
     show PurchaseResumeObserver;
+import 'package:admin/domain/upgrade/client_usage.dart';
 import 'package:admin/domain/upgrade/store_build.dart';
 import 'package:admin/l10n/company_labels_scope.dart';
 import 'package:admin/app/legacy_material_theme.dart';
@@ -1105,6 +1106,12 @@ class _InvoiceNinjaAppState extends State<InvoiceNinjaApp> {
         // New Expense reads receipts with it, as `ReceiptScanner?`: a screen
         // and its tests work without one (docs/receipt-ocr.md).
         Provider<ReceiptScanner>.value(value: widget.services.receiptScanner),
+        // The Free plan client count, read as `ClientUsage?` by the clients
+        // list, the Plan screen and the New-client gate, so a screen and its
+        // tests work without one (docs/free-plan-limits.md).
+        ChangeNotifierProvider<ClientUsage>.value(
+          value: widget.services.clientUsage,
+        ),
       ],
       child: ListenableBuilder(
         listenable: Listenable.merge([

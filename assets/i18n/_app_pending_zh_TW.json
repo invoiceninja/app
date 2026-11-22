@@ -2256,5 +2256,17 @@
   "search_results_one_category_announcement": ":categories 個類別中有 :count 個結果",
   "search_results_at_least_one_category_announcement": ":categories 個類別中至少有 :count 個結果",
   "search_scope_one_result_announcement": ":scope，:count 個結果",
-  "search_scope_at_least_one_result_announcement": ":scope，至少 :count 個結果"
+  "search_scope_at_least_one_result_announcement": ":scope，至少 :count 個結果",
+  "free_plan_signup_note": "免費方案：最多 :count 位客戶和一家公司。隨時升級即可擁有無限客戶。",
+  "free_plan_clients_used": "已使用 :used / :limit 位免費客戶",
+  "free_plan_clients_over": "您有 :count 位客戶。免費方案允許 :limit 位，因此您現有的客戶會保留，但新增更多客戶需要升級。",
+  "free_plan_clients_over_short": "您有 :count 位客戶。免費方案允許 :limit 位。",
+  "free_plan_client_limit_reached": "免費方案包含 :count 位客戶。升級以新增更多。",
+  "free_plan_clients_count_note": "已封存和已刪除的客戶也計入限額。",
+  "free_plan_up_to_clients": "最多 :count 位客戶",
+  "free_plan_one_company": "一家公司",
+  "free_plan_up_to_companies": "最多 :count 家公司",
+  "free_plan_limits": "免費方案限額",
+  "free_plan_includes_clients": "免費方案包含 :count 位客戶。",
+  "pro_trial_ends_on": "您的 Pro 試用將於 :date 結束。之後若無付費方案，免費方案允許 :count 位客戶。"
 }

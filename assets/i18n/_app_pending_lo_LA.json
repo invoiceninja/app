@@ -2339,5 +2339,17 @@
   "search_results_one_category_announcement": ":count ຜົນລັບໃນ :categories ໝວດໝູ່",
   "search_results_at_least_one_category_announcement": "ຢ່າງໜ້ອຍ :count ຜົນລັບໃນ :categories ໝວດໝູ່",
   "search_scope_one_result_announcement": ":scope, :count ຜົນລັບ",
-  "search_scope_at_least_one_result_announcement": ":scope, ຢ່າງໜ້ອຍ :count ຜົນລັບ"
+  "search_scope_at_least_one_result_announcement": ":scope, ຢ່າງໜ້ອຍ :count ຜົນລັບ",
+  "free_plan_signup_note": "ແຜນຟຣີ: ລູກຄ້າສູງສຸດ :count ຄົນ ແລະ ບໍລິສັດດຽວ. ອັບເກຣດໄດ້ທຸກເວລາເພື່ອລູກຄ້າບໍ່ຈຳກັດ.",
+  "free_plan_clients_used": "ໃຊ້ແລ້ວ :used ຈາກ :limit ລູກຄ້າຟຣີ",
+  "free_plan_clients_over": "ທ່ານມີລູກຄ້າ :count ຄົນ. ແຜນຟຣີອະນຸຍາດ :limit ຄົນ, ສະນັ້ນລູກຄ້າທີ່ມີຢູ່ຈະຖືກເກັບໄວ້, ແຕ່ການເພີ່ມອີກຕ້ອງອັບເກຣດ.",
+  "free_plan_clients_over_short": "ທ່ານມີລູກຄ້າ :count ຄົນ. ແຜນຟຣີອະນຸຍາດ :limit ຄົນ.",
+  "free_plan_client_limit_reached": "ແຜນຟຣີລວມລູກຄ້າ :count ຄົນ. ອັບເກຣດເພື່ອເພີ່ມອີກ.",
+  "free_plan_clients_count_note": "ລູກຄ້າທີ່ເກັບໄວ້ໃນບ່ອນເກັບ ແລະ ທີ່ລຶບແລ້ວ ກໍ່ນັບເຂົ້າໃນຂີດຈຳກັດ.",
+  "free_plan_up_to_clients": "ລູກຄ້າສູງສຸດ :count ຄົນ",
+  "free_plan_one_company": "ບໍລິສັດດຽວ",
+  "free_plan_up_to_companies": "ບໍລິສັດສູງສຸດ :count ແຫ່ງ",
+  "free_plan_limits": "ຂີດຈຳກັດແຜນຟຣີ",
+  "free_plan_includes_clients": "ແຜນຟຣີລວມລູກຄ້າ :count ຄົນ.",
+  "pro_trial_ends_on": "ການທົດລອງ Pro ຂອງທ່ານຈະສິ້ນສຸດໃນວັນທີ :date. ຫຼັງຈາກນັ້ນ, ຖ້າບໍ່ມີແຜນທີ່ຈ່າຍເງິນ, ແຜນຟຣີອະນຸຍາດລູກຄ້າ :count ຄົນ."
 }

@@ -2256,5 +2256,17 @@
   "search_results_one_category_announcement": "Резултати: :count в категория: :categories",
   "search_results_at_least_one_category_announcement": "Резултати: поне :count в категория: :categories",
   "search_scope_one_result_announcement": ":scope, резултат: :count",
-  "search_scope_at_least_one_result_announcement": ":scope, резултат: поне :count"
+  "search_scope_at_least_one_result_announcement": ":scope, резултат: поне :count",
+  "free_plan_signup_note": "Безплатен план: до :count клиента и една фирма. Надградете по всяко време за неограничен брой клиенти.",
+  "free_plan_clients_used": "Използвани :used от :limit безплатни клиента",
+  "free_plan_clients_over": "Имате :count клиента. Безплатният план позволява :limit, така че съществуващите ви клиенти се запазват, а добавянето на нови изисква надграждане.",
+  "free_plan_clients_over_short": "Имате :count клиента. Безплатният план позволява :limit.",
+  "free_plan_client_limit_reached": "Безплатният план включва :count клиента. Надградете, за да добавите още.",
+  "free_plan_clients_count_note": "Архивираните и изтритите клиенти също се броят към лимита.",
+  "free_plan_up_to_clients": "До :count клиента",
+  "free_plan_one_company": "Една фирма",
+  "free_plan_up_to_companies": "До :count фирми",
+  "free_plan_limits": "Лимити на безплатния план",
+  "free_plan_includes_clients": "Безплатният план включва :count клиента.",
+  "pro_trial_ends_on": "Пробният ви период на Pro приключва на :date. След това, без платен план, безплатният план позволява :count клиента."
 }

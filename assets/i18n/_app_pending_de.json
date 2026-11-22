@@ -2339,5 +2339,17 @@
   "search_results_one_category_announcement": ":count Ergebnisse in :categories Kategorie",
   "search_results_at_least_one_category_announcement": "Mindestens :count Ergebnisse in :categories Kategorie",
   "search_scope_one_result_announcement": ":scope, :count Ergebnis",
-  "search_scope_at_least_one_result_announcement": ":scope, mindestens :count Ergebnis"
+  "search_scope_at_least_one_result_announcement": ":scope, mindestens :count Ergebnis",
+  "free_plan_signup_note": "Kostenloser Tarif: bis zu :count Kunden und eine Firma. Jederzeit upgraden für unbegrenzt viele Kunden.",
+  "free_plan_clients_used": ":used von :limit kostenlosen Kunden genutzt",
+  "free_plan_clients_over": "Sie haben :count Kunden. Der kostenlose Tarif erlaubt :limit, Ihre bestehenden Kunden bleiben also erhalten, aber für weitere ist ein Upgrade nötig.",
+  "free_plan_clients_over_short": "Sie haben :count Kunden. Der kostenlose Tarif erlaubt :limit.",
+  "free_plan_client_limit_reached": "Der kostenlose Tarif umfasst :count Kunden. Upgraden Sie, um weitere hinzuzufügen.",
+  "free_plan_clients_count_note": "Archivierte und gelöschte Kunden zählen ebenfalls zum Limit.",
+  "free_plan_up_to_clients": "Bis zu :count Kunden",
+  "free_plan_one_company": "Eine Firma",
+  "free_plan_up_to_companies": "Bis zu :count Firmen",
+  "free_plan_limits": "Limits des kostenlosen Tarifs",
+  "free_plan_includes_clients": "Der kostenlose Tarif umfasst :count Kunden.",
+  "pro_trial_ends_on": "Ihre Pro-Testphase endet am :date. Danach erlaubt der kostenlose Tarif ohne bezahlten Tarif :count Kunden."
 }
