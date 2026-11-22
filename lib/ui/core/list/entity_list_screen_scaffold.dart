@@ -2111,18 +2111,33 @@ class _EntityListScreenScaffoldState<T, VM extends GenericListViewModel<T>>
               );
         // Key by entity identity (not list position) so a full-page
         // re-emit from the Drift watch reuses unchanged tile elements
-        // instead of rebinding state by index. RepaintBoundary keeps a
-        // single-row change from repainting the whole viewport.
+        // instead of rebinding state by index.
+        //
+        // The row's own transparent Material is where its InkWells paint
+        // their hover and splash. Without it they painted on the card's
+        // Material (`_embeddedListCard`), above the scroll view: every hover
+        // change repainted the whole page, and a wheel scroll under a resting
+        // mouse changes the hovered row every few frames. The RepaintBoundary
+        // goes *inside* it, around the row's content, so a fading highlight
+        // repaints the ink and reuses the content's picture; the list
+        // delegate's own boundary around each item (`addRepaintBoundaries`)
+        // still keeps one row's change from repainting the viewport. Ink
+        // still paints over the card's fill, so nothing looks different.
+        // docs/performance-tracking.md § Hover while scrolling repainted the
+        // page.
         return KeyedSubtree(
           key: ValueKey(_vm.idOf(item)),
-          child: RepaintBoundary(
-            child: header == null
-                ? row
-                : Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [header, row],
-                  ),
+          child: Material(
+            type: MaterialType.transparency,
+            child: RepaintBoundary(
+              child: header == null
+                  ? row
+                  : Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [header, row],
+                    ),
+            ),
           ),
         );
       },
@@ -2130,9 +2145,28 @@ class _EntityListScreenScaffoldState<T, VM extends GenericListViewModel<T>>
 
     // Embedded shrink-wraps with no pull-to-refresh; standalone keeps the
     // RefreshIndicator wrapping its own scrollable.
-    final Widget list = widget.embedded
-        ? listView
-        : RefreshIndicator(onRefresh: _vm.refresh, child: listView);
+    //
+    // The `RepaintBoundary` + `LayoutBuilder` pair is a build-scope fence.
+    // Since Flutter 3.24 a `LayoutBuilder` is the build scope of everything
+    // under it: a row that calls `setState` between frames — its client-name
+    // or currency stream answering after the row first built, an `InkWell` or
+    // `CellCopyHover` reacting to the mouse tracker's post-frame update —
+    // marks the nearest `LayoutBuilder` for layout, and a relayout repaints
+    // up to the nearest repaint boundary. Without the fence that was the
+    // scaffold's or the wide table's `LayoutBuilder`, so each such row
+    // repainted the whole page (or the whole table card) on the next frame:
+    // on every scroll frame that brought in a new invoice row, and on every
+    // hover change under a resting mouse. Fenced, the relayout stops here and
+    // the repaint at this boundary; the viewport below is a boundary of its
+    // own. The builder ignores its constraints — it builds nothing new.
+    // docs/performance-tracking.md § Hover while scrolling repainted the page.
+    final Widget list = RepaintBoundary(
+      child: LayoutBuilder(
+        builder: (_, _) => widget.embedded
+            ? listView
+            : RefreshIndicator(onRefresh: _vm.refresh, child: listView),
+      ),
+    );
 
     if (!wide) {
       return widget.embedded
@@ -2302,7 +2336,18 @@ class _EntityListScreenScaffoldState<T, VM extends GenericListViewModel<T>>
                       : MainAxisSize.max,
                   children: [
                     headers,
-                    if (widget.embedded) list else Expanded(child: list),
+                    if (widget.embedded)
+                      list
+                    else
+                      // The full width, explicitly. The list fills it either
+                      // way (a viewport is as wide as it may be), but the
+                      // Column hands a centred child a loose width, and under
+                      // loose constraints the list's build-scope fence (see
+                      // `_body`) is no relayout boundary: a row's `setState`
+                      // then relaid out — and repainted — this whole card.
+                      Expanded(
+                        child: SizedBox(width: double.infinity, child: list),
+                      ),
                   ],
                 ),
               ),

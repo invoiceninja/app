@@ -38,6 +38,7 @@ Four files, by layer. Every id is `<area>.<what>`; the title is what a person re
 | Area | Ids | What it stands for |
 |---|---|---|
 | Screens | `screens.invoice_list_open` / `_scroll` / `_resize` | The invoice list over 600 rows: mounting it until rows draw, one frame of a 240 px scroll, one frame of an 80 px window resize |
+| | `screens.invoice_list_scroll_hover` | A wheel step of 40 px on the wide list with the mouse resting over the rows — the step's frame and the next, where the hover changes land (§ Hover while scrolling repainted the page) |
 | | `screens.invoice_list_scroll_phone`, `screens.invoice_edit_items_tab_phone` | The same list at 390 × 844 (touch, narrow rows), and the phone editor's Items tab opening on a 50-line invoice — its lines are cards, built when the tab opens |
 | | `screens.invoice_edit_open` / `_typing` | The invoice editor on a 50-line invoice: mounting it, and one keystroke in a line cell through the 250 ms debounce and the totals recompute |
 | | `screens.client_record_open` | The client record screen until its standing card draws |
@@ -424,3 +425,72 @@ figures before are the table above.
 already computed once per edit; a rewrite needs the totals oracle), `screens.invoice_edit_open`
 (~700 ms, building 212 text fields up front), and `invoices.list_search` (a `LIKE` over the
 payload, now 13 ms).
+
+## Hover while scrolling repainted the page
+
+**A row that changes between frames must repaint only itself: its ink paints on the row's own
+`Material`, and the list sits behind a build-scope fence (`RepaintBoundary` over a
+`LayoutBuilder`) that is a relayout boundary.** Beta feedback after the WASM build: too much CPU,
+"especially when scrolling". Measured over 500 invoices, products and clients (the list's first
+page of 50 loaded), 40 px a frame, by counting the render objects painted each frame
+(`debugOnProfilePaint`) inside and outside the list's sliver, and the builds
+(`debugOnRebuildDirtyWidget`):
+
+- **Not the cause:** no row already on screen rebuilt on any scroll frame (only rows scrolling in
+  were built), no scroll listener calls `setState`, and nothing schedules a frame while the list
+  sits idle, with or without a resting mouse.
+- **The cause: the screen around the list repainted on most scroll frames.** A frame that brought
+  in a new invoice row painted 86 objects outside the list on the wide layout and 104 on a phone;
+  with a mouse resting over the rows (any wheel scroll on web or desktop) every list painted 160–190
+  outside it, on every frame. The rows themselves painted 55–160.
+
+Two mechanisms, each invisible at the call site:
+
+1. **A `LayoutBuilder` is the build scope of everything under it (Flutter 3.24+).** A widget that
+   calls `setState` outside a frame — after the frame, or idle — defers to a frame callback that
+   marks the nearest `LayoutBuilder` for layout, and a relayout ends in `markNeedsPaint`, which
+   climbs to the nearest repaint boundary. For a list row that was the screen's own `LayoutBuilder`
+   (phone) or the wide table's (the whole table card), and from there the route's boundary. Rows do
+   this all the time: each invoice row's `ClientNameLabel` and `PartyCurrencyBuilder` answer from a
+   Drift stream after the row first builds (the client-name one with the very value its
+   `initialData` seed already showed), and an `InkWell` or `CellCopyHover` reacts to the mouse
+   tracker's post-frame hit test as rows move under a resting cursor.
+2. **A row's `InkWell` painted its hover on the card's `Material`** (`_embeddedListCard`), above
+   the scroll view, so each frame of the highlight's fade repainted the page.
+
+The fix, in `EntityListScreenScaffold._body`: each row is wrapped in
+`Material(type: transparency, child: RepaintBoundary(row))` — the ink paints inside the item's
+boundary (the list delegate's `addRepaintBoundaries` one) and reuses the content's picture, and the
+explicit boundary moved inside the `Material` so the count of layers is unchanged — and the list
+is wrapped in `RepaintBoundary(child: LayoutBuilder(...))`. **The fence is only a fence when it is
+a relayout boundary,** i.e. under tight constraints: the wide table's `Column` hands its centred
+`Expanded` child a loose width, so the list there gets `SizedBox(width: double.infinity)` — without
+it the fence's relayout climbed to the table's `LayoutBuilder` and the card still repainted.
+
+| Painted outside the list, per scroll frame | Before | After |
+|---|--:|--:|
+| Invoices, wide, no mouse | 86 | 8 |
+| Any list, wide, mouse resting over the rows | 159–161 | 9 |
+| Any list, phone, mouse resting | 185–189 | 9–12 |
+| Invoices, phone, no mouse | 104 | 8 |
+
+`test/ui/core/list/list_scroll_repaint_test.dart` pins it in paint counts, which do not move with
+the machine: under 30 objects a frame outside the sliver, with a resting mouse, wide and phone (it
+read 155 and 188 before the fix). `screens.invoice_list_scroll_hover` times the same frames.
+
+Left as they are:
+
+- **Leaving the top of a phone list repaints the screen for ~13 frames.** The M3 `AppBar` turns
+  `surfaceContainer` (`surfaceAlt`) when content scrolls under it — a deliberate, visible change,
+  once per crossing.
+- **Each invoice row still holds two stream listeners** on one deduplicated Drift query of its
+  client. With the fence they cost a small rebuild inside the row; resolving the window's clients
+  once at the list level would remove them — and, on web, the worker round trip per row.
+- **A wide row is ~230 elements** (seven `Tooltip`s and `InkWell`s among its cells), so building
+  the rows that scroll in is most of what a scroll frame still costs.
+
+**In milliseconds the change does not show here, and that is expected.** A `flutter test` frame
+records paint but never rasterises, and recording ~150 objects is cheap next to building one
+230-element row, so `screens.invoice_list_scroll*` moved inside their run-to-run noise (the machine
+was at load 20–40 when it was measured). What the repaint costs a user — re-recording the screen's
+pictures and rasterising them, in skwasm or CanvasKit on web — is what the paint counts stand for.

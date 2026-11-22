@@ -111,6 +111,10 @@
       "regression": 0.3,
       "budgetMs": 60
     },
+    "screens.invoice_list_scroll_hover": {
+      "budgetMs": 25,
+      "regression": 0.3
+    },
     "screens.invoice_list_scroll_phone": {
       "budgetMs": 20,
       "regression": 0.3

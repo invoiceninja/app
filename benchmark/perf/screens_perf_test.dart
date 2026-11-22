@@ -8,6 +8,7 @@
 // docs/performance-tracking.md. Run through `dart tools/perf/main.dart run`.
 
 import 'package:decimal/decimal.dart';
+import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
@@ -192,6 +193,54 @@ void main() {
     tearDown: _release,
     warmup: 10,
     samples: 40,
+  );
+
+  // A wheel scroll on web or desktop: the mouse rests over the rows while they
+  // move under it, so every few frames a different row is hovered and its
+  // highlight fades in while the last one's fades out. Each sample is one
+  // wheel-sized step and the frame after it, which is where the hover
+  // highlight's own frames land. Short of the load-more threshold, like the
+  // plain scroll above.
+  var hoverOffset = 0.0;
+  var hoverDown = true;
+  TestGesture? mouse;
+  widgetBenchmark(
+    'screens.invoice_list_scroll_hover',
+    title:
+        'Invoices list — one wheel step of 40 px with the mouse over the rows',
+    setUp: (tester) async {
+      screen = await _mount(tester);
+      await screen.openUntil(PerfTimer(), const InvoiceListScreen(), tiles);
+      mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await mouse!.addPointer(location: tester.getCenter(tiles.at(3)));
+      await tester.pump(const Duration(milliseconds: 500));
+    },
+    run: (tester, timer) async {
+      final position = tester
+          .state<ScrollableState>(
+            find
+                .ancestor(of: tiles.first, matching: find.byType(Scrollable))
+                .first,
+          )
+          .position;
+      final max = position.maxScrollExtent - 700;
+      expect(max, greaterThan(1000), reason: 'too few rows to scroll');
+      hoverOffset += hoverDown ? 40 : -40;
+      if (hoverOffset >= max) hoverDown = false;
+      if (hoverOffset <= 0) hoverDown = true;
+      position.jumpTo(hoverOffset.clamp(0, max));
+      await timer.time(() async {
+        await tester.pump(const Duration(milliseconds: 16));
+        await tester.pump(const Duration(milliseconds: 16));
+      });
+    },
+    tearDown: (tester) async {
+      await mouse?.removePointer();
+      mouse = null;
+      await _release(tester);
+    },
+    warmup: 10,
+    samples: 60,
   );
 
   var narrower = true;
