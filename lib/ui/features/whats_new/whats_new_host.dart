@@ -8,7 +8,6 @@ import 'package:admin/app/services.dart';
 import 'package:admin/app/welcome_controller.dart';
 import 'package:admin/app/whats_new_controller.dart';
 import 'package:admin/data/repositories/auth/auth_session.dart';
-import 'package:admin/domain/release_notes.dart';
 import 'package:admin/ui/core/dialogs/automatic_dialogs.dart';
 import 'package:admin/ui/features/whats_new/whats_new_dialog.dart';
 
@@ -130,16 +129,11 @@ class _WhatsNewHostState extends State<WhatsNewHost> {
   }
 
   Future<void> _show(WhatsNewController controller) async {
+    // Already filtered for this session's server (hosted vs self-hosted).
+    // An update with nothing for it never gets here ([_mayOpen] reads
+    // `autoOpens`), but the session can change during the settle.
     final releases = controller.pending;
-    // Everything this update brought may be about the other kind of server
-    // (hosted vs self-hosted): then there is nothing to tell this session.
-    if (releasesForServer(
-      releases,
-      isHosted: _session?.value?.isHosted,
-    ).isEmpty) {
-      await controller.markSeen();
-      return;
-    }
+    if (releases.isEmpty) return;
     controller.shownThisLaunch = true;
     AutomaticDialogs.noteShown();
     unawaited(controller.noteOpened(DateTime.now()));

@@ -57,6 +57,12 @@ Future<WhatsNewResult?> showWhatsNewDialog(
   String? since,
 }) {
   final session = context.read<Services>().auth.session.value;
+  // A note limited to hosted or to self-hosted servers is shown only on that
+  // kind of server (`ReleaseNoteSurface.hosted` / `.selfHosted`). The
+  // controller's lists already are; this keeps any other caller honest, and
+  // a list with nothing left opens nothing rather than an empty card.
+  final forServer = releasesForServer(releases, isHosted: session?.isHosted);
+  if (forServer.isEmpty) return Future.value();
   return showDialog<WhatsNewResult>(
     context: context,
     anchorPoint: foldAnchorPoint(context),
@@ -64,9 +70,7 @@ Future<WhatsNewResult?> showWhatsNewDialog(
     // are — the same as the mobile-app promo.
     barrierDismissible: false,
     builder: (_) => WhatsNewDialog(
-      // A note limited to hosted or to self-hosted servers is shown only on
-      // that kind of server (`ReleaseNoteSurface.hosted` / `.selfHosted`).
-      releases: releasesForServer(releases, isHosted: session?.isHosted),
+      releases: forServer,
       since: since,
       reachable: (target) => whatsNewTargetReachable(target, session),
     ),

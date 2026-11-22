@@ -200,6 +200,85 @@ void main() {
     });
   });
 
+  group('a note limited to hosted or to self-hosted servers', () {
+    // 2.0.3 has only a hosted-only note; 2.0.2 has one for everyone.
+    const serverCatalog = [
+      ReleaseNotes(
+        version: '2.0.3',
+        items: [
+          ReleaseNoteItem(
+            'Added: hosted only',
+            hiddenOn: {ReleaseNoteSurface.selfHosted},
+          ),
+        ],
+      ),
+      ReleaseNotes(version: '2.0.2', items: [ReleaseNoteItem('Added: two')]),
+      ReleaseNotes(version: '2.0.1', items: [ReleaseNoteItem('Fixed: one')]),
+    ];
+
+    WhatsNewController serverController(bool? Function() isHosted) {
+      final c = WhatsNewController(
+        prefs: prefs,
+        currentVersion: '2.0.3',
+        catalog: serverCatalog,
+        surfaces: const {},
+        isDemoBuild: false,
+        demoMode: false,
+        isHosted: isHosted,
+      );
+      addTearDown(c.dispose);
+      return c;
+    }
+
+    test('an update that is all for the other kind of server neither opens '
+        'nor holds the other prompts back', () async {
+      await seen('2.0.2');
+      final c = serverController(() => false);
+      await c.noteLaunch(existingInstall: true);
+      expect(c.pending, isEmpty);
+      expect(c.autoOpens, isFalse);
+      expect(c.holdsBackPromptsAt(noon), isFalse);
+    });
+
+    test('the same update opens for the server it is about, and reaches a '
+        'session that signs in to one later in the launch', () async {
+      await seen('2.0.2');
+      bool? hosted;
+      final c = serverController(() => hosted);
+      await c.noteLaunch(existingInstall: true);
+      expect(c.autoOpens, isFalse, reason: 'no session yet: shown to neither');
+      hosted = true;
+      expect([for (final r in c.pending) r.version], ['2.0.3']);
+      expect(c.autoOpens, isTrue);
+    });
+
+    test('About and the palette skip a release with nothing for this server '
+        'rather than open an empty card', () async {
+      await seen('2.0.3');
+      final c = serverController(() => false);
+      await c.noteLaunch(existingInstall: true);
+      expect([for (final r in c.onRequest) r.version], ['2.0.2']);
+    });
+
+    test(
+      'a release left out for this server takes no slot in a catch-up',
+      () async {
+        await seen('2.0.1');
+        final c = serverController(() => false);
+        await c.noteLaunch(existingInstall: true);
+        expect([for (final r in c.pending) r.version], ['2.0.2']);
+      },
+    );
+
+    test('marking it seen works even when this session saw nothing', () async {
+      await seen('2.0.2');
+      final c = serverController(() => false);
+      await c.noteLaunch(existingInstall: true);
+      await c.markSeen();
+      expect(c.state.seenVersion, '2.0.3');
+    });
+  });
+
   test('the record survives a restart and a sign-out wipe', () async {
     final c = controller();
     await c.noteLaunch(existingInstall: true);

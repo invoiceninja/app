@@ -31,7 +31,9 @@ class WhatsNewController extends ChangeNotifier {
     Set<ReleaseNoteSurface>? surfaces,
     this.isDemoBuild = Env.isDemoBuild,
     this.demoMode = Env.demoMode,
+    bool? Function()? isHosted,
   }) : _prefs = prefs,
+       _isHosted = isHosted ?? _noSession,
        surfaces = surfaces ?? currentReleaseNoteSurfaces() {
     _sync();
     _prefs.addListener(_sync);
@@ -44,6 +46,21 @@ class WhatsNewController extends ChangeNotifier {
   final bool isDemoBuild;
   final bool demoMode;
 
+  /// Whether the signed-in session is on the hosted service — null with no
+  /// session. Read every time the notes are, never at launch: a note limited
+  /// to hosted or to self-hosted servers is shown only on that kind
+  /// (`releaseNoteServerSurfaces`), and the session can change under a
+  /// launch.
+  final bool? Function() _isHosted;
+
+  static bool? _noSession() => null;
+
+  /// This build's surfaces plus the signed-in session's server.
+  Set<ReleaseNoteSurface> get _surfacesNow => {
+    ...surfaces,
+    ...releaseNoteServerSurfaces(isHosted: _isHosted()),
+  };
+
   /// Launches that may give up without a quiet moment before the dialog
   /// stops opening on its own.
   static const int maxAttempts = 3;
@@ -54,17 +71,34 @@ class WhatsNewController extends ChangeNotifier {
   WhatsNewState get state => _state;
   WhatsNewState _state = const WhatsNewState();
 
-  /// The releases this launch's update brought, newest first; empty when
-  /// there is nothing to tell. Set by [noteLaunch], cleared by [markSeen].
-  List<ReleaseNotes> get pending => _pending;
-  List<ReleaseNotes> _pending = const [];
+  /// The releases this launch's update brought that the signed-in session
+  /// may read, newest first; empty when there is nothing to tell. Armed by
+  /// [noteLaunch], cleared by [markSeen].
+  ///
+  /// Filtered for the session's server *before* the catch-up is capped, so
+  /// a release with nothing for this server never takes a slot (and never
+  /// leaves an empty dialog): an update whose notes are all for the other
+  /// kind of server neither opens nor holds the other prompts back.
+  List<ReleaseNotes> get pending => _pendingSince == null
+      ? const []
+      : releasesToShow(
+          seen: _pendingSince!.seen,
+          current: currentVersion,
+          surfaces: _surfacesNow,
+          catalog: catalog,
+        );
+
+  /// The version this launch's update came from, once [noteLaunch] found
+  /// notes for this build; null when nothing is pending. Boxed, because the
+  /// version itself is null on an install that predates the record.
+  ({String? seen})? _pendingSince;
 
   /// Set once the dialog has opened on its own in this process — a second
   /// sign-in in the same launch must not re-arm it.
   bool shownThisLaunch = false;
 
   /// Whether the shell may still open [pending] on its own.
-  bool get autoOpens => _pending.isNotEmpty && attempts < maxAttempts;
+  bool get autoOpens => pending.isNotEmpty && attempts < maxAttempts;
 
   /// Launches of this build that gave up without a quiet moment. Counted per
   /// version, so a release whose dialog never found one doesn't silence the
@@ -96,7 +130,7 @@ class WhatsNewController extends ChangeNotifier {
       catalog: catalog,
     );
     if (releases.isEmpty) return;
-    _pending = releases;
+    _pendingSince = (seen: seen);
     notifyListeners();
   }
 
@@ -111,8 +145,8 @@ class WhatsNewController extends ChangeNotifier {
 
   /// The user has read [pending]: this version is told.
   Future<void> markSeen() async {
-    if (_pending.isEmpty) return;
-    _pending = const [];
+    if (_pendingSince == null) return;
+    _pendingSince = null;
     await _save(_state.copyWith(seenVersion: currentVersion));
   }
 
@@ -126,15 +160,18 @@ class WhatsNewController extends ChangeNotifier {
   }
 
   /// The releases About and the command palette open: [pending], else the
-  /// newest release this build carries.
-  List<ReleaseNotes> get onRequest => _pending.isNotEmpty
-      ? _pending
-      : releasesToShow(
-          seen: null,
-          current: currentVersion,
-          surfaces: surfaces,
-          catalog: catalog,
-        );
+  /// newest release this build carries that has something for this
+  /// session's server.
+  List<ReleaseNotes> get onRequest {
+    final waiting = pending;
+    if (waiting.isNotEmpty) return waiting;
+    return releasesToShow(
+      seen: null,
+      current: currentVersion,
+      surfaces: _surfacesNow,
+      catalog: catalog,
+    );
+  }
 
   Future<void> _save(WhatsNewState next) async {
     _state = next;

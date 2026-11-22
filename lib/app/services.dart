@@ -1789,7 +1789,12 @@ class Services implements SidebarBadgeContext {
       prefs: devicePrefs,
       credentials: auth.credentials,
     );
-    final whatsNew = WhatsNewController(prefs: devicePrefs);
+    final whatsNew = WhatsNewController(
+      prefs: devicePrefs,
+      // A note limited to hosted or to self-hosted servers reaches only that
+      // kind of session (docs/whats-new-dialog.md).
+      isHosted: () => auth.session.value?.isHosted,
+    );
     final spellCheck = SpellCheckController(prefs: devicePrefs);
     final webAppBanner = WebAppBannerController(prefs: devicePrefs);
     final showSeconds = ShowSecondsController(prefs: devicePrefs);
