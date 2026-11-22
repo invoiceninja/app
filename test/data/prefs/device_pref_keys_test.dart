@@ -50,6 +50,7 @@ void main() {
     'after_saving': PrefScope.device,
     'appearance_synced_at': PrefScope.account,
     'appearance_seeded': PrefScope.device,
+    'desktop_app_promo_json': PrefScope.device,
   };
 
   final names = [for (final k in DevicePrefKeys.all) k.name];

@@ -199,4 +199,34 @@ void main() {
       c.state.shownAt,
     );
   });
+
+  test(
+    'on a phone the desktop-app promo keeps its schedule under its own '
+    'key, and never answers the phone-app promo (docs/desktop-app-promo.md)',
+    () async {
+      final c = MobileAppPromoController(
+        prefs: prefs,
+        promote: true,
+        prefKey: DevicePrefKeys.desktopAppPromo,
+      );
+      addTearDown(c.dispose);
+      await useOn(c, 3);
+      await c.finish();
+      expect(prefs.read(DevicePrefKeys.mobileAppPromo), isNull);
+      final stored = MobileAppPromoState.decode(
+        prefs.read(DevicePrefKeys.desktopAppPromo),
+      );
+      expect(stored.done, isTrue);
+      expect(stored.daysSeen, 3);
+
+      // A second controller on the same key — the next launch — reads it back.
+      final next = MobileAppPromoController(
+        prefs: prefs,
+        prefKey: DevicePrefKeys.desktopAppPromo,
+      );
+      addTearDown(next.dispose);
+      expect(next.state.done, isTrue);
+      expect(next.isDue(noon), isFalse);
+    },
+  );
 }

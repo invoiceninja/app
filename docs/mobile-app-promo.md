@@ -58,7 +58,7 @@ Where it can open:
 | Native Windows, Linux | iPhone, Android (toggle) | QR code |
 | Web, desktop browser | iPhone, Android (toggle) | QR code |
 | Web, phone browser | that phone | Store button — a phone can't scan its own screen |
-| Native iOS, Android | — | never |
+| Native iOS, Android | — | never (they run the reverse, the desktop-app promo: `docs/desktop-app-promo.md`) |
 
 The automatic open (`MobileAppPromoHost`) and the sidebar card, which `main()` switches on with `Services.build(mobileAppPromote: true)` — off in every test and harness, so the web CI smoke test never gets a barrier over its taps or a card shortening the nav list it taps:
 

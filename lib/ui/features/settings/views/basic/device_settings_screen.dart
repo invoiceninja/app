@@ -33,6 +33,7 @@ import 'package:admin/ui/features/settings/widgets/form_section.dart';
 import 'package:admin/ui/features/settings/widgets/home_widgets_section.dart';
 import 'package:admin/ui/features/settings/widgets/list_status_tabs_section.dart';
 import 'package:admin/ui/features/settings/widgets/local_data_copies.dart';
+import 'package:admin/ui/features/settings/widgets/desktop_app_section.dart';
 import 'package:admin/ui/features/settings/widgets/mobile_app_section.dart';
 import 'package:admin/ui/features/settings/widgets/phone_actions_section.dart';
 import 'package:admin/ui/features/settings/widgets/setting_row.dart';
@@ -92,6 +93,7 @@ const kDeviceSettingsPhoneSearchKeys = <String>[
   ...kHomeWidgetsSearchKeys,
   ...kCardReaderSearchKeys,
   ...kMobileAppSearchKeys,
+  ...kDesktopAppSearchKeys,
 ];
 
 /// Forms tab: what an edit screen offers.
@@ -382,6 +384,8 @@ class _PhoneTab extends StatelessWidget {
         // Everywhere *but* a phone: the way to the phone app that does the
         // cards above.
         MobileAppSection(),
+        // And on a phone, the way to the desktop app.
+        DesktopAppSection(),
       ],
     );
   }

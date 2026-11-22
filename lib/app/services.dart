@@ -31,6 +31,7 @@ import 'package:admin/app/debug_capture_store.dart';
 import 'package:admin/app/deep_link_router.dart';
 import 'package:admin/app/diagnostics_log.dart';
 import 'package:admin/app/entity_modules.dart';
+import 'package:admin/app/env.dart';
 import 'package:admin/app/list_density_controller.dart';
 import 'package:admin/app/locale_controller.dart';
 import 'package:admin/app/pending_call_controller.dart';
@@ -71,6 +72,7 @@ import 'package:admin/data/db/app_database.dart';
 import 'package:admin/data/models/domain/enabled_modules.dart';
 import 'package:admin/data/models/value/company_format_settings.dart';
 import 'package:admin/data/models/value/date.dart';
+import 'package:admin/data/prefs/device_pref_keys.dart';
 import 'package:admin/data/prefs/device_prefs_store.dart';
 import 'package:admin/data/repositories/auth_repository.dart';
 import 'package:admin/data/repositories/local_data_disposer.dart';
@@ -1796,6 +1798,11 @@ class Services implements SidebarBadgeContext {
       prefs: devicePrefs,
       promote: mobileAppPromote,
       whatsNew: whatsNew,
+      // A phone runs the reverse promo, the desktop app, on the same
+      // schedule under a key of its own (docs/desktop-app-promo.md).
+      prefKey: Env.isMobile
+          ? DevicePrefKeys.desktopAppPromo
+          : DevicePrefKeys.mobileAppPromo,
     );
     // The repo that tells the server a user was welcomed is built further
     // down; the closure only runs once a Welcome has been seen.

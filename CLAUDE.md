@@ -109,7 +109,7 @@ Rules that turn into bugs or CI failures if forgotten. Read this block first.
 - **The Flatpak is built by Flathub from the release tag — the FOSS graph, every build-time download a pinned source (the registry's sqlite3 entry overridden) — and its release notes are the metainfo `<releases>` entry the bump script commits.** → `docs/flatpak.md`
 - **The Linux app ID is v1's Flathub ID, `com.invoiceninja.InvoiceNinja`, while every other platform stays `com.invoiceninja.admin` — and the plugins still see `KEYRING_APPLICATION_ID` (`com.invoiceninja.admin`), because the database key lives under it.** → `docs/flatpak.md`
 - **No agent writes Flathub packaging or a Flathub PR: no manifest, `foreign.json`, `flathub.json` or file in a `flathub/*` repo, and no Flathub PR text, commit or review reply — Flathub's AI policy; Hillel does those by hand.** → `docs/flatpak.md`
-- **The mobile-app promo never shows Android or Google Play on native macOS, never gates anything, and never carries purchase copy.** → `docs/mobile-app-promo.md`
+- **The mobile-app promo never shows Android or Google Play on native macOS, nor the desktop-app promo more than the Mac on iOS; neither gates anything or carries purchase copy.** → `docs/mobile-app-promo.md` · `docs/desktop-app-promo.md`
 - **The WordPress plugin and Chrome extension links never open on their own, never show Chrome on native Apple builds, and appear only where usable.** → `docs/companion-apps.md`
 - **A desktop download writes to the downloads folder through `bytesSaver` / `downloadPdf`, never `Printing.sharePdf`, and every `PdfPreview` gates `allowSharing` on `pdfShareOpensTempCopy()` — on Windows and Linux both only open a temp copy.** → `docs/file-downloads.md`
 - **Pub packages are fine (`pubspec.yaml` + `flutter pub get`); npm / pip / brew / gem / cargo / system installers need explicit approval first.**
@@ -446,7 +446,7 @@ Every surface calls `guardedOnTap(context, item)`, never `item.onTap`; surfaces 
 - **A page or a mutation is bound to the company whose token fetched it, and the binding is a `throw`.** → `docs/sync.md`
 - **A different identity on the same device wipes the local database, and only the login entry points check.** → `docs/sync.md`
 - **The server's rounding scale is a two-level map, not one precision.** → `docs/sync.md`
-- **`markPaid`'s confirmation is a hook, deliberately NOT `confirm: true`.** It opens its own dialog, and § Action confirmations is explicit that a second prompt in front of one is worse than none.
+- **`markPaid`'s confirmation is a hook, not `confirm: true`:** it opens its own dialog (§ Action confirmations).
 - **A Sync pass re-downloads the fifteen entity tables and nothing else — every cache that hangs off them is re-seeded by hand.** → `docs/sync.md`
 - **A Documents-list row leaves only by a confirmed delete, a record whose complete `documents` no longer lists it, or a full Sync sweep that reached the end — never while dirty or named by an outbox row.** → `docs/documents-list.md`
 - **A `/refresh` delta carries the fourteen browsable entity tables too, and they are applied as an upsert-only top-up (the Documents harvest also prunes, above) — never on a full sync, and never over a newer local row.** → `docs/sync.md`

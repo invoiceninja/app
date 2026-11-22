@@ -79,6 +79,7 @@ import 'package:admin/ui/features/settings/views/basic/device_settings_screen.da
 import 'package:admin/ui/features/settings/widgets/card_reader_section.dart';
 import 'package:admin/ui/features/settings/widgets/contacts_sync_section.dart';
 import 'package:admin/ui/features/settings/widgets/downloads_folder_section.dart';
+import 'package:admin/ui/features/settings/widgets/desktop_app_section.dart';
 import 'package:admin/ui/features/settings/widgets/mobile_app_section.dart';
 import 'package:admin/ui/features/settings/widgets/home_widgets_section.dart';
 import 'package:admin/ui/features/settings/widgets/sidebar_counters_section.dart';
@@ -568,6 +569,10 @@ const _kDeviceSettingsKeyGates = <String, bool Function(SettingsSearchScope?)>{
   'mobile_app_promo_section': _mobileAppShown,
   'mobile_app_promo_settings_body': _mobileAppShown,
   'mobile_app_promo_entry': _mobileAppShown,
+  // kDesktopAppSearchKeys
+  'desktop_app_promo_section': _desktopAppShown,
+  'desktop_app_promo_settings_body': _desktopAppShown,
+  'desktop_app_promo_entry': _desktopAppShown,
   // kHomeWidgetsSearchKeys
   'widget_settings_section': _homeWidgetsShown,
   // kCardReaderSearchKeys
@@ -610,6 +615,9 @@ bool _downloadsFolderShown(SettingsSearchScope? _) =>
 
 bool _mobileAppShown(SettingsSearchScope? scope) =>
     scope?.showsMobileApp ?? true;
+
+bool _desktopAppShown(SettingsSearchScope? scope) =>
+    scope?.showsDesktopApp ?? true;
 
 bool _peppolStatusShown(SettingsSearchScope? scope) =>
     scope?.sendsPeppol ?? true;
@@ -668,7 +676,8 @@ bool _chromeExtensionShown(SettingsSearchScope? scope) =>
 bool _companionAppsShown(SettingsSearchScope? scope) =>
     _wordPressPluginShown(scope) ||
     _chromeExtensionShown(scope) ||
-    _mobileAppShown(scope);
+    _mobileAppShown(scope) ||
+    _desktopAppShown(scope);
 
 /// Task Settings' Chrome extension card is company-scope only.
 bool _taskSettingsChromeExtensionShown(SettingsSearchScope? scope) =>
@@ -1357,6 +1366,7 @@ class SettingsSearchScope {
     required this.isCascade,
     required this.isHosted,
     this.showsMobileApp = true,
+    this.showsDesktopApp = true,
     this.sendsPeppol = true,
     this.showsWordPressPlugin = true,
     this.showsChromeExtension = true,
@@ -1386,6 +1396,7 @@ class SettingsSearchScope {
       isCascade: level.isClient || level.isGroup,
       isHosted: session?.isHosted ?? true,
       showsMobileApp: mobileAppSectionShown(session),
+      showsDesktopApp: desktopAppSectionShown(session),
       sendsPeppol: company == null || peppolStatusSectionShown(company),
       showsWordPressPlugin: wordPressPluginOffered(session),
       showsChromeExtension: chromeExtensionOffered(session),
@@ -1413,6 +1424,10 @@ class SettingsSearchScope {
   /// Whether Device Settings shows its Mobile App card here
   /// (`mobileAppSectionShown`).
   final bool showsMobileApp;
+
+  /// Whether Device Settings shows its Desktop App card here — a phone's
+  /// (`desktopAppSectionShown`).
+  final bool showsDesktopApp;
 
   /// Whether the active company sends by PEPPOL, the one case Device Settings
   /// shows Hide Peppol Sent Status (`peppolStatusSectionShown`).

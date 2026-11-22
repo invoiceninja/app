@@ -397,6 +397,16 @@ abstract final class DevicePrefKeys {
     PrefScope.device,
   );
 
+  /// The "get the desktop app" promo's schedule on a phone — the same JSON
+  /// as [mobileAppPromo], kept by the same `MobileAppPromoController`
+  /// (docs/desktop-app-promo.md). A key of its own, so "this phone has been
+  /// told about the desktop app" never reads as an answer to the other promo.
+  static const desktopAppPromo = PrefKey<String>(
+    'desktop_app_promo_json',
+    PrefCodec.string,
+    PrefScope.device,
+  );
+
   /// In the order they were added; append new keys at the end.
   static const List<PrefKey<Object>> all = [
     locale,
@@ -438,6 +448,7 @@ abstract final class DevicePrefKeys {
     afterSaving,
     appearanceSyncedAt,
     appearanceSeeded,
+    desktopAppPromo,
   ];
 
   /// The rows a data wipe leaves in place: the [PrefScope.device] keys and the

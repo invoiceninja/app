@@ -8,6 +8,7 @@ import 'package:admin/data/repositories/auth/auth_session.dart';
 import 'package:admin/ui/features/settings/state/settings_level_controller.dart';
 import 'package:admin/ui/features/settings/widgets/contacts_sync_section.dart';
 import 'package:admin/ui/features/settings/widgets/downloads_folder_section.dart';
+import 'package:admin/ui/features/settings/widgets/desktop_app_section.dart';
 import 'package:admin/ui/features/settings/widgets/mobile_app_section.dart';
 
 import '../../../_localization_helper.dart';
@@ -391,6 +392,33 @@ void main() {
         );
       });
 
+      test('Desktop App only where the card shows — a phone', () {
+        const shown = SettingsSearchScope(
+          enabledModules: 0,
+          isAdminOrOwner: true,
+          isCascade: false,
+          isHosted: true,
+          showsMobileApp: false,
+        );
+        expect(
+          offered(kDesktopAppSearchKeys, shown),
+          kDesktopAppSearchKeys.toSet(),
+        );
+        expect(
+          offered(
+            kDesktopAppSearchKeys,
+            const SettingsSearchScope(
+              enabledModules: 0,
+              isAdminOrOwner: true,
+              isCascade: false,
+              isHosted: true,
+              showsDesktopApp: false,
+            ),
+          ),
+          isEmpty,
+        );
+      });
+
       test('Hide Peppol Sent Status only for a company that sends by '
           'PEPPOL', () {
         const keys = ['hide_peppol_sent_status'];
@@ -466,6 +494,7 @@ void main() {
         bool wordPress = true,
         bool chrome = true,
         bool mobile = true,
+        bool desktop = false,
         bool cascade = false,
       }) => SettingsSearchScope(
         enabledModules: _allModules,
@@ -473,6 +502,7 @@ void main() {
         isCascade: cascade,
         isHosted: true,
         showsMobileApp: mobile,
+        showsDesktopApp: desktop,
         showsWordPressPlugin: wordPress,
         showsChromeExtension: chrome,
       );
@@ -502,6 +532,20 @@ void main() {
             scope(wordPress: false, chrome: false, mobile: false),
           ),
           isEmpty,
+        );
+        expect(
+          offered(
+            keys,
+            integrations,
+            scope(
+              wordPress: false,
+              chrome: false,
+              mobile: false,
+              desktop: true,
+            ),
+          ),
+          keys.toSet(),
+          reason: 'the desktop-app row shows on a phone',
         );
         expect(offered(['api_docs'], integrations, scope(wordPress: false)), {
           'api_docs',

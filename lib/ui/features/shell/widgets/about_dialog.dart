@@ -8,6 +8,7 @@ import 'package:admin/app/review_prompt_controller.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/app/version.dart';
 import 'package:admin/data/repositories/auth/auth_session.dart';
+import 'package:admin/domain/desktop_app_promo.dart';
 import 'package:admin/domain/mobile_app_promo.dart';
 import 'package:admin/domain/self_update.dart';
 import 'package:admin/l10n/localization.dart';
@@ -15,6 +16,7 @@ import 'package:admin/ui/core/adaptive.dart';
 import 'package:admin/ui/core/widgets/legal_links.dart';
 import 'package:admin/ui/core/widgets/link_text.dart';
 import 'package:admin/ui/features/shell/widgets/health_check_dialog.dart';
+import 'package:admin/ui/features/mobile_promo/desktop_app_promo_dialog.dart';
 import 'package:admin/ui/features/mobile_promo/mobile_app_promo_dialog.dart';
 import 'package:admin/ui/features/review_prompt/review_listing.dart';
 import 'package:admin/ui/features/shell/widgets/keyboard_shortcuts_dialog.dart';
@@ -108,6 +110,17 @@ Future<void> showAppAboutDialog(BuildContext context) async {
               }
             }
           : null,
+      // The reverse on a phone: the desktop app (docs/desktop-app-promo.md).
+      onShowDesktopApp:
+          currentDesktopPromoTargets().isNotEmpty &&
+              desktopPromoEligible(session)
+          ? () {
+              Navigator.of(ctx).pop();
+              if (outerContext.mounted) {
+                showDesktopAppPromoDialog(outerContext, isManual: true);
+              }
+            }
+          : null,
       // A static link to the review page — never the OS sheet, which a
       // button may not trigger (docs/review-prompt.md). Hidden in beta, on
       // the demo, and on Apple until the listing's id is known.
@@ -168,6 +181,7 @@ class _AboutDialog extends StatelessWidget {
     required this.onShowKeyboardShortcuts,
     required this.onShowDebugPanel,
     this.onShowMobileApp,
+    this.onShowDesktopApp,
     this.onRateApp,
     this.whatsNewVersion,
     this.onShowWhatsNew,
@@ -189,6 +203,7 @@ class _AboutDialog extends StatelessWidget {
   final VoidCallback? onShowKeyboardShortcuts;
   final VoidCallback onShowDebugPanel;
   final VoidCallback? onShowMobileApp;
+  final VoidCallback? onShowDesktopApp;
   final VoidCallback? onRateApp;
   final String? whatsNewVersion;
   final VoidCallback? onShowWhatsNew;
@@ -280,6 +295,7 @@ class _AboutDialog extends StatelessWidget {
               if (onShowWelcome != null ||
                   onShowWhatsNew != null ||
                   onShowMobileApp != null ||
+                  onShowDesktopApp != null ||
                   onRateApp != null ||
                   onContactUs != null) ...[
                 SizedBox(height: InSpacing.md(context)),
@@ -319,6 +335,15 @@ class _AboutDialog extends StatelessWidget {
                         onPressed: onShowMobileApp,
                         icon: const Icon(Icons.smartphone_outlined, size: 18),
                         label: Text(context.tr('mobile_app_promo_entry')),
+                      ),
+                    if (onShowDesktopApp != null)
+                      OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: const Size(64, 40),
+                        ),
+                        onPressed: onShowDesktopApp,
+                        icon: const Icon(Icons.laptop_outlined, size: 18),
+                        label: Text(context.tr('desktop_app_promo_entry')),
                       ),
                     if (onRateApp != null)
                       OutlinedButton.icon(

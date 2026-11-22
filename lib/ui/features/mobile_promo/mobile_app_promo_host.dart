@@ -8,12 +8,14 @@ import 'package:admin/app/mobile_app_promo_controller.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/data/models/value/date.dart';
 import 'package:admin/data/repositories/auth/auth_session.dart';
-import 'package:admin/domain/mobile_app_promo.dart';
+import 'package:admin/domain/desktop_app_promo.dart';
 import 'package:admin/ui/core/dialogs/automatic_dialogs.dart';
+import 'package:admin/ui/features/mobile_promo/desktop_app_promo_dialog.dart';
 import 'package:admin/ui/features/mobile_promo/mobile_app_promo_dialog.dart';
 
 /// Opens the mobile-app promo on its own when it is due, and counts the days
-/// this device is used (docs/mobile-app-promo.md).
+/// this device is used (docs/mobile-app-promo.md) — or, on a phone, the
+/// desktop-app promo, on the same schedule (docs/desktop-app-promo.md).
 ///
 /// Mounted inside the authenticated shell (`ScaffoldWithNav`), so it can
 /// never land over `/login`, `/lock` or `/setup`. It waits for the landing
@@ -70,9 +72,7 @@ class _MobileAppPromoHostState extends State<MobileAppPromoHost> {
     super.dispose();
   }
 
-  bool get _eligible =>
-      mobilePromoEligible(_session?.value) &&
-      currentMobilePromoTargets().isNotEmpty;
+  bool get _eligible => currentAppPromoKind(_session?.value) != null;
 
   void _onSession() {
     final controller = _controller;
@@ -109,7 +109,7 @@ class _MobileAppPromoHostState extends State<MobileAppPromoHost> {
     controller.shownThisLaunch = true;
     AutomaticDialogs.noteShown();
     unawaited(controller.noteShown(DateTime.now()));
-    final result = await showMobileAppPromoDialog(context);
+    final result = await showAppPromoDialog(context);
     // A `null` is Esc — or the shell page being replaced under the dialog (a
     // 401, the idle timeout, `/setup`), which unmounts this host too and is
     // not the user saying "later".

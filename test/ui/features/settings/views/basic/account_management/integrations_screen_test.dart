@@ -36,27 +36,31 @@ final int _allModules = kEnabledModulesOrder.fold<int>(
   (mask, m) => mask | m.bitmask,
 );
 
-AuthSession _session({bool admin = true, bool pro = true, bool tasks = true}) =>
-    AuthSession(
-      baseUrl: 'https://invoicing.co',
-      isHosted: true,
-      accountId: 'acct',
-      plan: pro ? 'pro' : '',
-      companies: [
-        AuthCompany(
-          id: 'co',
-          name: 'Co',
-          displayName: 'Co',
-          permissions: '',
-          isAdmin: admin,
-          isOwner: false,
-          enabledModules: tasks
-              ? _allModules
-              : _allModules & ~EnabledModule.tasks.bitmask,
-        ),
-      ],
-      currentCompanyId: 'co',
-    );
+AuthSession _session({
+  bool admin = true,
+  bool pro = true,
+  bool tasks = true,
+  String baseUrl = 'https://invoicing.co',
+}) => AuthSession(
+  baseUrl: baseUrl,
+  isHosted: true,
+  accountId: 'acct',
+  plan: pro ? 'pro' : '',
+  companies: [
+    AuthCompany(
+      id: 'co',
+      name: 'Co',
+      displayName: 'Co',
+      permissions: '',
+      isAdmin: admin,
+      isOwner: false,
+      enabledModules: tasks
+          ? _allModules
+          : _allModules & ~EnabledModule.tasks.bitmask,
+    ),
+  ],
+  currentCompanyId: 'co',
+);
 
 /// Settings → Account Management → Integrations: the "More from Invoice
 /// Ninja" card shows each companion app only where it is offered
@@ -156,12 +160,24 @@ void main() {
     });
   });
 
-  testWidgets('the phone app: WordPress only, for a Pro admin', (tester) async {
-    await on(tester, TargetPlatform.iOS, () async {
+  testWidgets('the phone app: WordPress for a Pro admin, and the desktop app '
+      'in place of the phone app (docs/desktop-app-promo.md)', (tester) async {
+    for (final platform in [TargetPlatform.iOS, TargetPlatform.android]) {
+      await on(tester, platform, () async {
+        await pump(tester, _session());
+        expect(row('wordpress_plugin'), findsOneWidget);
+        expect(row('chrome_extension'), findsNothing);
+        expect(row('mobile_app_promo_section'), findsNothing);
+        expect(row('desktop_app_promo_section'), findsOneWidget);
+      });
+    }
+  });
+
+  testWidgets('a computer never offers the desktop app', (tester) async {
+    await on(tester, TargetPlatform.windows, () async {
       await pump(tester, _session());
-      expect(row('wordpress_plugin'), findsOneWidget);
-      expect(row('chrome_extension'), findsNothing);
-      expect(row('mobile_app_promo_section'), findsNothing);
+      expect(row('mobile_app_promo_section'), findsOneWidget);
+      expect(row('desktop_app_promo_section'), findsNothing);
     });
   });
 
@@ -169,7 +185,11 @@ void main() {
     tester,
   ) async {
     await on(tester, TargetPlatform.android, () async {
-      await pump(tester, _session(admin: false, pro: false));
+      // A server only this device reaches: no desktop app either.
+      await pump(
+        tester,
+        _session(admin: false, pro: false, baseUrl: 'http://localhost:8000'),
+      );
       expect(find.text(t('companion_apps_section')), findsNothing);
       expect(row('wordpress_plugin'), findsNothing);
       expect(row('mobile_app_promo_section'), findsNothing);

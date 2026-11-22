@@ -207,6 +207,7 @@ final List<_TabUnderTest> _tabsUnderTest = [
       'lib/ui/features/settings/widgets/home_widgets_section.dart',
       'lib/ui/features/settings/widgets/card_reader_section.dart',
       'lib/ui/features/settings/widgets/mobile_app_section.dart',
+      'lib/ui/features/settings/widgets/desktop_app_section.dart',
     ],
     keys: kDeviceSettingsPhoneSearchKeys,
   ),

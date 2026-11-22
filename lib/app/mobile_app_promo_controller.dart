@@ -9,7 +9,11 @@ import 'package:admin/data/prefs/device_pref_keys.dart';
 import 'package:admin/data/prefs/device_prefs_store.dart';
 
 /// The "get the mobile app" promo's schedule — the owner of
-/// [DevicePrefKeys.mobileAppPromo] (docs/mobile-app-promo.md).
+/// [DevicePrefKeys.mobileAppPromo] (docs/mobile-app-promo.md). On a native
+/// phone the same schedule drives the reverse promo, the desktop app, under
+/// [DevicePrefKeys.desktopAppPromo] ([prefKey], docs/desktop-app-promo.md):
+/// the two never run on one device, so one controller serves both and every
+/// hold it keeps with the other automatic prompts holds for either.
 ///
 /// It opens on its own at most [maxAutoOpens] times, never before the
 /// [daysBeforeFirstOpen]th day this device is used, and each close without
@@ -27,6 +31,7 @@ class MobileAppPromoController extends ChangeNotifier {
     required DevicePrefsStore prefs,
     this.promote = false,
     WhatsNewController? whatsNew,
+    this.prefKey = DevicePrefKeys.mobileAppPromo,
   }) : _prefs = prefs,
        _whatsNew = whatsNew {
     _sync();
@@ -34,6 +39,10 @@ class MobileAppPromoController extends ChangeNotifier {
   }
 
   final DevicePrefsStore _prefs;
+
+  /// Where the schedule is kept: [DevicePrefKeys.mobileAppPromo], or
+  /// [DevicePrefKeys.desktopAppPromo] on a phone.
+  final PrefKey<String> prefKey;
 
   /// The What's New dialog, which goes first: while it may still open on its
   /// own, and for a day after it opens, the promo is not due
@@ -148,14 +157,12 @@ class MobileAppPromoController extends ChangeNotifier {
   Future<void> _save(MobileAppPromoState next) async {
     _state = next;
     notifyListeners();
-    await _prefs.write(DevicePrefKeys.mobileAppPromo, next.encode());
+    await _prefs.write(prefKey, next.encode());
   }
 
   /// Re-read the store (its `load`, or a wipe — which keeps this key).
   void _sync() {
-    final next = MobileAppPromoState.decode(
-      _prefs.read(DevicePrefKeys.mobileAppPromo),
-    );
+    final next = MobileAppPromoState.decode(_prefs.read(prefKey));
     if (next == _state) return;
     _state = next;
     notifyListeners();

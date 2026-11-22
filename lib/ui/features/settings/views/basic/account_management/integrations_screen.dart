@@ -9,8 +9,10 @@ import 'package:admin/app/services.dart';
 import 'package:admin/domain/companion_apps.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/utils/external_url.dart';
+import 'package:admin/ui/features/mobile_promo/desktop_app_promo_dialog.dart';
 import 'package:admin/ui/features/mobile_promo/mobile_app_promo_dialog.dart';
 import 'package:admin/ui/features/settings/widgets/form_section.dart';
+import 'package:admin/ui/features/settings/widgets/desktop_app_section.dart';
 import 'package:admin/ui/features/settings/widgets/mobile_app_section.dart';
 import 'package:admin/ui/features/settings/widgets/settings_form_shell.dart';
 
@@ -39,8 +41,9 @@ const String _kZapierUrl = 'https://zapier.com/apps/invoice-ninja/integrations';
 /// Analytics tile), so there's a single source of truth for those fields.
 ///
 /// Below them, "More from Invoice Ninja": the WordPress plugin, the Chrome
-/// extension and the phone app, each where this session can use it
-/// (docs/companion-apps.md). The card is left out entirely when none is.
+/// extension and the phone app (the desktop app on a phone), each where this
+/// session can use it (docs/companion-apps.md). The card is left out entirely
+/// when none is.
 class AccountManagementIntegrationsScreen extends StatelessWidget {
   const AccountManagementIntegrationsScreen({super.key});
 
@@ -74,6 +77,15 @@ class AccountManagementIntegrationsScreen extends StatelessWidget {
           subtitleKey: 'mobile_app_hub_body',
           onTap: () =>
               unawaited(showMobileAppPromoDialog(context, isManual: true)),
+        ),
+      // Its mirror on a phone (docs/desktop-app-promo.md).
+      if (desktopAppSectionShown(session))
+        _IntegrationTile(
+          icon: Icons.laptop_outlined,
+          labelKey: 'desktop_app_promo_section',
+          subtitleKey: 'desktop_app_promo_settings_body',
+          onTap: () =>
+              unawaited(showDesktopAppPromoDialog(context, isManual: true)),
         ),
     ];
     return SettingsFormShell(
