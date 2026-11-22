@@ -22,6 +22,8 @@ class FeatureRow extends StatelessWidget {
 
   final IconData icon;
   final String title;
+
+  /// The line under the title; empty for a title-only row.
   final String body;
   final VoidCallback? onTap;
   final bool inset;
@@ -52,11 +54,15 @@ class FeatureRow extends StatelessWidget {
                 color: tokens.ink,
               ),
             ),
-            const SizedBox(height: 2),
-            Text(
-              body,
-              style: TextStyle(fontSize: 13, height: 1.4, color: tokens.ink3),
-            ),
+            // An empty body is a title-only row (the desktop-app promo on a
+            // 4-inch phone), centred on its icon tile.
+            if (body.isNotEmpty) ...[
+              const SizedBox(height: 2),
+              Text(
+                body,
+                style: TextStyle(fontSize: 13, height: 1.4, color: tokens.ink3),
+              ),
+            ],
           ],
         ),
       ),
@@ -66,7 +72,9 @@ class FeatureRow extends StatelessWidget {
       return Padding(
         padding: EdgeInsets.only(bottom: InSpacing.lg(context)),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: body.isEmpty
+              ? CrossAxisAlignment.center
+              : CrossAxisAlignment.start,
           children: content,
         ),
       );

@@ -152,12 +152,28 @@ class _DesktopAppPromoDialogState extends State<DesktopAppPromoDialog> {
     );
   }
 
+  // The room the route gives the card, never `MediaQuery`: on a foldable
+  // held half-open the dialog opens in one half of the fold
+  // (`DisplayFeatureSubScreen`), while `MediaQuery.size` is still the whole
+  // window, which drew the 720-wide tablet layout into a ~420 half
+  // (docs/foldables.md). Measured on every build, so a fold or an unfold
+  // under the open card re-lays it out.
   @override
-  Widget build(BuildContext context) {
-    final size = MediaQuery.sizeOf(context);
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) => _card(context, constraints.biggest),
+  );
+
+  Widget _card(BuildContext context, Size size) {
     final scale = MediaQuery.textScalerOf(context).scale(14) / 14;
     // A tablet: the pitch beside the link, as the phone-app promo lays out.
     final wide = size.width >= 800 && size.height >= 560 && scale < 1.3;
+    // A phone, measured in lines of text rather than points: an iPhone SE,
+    // or a big phone at a large text size. Below 700 the laptop glyph and
+    // some of the scrim give way, so the pitch is on screen with the link;
+    // below 560 (a 4-inch phone) the features keep their titles only.
+    final room = size.height / scale;
+    final compact = !wide && room < 700;
+    final titlesOnly = !wide && room < 560;
     final tokens = context.inTheme;
     final close = PositionedDirectional(
       top: InSpacing.xs,
@@ -212,7 +228,7 @@ class _DesktopAppPromoDialogState extends State<DesktopAppPromoDialog> {
                             InSpacing.xl,
                             InSpacing.xl,
                           ),
-                          child: _sendIt(context),
+                          child: _sendIt(context, showIcon: true),
                         ),
                       ),
                     ],
@@ -258,10 +274,10 @@ class _DesktopAppPromoDialogState extends State<DesktopAppPromoDialog> {
                       color: tokens.accentSoft,
                       borderRadius: BorderRadius.circular(InRadii.r3),
                     ),
-                    child: _sendIt(context),
+                    child: _sendIt(context, showIcon: !compact),
                   ),
                   SizedBox(height: InSpacing.lg(context)),
-                  _features(context),
+                  _features(context, titlesOnly: titlesOnly),
                 ],
               ),
             ),
@@ -292,7 +308,7 @@ class _DesktopAppPromoDialogState extends State<DesktopAppPromoDialog> {
         clipBehavior: Clip.antiAlias,
         insetPadding: EdgeInsets.symmetric(
           horizontal: size.width < 600 ? 16 : 40,
-          vertical: 24,
+          vertical: compact ? 16 : 24,
         ),
         child: ConstrainedBox(
           constraints: BoxConstraints(maxWidth: wide ? 720 : 480),
@@ -313,7 +329,10 @@ class _DesktopAppPromoDialogState extends State<DesktopAppPromoDialog> {
     ],
   );
 
-  Widget _features(BuildContext context) {
+  /// The two reasons a phone user wants the desktop app too. Not "works
+  /// offline" or "the same data": the phone app does both, and the subtitle
+  /// already says so.
+  Widget _features(BuildContext context, {bool titlesOnly = false}) {
     const features = <(IconData, String, String)>[
       (
         Icons.space_dashboard_outlined,
@@ -325,16 +344,6 @@ class _DesktopAppPromoDialogState extends State<DesktopAppPromoDialog> {
         'desktop_app_promo_keyboard_title',
         'desktop_app_promo_keyboard_body',
       ),
-      (
-        Icons.sync_outlined,
-        'desktop_app_promo_same_data_title',
-        'desktop_app_promo_same_data_body',
-      ),
-      (
-        Icons.cloud_off_outlined,
-        'desktop_app_promo_offline_title',
-        'desktop_app_promo_offline_body',
-      ),
     ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -344,7 +353,7 @@ class _DesktopAppPromoDialogState extends State<DesktopAppPromoDialog> {
           FeatureRow(
             icon: icon,
             title: context.tr(title),
-            body: context.tr(body),
+            body: titlesOnly ? '' : context.tr(body),
           ),
       ],
     );
@@ -383,7 +392,7 @@ class _DesktopAppPromoDialogState extends State<DesktopAppPromoDialog> {
     );
   }
 
-  Widget _sendIt(BuildContext context) {
+  Widget _sendIt(BuildContext context, {required bool showIcon}) {
     final tokens = context.inTheme;
     final a = widget.account;
     final small = TextStyle(fontSize: 12, height: 1.4, color: tokens.ink3);
@@ -393,51 +402,76 @@ class _DesktopAppPromoDialogState extends State<DesktopAppPromoDialog> {
         if (widget.targets.length > 1) ...[
           // Text only: the platforms' own marks are their owners' artwork,
           // and a generic glyph per segment would tell them apart by nothing.
-          SegmentedButton<DesktopPromoTarget>(
-            showSelectedIcon: false,
-            segments: [
-              for (final t in widget.targets)
-                ButtonSegment(value: t, label: Text(t.displayName)),
-            ],
-            selected: {_target},
-            onSelectionChanged: (s) => setState(() => _target = s.first),
+          // Scaled down rather than wrapped at a large text size: a segment
+          // broke "Windows" across two lines.
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: SegmentedButton<DesktopPromoTarget>(
+              showSelectedIcon: false,
+              segments: [
+                for (final t in widget.targets)
+                  ButtonSegment(
+                    value: t,
+                    label: Text(t.displayName, maxLines: 1, softWrap: false),
+                  ),
+              ],
+              selected: {_target},
+              onSelectionChanged: (s) => setState(() => _target = s.first),
+            ),
           ),
           SizedBox(height: InSpacing.lg(context)),
         ],
-        Icon(Icons.laptop_outlined, size: 40, color: tokens.accentInk),
-        const SizedBox(height: InSpacing.sm),
-        Semantics(
-          liveRegion: true,
-          child: Text(
-            context.tr('desktop_app_promo_send_hint'),
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 14,
-              height: 1.4,
-              fontWeight: FontWeight.w600,
-              color: tokens.ink,
-            ),
+        if (showIcon) ...[
+          Icon(Icons.laptop_outlined, size: 40, color: tokens.accentInk),
+          const SizedBox(height: InSpacing.sm),
+        ],
+        Text(
+          context.tr('desktop_app_promo_send_hint'),
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 14,
+            height: 1.4,
+            fontWeight: FontWeight.w600,
+            color: tokens.ink,
           ),
         ),
         SizedBox(height: InSpacing.md(context)),
-        Builder(
-          builder: (buttonContext) => FilledButton.icon(
-            style: FilledButton.styleFrom(minimumSize: const Size(64, 44)),
-            onPressed: _guard(() => unawaited(_share(buttonContext))),
-            icon: Icon(Icons.adaptive.share),
-            label: Text(context.tr('desktop_app_promo_share')),
+        // Side by side where they fit, which keeps the pitch on an iPhone
+        // SE's first screen; stacked, Share on top, where they don't.
+        OverflowBar(
+          alignment: MainAxisAlignment.center,
+          spacing: InSpacing.sm,
+          overflowAlignment: OverflowBarAlignment.center,
+          children: [
+            Builder(
+              builder: (buttonContext) => FilledButton.icon(
+                style: FilledButton.styleFrom(minimumSize: const Size(64, 44)),
+                onPressed: _guard(() => unawaited(_share(buttonContext))),
+                icon: Icon(Icons.adaptive.share),
+                label: Text(context.tr('desktop_app_promo_share')),
+              ),
+            ),
+            TextButton.icon(
+              style: TextButton.styleFrom(minimumSize: const Size(64, 44)),
+              onPressed: _guard(() => unawaited(_copy())),
+              icon: const Icon(Icons.link, size: 18),
+              // Its own key, in the Share button's case: the shared
+              // `copy_link` is title case, and untranslated in a dozen
+              // locales.
+              label: Text(context.tr('desktop_app_promo_copy')),
+            ),
+          ],
+        ),
+        SizedBox(height: InSpacing.md(context)),
+        // What changes when another computer is picked, so a screen
+        // reader hears it.
+        Semantics(
+          liveRegion: true,
+          child: Text(
+            context.tr(desktopPromoStepKey(_target, _url)),
+            textAlign: TextAlign.center,
+            style: small,
           ),
-        ),
-        TextButton.icon(
-          onPressed: _guard(() => unawaited(_copy())),
-          icon: const Icon(Icons.link, size: 18),
-          label: Text(context.tr('copy_link')),
-        ),
-        const SizedBox(height: InSpacing.xs),
-        Text(
-          context.tr(desktopPromoStepKey(_target, _url)),
-          textAlign: TextAlign.center,
-          style: small,
         ),
         if (a.serverUrl case final url?) ...[
           SizedBox(height: InSpacing.md(context)),
@@ -482,28 +516,31 @@ class _DesktopAppPromoDialogState extends State<DesktopAppPromoDialog> {
       onPressed: _guard(_dismiss),
       child: Text(
         context.tr(snoozes ? 'mobile_app_promo_remind_later' : 'close'),
-        overflow: TextOverflow.ellipsis,
+        textAlign: TextAlign.center,
       ),
     );
-    return Row(
-      mainAxisAlignment: offersDontShow
+    // Side by side while both fit; stacked, the way out on top, when they
+    // don't (a long locale, a large text size). An ellipsis made both
+    // unreadable ("Don't sho…", "Remind m…").
+    return OverflowBar(
+      alignment: offersDontShow
           ? MainAxisAlignment.spaceBetween
           : MainAxisAlignment.end,
+      spacing: InSpacing.md(context),
+      overflowSpacing: InSpacing.xs,
+      overflowAlignment: OverflowBarAlignment.end,
+      overflowDirection: VerticalDirection.up,
       children: [
-        if (offersDontShow) ...[
-          Flexible(
-            child: TextButton(
-              style: TextButton.styleFrom(foregroundColor: tokens.ink3),
-              onPressed: _guard(_dontShowAgain),
-              child: Text(
-                context.tr('mobile_app_promo_dont_show_again'),
-                overflow: TextOverflow.ellipsis,
-              ),
+        if (offersDontShow)
+          TextButton(
+            style: TextButton.styleFrom(foregroundColor: tokens.ink3),
+            onPressed: _guard(_dontShowAgain),
+            child: Text(
+              context.tr('mobile_app_promo_dont_show_again'),
+              textAlign: TextAlign.center,
             ),
           ),
-          SizedBox(width: InSpacing.md(context)),
-        ],
-        Flexible(child: dismiss),
+        dismiss,
       ],
     );
   }

@@ -2,7 +2,7 @@
 
 Companion to CLAUDE.md § Strict rules (the promo rule, which covers both directions). This doc carries the reverse of `docs/mobile-app-promo.md`: who on a phone is offered which computer, the store-policy evidence behind each call, and what changes at launch. Everything not said here (the schedule, the quiet-moment check, the holds with What's New, the review prompt and the Welcome) is the mobile-app promo's, shared on purpose.
 
-A one-screen dialog on native iOS, iPadOS and Android that pitches the desktop app: a bigger screen, keyboard shortcuts, the same account and data, works offline. A phone can't install a desktop app, so it hands the download link over: **Share link** opens the system share sheet (AirDrop to a Mac, Mail or a message to yourself, a note), and **Copy Link** puts it on the clipboard. A self-hosted account also gets the server address to copy, with a same-network note when it is private.
+A one-screen dialog on native iOS, iPadOS and Android that pitches the desktop app: the same account and data on a bigger screen, with room to work and keyboard shortcuts. Not "works offline" or "pick up where you left off": the phone app already does both, so they sold nothing to the person reading it (cut in the review after launch). A phone can't install a desktop app, so it hands the download link over: **Share link** opens the system share sheet (AirDrop to a Mac, Mail or a message to yourself, a note), and **Copy Link** puts it on the clipboard. A self-hosted account also gets the server address to copy, with a same-network note when it is private.
 
 | Piece | File |
 |---|---|
@@ -59,6 +59,15 @@ Windows and Linux are not mobile platforms, so the first half of 2.3.10 doesn't 
 - **The gain is small.** An iPhone owner's computer is likeliest a Mac, and the Mac is the one computer Apple's own store serves.
 
 So the Apple builds name the Mac and say "your computer" everywhere else. Revisit after launch: once `invoiceninja.com/app/windows` (and a Linux redirect) are live, offering "Windows" through that neutral link is a defensible next step, decided then, not slipped in by the launch switch, which never changes `desktopPromoTargets`' Apple branch.
+
+## The card fits an iPhone SE, and lays out in the room the route gives it
+
+- **Measured with a `LayoutBuilder`, never `MediaQuery.size`.** On a foldable held half-open, `showDialog` puts the card in one half (`DisplayFeatureSubScreen`), but `MediaQuery.size` is still the whole window, so the 720-wide tablet layout was drawn into a ~420 half (docs/foldables.md).
+- **Room is counted in lines of text** (`height / textScale`). Below 700 the laptop glyph goes and the vertical inset drops to 16; below 560 (a 4-inch phone, or a big phone at 200% text) the features keep their titles only (`FeatureRow` with an empty body).
+- **Share and Copy sit side by side, and so do the footer buttons, until they don't fit**: both are `OverflowBar`s, stacking with Share and Remind me later on top. A `Row` of `Flexible`s ellipsized the footer to "Don't sho…" / "Remind m…" at a large text size.
+- **The platform segments scale down rather than wrap** (`FittedBox`, one line per label); "Windows" broke across two lines at 200%.
+- **Copy link is its own key** (`desktop_app_promo_copy`), in the Share button's case: the shared `copy_link` is title case and untranslated in about a dozen locales, which put English beside a translated Share.
+- `desktop_app_promo_dialog_test` § layout loads Inter Tight (the test font wraps everything) and pins each of these.
 
 ## Who sees it, and when
 
