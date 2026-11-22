@@ -3658,3 +3658,16 @@ Not bugs: features real users asked for, each needing the server first. Collecte
   - Treat a tie between equal scores as a hint to the field the entity's own prefix names, not as no hint at all.
 
 **Client status:** nothing to do until the server has them.
+
+## Free plan data — a null `plan_expires` reads as expired, and old accounts may have no client cap — **O (found 2026-11-23 reviewing the client-limit feature, read against v5-develop)**
+
+**1. A paid account with no `plan_expires` is sent as `plan: ''`.** `Account::getPlan()` checks `Carbon::parse($this->plan_expires)->lt(now())`. `Carbon::parse(null)` is "now", which is already earlier than the `now()` it is compared with. So a `pro` or `enterprise` account whose `plan_expires` is null comes back from `AccountTransformer` (`'plan' => $account->getPlan()`) as an expired plan.
+- `isFreeHostedClient()` reads the raw `plan` and treats the account as paid, so the server lets it add clients.
+- Every client, this app and React included, reads the transformed `plan` and shows such an account as Free, with the client cap.
+- **Fix:** treat a null `plan_expires` as no expiry in `getPlan()`, or backfill expiry dates. That is safe for free accounts too: their raw plan is `free` (or empty), so they still read as Free.
+
+**2. `accounts.hosted_client_count` is nullable and only `CreateAccount` sets it.** An older free account may have it null or 0.
+- `CanStoreClientsRule` (`count < hosted_client_count`) then refuses **every** client create. The staging account `large@example.com` (plan `''`, count 0, 4,523 clients) is refused this way.
+- **Fix:** backfill `hosted_client_count = config('ninja.quotas.free.clients')` where it is null or 0, or have the rule fall back to the quota.
+
+**Client status:** the app shows no cap and blocks nothing when `hosted_client_count` is 0, and passes the server's own refusal message through, with Upgrade. It can't tell case 1 apart from a real free account.
