@@ -3177,6 +3177,15 @@ same English-message sniff an `error_type: "invalid_token"` would replace.
 The Flutter app (2026-11-21) ends the session on the exact message, keeping local data and unsynced
 changes, and tells the user on the sign-in screen; a rotation still signs every other client out.
 
+### Plan: per-device tokens, after launch
+
+- A grace period for the old token ([invoiceninja#13483](https://github.com/invoiceninja/invoiceninja/pull/13483), with React's [web#3487](https://github.com/invoiceninja/web/pull/3487)) was closed on 2026-11-22. David's reason: "This is very expensive, would require additional indexes and additional scans per request."
+- He suggested either disabling rotation for a given platform, or **per-device tokens, so that a rotation on one device would not impact another**.
+- **The plan after launch** is a server PR for per-device tokens:
+  - each sign-in gets its own system token, so a rotation replaces only the signing-in device's token;
+  - `/logout` still ends them all.
+- Until then, a user with two apps signs in again about once a month. The data and unsynced changes stay.
+
 ---
 
 ## Activity notes — two entities are filed under an unrelated expense, one is dropped — **(1) and (2) SHIPPED 2026-10-19 ([invoiceninja#13365](https://github.com/invoiceninja/invoiceninja/pull/13365)); (3) O**
