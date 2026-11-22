@@ -140,8 +140,9 @@ void main() {
 
   // S8: a Legacy-app Play subscriber's purchase replaces that subscription.
   const legacyNotice =
-      'Your subscription in the Invoice Ninja Legacy app will be cancelled '
-      'and its unused time refunded once your new subscription is active.';
+      'If you subscribe here, your Invoice Ninja Legacy subscription is '
+      'cancelled for you once the new one is active, and its unused time is '
+      "refunded. You don't need to cancel it yourself.";
 
   testWidgets('a purchase that replaces a Legacy Play subscription says it is '
       'cancelled and refunded, above the plans', (tester) async {

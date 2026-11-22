@@ -33,20 +33,23 @@ import 'package:admin/utils/url_safety.dart';
 /// while one is still deciding (asking for the user's name, or the hosted
 /// config) or has its sheet open does nothing.
 Future<void> launchUpgrade(BuildContext context) async {
-  if (_upgradeInProgress) return;
-  _upgradeInProgress = true;
+  if (upgradeBusy.value) return;
+  upgradeBusy.value = true;
   try {
     await _launchUpgrade(context);
   } finally {
-    _upgradeInProgress = false;
+    upgradeBusy.value = false;
   }
 }
 
-bool _upgradeInProgress = false;
+/// True while a [launchUpgrade] runs, which can take seconds before anything
+/// shows (the name prompt, the hosted config, the store): the Plan card's
+/// button spins and refuses a second tap, rather than looking dead.
+final ValueNotifier<bool> upgradeBusy = ValueNotifier<bool>(false);
 
 /// Whether a [launchUpgrade] is still running.
 @visibleForTesting
-bool get upgradeInProgress => _upgradeInProgress;
+bool get upgradeInProgress => upgradeBusy.value;
 
 /// How long an Upgrade tap waits for the hosted config before it treats the
 /// answer as no: the store plan is then managed in the store (fails closed).
@@ -117,6 +120,8 @@ Future<void> _launchUpgrade(BuildContext context) async {
     case UpgradeRoute.planScreen:
       await _openPortalOrPlanScreen(context, '');
     case UpgradeRoute.storeSubscriptions:
+      // Said before the app switches away, or the store simply appears.
+      Notify.info(context, context.tr('plan_billed_in_app_store'));
       await openManageSubscriptions();
     case UpgradeRoute.storeSubscriptionsEnded:
       Notify.info(context, context.tr('store_subscription_ended_renew'));
@@ -219,6 +224,9 @@ Future<void> showUpgradeSheet(BuildContext context) async {
       SaleRefusal.activeStorePlan => null,
     };
     if (message == null) {
+      if (context.mounted) {
+        Notify.info(context, context.tr('plan_billed_in_app_store'));
+      }
       await openManageSubscriptions();
     } else if (context.mounted) {
       Notify.info(context, context.tr(message));
@@ -376,7 +384,7 @@ class _UpgradeSheetState extends State<UpgradeSheet> {
                   padding: const EdgeInsets.symmetric(vertical: 8),
                   child: Text(
                     key: const ValueKey('store_replaces_legacy_play'),
-                    context.tr('store_legacy_play_subscription_replaced'),
+                    context.tr('store_legacy_play_replaced_on_subscribe'),
                   ),
                 ),
               ValueListenableBuilder<bool>(

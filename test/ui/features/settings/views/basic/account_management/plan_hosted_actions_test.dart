@@ -97,6 +97,7 @@ Future<void> _pump(
   required bool storeBuild,
   PurchaseDelivery? purchases,
   AuthRepository? auth,
+  bool settle = true,
 }) async {
   debugStoreBillingOverride = storeBuild;
   await tester.pumpWidget(
@@ -113,7 +114,8 @@ Future<void> _pump(
       ),
     ),
   );
-  await tester.pumpAndSettle();
+  // An indeterminate progress bar never settles.
+  settle ? await tester.pumpAndSettle() : await tester.pump();
 }
 
 const _billedInStore =
@@ -176,8 +178,9 @@ void main() {
   // subscription once the new one is applied.
   group('store build, a Legacy Play subscriber', () {
     const legacyNotice =
-        'Your subscription in the Invoice Ninja Legacy app will be cancelled '
-        'and its unused time refunded once your new subscription is active.';
+        'If you subscribe here, your Invoice Ninja Legacy subscription is '
+        'cancelled for you once the new one is active, and its unused time is '
+        "refunded. You don't need to cancel it yourself.";
 
     PurchaseDelivery deliveryWith({required bool replaces}) {
       final delivery = PurchaseDelivery(
@@ -196,9 +199,8 @@ void main() {
       return delivery;
     }
 
-    testWidgets('on Play, the offer gets Change Plan, the notice and Manage', (
-      tester,
-    ) async {
+    testWidgets('on Play, the offer gets a plan in this app, the notice, and '
+        'the store, each labelled for what it does', (tester) async {
       await _pump(
         tester,
         _activeIap,
@@ -207,16 +209,58 @@ void main() {
       );
 
       expect(find.text(legacyNotice), findsOneWidget);
+      // Not "Manage Plan" beside "Manage subscription": the two buttons
+      // read the same, and only one of them moves the plan to this app.
       final button = tester.widget<ButtonStyleButton>(
         find.ancestor(
-          of: find.text('Manage Plan').last,
+          of: find.text('Choose a plan in this app'),
           matching: find.bySubtype<ButtonStyleButton>(),
         ),
       );
       expect(button, isA<FilledButton>());
       expect(button.onPressed, isNotNull);
-      expect(find.text('Manage subscription'), findsOneWidget);
+      expect(find.text('Manage in Google Play'), findsOneWidget);
+      expect(find.text('Manage subscription'), findsNothing);
       expect(find.text(_billedInStore), findsNothing);
+    });
+
+    testWidgets('offers nothing while the config is asked', (tester) async {
+      // A slow answer: Manage subscription, then the offer swapping in under
+      // the user's finger, sent a tap meant for one to the other.
+      final api = FakeApi()
+        ..iapConfig = {
+          'purchases_enabled': true,
+          'app_account_token': kTestAccountToken,
+          'account_key': 'acct-key',
+          'replaces_v1_play': true,
+        }
+        ..getGate = Completer<void>();
+      final delivery = PurchaseDelivery(
+        apiClient: api,
+        auth: FakeAuth(_activeIap),
+        billing: FakeBilling(),
+        platform: defaultTargetPlatform,
+      );
+      addTearDown(delivery.dispose);
+      await _pump(
+        tester,
+        _activeIap,
+        storeBuild: true,
+        purchases: delivery,
+        settle: false,
+      );
+
+      expect(
+        find.byKey(const ValueKey('plan_actions_loading')),
+        findsOneWidget,
+      );
+      expect(find.text('Manage subscription'), findsNothing);
+      expect(find.bySubtype<FilledButton>(), findsNothing);
+
+      api.getGate!.complete();
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('plan_actions_loading')), findsNothing);
+      expect(find.text('Choose a plan in this app'), findsOneWidget);
     });
 
     testWidgets('a config that replaces nothing (a new-app subscriber) '
@@ -328,6 +372,39 @@ void main() {
       }
       expect(upgradeInProgress, isFalse);
       await first;
+    });
+
+    testWidgets('the button spins and takes no tap while an Upgrade decides', (
+      tester,
+    ) async {
+      // It can take seconds (the name prompt, the config, the store) before
+      // anything shows; a button that looked dead was tapped again.
+      await _pump(
+        tester,
+        _activeIap,
+        storeBuild: true,
+        purchases: deliveryWith(replaces: true),
+      );
+      FilledButton button() => tester.widget<FilledButton>(
+        find.byKey(const ValueKey('plan_upgrade')),
+      );
+      expect(button().onPressed, isNotNull);
+
+      upgradeBusy.value = true;
+      addTearDown(() => upgradeBusy.value = false);
+      await tester.pump();
+      expect(button().onPressed, isNull);
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('plan_upgrade')),
+          matching: find.byType(CircularProgressIndicator),
+        ),
+        findsOneWidget,
+      );
+
+      upgradeBusy.value = false;
+      await tester.pump();
+      expect(button().onPressed, isNotNull);
     });
 
     testWidgets('never on an Apple build', (tester) async {

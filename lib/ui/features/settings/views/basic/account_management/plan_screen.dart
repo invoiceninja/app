@@ -405,7 +405,23 @@ class _HostedActionsCardState extends State<_HostedActionsCard> {
     // managed in the store: nothing is offered over it.
     return FutureBuilder<IapConfig?>(
       future: future,
-      builder: (context, snapshot) => _card(context, snapshot.data),
+      builder: (context, snapshot) {
+        // Asking: what the card offers depends on the answer, so it offers
+        // nothing yet, rather than Manage subscription that then swaps for
+        // the Legacy offer under the user's finger.
+        if (snapshot.connectionState != ConnectionState.done) {
+          return FormSection(
+            title: context.tr('change_plan'),
+            children: const [
+              LinearProgressIndicator(
+                key: ValueKey('plan_actions_loading'),
+                minHeight: 2,
+              ),
+            ],
+          );
+        }
+        return _card(context, snapshot.data);
+      },
     );
   }
 
@@ -489,7 +505,12 @@ class _HostedActionsCardState extends State<_HostedActionsCard> {
     final canUpgrade = disabledReason == null;
     // Decide button label: free → "Upgrade Plan"; paid → "Change Plan";
     // trial → "Upgrade Plan" so the user knows they're paying.
-    final labelKey = session.isPaidPlanSlug && !session.isTrial
+    // A Legacy Play subscriber is choosing a plan here, beside the store's
+    // own management: two buttons that both read "Manage" told them apart
+    // by nothing.
+    final labelKey = replacesLegacy
+        ? 'choose_plan_in_app'
+        : session.isPaidPlanSlug && !session.isTrial
         ? 'change_plan'
         : 'upgrade_plan';
 
@@ -499,7 +520,7 @@ class _HostedActionsCardState extends State<_HostedActionsCard> {
         if (replacesLegacy)
           Text(
             key: const ValueKey('plan_replaces_legacy_play'),
-            context.tr('store_legacy_play_subscription_replaced'),
+            context.tr('store_legacy_play_replaced_on_subscribe'),
             style: hint,
           ),
         Align(
@@ -508,16 +529,33 @@ class _HostedActionsCardState extends State<_HostedActionsCard> {
             spacing: InSpacing.md(context),
             runSpacing: InSpacing.sm,
             children: [
-              FilledButton.icon(
-                style: FilledButton.styleFrom(minimumSize: const Size(160, 44)),
-                // The store's own sheet opens in place; the portal is a page
-                // in the browser.
-                icon: Icon(
-                  storeBilling ? Icons.upgrade : Icons.open_in_new,
-                  size: 18,
+              // Spins while an Upgrade is deciding (it can take seconds before
+              // the sheet or the store shows), and takes no second tap.
+              ValueListenableBuilder<bool>(
+                valueListenable: upgradeBusy,
+                builder: (context, busy, _) => FilledButton.icon(
+                  key: const ValueKey('plan_upgrade'),
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size(160, 44),
+                  ),
+                  // The store's own sheet opens in place; the portal is a
+                  // page in the browser.
+                  icon: busy
+                      ? SizedBox.square(
+                          dimension: 18,
+                          child: const CircularProgressIndicator(
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : Icon(
+                          storeBilling ? Icons.upgrade : Icons.open_in_new,
+                          size: 18,
+                        ),
+                  label: Text(context.tr(labelKey)),
+                  onPressed: canUpgrade && !busy
+                      ? () => launchUpgrade(context)
+                      : null,
                 ),
-                label: Text(context.tr(labelKey)),
-                onPressed: canUpgrade ? () => launchUpgrade(context) : null,
               ),
               if (replacesLegacy)
                 OutlinedButton.icon(
@@ -525,7 +563,7 @@ class _HostedActionsCardState extends State<_HostedActionsCard> {
                     minimumSize: const Size(160, 40),
                   ),
                   icon: const Icon(Icons.open_in_new, size: 18),
-                  label: Text(context.tr('manage_subscription')),
+                  label: Text(context.tr('manage_in_google_play')),
                   onPressed: () => unawaited(openManageSubscriptions()),
                 ),
             ],
