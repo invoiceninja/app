@@ -7,9 +7,9 @@ import 'package:admin/data/models/value/date.dart';
 import 'package:admin/domain/recurring_frequency.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/edit/entity_edit_field.dart';
+import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/formatter_host_mixin.dart';
 import 'package:admin/ui/core/widgets/in_date_field.dart';
-import 'package:admin/ui/core/widgets/searchable_dropdown_field.dart';
 import 'package:admin/ui/features/dashboard/widgets/card_shell.dart';
 import 'package:admin/ui/features/recurring_expenses/view_models/recurring_expense_edit_view_model.dart';
 
@@ -98,25 +98,39 @@ class _RecurringExpenseEditScheduleSectionState
   }
 }
 
+/// A plain dropdown, like the Recurring Invoice and Payment Link frequency
+/// fields: twelve fixed options are a short enum, not a search. This was a
+/// `SearchableDropdownField`, whose 280 px popover showed only Daily through
+/// Two months on touch, so beta users read Annually, Two years and Three years
+/// as missing from recurring expenses.
 class _FrequencyPicker extends StatelessWidget {
   const _FrequencyPicker({required this.vm});
   final RecurringExpenseEditViewModel vm;
 
   @override
   Widget build(BuildContext context) {
-    final items = kRecurringFrequencyOrdered;
     final selected = vm.draft.frequencyId;
-    return SearchableDropdownField<String>(
+    return LabeledField(
       label: context.tr('frequency'),
-      items: items,
-      initialValue: items.contains(selected) ? selected : null,
-      displayString: (id) {
-        final key = kRecurringFrequencyLabelKey[id];
-        return key == null ? id : context.tr(key);
-      },
-      idOf: (id) => id,
-      onChanged: (id) => vm.setFrequencyId(id ?? items.first),
-      errorText: vm.fieldErrorFor('frequency_id'),
+      child: DropdownButtonFormField<String>(
+        isExpanded: true,
+        initialValue: kRecurringFrequencyOrdered.contains(selected)
+            ? selected
+            : null,
+        decoration: InputDecoration(
+          labelText: context.tr('frequency'),
+          errorText: vm.fieldErrorFor('frequency_id'),
+        ),
+        items: [
+          for (final id in kRecurringFrequencyOrdered)
+            DropdownMenuItem(
+              value: id,
+              child: Text(context.tr(kRecurringFrequencyLabelKey[id]!)),
+            ),
+        ],
+        onChanged: (id) =>
+            vm.setFrequencyId(id ?? kRecurringFrequencyOrdered.first),
+      ),
     );
   }
 }
