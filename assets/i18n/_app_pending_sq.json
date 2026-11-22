@@ -2341,10 +2341,10 @@
   "search_scope_one_result_announcement": ":scope, :count rezultat",
   "search_scope_at_least_one_result_announcement": ":scope, të paktën :count rezultat",
   "free_plan_signup_note": "Plani falas: deri në :count klientë dhe një kompani. Përmirësoni në çdo kohë për klientë të pakufizuar.",
-  "free_plan_clients_used": "Përdorur :used nga :limit klientë falas",
-  "free_plan_clients_over": "Keni :count klientë. Plani falas lejon :limit, kështu që klientët tuaj ekzistues ruhen, por shtimi i të tjerëve kërkon përmirësim.",
+  "free_plan_clients_used": ":used nga :limit klientë në planin falas",
+  "free_plan_clients_over": "Keni :count klientë. Plani falas lejon :limit. Të gjithë klientët tuaj ruhen. Përmirësoni planin për të shtuar të rinj.",
   "free_plan_clients_over_short": "Keni :count klientë. Plani falas lejon :limit.",
-  "free_plan_client_limit_reached": "Plani falas përfshin :count klientë. Përmirësoni për të shtuar më shumë.",
+  "free_plan_client_limit_reached": "Keni përdorur të gjithë :count klientët e planit falas. Përmirësoni planin për të shtuar më shumë.",
   "free_plan_clients_count_note": "Klientët e arkivuar dhe të fshirë numërohen gjithashtu në kufi.",
   "free_plan_up_to_clients": "Deri në :count klientë",
   "free_plan_one_company": "Një kompani",
@@ -2370,5 +2370,8 @@
   "desktop_app_promo_same_network": "Kompjuteri juaj duhet të jetë në të njëjtin rrjet me serverin.",
   "desktop_app_promo_entry": "Merrni aplikacionin për kompjuter",
   "desktop_app_promo_section": "Aplikacioni për kompjuter",
-  "desktop_app_promo_settings_body": "Ekran më i madh dhe shkurtore të tastierës, me të njëjtën llogari dhe të dhëna."
+  "desktop_app_promo_settings_body": "Ekran më i madh dhe shkurtore të tastierës, me të njëjtën llogari dhe të dhëna.",
+  "free_plan_client_limit_form": "Keni përdorur të gjithë :count klientët e planit falas. Përmirësoni planin për ta ruajtur këtë klient.",
+  "free_plan_purge_note": "Vetëm fshirja përfundimtare e një klienti e liron vendin e tij, dhe ajo fshin edhe faturat dhe pagesat e tij.",
+  "free_plan_import_too_many": "Ky import do t'i kalonte :count klientët që lejon plani falas, prandaj nuk u importua asgjë. Përmirësoni planin për t'i importuar të gjithë."
 }

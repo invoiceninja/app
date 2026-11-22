@@ -2329,10 +2329,10 @@
   "search_scope_one_result_announcement": ":scope, :count rezultat",
   "search_scope_at_least_one_result_announcement": ":scope, cel puțin :count rezultat",
   "free_plan_signup_note": "Plan gratuit: până la :count clienți și o firmă. Faceți upgrade oricând pentru clienți nelimitați.",
-  "free_plan_clients_used": ":used din :limit clienți gratuiți folosiți",
-  "free_plan_clients_over": "Aveți :count clienți. Planul gratuit permite :limit, așa că clienții existenți sunt păstrați, dar pentru a adăuga alții este nevoie de upgrade.",
+  "free_plan_clients_used": ":used din :limit clienți în planul gratuit",
+  "free_plan_clients_over": "Aveți :count clienți. Planul gratuit permite :limit. Toți clienții dvs. sunt păstrați. Faceți upgrade pentru a adăuga alții noi.",
   "free_plan_clients_over_short": "Aveți :count clienți. Planul gratuit permite :limit.",
-  "free_plan_client_limit_reached": "Planul gratuit include :count clienți. Faceți upgrade pentru a adăuga mai mulți.",
+  "free_plan_client_limit_reached": "Ați folosit toți cei :count clienți ai planului gratuit. Faceți upgrade pentru a adăuga mai mulți.",
   "free_plan_clients_count_note": "Clienții arhivați și cei șterși se numără și ei în limită.",
   "free_plan_up_to_clients": "Până la :count clienți",
   "free_plan_one_company": "O firmă",
@@ -2358,5 +2358,8 @@
   "desktop_app_promo_same_network": "Calculatorul trebuie să fie în aceeași rețea cu serverul.",
   "desktop_app_promo_entry": "Obțineți aplicația desktop",
   "desktop_app_promo_section": "Aplicația desktop",
-  "desktop_app_promo_settings_body": "Un ecran mai mare și comenzi rapide pe tastatură, cu același cont și aceleași date."
+  "desktop_app_promo_settings_body": "Un ecran mai mare și comenzi rapide pe tastatură, cu același cont și aceleași date.",
+  "free_plan_client_limit_form": "Ați folosit toți cei :count clienți ai planului gratuit. Faceți upgrade pentru a salva acest client.",
+  "free_plan_purge_note": "Doar ștergerea definitivă a unui client îi eliberează locul, iar aceasta îi șterge și facturile și plățile.",
+  "free_plan_import_too_many": "Acest import ar depăși cei :count clienți permiși de planul gratuit, așa că nu s-a importat nimic. Faceți upgrade pentru a-i importa pe toți."
 }

@@ -2258,10 +2258,10 @@
   "search_scope_one_result_announcement": ":scope, :count resultaat",
   "search_scope_at_least_one_result_announcement": ":scope, minstens :count resultaat",
   "free_plan_signup_note": "Gratis plan: tot :count kliënte en een maatskappy. Gradeer enige tyd op vir onbeperkte kliënte.",
-  "free_plan_clients_used": ":used van :limit gratis kliënte gebruik",
-  "free_plan_clients_over": "Jy het :count kliënte. Die Gratis plan laat :limit toe, so jou bestaande kliënte bly behoue, en om meer by te voeg vereis 'n opgradering.",
+  "free_plan_clients_used": ":used van :limit kliënte op die Gratis plan",
+  "free_plan_clients_over": "Jy het :count kliënte. Die Gratis plan laat :limit toe. Al jou kliënte word behou. Gradeer op om nuwes by te voeg.",
   "free_plan_clients_over_short": "Jy het :count kliënte. Die Gratis plan laat :limit toe.",
-  "free_plan_client_limit_reached": "Die Gratis plan sluit :count kliënte in. Gradeer op om meer by te voeg.",
+  "free_plan_client_limit_reached": "Jy het al :count kliënte op die Gratis plan gebruik. Gradeer op om meer by te voeg.",
   "free_plan_clients_count_note": "Geargiveerde en geskrapte kliënte tel ook teen die limiet.",
   "free_plan_up_to_clients": "Tot :count kliënte",
   "free_plan_one_company": "Een maatskappy",
@@ -2287,5 +2287,8 @@
   "desktop_app_promo_same_network": "Jou rekenaar moet op dieselfde netwerk as die bediener wees.",
   "desktop_app_promo_entry": "Kry die rekenaartoepassing",
   "desktop_app_promo_section": "Rekenaartoepassing",
-  "desktop_app_promo_settings_body": "'n Groter skerm en sleutelbordkortpaaie, met dieselfde rekening en data."
+  "desktop_app_promo_settings_body": "'n Groter skerm en sleutelbordkortpaaie, met dieselfde rekening en data.",
+  "free_plan_client_limit_form": "Jy het al :count kliënte op die Gratis plan gebruik. Gradeer op om hierdie kliënt te stoor.",
+  "free_plan_purge_note": "Slegs om 'n kliënt te suiwer maak sy plek vry, en suiwering skrap ook sy fakture en betalings.",
+  "free_plan_import_too_many": "Hierdie invoer sou jou verby die :count kliënte neem wat die Gratis plan toelaat, dus is niks ingevoer nie. Gradeer op om almal in te voer."
 }

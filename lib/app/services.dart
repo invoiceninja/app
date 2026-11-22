@@ -1089,9 +1089,15 @@ class Services implements SidebarBadgeContext {
   /// root by `main.dart`, so widgets read it as `ClientUsage?`.
   late final ClientUsage clientUsage = ClientUsage(
     session: auth.session,
-    fetchCount: () =>
-        clients.api.count(filters: const {'status': 'active,archived,deleted'}),
-    watchQueuedCreates: (companyId) => db.outboxDao.watchQueuedCreateCount(
+    // Only with that company's own token: a total asked with another
+    // company's is that company's count.
+    fetchCount: (companyId) async =>
+        auth.credentials.value?.companyId != companyId
+        ? null
+        : clients.api.count(
+            filters: const {'status': 'active,archived,deleted'},
+          ),
+    watchQueued: (companyId) => db.outboxDao.watchQueuedCountChanges(
       companyId: companyId,
       entityType: 'client',
     ),

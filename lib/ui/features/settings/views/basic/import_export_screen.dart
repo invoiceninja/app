@@ -18,6 +18,7 @@ import 'package:admin/ui/core/widgets/form_field_pair.dart';
 import 'package:admin/ui/core/widgets/in_date_field.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/core/widgets/searchable_dropdown_field.dart';
+import 'package:admin/ui/features/clients/widgets/client_limit.dart';
 import 'package:admin/ui/features/settings/widgets/form_section.dart';
 import 'package:admin/ui/features/settings/widgets/settings_form_shell.dart';
 import 'package:admin/ui/features/settings/widgets/settings_screen_scaffold.dart';
@@ -232,7 +233,10 @@ class _ImportExportScreenState extends State<ImportExportScreen> {
         _step = _Step.map;
       });
     } on Object catch (e) {
-      if (mounted) Notify.error(context, _msg(context, e));
+      // The Free plan's client cap: Upgrade, not a dead-end toast.
+      if (mounted && !showImportClientLimit(context, e)) {
+        Notify.error(context, _msg(context, e));
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -254,7 +258,10 @@ class _ImportExportScreenState extends State<ImportExportScreen> {
       if (!mounted) return;
       setState(() => _step = _Step.done);
     } on Object catch (e) {
-      if (mounted) Notify.error(context, _msg(context, e));
+      // The Free plan's client cap: Upgrade, not a dead-end toast.
+      if (mounted && !showImportClientLimit(context, e)) {
+        Notify.error(context, _msg(context, e));
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -746,7 +753,10 @@ class _ImportExportScreenState extends State<ImportExportScreen> {
       Notify.success(context, context.tr('import_started'));
       setState(() => _thirdPartyFiles.clear());
     } on Object catch (e) {
-      if (mounted) Notify.error(context, _msg(context, e));
+      // The Free plan's client cap: Upgrade, not a dead-end toast.
+      if (mounted && !showImportClientLimit(context, e)) {
+        Notify.error(context, _msg(context, e));
+      }
     } finally {
       if (mounted) setState(() => _thirdPartyBusy = false);
     }

@@ -2341,10 +2341,10 @@
   "search_scope_one_result_announcement": ":scope，:count 个结果",
   "search_scope_at_least_one_result_announcement": ":scope，至少 :count 个结果",
   "free_plan_signup_note": "免费版：最多 :count 个客户和一家公司。随时升级即可拥有无限客户。",
-  "free_plan_clients_used": "已使用 :used / :limit 个免费客户",
-  "free_plan_clients_over": "您有 :count 个客户。免费版允许 :limit 个，因此您现有的客户会保留，但添加更多客户需要升级。",
+  "free_plan_clients_used": "免费版 :limit 个客户中已有 :used 个",
+  "free_plan_clients_over": "您有 :count 个客户。免费版允许 :limit 个。您的所有客户都会保留。升级即可添加新客户。",
   "free_plan_clients_over_short": "您有 :count 个客户。免费版允许 :limit 个。",
-  "free_plan_client_limit_reached": "免费版包含 :count 个客户。升级以添加更多。",
+  "free_plan_client_limit_reached": "您已用完免费版的全部 :count 个客户。升级即可添加更多。",
   "free_plan_clients_count_note": "已归档和已删除的客户也计入限额。",
   "free_plan_up_to_clients": "最多 :count 个客户",
   "free_plan_one_company": "一家公司",
@@ -2370,5 +2370,8 @@
   "desktop_app_promo_same_network": "您的电脑需要与服务器处于同一网络。",
   "desktop_app_promo_entry": "获取桌面应用",
   "desktop_app_promo_section": "桌面应用",
-  "desktop_app_promo_settings_body": "更大的屏幕和键盘快捷键，账户和数据保持一致。"
+  "desktop_app_promo_settings_body": "更大的屏幕和键盘快捷键，账户和数据保持一致。",
+  "free_plan_client_limit_form": "您已用完免费版的全部 :count 个客户。升级即可保存此客户。",
+  "free_plan_purge_note": "只有彻底删除客户才能腾出名额，这也会删除其发票和付款。",
+  "free_plan_import_too_many": "此次导入会超出免费版允许的 :count 个客户，因此未导入任何内容。升级即可全部导入。"
 }

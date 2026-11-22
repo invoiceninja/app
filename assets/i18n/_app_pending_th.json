@@ -2341,10 +2341,10 @@
   "search_scope_one_result_announcement": ":scope, ผลลัพธ์ :count รายการ",
   "search_scope_at_least_one_result_announcement": ":scope, ผลลัพธ์อย่างน้อย :count รายการ",
   "free_plan_signup_note": "แพ็กเกจฟรี: ลูกค้าได้สูงสุด :count ราย และบริษัทเดียว อัปเกรดได้ทุกเมื่อเพื่อเพิ่มลูกค้าได้ไม่จำกัด",
-  "free_plan_clients_used": "ใช้ไปแล้ว :used จาก :limit ลูกค้าฟรี",
-  "free_plan_clients_over": "คุณมีลูกค้า :count ราย แพ็กเกจฟรีอนุญาต :limit ราย ลูกค้าที่มีอยู่จึงยังคงอยู่ แต่การเพิ่มลูกค้าใหม่ต้องอัปเกรด",
+  "free_plan_clients_used": ":used จาก :limit ลูกค้าในแพ็กเกจฟรี",
+  "free_plan_clients_over": "คุณมีลูกค้า :count ราย แพ็กเกจฟรีอนุญาต :limit ราย ลูกค้าทั้งหมดของคุณยังคงอยู่ อัปเกรดเพื่อเพิ่มลูกค้าใหม่",
   "free_plan_clients_over_short": "คุณมีลูกค้า :count ราย แพ็กเกจฟรีอนุญาต :limit ราย",
-  "free_plan_client_limit_reached": "แพ็กเกจฟรีรวมลูกค้า :count ราย อัปเกรดเพื่อเพิ่มอีก",
+  "free_plan_client_limit_reached": "คุณใช้ลูกค้าครบทั้ง :count รายของแพ็กเกจฟรีแล้ว อัปเกรดเพื่อเพิ่มอีก",
   "free_plan_clients_count_note": "ลูกค้าที่เก็บถาวรและที่ลบแล้วจะนับรวมในขีดจำกัดด้วย",
   "free_plan_up_to_clients": "ลูกค้าสูงสุด :count ราย",
   "free_plan_one_company": "บริษัทเดียว",
@@ -2370,5 +2370,8 @@
   "desktop_app_promo_same_network": "คอมพิวเตอร์ของคุณต้องอยู่ในเครือข่ายเดียวกับเซิร์ฟเวอร์",
   "desktop_app_promo_entry": "รับแอปเดสก์ท็อป",
   "desktop_app_promo_section": "แอปเดสก์ท็อป",
-  "desktop_app_promo_settings_body": "หน้าจอที่ใหญ่ขึ้นและแป้นพิมพ์ลัด ด้วยบัญชีและข้อมูลเดียวกัน"
+  "desktop_app_promo_settings_body": "หน้าจอที่ใหญ่ขึ้นและแป้นพิมพ์ลัด ด้วยบัญชีและข้อมูลเดียวกัน",
+  "free_plan_client_limit_form": "คุณใช้ลูกค้าครบทั้ง :count รายของแพ็กเกจฟรีแล้ว อัปเกรดเพื่อบันทึกลูกค้ารายนี้",
+  "free_plan_purge_note": "มีเพียงการลบลูกค้าถาวรเท่านั้นที่ทำให้มีที่ว่าง และจะลบใบแจ้งหนี้และการชำระเงินของลูกค้ารายนั้นด้วย",
+  "free_plan_import_too_many": "การนำเข้านี้จะเกินลูกค้า :count รายที่แพ็กเกจฟรีอนุญาต จึงไม่มีการนำเข้าใดๆ อัปเกรดเพื่อนำเข้าทั้งหมด"
 }

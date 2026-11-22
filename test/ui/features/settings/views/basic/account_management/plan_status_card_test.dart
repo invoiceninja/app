@@ -10,6 +10,8 @@
 // date behind `!isTrial`) hid the expiry in exactly the window where renewing
 // is the actionable thing.
 
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -20,6 +22,7 @@ import 'package:admin/app/services.dart';
 import 'package:admin/app/theme.dart';
 import 'package:admin/data/repositories/auth_repository.dart';
 import 'package:admin/data/repositories/auth/auth_session.dart';
+import 'package:admin/domain/upgrade/client_usage.dart';
 import 'package:admin/domain/upgrade/store_build.dart';
 import 'package:admin/ui/features/settings/views/basic/account_management/plan_screen.dart';
 import 'package:admin/utils/formatting.dart';
@@ -314,5 +317,109 @@ void main() {
 
     expect(find.text('Purchase White Label'), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  // --- Free plan limits (docs/free-plan-limits.md) -------------------------
+
+  group('Free plan limits card', () {
+    AuthSession hosted({
+      String plan = '',
+      String planExpires = '',
+      String trialStarted = '',
+    }) => AuthSession(
+      baseUrl: 'https://invoicing.co',
+      isHosted: true,
+      accountId: 'acct',
+      companies: const [],
+      currentCompanyId: 'co',
+      userId: 'u1',
+      plan: plan,
+      planExpires: planExpires,
+      trialStarted: trialStarted,
+      hostedClientCount: 5,
+      hostedCompanyCount: 1,
+    );
+
+    Future<void> pumpWith(
+      WidgetTester tester,
+      AuthSession session, {
+      int? total,
+    }) async {
+      final usage = ClientUsage(
+        session: ValueNotifier<AuthSession?>(session),
+        fetchCount: (_) =>
+            total == null ? Completer<int?>().future : Future.value(total),
+        watchQueued: (_) => Stream.value((creates: 0, removals: 0)),
+      );
+      addTearDown(usage.dispose);
+      await tester.pumpWidget(
+        ChangeNotifierProvider<ClientUsage>.value(
+          value: usage,
+          child: MaterialApp(
+            theme: buildInTheme(InTheme.light),
+            localizationsDelegates: kTestLocalizationsDelegates,
+            supportedLocales: kTestSupportedLocales,
+            home: Provider<Services>.value(
+              value: _FakeServices(auth: _FakeAuth(ValueNotifier(session))),
+              child: const Scaffold(body: AccountManagementPlanScreen()),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump();
+    }
+
+    final card = find.byKey(const ValueKey('plan_free_limits'));
+
+    testWidgets('a hosted Free plan sees its usage and the way out', (
+      tester,
+    ) async {
+      await pumpWith(tester, hosted(), total: 3);
+      expect(card, findsOneWidget);
+      expect(find.text('3 of 5 clients on the Free plan'), findsOneWidget);
+      expect(find.text('One company'), findsOneWidget);
+      // Deleted clients counting is a trap unless the way out is said, with
+      // what it costs.
+      final note = tester.widget<Text>(
+        find.byKey(const ValueKey('plan_free_count_note')),
+      );
+      expect(note.data, contains('count toward the limit'));
+      expect(note.data, contains('purging'));
+      expect(note.data, contains('invoices and payments'));
+    });
+
+    testWidgets('over the cap: the clients are kept, never "11 of 5"', (
+      tester,
+    ) async {
+      await pumpWith(tester, hosted(), total: 11);
+      expect(find.textContaining('All your clients are kept'), findsOneWidget);
+      expect(find.textContaining('11 of 5'), findsNothing);
+    });
+
+    testWidgets('an unknown count still states the cap', (tester) async {
+      await pumpWith(tester, hosted());
+      expect(find.text('Up to 5 clients'), findsOneWidget);
+    });
+
+    testWidgets('a paying account sees no limits card', (tester) async {
+      await pumpWith(tester, hosted(plan: 'pro', planExpires: '2099-01-01'));
+      expect(card, findsNothing);
+    });
+
+    testWidgets('a hosted trial says when it ends and what follows', (
+      tester,
+    ) async {
+      final start = DateTime.now().toUtc();
+      final end = start.add(const Duration(days: 14));
+      String day(DateTime d) => d.toIso8601String().substring(0, 10);
+      await pumpWith(
+        tester,
+        hosted(plan: 'pro', trialStarted: day(start), planExpires: day(end)),
+      );
+      expect(card, findsNothing);
+      expect(find.byKey(const ValueKey('plan_trial_ends')), findsOneWidget);
+      expect(find.textContaining('Free Trial'), findsOneWidget);
+    });
   });
 }

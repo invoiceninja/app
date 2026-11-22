@@ -2258,10 +2258,10 @@
   "search_scope_one_result_announcement": ":scope, výsledok: :count",
   "search_scope_at_least_one_result_announcement": ":scope, výsledok: aspoň :count",
   "free_plan_signup_note": "Bezplatný program: až :count klientov a jedna firma. Kedykoľvek prejdite na vyšší program pre neobmedzený počet klientov.",
-  "free_plan_clients_used": "Využitých :used z :limit bezplatných klientov",
-  "free_plan_clients_over": "Máte :count klientov. Bezplatný program umožňuje :limit, takže vaši existujúci klienti zostanú zachovaní, ale pridanie ďalších si vyžaduje vyšší program.",
+  "free_plan_clients_used": ":used z :limit klientov v bezplatnom programe",
+  "free_plan_clients_over": "Máte :count klientov. Bezplatný program umožňuje :limit. Všetci vaši klienti zostávajú. Na pridanie nových prejdite na vyšší program.",
   "free_plan_clients_over_short": "Máte :count klientov. Bezplatný program umožňuje :limit.",
-  "free_plan_client_limit_reached": "Bezplatný program zahŕňa :count klientov. Ak chcete pridať ďalších, prejdite na vyšší program.",
+  "free_plan_client_limit_reached": "Využili ste všetkých :count klientov bezplatného programu. Na pridanie ďalších prejdite na vyšší program.",
   "free_plan_clients_count_note": "Do limitu sa započítavajú aj archivovaní a odstránení klienti.",
   "free_plan_up_to_clients": "Až :count klientov",
   "free_plan_one_company": "Jedna firma",
@@ -2287,5 +2287,8 @@
   "desktop_app_promo_same_network": "Počítač musí byť v rovnakej sieti ako server.",
   "desktop_app_promo_entry": "Získajte desktopovú aplikáciu",
   "desktop_app_promo_section": "Desktopová aplikácia",
-  "desktop_app_promo_settings_body": "Väčšia obrazovka a klávesové skratky s rovnakým účtom a údajmi."
+  "desktop_app_promo_settings_body": "Väčšia obrazovka a klávesové skratky s rovnakým účtom a údajmi.",
+  "free_plan_client_limit_form": "Využili ste všetkých :count klientov bezplatného programu. Na uloženie tohto klienta prejdite na vyšší program.",
+  "free_plan_purge_note": "Miesto uvoľní iba trvalé odstránenie klienta, ktoré vymaže aj jeho faktúry a platby.",
+  "free_plan_import_too_many": "Tento import by prekročil :count klientov, ktorých bezplatný program umožňuje, preto sa nič neimportovalo. Na import všetkých prejdite na vyšší program."
 }

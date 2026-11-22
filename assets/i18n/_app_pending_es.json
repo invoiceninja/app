@@ -2341,10 +2341,10 @@
   "search_scope_one_result_announcement": ":scope, :count resultado",
   "search_scope_at_least_one_result_announcement": ":scope, al menos :count resultado",
   "free_plan_signup_note": "Plan gratuito: hasta :count clientes y una empresa. Mejora tu plan cuando quieras para tener clientes ilimitados.",
-  "free_plan_clients_used": ":used de :limit clientes gratuitos usados",
-  "free_plan_clients_over": "Tienes :count clientes. El plan gratuito permite :limit, así que tus clientes actuales se conservan, pero para añadir más necesitas mejorar tu plan.",
+  "free_plan_clients_used": ":used de :limit clientes en el plan gratuito",
+  "free_plan_clients_over": "Tienes :count clientes. El plan gratuito permite :limit. Se conservan todos tus clientes. Mejora tu plan para añadir nuevos.",
   "free_plan_clients_over_short": "Tienes :count clientes. El plan gratuito permite :limit.",
-  "free_plan_client_limit_reached": "El plan gratuito incluye :count clientes. Mejora tu plan para añadir más.",
+  "free_plan_client_limit_reached": "Has usado los :count clientes del plan gratuito. Mejora tu plan para añadir más.",
   "free_plan_clients_count_note": "Los clientes archivados y eliminados también cuentan para el límite.",
   "free_plan_up_to_clients": "Hasta :count clientes",
   "free_plan_one_company": "Una empresa",
@@ -2370,5 +2370,8 @@
   "desktop_app_promo_same_network": "Su computadora debe estar en la misma red que el servidor.",
   "desktop_app_promo_entry": "Obtenga la aplicación de escritorio",
   "desktop_app_promo_section": "Aplicación de escritorio",
-  "desktop_app_promo_settings_body": "Una pantalla más grande y atajos de teclado, con la misma cuenta y los mismos datos."
+  "desktop_app_promo_settings_body": "Una pantalla más grande y atajos de teclado, con la misma cuenta y los mismos datos.",
+  "free_plan_client_limit_form": "Has usado los :count clientes del plan gratuito. Mejora tu plan para guardar este cliente.",
+  "free_plan_purge_note": "Solo purgar un cliente libera su lugar, y purgarlo también elimina sus facturas y pagos.",
+  "free_plan_import_too_many": "Esta importación superaría los :count clientes que permite el plan gratuito, así que no se importó nada. Mejora tu plan para importarlos todos."
 }

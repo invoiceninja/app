@@ -2259,10 +2259,10 @@
   "search_scope_one_result_announcement": ":scope, wynik: :count",
   "search_scope_at_least_one_result_announcement": ":scope, wynik: co najmniej :count",
   "free_plan_signup_note": "Plan darmowy: do :count klientów i jedna firma. W każdej chwili przejdź na wyższy plan, aby mieć nieograniczoną liczbę klientów.",
-  "free_plan_clients_used": "Wykorzystano :used z :limit darmowych klientów",
-  "free_plan_clients_over": "Masz :count klientów. Plan darmowy pozwala na :limit, więc Twoi obecni klienci zostają zachowani, ale dodanie kolejnych wymaga wyższego planu.",
+  "free_plan_clients_used": ":used z :limit klientów w planie darmowym",
+  "free_plan_clients_over": "Masz :count klientów. Plan darmowy pozwala na :limit. Wszyscy Twoi klienci zostają zachowani. Przejdź na wyższy plan, aby dodać nowych.",
   "free_plan_clients_over_short": "Masz :count klientów. Plan darmowy pozwala na :limit.",
-  "free_plan_client_limit_reached": "Plan darmowy obejmuje :count klientów. Przejdź na wyższy plan, aby dodać więcej.",
+  "free_plan_client_limit_reached": "Wykorzystano wszystkich :count klientów planu darmowego. Przejdź na wyższy plan, aby dodać więcej.",
   "free_plan_clients_count_note": "Zarchiwizowani i usunięci klienci również wliczają się do limitu.",
   "free_plan_up_to_clients": "Do :count klientów",
   "free_plan_one_company": "Jedna firma",
@@ -2288,5 +2288,8 @@
   "desktop_app_promo_same_network": "Komputer musi być w tej samej sieci co serwer.",
   "desktop_app_promo_entry": "Pobierz aplikację na komputer",
   "desktop_app_promo_section": "Aplikacja na komputer",
-  "desktop_app_promo_settings_body": "Większy ekran i skróty klawiaturowe, z tym samym kontem i danymi."
+  "desktop_app_promo_settings_body": "Większy ekran i skróty klawiaturowe, z tym samym kontem i danymi.",
+  "free_plan_client_limit_form": "Wykorzystano wszystkich :count klientów planu darmowego. Przejdź na wyższy plan, aby zapisać tego klienta.",
+  "free_plan_purge_note": "Miejsce zwalnia tylko trwałe usunięcie klienta, które usuwa też jego faktury i płatności.",
+  "free_plan_import_too_many": "Ten import przekroczyłby :count klientów dozwolonych w planie darmowym, więc nic nie zostało zaimportowane. Przejdź na wyższy plan, aby zaimportować wszystkich."
 }

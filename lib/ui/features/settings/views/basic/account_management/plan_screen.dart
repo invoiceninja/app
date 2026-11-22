@@ -309,7 +309,15 @@ class _FreePlanLimitsCardState extends State<_FreePlanLimitsCard> {
               : context.tr('free_plan_one_company'),
           style: body,
         ),
-        Text(context.tr('free_plan_clients_count_note'), style: hint),
+        // The one place the way out of "deleted clients count" is said:
+        // never in the add-a-client flow, where it would invite deleting
+        // invoices to make room.
+        Text(
+          '${context.tr('free_plan_clients_count_note')} '
+          '${context.tr('free_plan_purge_note')}',
+          key: const ValueKey('plan_free_count_note'),
+          style: hint,
+        ),
       ],
     );
   }

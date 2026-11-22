@@ -122,3 +122,12 @@ const int kHostedTrialMaxDays = 21;
 /// the key is what is matched, never the text.
 bool isClientLimitRejection(Map<String, List<String>> fieldErrors) =>
     fieldErrors.containsKey('id');
+
+/// Whether a rejected import is the Free plan's client cap: the server's
+/// `ValidatesClientImportLimit` adds `limit_clients` under `files.client` (a
+/// file sent with the request) or `column_map.client` (the preview's cached
+/// copy, by hash). Only read for a session [freePlanClientLimit] limits; the
+/// same keys carry a file-type error on any plan.
+bool isClientImportLimitRejection(Map<String, List<String>> fieldErrors) =>
+    fieldErrors.containsKey('files.client') ||
+    fieldErrors.containsKey('column_map.client');

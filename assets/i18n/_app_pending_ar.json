@@ -2257,10 +2257,10 @@
   "search_scope_one_result_announcement": ":scope، :count نتيجة",
   "search_scope_at_least_one_result_announcement": ":scope، ما لا يقل عن :count نتيجة",
   "free_plan_signup_note": "الخطة المجانية: حتى :count عملاء وشركة واحدة. قم بالترقية في أي وقت للحصول على عملاء غير محدودين.",
-  "free_plan_clients_used": "تم استخدام :used من :limit عملاء مجانيين",
-  "free_plan_clients_over": "لديك :count عملاء. تسمح الخطة المجانية بـ :limit، لذا يتم الاحتفاظ بعملائك الحاليين، وإضافة المزيد تتطلب ترقية.",
+  "free_plan_clients_used": ":used من :limit عملاء في الخطة المجانية",
+  "free_plan_clients_over": "لديك :count عملاء. تسمح الخطة المجانية بـ :limit. يُحتفظ بجميع عملائك. قم بالترقية لإضافة عملاء جدد.",
   "free_plan_clients_over_short": "لديك :count عملاء. تسمح الخطة المجانية بـ :limit.",
-  "free_plan_client_limit_reached": "تتضمن الخطة المجانية :count عملاء. قم بالترقية لإضافة المزيد.",
+  "free_plan_client_limit_reached": "لقد استخدمت كل العملاء الـ :count في الخطة المجانية. قم بالترقية لإضافة المزيد.",
   "free_plan_clients_count_note": "يُحتسب العملاء المؤرشفون والمحذوفون ضمن الحد.",
   "free_plan_up_to_clients": "حتى :count عملاء",
   "free_plan_one_company": "شركة واحدة",
@@ -2286,5 +2286,8 @@
   "desktop_app_promo_same_network": "يجب أن يكون حاسوبك على نفس شبكة الخادم.",
   "desktop_app_promo_entry": "احصل على تطبيق سطح المكتب",
   "desktop_app_promo_section": "تطبيق سطح المكتب",
-  "desktop_app_promo_settings_body": "شاشة أكبر واختصارات لوحة المفاتيح، بالحساب نفسه والبيانات نفسها."
+  "desktop_app_promo_settings_body": "شاشة أكبر واختصارات لوحة المفاتيح، بالحساب نفسه والبيانات نفسها.",
+  "free_plan_client_limit_form": "لقد استخدمت كل العملاء الـ :count في الخطة المجانية. قم بالترقية لحفظ هذا العميل.",
+  "free_plan_purge_note": "حذف العميل نهائيًا هو وحده ما يحرر مكانه، ويحذف ذلك أيضًا فواتيره ومدفوعاته.",
+  "free_plan_import_too_many": "كان هذا الاستيراد سيتجاوز :count عملاء تسمح بهم الخطة المجانية، لذلك لم يُستورد شيء. قم بالترقية لاستيرادهم جميعًا."
 }

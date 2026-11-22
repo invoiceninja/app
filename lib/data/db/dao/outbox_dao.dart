@@ -306,24 +306,36 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
     return q.map((row) => row.read(count) ?? 0).watchSingle();
   }
 
-  /// Live count of [entityType] creates for [companyId] still on their way
-  /// to the server (`pending` / `in_flight`) — records the server's own total
-  /// does not hold yet. The Free plan client gate adds it to that total
-  /// (`ClientUsage`), and its fall is the cue to ask the server again.
-  Stream<int> watchQueuedCreateCount({
+  /// Live counts of the [entityType] rows for [companyId] still on their way
+  /// to the server (`pending` / `in_flight`) that change how many records the
+  /// server holds: creates (one more each) and purges and merges (one fewer
+  /// each; the server force-deletes the purged or merged-away record). The
+  /// Free plan client gate adds the difference to the server's own total
+  /// (`ClientUsage`), and either count falling is the cue to ask the server
+  /// again (docs/free-plan-limits.md).
+  Stream<({int creates, int removals})> watchQueuedCountChanges({
     required String companyId,
     required String entityType,
   }) {
-    final count = outbox.id.count();
-    final q = selectOnly(outbox)
-      ..addColumns([count])
-      ..where(
-        outbox.companyId.equals(companyId) &
-            outbox.entityType.equals(entityType) &
-            outbox.mutationKind.equals(MutationKind.create.wireName) &
-            outbox.state.isIn(const ['pending', 'in_flight']),
-      );
-    return q.map((row) => row.read(count) ?? 0).watchSingle();
+    return customSelect(
+      'SELECT '
+      "COALESCE(SUM(CASE WHEN mutation_kind = 'create' THEN 1 ELSE 0 END), 0) "
+      'AS creates, '
+      "COALESCE(SUM(CASE WHEN mutation_kind IN ('purge', 'merge') "
+      'THEN 1 ELSE 0 END), 0) AS removals '
+      'FROM outbox WHERE company_id = ?1 AND entity_type = ?2 '
+      "AND state IN ('pending', 'in_flight')",
+      variables: [
+        Variable.withString(companyId),
+        Variable.withString(entityType),
+      ],
+      readsFrom: {outbox},
+    ).watchSingle().map(
+      (row) => (
+        creates: row.read<int>('creates'),
+        removals: row.read<int>('removals'),
+      ),
+    );
   }
 
   Stream<int> watchDeadCount({required String companyId}) {

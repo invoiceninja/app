@@ -2342,10 +2342,10 @@
   "search_scope_one_result_announcement": ":scope، :count نتیجه",
   "search_scope_at_least_one_result_announcement": ":scope، دست‌کم :count نتیجه",
   "free_plan_signup_note": "طرح رایگان: حداکثر :count مشتری و یک شرکت. هر زمان برای مشتریان نامحدود ارتقا دهید.",
-  "free_plan_clients_used": ":used از :limit مشتری رایگان استفاده شده",
-  "free_plan_clients_over": "شما :count مشتری دارید. طرح رایگان :limit مشتری را مجاز می‌داند، بنابراین مشتریان فعلی شما حفظ می‌شوند، اما افزودن مشتری بیشتر نیاز به ارتقا دارد.",
+  "free_plan_clients_used": ":used از :limit مشتری در طرح رایگان",
+  "free_plan_clients_over": "شما :count مشتری دارید. طرح رایگان :limit مشتری را مجاز می‌داند. همه مشتریان شما حفظ می‌شوند. برای افزودن مشتری جدید، طرح خود را ارتقا دهید.",
   "free_plan_clients_over_short": "شما :count مشتری دارید. طرح رایگان :limit مشتری را مجاز می‌داند.",
-  "free_plan_client_limit_reached": "طرح رایگان شامل :count مشتری است. برای افزودن بیشتر ارتقا دهید.",
+  "free_plan_client_limit_reached": "شما همه :count مشتری طرح رایگان را استفاده کرده‌اید. برای افزودن بیشتر، طرح خود را ارتقا دهید.",
   "free_plan_clients_count_note": "مشتریان بایگانی‌شده و حذف‌شده نیز در محدودیت شمرده می‌شوند.",
   "free_plan_up_to_clients": "حداکثر :count مشتری",
   "free_plan_one_company": "یک شرکت",
@@ -2371,5 +2371,8 @@
   "desktop_app_promo_same_network": "رایانه شما باید در همان شبکه سرور باشد.",
   "desktop_app_promo_entry": "دریافت برنامه دسکتاپ",
   "desktop_app_promo_section": "برنامه دسکتاپ",
-  "desktop_app_promo_settings_body": "صفحه بزرگ‌تر و میان‌برهای صفحه‌کلید، با همان حساب و داده‌ها."
+  "desktop_app_promo_settings_body": "صفحه بزرگ‌تر و میان‌برهای صفحه‌کلید، با همان حساب و داده‌ها.",
+  "free_plan_client_limit_form": "شما همه :count مشتری طرح رایگان را استفاده کرده‌اید. برای ذخیره این مشتری، طرح خود را ارتقا دهید.",
+  "free_plan_purge_note": "فقط حذف کامل یک مشتری جای آن را آزاد می‌کند، و این کار فاکتورها و پرداخت‌های آن را هم حذف می‌کند.",
+  "free_plan_import_too_many": "این درون‌ریزی از :count مشتری مجاز طرح رایگان فراتر می‌رفت، بنابراین چیزی درون‌ریزی نشد. برای درون‌ریزی همه، طرح خود را ارتقا دهید."
 }

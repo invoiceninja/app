@@ -2341,10 +2341,10 @@
   "search_scope_one_result_announcement": ":scope, :count result",
   "search_scope_at_least_one_result_announcement": ":scope, at least :count result",
   "free_plan_signup_note": "Free plan: up to :count clients and one company. Upgrade any time for unlimited clients.",
-  "free_plan_clients_used": ":used of :limit free clients used",
-  "free_plan_clients_over": "You have :count clients. The Free plan allows :limit, so your existing clients are kept, and adding more needs an upgrade.",
+  "free_plan_clients_used": ":used of :limit clients on the Free plan",
+  "free_plan_clients_over": "You have :count clients. The Free plan allows :limit. All your clients are kept. Upgrade to add new ones.",
   "free_plan_clients_over_short": "You have :count clients. The Free plan allows :limit.",
-  "free_plan_client_limit_reached": "The Free plan includes :count clients. Upgrade to add more.",
+  "free_plan_client_limit_reached": "You have used all :count clients on the Free plan. Upgrade to add more.",
   "free_plan_clients_count_note": "Archived and deleted clients count toward the limit.",
   "free_plan_up_to_clients": "Up to :count clients",
   "free_plan_one_company": "One company",
@@ -2370,5 +2370,8 @@
   "desktop_app_promo_same_network": "Your computer needs to be on the same network as the server.",
   "desktop_app_promo_entry": "Get the desktop app",
   "desktop_app_promo_section": "Desktop app",
-  "desktop_app_promo_settings_body": "A bigger screen and keyboard shortcuts, with the same account and data."
+  "desktop_app_promo_settings_body": "A bigger screen and keyboard shortcuts, with the same account and data.",
+  "free_plan_client_limit_form": "You have used all :count clients on the Free plan. Upgrade to save this client.",
+  "free_plan_purge_note": "Only purging a client frees its place, and purging also deletes its invoices and payments.",
+  "free_plan_import_too_many": "This import would take you past the :count clients the Free plan allows, so nothing was imported. Upgrade to import them all."
 }

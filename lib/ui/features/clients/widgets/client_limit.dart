@@ -4,14 +4,15 @@ import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 
 import 'package:admin/app/design_tokens.dart';
+import 'package:admin/app/env.dart';
 import 'package:admin/app/services.dart';
+import 'package:admin/data/services/api_exception.dart';
 import 'package:admin/domain/upgrade/client_limit.dart';
 import 'package:admin/domain/upgrade/client_usage.dart';
 import 'package:admin/domain/upgrade/upgrade_launcher.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/edit/generic_edit_view_model.dart';
 import 'package:admin/ui/core/fold_geometry.dart';
-import 'package:admin/ui/core/widgets/link_text.dart';
 import 'package:admin/ui/core/widgets/primary_dialog_action.dart';
 
 /// The route every blank "New client" opens.
@@ -26,14 +27,16 @@ String formatClientCount(BuildContext context, int n) {
   return fmt?.integer(n) ?? '$n';
 }
 
-/// The sentence for an account at or over its Free plan cap: "The Free plan
-/// includes 5 clients. Upgrade to add more.", or, for an account holding more
-/// than the cap (a plan or trial that lapsed), one that says those are kept —
-/// never "11 of 5", never a negative count.
+/// The sentence for an account at or over its Free plan cap: "You have used
+/// all 5 clients on the Free plan. Upgrade to add more." (on the new-client
+/// form, "…Upgrade to save this client.", [onForm]), or, for an account
+/// holding more than the cap (a plan or trial that lapsed), one that says
+/// those are kept — never "11 of 5", never a negative count.
 String clientLimitReachedMessage(
   BuildContext context, {
   required int limit,
   int? used,
+  bool onForm = false,
 }) {
   if (used != null && used > limit) {
     return context.tr('free_plan_clients_over', {
@@ -41,12 +44,14 @@ String clientLimitReachedMessage(
       'limit': formatClientCount(context, limit),
     });
   }
-  return context.tr('free_plan_client_limit_reached', {
-    'count': formatClientCount(context, limit),
-  });
+  return context.tr(
+    onForm ? 'free_plan_client_limit_form' : 'free_plan_client_limit_reached',
+    {'count': formatClientCount(context, limit)},
+  );
 }
 
-/// The quota as the usage line words it: "3 of 5 free clients used", or for
+/// The quota as the usage line words it: "3 of 5 clients on the Free plan", or
+/// for
 /// an account over the cap "You have 11 clients. The Free plan allows 5."
 String clientUsageMessage(BuildContext context, ClientQuota quota) {
   if (quota.state == ClientQuotaState.overLimit) {
@@ -75,34 +80,82 @@ bool interceptNewClientAtLimit(BuildContext context) {
   final usage = context.read<ClientUsage?>();
   final quota = usage?.quota;
   if (quota == null || !quota.blocksNewClient) return false;
+  // A count held a while may be stale high (a client purged on the web): ask
+  // again, so the next tap goes by the server's number.
+  unawaited(usage!.refresh(maxAge: kClientUsageBlockedMaxAge));
   unawaited(
     showClientLimitDialog(context, limit: quota.limit, used: quota.used),
   );
   return true;
 }
 
-/// "The Free plan includes 5 clients. Upgrade to add more." with Upgrade and
-/// Cancel. Upgrade goes through [launchUpgrade], the one entry point that
+/// The client form's save gate: a save that creates a client, at the cap,
+/// opens the Upgrade dialog and is not sent — the form keeps what was typed.
+/// Covers every way onto a blank form that skipped [interceptNewClientAtLimit]
+/// (a deep link, the command palette, a restored draft) and the Retry of a
+/// create the server refused for the cap. An edit is never stopped.
+Future<bool> confirmNewClientSave(
+  BuildContext context,
+  GenericEditViewModel<dynamic> vm,
+) async => !(vm.savesAsCreate && interceptNewClientAtLimit(context));
+
+/// Shows the Upgrade dialog when [error] is an import the server refused for
+/// the Free plan's client cap, and says whether it did. The server's message
+/// ("You've hit the 5 client limit…") is wrong for a file that would only
+/// pass the cap, and a toast offered no way on, so the import gets its own
+/// words and the same Upgrade as everywhere else (docs/free-plan-limits.md).
+bool showImportClientLimit(BuildContext context, Object error) {
+  if (error is! ValidationException) return false;
+  if (!isClientImportLimitRejection(error.fieldErrors)) return false;
+  final services = context.read<Services?>();
+  final usage = context.read<ClientUsage?>();
+  final limit =
+      usage?.limit ?? freePlanClientLimit(services?.auth.session.value);
+  if (limit == null) return false;
+  // The import ran into the cap, so the number held may be behind.
+  unawaited(usage?.refresh());
+  unawaited(
+    showClientLimitDialog(
+      context,
+      limit: limit,
+      detail: context.tr('free_plan_import_too_many', {
+        'count': formatClientCount(context, limit),
+      }),
+    ),
+  );
+  return true;
+}
+
+/// "You have used all 5 clients on the Free plan. Upgrade to add more." with
+/// Upgrade and Close (nothing is cancelled: the form never opened). Upgrade
+/// goes through [launchUpgrade], the one entry point that
 /// knows which store, portal or Plan screen this build may open.
+///
+/// [detail], when given, is said instead of the sentence built from [limit]
+/// and [used]: the server's own `limit_clients` message for a refusal whose
+/// cap the app does not know, or the import's wording.
 Future<void> showClientLimitDialog(
   BuildContext context, {
-  required int limit,
+  int? limit,
   int? used,
+  String? detail,
 }) async {
   final upgrade = await showDialog<bool>(
     context: context,
     anchorPoint: foldAnchorPoint(context),
-    builder: (dialogContext) => ClientLimitDialog(limit: limit, used: used),
+    builder: (dialogContext) =>
+        ClientLimitDialog(limit: limit, used: used, detail: detail),
   );
   if (upgrade == true && context.mounted) await launchUpgrade(context);
 }
 
 /// The at-limit dialog's body, public for its widget test.
 class ClientLimitDialog extends StatelessWidget {
-  const ClientLimitDialog({required this.limit, this.used, super.key});
+  const ClientLimitDialog({this.limit, this.used, this.detail, super.key});
 
-  final int limit;
+  final int? limit;
   final int? used;
+  final String? detail;
 
   @override
   Widget build(BuildContext context) {
@@ -115,7 +168,16 @@ class ClientLimitDialog extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(clientLimitReachedMessage(context, limit: limit, used: used)),
+            Text(
+              detail ??
+                  (limit == null
+                      ? context.tr('client_limit')
+                      : clientLimitReachedMessage(
+                          context,
+                          limit: limit!,
+                          used: used,
+                        )),
+            ),
             const SizedBox(height: InSpacing.sm),
             Text(
               context.tr('free_plan_clients_count_note'),
@@ -126,8 +188,9 @@ class ClientLimitDialog extends StatelessWidget {
       ),
       actions: [
         TextButton(
+          key: const ValueKey('client_limit_close'),
           onPressed: () => Navigator.of(context).pop(false),
-          child: Text(context.tr('cancel')),
+          child: Text(context.tr('close')),
         ),
         PrimaryDialogAction(
           buttonKey: const ValueKey('client_limit_upgrade'),
@@ -139,10 +202,16 @@ class ClientLimitDialog extends StatelessWidget {
   }
 }
 
-/// The quiet usage line above the Clients list on a hosted Free plan: "3 of 5
-/// free clients used · Upgrade". Draws nothing for any other account, or
-/// while the count is unknown (unknown is never zero). Opening the list asks
-/// for a count older than [kClientUsageMaxAge].
+/// How many places from the cap the clients list starts showing its usage
+/// line. Further off, the signup line, the first-run checklist and the Plan
+/// screen have said it; a line on every visit to the list would be clutter.
+const int kClientUsageLineFromRemaining = 2;
+
+/// The quiet usage line above the Clients list on a hosted Free plan, once
+/// the cap is near: "3 of 5 clients on the Free plan", Upgrade at its end.
+/// Draws nothing for any other account, further from the cap, or while the
+/// count is unknown (unknown is never zero). Opening the list asks for a
+/// count older than [kClientUsageMaxAge].
 class ClientUsageBanner extends StatefulWidget {
   const ClientUsageBanner({super.key});
 
@@ -168,47 +237,70 @@ class _ClientUsageBannerState extends State<ClientUsageBanner> {
       listenable: usage,
       builder: (context, _) {
         final quota = usage.quota;
-        if (quota == null) return const SizedBox.shrink();
+        if (quota == null ||
+            quota.limit - quota.used > kClientUsageLineFromRemaining) {
+          return const SizedBox.shrink();
+        }
         final tokens = context.inTheme;
         final full = quota.blocksNewClient;
-        final style = TextStyle(
-          color: full ? tokens.ink : tokens.ink2,
-          fontSize: 13,
-        );
         final message = clientUsageMessage(context, quota);
-        return Semantics(
-          container: true,
-          label: message,
-          child: Container(
-            key: const ValueKey('client_usage_banner'),
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: full ? tokens.accentSoft : null,
-              border: Border(bottom: BorderSide(color: tokens.border)),
-            ),
-            padding: EdgeInsets.symmetric(
-              horizontal: InSpacing.lg(context),
-              vertical: InSpacing.sm,
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.people_outline, size: 16, color: tokens.ink3),
-                const SizedBox(width: InSpacing.sm),
-                Flexible(
-                  child: ExcludeSemantics(child: Text(message, style: style)),
+        return Container(
+          key: const ValueKey('client_usage_banner'),
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: full ? tokens.accentSoft : null,
+            border: Border(bottom: BorderSide(color: tokens.border)),
+          ),
+          padding: EdgeInsetsDirectional.only(
+            start: InSpacing.lg(context),
+            end: InSpacing.sm,
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.people_outline, size: 16, color: tokens.ink3),
+              const SizedBox(width: InSpacing.sm),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: InSpacing.xs),
+                  child: Text(
+                    message,
+                    style: TextStyle(
+                      color: full ? tokens.ink : tokens.ink2,
+                      fontSize: 13,
+                    ),
+                  ),
                 ),
-                Text(' · ', style: TextStyle(color: tokens.ink3, fontSize: 13)),
-                LinkText(
-                  label: context.tr('upgrade'),
-                  style: style,
-                  color: tokens.accentInk,
-                  onTap: () => unawaited(launchUpgrade(context)),
-                ),
-              ],
-            ),
+              ),
+              const SizedBox(width: InSpacing.sm),
+              _UpgradeButton(buttonKey: const ValueKey('client_usage_upgrade')),
+            ],
           ),
         );
       },
+    );
+  }
+}
+
+/// Upgrade as a text button in accent ink, a full touch target on touch and
+/// compact elsewhere — the usage line's and the form notice's.
+class _UpgradeButton extends StatelessWidget {
+  const _UpgradeButton({required this.buttonKey});
+
+  final Key buttonKey;
+
+  @override
+  Widget build(BuildContext context) {
+    final touch = Env.isTouchPrimary;
+    return TextButton(
+      key: buttonKey,
+      style: TextButton.styleFrom(
+        foregroundColor: context.inTheme.accentInk,
+        minimumSize: Size(48, touch ? 44 : 32),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        padding: const EdgeInsets.symmetric(horizontal: InSpacing.sm),
+      ),
+      onPressed: () => unawaited(launchUpgrade(context)),
+      child: Text(context.tr('upgrade')),
     );
   }
 }
@@ -233,7 +325,14 @@ class ClientLimitFormBanner extends StatelessWidget {
       builder: (context, _) {
         final rejected = isClientLimitRejection(vm.fieldErrors);
         final quota = usage?.quota;
-        final atLimit = vm.isCreate && (quota?.blocksNewClient ?? false);
+        // Not on the form's own save: its create is queued (and counted)
+        // before the form leaves, so the fifth client would read as the cap
+        // reached on the very form that added it.
+        final atLimit =
+            vm.isCreate &&
+            !vm.isSaving &&
+            vm.lastSentDraft == null &&
+            (quota?.blocksNewClient ?? false);
         if (!rejected && !atLimit) return const SizedBox.shrink();
         final limit =
             quota?.limit ??
@@ -241,44 +340,47 @@ class ClientLimitFormBanner extends StatelessWidget {
             context.read<Services?>()?.auth.session.value?.hostedClientCount ??
             0;
         final tokens = context.inTheme;
+        // A cap the app does not know (an account row without
+        // `hosted_client_count`): the server's own words.
+        final serverText = (vm.fieldErrors['id'] ?? const <String>[])
+            .map((m) => m.trim())
+            .firstWhere((m) => m.isNotEmpty, orElse: () => '');
         final message = limit > 0
             ? clientLimitReachedMessage(
                 context,
                 limit: limit,
                 used: quota?.used,
+                onForm: true,
               )
+            : serverText.isNotEmpty
+            ? serverText
             : context.tr('client_limit');
         return Material(
           key: const ValueKey('client_limit_form_banner'),
           color: tokens.accentSoft,
           child: Padding(
-            padding: EdgeInsets.symmetric(
-              horizontal: InSpacing.lg(context),
-              vertical: InSpacing.sm,
+            padding: EdgeInsetsDirectional.only(
+              start: InSpacing.lg(context),
+              end: InSpacing.sm,
+              top: InSpacing.xs,
+              bottom: InSpacing.xs,
             ),
             child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Padding(
-                  padding: const EdgeInsets.only(top: 2),
-                  child: Icon(
-                    Icons.info_outline,
-                    size: 18,
-                    color: tokens.accentInk,
-                  ),
-                ),
+                Icon(Icons.info_outline, size: 18, color: tokens.accentInk),
                 const SizedBox(width: InSpacing.sm),
                 Expanded(
-                  child: Text(
-                    message,
-                    style: TextStyle(color: tokens.ink, fontSize: 13),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: InSpacing.xs),
+                    child: Text(
+                      message,
+                      style: TextStyle(color: tokens.ink, fontSize: 13),
+                    ),
                   ),
                 ),
                 const SizedBox(width: InSpacing.sm),
-                TextButton(
-                  key: const ValueKey('client_limit_form_upgrade'),
-                  onPressed: () => unawaited(launchUpgrade(context)),
-                  child: Text(context.tr('upgrade')),
+                const _UpgradeButton(
+                  buttonKey: ValueKey('client_limit_form_upgrade'),
                 ),
               ],
             ),

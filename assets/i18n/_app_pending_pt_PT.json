@@ -2258,10 +2258,10 @@
   "search_scope_one_result_announcement": ":scope, :count resultado",
   "search_scope_at_least_one_result_announcement": ":scope, pelo menos :count resultado",
   "free_plan_signup_note": "Plano gratuito: até :count clientes e uma empresa. Faça a atualização a qualquer momento para ter clientes ilimitados.",
-  "free_plan_clients_used": ":used de :limit clientes gratuitos utilizados",
-  "free_plan_clients_over": "Tem :count clientes. O plano gratuito permite :limit, por isso os seus clientes atuais são mantidos, mas adicionar mais requer uma atualização.",
+  "free_plan_clients_used": ":used de :limit clientes no plano gratuito",
+  "free_plan_clients_over": "Tem :count clientes. O plano gratuito permite :limit. Todos os seus clientes são mantidos. Faça upgrade para adicionar novos.",
   "free_plan_clients_over_short": "Tem :count clientes. O plano gratuito permite :limit.",
-  "free_plan_client_limit_reached": "O plano gratuito inclui :count clientes. Faça a atualização para adicionar mais.",
+  "free_plan_client_limit_reached": "Utilizou todos os :count clientes do plano gratuito. Faça upgrade para adicionar mais.",
   "free_plan_clients_count_note": "Os clientes arquivados e eliminados também contam para o limite.",
   "free_plan_up_to_clients": "Até :count clientes",
   "free_plan_one_company": "Uma empresa",
@@ -2287,5 +2287,8 @@
   "desktop_app_promo_same_network": "O seu computador tem de estar na mesma rede que o servidor.",
   "desktop_app_promo_entry": "Obter a aplicação para computador",
   "desktop_app_promo_section": "Aplicação para computador",
-  "desktop_app_promo_settings_body": "Um ecrã maior e atalhos de teclado, com a mesma conta e os mesmos dados."
+  "desktop_app_promo_settings_body": "Um ecrã maior e atalhos de teclado, com a mesma conta e os mesmos dados.",
+  "free_plan_client_limit_form": "Utilizou todos os :count clientes do plano gratuito. Faça upgrade para guardar este cliente.",
+  "free_plan_purge_note": "Só eliminar definitivamente um cliente liberta o seu lugar, e isso também apaga as faturas e os pagamentos dele.",
+  "free_plan_import_too_many": "Esta importação ultrapassaria os :count clientes que o plano gratuito permite, por isso nada foi importado. Faça upgrade para importar todos."
 }

@@ -2226,10 +2226,10 @@
   "search_scope_one_result_announcement": ":scope, :count kết quả",
   "search_scope_at_least_one_result_announcement": ":scope, ít nhất :count kết quả",
   "free_plan_signup_note": "Gói miễn phí: tối đa :count khách hàng và một công ty. Nâng cấp bất cứ lúc nào để có khách hàng không giới hạn.",
-  "free_plan_clients_used": "Đã dùng :used trên :limit khách hàng miễn phí",
-  "free_plan_clients_over": "Bạn có :count khách hàng. Gói miễn phí cho phép :limit, vì vậy các khách hàng hiện có của bạn được giữ lại, nhưng muốn thêm nữa thì cần nâng cấp.",
+  "free_plan_clients_used": ":used trên :limit khách hàng trong gói miễn phí",
+  "free_plan_clients_over": "Bạn có :count khách hàng. Gói miễn phí cho phép :limit. Tất cả khách hàng của bạn vẫn được giữ lại. Hãy nâng cấp để thêm khách hàng mới.",
   "free_plan_clients_over_short": "Bạn có :count khách hàng. Gói miễn phí cho phép :limit.",
-  "free_plan_client_limit_reached": "Gói miễn phí bao gồm :count khách hàng. Nâng cấp để thêm nữa.",
+  "free_plan_client_limit_reached": "Bạn đã dùng hết :count khách hàng của gói miễn phí. Hãy nâng cấp để thêm nữa.",
   "free_plan_clients_count_note": "Khách hàng đã lưu trữ và đã xóa cũng được tính vào giới hạn.",
   "free_plan_up_to_clients": "Tối đa :count khách hàng",
   "free_plan_one_company": "Một công ty",
@@ -2255,5 +2255,8 @@
   "desktop_app_promo_same_network": "Máy tính của bạn cần ở cùng mạng với máy chủ.",
   "desktop_app_promo_entry": "Tải ứng dụng máy tính",
   "desktop_app_promo_section": "Ứng dụng máy tính",
-  "desktop_app_promo_settings_body": "Màn hình lớn hơn và phím tắt, với cùng tài khoản và dữ liệu."
+  "desktop_app_promo_settings_body": "Màn hình lớn hơn và phím tắt, với cùng tài khoản và dữ liệu.",
+  "free_plan_client_limit_form": "Bạn đã dùng hết :count khách hàng của gói miễn phí. Hãy nâng cấp để lưu khách hàng này.",
+  "free_plan_purge_note": "Chỉ xóa vĩnh viễn một khách hàng mới giải phóng chỗ của họ, và việc đó cũng xóa hóa đơn và thanh toán của họ.",
+  "free_plan_import_too_many": "Lần nhập này sẽ vượt quá :count khách hàng mà gói miễn phí cho phép, nên không có gì được nhập. Hãy nâng cấp để nhập tất cả."
 }

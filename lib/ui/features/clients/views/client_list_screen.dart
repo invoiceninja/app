@@ -66,11 +66,16 @@ class ClientListScreen extends StatelessWidget {
         // the cross-branch jump; the create screen reads the staged draft).
         embeddedNewOverride: gid == null
             ? null
-            : (ctx) => goEntityCreateFullWidth(
-                ctx,
-                '/clients',
-                extra: emptyClient(groupSettingsId: gid),
-              ),
+            : (ctx) {
+                // A group's New client is a new client: the Free plan's cap
+                // applies (docs/free-plan-limits.md).
+                if (interceptNewClientAtLimit(ctx)) return;
+                goEntityCreateFullWidth(
+                  ctx,
+                  '/clients',
+                  extra: emptyClient(groupSettingsId: gid),
+                );
+              },
         // Money columns — let the scaffold wire `FormatterHostMixin` so the
         // tile renders the per-client currency cascade.
         wantsFormatter: true,

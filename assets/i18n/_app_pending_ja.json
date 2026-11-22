@@ -2341,10 +2341,10 @@
   "search_scope_one_result_announcement": ":scope、:count 件の結果",
   "search_scope_at_least_one_result_announcement": ":scope、:count 件以上の結果",
   "free_plan_signup_note": "無料プラン：顧客 :count 件と会社 1 社まで。いつでもアップグレードして顧客数を無制限にできます。",
-  "free_plan_clients_used": "無料の顧客 :limit 件中 :used 件を使用中",
-  "free_plan_clients_over": "顧客が :count 件あります。無料プランでは :limit 件までのため、既存の顧客はそのまま残りますが、追加するにはアップグレードが必要です。",
+  "free_plan_clients_used": "無料プランの顧客 :limit 件中 :used 件",
+  "free_plan_clients_over": "顧客が :count 件あります。無料プランでは :limit 件までです。既存の顧客はすべてそのまま残ります。新しい顧客を追加するにはアップグレードしてください。",
   "free_plan_clients_over_short": "顧客が :count 件あります。無料プランでは :limit 件までです。",
-  "free_plan_client_limit_reached": "無料プランには顧客 :count 件が含まれます。追加するにはアップグレードしてください。",
+  "free_plan_client_limit_reached": "無料プランの顧客 :count 件をすべて使用しました。さらに追加するにはアップグレードしてください。",
   "free_plan_clients_count_note": "アーカイブ済みおよび削除済みの顧客も上限に含まれます。",
   "free_plan_up_to_clients": "顧客 :count 件まで",
   "free_plan_one_company": "会社 1 社",
@@ -2370,5 +2370,8 @@
   "desktop_app_promo_same_network": "パソコンがサーバーと同じネットワークに接続されている必要があります。",
   "desktop_app_promo_entry": "デスクトップアプリを入手",
   "desktop_app_promo_section": "デスクトップアプリ",
-  "desktop_app_promo_settings_body": "同じアカウントとデータで、大きな画面とキーボードショートカットを。"
+  "desktop_app_promo_settings_body": "同じアカウントとデータで、大きな画面とキーボードショートカットを。",
+  "free_plan_client_limit_form": "無料プランの顧客 :count 件をすべて使用しました。この顧客を保存するにはアップグレードしてください。",
+  "free_plan_purge_note": "顧客の枠を空けられるのは完全削除だけで、その顧客の請求書と支払いも削除されます。",
+  "free_plan_import_too_many": "このインポートでは無料プランの上限 :count 件を超えるため、何もインポートされませんでした。すべてインポートするにはアップグレードしてください。"
 }

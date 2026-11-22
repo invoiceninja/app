@@ -2341,10 +2341,10 @@
   "search_scope_one_result_announcement": ":scope, rezultat: :count",
   "search_scope_at_least_one_result_announcement": ":scope, rezultat: vsaj :count",
   "free_plan_signup_note": "Brezplačni paket: do :count strank in eno podjetje. Kadar koli nadgradite za neomejeno število strank.",
-  "free_plan_clients_used": "Porabljenih :used od :limit brezplačnih strank",
-  "free_plan_clients_over": "Imate :count strank. Brezplačni paket dovoljuje :limit, zato vaše obstoječe stranke ostanejo, za dodajanje novih pa je potrebna nadgradnja.",
+  "free_plan_clients_used": ":used od :limit strank v brezplačnem paketu",
+  "free_plan_clients_over": "Imate :count strank. Brezplačni paket dovoljuje :limit. Vse vaše stranke ostanejo. Nadgradite, da dodate nove.",
   "free_plan_clients_over_short": "Imate :count strank. Brezplačni paket dovoljuje :limit.",
-  "free_plan_client_limit_reached": "Brezplačni paket vključuje :count strank. Za dodajanje novih nadgradite paket.",
+  "free_plan_client_limit_reached": "Porabili ste vseh :count strank brezplačnega paketa. Nadgradite, da dodate več.",
   "free_plan_clients_count_note": "Arhivirane in izbrisane stranke se prav tako štejejo v omejitev.",
   "free_plan_up_to_clients": "Do :count strank",
   "free_plan_one_company": "Eno podjetje",
@@ -2370,5 +2370,8 @@
   "desktop_app_promo_same_network": "Računalnik mora biti v istem omrežju kot strežnik.",
   "desktop_app_promo_entry": "Prenesite namizno aplikacijo",
   "desktop_app_promo_section": "Namizna aplikacija",
-  "desktop_app_promo_settings_body": "Večji zaslon in bližnjice na tipkovnici, z istim računom in podatki."
+  "desktop_app_promo_settings_body": "Večji zaslon in bližnjice na tipkovnici, z istim računom in podatki.",
+  "free_plan_client_limit_form": "Porabili ste vseh :count strank brezplačnega paketa. Nadgradite, da shranite to stranko.",
+  "free_plan_purge_note": "Mesto sprosti le trajni izbris stranke, ki izbriše tudi njene račune in plačila.",
+  "free_plan_import_too_many": "Ta uvoz bi presegel :count strank, ki jih dovoljuje brezplačni paket, zato ni bilo nič uvoženo. Nadgradite, da jih uvozite vse."
 }

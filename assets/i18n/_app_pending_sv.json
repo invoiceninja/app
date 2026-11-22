@@ -2328,10 +2328,10 @@
   "search_scope_one_result_announcement": ":scope, :count resultat",
   "search_scope_at_least_one_result_announcement": ":scope, minst :count resultat",
   "free_plan_signup_note": "Gratisplan: upp till :count kunder och ett företag. Uppgradera när som helst för obegränsat antal kunder.",
-  "free_plan_clients_used": ":used av :limit gratis kunder använda",
-  "free_plan_clients_over": "Du har :count kunder. Gratisplanen tillåter :limit, så dina befintliga kunder behålls, men för att lägga till fler krävs en uppgradering.",
+  "free_plan_clients_used": ":used av :limit kunder i Gratisplanen",
+  "free_plan_clients_over": "Du har :count kunder. Gratisplanen tillåter :limit. Alla dina kunder behålls. Uppgradera för att lägga till nya.",
   "free_plan_clients_over_short": "Du har :count kunder. Gratisplanen tillåter :limit.",
-  "free_plan_client_limit_reached": "Gratisplanen omfattar :count kunder. Uppgradera för att lägga till fler.",
+  "free_plan_client_limit_reached": "Du har använt alla :count kunder i Gratisplanen. Uppgradera för att lägga till fler.",
   "free_plan_clients_count_note": "Arkiverade och raderade kunder räknas också mot gränsen.",
   "free_plan_up_to_clients": "Upp till :count kunder",
   "free_plan_one_company": "Ett företag",
@@ -2357,5 +2357,8 @@
   "desktop_app_promo_same_network": "Datorn måste vara ansluten till samma nätverk som servern.",
   "desktop_app_promo_entry": "Skaffa skrivbordsappen",
   "desktop_app_promo_section": "Skrivbordsapp",
-  "desktop_app_promo_settings_body": "En större skärm och kortkommandon, med samma konto och data."
+  "desktop_app_promo_settings_body": "En större skärm och kortkommandon, med samma konto och data.",
+  "free_plan_client_limit_form": "Du har använt alla :count kunder i Gratisplanen. Uppgradera för att spara den här kunden.",
+  "free_plan_purge_note": "Bara en permanent radering av en kund frigör dess plats, och den raderar även kundens fakturor och betalningar.",
+  "free_plan_import_too_many": "Den här importen skulle gå över de :count kunder som Gratisplanen tillåter, så inget importerades. Uppgradera för att importera alla."
 }

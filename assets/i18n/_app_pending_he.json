@@ -2257,10 +2257,10 @@
   "search_scope_one_result_announcement": ":scope, :count תוצאה",
   "search_scope_at_least_one_result_announcement": ":scope, לפחות :count תוצאה",
   "free_plan_signup_note": "תוכנית חינמית: עד :count לקוחות וחברה אחת. אפשר לשדרג בכל עת ללקוחות ללא הגבלה.",
-  "free_plan_clients_used": "נוצלו :used מתוך :limit לקוחות חינמיים",
-  "free_plan_clients_over": "יש לך :count לקוחות. התוכנית החינמית מאפשרת :limit, כך שהלקוחות הקיימים שלך נשמרים, אבל הוספת לקוחות נוספים מחייבת שדרוג.",
+  "free_plan_clients_used": ":used מתוך :limit לקוחות בתוכנית החינמית",
+  "free_plan_clients_over": "יש לך :count לקוחות. התוכנית החינמית מאפשרת :limit. כל הלקוחות שלך נשמרים. שדרג כדי להוסיף חדשים.",
   "free_plan_clients_over_short": "יש לך :count לקוחות. התוכנית החינמית מאפשרת :limit.",
-  "free_plan_client_limit_reached": "התוכנית החינמית כוללת :count לקוחות. שדרג כדי להוסיף עוד.",
+  "free_plan_client_limit_reached": "ניצלת את כל :count הלקוחות של התוכנית החינמית. שדרג כדי להוסיף עוד.",
   "free_plan_clients_count_note": "לקוחות בארכיון ולקוחות שנמחקו נספרים גם הם במגבלה.",
   "free_plan_up_to_clients": "עד :count לקוחות",
   "free_plan_one_company": "חברה אחת",
@@ -2286,5 +2286,8 @@
   "desktop_app_promo_same_network": "המחשב שלך צריך להיות באותה רשת כמו השרת.",
   "desktop_app_promo_entry": "הורד את אפליקציית המחשב",
   "desktop_app_promo_section": "אפליקציית מחשב",
-  "desktop_app_promo_settings_body": "מסך גדול יותר וקיצורי דרך במקלדת, עם אותו חשבון ואותם נתונים."
+  "desktop_app_promo_settings_body": "מסך גדול יותר וקיצורי דרך במקלדת, עם אותו חשבון ואותם נתונים.",
+  "free_plan_client_limit_form": "ניצלת את כל :count הלקוחות של התוכנית החינמית. שדרג כדי לשמור את הלקוח הזה.",
+  "free_plan_purge_note": "רק מחיקה לצמיתות של לקוח משחררת את מקומו, והיא מוחקת גם את החשבוניות והתשלומים שלו.",
+  "free_plan_import_too_many": "הייבוא הזה היה עובר את :count הלקוחות שהתוכנית החינמית מאפשרת, ולכן שום דבר לא יובא. שדרג כדי לייבא את כולם."
 }

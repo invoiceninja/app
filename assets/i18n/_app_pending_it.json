@@ -2341,10 +2341,10 @@
   "search_scope_one_result_announcement": ":scope, :count risultato",
   "search_scope_at_least_one_result_announcement": ":scope, almeno :count risultato",
   "free_plan_signup_note": "Piano gratuito: fino a :count clienti e un'azienda. Passa a un piano superiore in qualsiasi momento per clienti illimitati.",
-  "free_plan_clients_used": ":used di :limit clienti gratuiti utilizzati",
-  "free_plan_clients_over": "Hai :count clienti. Il piano gratuito ne consente :limit, quindi i tuoi clienti esistenti vengono mantenuti, ma per aggiungerne altri serve un piano superiore.",
+  "free_plan_clients_used": ":used di :limit clienti nel piano gratuito",
+  "free_plan_clients_over": "Hai :count clienti. Il piano gratuito ne consente :limit. Tutti i tuoi clienti vengono mantenuti. Passa a un piano superiore per aggiungerne di nuovi.",
   "free_plan_clients_over_short": "Hai :count clienti. Il piano gratuito ne consente :limit.",
-  "free_plan_client_limit_reached": "Il piano gratuito include :count clienti. Passa a un piano superiore per aggiungerne altri.",
+  "free_plan_client_limit_reached": "Hai usato tutti i :count clienti del piano gratuito. Passa a un piano superiore per aggiungerne altri.",
   "free_plan_clients_count_note": "Anche i clienti archiviati ed eliminati contano nel limite.",
   "free_plan_up_to_clients": "Fino a :count clienti",
   "free_plan_one_company": "Un'azienda",
@@ -2370,5 +2370,8 @@
   "desktop_app_promo_same_network": "Il computer deve essere sulla stessa rete del server.",
   "desktop_app_promo_entry": "Scarica l'app desktop",
   "desktop_app_promo_section": "App desktop",
-  "desktop_app_promo_settings_body": "Uno schermo più grande e tasti rapidi, con lo stesso account e gli stessi dati."
+  "desktop_app_promo_settings_body": "Uno schermo più grande e tasti rapidi, con lo stesso account e gli stessi dati.",
+  "free_plan_client_limit_form": "Hai usato tutti i :count clienti del piano gratuito. Passa a un piano superiore per salvare questo cliente.",
+  "free_plan_purge_note": "Solo l'eliminazione definitiva di un cliente libera il suo posto, ed elimina anche le sue fatture e i suoi pagamenti.",
+  "free_plan_import_too_many": "Questa importazione supererebbe i :count clienti consentiti dal piano gratuito, quindi non è stato importato nulla. Passa a un piano superiore per importarli tutti."
 }

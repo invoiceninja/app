@@ -2341,10 +2341,10 @@
   "search_scope_one_result_announcement": ":scope, :count Ergebnis",
   "search_scope_at_least_one_result_announcement": ":scope, mindestens :count Ergebnis",
   "free_plan_signup_note": "Kostenloser Tarif: bis zu :count Kunden und eine Firma. Jederzeit upgraden für unbegrenzt viele Kunden.",
-  "free_plan_clients_used": ":used von :limit kostenlosen Kunden genutzt",
-  "free_plan_clients_over": "Sie haben :count Kunden. Der kostenlose Tarif erlaubt :limit, Ihre bestehenden Kunden bleiben also erhalten, aber für weitere ist ein Upgrade nötig.",
+  "free_plan_clients_used": ":used von :limit Kunden im kostenlosen Tarif",
+  "free_plan_clients_over": "Sie haben :count Kunden. Der kostenlose Tarif erlaubt :limit. Alle Ihre Kunden bleiben erhalten. Upgraden Sie, um neue hinzuzufügen.",
   "free_plan_clients_over_short": "Sie haben :count Kunden. Der kostenlose Tarif erlaubt :limit.",
-  "free_plan_client_limit_reached": "Der kostenlose Tarif umfasst :count Kunden. Upgraden Sie, um weitere hinzuzufügen.",
+  "free_plan_client_limit_reached": "Sie haben alle :count Kunden des kostenlosen Tarifs genutzt. Upgraden Sie, um weitere hinzuzufügen.",
   "free_plan_clients_count_note": "Archivierte und gelöschte Kunden zählen ebenfalls zum Limit.",
   "free_plan_up_to_clients": "Bis zu :count Kunden",
   "free_plan_one_company": "Eine Firma",
@@ -2370,5 +2370,8 @@
   "desktop_app_promo_same_network": "Ihr Computer muss sich im selben Netzwerk wie der Server befinden.",
   "desktop_app_promo_entry": "Desktop-App herunterladen",
   "desktop_app_promo_section": "Desktop-App",
-  "desktop_app_promo_settings_body": "Ein größerer Bildschirm und Tastatur-Schnellzugriffe, mit gleichem Konto und gleichen Daten."
+  "desktop_app_promo_settings_body": "Ein größerer Bildschirm und Tastatur-Schnellzugriffe, mit gleichem Konto und gleichen Daten.",
+  "free_plan_client_limit_form": "Sie haben alle :count Kunden des kostenlosen Tarifs genutzt. Upgraden Sie, um diesen Kunden zu speichern.",
+  "free_plan_purge_note": "Nur das endgültige Löschen eines Kunden gibt seinen Platz frei, und dabei werden auch seine Rechnungen und Zahlungen gelöscht.",
+  "free_plan_import_too_many": "Mit diesem Import würden Sie die :count Kunden des kostenlosen Tarifs überschreiten, daher wurde nichts importiert. Upgraden Sie, um alle zu importieren."
 }

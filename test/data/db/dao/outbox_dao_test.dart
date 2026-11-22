@@ -47,6 +47,54 @@ void main() {
     return id;
   }
 
+  test(
+    'watchQueuedCountChanges counts queued creates and the purges and merges '
+    'that free a place, for one company and entity type',
+    () async {
+      // The Free plan client gate's offline arithmetic
+      // (docs/free-plan-limits.md).
+      await enqueue(kind: 'create', entityId: 'n1', idempotencyKey: 'k1');
+      await enqueue(
+        kind: 'create',
+        entityId: 'n2',
+        idempotencyKey: 'k2',
+        state: 'in_flight',
+      );
+      await enqueue(kind: 'purge', entityId: 'p1', idempotencyKey: 'k3');
+      await enqueue(kind: 'merge', entityId: 'm1', idempotencyKey: 'k4');
+      // None of these count: delivered-or-failed states, another kind,
+      // another company, another entity type.
+      await enqueue(
+        kind: 'create',
+        entityId: 'd1',
+        idempotencyKey: 'k5',
+        state: 'dead',
+      );
+      await enqueue(kind: 'update', entityId: 'u1', idempotencyKey: 'k6');
+      await enqueue(kind: 'archive', entityId: 'a1', idempotencyKey: 'k7');
+      await enqueue(
+        kind: 'create',
+        companyId: 'other',
+        entityId: 'o1',
+        idempotencyKey: 'k8',
+      );
+      await enqueue(
+        kind: 'create',
+        entityType: 'vendor',
+        entityId: 'v1',
+        idempotencyKey: 'k9',
+      );
+      final counts = await db.outboxDao
+          .watchQueuedCountChanges(companyId: 'co', entityType: 'client')
+          .first;
+      expect(counts, (creates: 2, removals: 2));
+      final empty = await db.outboxDao
+          .watchQueuedCountChanges(companyId: 'none', entityType: 'client')
+          .first;
+      expect(empty, (creates: 0, removals: 0));
+    },
+  );
+
   group('watchAll', () {
     test(
       'emits every row for the company regardless of state, newest first',

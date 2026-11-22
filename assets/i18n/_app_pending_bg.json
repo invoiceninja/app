@@ -2258,10 +2258,10 @@
   "search_scope_one_result_announcement": ":scope, резултат: :count",
   "search_scope_at_least_one_result_announcement": ":scope, резултат: поне :count",
   "free_plan_signup_note": "Безплатен план: до :count клиента и една фирма. Надградете по всяко време за неограничен брой клиенти.",
-  "free_plan_clients_used": "Използвани :used от :limit безплатни клиента",
-  "free_plan_clients_over": "Имате :count клиента. Безплатният план позволява :limit, така че съществуващите ви клиенти се запазват, а добавянето на нови изисква надграждане.",
+  "free_plan_clients_used": ":used от :limit клиента в безплатния план",
+  "free_plan_clients_over": "Имате :count клиента. Безплатният план позволява :limit. Всички ваши клиенти се запазват. Надградете, за да добавите нови.",
   "free_plan_clients_over_short": "Имате :count клиента. Безплатният план позволява :limit.",
-  "free_plan_client_limit_reached": "Безплатният план включва :count клиента. Надградете, за да добавите още.",
+  "free_plan_client_limit_reached": "Използвали сте всички :count клиента в безплатния план. Надградете, за да добавите още.",
   "free_plan_clients_count_note": "Архивираните и изтритите клиенти също се броят към лимита.",
   "free_plan_up_to_clients": "До :count клиента",
   "free_plan_one_company": "Една фирма",
@@ -2287,5 +2287,8 @@
   "desktop_app_promo_same_network": "Компютърът ви трябва да е в същата мрежа като сървъра.",
   "desktop_app_promo_entry": "Изтеглете настолното приложение",
   "desktop_app_promo_section": "Настолно приложение",
-  "desktop_app_promo_settings_body": "По-голям екран и клавишни комбинации, със същия профил и данни."
+  "desktop_app_promo_settings_body": "По-голям екран и клавишни комбинации, със същия профил и данни.",
+  "free_plan_client_limit_form": "Използвали сте всички :count клиента в безплатния план. Надградете, за да запазите този клиент.",
+  "free_plan_purge_note": "Само окончателното изтриване на клиент освобождава мястото му, а то изтрива и неговите фактури и плащания.",
+  "free_plan_import_too_many": "Този импорт би надхвърлил :count клиента, които безплатният план позволява, затова нищо не е импортирано. Надградете, за да импортирате всички."
 }

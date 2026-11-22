@@ -2296,10 +2296,10 @@
   "search_scope_one_result_announcement": ":scope, rezultatų: :count",
   "search_scope_at_least_one_result_announcement": ":scope, rezultatų: bent :count",
   "free_plan_signup_note": "Nemokamas planas: iki :count klientų ir viena įmonė. Bet kada patobulinkite planą ir turėkite neribotą klientų skaičių.",
-  "free_plan_clients_used": "Panaudota :used iš :limit nemokamų klientų",
-  "free_plan_clients_over": "Turite :count klientų. Nemokamas planas leidžia :limit, todėl esami klientai išlieka, tačiau norint pridėti daugiau reikia patobulinti planą.",
+  "free_plan_clients_used": ":used iš :limit klientų nemokamame plane",
+  "free_plan_clients_over": "Turite :count klientų. Nemokamas planas leidžia :limit. Visi jūsų klientai išsaugomi. Atnaujinkite planą, kad pridėtumėte naujų.",
   "free_plan_clients_over_short": "Turite :count klientų. Nemokamas planas leidžia :limit.",
-  "free_plan_client_limit_reached": "Nemokamas planas apima :count klientų. Patobulinkite planą, kad pridėtumėte daugiau.",
+  "free_plan_client_limit_reached": "Išnaudojote visus :count nemokamo plano klientus. Atnaujinkite planą, kad pridėtumėte daugiau.",
   "free_plan_clients_count_note": "Archyvuoti ir ištrinti klientai taip pat įskaičiuojami į limitą.",
   "free_plan_up_to_clients": "Iki :count klientų",
   "free_plan_one_company": "Viena įmonė",
@@ -2325,5 +2325,8 @@
   "desktop_app_promo_same_network": "Jūsų kompiuteris turi būti tame pačiame tinkle kaip serveris.",
   "desktop_app_promo_entry": "Gauti kompiuterio programą",
   "desktop_app_promo_section": "Kompiuterio programa",
-  "desktop_app_promo_settings_body": "Didesnis ekranas ir spartieji klavišai, su ta pačia paskyra ir duomenimis."
+  "desktop_app_promo_settings_body": "Didesnis ekranas ir spartieji klavišai, su ta pačia paskyra ir duomenimis.",
+  "free_plan_client_limit_form": "Išnaudojote visus :count nemokamo plano klientus. Atnaujinkite planą, kad išsaugotumėte šį klientą.",
+  "free_plan_purge_note": "Vietą atlaisvina tik visiškas kliento pašalinimas, o jis ištrina ir kliento sąskaitas bei mokėjimus.",
+  "free_plan_import_too_many": "Šis importas viršytų :count klientų, kuriuos leidžia nemokamas planas, todėl niekas nebuvo importuota. Atnaujinkite planą, kad importuotumėte visus."
 }

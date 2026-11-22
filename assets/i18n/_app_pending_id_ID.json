@@ -2259,10 +2259,10 @@
   "search_scope_one_result_announcement": ":scope, :count hasil",
   "search_scope_at_least_one_result_announcement": ":scope, setidaknya :count hasil",
   "free_plan_signup_note": "Paket Gratis: hingga :count klien dan satu perusahaan. Tingkatkan kapan saja untuk klien tanpa batas.",
-  "free_plan_clients_used": ":used dari :limit klien gratis terpakai",
-  "free_plan_clients_over": "Anda memiliki :count klien. Paket Gratis mengizinkan :limit, jadi klien Anda yang ada tetap disimpan, tetapi menambah klien baru memerlukan peningkatan paket.",
+  "free_plan_clients_used": ":used dari :limit klien di Paket Gratis",
+  "free_plan_clients_over": "Anda memiliki :count klien. Paket Gratis mengizinkan :limit. Semua klien Anda tetap disimpan. Tingkatkan paket untuk menambah klien baru.",
   "free_plan_clients_over_short": "Anda memiliki :count klien. Paket Gratis mengizinkan :limit.",
-  "free_plan_client_limit_reached": "Paket Gratis mencakup :count klien. Tingkatkan untuk menambah lebih banyak.",
+  "free_plan_client_limit_reached": "Anda telah menggunakan semua :count klien di Paket Gratis. Tingkatkan paket untuk menambah lebih banyak.",
   "free_plan_clients_count_note": "Klien yang diarsipkan dan dihapus juga dihitung dalam batas.",
   "free_plan_up_to_clients": "Hingga :count klien",
   "free_plan_one_company": "Satu perusahaan",
@@ -2288,5 +2288,8 @@
   "desktop_app_promo_same_network": "Komputer Anda harus berada di jaringan yang sama dengan server.",
   "desktop_app_promo_entry": "Dapatkan aplikasi desktop",
   "desktop_app_promo_section": "Aplikasi desktop",
-  "desktop_app_promo_settings_body": "Layar lebih besar dan pintasan keyboard, dengan akun dan data yang sama."
+  "desktop_app_promo_settings_body": "Layar lebih besar dan pintasan keyboard, dengan akun dan data yang sama.",
+  "free_plan_client_limit_form": "Anda telah menggunakan semua :count klien di Paket Gratis. Tingkatkan paket untuk menyimpan klien ini.",
+  "free_plan_purge_note": "Hanya menghapus permanen klien yang mengosongkan tempatnya, dan itu juga menghapus faktur serta pembayarannya.",
+  "free_plan_import_too_many": "Impor ini akan melebihi :count klien yang diizinkan Paket Gratis, jadi tidak ada yang diimpor. Tingkatkan paket untuk mengimpor semuanya."
 }

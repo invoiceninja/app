@@ -12,8 +12,11 @@ import 'package:provider/provider.dart';
 
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/theme.dart';
+import 'package:admin/data/repositories/_repository_helpers.dart';
 import 'package:admin/data/repositories/auth/auth_session.dart';
+import 'package:admin/data/services/api_exception.dart';
 import 'package:admin/domain/upgrade/client_usage.dart';
+import 'package:admin/ui/core/edit/generic_edit_view_model.dart';
 import 'package:admin/ui/features/clients/widgets/client_limit.dart';
 
 import '../../../_localization_helper.dart';
@@ -33,9 +36,9 @@ AuthSession _session({String plan = ''}) => AuthSession(
 /// A [ClientUsage] whose server total is [total] (null: never answers).
 ClientUsage _usage({int? total, String plan = ''}) => ClientUsage(
   session: ValueNotifier<AuthSession?>(_session(plan: plan)),
-  fetchCount: () =>
+  fetchCount: (_) =>
       total == null ? Completer<int?>().future : Future.value(total),
-  watchQueuedCreates: (_) => Stream.value(0),
+  watchQueued: (_) => Stream.value((creates: 0, removals: 0)),
 );
 
 Future<void> _pump(
@@ -57,10 +60,29 @@ Future<void> _pump(
   await tester.pump();
 }
 
-const _atLimit = 'The Free plan includes 5 clients. Upgrade to add more.';
+/// A client form's view model, its save state set by hand.
+class _FormVm extends GenericEditViewModel<String> {
+  _FormVm({super.original}) : super(initialDraft: '');
+
+  bool saving = false;
+  String? sent;
+  Map<String, List<String>> errors = const {};
+
+  @override
+  bool get isSaving => saving;
+  @override
+  String? get lastSentDraft => sent;
+  @override
+  Map<String, List<String>> get fieldErrors => errors;
+  @override
+  Future<SaveResult<String>> performSave() => throw UnimplementedError();
+}
+
+const _atLimit =
+    'You have used all 5 clients on the Free plan. Upgrade to add more.';
 const _over =
-    'You have 11 clients. The Free plan allows 5, so your existing clients are '
-    'kept, and adding more needs an upgrade.';
+    'You have 11 clients. The Free plan allows 5. All your clients are kept. '
+    'Upgrade to add new ones.';
 
 void main() {
   group('interceptNewClientAtLimit', () {
@@ -92,7 +114,7 @@ void main() {
         find.byKey(const ValueKey('client_limit_upgrade')),
         findsOneWidget,
       );
-      await tester.tap(find.text('Cancel'));
+      await tester.tap(find.byKey(const ValueKey('client_limit_close')));
       await tester.pumpAndSettle();
       expect(find.text(_atLimit), findsNothing);
     });
@@ -154,8 +176,11 @@ void main() {
         child: (_) => const ClientUsageBanner(),
       );
       await tester.pump();
-      expect(find.text('3 of 5 free clients used'), findsOneWidget);
-      expect(find.text('Upgrade'), findsOneWidget);
+      expect(find.text('3 of 5 clients on the Free plan'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('client_usage_upgrade')),
+        findsOneWidget,
+      );
     });
 
     testWidgets('over the cap it says so plainly', (tester) async {
@@ -172,6 +197,41 @@ void main() {
       );
     });
 
+    testWidgets('well under the cap the list stays quiet', (tester) async {
+      // At 1 or 2 of 5 the signup, checklist and Plan screen have said it; a
+      // line on every visit to the list would be clutter.
+      for (final total in [0, 1, 2]) {
+        final usage = _usage(total: total);
+        await _pump(
+          tester,
+          usage: usage,
+          child: (_) => const ClientUsageBanner(),
+        );
+        await tester.pump();
+        expect(
+          find.byKey(const ValueKey('client_usage_banner')),
+          findsNothing,
+          reason: '$total of 5',
+        );
+      }
+    });
+
+    testWidgets('Upgrade on the usage line is a full touch target', (
+      tester,
+    ) async {
+      final usage = _usage(total: 4);
+      await _pump(
+        tester,
+        usage: usage,
+        child: (_) => const ClientUsageBanner(),
+      );
+      await tester.pump();
+      final size = tester.getSize(
+        find.byKey(const ValueKey('client_usage_upgrade')),
+      );
+      expect(size.height, greaterThanOrEqualTo(44));
+    });
+
     testWidgets('a paid plan sees nothing', (tester) async {
       final usage = _usage(total: 3, plan: 'pro');
       await _pump(
@@ -181,6 +241,182 @@ void main() {
       );
       await tester.pump();
       expect(find.byKey(const ValueKey('client_usage_banner')), findsNothing);
+    });
+  });
+
+  group('confirmNewClientSave', () {
+    Future<bool?> save(
+      WidgetTester tester,
+      ClientUsage usage,
+      _FormVm vm,
+    ) async {
+      bool? allowed;
+      await _pump(
+        tester,
+        usage: usage,
+        child: (context) => TextButton(
+          onPressed: () async =>
+              allowed = await confirmNewClientSave(context, vm),
+          child: const Text('save'),
+        ),
+      );
+      await tester.pump();
+      await tester.tap(find.text('save'));
+      await tester.pumpAndSettle();
+      return allowed;
+    }
+
+    testWidgets('a create at the cap is not sent; the dialog says why', (
+      tester,
+    ) async {
+      // A deep link or the command palette reaches the blank form without
+      // the gate; Save must not queue a create the server will refuse.
+      expect(await save(tester, _usage(total: 5), _FormVm()), isFalse);
+      expect(find.byType(ClientLimitDialog), findsOneWidget);
+    });
+
+    testWidgets('an edit at the cap saves', (tester) async {
+      expect(
+        await save(tester, _usage(total: 5), _FormVm(original: 'c1')),
+        isTrue,
+      );
+      expect(find.byType(ClientLimitDialog), findsNothing);
+    });
+
+    testWidgets('a create under the cap saves', (tester) async {
+      expect(await save(tester, _usage(total: 4), _FormVm()), isTrue);
+    });
+  });
+
+  group('ClientLimitFormBanner', () {
+    Future<void> pumpBanner(
+      WidgetTester tester,
+      ClientUsage usage,
+      _FormVm vm,
+    ) async {
+      await _pump(
+        tester,
+        usage: usage,
+        child: (_) => ClientLimitFormBanner(vm: vm),
+      );
+      await tester.pump();
+    }
+
+    final banner = find.byKey(const ValueKey('client_limit_form_banner'));
+
+    testWidgets('a blank form at the cap says so', (tester) async {
+      await pumpBanner(tester, _usage(total: 5), _FormVm());
+      expect(banner, findsOneWidget);
+    });
+
+    testWidgets('not on the form whose own save reached the cap', (
+      tester,
+    ) async {
+      // The fifth client's create is queued, and counted, before the form
+      // leaves: the form that added it must not read "limit reached".
+      final saving = _FormVm()..saving = true;
+      await pumpBanner(tester, _usage(total: 5), saving);
+      expect(banner, findsNothing);
+      final saved = _FormVm()..sent = 'Acme';
+      await pumpBanner(tester, _usage(total: 5), saved);
+      expect(banner, findsNothing);
+    });
+
+    testWidgets('a save the server refused for the cap says so', (
+      tester,
+    ) async {
+      final vm = _FormVm()
+        ..sent = 'Acme'
+        ..errors = const {
+          'id': ['limit'],
+        };
+      await pumpBanner(tester, _usage(total: 3), vm);
+      expect(banner, findsOneWidget);
+    });
+  });
+
+  testWidgets('the dialog says the server\'s words when the cap is unknown', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      usage: null,
+      child: (context) => TextButton(
+        onPressed: () => showClientLimitDialog(
+          context,
+          detail: 'You have hit the client limit.',
+        ),
+        child: const Text('open'),
+      ),
+    );
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+    expect(find.text('You have hit the client limit.'), findsOneWidget);
+    expect(find.byKey(const ValueKey('client_limit_upgrade')), findsOneWidget);
+  });
+
+  group('showImportClientLimit', () {
+    Future<bool?> fail(
+      WidgetTester tester,
+      ClientUsage usage,
+      Object error,
+    ) async {
+      bool? shown;
+      await _pump(
+        tester,
+        usage: usage,
+        child: (context) => TextButton(
+          onPressed: () => shown = showImportClientLimit(context, error),
+          child: const Text('import'),
+        ),
+      );
+      await tester.pump();
+      await tester.tap(find.text('import'));
+      await tester.pumpAndSettle();
+      return shown;
+    }
+
+    const limitError = ValidationException('invalid', {
+      'files.client': ["You've hit the 5 client limit on Free accounts."],
+    });
+
+    testWidgets('an import refused for the cap gets Upgrade, not a toast', (
+      tester,
+    ) async {
+      expect(await fail(tester, _usage(total: 3), limitError), isTrue);
+      expect(find.byType(ClientLimitDialog), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('client_limit_upgrade')),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('the import preview\'s hashed copy is the same refusal', (
+      tester,
+    ) async {
+      const hashed = ValidationException('invalid', {
+        'column_map.client': ['limit'],
+      });
+      expect(await fail(tester, _usage(total: 3), hashed), isTrue);
+    });
+
+    testWidgets('a paid plan keeps the plain error', (tester) async {
+      expect(
+        await fail(tester, _usage(total: 3, plan: 'pro'), limitError),
+        isFalse,
+      );
+      expect(find.byType(ClientLimitDialog), findsNothing);
+    });
+
+    testWidgets('another failure keeps the plain error', (tester) async {
+      expect(
+        await fail(tester, _usage(total: 3), Exception('offline')),
+        isFalse,
+      );
+      const other = ValidationException('invalid', {
+        'skip_header': ['bad'],
+      });
+      expect(await fail(tester, _usage(total: 3), other), isFalse);
     });
   });
 }

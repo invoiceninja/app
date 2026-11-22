@@ -2342,10 +2342,10 @@
   "search_scope_one_result_announcement": ":scope, rezultāts: :count",
   "search_scope_at_least_one_result_announcement": ":scope, rezultāts: vismaz :count",
   "free_plan_signup_note": "Bezmaksas plāns: līdz :count klientiem un viens uzņēmums. Jebkurā laikā jauniniet plānu neierobežotam klientu skaitam.",
-  "free_plan_clients_used": "Izmantoti :used no :limit bezmaksas klientiem",
-  "free_plan_clients_over": "Jums ir :count klienti. Bezmaksas plāns atļauj :limit, tāpēc esošie klienti tiek saglabāti, bet, lai pievienotu vairāk, nepieciešams jaunināt plānu.",
+  "free_plan_clients_used": ":used no :limit klientiem bezmaksas plānā",
+  "free_plan_clients_over": "Jums ir :count klienti. Bezmaksas plāns atļauj :limit. Visi jūsu klienti tiek saglabāti. Jauniniet plānu, lai pievienotu jaunus.",
   "free_plan_clients_over_short": "Jums ir :count klienti. Bezmaksas plāns atļauj :limit.",
-  "free_plan_client_limit_reached": "Bezmaksas plāns ietver :count klientus. Jauniniet plānu, lai pievienotu vairāk.",
+  "free_plan_client_limit_reached": "Jūs esat izmantojis visus :count bezmaksas plāna klientus. Jauniniet plānu, lai pievienotu vairāk.",
   "free_plan_clients_count_note": "Arhivētie un dzēstie klienti arī tiek ieskaitīti limitā.",
   "free_plan_up_to_clients": "Līdz :count klientiem",
   "free_plan_one_company": "Viens uzņēmums",
@@ -2371,5 +2371,8 @@
   "desktop_app_promo_same_network": "Jūsu datoram jābūt tajā pašā tīklā, kurā ir serveris.",
   "desktop_app_promo_entry": "Iegūt datora lietotni",
   "desktop_app_promo_section": "Datora lietotne",
-  "desktop_app_promo_settings_body": "Lielāks ekrāns un īsinājumtaustiņi, ar to pašu kontu un datiem."
+  "desktop_app_promo_settings_body": "Lielāks ekrāns un īsinājumtaustiņi, ar to pašu kontu un datiem.",
+  "free_plan_client_limit_form": "Jūs esat izmantojis visus :count bezmaksas plāna klientus. Jauniniet plānu, lai saglabātu šo klientu.",
+  "free_plan_purge_note": "Vietu atbrīvo tikai klienta neatgriezeniska dzēšana, kas izdzēš arī tā rēķinus un maksājumus.",
+  "free_plan_import_too_many": "Šis imports pārsniegtu :count klientus, ko atļauj bezmaksas plāns, tāpēc nekas netika importēts. Jauniniet plānu, lai importētu visus."
 }

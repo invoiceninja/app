@@ -2341,10 +2341,10 @@
   "search_scope_one_result_announcement": ":scope, výsledek: :count",
   "search_scope_at_least_one_result_announcement": ":scope, výsledek: alespoň :count",
   "free_plan_signup_note": "Bezplatný tarif: až :count klientů a jedna firma. Kdykoli můžete přejít na vyšší tarif s neomezeným počtem klientů.",
-  "free_plan_clients_used": "Využito :used z :limit bezplatných klientů",
-  "free_plan_clients_over": "Máte :count klientů. Bezplatný tarif umožňuje :limit, takže vaši stávající klienti zůstanou zachováni, ale přidání dalších vyžaduje vyšší tarif.",
+  "free_plan_clients_used": ":used z :limit klientů v bezplatném tarifu",
+  "free_plan_clients_over": "Máte :count klientů. Bezplatný tarif umožňuje :limit. Všichni vaši klienti zůstávají. Pro přidání nových přejděte na vyšší tarif.",
   "free_plan_clients_over_short": "Máte :count klientů. Bezplatný tarif umožňuje :limit.",
-  "free_plan_client_limit_reached": "Bezplatný tarif zahrnuje :count klientů. Pro přidání dalších přejděte na vyšší tarif.",
+  "free_plan_client_limit_reached": "Využili jste všech :count klientů v bezplatném tarifu. Pro přidání dalších přejděte na vyšší tarif.",
   "free_plan_clients_count_note": "Do limitu se počítají i archivovaní a smazaní klienti.",
   "free_plan_up_to_clients": "Až :count klientů",
   "free_plan_one_company": "Jedna firma",
@@ -2370,5 +2370,8 @@
   "desktop_app_promo_same_network": "Počítač musí být ve stejné síti jako server.",
   "desktop_app_promo_entry": "Získat desktopovou aplikaci",
   "desktop_app_promo_section": "Desktopová aplikace",
-  "desktop_app_promo_settings_body": "Větší obrazovka a klávesové zkratky se stejným účtem a daty."
+  "desktop_app_promo_settings_body": "Větší obrazovka a klávesové zkratky se stejným účtem a daty.",
+  "free_plan_client_limit_form": "Využili jste všech :count klientů v bezplatném tarifu. Pro uložení tohoto klienta přejděte na vyšší tarif.",
+  "free_plan_purge_note": "Místo uvolní jen trvalé odstranění klienta, které smaže i jeho faktury a platby.",
+  "free_plan_import_too_many": "Tento import by překročil :count klientů, které bezplatný tarif umožňuje, proto nebylo nic importováno. Pro import všech přejděte na vyšší tarif."
 }

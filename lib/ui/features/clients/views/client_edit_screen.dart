@@ -88,6 +88,11 @@ class ClientEditScreen extends StatelessWidget {
       // The hosted Free plan's client cap: at it on a create, or a save the
       // server refused for it (docs/free-plan-limits.md).
       bannerBuilder: (ctx, vm) => ClientLimitFormBanner(vm: vm),
+      // A way onto a blank form that skipped the gate (a deep link, the
+      // command palette, a draft restored offline) must not queue a create
+      // the server will refuse: Save opens the Upgrade dialog instead, and
+      // the form keeps what was typed.
+      confirmSave: confirmNewClientSave,
       resetToEmpty: (vm) => vm.resetToEmpty(),
       entityIdOf: (c) => c.id,
       actionsBuilder: (ctx, vm, onTap, saveButton) =>

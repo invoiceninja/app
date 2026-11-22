@@ -2258,10 +2258,10 @@
   "search_scope_one_result_announcement": ":scope，:count 個結果",
   "search_scope_at_least_one_result_announcement": ":scope，至少 :count 個結果",
   "free_plan_signup_note": "免費方案：最多 :count 位客戶和一家公司。隨時升級即可擁有無限客戶。",
-  "free_plan_clients_used": "已使用 :used / :limit 位免費客戶",
-  "free_plan_clients_over": "您有 :count 位客戶。免費方案允許 :limit 位，因此您現有的客戶會保留，但新增更多客戶需要升級。",
+  "free_plan_clients_used": "免費方案 :limit 位客戶中已有 :used 位",
+  "free_plan_clients_over": "您有 :count 位客戶。免費方案允許 :limit 位。您的所有客戶都會保留。升級即可新增客戶。",
   "free_plan_clients_over_short": "您有 :count 位客戶。免費方案允許 :limit 位。",
-  "free_plan_client_limit_reached": "免費方案包含 :count 位客戶。升級以新增更多。",
+  "free_plan_client_limit_reached": "您已用完免費方案的全部 :count 位客戶。升級即可新增更多。",
   "free_plan_clients_count_note": "已封存和已刪除的客戶也計入限額。",
   "free_plan_up_to_clients": "最多 :count 位客戶",
   "free_plan_one_company": "一家公司",
@@ -2287,5 +2287,8 @@
   "desktop_app_promo_same_network": "您的電腦需要與伺服器位於同一個網路。",
   "desktop_app_promo_entry": "取得桌面應用程式",
   "desktop_app_promo_section": "桌面應用程式",
-  "desktop_app_promo_settings_body": "更大的螢幕與鍵盤快速鍵，帳戶與資料都相同。"
+  "desktop_app_promo_settings_body": "更大的螢幕與鍵盤快速鍵，帳戶與資料都相同。",
+  "free_plan_client_limit_form": "您已用完免費方案的全部 :count 位客戶。升級即可儲存此客戶。",
+  "free_plan_purge_note": "只有永久刪除客戶才能騰出名額，這也會刪除其發票和付款。",
+  "free_plan_import_too_many": "此次匯入會超出免費方案允許的 :count 位客戶，因此未匯入任何內容。升級即可全部匯入。"
 }

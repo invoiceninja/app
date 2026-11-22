@@ -2341,10 +2341,10 @@
   "search_scope_one_result_announcement": ":scope, :count ຜົນລັບ",
   "search_scope_at_least_one_result_announcement": ":scope, ຢ່າງໜ້ອຍ :count ຜົນລັບ",
   "free_plan_signup_note": "ແຜນຟຣີ: ລູກຄ້າສູງສຸດ :count ຄົນ ແລະ ບໍລິສັດດຽວ. ອັບເກຣດໄດ້ທຸກເວລາເພື່ອລູກຄ້າບໍ່ຈຳກັດ.",
-  "free_plan_clients_used": "ໃຊ້ແລ້ວ :used ຈາກ :limit ລູກຄ້າຟຣີ",
-  "free_plan_clients_over": "ທ່ານມີລູກຄ້າ :count ຄົນ. ແຜນຟຣີອະນຸຍາດ :limit ຄົນ, ສະນັ້ນລູກຄ້າທີ່ມີຢູ່ຈະຖືກເກັບໄວ້, ແຕ່ການເພີ່ມອີກຕ້ອງອັບເກຣດ.",
+  "free_plan_clients_used": ":used ຈາກ :limit ລູກຄ້າ ໃນແຜນຟຣີ",
+  "free_plan_clients_over": "ທ່ານມີລູກຄ້າ :count ຄົນ. ແຜນຟຣີອະນຸຍາດ :limit ຄົນ. ລູກຄ້າທັງໝົດຂອງທ່ານຍັງຖືກເກັບໄວ້. ອັບເກຣດເພື່ອເພີ່ມລູກຄ້າໃໝ່.",
   "free_plan_clients_over_short": "ທ່ານມີລູກຄ້າ :count ຄົນ. ແຜນຟຣີອະນຸຍາດ :limit ຄົນ.",
-  "free_plan_client_limit_reached": "ແຜນຟຣີລວມລູກຄ້າ :count ຄົນ. ອັບເກຣດເພື່ອເພີ່ມອີກ.",
+  "free_plan_client_limit_reached": "ທ່ານໄດ້ໃຊ້ລູກຄ້າທັງໝົດ :count ຄົນຂອງແຜນຟຣີແລ້ວ. ອັບເກຣດເພື່ອເພີ່ມອີກ.",
   "free_plan_clients_count_note": "ລູກຄ້າທີ່ເກັບໄວ້ໃນບ່ອນເກັບ ແລະ ທີ່ລຶບແລ້ວ ກໍ່ນັບເຂົ້າໃນຂີດຈຳກັດ.",
   "free_plan_up_to_clients": "ລູກຄ້າສູງສຸດ :count ຄົນ",
   "free_plan_one_company": "ບໍລິສັດດຽວ",
@@ -2370,5 +2370,8 @@
   "desktop_app_promo_same_network": "ຄອມພິວເຕີຂອງທ່ານຕ້ອງຢູ່ໃນເຄືອຂ່າຍດຽວກັນກັບເຊີບເວີ.",
   "desktop_app_promo_entry": "ຮັບແອັບຄອມພິວເຕີ",
   "desktop_app_promo_section": "ແອັບຄອມພິວເຕີ",
-  "desktop_app_promo_settings_body": "ໜ້າຈໍໃຫຍ່ກວ່າ ແລະ ປຸ່ມລັດ, ດ້ວຍບັນຊີ ແລະ ຂໍ້ມູນດຽວກັນ."
+  "desktop_app_promo_settings_body": "ໜ້າຈໍໃຫຍ່ກວ່າ ແລະ ປຸ່ມລັດ, ດ້ວຍບັນຊີ ແລະ ຂໍ້ມູນດຽວກັນ.",
+  "free_plan_client_limit_form": "ທ່ານໄດ້ໃຊ້ລູກຄ້າທັງໝົດ :count ຄົນຂອງແຜນຟຣີແລ້ວ. ອັບເກຣດເພື່ອບັນທຶກລູກຄ້ານີ້.",
+  "free_plan_purge_note": "ມີແຕ່ການລຶບລູກຄ້າຖາວອນເທົ່ານັ້ນທີ່ເຮັດໃຫ້ບ່ອນຫວ່າງ, ແລະມັນຍັງລຶບໃບແຈ້ງໜີ້ ແລະການຊຳລະຂອງລູກຄ້ານັ້ນນຳ.",
+  "free_plan_import_too_many": "ການນຳເຂົ້ານີ້ຈະເກີນ :count ລູກຄ້າທີ່ແຜນຟຣີອະນຸຍາດ, ສະນັ້ນບໍ່ມີຫຍັງຖືກນຳເຂົ້າ. ອັບເກຣດເພື່ອນຳເຂົ້າທັງໝົດ."
 }

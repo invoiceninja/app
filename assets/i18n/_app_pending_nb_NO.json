@@ -2341,10 +2341,10 @@
   "search_scope_one_result_announcement": ":scope, :count resultat",
   "search_scope_at_least_one_result_announcement": ":scope, minst :count resultat",
   "free_plan_signup_note": "Gratisplan: opptil :count kunder og ett firma. Oppgrader når som helst for ubegrensede kunder.",
-  "free_plan_clients_used": ":used av :limit gratis kunder brukt",
-  "free_plan_clients_over": "Du har :count kunder. Gratisplanen tillater :limit, så de eksisterende kundene dine beholdes, men å legge til flere krever en oppgradering.",
+  "free_plan_clients_used": ":used av :limit kunder på Gratisplanen",
+  "free_plan_clients_over": "Du har :count kunder. Gratisplanen tillater :limit. Alle kundene dine beholdes. Oppgrader for å legge til nye.",
   "free_plan_clients_over_short": "Du har :count kunder. Gratisplanen tillater :limit.",
-  "free_plan_client_limit_reached": "Gratisplanen inkluderer :count kunder. Oppgrader for å legge til flere.",
+  "free_plan_client_limit_reached": "Du har brukt alle :count kundene på Gratisplanen. Oppgrader for å legge til flere.",
   "free_plan_clients_count_note": "Arkiverte og slettede kunder teller også med i grensen.",
   "free_plan_up_to_clients": "Opptil :count kunder",
   "free_plan_one_company": "Ett firma",
@@ -2370,5 +2370,8 @@
   "desktop_app_promo_same_network": "Datamaskinen må være på samme nettverk som serveren.",
   "desktop_app_promo_entry": "Last ned skrivebordsappen",
   "desktop_app_promo_section": "Skrivebordsapp",
-  "desktop_app_promo_settings_body": "Større skjerm og tastatursnarveier, med samme konto og data."
+  "desktop_app_promo_settings_body": "Større skjerm og tastatursnarveier, med samme konto og data.",
+  "free_plan_client_limit_form": "Du har brukt alle :count kundene på Gratisplanen. Oppgrader for å lagre denne kunden.",
+  "free_plan_purge_note": "Bare permanent sletting av en kunde frigjør plassen, og det sletter også kundens fakturaer og betalinger.",
+  "free_plan_import_too_many": "Denne importen ville gått over de :count kundene Gratisplanen tillater, så ingenting ble importert. Oppgrader for å importere alle."
 }

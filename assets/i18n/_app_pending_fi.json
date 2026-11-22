@@ -2259,10 +2259,10 @@
   "search_scope_one_result_announcement": ":scope, :count tulos",
   "search_scope_at_least_one_result_announcement": ":scope, vähintään :count tulos",
   "free_plan_signup_note": "Ilmainen paketti: enintään :count asiakasta ja yksi yritys. Päivitä milloin tahansa, niin asiakkaita voi olla rajattomasti.",
-  "free_plan_clients_used": ":used / :limit ilmaisesta asiakkaasta käytetty",
-  "free_plan_clients_over": "Sinulla on :count asiakasta. Ilmainen paketti sallii :limit, joten nykyiset asiakkaasi säilyvät, mutta uusien lisääminen vaatii päivityksen.",
+  "free_plan_clients_used": ":used / :limit asiakasta Ilmaisessa paketissa",
+  "free_plan_clients_over": "Sinulla on :count asiakasta. Ilmainen paketti sallii :limit. Kaikki asiakkaasi säilyvät. Päivitä pakettisi lisätäksesi uusia.",
   "free_plan_clients_over_short": "Sinulla on :count asiakasta. Ilmainen paketti sallii :limit.",
-  "free_plan_client_limit_reached": "Ilmainen paketti sisältää :count asiakasta. Päivitä lisätäksesi enemmän.",
+  "free_plan_client_limit_reached": "Olet käyttänyt kaikki Ilmaisen paketin :count asiakasta. Päivitä pakettisi lisätäksesi enemmän.",
   "free_plan_clients_count_note": "Myös arkistoidut ja poistetut asiakkaat lasketaan rajaan.",
   "free_plan_up_to_clients": "Enintään :count asiakasta",
   "free_plan_one_company": "Yksi yritys",
@@ -2288,5 +2288,8 @@
   "desktop_app_promo_same_network": "Tietokoneesi on oltava samassa verkossa kuin palvelin.",
   "desktop_app_promo_entry": "Hanki työpöytäsovellus",
   "desktop_app_promo_section": "Työpöytäsovellus",
-  "desktop_app_promo_settings_body": "Isompi näyttö ja pikanäppäimet, samalla tilillä ja tiedoilla."
+  "desktop_app_promo_settings_body": "Isompi näyttö ja pikanäppäimet, samalla tilillä ja tiedoilla.",
+  "free_plan_client_limit_form": "Olet käyttänyt kaikki Ilmaisen paketin :count asiakasta. Päivitä pakettisi tallentaaksesi tämän asiakkaan.",
+  "free_plan_purge_note": "Vain asiakkaan pysyvä poistaminen vapauttaa sen paikan, ja se poistaa myös asiakkaan laskut ja maksut.",
+  "free_plan_import_too_many": "Tämä tuonti ylittäisi Ilmaisen paketin sallimat :count asiakasta, joten mitään ei tuotu. Päivitä pakettisi tuodaksesi ne kaikki."
 }

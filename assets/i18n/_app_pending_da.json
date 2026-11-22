@@ -2262,10 +2262,10 @@
   "search_scope_one_result_announcement": ":scope, :count resultat",
   "search_scope_at_least_one_result_announcement": ":scope, mindst :count resultat",
   "free_plan_signup_note": "Gratis plan: op til :count kunder og én virksomhed. Opgrader når som helst for ubegrænsede kunder.",
-  "free_plan_clients_used": ":used af :limit gratis kunder brugt",
-  "free_plan_clients_over": "Du har :count kunder. Gratis-planen tillader :limit, så dine eksisterende kunder bevares, men det kræver en opgradering at tilføje flere.",
+  "free_plan_clients_used": ":used af :limit kunder på Gratis-planen",
+  "free_plan_clients_over": "Du har :count kunder. Gratis-planen tillader :limit. Alle dine kunder bevares. Opgrader for at tilføje nye.",
   "free_plan_clients_over_short": "Du har :count kunder. Gratis-planen tillader :limit.",
-  "free_plan_client_limit_reached": "Gratis-planen omfatter :count kunder. Opgrader for at tilføje flere.",
+  "free_plan_client_limit_reached": "Du har brugt alle :count kunder på Gratis-planen. Opgrader for at tilføje flere.",
   "free_plan_clients_count_note": "Arkiverede og slettede kunder tæller også med i grænsen.",
   "free_plan_up_to_clients": "Op til :count kunder",
   "free_plan_one_company": "Én virksomhed",
@@ -2291,5 +2291,8 @@
   "desktop_app_promo_same_network": "Din computer skal være på samme netværk som serveren.",
   "desktop_app_promo_entry": "Hent desktopappen",
   "desktop_app_promo_section": "Desktopapp",
-  "desktop_app_promo_settings_body": "En større skærm og tastaturgenveje, med samme konto og data."
+  "desktop_app_promo_settings_body": "En større skærm og tastaturgenveje, med samme konto og data.",
+  "free_plan_client_limit_form": "Du har brugt alle :count kunder på Gratis-planen. Opgrader for at gemme denne kunde.",
+  "free_plan_purge_note": "Kun en permanent sletning af en kunde frigør dens plads, og den sletter også kundens fakturaer og betalinger.",
+  "free_plan_import_too_many": "Denne import ville gå ud over de :count kunder, Gratis-planen tillader, så intet blev importeret. Opgrader for at importere dem alle."
 }

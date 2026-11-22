@@ -2258,10 +2258,10 @@
   "search_scope_one_result_announcement": ":scope, tulemusi: :count",
   "search_scope_at_least_one_result_announcement": ":scope, tulemusi vähemalt :count",
   "free_plan_signup_note": "Tasuta pakett: kuni :count klienti ja üks ettevõte. Piiramatu arvu klientide jaoks uuenda paketti igal ajal.",
-  "free_plan_clients_used": "Kasutatud :used / :limit tasuta klienti",
-  "free_plan_clients_over": "Sul on :count klienti. Tasuta pakett lubab :limit, seega sinu olemasolevad kliendid säilivad, kuid uute lisamiseks on vaja paketti uuendada.",
+  "free_plan_clients_used": ":used / :limit klienti tasuta paketis",
+  "free_plan_clients_over": "Sul on :count klienti. Tasuta pakett lubab :limit. Kõik teie kliendid jäävad alles. Uuendage paketti, et lisada uusi.",
   "free_plan_clients_over_short": "Sul on :count klienti. Tasuta pakett lubab :limit.",
-  "free_plan_client_limit_reached": "Tasuta pakett sisaldab :count klienti. Rohkemate lisamiseks uuenda paketti.",
+  "free_plan_client_limit_reached": "Olete kasutanud kõik :count tasuta paketi klienti. Uuendage paketti, et lisada rohkem.",
   "free_plan_clients_count_note": "Arhiveeritud ja kustutatud kliendid lähevad samuti piirangu hulka.",
   "free_plan_up_to_clients": "Kuni :count klienti",
   "free_plan_one_company": "Üks ettevõte",
@@ -2287,5 +2287,8 @@
   "desktop_app_promo_same_network": "Teie arvuti peab olema serveriga samas võrgus.",
   "desktop_app_promo_entry": "Hangi lauarakendus",
   "desktop_app_promo_section": "Lauarakendus",
-  "desktop_app_promo_settings_body": "Suurem ekraan ja klaviatuuri otseteed, sama konto ja samad andmed."
+  "desktop_app_promo_settings_body": "Suurem ekraan ja klaviatuuri otseteed, sama konto ja samad andmed.",
+  "free_plan_client_limit_form": "Olete kasutanud kõik :count tasuta paketi klienti. Uuendage paketti, et see klient salvestada.",
+  "free_plan_purge_note": "Kliendi koha vabastab ainult tema lõplik kustutamine, mis kustutab ka tema arved ja maksed.",
+  "free_plan_import_too_many": "See import ületaks tasuta paketi :count kliendi piiri, seega midagi ei imporditud. Uuendage paketti, et need kõik importida."
 }

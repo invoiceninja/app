@@ -2229,10 +2229,10 @@
   "search_scope_one_result_announcement": ":scope, :count résultat",
   "search_scope_at_least_one_result_announcement": ":scope, au moins :count résultat",
   "free_plan_signup_note": "Forfait gratuit : jusqu'à :count clients et une entreprise. Passez à un forfait supérieur en tout temps pour des clients illimités.",
-  "free_plan_clients_used": ":used sur :limit clients gratuits utilisés",
-  "free_plan_clients_over": "Vous avez :count clients. Le forfait gratuit en autorise :limit : vos clients existants sont conservés, mais en ajouter d'autres nécessite de passer à un forfait supérieur.",
+  "free_plan_clients_used": ":used sur :limit clients avec le forfait gratuit",
+  "free_plan_clients_over": "Vous avez :count clients. Le forfait gratuit en autorise :limit. Tous vos clients sont conservés. Passez à un forfait supérieur pour en ajouter de nouveaux.",
   "free_plan_clients_over_short": "Vous avez :count clients. Le forfait gratuit en autorise :limit.",
-  "free_plan_client_limit_reached": "Le forfait gratuit comprend :count clients. Passez à un forfait supérieur pour en ajouter d'autres.",
+  "free_plan_client_limit_reached": "Vous avez utilisé les :count clients du forfait gratuit. Passez à un forfait supérieur pour en ajouter d'autres.",
   "free_plan_clients_count_note": "Les clients archivés et supprimés comptent aussi dans la limite.",
   "free_plan_up_to_clients": "Jusqu'à :count clients",
   "free_plan_one_company": "Une entreprise",
@@ -2258,5 +2258,8 @@
   "desktop_app_promo_same_network": "Votre ordinateur doit être sur le même réseau que le serveur.",
   "desktop_app_promo_entry": "Obtenir l'application de bureau",
   "desktop_app_promo_section": "Application de bureau",
-  "desktop_app_promo_settings_body": "Un plus grand écran et des raccourcis clavier, avec le même compte et les mêmes données."
+  "desktop_app_promo_settings_body": "Un plus grand écran et des raccourcis clavier, avec le même compte et les mêmes données.",
+  "free_plan_client_limit_form": "Vous avez utilisé les :count clients du forfait gratuit. Passez à un forfait supérieur pour enregistrer ce client.",
+  "free_plan_purge_note": "Seule la purge d'un client libère sa place, et elle supprime aussi ses factures et ses paiements.",
+  "free_plan_import_too_many": "Cette importation dépasserait les :count clients permis par le forfait gratuit, donc rien n'a été importé. Passez à un forfait supérieur pour tous les importer."
 }

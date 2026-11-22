@@ -269,14 +269,19 @@ class _ClientCreateDialogState extends State<_ClientCreateDialog>
             usage?.limit ??
             _services.auth.session.value?.hostedClientCount ??
             0;
-        if (limit > 0) {
-          await showClientLimitDialog(
-            context,
-            limit: limit,
-            used: usage?.quota?.used,
-          );
-          return;
-        }
+        // A cap the app does not know (an account row without
+        // `hosted_client_count`) still gets the dialog, in the server's own
+        // words: the form has no `id` field to show them on.
+        final serverText = _vm.fieldErrors['id']
+            ?.map((m) => m.trim())
+            .firstWhere((m) => m.isNotEmpty, orElse: () => '');
+        await showClientLimitDialog(
+          context,
+          limit: limit > 0 ? limit : null,
+          used: usage?.quota?.used,
+          detail: limit > 0 || (serverText ?? '').isEmpty ? null : serverText,
+        );
+        return;
       }
       _jumpToFirstErrorTab();
       return;

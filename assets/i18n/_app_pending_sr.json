@@ -2257,10 +2257,10 @@
   "search_scope_one_result_announcement": ":scope, rezultat: :count",
   "search_scope_at_least_one_result_announcement": ":scope, rezultat: najmanje :count",
   "free_plan_signup_note": "Besplatni paket: do :count klijenata i jedna firma. Nadogradite bilo kada za neograničen broj klijenata.",
-  "free_plan_clients_used": "Iskorišćeno :used od :limit besplatnih klijenata",
-  "free_plan_clients_over": "Imate :count klijenata. Besplatni paket dozvoljava :limit, pa se vaši postojeći klijenti zadržavaju, ali za dodavanje novih potrebna je nadogradnja.",
+  "free_plan_clients_used": ":used od :limit klijenata u besplatnom paketu",
+  "free_plan_clients_over": "Imate :count klijenata. Besplatni paket dozvoljava :limit. Svi vaši klijenti ostaju sačuvani. Nadogradite da biste dodali nove.",
   "free_plan_clients_over_short": "Imate :count klijenata. Besplatni paket dozvoljava :limit.",
-  "free_plan_client_limit_reached": "Besplatni paket uključuje :count klijenata. Nadogradite da biste dodali još.",
+  "free_plan_client_limit_reached": "Iskoristili ste svih :count klijenata besplatnog paketa. Nadogradite da biste dodali još.",
   "free_plan_clients_count_note": "Arhivirani i obrisani klijenti se takođe računaju u ograničenje.",
   "free_plan_up_to_clients": "Do :count klijenata",
   "free_plan_one_company": "Jedna firma",
@@ -2286,5 +2286,8 @@
   "desktop_app_promo_same_network": "Vaš računar mora biti na istoj mreži kao server.",
   "desktop_app_promo_entry": "Preuzmite desktop aplikaciju",
   "desktop_app_promo_section": "Desktop aplikacija",
-  "desktop_app_promo_settings_body": "Veći ekran i prečice na tastaturi, sa istim nalogom i podacima."
+  "desktop_app_promo_settings_body": "Veći ekran i prečice na tastaturi, sa istim nalogom i podacima.",
+  "free_plan_client_limit_form": "Iskoristili ste svih :count klijenata besplatnog paketa. Nadogradite da biste sačuvali ovog klijenta.",
+  "free_plan_purge_note": "Mesto oslobađa samo trajno brisanje klijenta, koje briše i njegove račune i uplate.",
+  "free_plan_import_too_many": "Ovaj uvoz bi premašio :count klijenata koje besplatni paket dozvoljava, pa ništa nije uvezeno. Nadogradite da biste ih sve uvezli."
 }
