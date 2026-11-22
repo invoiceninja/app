@@ -167,9 +167,15 @@ final Map<PrefKey<Object>, _Probe> _probes = {
   ),
   // "This machine has been told" — the next person to sign in on it isn't
   // pitched the phone app again.
+  // One controller runs both promos, under the key the platform picks (the
+  // desktop-app promo on a phone), so each key is probed through the store.
   DevicePrefKeys.mobileAppPromo: _Probe(
-    (s) => s.mobileAppPromo.finish(),
-    (s) => !s.mobileAppPromo.state.done,
+    (s) => s.devicePrefs.write(DevicePrefKeys.mobileAppPromo, '{"done":true}'),
+    (s) => s.devicePrefs.read(DevicePrefKeys.mobileAppPromo) == null,
+  ),
+  DevicePrefKeys.desktopAppPromo: _Probe(
+    (s) => s.devicePrefs.write(DevicePrefKeys.desktopAppPromo, '{"done":true}'),
+    (s) => s.devicePrefs.read(DevicePrefKeys.desktopAppPromo) == null,
   ),
   // "This install has shown these notes" — the next person to sign in isn't
   // told about the same update again, and the promo's day-long hold after the
