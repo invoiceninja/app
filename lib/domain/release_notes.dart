@@ -32,6 +32,42 @@ enum ReleaseNoteSurface {
   /// build, which has no Stripe SDK. A note about in-person card payments is
   /// `hiddenOn` this.
   withoutCardPayments,
+
+  /// A session on the hosted service (invoicing.co). Unlike the build
+  /// surfaces above, this one is decided by who is signed in: it is added
+  /// only by [releaseNoteServerSurfaces]. A note about something only a
+  /// self-hosted server has is `hiddenOn` this.
+  hosted,
+
+  /// A session on a self-hosted server — the session-side twin of [hosted].
+  /// A note about a hosted-only feature (plans, purchases, a hosted
+  /// integration) is `hiddenOn` this.
+  selfHosted,
+}
+
+/// The session's server surface — [ReleaseNoteSurface.hosted] or
+/// [ReleaseNoteSurface.selfHosted] — or none before anyone has signed in,
+/// when a note limited to one kind of server is shown to neither.
+Set<ReleaseNoteSurface> releaseNoteServerSurfaces({required bool? isHosted}) =>
+    switch (isHosted) {
+      true => const {ReleaseNoteSurface.hosted},
+      false => const {ReleaseNoteSurface.selfHosted},
+      null => const {ReleaseNoteSurface.hosted, ReleaseNoteSurface.selfHosted},
+    };
+
+/// [releases] as a session on this server may read them, leaving out any
+/// release with nothing left to show.
+List<ReleaseNotes> releasesForServer(
+  List<ReleaseNotes> releases, {
+  required bool? isHosted,
+}) {
+  final server = releaseNoteServerSurfaces(isHosted: isHosted);
+  return [
+    for (final r in releases)
+      if (r.visibleOn(server) case final v
+          when v.items.isNotEmpty || v.highlights.isNotEmpty)
+        v,
+  ];
 }
 
 /// The surfaces this build belongs to. [storeBuild] is false for the F-Droid

@@ -64,7 +64,9 @@ Future<WhatsNewResult?> showWhatsNewDialog(
     // are — the same as the mobile-app promo.
     barrierDismissible: false,
     builder: (_) => WhatsNewDialog(
-      releases: releases,
+      // A note limited to hosted or to self-hosted servers is shown only on
+      // that kind of server (`ReleaseNoteSurface.hosted` / `.selfHosted`).
+      releases: releasesForServer(releases, isHosted: session?.isHosted),
       since: since,
       reachable: (target) => whatsNewTargetReachable(target, session),
     ),

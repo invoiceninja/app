@@ -76,7 +76,10 @@ Future<WelcomeResult?> showWelcomeDialog(
 }) {
   final services = context.read<Services>();
   final session = services.auth.session.value;
-  final surfaces = currentReleaseNoteSurfaces();
+  final surfaces = {
+    ...currentReleaseNoteSurfaces(),
+    ...releaseNoteServerSurfaces(isHosted: session?.isHosted),
+  };
   // Read here, from the opener: the Welcome's route sits on the root
   // navigator, which may be above where Services is provided.
   ListDensityController? density;

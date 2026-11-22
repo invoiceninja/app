@@ -395,4 +395,84 @@ void main() {
       reason: 'the F-Droid build has no Stripe SDK',
     );
   });
+
+  group('releasesForServer', () {
+    const releases = [
+      ReleaseNotes(
+        version: '9.0.1',
+        highlights: [
+          ReleaseHighlight(
+            icon: Icons.cloud_outlined,
+            title: 'Hosted only',
+            body: 'b',
+            hiddenOn: {ReleaseNoteSurface.selfHosted},
+          ),
+          ReleaseHighlight(
+            icon: Icons.dns_outlined,
+            title: 'Self-hosted only',
+            body: 'b',
+            hiddenOn: {ReleaseNoteSurface.hosted},
+          ),
+        ],
+        items: [
+          ReleaseNoteItem('Added: everyone'),
+          ReleaseNoteItem(
+            'Added: hosted only',
+            hiddenOn: {ReleaseNoteSurface.selfHosted},
+          ),
+        ],
+      ),
+      ReleaseNotes(
+        version: '9.0.0',
+        items: [
+          ReleaseNoteItem(
+            'Fixed: self-hosted only',
+            hiddenOn: {ReleaseNoteSurface.hosted},
+          ),
+        ],
+      ),
+    ];
+
+    test('a hosted session reads the hosted notes and none of the rest', () {
+      final r = releasesForServer(releases, isHosted: true);
+      expect(r.map((e) => e.version), ['9.0.1']);
+      expect(r.single.highlights.map((h) => h.title), ['Hosted only']);
+      expect(r.single.items.map((i) => i.text), [
+        'Added: everyone',
+        'Added: hosted only',
+      ]);
+    });
+
+    test('a self-hosted session reads the self-hosted notes', () {
+      final r = releasesForServer(releases, isHosted: false);
+      expect(r.map((e) => e.version), ['9.0.1', '9.0.0']);
+      expect(r.first.highlights.map((h) => h.title), ['Self-hosted only']);
+      expect(r.first.items.map((i) => i.text), ['Added: everyone']);
+    });
+
+    test(
+      'with no session, a note limited to one server is shown to neither',
+      () {
+        final r = releasesForServer(releases, isHosted: null);
+        expect(r.map((e) => e.version), ['9.0.1']);
+        expect(r.single.highlights, isEmpty);
+        expect(r.single.items.map((i) => i.text), ['Added: everyone']);
+      },
+    );
+  });
+
+  test('no build surface is a server surface', () {
+    for (final web in [true, false]) {
+      for (final platform in TargetPlatform.values) {
+        expect(
+          releaseNoteSurfaces(isWeb: web, platform: platform).intersection({
+            ReleaseNoteSurface.hosted,
+            ReleaseNoteSurface.selfHosted,
+          }),
+          isEmpty,
+          reason: 'hosted / self-hosted come from the session, not the build',
+        );
+      }
+    }
+  });
 }
