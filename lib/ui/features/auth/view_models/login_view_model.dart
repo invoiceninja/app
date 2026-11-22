@@ -14,7 +14,6 @@ import 'package:admin/data/services/passkey_readiness.dart';
 import 'package:admin/data/services/tls/certificate_trust_store.dart';
 import 'package:admin/ui/core/widgets/notify.dart' show formatNotifyError;
 import 'package:admin/ui/features/auth/view_models/social_sign_in.dart';
-import 'package:admin/utils/local_network_host.dart';
 import 'package:admin/data/services/passkey_failure.dart';
 
 final _passkeyLog = Logger('LoginViewModel.passkey');
@@ -1041,11 +1040,11 @@ class LoginViewModel extends ChangeNotifier {
 /// Policy:
 ///  * a bare host (no scheme) is assumed `https://`;
 ///  * `https://` is always allowed;
-///  * `http://` is allowed when [allowInsecureHttpAnywhere] (debug builds) or
-///    when the host is a local network address ([isLocalNetworkHost]);
-///  * everything else is rejected. Without this, `urlOverride` would accept any
-///    string and the app could POST the user's password in cleartext to an
-///    arbitrary public host.
+///  * `http://` is allowed to any host, as the legacy app allowed: a
+///    self-hosted server without TLS is the admin's choice to make
+///    ([allowInsecureHttpAnywhere] is kept for the callers but no longer
+///    narrows anything);
+///  * everything else is rejected.
 ({String? url, String? errorKey}) resolveSelfHostedBaseUrl(
   String input, {
   required bool allowInsecureHttpAnywhere,
@@ -1066,12 +1065,6 @@ class LoginViewModel extends ChangeNotifier {
   }
   final scheme = uri.scheme.toLowerCase();
   if (scheme == 'https') return (url: raw, errorKey: null);
-  if (scheme == 'http' &&
-      (allowInsecureHttpAnywhere || isLocalNetworkHost(uri.host))) {
-    return (url: raw, errorKey: null);
-  }
-  // Reaching here means a well-formed http:// URL to a non-local host in a
-  // release build: the prepend above forces every schemeless or non-http input
-  // to https:// (which returns earlier), so the scheme is necessarily http.
-  return (url: null, errorKey: 'insecure_url_use_https');
+  if (scheme == 'http') return (url: raw, errorKey: null);
+  return (url: null, errorKey: 'invalid_url');
 }
