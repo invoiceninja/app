@@ -173,7 +173,7 @@ void main() {
     });
   });
 
-  // S8: the hosted config offers a Legacy-app Play subscriber a purchase
+  // the hosted config offers a Legacy-app Play subscriber a purchase
   // (`replaces_v1_play`), and the server cancels and refunds the Legacy
   // subscription once the new one is applied.
   group('store build, a Legacy Play subscriber', () {

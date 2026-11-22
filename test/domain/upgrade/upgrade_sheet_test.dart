@@ -138,7 +138,7 @@ void main() {
     expect(find.byKey(const ValueKey('legal_privacy_policy')), findsOneWidget);
   });
 
-  // S8: a Legacy-app Play subscriber's purchase replaces that subscription.
+  // a Legacy-app Play subscriber's purchase replaces that subscription.
   const legacyNotice =
       'If you subscribe here, your Invoice Ninja Legacy subscription is '
       'cancelled for you once the new one is active, and its unused time is '

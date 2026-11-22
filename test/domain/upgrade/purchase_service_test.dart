@@ -207,8 +207,7 @@ void main() {
   // token. Until it can verify them, a sheet would take money for a plan
   // that can't be applied.
   // A live store plan is sold over only when the hosted config says the
-  // purchase replaces a Legacy-app Play subscription (`replaces_v1_play`,
-  // admin-module S8); anything else would bill twice.
+  // purchase replaces a Legacy-app Play subscription (`replaces_v1_play`); anything else would bill twice.
   group('a live store plan', () {
     AuthSession storePlan() => testSession().copyWith(
       plan: 'pro',

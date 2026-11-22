@@ -119,8 +119,8 @@ bool planManagedOnWeb({
     storeBilling && session != null && session.isHosted && session.isWebBilled;
 
 /// Whether a plan bought now replaces [session]'s Legacy-app Google Play
-/// subscription, which the hosted service then revokes with a prorated refund
-/// (admin-module S8): only on the server's explicit word
+/// subscription, which the hosted service then revokes with a prorated refund:
+/// only on the server's explicit word
 /// ([IapConfig.replacesLegacyPlay]), for a sale that lands on the active
 /// account ([IapConfig.sellsTo]), on a Play build ([store]), for an active
 /// in-app plan. Never on an Apple build: a Legacy App Store subscriber changes

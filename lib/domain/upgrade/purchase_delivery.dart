@@ -120,8 +120,8 @@ class IapConfig {
   /// `replaces_v1_play`: the account's live store plan is a Legacy-app
   /// (`com.invoiceninja.app`) Google Play subscription, and a purchase made
   /// now replaces it: once the new one is applied, the hosted service revokes
-  /// the Legacy one with a prorated refund (admin-module S8, behind
-  /// `NINJA_IAP_PLAY_MIGRATION_REFUND`). The only way an account that already
+  /// the Legacy one with a prorated refund when the hosted service has
+  /// turned that on). The only way an account that already
   /// has a store plan reaches the purchase sheet: `purchases_enabled` alone
   /// can't say it, since it is also true for a store link whose
   /// `plan_expires` has just passed while the session still reads it as paid

@@ -178,7 +178,7 @@ void main() {
     });
   });
 
-  // S8: a Legacy-app (`com.invoiceninja.app`) Play subscriber buys in the new
+  // a Legacy-app (`com.invoiceninja.app`) Play subscriber buys in the new
   // app and the hosted service revokes the Legacy subscription with a
   // prorated refund. Only on the config's explicit `replaces_v1_play`, only on
   // Play, and never for anyone else with a store plan.
