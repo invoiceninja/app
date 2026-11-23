@@ -2405,5 +2405,6 @@
   "free_plan_import_too_many_info": "此次导入会超出免费版允许的 :count 个客户，因此未导入任何内容。",
   "free_plan_signup_note_info": "免费版：最多 :count 个客户和一家公司。",
   "free_plan_company_limit_reached": "您已达到免费版的公司数量上限。",
-  "store_subscription_ended_info": "您的应用内订阅已结束。"
+  "store_subscription_ended_info": "您的应用内订阅已结束。",
+  "free_plan_client_limit_hit": "您已达到免费版的客户数量上限。"
 }

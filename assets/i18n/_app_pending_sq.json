@@ -2405,5 +2405,6 @@
   "free_plan_import_too_many_info": "Ky import do t'i kalonte :count klientët që lejon plani falas, prandaj nuk u importua asgjë.",
   "free_plan_signup_note_info": "Plani falas: deri në :count klientë dhe një kompani.",
   "free_plan_company_limit_reached": "Keni arritur kufirin e kompanive të planit falas.",
-  "store_subscription_ended_info": "Abonimi juaj brenda aplikacionit ka përfunduar."
+  "store_subscription_ended_info": "Abonimi juaj brenda aplikacionit ka përfunduar.",
+  "free_plan_client_limit_hit": "Keni arritur kufirin e klientëve të planit falas."
 }

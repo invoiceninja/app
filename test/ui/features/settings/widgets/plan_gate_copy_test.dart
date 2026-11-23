@@ -129,7 +129,39 @@ void main() {
       expect(copy.cta, isFalse);
     });
 
-    test('a member is not told the owner can upgrade', () {
+    test('a member is told the owner can upgrade once the store is open, '
+        'with no button', () {
+      final withheld = storePurchasesWithheld(
+        storeBilling: true,
+        session: _session(),
+        offered: false,
+      );
+      final copy = planGateCopy(
+        PlanGateLevel.pro,
+        _session(),
+        isOwner: false,
+        route: UpgradeRoute.planScreen,
+        purchasesWithheld: withheld,
+        storeOpen: true,
+      );
+      expect(copy.key, 'owner_upgrade_to_paid_plan');
+      expect(copy.cta, isFalse);
+      // The owner still gets the plans only: nothing is sold to them.
+      expect(
+        planGateCopy(
+          PlanGateLevel.pro,
+          _session(),
+          isOwner: true,
+          route: UpgradeRoute.planScreen,
+          purchasesWithheld: withheld,
+          storeOpen: true,
+        ).key,
+        'feature_needs_pro_or_enterprise',
+      );
+    });
+
+    test('a member is not told the owner can upgrade while the store is '
+        'closed', () {
       final copy = _copy(
         _session(),
         storeBilling: true,

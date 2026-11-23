@@ -2405,5 +2405,6 @@
   "free_plan_import_too_many_info": "Ta uvoz bi presegel :count strank, ki jih dovoljuje brezplačni paket, zato ni bilo nič uvoženo.",
   "free_plan_signup_note_info": "Brezplačni paket: do :count strank in eno podjetje.",
   "free_plan_company_limit_reached": "Dosegli ste omejitev podjetij brezplačnega paketa.",
-  "store_subscription_ended_info": "Vaša naročnina v aplikaciji je potekla."
+  "store_subscription_ended_info": "Vaša naročnina v aplikaciji je potekla.",
+  "free_plan_client_limit_hit": "Dosegli ste omejitev strank brezplačnega paketa."
 }

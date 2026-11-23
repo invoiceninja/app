@@ -2405,5 +2405,6 @@
   "free_plan_import_too_many_info": "Cette importation dépasserait les :count clients permis par le forfait gratuit, donc rien n'a été importé.",
   "free_plan_signup_note_info": "Forfait gratuit : jusqu'à :count clients et une entreprise.",
   "free_plan_company_limit_reached": "Vous avez atteint la limite d'entreprises du forfait gratuit.",
-  "store_subscription_ended_info": "Votre abonnement intégré à l'application a pris fin."
+  "store_subscription_ended_info": "Votre abonnement intégré à l'application a pris fin.",
+  "free_plan_client_limit_hit": "Vous avez atteint la limite de clients du forfait gratuit."
 }

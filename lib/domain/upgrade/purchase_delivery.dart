@@ -98,6 +98,7 @@ class IapConfig {
     this.appAccountToken,
     this.accountKey = '',
     this.replacesLegacyPlay = false,
+    this.purchasesOpen = false,
   });
 
   /// Fail-closed default: no purchases, nothing delivered.
@@ -130,6 +131,14 @@ class IapConfig {
   /// (a store billing retry). False unless the server says exactly `true`.
   final bool replacesLegacyPlay;
 
+  /// `purchases_open`: whether the hosted service sells in-app at all, to
+  /// anyone, sent in every answer (a non-owner's and another account's too,
+  /// whose `purchases_enabled` is false). Once true a store build offers
+  /// Restore (App Review requires one wherever subscriptions are sold) and
+  /// tells a member the owner can upgrade. False unless the server says
+  /// exactly `true`: an older server without the field never opens it.
+  final bool purchasesOpen;
+
   /// Whether a paid purchase may be posted under this answer.
   bool get canDeliver => accountKey.isNotEmpty;
 
@@ -156,6 +165,7 @@ class IapConfig {
     purchasesEnabled: purchasesEnabled,
     appAccountToken: appAccountToken,
     accountKey: accountKey,
+    purchasesOpen: purchasesOpen,
   );
 
   /// Reads the config response; anything of the wrong shape is [closed].
@@ -170,6 +180,7 @@ class IapConfig {
           : null,
       accountKey: key is String ? key.trim() : '',
       replacesLegacyPlay: json['replaces_v1_play'] == true,
+      purchasesOpen: json['purchases_open'] == true,
     );
   }
 }
@@ -399,7 +410,7 @@ class PurchaseDelivery {
       _offerFor = null;
       _offerConfig = null;
       _offerAnsweredAt = null;
-      offer.update(false);
+      offer.update(false, open: false);
       _retry?.cancel();
       _retry = null;
       _retries = 0;
@@ -469,10 +480,17 @@ class PurchaseDelivery {
   void _publishOffer() {
     if (_disposed) return;
     final session = _auth.session.value;
+    final current = session != null && _offerFor == _scopeOf(session);
     offer.update(
-      session != null &&
-          _offerFor == _scopeOf(session) &&
+      current &&
           inAppPurchasesOffered(
+            storeBilling: true,
+            session: session,
+            config: _offerConfig,
+          ),
+      open:
+          current &&
+          inAppStoreOpen(
             storeBilling: true,
             session: session,
             config: _offerConfig,

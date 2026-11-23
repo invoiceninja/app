@@ -15,15 +15,24 @@ import 'package:flutter/foundation.dart';
 /// tests work without one (docs/in-app-purchases.md).
 class PurchaseOffer extends ChangeNotifier {
   bool _offered = false;
+  bool _open = false;
 
   /// True only once the hosted config has said purchases are on for the
   /// active account.
   bool get offered => _offered;
 
+  /// Whether the hosted service sells in-app at all ([inAppStoreOpen]),
+  /// though perhaps not to this account (a member, a live store plan): what
+  /// Restore and a member's "the owner can upgrade" wait for. Always true
+  /// when [offered] is.
+  bool get open => _open;
+
   /// Set by [PurchaseDelivery]; notifies only on a change.
-  void update(bool offered) {
-    if (_offered == offered) return;
+  void update(bool offered, {bool open = false}) {
+    final nextOpen = open || offered;
+    if (_offered == offered && _open == nextOpen) return;
     _offered = offered;
+    _open = nextOpen;
     notifyListeners();
   }
 }

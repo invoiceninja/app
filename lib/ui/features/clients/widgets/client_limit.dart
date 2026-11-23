@@ -61,6 +61,39 @@ String clientLimitReachedMessage(
   return context.tr(key, {'count': formatClientCount(context, limit)});
 }
 
+/// The Free plan's client limit in our own words, for where the server's
+/// `limit_clients` message would otherwise be shown: "You have used all 5
+/// clients on the Free plan." when the cap is known, else "You have reached
+/// the Free plan's client limit.".
+String neutralClientLimitMessage(BuildContext context) {
+  final limit =
+      context.read<ClientUsage?>()?.limit ??
+      freePlanClientLimit(context.read<Services?>()?.auth.session.value);
+  if (limit != null && limit > 0) {
+    return context.tr('free_plan_client_limit_reached_info', {
+      'count': formatClientCount(context, limit),
+    });
+  }
+  return context.tr('free_plan_client_limit_hit');
+}
+
+/// A client save's field errors as a screen may show them. On a store build
+/// whose hosted service sells nothing to the account ([purchasesWithheld])
+/// no server text about the plan reaches the screen: the Free plan's refusal
+/// (`limit_clients`, under `id`, [isClientLimitRejection]) becomes
+/// [neutralClientLimitMessage]. Anywhere else [errors] come back as they are.
+Map<String, List<String>> presentClientFieldErrors(
+  BuildContext context,
+  Map<String, List<String>> errors,
+) {
+  if (!isClientLimitRejection(errors)) return errors;
+  if (!purchasesWithheld(context, listen: false)) return errors;
+  return {
+    ...errors,
+    'id': [neutralClientLimitMessage(context)],
+  };
+}
+
 /// The quota as the usage line words it: "3 of 5 clients on the Free plan", or
 /// for
 /// an account over the cap "You have 11 clients. The Free plan allows 5."
@@ -189,7 +222,9 @@ class ClientLimitDialog extends StatelessWidget {
             Text(
               detail ??
                   (limit == null
-                      ? context.tr('client_limit')
+                      ? (withheld
+                            ? context.tr('free_plan_client_limit_hit')
+                            : context.tr('client_limit'))
                       : clientLimitReachedMessage(
                           context,
                           limit: limit!,
@@ -385,6 +420,10 @@ class ClientLimitFormBanner extends StatelessWidget {
                 used: quota?.used,
                 onForm: true,
               )
+            // Never the server's words where purchases are withheld: they
+            // may ask the user to upgrade.
+            : purchasesWithheld(context)
+            ? neutralClientLimitMessage(context)
             : serverText.isNotEmpty
             ? serverText
             : context.tr('client_limit');

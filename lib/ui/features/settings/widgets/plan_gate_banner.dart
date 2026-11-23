@@ -87,6 +87,7 @@ class PlanGateBanner extends StatelessWidget {
         purchasesOffered: !withheld,
       ),
       purchasesWithheld: withheld,
+      storeOpen: withheld && inAppStoreOpenIn(context),
     );
     switch (style) {
       case PlanGateStyle.inset:
@@ -115,9 +116,10 @@ typedef PlanGateCopy = ({String key, Map<String, String>? params, bool cta});
 /// plan is managed on the web.
 ///
 /// A store build whose hosted service sells nothing to this account
-/// ([purchasesWithheld]) says only which plans the feature is on, for owner
-/// and non-owner alike: no button, nothing to buy, upgrade or start, and no
-/// "the owner can upgrade" (App Store 3.1.3(f), Play Payments policy).
+/// ([purchasesWithheld]) says only which plans the feature is on: no button,
+/// nothing to buy, upgrade or start (App Store 3.1.3(f), Play Payments
+/// policy). A member is told the owner can upgrade only once the store sells
+/// at all ([storeOpen], `purchases_open`), still with no button.
 @visibleForTesting
 PlanGateCopy planGateCopy(
   PlanGateLevel level,
@@ -125,9 +127,13 @@ PlanGateCopy planGateCopy(
   required bool isOwner,
   required UpgradeRoute route,
   bool purchasesWithheld = false,
+  bool storeOpen = false,
 }) {
   if (route == UpgradeRoute.planScreen && s.isWebBilled && isOwner) {
     return (key: 'plan_managed_on_web', params: null, cta: false);
+  }
+  if (purchasesWithheld && !isOwner && storeOpen) {
+    return (key: 'owner_upgrade_to_paid_plan', params: null, cta: false);
   }
   if (purchasesWithheld) {
     return (

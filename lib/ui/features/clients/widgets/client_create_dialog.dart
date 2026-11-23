@@ -10,6 +10,7 @@ import 'package:admin/data/models/value/currency.dart';
 import 'package:admin/data/models/value/language.dart';
 import 'package:admin/domain/upgrade/client_limit.dart';
 import 'package:admin/domain/upgrade/client_usage.dart';
+import 'package:admin/domain/upgrade/upgrade_launcher.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/adaptive.dart';
 import 'package:admin/ui/core/dialogs/discard_changes_dialog.dart';
@@ -279,7 +280,14 @@ class _ClientCreateDialogState extends State<_ClientCreateDialog>
           context,
           limit: limit > 0 ? limit : null,
           used: usage?.quota?.used,
-          detail: limit > 0 || (serverText ?? '').isEmpty ? null : serverText,
+          // The server's words never where purchases are withheld: they may
+          // ask the user to upgrade, and the dialog has its own.
+          detail:
+              limit > 0 ||
+                  (serverText ?? '').isEmpty ||
+                  purchasesWithheld(context, listen: false)
+              ? null
+              : serverText,
         );
         return;
       }

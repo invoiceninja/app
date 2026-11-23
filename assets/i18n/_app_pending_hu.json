@@ -2360,5 +2360,6 @@
   "free_plan_import_too_many_info": "Ez az importálás túllépné az ingyenes csomag :count ügyfeles keretét, ezért semmi nem lett importálva.",
   "free_plan_signup_note_info": "Ingyenes csomag: legfeljebb :count ügyfél és egy cég.",
   "free_plan_company_limit_reached": "Elérte az ingyenes csomag cégkorlátját.",
-  "store_subscription_ended_info": "Az alkalmazáson belüli előfizetése lejárt."
+  "store_subscription_ended_info": "Az alkalmazáson belüli előfizetése lejárt.",
+  "free_plan_client_limit_hit": "Elérte az ingyenes csomag ügyfélkorlátját."
 }

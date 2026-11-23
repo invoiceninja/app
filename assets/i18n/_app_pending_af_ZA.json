@@ -2322,5 +2322,6 @@
   "free_plan_import_too_many_info": "Hierdie invoer sou jou verby die :count kliënte neem wat die Gratis plan toelaat, dus is niks ingevoer nie.",
   "free_plan_signup_note_info": "Gratis plan: tot :count kliënte en een maatskappy.",
   "free_plan_company_limit_reached": "Jy het die Gratis plan se maatskappylimiet bereik.",
-  "store_subscription_ended_info": "Jou intekening in die toepassing het verval."
+  "store_subscription_ended_info": "Jou intekening in die toepassing het verval.",
+  "free_plan_client_limit_hit": "Jy het die Gratis plan se kliëntlimiet bereik."
 }

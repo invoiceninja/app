@@ -2405,5 +2405,6 @@
   "free_plan_import_too_many_info": "Этот импорт превысил бы :count клиентов, разрешённых бесплатным тарифом, поэтому ничего не импортировано.",
   "free_plan_signup_note_info": "Бесплатный тариф: до :count клиентов и одна компания.",
   "free_plan_company_limit_reached": "Вы достигли лимита компаний бесплатного тарифа.",
-  "store_subscription_ended_info": "Ваша подписка в приложении закончилась."
+  "store_subscription_ended_info": "Ваша подписка в приложении закончилась.",
+  "free_plan_client_limit_hit": "Вы достигли лимита клиентов бесплатного тарифа."
 }

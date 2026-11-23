@@ -2321,5 +2321,6 @@
   "free_plan_import_too_many_info": "הייבוא הזה היה עובר את :count הלקוחות שהתוכנית החינמית מאפשרת, ולכן שום דבר לא יובא.",
   "free_plan_signup_note_info": "תוכנית חינמית: עד :count לקוחות וחברה אחת.",
   "free_plan_company_limit_reached": "הגעת למגבלת החברות של התוכנית החינמית.",
-  "store_subscription_ended_info": "המינוי שלך מתוך האפליקציה הסתיים."
+  "store_subscription_ended_info": "המינוי שלך מתוך האפליקציה הסתיים.",
+  "free_plan_client_limit_hit": "הגעת למגבלת הלקוחות של התוכנית החינמית."
 }

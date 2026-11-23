@@ -120,6 +120,7 @@ void main() {
   tearDown(() {
     debugStoreBillingOverride = null;
     debugInAppPurchasesOfferedOverride = null;
+    debugInAppStoreOpenOverride = null;
   });
 
   group('PlanGateBanner', () {
@@ -164,6 +165,26 @@ void main() {
       );
 
       expect(find.text('Requires an Enterprise Plan'), findsOneWidget);
+      expect(find.text('Manage Plan'), findsNothing);
+    });
+
+    testWidgets('once the store is open, a member is told the owner can '
+        'upgrade, with no button', (tester) async {
+      _use(_Build.storeWithheld);
+      debugInAppStoreOpenOverride = true;
+      await _pump(
+        tester,
+        const PlanGateBanner(style: PlanGateStyle.inset),
+        session: _free(isOwner: false),
+      );
+
+      expect(
+        find.text(
+          'The account owner can upgrade to a paid plan to enable the '
+          'advanced advanced settings',
+        ),
+        findsOneWidget,
+      );
       expect(find.text('Manage Plan'), findsNothing);
     });
 
@@ -361,6 +382,23 @@ void main() {
         expect(find.text(planRequired), findsNothing);
       });
     }
+
+    testWidgets('once the store is open, a member is told to ask the owner, '
+        'still with Close only', (tester) async {
+      _use(_Build.storeWithheld);
+      debugInAppStoreOpenOverride = true;
+      await tapCollect(tester, isOwner: false);
+
+      expect(
+        find.text(
+          'In-person card payments need the Pro or Enterprise plan. Ask '
+          'the account owner to upgrade.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.byKey(const ValueKey('terminal_plan_close')), findsOneWidget);
+      expect(find.text('Cancel'), findsNothing);
+    });
 
     for (final build in [_Build.storeOffered, _Build.desktop]) {
       testWidgets('keeps its confirm, which leads to Upgrade (${build.name})', (

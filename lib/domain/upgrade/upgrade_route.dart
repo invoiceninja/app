@@ -156,6 +156,25 @@ bool inAppPurchasesOffered({
     config != null &&
     config.sellsTo(session);
 
+/// Whether the hosted service sells in-app at all on this build, to anyone
+/// ([IapConfig.purchasesOpen], `purchases_open`), even where it sells nothing
+/// to [session]'s account (a member, an account with a running store or web
+/// plan): a store build then offers Restore (App Review requires a restore
+/// mechanism wherever subscriptions are sold) and tells a member the owner
+/// can upgrade, still with no way to buy. Implied by [inAppPurchasesOffered]
+/// (an older server sends no `purchases_open`). Fails closed like it: no
+/// config, an error, a 404 or no field read as closed.
+bool inAppStoreOpen({
+  required bool storeBilling,
+  required AuthSession? session,
+  required IapConfig? config,
+}) =>
+    storeBilling &&
+    session != null &&
+    session.isHosted &&
+    config != null &&
+    (config.purchasesOpen || config.sellsTo(session));
+
 /// Whether every upgrade prompt must leave out its button and any copy that
 /// asks the user to buy, upgrade or start a trial: a hosted session on a
 /// store-billing build ([storeBilling]) to which the hosted service does not

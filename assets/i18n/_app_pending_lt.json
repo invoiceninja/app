@@ -2360,5 +2360,6 @@
   "free_plan_import_too_many_info": "Šis importas viršytų :count klientų, kuriuos leidžia nemokamas planas, todėl niekas nebuvo importuota.",
   "free_plan_signup_note_info": "Nemokamas planas: iki :count klientų ir viena įmonė.",
   "free_plan_company_limit_reached": "Pasiekėte nemokamo plano įmonių ribą.",
-  "store_subscription_ended_info": "Jūsų prenumerata programoje baigėsi."
+  "store_subscription_ended_info": "Jūsų prenumerata programoje baigėsi.",
+  "free_plan_client_limit_hit": "Pasiekėte nemokamo plano klientų ribą."
 }

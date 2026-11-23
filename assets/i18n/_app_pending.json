@@ -2408,5 +2408,6 @@
   "free_plan_import_too_many_info": "This import would take you past the :count clients the Free plan allows, so nothing was imported.",
   "free_plan_signup_note_info": "Free plan: up to :count clients and one company.",
   "free_plan_company_limit_reached": "You have reached the Free plan's company limit.",
-  "store_subscription_ended_info": "Your in-app subscription has ended."
+  "store_subscription_ended_info": "Your in-app subscription has ended.",
+  "free_plan_client_limit_hit": "You have reached the Free plan's client limit."
 }

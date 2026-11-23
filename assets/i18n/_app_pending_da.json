@@ -2326,5 +2326,6 @@
   "free_plan_import_too_many_info": "Denne import ville gå ud over de :count kunder, Gratis-planen tillader, så intet blev importeret.",
   "free_plan_signup_note_info": "Gratis plan: op til :count kunder og én virksomhed.",
   "free_plan_company_limit_reached": "Du har nået Gratis-planens grænse for virksomheder.",
-  "store_subscription_ended_info": "Dit abonnement i appen er udløbet."
+  "store_subscription_ended_info": "Dit abonnement i appen er udløbet.",
+  "free_plan_client_limit_hit": "Du har nået Gratis-planens grænse for kunder."
 }

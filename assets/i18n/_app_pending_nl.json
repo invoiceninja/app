@@ -2405,5 +2405,6 @@
   "free_plan_import_too_many_info": "Deze import zou boven de :count klanten van het gratis abonnement uitkomen, dus er is niets geïmporteerd.",
   "free_plan_signup_note_info": "Gratis abonnement: tot :count klanten en één bedrijf.",
   "free_plan_company_limit_reached": "U hebt de bedrijfslimiet van het gratis abonnement bereikt.",
-  "store_subscription_ended_info": "Uw in-app-abonnement is beëindigd."
+  "store_subscription_ended_info": "Uw in-app-abonnement is beëindigd.",
+  "free_plan_client_limit_hit": "U hebt de klantlimiet van het gratis abonnement bereikt."
 }

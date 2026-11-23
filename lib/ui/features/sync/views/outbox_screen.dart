@@ -23,6 +23,7 @@ import 'package:admin/ui/core/widgets/empty_state.dart';
 import 'package:admin/ui/core/widgets/error_view.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/core/widgets/status_pill.dart';
+import 'package:admin/ui/features/clients/widgets/client_limit.dart';
 import 'package:admin/ui/features/shell/widgets/app_drawer.dart';
 import 'package:admin/ui/features/sync/view_models/outbox_view_model.dart';
 
@@ -335,7 +336,11 @@ class _OutboxTile extends StatelessWidget {
     final theme = Theme.of(context);
     final handlers = services.entityRegistry.byWireName(row.entityType);
     final icon = handlers?.icon ?? Icons.help_outline;
-    final fieldErrors = _decodeFieldErrors(row.fieldErrorsJson);
+    final fieldErrors = _presentable(
+      context,
+      row,
+      _decodeFieldErrors(row.fieldErrorsJson),
+    );
 
     return Material(
       color: tokens.surface,
@@ -644,6 +649,17 @@ class _StatePill extends StatelessWidget {
   }
 }
 
+/// A row's field errors as the outbox shows them: a client the Free plan
+/// refused reads in the app's words where a store build sells nothing
+/// (`presentClientFieldErrors`), never the server's, which may say "upgrade".
+Map<String, List<String>> _presentable(
+  BuildContext context,
+  OutboxRow row,
+  Map<String, List<String>> errors,
+) => row.entityType == 'client'
+    ? presentClientFieldErrors(context, errors)
+    : errors;
+
 class _FieldErrors extends StatelessWidget {
   const _FieldErrors({required this.errors});
   final Map<String, List<String>> errors;
@@ -887,7 +903,11 @@ class _OutboxRowInspectorSheet extends StatelessWidget {
     final tokens = context.inTheme;
     final theme = Theme.of(context);
     final payloadPretty = _prettyJson(row.payload);
-    final fieldErrors = _OutboxTile._decodeFieldErrors(row.fieldErrorsJson);
+    final fieldErrors = _presentable(
+      context,
+      row,
+      _OutboxTile._decodeFieldErrors(row.fieldErrorsJson),
+    );
 
     return DraggableScrollableSheet(
       initialChildSize: 0.7,

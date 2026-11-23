@@ -119,6 +119,7 @@ class AccountManagementPlanScreen extends StatelessWidget {
             if (showsHostedActionsCard(
               value,
               purchasesWithheld: purchasesWithheld(context, session: value),
+              storeOpen: inAppStoreOpenIn(context),
             ))
               _HostedActionsCard(session: value),
           ],
@@ -132,14 +133,17 @@ class AccountManagementPlanScreen extends StatelessWidget {
 /// except on a store build whose hosted service sells nothing to the account
 /// ([purchasesWithheld]): there the card would hold only a disabled Upgrade,
 /// so it is left out, unless it has something to manage or explain (a store
-/// plan, which keeps Manage subscription, or a plan billed on the web).
+/// plan, which keeps Manage subscription, or a plan billed on the web) or
+/// the store sells at all ([storeOpen], `purchases_open`): then it carries
+/// Restore for the owner, or "only the owner can change the plan".
 @visibleForTesting
 bool showsHostedActionsCard(
   AuthSession session, {
   required bool purchasesWithheld,
+  bool storeOpen = false,
 }) {
   if (!session.isHosted) return false;
-  if (!purchasesWithheld) return true;
+  if (!purchasesWithheld || storeOpen) return true;
   return session.hasIapPlan || session.isWebBilled;
 }
 
@@ -452,13 +456,16 @@ class _HostedActionsCardState extends State<_HostedActionsCard> {
     final storeBilling = isStoreBillingBuild;
     final hint = TextStyle(color: tokens.ink2);
     // Restore re-delivers purchases already paid for, so it is offered to the
-    // account's owner on a store-billing build that sells in-app. Not while
-    // the hosted service sells nothing here ([purchasesWithheld]): nothing
+    // account's owner on a store-billing build whenever the store sells at
+    // all (`purchases_open`): App Review requires a restore mechanism once
+    // subscriptions are sold, including for a subscriber the config sells
+    // nothing more to. Not before ([purchasesWithheld] and closed): nothing
     // can have been bought in this app then, and the button would read as a
     // way to buy (a purchase left over from a sale that was switched off is
     // still delivered on its own, at launch and on every resume).
+    final storeOpen = !withheld || inAppStoreOpenIn(context);
     final showRestore =
-        storeBilling && !withheld && (session.currentCompany?.isOwner ?? false);
+        storeBilling && storeOpen && (session.currentCompany?.isOwner ?? false);
 
     // Where an Upgrade tap goes decides what this card offers, so the card
     // never shows a button that `launchUpgrade` would not honour.
@@ -471,10 +478,10 @@ class _HostedActionsCardState extends State<_HostedActionsCard> {
       config: config,
     );
 
-    Widget explained(String key, {bool manage = false}) => FormSection(
+    Widget explained(String? key, {bool manage = false}) => FormSection(
       title: context.tr('change_plan'),
       children: [
-        Text(context.tr(key), style: hint),
+        if (key != null) Text(context.tr(key), style: hint),
         if (manage)
           Align(
             alignment: AlignmentDirectional.centerStart,
@@ -514,6 +521,13 @@ class _HostedActionsCardState extends State<_HostedActionsCard> {
         // Play Payments 4), and selling a store plan on top of a web-billed
         // one (a trial runs on a card too) would bill twice.
         if (session.isWebBilled) return explained('plan_managed_on_web');
+        // Nothing sold to this account, but the store sells (the card is
+        // shown only then): Restore for the owner, the reason for a member.
+        if (withheld) {
+          return explained(
+            canBuyForActiveAccount(session) ? null : 'store_plan_owner_only',
+          );
+        }
         // Only the owner of the active company can buy; anyone else's
         // Upgrade would only reopen this screen.
         disabledReason = 'store_plan_owner_only';

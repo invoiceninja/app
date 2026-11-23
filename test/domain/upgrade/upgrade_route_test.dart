@@ -503,6 +503,39 @@ void main() {
       );
     });
 
+    test('the store is open on purchases_open, or a sale to this account', () {
+      bool open(IapConfig? c, {AuthSession? session, bool store = true}) =>
+          inAppStoreOpen(
+            storeBilling: store,
+            session: session ?? free,
+            config: c,
+          );
+      // A member: nothing sold to them, but the store sells.
+      expect(
+        open(const IapConfig(purchasesEnabled: false, purchasesOpen: true)),
+        isTrue,
+      );
+      // An older server without the field, selling to this account.
+      expect(open(config()), isTrue);
+      expect(open(config(enabled: false)), isFalse);
+      expect(open(null), isFalse);
+      expect(open(IapConfig.closed), isFalse);
+      expect(
+        open(
+          const IapConfig(purchasesEnabled: false, purchasesOpen: true),
+          store: false,
+        ),
+        isFalse,
+      );
+      expect(
+        open(
+          const IapConfig(purchasesEnabled: false, purchasesOpen: true),
+          session: _accounts['self-hosted'],
+        ),
+        isFalse,
+      );
+    });
+
     test('withheld only for a hosted session on a store build', () {
       expect(
         storePurchasesWithheld(

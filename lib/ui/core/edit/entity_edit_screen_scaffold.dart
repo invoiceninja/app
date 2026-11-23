@@ -62,6 +62,7 @@ class EntityEditScreenScaffold<T, VM extends GenericEditViewModel<T>>
     required this.titleWhileLoading,
     required this.bodyBuilder,
     this.bannerBuilder,
+    this.presentFieldErrors,
     required this.resetToEmpty,
     this.onSaved,
     this.basePath,
@@ -125,6 +126,14 @@ class EntityEditScreenScaffold<T, VM extends GenericEditViewModel<T>>
   /// full width in both layouts, put in place without scrolling (New
   /// Expense's receipt reading, `ReceiptReadBanner`).
   final Widget Function(BuildContext context, VM vm)? bannerBuilder;
+
+  /// The rejected save's field errors as the save-failed banner shows them
+  /// (`SaveFailedBanner.presentFieldErrors`). Null: as the server sent them.
+  final Map<String, List<String>> Function(
+    BuildContext context,
+    Map<String, List<String>> errors,
+  )?
+  presentFieldErrors;
 
   /// Called by the discard guard. Typically `(vm) => vm.resetToEmpty()`.
   final void Function(VM vm) resetToEmpty;
@@ -945,6 +954,7 @@ class _EntityEditScreenScaffoldState<T, VM extends GenericEditViewModel<T>>
               onDiscard: () => _discardFailedSync(vm),
               onRetry: () async =>
                   FormSaveScope.maybeOf(bannerContext)?.trySubmit(),
+              presentFieldErrors: widget.presentFieldErrors,
             ),
           ),
           if (widget.bannerBuilder case final banner?) banner(context, vm),

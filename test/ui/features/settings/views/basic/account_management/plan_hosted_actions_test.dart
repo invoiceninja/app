@@ -99,11 +99,14 @@ Future<void> _pump(
   AuthRepository? auth,
   bool settle = true,
   bool offered = true,
+  bool? open,
 }) async {
   debugStoreBillingOverride = storeBuild;
   // Whether the hosted service sells in-app to this account: yes unless a
   // test says otherwise, so the groups below are the card as it has been.
   debugInAppPurchasesOfferedOverride = offered;
+  // `purchases_open`: null follows [offered].
+  debugInAppStoreOpenOverride = open;
   await tester.pumpWidget(
     MaterialApp(
       theme: buildInTheme(InTheme.light),
@@ -130,6 +133,7 @@ void main() {
   tearDown(() {
     debugStoreBillingOverride = null;
     debugInAppPurchasesOfferedOverride = null;
+    debugInAppStoreOpenOverride = null;
   });
 
   group('store build', () {
@@ -579,6 +583,70 @@ void main() {
         expect(find.bySubtype<ButtonStyleButton>(), findsNothing);
       });
     }
+  });
+
+  // `purchases_open`: the store sells, though not to this account. Restore is
+  // offered (App Review requires one wherever subscriptions are sold), and a
+  // member is told only the owner can change the plan; still nothing to buy.
+  group('store build, the store open but nothing sold to this account', () {
+    Future<void> pumpOpen(WidgetTester tester, AuthSession s) =>
+        _pump(tester, s, storeBuild: true, offered: false, open: true);
+
+    final restore = find.byKey(const ValueKey('plan_restore_purchases'));
+
+    testWidgets('an in-app subscriber gets Manage subscription and Restore', (
+      tester,
+    ) async {
+      await pumpOpen(tester, _activeIap);
+
+      expect(find.text('Manage subscription'), findsOneWidget);
+      expect(restore, findsOneWidget);
+      expect(find.text('Upgrade Plan'), findsNothing);
+    });
+
+    testWidgets('a web-billed owner gets Restore beside "managed on the web"', (
+      tester,
+    ) async {
+      await pumpOpen(tester, _webPaid);
+
+      expect(find.text(_billedOnWeb), findsOneWidget);
+      expect(restore, findsOneWidget);
+    });
+
+    testWidgets('an owner sold nothing here gets Restore alone', (
+      tester,
+    ) async {
+      await pumpOpen(tester, _free);
+
+      expect(restore, findsOneWidget);
+      expect(find.byKey(const ValueKey('plan_upgrade')), findsNothing);
+      expect(find.text('Upgrade Plan'), findsNothing);
+    });
+
+    testWidgets('a member is told only the owner can change the plan, with '
+        'no button', (tester) async {
+      await pumpOpen(tester, _session(isOwner: false));
+
+      expect(
+        find.text('Only the account owner can change the plan.'),
+        findsOneWidget,
+      );
+      expect(find.byKey(const ValueKey('plan_upgrade')), findsNothing);
+      expect(restore, findsNothing);
+    });
+
+    testWidgets('closed (an older server, a 404): no Restore', (tester) async {
+      await _pump(
+        tester,
+        _activeIap,
+        storeBuild: true,
+        offered: false,
+        open: false,
+      );
+
+      expect(find.text('Manage subscription'), findsOneWidget);
+      expect(restore, findsNothing);
+    });
   });
 
   group('desktop, web and F-Droid', () {

@@ -2393,5 +2393,6 @@
   "free_plan_import_too_many_info": "Acest import ar depăși cei :count clienți permiși de planul gratuit, așa că nu s-a importat nimic.",
   "free_plan_signup_note_info": "Plan gratuit: până la :count clienți și o firmă.",
   "free_plan_company_limit_reached": "Ați atins limita de firme a planului gratuit.",
-  "store_subscription_ended_info": "Abonamentul dumneavoastră din aplicație s-a încheiat."
+  "store_subscription_ended_info": "Abonamentul dumneavoastră din aplicație s-a încheiat.",
+  "free_plan_client_limit_hit": "Ați atins limita de clienți a planului gratuit."
 }

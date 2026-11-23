@@ -2322,5 +2322,6 @@
   "free_plan_import_too_many_info": "See import ületaks tasuta paketi :count kliendi piiri, seega midagi ei imporditud.",
   "free_plan_signup_note_info": "Tasuta pakett: kuni :count klienti ja üks ettevõte.",
   "free_plan_company_limit_reached": "Olete jõudnud tasuta paketi ettevõtete piirini.",
-  "store_subscription_ended_info": "Teie rakendusesisene tellimus on lõppenud."
+  "store_subscription_ended_info": "Teie rakendusesisene tellimus on lõppenud.",
+  "free_plan_client_limit_hit": "Olete jõudnud tasuta paketi klientide piirini."
 }

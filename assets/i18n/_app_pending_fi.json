@@ -2323,5 +2323,6 @@
   "free_plan_import_too_many_info": "Tämä tuonti ylittäisi Ilmaisen paketin sallimat :count asiakasta, joten mitään ei tuotu.",
   "free_plan_signup_note_info": "Ilmainen paketti: enintään :count asiakasta ja yksi yritys.",
   "free_plan_company_limit_reached": "Olet saavuttanut Ilmaisen paketin yritysrajan.",
-  "store_subscription_ended_info": "Sovelluksen sisäinen tilauksesi on päättynyt."
+  "store_subscription_ended_info": "Sovelluksen sisäinen tilauksesi on päättynyt.",
+  "free_plan_client_limit_hit": "Olet saavuttanut Ilmaisen paketin asiakasrajan."
 }

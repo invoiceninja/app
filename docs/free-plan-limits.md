@@ -58,7 +58,7 @@ While the hosted service does not sell in-app to the account (`purchasesWithheld
 - the Plan tab's Free plan limits card is unchanged; the signup note on a store build is "Free plan: up to 5 clients and one company." (`free_plan_signup_note_info`);
 - the company limit: New company is disabled and says "You have reached the Free plan's company limit."
 
-A cap the app does not know still shows the server's own `limit_clients` message, which may say "upgrade": it is the server's text, not ours. Tests: `test/ui/features/store_purchases_withheld_test.dart`.
+A cap the app does not know no longer shows the server's own `limit_clients` message there: the form banner, the save-failed banner, the inline-create dialog and the outbox say "You have reached the Free plan's client limit." (`free_plan_client_limit_hit`, through `presentClientFieldErrors`). Off the store, and once the config sells to the account, the server's words stand as before. Tests: `test/ui/features/store_purchases_withheld_test.dart`.
 
 ## A hosted trial, and how the app recognises one
 

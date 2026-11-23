@@ -1368,6 +1368,78 @@ void main() {
   // the active account, asked at sign-in and on a company switch, and false
   // on anything less.
   group('purchase offer', () {
+    test('purchases_open is read only as an exact true', () {
+      expect(IapConfig.fromJson(const {}).purchasesOpen, isFalse);
+      expect(
+        IapConfig.fromJson(const {'purchases_open': true}).purchasesOpen,
+        isTrue,
+      );
+      expect(
+        IapConfig.fromJson(const {'purchases_open': 'true'}).purchasesOpen,
+        isFalse,
+      );
+      expect(
+        IapConfig.fromJson(const {
+          'purchases_open': true,
+        }).withoutReplacement().purchasesOpen,
+        isTrue,
+      );
+    });
+
+    test('a member is not sold to, but the store is open', () async {
+      api.iapConfig = const {
+        'purchases_enabled': false,
+        'purchases_open': true,
+      };
+      final delivery = build(TargetPlatform.iOS)..start();
+      await pumpEventQueue();
+      expect(delivery.offer.offered, isFalse);
+      expect(delivery.offer.open, isTrue);
+    });
+
+    test(
+      'closed on a server without purchases_open, unless it sells here',
+      () async {
+        api.iapConfig = const {
+          'purchases_enabled': false,
+          'app_account_token': kTestAccountToken,
+          'account_key': 'acct-key',
+        };
+        final delivery = build(TargetPlatform.iOS)..start();
+        await pumpEventQueue();
+        expect(delivery.offer.open, isFalse);
+
+        // Selling to the account implies the store is open.
+        api.iapConfig = const {
+          'purchases_enabled': true,
+          'app_account_token': kTestAccountToken,
+          'account_key': 'acct-key',
+        };
+        auth.session.value = testSession(companyId: 'co2');
+        await pumpEventQueue();
+        expect(delivery.offer.offered, isTrue);
+        expect(delivery.offer.open, isTrue);
+      },
+    );
+
+    test('an error or a sign-out closes it', () async {
+      api.iapConfig = const ServerException(404, 'Route does not exist');
+      final delivery = build(TargetPlatform.iOS)..start();
+      await pumpEventQueue();
+      expect(delivery.offer.open, isFalse);
+
+      api.iapConfig = const {
+        'purchases_enabled': false,
+        'purchases_open': true,
+      };
+      auth.session.value = testSession(companyId: 'co2');
+      await pumpEventQueue();
+      expect(delivery.offer.open, isTrue);
+      auth.session.value = null;
+      await pumpEventQueue();
+      expect(delivery.offer.open, isFalse);
+    });
+
     test('false until started, then the config\'s yes', () async {
       final delivery = build(TargetPlatform.iOS);
       expect(delivery.offer.offered, isFalse);

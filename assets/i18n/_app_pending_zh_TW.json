@@ -2322,5 +2322,6 @@
   "free_plan_import_too_many_info": "此次匯入會超出免費方案允許的 :count 位客戶，因此未匯入任何內容。",
   "free_plan_signup_note_info": "免費方案：最多 :count 位客戶和一家公司。",
   "free_plan_company_limit_reached": "您已達到免費方案的公司數量上限。",
-  "store_subscription_ended_info": "您的 App 內訂閱已結束。"
+  "store_subscription_ended_info": "您的 App 內訂閱已結束。",
+  "free_plan_client_limit_hit": "您已達到免費方案的客戶數量上限。"
 }

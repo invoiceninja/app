@@ -780,12 +780,17 @@ class InvoiceActions {
       // A store build whose hosted service sells nothing to this account
       // says which plans have it, with Close only: nothing to upgrade.
       if (purchasesWithheld(context, session: session, listen: false)) {
+        // A member is told the owner can upgrade once the store sells at all
+        // (`purchases_open`); still nothing to tap.
+        final message = !owner && inAppStoreOpenIn(context, listen: false)
+            ? context.tr('terminal_plan_ask_owner')
+            : planRequired;
         await showDialog<void>(
           context: context,
           anchorPoint: foldAnchorPoint(context),
           builder: (ctx) => AlertDialog(
             title: Text(title),
-            content: Text(planRequired),
+            content: Text(message),
             actions: [
               PrimaryDialogAction(
                 buttonKey: const ValueKey('terminal_plan_close'),

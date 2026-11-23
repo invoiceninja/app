@@ -2288,5 +2288,6 @@
   "free_plan_import_too_many_info": "Lần nhập này sẽ vượt quá :count khách hàng mà gói miễn phí cho phép, nên không có gì được nhập.",
   "free_plan_signup_note_info": "Gói miễn phí: tối đa :count khách hàng và một công ty.",
   "free_plan_company_limit_reached": "Bạn đã đạt giới hạn công ty của gói miễn phí.",
-  "store_subscription_ended_info": "Gói đăng ký trong ứng dụng của bạn đã kết thúc."
+  "store_subscription_ended_info": "Gói đăng ký trong ứng dụng của bạn đã kết thúc.",
+  "free_plan_client_limit_hit": "Bạn đã đạt giới hạn khách hàng của gói miễn phí."
 }

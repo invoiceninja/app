@@ -2405,5 +2405,6 @@
   "free_plan_import_too_many_info": "การนำเข้านี้จะเกินลูกค้า :count รายที่แพ็กเกจฟรีอนุญาต จึงไม่มีการนำเข้าใดๆ",
   "free_plan_signup_note_info": "แพ็กเกจฟรี: ลูกค้าได้สูงสุด :count ราย และบริษัทเดียว",
   "free_plan_company_limit_reached": "คุณถึงขีดจำกัดจำนวนบริษัทของแพ็กเกจฟรีแล้ว",
-  "store_subscription_ended_info": "การสมัครสมาชิกภายในแอปของคุณสิ้นสุดแล้ว"
+  "store_subscription_ended_info": "การสมัครสมาชิกภายในแอปของคุณสิ้นสุดแล้ว",
+  "free_plan_client_limit_hit": "คุณถึงขีดจำกัดจำนวนลูกค้าของแพ็กเกจฟรีแล้ว"
 }

@@ -2322,5 +2322,6 @@
   "free_plan_import_too_many_info": "Tento import by prekročil :count klientov, ktorých bezplatný program umožňuje, preto sa nič neimportovalo.",
   "free_plan_signup_note_info": "Bezplatný program: až :count klientov a jedna firma.",
   "free_plan_company_limit_reached": "Dosiahli ste limit firiem bezplatného programu.",
-  "store_subscription_ended_info": "Vaše predplatné v aplikácii skončilo."
+  "store_subscription_ended_info": "Vaše predplatné v aplikácii skončilo.",
+  "free_plan_client_limit_hit": "Dosiahli ste limit klientov bezplatného programu."
 }

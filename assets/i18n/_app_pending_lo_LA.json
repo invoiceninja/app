@@ -2405,5 +2405,6 @@
   "free_plan_import_too_many_info": "ການນຳເຂົ້ານີ້ຈະເກີນ :count ລູກຄ້າທີ່ແຜນຟຣີອະນຸຍາດ, ສະນັ້ນບໍ່ມີຫຍັງຖືກນຳເຂົ້າ.",
   "free_plan_signup_note_info": "ແຜນຟຣີ: ລູກຄ້າສູງສຸດ :count ຄົນ ແລະ ບໍລິສັດດຽວ.",
   "free_plan_company_limit_reached": "ທ່ານໄດ້ຮອດຂີດຈຳກັດບໍລິສັດຂອງແຜນຟຣີແລ້ວ.",
-  "store_subscription_ended_info": "ການສະໝັກໃຊ້ພາຍໃນແອັບຂອງທ່ານໄດ້ສິ້ນສຸດແລ້ວ."
+  "store_subscription_ended_info": "ການສະໝັກໃຊ້ພາຍໃນແອັບຂອງທ່ານໄດ້ສິ້ນສຸດແລ້ວ.",
+  "free_plan_client_limit_hit": "ທ່ານໄດ້ຮອດຂີດຈຳກັດລູກຄ້າຂອງແຜນຟຣີແລ້ວ."
 }

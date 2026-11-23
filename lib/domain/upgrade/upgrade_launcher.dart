@@ -73,6 +73,25 @@ bool inAppPurchasesOfferedIn(BuildContext context, {bool listen = true}) {
   return offer?.offered ?? false;
 }
 
+/// Stands in for the hosted config's `purchases_open` in tests. Null: the
+/// [debugInAppPurchasesOfferedOverride] when that is set (a store that sells
+/// to the account is open), else the root [PurchaseOffer].
+@visibleForTesting
+bool? debugInAppStoreOpenOverride;
+
+/// Whether the hosted service sells in-app at all ([PurchaseOffer.open],
+/// `inAppStoreOpen`), perhaps not to this account: false with no provider.
+/// [listen] as for [inAppPurchasesOfferedIn].
+bool inAppStoreOpenIn(BuildContext context, {bool listen = true}) {
+  final override =
+      debugInAppStoreOpenOverride ?? debugInAppPurchasesOfferedOverride;
+  if (override != null) return override;
+  final offer = listen
+      ? context.watch<PurchaseOffer?>()
+      : context.read<PurchaseOffer?>();
+  return offer?.open ?? false;
+}
+
 /// Whether an upgrade prompt under [context] must offer no way to buy:
 /// [storePurchasesWithheld] for [session] (the active session when not
 /// given) on this build. Every surface that would show Upgrade, Buy, Restore,

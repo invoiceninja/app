@@ -25,17 +25,18 @@ import 'package:admin/ui/features/clients/widgets/client_limit.dart';
 
 import '../../../_localization_helper.dart';
 
-AuthSession _session({String plan = ''}) => AuthSession(
-  baseUrl: 'https://invoicing.co',
-  isHosted: true,
-  accountId: 'acct',
-  currentCompanyId: 'co',
-  userId: 'u1',
-  plan: plan,
-  planExpires: plan.isEmpty ? '' : '2099-01-01',
-  hostedClientCount: 5,
-  companies: const [],
-);
+AuthSession _session({String plan = '', int hostedClientCount = 5}) =>
+    AuthSession(
+      baseUrl: 'https://invoicing.co',
+      isHosted: true,
+      accountId: 'acct',
+      currentCompanyId: 'co',
+      userId: 'u1',
+      plan: plan,
+      planExpires: plan.isEmpty ? '' : '2099-01-01',
+      hostedClientCount: hostedClientCount,
+      companies: const [],
+    );
 
 /// A [ClientUsage] whose server total is [total] (null: never answers).
 ClientUsage _usage({int? total, String plan = ''}) => ClientUsage(
@@ -71,6 +72,7 @@ Future<void> _pump(
   required ClientUsage? usage,
   required Widget Function(BuildContext context) child,
   bool signedIn = false,
+  AuthSession? session,
 }) async {
   Widget app = MaterialApp(
     theme: buildInTheme(InTheme.light),
@@ -80,7 +82,7 @@ Future<void> _pump(
   );
   if (signedIn) {
     app = Provider<Services>.value(
-      value: _FakeServices(_session()),
+      value: _FakeServices(session ?? _session()),
       child: app,
     );
   }
@@ -572,6 +574,113 @@ void main() {
         findsOneWidget,
       );
       expectNoUpgrade();
+    });
+
+    // A cap the app does not know: the server's `limit_clients` words are
+    // never shown here (they may ask the user to upgrade), ours are.
+    const serverWords = "You've hit the 5 client limit on Free accounts.";
+    const unknownCapInfo = "You have reached the Free plan's client limit.";
+
+    testWidgets('a refused save with no known cap says ours, not the '
+        "server's", (tester) async {
+      final vm = _FormVm()
+        ..sent = 'Acme'
+        ..errors = const {
+          'id': [serverWords],
+        };
+      await _pump(
+        tester,
+        usage: null,
+        signedIn: true,
+        session: _session(hostedClientCount: 0),
+        child: (_) => ClientLimitFormBanner(vm: vm),
+      );
+      await tester.pump();
+      expect(find.text(unknownCapInfo), findsOneWidget);
+      expect(find.text(serverWords), findsNothing);
+      expectNoUpgrade();
+    });
+
+    testWidgets('the dialog with no known cap says ours', (tester) async {
+      await _pump(
+        tester,
+        usage: null,
+        signedIn: true,
+        session: _session(hostedClientCount: 0),
+        child: (context) => TextButton(
+          onPressed: () => showClientLimitDialog(context),
+          child: const Text('open'),
+        ),
+      );
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+      expect(find.text(unknownCapInfo), findsOneWidget);
+      expectNoUpgrade();
+    });
+
+    testWidgets("a client's field errors carry ours, the cap when known", (
+      tester,
+    ) async {
+      late Map<String, List<String>> known;
+      late Map<String, List<String>> unknown;
+      late Map<String, List<String>> other;
+      await _pump(
+        tester,
+        usage: _usage(total: 5),
+        signedIn: true,
+        child: (context) {
+          known = presentClientFieldErrors(context, const {
+            'id': [serverWords],
+            'name': ['required'],
+          });
+          other = presentClientFieldErrors(context, const {
+            'name': ['required'],
+          });
+          return const SizedBox();
+        },
+      );
+      expect(known, {
+        'id': [atLimitInfo],
+        'name': ['required'],
+      });
+      expect(other, {
+        'name': ['required'],
+      });
+      await _pump(
+        tester,
+        usage: null,
+        signedIn: true,
+        session: _session(hostedClientCount: 0),
+        child: (context) {
+          unknown = presentClientFieldErrors(context, const {
+            'id': [serverWords],
+          });
+          return const SizedBox();
+        },
+      );
+      expect(unknown, {
+        'id': [unknownCapInfo],
+      });
+    });
+
+    testWidgets("off the store the server's words stand", (tester) async {
+      debugStoreBillingOverride = false;
+      late Map<String, List<String>> errors;
+      await _pump(
+        tester,
+        usage: null,
+        signedIn: true,
+        session: _session(hostedClientCount: 0),
+        child: (context) {
+          errors = presentClientFieldErrors(context, const {
+            'id': [serverWords],
+          });
+          return const SizedBox();
+        },
+      );
+      expect(errors, {
+        'id': [serverWords],
+      });
     });
 
     testWidgets('once the config sells here, Upgrade is back', (tester) async {

@@ -2405,5 +2405,6 @@
   "free_plan_import_too_many_info": "Questa importazione supererebbe i :count clienti consentiti dal piano gratuito, quindi non è stato importato nulla.",
   "free_plan_signup_note_info": "Piano gratuito: fino a :count clienti e un'azienda.",
   "free_plan_company_limit_reached": "Hai raggiunto il limite di aziende del piano gratuito.",
-  "store_subscription_ended_info": "Il tuo abbonamento in-app è terminato."
+  "store_subscription_ended_info": "Il tuo abbonamento in-app è terminato.",
+  "free_plan_client_limit_hit": "Hai raggiunto il limite di clienti del piano gratuito."
 }

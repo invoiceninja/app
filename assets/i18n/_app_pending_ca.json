@@ -2322,5 +2322,6 @@
   "free_plan_import_too_many_info": "Aquesta importació superaria els :count clients que permet el pla gratuït, així que no s'ha importat res.",
   "free_plan_signup_note_info": "Pla gratuït: fins a :count clients i una empresa.",
   "free_plan_company_limit_reached": "Heu arribat al límit d'empreses del pla gratuït.",
-  "store_subscription_ended_info": "La vostra subscripció dins l'aplicació ha finalitzat."
+  "store_subscription_ended_info": "La vostra subscripció dins l'aplicació ha finalitzat.",
+  "free_plan_client_limit_hit": "Heu arribat al límit de clients del pla gratuït."
 }

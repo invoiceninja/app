@@ -2321,5 +2321,6 @@
   "free_plan_import_too_many_info": "كان هذا الاستيراد سيتجاوز :count عملاء تسمح بهم الخطة المجانية، لذلك لم يُستورد شيء.",
   "free_plan_signup_note_info": "الخطة المجانية: حتى :count عملاء وشركة واحدة.",
   "free_plan_company_limit_reached": "لقد بلغت حد الشركات في الخطة المجانية.",
-  "store_subscription_ended_info": "انتهى اشتراكك داخل التطبيق."
+  "store_subscription_ended_info": "انتهى اشتراكك داخل التطبيق.",
+  "free_plan_client_limit_hit": "لقد بلغت حد العملاء في الخطة المجانية."
 }

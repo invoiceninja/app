@@ -2322,5 +2322,6 @@
   "free_plan_import_too_many_info": "Този импорт би надхвърлил :count клиента, които безплатният план позволява, затова нищо не е импортирано.",
   "free_plan_signup_note_info": "Безплатен план: до :count клиента и една фирма.",
   "free_plan_company_limit_reached": "Достигнахте ограничението за фирми в безплатния план.",
-  "store_subscription_ended_info": "Абонаментът ви в приложението е изтекъл."
+  "store_subscription_ended_info": "Абонаментът ви в приложението е изтекъл.",
+  "free_plan_client_limit_hit": "Достигнахте ограничението за клиенти в безплатния план."
 }

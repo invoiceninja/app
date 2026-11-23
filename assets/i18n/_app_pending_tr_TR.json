@@ -2405,5 +2405,6 @@
   "free_plan_import_too_many_info": "Bu içe aktarma, Ücretsiz planın izin verdiği :count müşteriyi aşacağı için hiçbir şey içe aktarılmadı.",
   "free_plan_signup_note_info": "Ücretsiz plan: en fazla :count müşteri ve bir şirket.",
   "free_plan_company_limit_reached": "Ücretsiz planın şirket sınırına ulaştınız.",
-  "store_subscription_ended_info": "Uygulama içi aboneliğiniz sona erdi."
+  "store_subscription_ended_info": "Uygulama içi aboneliğiniz sona erdi.",
+  "free_plan_client_limit_hit": "Ücretsiz planın müşteri sınırına ulaştınız."
 }

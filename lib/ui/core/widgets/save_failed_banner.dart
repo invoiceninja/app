@@ -51,10 +51,20 @@ class SaveFailedBanner extends StatelessWidget {
     required this.vm,
     required this.onDiscard,
     this.onRetry,
+    this.presentFieldErrors,
     super.key,
   });
 
   final GenericEditViewModel<dynamic> vm;
+
+  /// The field errors as this form may show them (the client form's turns
+  /// a Free plan refusal into the app's own words where a store build sells
+  /// nothing, `presentClientFieldErrors`). Null: as the server sent them.
+  final Map<String, List<String>> Function(
+    BuildContext context,
+    Map<String, List<String>> errors,
+  )?
+  presentFieldErrors;
 
   /// Invoked when the user taps "Discard failed save". Should delete the
   /// dead outbox row (`vm.deadOutboxRowId`) and call [vm.clearFailedSync].
@@ -336,8 +346,11 @@ class SaveFailedBanner extends StatelessWidget {
     // With field errors present the top-level message is Laravel's generic
     // "The given data was invalid." — the per-field strings are the specifics,
     // so they win. Without them the message is all there is.
+    final errors = hasErrors
+        ? (presentFieldErrors?.call(context, vm.fieldErrors) ?? vm.fieldErrors)
+        : const <String, List<String>>{};
     final parts = hasErrors
-        ? [for (final entry in vm.fieldErrors.entries) ...entry.value]
+        ? [for (final entry in errors.entries) ...entry.value]
         : <String>[message!];
     // ' · ' rather than newlines: the same single-line-joining convention the
     // toast host enforces, and it keeps the banner from growing unbounded.
