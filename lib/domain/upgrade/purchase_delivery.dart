@@ -847,8 +847,9 @@ class PurchaseResumeObserver with WidgetsBindingObserver {
 
 /// The `reason`s on a 409 / 422 that are the hosted service's final word on a
 /// purchase, so an Apple one is finished: a test purchase, one that has
-/// expired, been refunded or upgraded away, and one already linked to another
-/// account. Every other refusal may change (`account`, `token_mismatch`,
+/// expired, been refunded or upgraded away, one already linked to another
+/// account, and a family member's shared copy (only the purchaser's own is
+/// accepted). Every other refusal may change (`account`, `token_mismatch`,
 /// `no_token`, `unverified`, none given) and leaves it unfinished.
 const kFinalRejectionReasons = {
   'sandbox',
@@ -856,6 +857,7 @@ const kFinalRejectionReasons = {
   'revoked',
   'upgraded',
   'linked',
+  'family_shared',
 };
 
 /// Whether a failed `POST` [kSubscriptionPath] is a refusal of the purchase

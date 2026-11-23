@@ -50,7 +50,7 @@ Tests: `test/domain/upgrade/purchase_delivery_test.dart`.
 | Answer | Apple | Google |
 |---|---|---|
 | 200 | finished, then `auth.refresh()` | acknowledged, then `auth.refresh()` |
-| 409 / 422 with a final `reason` (`kFinalRejectionReasons`: `sandbox`, `expired`, `revoked`, `upgraded`, `linked`) | finished, the server's message shown | left unacknowledged, so Play refunds it |
+| 409 / 422 with a final `reason` (`kFinalRejectionReasons`: `sandbox`, `expired`, `revoked`, `upgraded`, `linked`, `family_shared`) | finished, the server's message shown | left unacknowledged, so Play refunds it |
 | 409 / 422 with any other `reason` (`account`, `token_mismatch`, `no_token`, `unverified`) or none | left unfinished, the message shown | left unacknowledged |
 | 403, 429, 5xx, a 400 entity-missing, no network | left unfinished and tried again | left unacknowledged and tried again |
 
