@@ -71,6 +71,29 @@ class _CapturingAuthService implements AuthService {
   Object? noSuchMethod(Invocation invocation) => throw UnimplementedError();
 }
 
+/// A precheck that answers per base URL: [answers] names the bases that are
+/// the server; every other base throws [elsewhere]. Records each base asked.
+class _PerBaseAuthService extends _ScriptedAuthService {
+  _PerBaseAuthService(this.answers, {required this.elsewhere});
+
+  final Set<String> answers;
+  final Object elsewhere;
+  final asked = <String>[];
+
+  @override
+  Future<LoginPrecheck?> precheck({
+    required String baseUrl,
+    required bool isHosted,
+    required String email,
+  }) async {
+    asked.add(baseUrl);
+    if (answers.contains(baseUrl)) {
+      return const LoginPrecheck(methods: {'password'}, secretRequired: false);
+    }
+    throw elsewhere;
+  }
+}
+
 /// Scripted service for the two-step flow: a canned `/login/precheck` answer
 /// (or error), optionally held open by [gate] so a test can act while the
 /// request is still in flight; a `login` that records what it was sent and
@@ -363,6 +386,99 @@ void main() {
           check('https://h.example/api/v1x').url,
           'https://h.example/api/v1x',
         );
+      });
+
+      test('a page copied from the browser is cut back to the server', () {
+        for (final (input, expected) in [
+          // The sign-in page, as a path or a hash route.
+          ('https://ninja.example.com/login', 'https://ninja.example.com'),
+          ('https://ninja.example.com/login/', 'https://ninja.example.com'),
+          ('https://ninja.example.com/#/login', 'https://ninja.example.com'),
+          (
+            'https://ninja.example.com/#/dashboard',
+            'https://ninja.example.com',
+          ),
+          ('ninja.example.com/LOGIN', 'https://ninja.example.com'),
+          ('http://10.0.0.5:8000/login', 'http://10.0.0.5:8000'),
+          (
+            'https://ninja.example.com/?login=true',
+            'https://ninja.example.com',
+          ),
+          ('https://ninja.example.com/dashboard', 'https://ninja.example.com'),
+          ('https://ninja.example.com/setup', 'https://ninja.example.com'),
+          ('https://ninja.example.com/index.php', 'https://ninja.example.com'),
+          (
+            'https://ninja.example.com/index.php/login',
+            'https://ninja.example.com',
+          ),
+          // The API: the address the legacy app showed, or a route under it.
+          (
+            'https://ninja.example.com/api/v1/login',
+            'https://ninja.example.com',
+          ),
+          // The client and vendor portals.
+          (
+            'https://ninja.example.com/client/login',
+            'https://ninja.example.com',
+          ),
+          (
+            'https://ninja.example.com/client/invoices/abc?x=1',
+            'https://ninja.example.com',
+          ),
+          (
+            'https://ninja.example.com/vendor/purchase_orders',
+            'https://ninja.example.com',
+          ),
+          (
+            'https://ninja.example.com/password/reset',
+            'https://ninja.example.com',
+          ),
+          // A sub-path install keeps its path.
+          ('https://example.com/ninja/login', 'https://example.com/ninja'),
+          ('https://example.com/ninja/#/login', 'https://example.com/ninja'),
+          (
+            'https://example.com/ninja/client/login',
+            'https://example.com/ninja',
+          ),
+          ('https://example.com/public/login', 'https://example.com/public'),
+        ]) {
+          final r = check(input);
+          expect(r.url, expected, reason: input);
+          expect(r.errorKey, isNull, reason: input);
+        }
+      });
+
+      test('an install path that only looks like a page is kept', () {
+        // `/invoices` may be where the server lives; the login screen finds
+        // a React page by asking the paths above it instead.
+        expect(
+          check('https://example.com/invoices').url,
+          'https://example.com/invoices',
+        );
+        expect(
+          check('https://example.com/ninja').url,
+          'https://example.com/ninja',
+        );
+        // A plain base is returned as typed.
+        expect(check('https://example.com/').url, 'https://example.com/');
+      });
+
+      test('serverBaseCandidates lists the paths above, nearest first', () {
+        expect(serverBaseCandidates('https://h.example'), isEmpty);
+        expect(serverBaseCandidates('https://h.example/a/b'), [
+          'https://h.example/a',
+          'https://h.example',
+        ]);
+        expect(serverBaseCandidates('http://h.example:8080/a'), [
+          'http://h.example:8080',
+        ]);
+        // Capped, keeping the ones nearest the origin.
+        expect(serverBaseCandidates('https://h.example/a/b/c/d/e/f'), [
+          'https://h.example/a/b/c',
+          'https://h.example/a/b',
+          'https://h.example/a',
+          'https://h.example',
+        ]);
       });
 
       test('malformed input still reports invalid_url', () {
@@ -1169,6 +1285,60 @@ void main() {
       await vm.continueToCredentials();
       expect(vm.errorKey, 'network_error_with_message');
       expect(vm.urlErrorKey, isNull);
+    });
+
+    test(
+      'a page of the web app offers the path above it that answers',
+      () async {
+        final svc = _PerBaseAuthService(
+          {'https://ninja.example.com'},
+          elsewhere: const ServerException(
+            404,
+            'Method not supported for this route',
+          ),
+        );
+        final vm = vmWith(svc, 'https://ninja.example.com/clients/abc/edit');
+        expect(await vm.continueToCredentials(), isFalse);
+        expect(vm.step, LoginStep.email);
+        expect(vm.urlErrorKey, 'server_url_moved');
+        expect(vm.urlErrorParams, {'url': 'https://ninja.example.com'});
+        expect(vm.urlSuggestion, 'https://ninja.example.com');
+        expect(vm.hasRequestError, isFalse);
+        expect(svc.asked.first, 'https://ninja.example.com/clients/abc/edit');
+      },
+    );
+
+    test('a sub-path install is offered, not the bare host', () async {
+      final svc = _PerBaseAuthService({
+        'https://example.com/ninja',
+      }, elsewhere: const UnexpectedResponseException(404));
+      final vm = vmWith(svc, 'https://example.com/ninja/invoices');
+      await vm.continueToCredentials();
+      expect(vm.urlSuggestion, 'https://example.com/ninja');
+    });
+
+    test('nothing above answering keeps the not-Invoice-Ninja line', () async {
+      final svc = _PerBaseAuthService(
+        const <String>{},
+        elsewhere: const UnexpectedResponseException(200),
+      );
+      final vm = vmWith(svc, 'https://www.example.com/about');
+      await vm.continueToCredentials();
+      expect(vm.urlErrorKey, 'server_url_not_invoice_ninja');
+      expect(vm.urlSuggestion, isNull);
+      expect(svc.asked, [
+        'https://www.example.com/about',
+        'https://www.example.com',
+      ]);
+    });
+
+    test('a pasted /login is cut before anything is asked', () async {
+      final svc = _PerBaseAuthService({
+        'https://ninja.example.com',
+      }, elsewhere: const UnexpectedResponseException(404));
+      final vm = vmWith(svc, 'https://ninja.example.com/login');
+      expect(await vm.continueToCredentials(), isTrue);
+      expect(svc.asked, ['https://ninja.example.com']);
     });
 
     test(

@@ -638,7 +638,23 @@ class LoginViewModel extends ChangeNotifier {
       return false;
     } on ApiException catch (e) {
       // The URL field is on screen: a wrong address is said under it.
-      final wrong = _wrongServerAnswer(e, baseUrl);
+      var wrong = _wrongServerAnswer(e, baseUrl);
+      if (wrong != null && wrong.suggestion == null) {
+        // A page of the web app pasted as the address (`/clients/abc`):
+        // offer the path above it that Invoice Ninja answers at.
+        final found = await _serverAbove(baseUrl, target);
+        if (_disposed) return false;
+        if (target != email || hosted != isHosted || url != urlOverride) {
+          return false;
+        }
+        if (found != null) {
+          wrong = (
+            key: 'server_url_moved',
+            params: {'url': found},
+            suggestion: found,
+          );
+        }
+      }
       if (wrong != null) {
         _urlErrorKey = wrong.key;
         _urlErrorParams = wrong.params;
@@ -775,6 +791,28 @@ class LoginViewModel extends ChangeNotifier {
         params: {'url': baseUrl},
         suggestion: null,
       );
+    }
+    return null;
+  }
+
+  /// The nearest base URL above [baseUrl]'s path where Invoice Ninja answers
+  /// the precheck for [email], or null. Asked only after [baseUrl] itself
+  /// gave an answer that means it is not the server, and only on the same
+  /// host, so nothing new learns the address. A real answer is required: a
+  /// path that merely fails open (an older server without the route) is not
+  /// proof enough to offer it.
+  Future<String?> _serverAbove(String baseUrl, String email) async {
+    final candidates = serverBaseCandidates(baseUrl);
+    if (candidates.isEmpty) return null;
+    final answers = await Future.wait([
+      for (final candidate in candidates)
+        auth
+            .precheckLogin(baseUrl: candidate, isHosted: false, email: email)
+            .then<bool>((r) => r != null)
+            .catchError((Object _) => false),
+    ]);
+    for (var i = 0; i < candidates.length; i++) {
+      if (answers[i]) return candidates[i];
     }
     return null;
   }
@@ -1221,7 +1259,9 @@ class LoginViewModel extends ChangeNotifier {
 ///
 /// Policy:
 ///  * a bare host (no scheme) is assumed `https://`;
-///  * a trailing `/api/v1` (the API address the legacy app showed) is dropped;
+///  * a page copied from the browser is cut back to the server's base
+///    ([serverBaseFromPageUrl]): `/login`, `/#/login`, `/client/…`, a
+///    trailing `/api/v1` (the API address the legacy app showed), a query;
 ///  * `https://` is always allowed;
 ///  * `http://` is allowed to any host, as the legacy app allowed: a
 ///    self-hosted server without TLS is the admin's choice to make
@@ -1242,18 +1282,111 @@ class LoginViewModel extends ChangeNotifier {
       raw = 'https://$raw';
     }
   }
-  // The legacy app took the API address (`https://host/api/v1`) and dropped
-  // the suffix (`cleanApiUrl`); every route is appended to this base, so a
-  // kept suffix reached `/api/v1/api/v1/login`, which does not exist.
-  raw = raw.replaceFirst(RegExp(r'/api/v1/*$', caseSensitive: false), '');
-  final uri = raw.isEmpty ? null : Uri.tryParse(raw);
-  if (uri == null || uri.host.isEmpty || uri.userInfo.isNotEmpty) {
+  final parsed = raw.isEmpty ? null : Uri.tryParse(raw);
+  if (parsed == null || parsed.host.isEmpty || parsed.userInfo.isNotEmpty) {
     return (url: null, errorKey: 'invalid_url');
   }
+  final uri = serverBaseFromPageUrl(parsed);
+  // Untouched input is returned as typed; only a URL something was cut from
+  // is rebuilt.
+  if (uri != parsed) raw = uri.toString();
   final scheme = uri.scheme.toLowerCase();
   if (scheme == 'https') return (url: raw, errorKey: null);
   if (scheme == 'http') return (url: raw, errorKey: null);
   return (url: null, errorKey: 'invalid_url');
+}
+
+/// The server's base URL inside [url], an address copied from a browser.
+///
+/// Users paste what their address bar shows: the sign-in page
+/// (`https://host/login`, `https://host/#/login`), the client portal
+/// (`https://host/client/login`), the API address the legacy app showed
+/// (`https://host/api/v1`), or a page of the React app. Every route is
+/// appended to the base (`apiUri`), so a kept page asked for
+/// `https://host/login/api/v1/login`; the server's web fallback is GET-only,
+/// so it answered "Method not supported for this route", which read as a
+/// redirect.
+///
+/// Dropped: the query and fragment (no API root has either; hash routing
+/// keeps the page in the fragment), everything from an `api/v1`, `client` or
+/// `vendor` segment on (the API and the two portals), `password/reset…`, and
+/// trailing page names in [_serverPageSegments]. A sub-path install
+/// (`https://host/ninja/login` → `https://host/ninja`) keeps its path. A page
+/// of the React app (`/clients/…`, `/invoices`) is not guessed at here, since
+/// an install may legitimately live under `/invoices`: the login screen finds
+/// those by asking the paths above it ([serverBaseCandidates]).
+///
+/// Returns [url] itself when nothing is dropped.
+Uri serverBaseFromPageUrl(Uri url) {
+  final segments = [...url.pathSegments];
+  var changed = url.hasQuery || url.hasFragment;
+  void cutAt(int i) {
+    if (i < 0 || i >= segments.length) return;
+    segments.removeRange(i, segments.length);
+    changed = true;
+  }
+
+  String at(int i) => segments[i].toLowerCase();
+  for (var i = 0; i < segments.length; i++) {
+    final s = at(i);
+    if ((s == 'api' && i + 1 < segments.length && at(i + 1) == 'v1') ||
+        s == 'client' ||
+        s == 'vendor' ||
+        (s == 'password' && i + 1 < segments.length && at(i + 1) == 'reset')) {
+      cutAt(i);
+      break;
+    }
+  }
+  while (segments.isNotEmpty &&
+      (segments.last.isEmpty ||
+          _serverPageSegments.contains(segments.last.toLowerCase()))) {
+    segments.removeLast();
+    changed = true;
+  }
+  if (!changed) return url;
+  return Uri(
+    scheme: url.scheme,
+    host: url.host,
+    port: url.hasPort ? url.port : null,
+    pathSegments: segments.isEmpty ? null : segments,
+  );
+}
+
+/// The last path segments a browser shows on an Invoice Ninja page that are
+/// never part of an install's own path: the server's web routes (`setup`,
+/// `update`), its entry points, and the sign-in pages of the React app.
+const Set<String> _serverPageSegments = {
+  'login',
+  'logout',
+  'register',
+  'signup',
+  'setup',
+  'update',
+  'dashboard',
+  'index.php',
+  'index.html',
+};
+
+/// Base URLs above [baseUrl]'s path, nearest first, ending at the bare
+/// origin: `https://host/a/b` gives `https://host/a`, then `https://host`.
+/// Empty when [baseUrl] has no path. At most [limit] of them, the ones
+/// nearest the origin kept, so a long pasted page path can't fan out.
+List<String> serverBaseCandidates(String baseUrl, {int limit = 4}) {
+  final uri = Uri.tryParse(baseUrl);
+  if (uri == null || uri.host.isEmpty) return const [];
+  final segments = uri.pathSegments.where((s) => s.isNotEmpty).toList();
+  final out = <String>[];
+  for (var n = segments.length - 1; n >= 0; n--) {
+    out.add(
+      Uri(
+        scheme: uri.scheme,
+        host: uri.host,
+        port: uri.hasPort ? uri.port : null,
+        pathSegments: n == 0 ? null : segments.sublist(0, n),
+      ).toString(),
+    );
+  }
+  return out.length <= limit ? out : out.sublist(out.length - limit);
 }
 
 /// Whether [host] is this machine, which a browser lets an https page reach
