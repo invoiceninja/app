@@ -435,6 +435,7 @@ Every surface calls `guardedOnTap(context, item)`, never `item.onTap`; surfaces 
 - **A rejected save must never be a dead end.** → `docs/sync.md`
 - **Server-side list ordering / cursor.** → `docs/sync.md`
 - **A narrowed fetch neither reads nor advances the cursor** → `docs/sync.md`
+- **A delta asks for every state and pages to its end.** → `docs/sync.md`
 - **`hasMore` is not the gate for widening the Drift window.** → `docs/sync.md`
 - **A bulk re-download re-arms mounted lists.** → `docs/sync.md`
 - **Lists sort newest-first where the sort key is monotonic.** → `docs/sync.md`
@@ -479,7 +480,7 @@ Before adding a new module, decide how its data is fetched. Two buckets:
 
 Rule of thumb: small / mostly-read / company-shared (≲ a few hundred rows) → **bundled** (`docs/adding-an-entity.md` § Bundled entities); something a user scrolls / searches / filters → **own route**. Unsure? Probe `/api/v1/refresh?first_load=true&include_static=true` on the demo API.
 
-**Bundled today**: the auth user record (`data[N].user`, written directly in `_persistAndActivate`), `task_statuses`, `company_gateways`. `applyBundle` is **upsert-only — never deletes** (`is_dirty=true` rows keep their outbox-bound payload until the next real sync); it advances the keyset cursor with `wasFullSync: true` so the screen's first `ensurePageLoaded` short-circuits.
+**Bundled today**: the auth user record (`data[N].user`, written directly in `_persistAndActivate`), `task_statuses`, `company_gateways`. `applyBundle` is **upsert-only — never deletes**; it advances the keyset cursor with `wasFullSync: true` so the screen's first `ensurePageLoaded` short-circuits.
 
 ## Sidebar counters
 

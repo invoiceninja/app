@@ -1820,6 +1820,192 @@ void main() {
       );
     });
 
+    // invoiceninja/app#208: invoices paid and auto-archived on the server
+    // stayed Sent / Past Due here — in Unpaid, in Outstanding — because every
+    // way back to them was filtered to `status=active`.
+    group('a record that left the active list since the watermark', () {
+      Future<List<String>> activeIds() async => [
+        for (final r
+            in await db.clientDao
+                .watchPage(companyId: 'co', offset: 0, limit: 50)
+                .first)
+          r.id,
+      ];
+
+      test('comes back on the delta page 1, which asks for every state, and '
+          'drops out of the active list', () async {
+        final pages = <int, List<ClientApi>>{
+          1: [apiClient('c1', updatedAt: 100)],
+        };
+        final (:repo, :api) = makeRepo(pages: pages);
+        await repo.ensurePageLoaded(companyId: 'co', page: 1);
+        expect(await activeIds(), ['c1']);
+        expect(api.calls.single.filters['status'], 'active');
+
+        // Archived on the server since; an `{active}` delta never names it.
+        pages[1] = [apiClient('c1', updatedAt: 200).copyWith(archivedAt: 200)];
+        await repo.ensurePageLoaded(companyId: 'co', page: 1);
+
+        expect(api.calls.last.since, isNotNull, reason: 'a delta');
+        expect(
+          api.calls.last.filters.containsKey('status'),
+          isFalse,
+          reason: 'a delta filtered to active cannot see a record leave it',
+        );
+        expect(await activeIds(), isEmpty);
+      });
+
+      test('a first page filtered to active does not move the watermark past '
+          'it', () async {
+        await db.syncStateDao.writeCursor(
+          companyId: 'co',
+          entityType: 'client',
+          updatedAt: 100,
+          id: 'seed',
+          now: 0,
+        );
+        final (:repo, :api) = makeRepo(
+          pages: {
+            1: [apiClient('c9', updatedAt: 900)],
+          },
+        );
+
+        await repo.ensurePageLoaded(
+          companyId: 'co',
+          page: 1,
+          ignoreCursor: true,
+        );
+
+        expect(api.calls.single.filters['status'], 'active');
+        final cursor = await db.syncStateDao.read(
+          companyId: 'co',
+          entityType: 'client',
+        );
+        expect(
+          cursor.id,
+          'seed',
+          reason:
+              'it saw none of the records archived since 100; moved to 900, '
+              'no later delta would ask about them again',
+        );
+      });
+
+      test('a cold page 1 still seeds the watermark', () async {
+        final (:repo, api: _) = makeRepo(
+          pages: {
+            1: [apiClient('c1', updatedAt: 100)],
+          },
+        );
+        await repo.ensurePageLoaded(companyId: 'co', page: 1);
+        final cursor = await db.syncStateDao.read(
+          companyId: 'co',
+          entityType: 'client',
+        );
+        expect(cursor.id, 'c1');
+      });
+
+      test('pull-to-refresh re-reads the newest page instead of a delta of '
+          'it', () async {
+        // The watermark already sits past the archive — a delta page 1 would
+        // miss it, and pages 2+ start at row 51.
+        await db.syncStateDao.writeCursor(
+          companyId: 'co',
+          entityType: 'client',
+          updatedAt: 500,
+          id: 'seed',
+          now: 0,
+        );
+        final (:repo, :api) = makeRepo(
+          pages: {
+            1: [apiClient('c1', updatedAt: 200).copyWith(archivedAt: 200)],
+          },
+        );
+        await repo.applyRefreshDelta(
+          companyId: 'co',
+          bundle: [apiClient('c1', updatedAt: 100)],
+        );
+        expect(await activeIds(), ['c1']);
+
+        await repo.refreshAll(companyId: 'co');
+
+        expect(api.calls.first.page, 1);
+        expect(api.calls.first.since, isNull);
+        expect(api.calls.first.filters.containsKey('status'), isFalse);
+        expect(await activeIds(), isEmpty);
+        final cursor = await db.syncStateDao.read(
+          companyId: 'co',
+          entityType: 'client',
+        );
+        expect(
+          cursor.updatedAt,
+          500,
+          reason:
+              'a first page only moves the watermark forward — its last row '
+              'is the 50th-newest id, which can be far older',
+        );
+      });
+
+      test('a delta longer than one page is followed to its end', () async {
+        await db.syncStateDao.writeCursor(
+          companyId: 'co',
+          entityType: 'client',
+          updatedAt: 100,
+          id: 'seed',
+          now: 0,
+        );
+        final (:repo, :api) = makeRepo(
+          pages: {
+            1: [for (var i = 0; i < 50; i++) apiClient('n$i', updatedAt: 300)],
+            2: [apiClient('old', updatedAt: 200).copyWith(archivedAt: 200)],
+          },
+        );
+        await repo.applyRefreshDelta(
+          companyId: 'co',
+          bundle: [apiClient('old', updatedAt: 50)],
+        );
+
+        await repo.ensurePageLoaded(companyId: 'co', page: 1);
+
+        expect([for (final c in api.calls) c.page], [1, 2]);
+        expect(api.calls.last.since, 100, reason: 'page 2 of the delta');
+        expect(api.calls.last.filters.containsKey('status'), isFalse);
+        expect(await activeIds(), isNot(contains('old')));
+        final cursor = await db.syncStateDao.read(
+          companyId: 'co',
+          entityType: 'client',
+        );
+        expect(cursor.updatedAt, 300);
+      });
+
+      test('a delta still full at the page cap leaves the watermark', () async {
+        await db.syncStateDao.writeCursor(
+          companyId: 'co',
+          entityType: 'client',
+          updatedAt: 100,
+          id: 'seed',
+          now: 0,
+        );
+        final (:repo, :api) = makeRepo(
+          pages: {
+            for (var p = 1; p <= 25; p++)
+              p: [
+                for (var i = 0; i < 50; i++)
+                  apiClient('p${p}_$i', updatedAt: 1000 + p),
+              ],
+          },
+        );
+
+        await repo.ensurePageLoaded(companyId: 'co', page: 1);
+
+        expect(api.calls, hasLength(20));
+        final cursor = await db.syncStateDao.read(
+          companyId: 'co',
+          entityType: 'client',
+        );
+        expect(cursor.id, 'seed', reason: 'rows past the cap were never seen');
+      });
+    });
+
     test(
       'ensurePageLoaded omits `status` when every state is requested',
       () async {

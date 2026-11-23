@@ -1194,6 +1194,20 @@ abstract class BaseEntityRepository<TDomain, TApi> {
     return controller.stream;
   }
 
+  /// Pages a `/list` delta is followed for before it gives up without
+  /// moving the cursor — 1 000 changed rows at the default page size.
+  static const int _kMaxDeltaPages = 20;
+
+  /// Whether writing [updatedAt] would move the stored cursor backwards.
+  Future<bool> _wouldMoveCursorBack(String companyId, int updatedAt) async {
+    final stored = await _syncState.read(
+      companyId: companyId,
+      entityType: entityTypeName,
+    );
+    final at = stored.updatedAt;
+    return at != null && updatedAt < at;
+  }
+
   /// Advance the keyset cursor after upserting a page.
   Future<void> advanceCursor({
     required String companyId,
@@ -1272,11 +1286,12 @@ abstract class BaseEntityRepository<TDomain, TApi> {
   ///  * **any user filter** with a non-empty value set in `extraFilters`.
   ///  * **a `states` set that narrows away from the list's baseline.** Two
   ///    shapes are baselines and are NOT narrowing: the default `{active}`
-  ///    (long-standing behaviour — the archived/deleted tail is swept by
-  ///    `refreshAll`), and any set [stateQueryParams] sends nothing for (empty,
-  ///    or all of `EntityState.values` — the widest possible fetch, which is
-  ///    what `refreshAll` sends). Anything in
-  ///    between, e.g. `{archived}` from the status chip, is a slice.
+  ///    (whose delta goes out with no state filter at all, so a record that
+  ///    was archived or deleted since the watermark still comes back —
+  ///    invoiceninja/app#208), and any set [stateQueryParams] sends nothing
+  ///    for (empty, or all of `EntityState.values` — the widest possible
+  ///    fetch, which is what `refreshAll` sends). Anything in between, e.g.
+  ///    `{archived}` from the status chip, is a slice.
   ///
   /// `staticFilters` is deliberately NOT considered: those are per-repo
   /// constants, and the ones that do narrow the row set (e.g. `active_banks` on
@@ -1409,7 +1424,8 @@ abstract class BaseEntityRepository<TDomain, TApi> {
   /// + bundled). Encodes the contract every list-fetching repo has shared
   /// independently:
   ///   1. Read cursor (or skip when `ignoreCursor`).
-  ///   2. Merge `stateQueryParams(states)` + per-call [staticFilters] + the
+  ///   2. Merge `stateQueryParams(states)` (every state when the cursor is
+  ///      applied) + per-call [staticFilters] + the
   ///      open-ended [extraFilters] map (each set comma-joined, keys sorted
   ///      deterministically) into a flat `Map<String, String>`.
   ///   3. Call [listCall] with cursor + filters.
@@ -1531,8 +1547,16 @@ abstract class BaseEntityRepository<TDomain, TApi> {
       extraFilters: resolvedExtra,
     );
 
+    // A delta asks for every state. The cursor is read only for the `{active}`
+    // baseline (or no state filter at all), and an `{active}` delta cannot
+    // return a record that LEFT the active set since the watermark: an invoice
+    // paid and auto-archived on the server stayed Sent / Past Due here, in
+    // Unpaid and in Outstanding, for good (invoiceninja/app#208). Drift applies
+    // the list's own state predicate, so the archived row lands and drops out.
+    final isDelta = cursor?.updatedAt != null;
+    final wireStates = isDelta ? EntityState.values.toSet() : states;
     final filters = <String, String>{
-      ...stateQueryParams(states),
+      ...stateQueryParams(wireStates),
       ...staticFilters,
       if (excludeDeletedClients && !hasClientScope)
         'without_deleted_clients': 'true',
@@ -1629,8 +1653,68 @@ abstract class BaseEntityRepository<TDomain, TApi> {
     );
     await traceAsync('page.write', () => upsert(byId), args: spanArgs);
 
+    // A delta is paged to its end. The server orders it `id DESC` like any
+    // list, so one page held only the fifty newest ids that changed: an older
+    // invoice archived since the watermark sat on delta page 2, and the cursor
+    // then moved past it (invoiceninja/app#208). Every delta row is changed
+    // since `W`, so whichever page's `data.last` the cursor takes, it is never
+    // older than `W` and never past a row the drain did not see. Capped: a
+    // delta still full at [_kMaxDeltaPages] leaves the cursor where it was, and
+    // the next delta (or pull-to-refresh) asks again.
+    var deltaDrained = true;
+    var markUpdatedAt = result.cursorUpdatedAt;
+    var markId = result.cursorId;
+    if (isDelta && apiRows.length >= pageSize) {
+      deltaDrained = false;
+      for (var p = 2; p <= _kMaxDeltaPages; p++) {
+        final next = await listCall(
+          page: p,
+          perPage: pageSize,
+          sinceUpdatedAt: cursor!.updatedAt,
+          sinceId: cursor.id,
+          filters: filters,
+        );
+        if (!companyStillActive(companyId)) {
+          throw CompanySwitchedException(
+            expected: companyId,
+            active: activeCompanyId?.call(),
+            entityType: entityTypeName,
+          );
+        }
+        final rows = itemsOf(next.data);
+        if (rows.isNotEmpty) {
+          await upsert({for (final a in rows) idOf(a): toCompanion(a)});
+          final at = next.cursorUpdatedAt;
+          if (at != null &&
+              next.cursorId != null &&
+              (markUpdatedAt == null || at > markUpdatedAt)) {
+            markUpdatedAt = at;
+            markId = next.cursorId;
+          }
+        }
+        if (rows.length < pageSize) {
+          deltaDrained = true;
+          break;
+        }
+      }
+    }
+
     // Only an unscoped, un-narrowed page 1 may move the global watermark —
     // same `isNarrowedFetch` predicate the cursor READ above is gated on.
+    // Three more conditions, all invoiceninja/app#208:
+    //  * a deliberate first page (`ignoreCursor`) that still carried a state
+    //    filter never moves it. `{active}` saw none of the records archived or
+    //    deleted since the watermark, and moving past them means no later
+    //    delta asks again. A cold page 1 (no cursor stored) still seeds one —
+    //    its `data.last` is the oldest id of the newest fifty, so the seed is
+    //    usually wide, not ahead. Known residue: a Sync that reset the cursor
+    //    and then failed leaves Drift's stale rows behind a filtered seed.
+    //  * a delta that hit the page cap never moves it (above).
+    //  * a page that is not a delta only ever moves it FORWARD. Its `data.last`
+    //    is the fiftieth-newest id's `updated_at`, which can be months older
+    //    than the stored watermark; pull-to-refresh (page 1 ignores the cursor)
+    //    used to drag it back there and widen every later delta.
+    final wireFiltersStates = stateQueryParams(wireStates).isNotEmpty;
     if (shouldAdvanceCursor(
           page: page,
           hasParentScope: hasParentScope,
@@ -1638,12 +1722,15 @@ abstract class BaseEntityRepository<TDomain, TApi> {
           states: states,
           extraFilters: resolvedExtra,
         ) &&
-        result.cursorUpdatedAt != null &&
-        result.cursorId != null) {
+        !(ignoreCursor && wireFiltersStates) &&
+        deltaDrained &&
+        markUpdatedAt != null &&
+        markId != null &&
+        (isDelta || !await _wouldMoveCursorBack(companyId, markUpdatedAt))) {
       await advanceCursor(
         companyId: companyId,
-        updatedAt: result.cursorUpdatedAt!,
-        id: result.cursorId!,
+        updatedAt: markUpdatedAt,
+        id: markId,
         // Never from here. This used to be `wasFullSync: ignoreCursor`, but
         // `ignoreCursor` means "do not read the cursor" — true for page 1 of a
         // real full sync, and equally true of every page of a deliberately
@@ -1695,9 +1782,13 @@ abstract class BaseEntityRepository<TDomain, TApi> {
   /// entity from page 1 with every lifecycle state included, so the archived
   /// and deleted tail lands in Drift too.
   ///
-  /// [full] resets the keyset cursor first and makes page 1 ignore it, turning
-  /// a delta sync into a true re-download. Pages after the first never apply
-  /// the cursor (see [shouldReadCursor]).
+  /// Page 1 never reads the keyset cursor, full or not. Pages after the first
+  /// never apply it either (see [shouldReadCursor]), so the sweep downloads
+  /// every page anyway — and a delta page 1 left the NEWEST fifty rows the one
+  /// slice it did not re-read: pull-to-refresh walked the whole table except
+  /// the invoices most likely to have just been paid and archived
+  /// (invoiceninja/app#208). [full] adds the cursor reset before the sweep and
+  /// the `last_full_sync_at` stamp after it.
   ///
   /// [maxPages] is a safety cap, not a tuning knob — it exists so a server
   /// that keeps answering `hasMore` can't spin forever. It is a parameter
@@ -1751,7 +1842,7 @@ abstract class BaseEntityRepository<TDomain, TApi> {
         companyId: companyId,
         page: page,
         states: allStates,
-        ignoreCursor: full && page == 1,
+        ignoreCursor: page == 1,
       );
       page++;
       if (page > maxPages) {
