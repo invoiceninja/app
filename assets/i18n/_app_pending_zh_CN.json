@@ -2385,5 +2385,16 @@
   "desktop_app_promo_settings_body": "更大的屏幕和键盘快捷键，账户和数据保持一致。",
   "free_plan_client_limit_form": "您已用完免费版的全部 :count 个客户。升级即可保存此客户。",
   "free_plan_purge_note": "只有彻底删除客户才能腾出名额，这也会删除其发票和付款。",
-  "free_plan_import_too_many": "此次导入会超出免费版允许的 :count 个客户，因此未导入任何内容。升级即可全部导入。"
+  "free_plan_import_too_many": "此次导入会超出免费版允许的 :count 个客户，因此未导入任何内容。升级即可全部导入。",
+  "documents_added_immediately": "在此添加的文件会立即附加，无需保存。",
+  "show_document_preview_help": "在每个文档旁显示照片或 PDF 的第一页。每个都需要下载，因此在按流量计费的网络上请关闭此项。",
+  "cloudflare_check_title": "验证您是真人",
+  "cloudflare_check_help": ":host 受 Cloudflare 保护。完成下方的验证后，应用会自动继续。",
+  "cloudflare_check_failed": "验证页面未能加载。请检查网络连接后重试。",
+  "cloudflare_banner": ":host 要求验证您是真人。在您完成验证之前，更改会保留在此设备上。",
+  "cloudflare_banner_expired": ":host 再次要求验证您是真人（通常是在切换网络之后）。在您完成验证之前，更改会保留在此设备上。",
+  "cloudflare_banner_unsupported": ":host 要求验证您是真人，但此设备无法显示该验证。请让服务器管理员放行此应用。",
+  "cloudflare_challenge_hosted": "Cloudflare 正在检查此连接。请几分钟后重试。",
+  "cloudflare_banner_refused": "验证已通过，但 :host 的 Cloudflare 设置仍拒绝此应用。请将 Ray ID :ray 告知服务器管理员。",
+  "cloudflare_banner_web": ":host 要求验证您是真人。请重新加载页面以继续。"
 }

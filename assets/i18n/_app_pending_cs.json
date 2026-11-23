@@ -2385,5 +2385,16 @@
   "desktop_app_promo_settings_body": "Větší obrazovka a klávesové zkratky se stejným účtem a daty.",
   "free_plan_client_limit_form": "Využili jste všech :count klientů v bezplatném tarifu. Pro uložení tohoto klienta přejděte na vyšší tarif.",
   "free_plan_purge_note": "Místo uvolní jen trvalé odstranění klienta, které smaže i jeho faktury a platby.",
-  "free_plan_import_too_many": "Tento import by překročil :count klientů, které bezplatný tarif umožňuje, proto nebylo nic importováno. Pro import všech přejděte na vyšší tarif."
+  "free_plan_import_too_many": "Tento import by překročil :count klientů, které bezplatný tarif umožňuje, proto nebylo nic importováno. Pro import všech přejděte na vyšší tarif.",
+  "documents_added_immediately": "Soubory přidané sem se připojí okamžitě, bez ukládání.",
+  "show_document_preview_help": "Zobrazí u každého dokumentu fotku nebo první stránku PDF. Každý se stahuje, proto to na měřeném připojení vypněte.",
+  "cloudflare_check_title": "Ověřte, že jste člověk",
+  "cloudflare_check_help": ":host je chráněn službou Cloudflare. Dokončete níže uvedené ověření a aplikace bude pokračovat sama.",
+  "cloudflare_check_failed": "Stránka ověření se nenačetla. Zkontrolujte připojení a zkuste to znovu.",
+  "cloudflare_banner": ":host žádá ověření, že jste člověk. Změny počkají v tomto zařízení, dokud to neuděláte.",
+  "cloudflare_banner_expired": ":host znovu žádá ověření, že jste člověk, obvykle po změně sítě. Změny počkají v tomto zařízení, dokud to neuděláte.",
+  "cloudflare_banner_unsupported": ":host žádá ověření, že jste člověk, což toto zařízení nedokáže zobrazit. Požádejte správce serveru, aby aplikaci pustil.",
+  "cloudflare_challenge_hosted": "Cloudflare kontroluje toto připojení. Zkuste to znovu za pár minut.",
+  "cloudflare_banner_refused": "Ověření proběhlo, ale nastavení Cloudflare serveru :host aplikaci stále odmítá. Sdělte Ray ID :ray správci serveru.",
+  "cloudflare_banner_web": ":host žádá ověření, že jste člověk. Pokračujte obnovením stránky."
 }

@@ -23,6 +23,7 @@ import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/adaptive.dart';
 import 'package:admin/ui/core/utils/platform_modifier.dart';
 import 'package:admin/ui/core/utils/text_input_focus.dart';
+import 'package:admin/ui/core/widgets/cloudflare_banner.dart';
 import 'package:admin/ui/core/widgets/certificate_banner.dart';
 import 'package:admin/ui/core/widgets/focus_owner_keeper.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
@@ -727,6 +728,7 @@ class _ScaffoldWithNavState extends State<ScaffoldWithNav> {
                                 ),
                               const OfflineBanner(),
                               const CertificateBanner(),
+                              const CloudflareBanner(),
                               const SessionExpiryBanner(),
                               const WebAppBanner(),
                               Expanded(
@@ -748,7 +750,13 @@ class _ScaffoldWithNavState extends State<ScaffoldWithNav> {
                                     // rebuild reaches it.
                                     ValueListenableBuilder<TasksViewMode?>(
                                       valueListenable: services.tasksView,
-                                      child: const RunningTimerPill(),
+                                      // Leaves out the task whose edit
+                                      // screen is open (invoiceninja/app#204).
+                                      child: RunningTimerPill(
+                                        hiddenTaskId: taskIdBeingEdited(
+                                          routerStateOf(context).uri,
+                                        ),
+                                      ),
                                       builder: (context, remembered, pill) {
                                         final alwaysHasFab =
                                             _activeScreenAlwaysHasFab(
@@ -904,6 +912,7 @@ class _ScaffoldWithNavState extends State<ScaffoldWithNav> {
                           ),
                           const OfflineBanner(),
                           const CertificateBanner(),
+                          const CloudflareBanner(),
                           const SessionExpiryBanner(),
                           const WebAppBanner(),
                           Expanded(
@@ -916,6 +925,11 @@ class _ScaffoldWithNavState extends State<ScaffoldWithNav> {
                             // no screen carries code for it. Renders only
                             // [widget.navigationShell] when nothing is running.
                             child: RunningTimerDock(
+                              // Leaves out the task whose edit screen is open
+                              // (invoiceninja/app#204).
+                              hiddenTaskId: taskIdBeingEdited(
+                                routerStateOf(context).uri,
+                              ),
                               child: widget.navigationShell,
                             ),
                           ),

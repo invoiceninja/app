@@ -8,6 +8,7 @@ import 'package:admin/data/db/app_database.dart';
 import 'package:admin/data/db/dao/base_entity_dao.dart';
 import 'package:admin/data/db/dao/document_dao.dart';
 import 'package:admin/data/models/api/document_api_model.dart';
+import 'package:admin/data/models/domain/document.dart';
 import 'package:admin/data/models/domain/document_parent.dart';
 import 'package:admin/data/models/domain/document_record.dart';
 import 'package:admin/data/models/value/parsing.dart';
@@ -354,6 +355,53 @@ class DocumentRepository
       );
     });
     return SaveResult(entity: document, outboxRowId: rowId);
+  }
+
+  /// Rename a file from its record's own Documents tab, or a record's edit
+  /// form (invoiceninja/app#206) — a [save] of just its name.
+  ///
+  /// [document] is the record's embedded copy, which this table may not hold
+  /// yet (the Documents list was never opened): it is seeded from that copy,
+  /// clean and linked to [parentType] / [parentId], so [save] sees a stored
+  /// row and sends only `name` — never a cached `is_public` that would undo a
+  /// visibility change still queued on the record.
+  ///
+  /// The parent's embedded copy takes the new name at once, so the tab shows
+  /// it offline too; the server's echo replaces it with the full copy when
+  /// the save drains ([applyUpdateResponse]).
+  Future<void> renameAttached({
+    required String companyId,
+    required Document document,
+    required EntityType parentType,
+    required String parentId,
+    required String name,
+  }) async {
+    final trimmed = name.trim();
+    if (trimmed.isEmpty || trimmed == document.name) return;
+    var row = await db.documentDao.byId(companyId: companyId, id: document.id);
+    if (row == null) {
+      await db.documentDao.upsert(
+        _apiToCompanion(
+          document.toApi(),
+          companyId,
+          parentType: parentType,
+          parentId: parentId,
+        ),
+      );
+      row = await db.documentDao.byId(companyId: companyId, id: document.id);
+      if (row == null) return;
+    }
+    await save(
+      companyId: companyId,
+      document: _fromRow(row).copyWith(name: trimmed),
+    );
+    await ownerFor
+        ?.call(parentType)
+        ?.applyDocumentChanged(
+          companyId: companyId,
+          entityId: parentId,
+          document: document.copyWith(name: trimmed).toApi(),
+        );
   }
 
   /// Flip one document between public and private — a [save] of just that.

@@ -2302,5 +2302,16 @@
   "desktop_app_promo_settings_body": "Una pantalla més gran i dreceres de teclat, amb el mateix compte i les mateixes dades.",
   "free_plan_client_limit_form": "Heu fet servir els :count clients del pla gratuït. Milloreu el pla per desar aquest client.",
   "free_plan_purge_note": "Només purgar un client n'allibera la plaça, i purgar també n'elimina les factures i els pagaments.",
-  "free_plan_import_too_many": "Aquesta importació superaria els :count clients que permet el pla gratuït, així que no s'ha importat res. Milloreu el pla per importar-los tots."
+  "free_plan_import_too_many": "Aquesta importació superaria els :count clients que permet el pla gratuït, així que no s'ha importat res. Milloreu el pla per importar-los tots.",
+  "documents_added_immediately": "Els fitxers afegits aquí s'adjunten immediatament, sense desar.",
+  "show_document_preview_help": "Mostra una foto o la primera pàgina d'un PDF al costat de cada document. Cadascun es descarrega, així que desactiveu-ho amb una connexió limitada.",
+  "cloudflare_check_title": "Verifiqueu que sou humà",
+  "cloudflare_check_help": ":host està protegit per Cloudflare. Completeu la comprovació de sota i l'aplicació continuarà sola.",
+  "cloudflare_check_failed": "La pàgina de comprovació no s'ha carregat. Comproveu la connexió i torneu-ho a provar.",
+  "cloudflare_banner": ":host demana que verifiqueu que sou humà. Els canvis esperen en aquest dispositiu fins que ho feu.",
+  "cloudflare_banner_expired": ":host torna a demanar que verifiqueu que sou humà, normalment després d'un canvi de xarxa. Els canvis esperen en aquest dispositiu fins que ho feu.",
+  "cloudflare_banner_unsupported": ":host demana que verifiqueu que sou humà, i aquest dispositiu no ho pot mostrar. Demaneu a l'administrador del servidor que deixi passar l'aplicació.",
+  "cloudflare_challenge_hosted": "Cloudflare està comprovant aquesta connexió. Torneu-ho a provar d'aquí a uns minuts.",
+  "cloudflare_banner_refused": "La comprovació s'ha superat, però la configuració de Cloudflare de :host encara rebutja l'aplicació. Compartiu el Ray ID :ray amb l'administrador del servidor.",
+  "cloudflare_banner_web": ":host demana que verifiqueu que sou humà. Torneu a carregar la pàgina per continuar."
 }

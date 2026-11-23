@@ -2306,5 +2306,16 @@
   "desktop_app_promo_settings_body": "En større skærm og tastaturgenveje, med samme konto og data.",
   "free_plan_client_limit_form": "Du har brugt alle :count kunder på Gratis-planen. Opgrader for at gemme denne kunde.",
   "free_plan_purge_note": "Kun en permanent sletning af en kunde frigør dens plads, og den sletter også kundens fakturaer og betalinger.",
-  "free_plan_import_too_many": "Denne import ville gå ud over de :count kunder, Gratis-planen tillader, så intet blev importeret. Opgrader for at importere dem alle."
+  "free_plan_import_too_many": "Denne import ville gå ud over de :count kunder, Gratis-planen tillader, så intet blev importeret. Opgrader for at importere dem alle.",
+  "documents_added_immediately": "Filer, der tilføjes her, vedhæftes med det samme uden at gemme.",
+  "show_document_preview_help": "Vis et foto eller første side af en PDF ved hvert dokument. Hver enkelt downloades, så slå det fra på en forbindelse med datalimit.",
+  "cloudflare_check_title": "Bekræft, at du er et menneske",
+  "cloudflare_check_help": ":host er beskyttet af Cloudflare. Gennemfør tjekket nedenfor, så fortsætter appen af sig selv.",
+  "cloudflare_check_failed": "Tjeksiden blev ikke indlæst. Tjek din forbindelse, og prøv igen.",
+  "cloudflare_banner": ":host beder dig bekræfte, at du er et menneske. Ændringer venter på denne enhed, indtil du gør det.",
+  "cloudflare_banner_expired": ":host beder dig igen bekræfte, at du er et menneske, typisk efter et netværksskift. Ændringer venter på denne enhed, indtil du gør det.",
+  "cloudflare_banner_unsupported": ":host beder dig bekræfte, at du er et menneske, hvilket denne enhed ikke kan vise. Bed serverens administrator om at lukke appen igennem.",
+  "cloudflare_challenge_hosted": "Cloudflare tjekker denne forbindelse. Prøv igen om et par minutter.",
+  "cloudflare_banner_refused": "Tjekket lykkedes, men Cloudflare-indstillingerne for :host afviser stadig appen. Del Ray ID :ray med serverens administrator.",
+  "cloudflare_banner_web": ":host beder dig bekræfte, at du er et menneske. Genindlæs siden for at fortsætte."
 }

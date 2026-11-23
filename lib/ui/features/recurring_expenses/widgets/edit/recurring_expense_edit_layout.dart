@@ -76,9 +76,9 @@ class RecurringExpenseEditLayout extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               RecurringExpenseEditNotesSection(vm: vm),
-              if (vm.offersDocuments) ...[
+              if (vm.showsDocuments) ...[
                 const SizedBox(height: kFormCardGap),
-                CreateFormDocumentsCard(vm: vm),
+                FormDocumentsCard(vm: vm),
               ],
               const SizedBox(height: kFormCardGap),
               _CustomFieldsCollapsible(vm: vm),
@@ -102,9 +102,9 @@ class RecurringExpenseEditLayout extends StatelessWidget {
         RecurringExpenseEditInvoicingSection(vm: vm),
         const SizedBox(height: kFormCardGap),
         RecurringExpenseEditNotesSection(vm: vm),
-        if (vm.offersDocuments) ...[
+        if (vm.showsDocuments) ...[
           const SizedBox(height: kFormCardGap),
-          CreateFormDocumentsCard(vm: vm),
+          FormDocumentsCard(vm: vm),
         ],
         const SizedBox(height: kFormCardGap),
         _CustomFieldsCollapsible(vm: vm),

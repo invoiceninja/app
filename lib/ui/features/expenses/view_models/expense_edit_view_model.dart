@@ -73,6 +73,22 @@ class ExpenseEditViewModel extends GenericEditViewModel<Expense> {
   @override
   PendingUploadsRepository get documentUploadRepository => repo;
 
+  /// An existing record's form shows its own documents, live
+  /// (invoiceninja/app#205).
+  @override
+  SavedDocumentsBinding<Expense>? get savedDocumentsBinding {
+    final id = original?.id;
+    if (id == null) return null;
+    return SavedDocumentsBinding(
+      id: id,
+      watch: () => repo
+          .watch(companyId: companyId, id: id)
+          .map((saved) => saved?.documents),
+      withDocuments: (entity, documents) =>
+          entity.copyWith(documents: documents),
+    );
+  }
+
   VoidCallback? _unregisterShareTarget;
 
   /// A file attached on the form, or shared in, is offered to the receipt

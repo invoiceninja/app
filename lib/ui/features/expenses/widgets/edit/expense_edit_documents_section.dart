@@ -7,7 +7,7 @@ import 'package:admin/ui/core/widgets/attachments_plan_gate.dart';
 import 'package:admin/ui/features/dashboard/widgets/card_shell.dart';
 import 'package:admin/ui/features/expenses/view_models/expense_edit_view_model.dart';
 
-/// New Expense's Documents card: the shared create-form panel
+/// The expense form's Documents card. On New Expense: the shared create-form panel
 /// ([CreateFormDocumentsPanel], docs/attaching-documents.md) plus a Read
 /// receipt button on each file (docs/receipt-ocr.md) — offered while the form
 /// can read one, the file hasn't been read, and nothing else is being read; a
@@ -24,6 +24,9 @@ class ExpenseEditDocumentsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // A saved expense's own documents (invoiceninja/app#205): no receipt
+    // reading there — its fields were filled when it was made.
+    if (!vm.offersDocuments) return FormDocumentsCard(vm: vm);
     final panel = CreateFormDocumentsPanel(
       vm: vm,
       receipt: (

@@ -26,11 +26,11 @@ import 'package:admin/ui/features/expenses/widgets/edit/expense_edit_payment_sec
 /// - ≥1000 px: two columns. Left (`Expanded`) holds Amount (with the
 ///   currency, the date and the taxes), Details, Invoicing (client, project,
 ///   the billing switch revealing the rest) and Payment. Right
-///   (`_sidebarWidth` 360 px) holds Documents (create only —
-///   `vm.offersDocuments`), Notes, Organize, Banking (only for an expense
+///   (`_sidebarWidth` 360 px) holds Documents (`vm.showsDocuments`: new
+///   files on a new expense, the expense's own on a saved one), Notes, Organize, Banking (only for an expense
 ///   linked to a bank transaction) and the collapsible Custom fields.
 /// - <1000 px: single centered column (≤820 px) in the same order, with
-///   Documents (create only) straight after the amount.
+///   Documents straight after the amount.
 class ExpenseEditLayout extends StatelessWidget {
   const ExpenseEditLayout({super.key, required this.vm});
 
@@ -47,7 +47,7 @@ class ExpenseEditLayout extends StatelessWidget {
           builder: (context, constraints) {
             final twoCol =
                 constraints.maxWidth >= Breakpoints.entityFormMultiColumn;
-            final documents = vm.offersDocuments;
+            final documents = vm.showsDocuments;
             return SingleChildScrollView(
               padding: EdgeInsets.all(formPagePadding(context)),
               child: twoCol

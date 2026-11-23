@@ -2302,5 +2302,16 @@
   "desktop_app_promo_settings_body": "Väčšia obrazovka a klávesové skratky s rovnakým účtom a údajmi.",
   "free_plan_client_limit_form": "Využili ste všetkých :count klientov bezplatného programu. Na uloženie tohto klienta prejdite na vyšší program.",
   "free_plan_purge_note": "Miesto uvoľní iba trvalé odstránenie klienta, ktoré vymaže aj jeho faktúry a platby.",
-  "free_plan_import_too_many": "Tento import by prekročil :count klientov, ktorých bezplatný program umožňuje, preto sa nič neimportovalo. Na import všetkých prejdite na vyšší program."
+  "free_plan_import_too_many": "Tento import by prekročil :count klientov, ktorých bezplatný program umožňuje, preto sa nič neimportovalo. Na import všetkých prejdite na vyšší program.",
+  "documents_added_immediately": "Súbory pridané sem sa pripoja okamžite, bez ukladania.",
+  "show_document_preview_help": "Zobrazí pri každom dokumente fotku alebo prvú stranu PDF. Každá sa sťahuje, preto to na meranom pripojení vypnite.",
+  "cloudflare_check_title": "Overte, že ste človek",
+  "cloudflare_check_help": ":host je chránený službou Cloudflare. Dokončite overenie nižšie a aplikácia bude pokračovať sama.",
+  "cloudflare_check_failed": "Stránka overenia sa nenačítala. Skontrolujte pripojenie a skúste to znova.",
+  "cloudflare_banner": ":host žiada overenie, že ste človek. Zmeny počkajú v tomto zariadení, kým to neurobíte.",
+  "cloudflare_banner_expired": ":host znova žiada overenie, že ste človek, zvyčajne po zmene siete. Zmeny počkajú v tomto zariadení, kým to neurobíte.",
+  "cloudflare_banner_unsupported": ":host žiada overenie, že ste človek, čo toto zariadenie nedokáže zobraziť. Požiadajte správcu servera, aby aplikáciu prepustil.",
+  "cloudflare_challenge_hosted": "Cloudflare kontroluje toto pripojenie. Skúste to znova o pár minút.",
+  "cloudflare_banner_refused": "Overenie prebehlo, ale nastavenia Cloudflare servera :host aplikáciu stále odmietajú. Oznámte Ray ID :ray správcovi servera.",
+  "cloudflare_banner_web": ":host žiada overenie, že ste človek. Pokračujte obnovením stránky."
 }

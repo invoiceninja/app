@@ -10,6 +10,10 @@ const _redactHeaderKeys = <String>{
   'x-api-secret',
   'x-api-password-base64',
   'x-api-oauth-password',
+  // A server's session and Cloudflare's clearance cookies
+  // (docs/cloudflare-challenge.md): a capture is meant to be shared.
+  'cookie',
+  'set-cookie',
 };
 
 final _bodyRedactPattern = RegExp(

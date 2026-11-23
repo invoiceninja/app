@@ -2340,5 +2340,16 @@
   "desktop_app_promo_settings_body": "Nagyobb képernyő és billentyűparancsok, ugyanazzal a fiókkal és adatokkal.",
   "free_plan_client_limit_form": "Felhasználta az ingyenes csomag mind a(z) :count ügyfelét. Váltson nagyobb csomagra az ügyfél mentéséhez.",
   "free_plan_purge_note": "Csak egy ügyfél végleges törlése szabadítja fel a helyét, és ez a számláit és fizetéseit is törli.",
-  "free_plan_import_too_many": "Ez az importálás túllépné az ingyenes csomag :count ügyfeles keretét, ezért semmi nem lett importálva. Váltson nagyobb csomagra mindegyik importálásához."
+  "free_plan_import_too_many": "Ez az importálás túllépné az ingyenes csomag :count ügyfeles keretét, ezért semmi nem lett importálva. Váltson nagyobb csomagra mindegyik importálásához.",
+  "documents_added_immediately": "Az itt hozzáadott fájlok azonnal csatolódnak, mentés nélkül.",
+  "show_document_preview_help": "Minden dokumentum mellett megjelenít egy fotót vagy a PDF első oldalát. Mindegyik letöltődik, ezért forgalomkorlátos kapcsolaton kapcsolja ki.",
+  "cloudflare_check_title": "Igazolja, hogy ember",
+  "cloudflare_check_help": "A(z) :host szervert a Cloudflare védi. Végezze el az alábbi ellenőrzést, és az alkalmazás magától folytatja.",
+  "cloudflare_check_failed": "Az ellenőrző oldal nem töltődött be. Ellenőrizze a kapcsolatot, és próbálja újra.",
+  "cloudflare_banner": "A(z) :host azt kéri, igazolja, hogy ember. A módosítások addig ezen az eszközön várnak.",
+  "cloudflare_banner_expired": "A(z) :host ismét azt kéri, igazolja, hogy ember, általában hálózatváltás után. A módosítások addig ezen az eszközön várnak.",
+  "cloudflare_banner_unsupported": "A(z) :host azt kéri, igazolja, hogy ember, de ez az eszköz nem tudja megjeleníteni. Kérje meg a szerver rendszergazdáját, hogy engedje át az alkalmazást.",
+  "cloudflare_challenge_hosted": "A Cloudflare ellenőrzi ezt a kapcsolatot. Próbálja újra néhány perc múlva.",
+  "cloudflare_banner_refused": "Az ellenőrzés sikerült, de a(z) :host Cloudflare-beállításai továbbra is elutasítják az alkalmazást. Adja meg a :ray Ray ID-t a szerver rendszergazdájának.",
+  "cloudflare_banner_web": "A(z) :host azt kéri, igazolja, hogy ember. A folytatáshoz töltse újra az oldalt."
 }

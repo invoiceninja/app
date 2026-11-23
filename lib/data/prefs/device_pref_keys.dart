@@ -281,6 +281,15 @@ abstract final class DevicePrefKeys {
     PrefScope.device,
   );
 
+  /// Draw a document's photo or first PDF page as a thumbnail in document
+  /// lists (invoiceninja/app#206, docs/document-thumbnails.md). Each one is a
+  /// download, so it follows this device's connection, not the user.
+  static const documentThumbnails = PrefKey<bool>(
+    'document_thumbnails',
+    PrefCodec.boolean,
+    PrefScope.device,
+  );
+
   /// The folder a desktop download is written to; empty is the OS Downloads
   /// folder (docs/file-downloads.md). A path on this machine, so it stays
   /// with the device.
@@ -449,6 +458,7 @@ abstract final class DevicePrefKeys {
     appearanceSyncedAt,
     appearanceSeeded,
     desktopAppPromo,
+    documentThumbnails,
   ];
 
   /// The rows a data wipe leaves in place: the [PrefScope.device] keys and the

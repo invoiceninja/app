@@ -2302,5 +2302,16 @@
   "desktop_app_promo_settings_body": "Una pantalla más grande y atajos de teclado, con la misma cuenta y los mismos datos.",
   "free_plan_client_limit_form": "Has usado los :count clientes del plan gratuito. Mejora tu plan para guardar este cliente.",
   "free_plan_purge_note": "Solo purgar un cliente libera su lugar, y purgarlo también elimina sus facturas y pagos.",
-  "free_plan_import_too_many": "Esta importación superaría los :count clientes que permite el plan gratuito, así que no se importó nada. Mejora tu plan para importarlos todos."
+  "free_plan_import_too_many": "Esta importación superaría los :count clientes que permite el plan gratuito, así que no se importó nada. Mejora tu plan para importarlos todos.",
+  "documents_added_immediately": "Los archivos que añadas aquí se adjuntan al momento, sin guardar.",
+  "show_document_preview_help": "Muestra una foto o la primera página de un PDF junto a cada documento. Cada una se descarga, así que desactívalo con una conexión de datos limitada.",
+  "cloudflare_check_title": "Verifica que eres humano",
+  "cloudflare_check_help": ":host está protegido por Cloudflare. Completa la verificación de abajo y la aplicación continuará sola.",
+  "cloudflare_check_failed": "La página de verificación no se ha cargado. Revisa la conexión y vuelve a intentarlo.",
+  "cloudflare_banner": ":host pide verificar que eres humano. Los cambios esperan en este dispositivo hasta que lo hagas.",
+  "cloudflare_banner_expired": ":host vuelve a pedir verificar que eres humano, normalmente tras un cambio de red. Los cambios esperan en este dispositivo hasta que lo hagas.",
+  "cloudflare_banner_unsupported": ":host pide verificar que eres humano, y este dispositivo no puede mostrarlo. Pide al administrador del servidor que deje pasar la aplicación.",
+  "cloudflare_challenge_hosted": "Cloudflare está comprobando esta conexión. Vuelve a intentarlo en unos minutos.",
+  "cloudflare_banner_refused": "La verificación se ha completado, pero la configuración de Cloudflare de :host sigue rechazando la aplicación. Comparte el Ray ID :ray con el administrador del servidor.",
+  "cloudflare_banner_web": ":host pide verificar que eres humano. Recarga la página para continuar."
 }

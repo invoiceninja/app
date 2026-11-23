@@ -2386,5 +2386,16 @@
   "desktop_app_promo_settings_body": "Lielāks ekrāns un īsinājumtaustiņi, ar to pašu kontu un datiem.",
   "free_plan_client_limit_form": "Jūs esat izmantojis visus :count bezmaksas plāna klientus. Jauniniet plānu, lai saglabātu šo klientu.",
   "free_plan_purge_note": "Vietu atbrīvo tikai klienta neatgriezeniska dzēšana, kas izdzēš arī tā rēķinus un maksājumus.",
-  "free_plan_import_too_many": "Šis imports pārsniegtu :count klientus, ko atļauj bezmaksas plāns, tāpēc nekas netika importēts. Jauniniet plānu, lai importētu visus."
+  "free_plan_import_too_many": "Šis imports pārsniegtu :count klientus, ko atļauj bezmaksas plāns, tāpēc nekas netika importēts. Jauniniet plānu, lai importētu visus.",
+  "documents_added_immediately": "Šeit pievienotie faili tiek pievienoti uzreiz, bez saglabāšanas.",
+  "show_document_preview_help": "Rāda fotoattēlu vai PDF pirmo lapu blakus katram dokumentam. Katrs tiek lejupielādēts, tāpēc izslēdziet to, ja savienojumam ir datu ierobežojums.",
+  "cloudflare_check_title": "Apstipriniet, ka esat cilvēks",
+  "cloudflare_check_help": ":host aizsargā Cloudflare. Pabeidziet pārbaudi zemāk, un lietotne turpinās pati.",
+  "cloudflare_check_failed": "Pārbaudes lapa netika ielādēta. Pārbaudiet savienojumu un mēģiniet vēlreiz.",
+  "cloudflare_banner": ":host lūdz apstiprināt, ka esat cilvēks. Izmaiņas gaida šajā ierīcē, līdz to izdarīsiet.",
+  "cloudflare_banner_expired": ":host atkal lūdz apstiprināt, ka esat cilvēks, parasti pēc tīkla maiņas. Izmaiņas gaida šajā ierīcē, līdz to izdarīsiet.",
+  "cloudflare_banner_unsupported": ":host lūdz apstiprināt, ka esat cilvēks, bet šī ierīce to nevar parādīt. Palūdziet servera administratoram ielaist lietotni.",
+  "cloudflare_challenge_hosted": "Cloudflare pārbauda šo savienojumu. Mēģiniet vēlreiz pēc dažām minūtēm.",
+  "cloudflare_banner_refused": "Pārbaude izdevās, bet :host Cloudflare iestatījumi joprojām atraida lietotni. Nododiet Ray ID :ray servera administratoram.",
+  "cloudflare_banner_web": ":host lūdz apstiprināt, ka esat cilvēks. Lai turpinātu, pārlādējiet lapu."
 }

@@ -844,6 +844,11 @@ class ApiClient {
       throw _transportFailure(request, e.message);
     } on ServerException {
       rethrow;
+    } on CloudflareChallengeException {
+      // Cloudflare's "Verify you are human" in the server's place
+      // (`CloudflareClearanceClient`): provably not sent, and already its
+      // own type — wrapping it would lose the address the check opens.
+      rethrow;
     } catch (e) {
       // A refused certificate is a handshake failure, so the request was
       // provably not sent; `untrustedCertificateFrom` names the certificate

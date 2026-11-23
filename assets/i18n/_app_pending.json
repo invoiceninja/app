@@ -2388,5 +2388,16 @@
   "free_plan_import_too_many": "This import would take you past the :count clients the Free plan allows, so nothing was imported. Upgrade to import them all.",
   "find_in_items": "Find in items",
   "find_match_count": ":current of :total",
-  "find_no_matches": "No matches"
+  "find_no_matches": "No matches",
+  "documents_added_immediately": "Files added here are attached right away, without saving.",
+  "show_document_preview_help": "Show a photo or a PDF's first page beside each document. Each one is downloaded, so turn this off on a metered connection.",
+  "cloudflare_check_title": "Verify you're human",
+  "cloudflare_check_help": ":host is protected by Cloudflare. Complete the check below and the app carries on by itself.",
+  "cloudflare_check_failed": "The check page didn't load. Check your connection and try again.",
+  "cloudflare_banner": ":host is asking to verify you're human. Changes wait on this device until you do.",
+  "cloudflare_banner_expired": ":host is asking to verify you're human again, usually after a network change. Changes wait on this device until you do.",
+  "cloudflare_banner_unsupported": ":host is asking to verify you're human, which this device can't show. Ask the server's administrator to let the app through.",
+  "cloudflare_challenge_hosted": "Cloudflare is checking this connection. Try again in a few minutes.",
+  "cloudflare_banner_refused": "The check passed, but :host's Cloudflare settings still turn the app away. Share Ray ID :ray with the server's administrator.",
+  "cloudflare_banner_web": ":host is asking to verify you're human. Reload the page to continue."
 }

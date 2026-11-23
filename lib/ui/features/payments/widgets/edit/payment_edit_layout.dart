@@ -226,9 +226,9 @@ class _PaymentEditLayoutState extends State<PaymentEditLayout>
         PaymentCurrencyConversionSection(vm: vm, formatter: formatter),
         SizedBox(height: InSpacing.lg(context)),
         _NotesSection(vm: vm),
-        if (vm.offersDocuments) ...[
+        if (vm.showsDocuments) ...[
           SizedBox(height: InSpacing.lg(context)),
-          CreateFormDocumentsCard(vm: vm),
+          FormDocumentsCard(vm: vm),
         ],
         SizedBox(height: InSpacing.lg(context)),
         _CustomFieldsSection(vm: vm, formatter: formatter),

@@ -2301,5 +2301,16 @@
   "desktop_app_promo_settings_body": "Veći ekran i prečice na tastaturi, sa istim nalogom i podacima.",
   "free_plan_client_limit_form": "Iskoristili ste svih :count klijenata besplatnog paketa. Nadogradite da biste sačuvali ovog klijenta.",
   "free_plan_purge_note": "Mesto oslobađa samo trajno brisanje klijenta, koje briše i njegove račune i uplate.",
-  "free_plan_import_too_many": "Ovaj uvoz bi premašio :count klijenata koje besplatni paket dozvoljava, pa ništa nije uvezeno. Nadogradite da biste ih sve uvezli."
+  "free_plan_import_too_many": "Ovaj uvoz bi premašio :count klijenata koje besplatni paket dozvoljava, pa ništa nije uvezeno. Nadogradite da biste ih sve uvezli.",
+  "documents_added_immediately": "Datoteke dodate ovde se odmah prilažu, bez čuvanja.",
+  "show_document_preview_help": "Prikazuje fotografiju ili prvu stranicu PDF-a pored svakog dokumenta. Svaka se preuzima, pa ovo isključite na ograničenoj vezi.",
+  "cloudflare_check_title": "Potvrdite da ste čovek",
+  "cloudflare_check_help": ":host štiti Cloudflare. Završite proveru ispod i aplikacija će nastaviti sama.",
+  "cloudflare_check_failed": "Stranica za proveru se nije učitala. Proverite vezu i pokušajte ponovo.",
+  "cloudflare_banner": ":host traži da potvrdite da ste čovek. Izmene čekaju na ovom uređaju dok to ne uradite.",
+  "cloudflare_banner_expired": ":host ponovo traži da potvrdite da ste čovek, obično posle promene mreže. Izmene čekaju na ovom uređaju dok to ne uradite.",
+  "cloudflare_banner_unsupported": ":host traži da potvrdite da ste čovek, što ovaj uređaj ne može da prikaže. Zamolite administratora servera da propusti aplikaciju.",
+  "cloudflare_challenge_hosted": "Cloudflare proverava ovu vezu. Pokušajte ponovo za nekoliko minuta.",
+  "cloudflare_banner_refused": "Provera je prošla, ali Cloudflare podešavanja za :host i dalje odbijaju aplikaciju. Podelite Ray ID :ray sa administratorom servera.",
+  "cloudflare_banner_web": ":host traži da potvrdite da ste čovek. Ponovo učitajte stranicu da biste nastavili."
 }

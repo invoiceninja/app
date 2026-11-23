@@ -3,6 +3,7 @@ import 'package:logging/logging.dart';
 
 import 'package:admin/app/serving_server.dart';
 import 'package:admin/app/env.dart';
+import 'package:admin/data/services/cloudflare/cloudflare_clearance.dart';
 import 'package:admin/data/repositories/auth_repository.dart';
 import 'package:admin/data/services/api_exception.dart';
 import 'package:admin/data/services/apple_sign_in.dart';
@@ -285,6 +286,21 @@ class LoginViewModel extends ChangeNotifier {
         !store.isHosted(refused.host);
   }
 
+  /// Cloudflare's "Verify you are human" in the server's place, on a
+  /// self-hosted server behind a zone that challenges visitors
+  /// (docs/cloudflare-challenge.md). The view opens the check, then repeats
+  /// the step that hit it.
+  CloudflareChallengeException? _cloudflareChallenge;
+  CloudflareChallengeException? get cloudflareChallenge => _cloudflareChallenge;
+
+  /// The user closed the check, or it passed; either way the step's own
+  /// outcome is next.
+  void clearCloudflareChallenge() {
+    if (_cloudflareChallenge == null) return;
+    _cloudflareChallenge = null;
+    _notify();
+  }
+
   // Client-side validation, rendered inline — localization keys.
   String? _emailErrorKey;
   String? get emailErrorKey => _emailErrorKey;
@@ -340,6 +356,7 @@ class LoginViewModel extends ChangeNotifier {
     _errorDetailKey = null;
     _openServerUrl = null;
     _untrustedCertificate = null;
+    _cloudflareChallenge = null;
     _emailErrorKey = null;
     _clearUrlError();
     _otpErrorKey = null;
@@ -468,6 +485,16 @@ class LoginViewModel extends ChangeNotifier {
   /// web, where the browser reports a refused certificate as just another
   /// network error, a hint and a way to open the server.
   void _onNetworkError(NetworkException e, {String? baseUrl}) {
+    if (e is CloudflareChallengeException) {
+      // Never on hosted or the demo: there it is Cloudflare's to lift, and
+      // the message says so rather than offering a check.
+      if (isHostedOrDemoHost(e.url.host)) {
+        _setError(key: 'cloudflare_challenge_hosted');
+        return;
+      }
+      _cloudflareChallenge = e;
+      return;
+    }
     if (e is UntrustedCertificateException) {
       final hosted =
           isHosted ||
@@ -693,7 +720,9 @@ class LoginViewModel extends ChangeNotifier {
     if (isHosted ||
         served != null ||
         _isWeb ||
-        e is UntrustedCertificateException) {
+        e is UntrustedCertificateException ||
+        // Reached: Cloudflare answered for the server.
+        e is CloudflareChallengeException) {
       return false;
     }
     final uri = Uri.tryParse(baseUrl);

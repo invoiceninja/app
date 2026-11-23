@@ -2302,5 +2302,16 @@
   "desktop_app_promo_settings_body": "'n Groter skerm en sleutelbordkortpaaie, met dieselfde rekening en data.",
   "free_plan_client_limit_form": "Jy het al :count kliënte op die Gratis plan gebruik. Gradeer op om hierdie kliënt te stoor.",
   "free_plan_purge_note": "Slegs om 'n kliënt te suiwer maak sy plek vry, en suiwering skrap ook sy fakture en betalings.",
-  "free_plan_import_too_many": "Hierdie invoer sou jou verby die :count kliënte neem wat die Gratis plan toelaat, dus is niks ingevoer nie. Gradeer op om almal in te voer."
+  "free_plan_import_too_many": "Hierdie invoer sou jou verby die :count kliënte neem wat die Gratis plan toelaat, dus is niks ingevoer nie. Gradeer op om almal in te voer.",
+  "documents_added_immediately": "Lêers wat hier bygevoeg word, word dadelik aangeheg, sonder om te stoor.",
+  "show_document_preview_help": "Wys 'n foto of die eerste bladsy van 'n PDF langs elke dokument. Elkeen word afgelaai, so skakel dit af op 'n beperkte verbinding.",
+  "cloudflare_check_title": "Bevestig dat jy 'n mens is",
+  "cloudflare_check_help": ":host word deur Cloudflare beskerm. Voltooi die toets hieronder en die toep gaan vanself voort.",
+  "cloudflare_check_failed": "Die toetsbladsy het nie gelaai nie. Gaan jou verbinding na en probeer weer.",
+  "cloudflare_banner": ":host vra om te bevestig dat jy 'n mens is. Veranderinge wag op hierdie toestel totdat jy dit doen.",
+  "cloudflare_banner_expired": ":host vra weer om te bevestig dat jy 'n mens is, gewoonlik ná 'n netwerkverandering. Veranderinge wag op hierdie toestel totdat jy dit doen.",
+  "cloudflare_banner_unsupported": ":host vra om te bevestig dat jy 'n mens is, wat hierdie toestel nie kan wys nie. Vra die bediener se administrateur om die toep deur te laat.",
+  "cloudflare_challenge_hosted": "Cloudflare kontroleer hierdie verbinding. Probeer weer oor 'n paar minute.",
+  "cloudflare_banner_refused": "Die toets het geslaag, maar :host se Cloudflare-instellings weier steeds die toep. Deel Ray ID :ray met die bediener se administrateur.",
+  "cloudflare_banner_web": ":host vra om te bevestig dat jy 'n mens is. Herlaai die bladsy om voort te gaan."
 }

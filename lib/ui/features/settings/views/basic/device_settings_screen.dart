@@ -11,6 +11,7 @@ import 'package:admin/app/list_density_controller.dart';
 import 'package:admin/app/resync_controller.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/app/show_seconds_controller.dart';
+import 'package:admin/app/document_thumbnails_controller.dart';
 import 'package:admin/app/spell_check_controller.dart';
 import 'package:admin/app/text_scale_controller.dart';
 import 'package:admin/data/models/domain/company.dart';
@@ -68,6 +69,7 @@ const kDeviceSettingsAppearanceSearchKeys = <String>[
   'lists_and_dashboard_help',
   ...kListStatusTabsSearchKeys,
   'show_seconds',
+  'show_document_preview',
   'hide_peppol_sent_status',
   ...kDashboardPanelsSearchKeys,
   ...kSidebarMenuSearchKeys,
@@ -548,6 +550,7 @@ class _ListsSection extends StatelessWidget {
   Widget _card(BuildContext context, {required bool peppol}) {
     final services = context.read<Services>();
     final showSeconds = context.read<ShowSecondsController?>();
+    final thumbnails = context.read<DocumentThumbnailsController?>();
     final hidePeppol = services.hidePeppolStatus;
     return FormSection(
       title: context.tr('lists_and_dashboard'),
@@ -567,6 +570,20 @@ class _ListsSection extends StatelessWidget {
               subtitle: context.tr('show_seconds_help'),
               value: enabled,
               onChanged: showSeconds.set,
+            ),
+          ),
+        // "Show Document Preview": a photo's or a PDF's first page as the
+        // row's thumbnail in document lists (invoiceninja/app#206). Each is a
+        // download, so off is for a metered connection.
+        if (thumbnails != null)
+          ValueListenableBuilder<bool>(
+            valueListenable: thumbnails,
+            builder: (context, enabled, _) => SettingRow.toggle(
+              icon: const Icon(Icons.image_outlined),
+              title: context.tr('show_document_preview'),
+              subtitle: context.tr('show_document_preview_help'),
+              value: enabled,
+              onChanged: thumbnails.set,
             ),
           ),
         // "Hide Peppol Sent Status": the sent / failed mark beside the status

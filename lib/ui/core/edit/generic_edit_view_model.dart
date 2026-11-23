@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:decimal/decimal.dart';
 import 'package:flutter/foundation.dart';
 
+import 'package:admin/data/models/domain/document.dart';
 import 'package:admin/data/repositories/_repository_helpers.dart';
 import 'package:admin/data/repositories/create_already_landed_exception.dart';
 import 'package:admin/data/repositories/document_bearing_repository.dart';
@@ -49,7 +50,9 @@ abstract class GenericEditViewModel<T> extends ChangeNotifier {
        _companyId = companyId,
        _onlineSaveTimeout = onlineSaveTimeout;
 
-  final T? _original;
+  /// Rebased only by [_adoptSavedDocuments], which moves the record's
+  /// attachments into it and the draft alike — never a field the form edits.
+  T? _original;
   T _draft;
 
   /// What an untouched create form holds: the initial draft, plus every
@@ -230,6 +233,8 @@ abstract class GenericEditViewModel<T> extends ChangeNotifier {
 
   @override
   void dispose() {
+    unawaited(_savedDocumentsSub?.cancel());
+    _savedDocumentsSub = null;
     _disposed = true;
     // Left without saving: copies nothing queued belong to no record. Not
     // mid-save — the rows being written would name them; the boot sweep
@@ -288,6 +293,97 @@ abstract class GenericEditViewModel<T> extends ChangeNotifier {
   /// Whether the form shows its Documents card (or tab): a new record of an
   /// entity that takes documents.
   bool get offersDocuments => documentUploadRepository != null && isCreate;
+
+  // ── Documents of a record that already exists ────────────────────────
+  //
+  // invoiceninja/app#205, docs/attaching-documents.md. An existing record's
+  // form shows the record's own documents, live, and acts on them at once
+  // through the outbox — exactly what its record screen's Documents tab does.
+
+  /// How an existing record's form reaches the record's own documents —
+  /// overridden by every document-bearing edit view model. Null (the
+  /// default): no Documents on an existing record's form. Read only when the
+  /// form edits an existing record.
+  @protected
+  SavedDocumentsBinding<T>? get savedDocumentsBinding => null;
+
+  SavedDocumentsBinding<T>? get _binding =>
+      isCreate || documentUploadRepository == null
+      ? null
+      : savedDocumentsBinding;
+
+  /// Whether the form shows the record's own Documents: an existing record
+  /// of an entity that takes documents.
+  bool get offersSavedDocuments => _binding != null;
+
+  /// Whether the form shows a Documents card at all — new files on a create
+  /// form, the record's own on an edit form.
+  bool get showsDocuments => offersDocuments || offersSavedDocuments;
+
+  /// The id of the record whose documents the form shows (a `tmp_` id for a
+  /// record whose create hasn't synced); null on a create form.
+  String? get savedRecordId => _binding?.id;
+
+  /// The repository the saved-documents panel acts through; null on a
+  /// create form.
+  DocumentBearingRepository? get savedDocumentsRepository =>
+      offersSavedDocuments ? documentUploadRepository : null;
+
+  /// The company the form saves into, when the host passed it.
+  String? get formCompanyId => _companyId;
+
+  StreamSubscription<List<Document>?>? _savedDocumentsSub;
+  List<Document>? _savedDocuments;
+
+  /// Documents that arrived while a save was out: adopting them then would
+  /// read as an edit made during the save. Taken when it ends.
+  List<Document>? _deferredSavedDocuments;
+
+  /// The record's documents as stored now, once [watchSavedDocumentsLive]
+  /// has heard from Drift; null before that.
+  List<Document>? get savedDocuments => _savedDocuments;
+
+  /// Start following the record's documents. Idempotent; called by the
+  /// documents panel when it mounts.
+  void watchSavedDocumentsLive() {
+    final binding = _binding;
+    if (_savedDocumentsSub != null || _disposed || binding == null) return;
+    _savedDocumentsSub = binding.watch().listen(
+      (docs) {
+        if (docs == null || _disposed) return;
+        if (_isSaving) {
+          _deferredSavedDocuments = docs;
+          return;
+        }
+        _adoptSavedDocuments(docs);
+        notifyListeners();
+      },
+      // A record view that fails must not take the form down with it.
+      onError: (Object _) {},
+    );
+  }
+
+  /// Puts [docs] into the draft AND the record the form opened on, so the
+  /// form stays exactly as dirty as it was.
+  ///
+  /// Why it must: a save writes the draft's `documents` back to Drift. A
+  /// draft still holding the list it opened with would drop a file uploaded,
+  /// renamed or deleted on this form — and one a refresh brought — until the
+  /// next server copy.
+  ///
+  /// Only while the panel is mounted ([watchSavedDocumentsLive]), and that is
+  /// enough: the list can change from this form only through the panel. Not
+  /// read again at Save: a stream opened and closed there leaves Drift's close
+  /// timer pending, and `peek` is a first-frame seed, not a source of truth.
+  void _adoptSavedDocuments(List<Document> docs) {
+    _savedDocuments = docs;
+    final orig = _original;
+    if (orig == null) return;
+    final binding = _binding;
+    if (binding == null) return;
+    _original = binding.withDocuments(orig, docs);
+    _draft = binding.withDocuments(_draft, docs);
+  }
 
   /// Whether the form can take more files: [offersDocuments], and a create
   /// that isn't waiting on the user (unconfirmed — the card is locked) and
@@ -895,6 +991,9 @@ abstract class GenericEditViewModel<T> extends ChangeNotifier {
       await _settleDocuments(saved);
     } finally {
       _isSaving = false;
+      final deferred = _deferredSavedDocuments;
+      _deferredSavedDocuments = null;
+      if (deferred != null && !_disposed) _adoptSavedDocuments(deferred);
       // The screen may have unmounted while we were awaiting the sync
       // result (30 s timeout) — guard the notification so we don't trip
       // ChangeNotifier's disposed assertion.
@@ -1116,4 +1215,26 @@ abstract class GenericEditViewModel<T> extends ChangeNotifier {
       _pendingSaveQuery = null;
     }
   }
+}
+
+/// How an existing record's edit form reaches that record's documents
+/// (invoiceninja/app#205) — what [GenericEditViewModel.savedDocumentsBinding]
+/// returns.
+@immutable
+class SavedDocumentsBinding<T> {
+  const SavedDocumentsBinding({
+    required this.id,
+    required this.watch,
+    required this.withDocuments,
+  });
+
+  /// The record's id.
+  final String id;
+
+  /// The record's documents as stored, live; null while the record is gone.
+  final Stream<List<Document>?> Function() watch;
+
+  /// [entity] carrying [documents] — the `copyWith(documents:)` the base
+  /// can't write for a type it does not know.
+  final T Function(T entity, List<Document> documents) withDocuments;
 }

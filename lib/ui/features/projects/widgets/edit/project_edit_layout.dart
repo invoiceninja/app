@@ -69,9 +69,9 @@ class ProjectEditLayout extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               ProjectEditNotesSection(vm: vm),
-              if (vm.offersDocuments) ...[
+              if (vm.showsDocuments) ...[
                 const SizedBox(height: kFormCardGap),
-                CreateFormDocumentsCard(vm: vm),
+                FormDocumentsCard(vm: vm),
               ],
               const SizedBox(height: kFormCardGap),
               _customFieldsSection(context),
@@ -113,9 +113,9 @@ class ProjectEditLayout extends StatelessWidget {
         ProjectEditBudgetSection(vm: vm),
         const SizedBox(height: kFormCardGap),
         ProjectEditNotesSection(vm: vm),
-        if (vm.offersDocuments) ...[
+        if (vm.showsDocuments) ...[
           const SizedBox(height: kFormCardGap),
-          CreateFormDocumentsCard(vm: vm),
+          FormDocumentsCard(vm: vm),
         ],
         const SizedBox(height: kFormCardGap),
         _customFieldsSection(context),

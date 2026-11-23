@@ -35,7 +35,8 @@ void main() {
     final src = code('lib/ui/features/shell/scaffold_with_nav.dart');
     expect(
       RegExp(
-        r'RunningTimerDock\(\s*child:\s*widget\.navigationShell',
+        // `child:` last (`sort_child_properties_last`), after `hiddenTaskId:`.
+        r'RunningTimerDock\((?:[^;]*?,)?\s*child:\s*widget\.navigationShell',
       ).allMatches(src),
       hasLength(1),
     );

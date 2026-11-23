@@ -269,6 +269,35 @@ class RequestNotSentException extends NetworkException {
   const RequestNotSentException(super.message);
 }
 
+/// Cloudflare answered in the server's place with its "Verify you are human"
+/// challenge page (`cf-mitigated: challenge`) — a self-hosted server behind a
+/// Cloudflare zone that challenges visitors (invoiceninja/invoiceninja#13484,
+/// docs/cloudflare-challenge.md).
+///
+/// A [RequestNotSentException] on purpose: Cloudflare serves the challenge
+/// without forwarding the request to the server, so nothing was applied and a
+/// queued change is re-parked, never marked failed or "may have gone through".
+/// Raised by `CloudflareClearanceClient` before anything parses the HTML body
+/// as JSON, and before any 401 / sign-out path can see it.
+class CloudflareChallengeException extends RequestNotSentException {
+  CloudflareChallengeException({
+    required this.url,
+    required this.statusCode,
+    this.rayId,
+  }) : super('${url.host} is asking to verify you are human');
+
+  /// The challenged request's address.
+  final Uri url;
+
+  /// 403, 429 or 503 — what Cloudflare sent the challenge with; 0 when the
+  /// request was not sent at all because the origin is still waiting on a
+  /// check (`CloudflareClearanceStore.mayProbe`).
+  final int statusCode;
+
+  /// Cloudflare's `cf-ray` for the challenge, for the server's administrator.
+  final String? rayId;
+}
+
 /// The device refused the server's TLS certificate, so the handshake failed
 /// and nothing was sent. Carries what the certificate said about itself, so
 /// the login screen and the shell banner can explain it — and, for a

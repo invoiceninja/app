@@ -128,3 +128,21 @@ The kanban board has no panel: its lanes are already `surfaceAlt` cards on the p
 - **The dock lost its top rule** — the fill is the edge. Its geometry (48 px floor, the inset it owns, `ToastBottomInset`, the keyboard hiding it) is unchanged: `docs/sidebar-and-shell.md` § One surface, one safe-area owner — and the owner must be last.
 
 `running_timer_dock_test.dart` pins the fill, the inks, the mono duration and the due-now cue.
+
+## The shell's running timer leaves out the task whose edit screen is open
+
+**While `/tasks/<id>/edit` is on screen, `RunningTimerPill` and `RunningTimerDock` leave that task out of both modes — running and "Due now" — and out of "Stop all"; any other running or due task still shows.** The shell reads the id off the route with `taskIdBeingEdited` (`running_timer_pill.dart`) and passes it as `hiddenTaskId`; the repository streams take it as `exceptTaskId` (`watchRunning`, `watchRunningCount`, `watchDueNow`).
+
+Why: the task form's Start / Resume / Stop (`TaskEditTimerCard` → `TaskEditViewModel.stopTimer`) change only the draft, and nothing is written until Save — v1's behaviour, and what lets the whole time log be edited and checked (`draftTimeLogProblem`) before it reaches the server. The shell's timer reads Drift, so it went on ticking beside a form that said the timer had stopped (invoiceninja/app#204, a screenshot of `0:33:51` under a stopped `0:23:37`), and its own Stop would have written a second stop time under the open draft, which the form's Save then overwrote. On that screen the form's timer card is the control; leaving the screen without saving discards the draft's Stop, and the shell's timer reappears, still running — which is the truth.
+
+Load-bearing:
+
+- **The streams are held in `State` and re-opened only when the company or the hidden id changes.** The shell rebuilds the pill on every route change; a stream built in `build` re-queried Drift on each one.
+- **Both `StreamBuilder`s in the pill also drop a snapshot whose id is the hidden one**, because a `StreamBuilder` keeps its last data across a stream swap: without that, opening the running task's editor showed it for the frames before the new stream answered.
+- **The create route (`/tasks/new`) hides nothing** — a new task is not in Drift, so the shell could not show it anyway.
+
+Pinned by `task_repository_test.dart` (the three streams) and `running_timer_dock_test.dart` (the dock over real streams, and the route parser).
+
+## "Due now" reads every booking that has not ended, the live one included
+
+**`TaskDao.watchBooked` — the candidate set for the shell's "Due now" — filters on the last entry's *stop* being after now (`_endsInTheFuture`), never its start.** It used `_startsInTheFuture`, the Scheduled tab's predicate, which by design leaves out a slot that is live right now ("it surfaces … on the shell's Due now pill instead") — exactly the rows "Due now" is for, so from invoiceninja/flutter#149 until app#204 the pill could never show. The stop test is a superset of what `taskScheduleState` then picks in Dart: the log is sorted by start, so whenever a block is live or still to come, the last entry ends after now. A live block counts as a booking only with the task's `due_date` on its start day (`_isBooking`), so a fixture needs both. `task_repository_test.dart` ("watchDueNow leaves out …") fails on the old predicate.

@@ -2385,5 +2385,16 @@
   "desktop_app_promo_settings_body": "Večji zaslon in bližnjice na tipkovnici, z istim računom in podatki.",
   "free_plan_client_limit_form": "Porabili ste vseh :count strank brezplačnega paketa. Nadgradite, da shranite to stranko.",
   "free_plan_purge_note": "Mesto sprosti le trajni izbris stranke, ki izbriše tudi njene račune in plačila.",
-  "free_plan_import_too_many": "Ta uvoz bi presegel :count strank, ki jih dovoljuje brezplačni paket, zato ni bilo nič uvoženo. Nadgradite, da jih uvozite vse."
+  "free_plan_import_too_many": "Ta uvoz bi presegel :count strank, ki jih dovoljuje brezplačni paket, zato ni bilo nič uvoženo. Nadgradite, da jih uvozite vse.",
+  "documents_added_immediately": "Datoteke, dodane tukaj, se priložijo takoj, brez shranjevanja.",
+  "show_document_preview_help": "Ob vsakem dokumentu prikaže fotografijo ali prvo stran PDF-ja. Vsaka se prenese, zato to izklopite pri omejeni povezavi.",
+  "cloudflare_check_title": "Potrdite, da ste človek",
+  "cloudflare_check_help": ":host ščiti Cloudflare. Dokončajte preverjanje spodaj in aplikacija bo nadaljevala sama.",
+  "cloudflare_check_failed": "Stran za preverjanje se ni naložila. Preverite povezavo in poskusite znova.",
+  "cloudflare_banner": ":host prosi za potrditev, da ste človek. Spremembe čakajo v tej napravi, dokler tega ne storite.",
+  "cloudflare_banner_expired": ":host znova prosi za potrditev, da ste človek, običajno po menjavi omrežja. Spremembe čakajo v tej napravi, dokler tega ne storite.",
+  "cloudflare_banner_unsupported": ":host prosi za potrditev, da ste človek, česar ta naprava ne more prikazati. Prosite skrbnika strežnika, naj aplikacijo spusti skozi.",
+  "cloudflare_challenge_hosted": "Cloudflare preverja to povezavo. Poskusite znova čez nekaj minut.",
+  "cloudflare_banner_refused": "Preverjanje je uspelo, vendar nastavitve Cloudflare za :host še vedno zavračajo aplikacijo. Ray ID :ray posredujte skrbniku strežnika.",
+  "cloudflare_banner_web": ":host prosi za potrditev, da ste človek. Za nadaljevanje znova naložite stran."
 }

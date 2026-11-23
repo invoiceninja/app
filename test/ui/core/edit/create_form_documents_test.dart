@@ -96,8 +96,8 @@ void main() {
     expect(vm.isDirty, isTrue);
   });
 
-  test('an existing client takes none — its documents are on its record '
-      'screen', () async {
+  test('an existing client queues no files on Save — its form shows the '
+      'record\'s own documents, acted on at once (app#205)', () async {
     final vm = ClientEditViewModel(
       repo: repo,
       companyId: 'co',
@@ -109,6 +109,9 @@ void main() {
     expect(vm.offersDocuments, isFalse);
     expect(vm.addDocuments([fileUploadSource('/x/a.pdf')]), isFalse);
     expect(vm.documents, isEmpty);
+    expect(vm.offersSavedDocuments, isTrue);
+    expect(vm.showsDocuments, isTrue);
+    expect(vm.savedRecordId, 'c1');
   });
 
   testWidgets('the card lists the files, each removable, with the upload '
@@ -121,7 +124,7 @@ void main() {
         localizationsDelegates: kTestLocalizationsDelegates,
         supportedLocales: kTestSupportedLocales,
         home: Scaffold(
-          body: SingleChildScrollView(child: CreateFormDocumentsCard(vm: vm)),
+          body: SingleChildScrollView(child: FormDocumentsCard(vm: vm)),
         ),
       ),
     );

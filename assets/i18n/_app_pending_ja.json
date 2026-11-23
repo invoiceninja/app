@@ -2385,5 +2385,16 @@
   "desktop_app_promo_settings_body": "同じアカウントとデータで、大きな画面とキーボードショートカットを。",
   "free_plan_client_limit_form": "無料プランの顧客 :count 件をすべて使用しました。この顧客を保存するにはアップグレードしてください。",
   "free_plan_purge_note": "顧客の枠を空けられるのは完全削除だけで、その顧客の請求書と支払いも削除されます。",
-  "free_plan_import_too_many": "このインポートでは無料プランの上限 :count 件を超えるため、何もインポートされませんでした。すべてインポートするにはアップグレードしてください。"
+  "free_plan_import_too_many": "このインポートでは無料プランの上限 :count 件を超えるため、何もインポートされませんでした。すべてインポートするにはアップグレードしてください。",
+  "documents_added_immediately": "ここで追加したファイルは、保存しなくてもすぐに添付されます。",
+  "show_document_preview_help": "各ドキュメントの横に写真またはPDFの1ページ目を表示します。それぞれダウンロードされるため、従量制の接続ではオフにしてください。",
+  "cloudflare_check_title": "人間であることを確認してください",
+  "cloudflare_check_help": ":host は Cloudflare で保護されています。下の確認を完了すると、アプリは自動で続行します。",
+  "cloudflare_check_failed": "確認ページを読み込めませんでした。接続を確認して、もう一度お試しください。",
+  "cloudflare_banner": ":host が人間であることの確認を求めています。確認が済むまで、変更はこの端末で待機します。",
+  "cloudflare_banner_expired": ":host が再び人間であることの確認を求めています（通常はネットワークの切り替え後）。確認が済むまで、変更はこの端末で待機します。",
+  "cloudflare_banner_unsupported": ":host が人間であることの確認を求めていますが、この端末では表示できません。サーバーの管理者にアプリを通過させるよう依頼してください。",
+  "cloudflare_challenge_hosted": "Cloudflare がこの接続を確認しています。数分後にもう一度お試しください。",
+  "cloudflare_banner_refused": "確認は完了しましたが、:host の Cloudflare 設定がまだアプリを拒否しています。Ray ID :ray をサーバーの管理者に伝えてください。",
+  "cloudflare_banner_web": ":host が人間であることの確認を求めています。続行するにはページを再読み込みしてください。"
 }

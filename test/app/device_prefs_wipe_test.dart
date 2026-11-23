@@ -194,6 +194,11 @@ final Map<PrefKey<Object>, _Probe> _probes = {
     (s) => s.showSeconds.set(true),
     (s) => !s.showSeconds.value,
   ),
+  // Whether this device spends a download per file on a thumbnail.
+  DevicePrefKeys.documentThumbnails: _Probe(
+    (s) => s.documentThumbnails.set(false),
+    (s) => s.documentThumbnails.value,
+  ),
   DevicePrefKeys.downloadsFolder: _Probe(
     (s) => s.downloadsFolder.set('/x'),
     (s) => s.downloadsFolder.value == '',

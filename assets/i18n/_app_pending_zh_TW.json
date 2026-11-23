@@ -2302,5 +2302,16 @@
   "desktop_app_promo_settings_body": "更大的螢幕與鍵盤快速鍵，帳戶與資料都相同。",
   "free_plan_client_limit_form": "您已用完免費方案的全部 :count 位客戶。升級即可儲存此客戶。",
   "free_plan_purge_note": "只有永久刪除客戶才能騰出名額，這也會刪除其發票和付款。",
-  "free_plan_import_too_many": "此次匯入會超出免費方案允許的 :count 位客戶，因此未匯入任何內容。升級即可全部匯入。"
+  "free_plan_import_too_many": "此次匯入會超出免費方案允許的 :count 位客戶，因此未匯入任何內容。升級即可全部匯入。",
+  "documents_added_immediately": "在此新增的檔案會立即附加，無需儲存。",
+  "show_document_preview_help": "在每份文件旁顯示照片或 PDF 的第一頁。每份都需要下載，因此在計量付費的連線上請關閉此選項。",
+  "cloudflare_check_title": "驗證您是真人",
+  "cloudflare_check_help": ":host 受 Cloudflare 保護。完成下方的驗證後，應用程式會自動繼續。",
+  "cloudflare_check_failed": "驗證頁面無法載入。請檢查網路連線後再試一次。",
+  "cloudflare_banner": ":host 要求驗證您是真人。在您完成驗證之前，變更會保留在此裝置上。",
+  "cloudflare_banner_expired": ":host 再次要求驗證您是真人（通常是在切換網路之後）。在您完成驗證之前，變更會保留在此裝置上。",
+  "cloudflare_banner_unsupported": ":host 要求驗證您是真人，但此裝置無法顯示該驗證。請伺服器管理員放行此應用程式。",
+  "cloudflare_challenge_hosted": "Cloudflare 正在檢查此連線。請幾分鐘後再試一次。",
+  "cloudflare_banner_refused": "驗證已通過，但 :host 的 Cloudflare 設定仍拒絕此應用程式。請將 Ray ID :ray 告知伺服器管理員。",
+  "cloudflare_banner_web": ":host 要求驗證您是真人。請重新載入頁面以繼續。"
 }

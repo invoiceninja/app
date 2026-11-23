@@ -2385,5 +2385,16 @@
   "desktop_app_promo_settings_body": "Større skjerm og tastatursnarveier, med samme konto og data.",
   "free_plan_client_limit_form": "Du har brukt alle :count kundene på Gratisplanen. Oppgrader for å lagre denne kunden.",
   "free_plan_purge_note": "Bare permanent sletting av en kunde frigjør plassen, og det sletter også kundens fakturaer og betalinger.",
-  "free_plan_import_too_many": "Denne importen ville gått over de :count kundene Gratisplanen tillater, så ingenting ble importert. Oppgrader for å importere alle."
+  "free_plan_import_too_many": "Denne importen ville gått over de :count kundene Gratisplanen tillater, så ingenting ble importert. Oppgrader for å importere alle.",
+  "documents_added_immediately": "Filer som legges til her, legges ved med en gang, uten å lagre.",
+  "show_document_preview_help": "Vis et bilde eller første side av en PDF ved hvert dokument. Hver enkelt lastes ned, så slå dette av på en forbindelse med datagrense.",
+  "cloudflare_check_title": "Bekreft at du er et menneske",
+  "cloudflare_check_help": ":host er beskyttet av Cloudflare. Fullfør sjekken nedenfor, så fortsetter appen av seg selv.",
+  "cloudflare_check_failed": "Sjekksiden ble ikke lastet inn. Sjekk tilkoblingen og prøv igjen.",
+  "cloudflare_banner": ":host ber deg bekrefte at du er et menneske. Endringer venter på denne enheten til du gjør det.",
+  "cloudflare_banner_expired": ":host ber deg igjen bekrefte at du er et menneske, vanligvis etter et nettverksbytte. Endringer venter på denne enheten til du gjør det.",
+  "cloudflare_banner_unsupported": ":host ber deg bekrefte at du er et menneske, noe denne enheten ikke kan vise. Be serverens administrator om å slippe appen gjennom.",
+  "cloudflare_challenge_hosted": "Cloudflare sjekker denne tilkoblingen. Prøv igjen om noen minutter.",
+  "cloudflare_banner_refused": "Sjekken gikk gjennom, men Cloudflare-innstillingene for :host avviser fortsatt appen. Del Ray ID :ray med serverens administrator.",
+  "cloudflare_banner_web": ":host ber deg bekrefte at du er et menneske. Last inn siden på nytt for å fortsette."
 }

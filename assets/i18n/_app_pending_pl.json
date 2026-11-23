@@ -2303,5 +2303,16 @@
   "desktop_app_promo_settings_body": "Większy ekran i skróty klawiaturowe, z tym samym kontem i danymi.",
   "free_plan_client_limit_form": "Wykorzystano wszystkich :count klientów planu darmowego. Przejdź na wyższy plan, aby zapisać tego klienta.",
   "free_plan_purge_note": "Miejsce zwalnia tylko trwałe usunięcie klienta, które usuwa też jego faktury i płatności.",
-  "free_plan_import_too_many": "Ten import przekroczyłby :count klientów dozwolonych w planie darmowym, więc nic nie zostało zaimportowane. Przejdź na wyższy plan, aby zaimportować wszystkich."
+  "free_plan_import_too_many": "Ten import przekroczyłby :count klientów dozwolonych w planie darmowym, więc nic nie zostało zaimportowane. Przejdź na wyższy plan, aby zaimportować wszystkich.",
+  "documents_added_immediately": "Pliki dodane tutaj są dołączane od razu, bez zapisywania.",
+  "show_document_preview_help": "Pokazuje zdjęcie lub pierwszą stronę pliku PDF obok każdego dokumentu. Każde jest pobierane, więc wyłącz to przy połączeniu z limitem danych.",
+  "cloudflare_check_title": "Potwierdź, że jesteś człowiekiem",
+  "cloudflare_check_help": ":host jest chroniony przez Cloudflare. Ukończ weryfikację poniżej, a aplikacja sama będzie kontynuować.",
+  "cloudflare_check_failed": "Strona weryfikacji się nie załadowała. Sprawdź połączenie i spróbuj ponownie.",
+  "cloudflare_banner": ":host prosi o potwierdzenie, że jesteś człowiekiem. Zmiany czekają na tym urządzeniu, dopóki tego nie zrobisz.",
+  "cloudflare_banner_expired": ":host ponownie prosi o potwierdzenie, że jesteś człowiekiem, zwykle po zmianie sieci. Zmiany czekają na tym urządzeniu, dopóki tego nie zrobisz.",
+  "cloudflare_banner_unsupported": ":host prosi o potwierdzenie, że jesteś człowiekiem, czego to urządzenie nie może wyświetlić. Poproś administratora serwera o przepuszczanie aplikacji.",
+  "cloudflare_challenge_hosted": "Cloudflare sprawdza to połączenie. Spróbuj ponownie za kilka minut.",
+  "cloudflare_banner_refused": "Weryfikacja przeszła, ale ustawienia Cloudflare dla :host nadal odrzucają aplikację. Przekaż Ray ID :ray administratorowi serwera.",
+  "cloudflare_banner_web": ":host prosi o potwierdzenie, że jesteś człowiekiem. Odśwież stronę, aby kontynuować."
 }

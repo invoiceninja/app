@@ -2385,5 +2385,16 @@
   "desktop_app_promo_settings_body": "Uno schermo più grande e tasti rapidi, con lo stesso account e gli stessi dati.",
   "free_plan_client_limit_form": "Hai usato tutti i :count clienti del piano gratuito. Passa a un piano superiore per salvare questo cliente.",
   "free_plan_purge_note": "Solo l'eliminazione definitiva di un cliente libera il suo posto, ed elimina anche le sue fatture e i suoi pagamenti.",
-  "free_plan_import_too_many": "Questa importazione supererebbe i :count clienti consentiti dal piano gratuito, quindi non è stato importato nulla. Passa a un piano superiore per importarli tutti."
+  "free_plan_import_too_many": "Questa importazione supererebbe i :count clienti consentiti dal piano gratuito, quindi non è stato importato nulla. Passa a un piano superiore per importarli tutti.",
+  "documents_added_immediately": "I file aggiunti qui vengono allegati subito, senza salvare.",
+  "show_document_preview_help": "Mostra una foto o la prima pagina di un PDF accanto a ogni documento. Ognuna viene scaricata, quindi disattivalo con una connessione a consumo.",
+  "cloudflare_check_title": "Verifica di essere umano",
+  "cloudflare_check_help": ":host è protetto da Cloudflare. Completa la verifica qui sotto e l'app riprenderà da sola.",
+  "cloudflare_check_failed": "La pagina di verifica non si è caricata. Controlla la connessione e riprova.",
+  "cloudflare_banner": ":host chiede di verificare che sei umano. Le modifiche restano in attesa su questo dispositivo finché non lo fai.",
+  "cloudflare_banner_expired": ":host chiede di nuovo di verificare che sei umano, di solito dopo un cambio di rete. Le modifiche restano in attesa su questo dispositivo finché non lo fai.",
+  "cloudflare_banner_unsupported": ":host chiede di verificare che sei umano, cosa che questo dispositivo non può mostrare. Chiedi all'amministratore del server di far passare l'app.",
+  "cloudflare_challenge_hosted": "Cloudflare sta verificando questa connessione. Riprova tra qualche minuto.",
+  "cloudflare_banner_refused": "La verifica è riuscita, ma le impostazioni Cloudflare di :host respingono ancora l'app. Comunica il Ray ID :ray all'amministratore del server.",
+  "cloudflare_banner_web": ":host chiede di verificare che sei umano. Ricarica la pagina per continuare."
 }

@@ -2268,5 +2268,16 @@
   "desktop_app_promo_settings_body": "Màn hình lớn hơn và phím tắt, với cùng tài khoản và dữ liệu.",
   "free_plan_client_limit_form": "Bạn đã dùng hết :count khách hàng của gói miễn phí. Hãy nâng cấp để lưu khách hàng này.",
   "free_plan_purge_note": "Chỉ xóa vĩnh viễn một khách hàng mới giải phóng chỗ của họ, và việc đó cũng xóa hóa đơn và thanh toán của họ.",
-  "free_plan_import_too_many": "Lần nhập này sẽ vượt quá :count khách hàng mà gói miễn phí cho phép, nên không có gì được nhập. Hãy nâng cấp để nhập tất cả."
+  "free_plan_import_too_many": "Lần nhập này sẽ vượt quá :count khách hàng mà gói miễn phí cho phép, nên không có gì được nhập. Hãy nâng cấp để nhập tất cả.",
+  "documents_added_immediately": "Các tệp thêm ở đây được đính kèm ngay mà không cần lưu.",
+  "show_document_preview_help": "Hiển thị ảnh hoặc trang đầu của PDF bên cạnh mỗi tài liệu. Mỗi ảnh đều được tải xuống, vì vậy hãy tắt tùy chọn này khi dùng kết nối giới hạn dữ liệu.",
+  "cloudflare_check_title": "Xác minh bạn là con người",
+  "cloudflare_check_help": ":host được Cloudflare bảo vệ. Hoàn tất bước kiểm tra bên dưới và ứng dụng sẽ tự tiếp tục.",
+  "cloudflare_check_failed": "Trang kiểm tra không tải được. Hãy kiểm tra kết nối và thử lại.",
+  "cloudflare_banner": ":host yêu cầu xác minh bạn là con người. Các thay đổi sẽ chờ trên thiết bị này cho đến khi bạn xác minh.",
+  "cloudflare_banner_expired": ":host lại yêu cầu xác minh bạn là con người, thường sau khi đổi mạng. Các thay đổi sẽ chờ trên thiết bị này cho đến khi bạn xác minh.",
+  "cloudflare_banner_unsupported": ":host yêu cầu xác minh bạn là con người, nhưng thiết bị này không thể hiển thị. Hãy nhờ quản trị viên máy chủ cho phép ứng dụng đi qua.",
+  "cloudflare_challenge_hosted": "Cloudflare đang kiểm tra kết nối này. Hãy thử lại sau vài phút.",
+  "cloudflare_banner_refused": "Đã qua bước kiểm tra, nhưng cài đặt Cloudflare của :host vẫn từ chối ứng dụng. Hãy gửi Ray ID :ray cho quản trị viên máy chủ.",
+  "cloudflare_banner_web": ":host yêu cầu xác minh bạn là con người. Hãy tải lại trang để tiếp tục."
 }

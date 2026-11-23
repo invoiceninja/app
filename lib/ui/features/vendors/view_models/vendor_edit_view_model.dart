@@ -35,6 +35,23 @@ class VendorEditViewModel extends GenericEditViewModel<Vendor> {
   /// Save (docs/attaching-documents.md).
   @override
   PendingUploadsRepository get documentUploadRepository => repo;
+
+  /// An existing record's form shows its own documents, live
+  /// (invoiceninja/app#205).
+  @override
+  SavedDocumentsBinding<Vendor>? get savedDocumentsBinding {
+    final id = original?.id;
+    if (id == null) return null;
+    return SavedDocumentsBinding(
+      id: id,
+      watch: () => repo
+          .watch(companyId: companyId, id: id)
+          .map((saved) => saved?.documents),
+      withDocuments: (entity, documents) =>
+          entity.copyWith(documents: documents),
+    );
+  }
+
   final String companyId;
 
   /// Localized "please enter a name" message, resolved at the screen (VMs have

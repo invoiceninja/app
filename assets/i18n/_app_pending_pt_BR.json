@@ -2385,5 +2385,16 @@
   "desktop_app_promo_settings_body": "Uma tela maior e atalhos de teclado, com a mesma conta e os mesmos dados.",
   "free_plan_client_limit_form": "Você usou todos os :count clientes do plano gratuito. Faça upgrade para salvar este cliente.",
   "free_plan_purge_note": "Só expurgar um cliente libera a vaga dele, e isso também exclui as faturas e os pagamentos dele.",
-  "free_plan_import_too_many": "Esta importação passaria dos :count clientes que o plano gratuito permite, então nada foi importado. Faça upgrade para importar todos."
+  "free_plan_import_too_many": "Esta importação passaria dos :count clientes que o plano gratuito permite, então nada foi importado. Faça upgrade para importar todos.",
+  "documents_added_immediately": "Os arquivos adicionados aqui são anexados na hora, sem salvar.",
+  "show_document_preview_help": "Mostra uma foto ou a primeira página de um PDF ao lado de cada documento. Cada uma é baixada, então desative isso em uma conexão limitada.",
+  "cloudflare_check_title": "Verifique que você é humano",
+  "cloudflare_check_help": ":host é protegido pelo Cloudflare. Conclua a verificação abaixo e o app continuará sozinho.",
+  "cloudflare_check_failed": "A página de verificação não carregou. Verifique sua conexão e tente novamente.",
+  "cloudflare_banner": ":host pede que você verifique que é humano. As alterações aguardam neste dispositivo até você fazer isso.",
+  "cloudflare_banner_expired": ":host pede novamente que você verifique que é humano, geralmente após uma troca de rede. As alterações aguardam neste dispositivo até você fazer isso.",
+  "cloudflare_banner_unsupported": ":host pede que você verifique que é humano, o que este dispositivo não consegue exibir. Peça ao administrador do servidor para liberar o app.",
+  "cloudflare_challenge_hosted": "O Cloudflare está verificando esta conexão. Tente novamente em alguns minutos.",
+  "cloudflare_banner_refused": "A verificação passou, mas as configurações do Cloudflare de :host ainda recusam o app. Envie o Ray ID :ray ao administrador do servidor.",
+  "cloudflare_banner_web": ":host pede que você verifique que é humano. Recarregue a página para continuar."
 }

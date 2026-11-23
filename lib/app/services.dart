@@ -5,6 +5,10 @@ import 'package:flutter/foundation.dart';
 import 'package:material_ui/material_ui.dart' show Icons;
 import 'package:drift/drift.dart' show TableUpdateQuery;
 import 'package:http/http.dart' as http;
+
+import 'package:admin/data/services/cloudflare/cloudflare_clearance.dart';
+import 'package:admin/data/services/cloudflare/cloudflare_clearance_client.dart';
+import 'package:admin/data/services/http_client_factory.dart';
 import 'package:logging/logging.dart';
 
 import 'package:admin/app/accent_color_controller.dart';
@@ -62,6 +66,7 @@ import 'package:admin/app/sidebar_menu_controller.dart';
 import 'package:admin/app/hide_empty_panels_controller.dart';
 import 'package:admin/app/hide_unverified_users_controller.dart';
 import 'package:admin/app/show_seconds_controller.dart';
+import 'package:admin/app/document_thumbnails_controller.dart';
 import 'package:admin/app/spell_check_controller.dart';
 import 'package:admin/app/status_tabs_controller.dart';
 import 'package:admin/app/tasks_view_controller.dart';
@@ -419,6 +424,7 @@ class Services implements SidebarBadgeContext {
     required this.hidePeppolStatus,
     required this.phoneActions,
     required this.certificateTrust,
+    required this.cloudflare,
     required this.signOutNotice,
     required this.mobileAppPromo,
     required this.whatsNew,
@@ -427,6 +433,7 @@ class Services implements SidebarBadgeContext {
     required this.spellCheck,
     required this.webAppBanner,
     required this.showSeconds,
+    required this.documentThumbnails,
     required this.downloadsFolder,
     required this.pendingCall,
     required this.contactsSync,
@@ -898,6 +905,12 @@ class Services implements SidebarBadgeContext {
   /// and Device Settings → Trusted certificates.
   final CertificateTrustStore certificateTrust;
 
+  /// Passed Cloudflare checks and the challenges waiting for one, for a
+  /// self-hosted server behind a zone that challenges visitors
+  /// (docs/cloudflare-challenge.md). Read by the shell banner and the login
+  /// screen, through its own provider.
+  final CloudflareClearanceStore cloudflare;
+
   /// Why the last session ended on its own, for the sign-in screen
   /// (`SignOutNotice`). Read there through its root provider.
   final SignOutNotice signOutNotice;
@@ -932,6 +945,9 @@ class Services implements SidebarBadgeContext {
   /// (docs/tasks-views.md). Read through its root provider, like
   /// [signOutNotice].
   final ShowSecondsController showSeconds;
+
+  /// Whether document lists draw thumbnails (invoiceninja/app#206).
+  final DocumentThumbnailsController documentThumbnails;
 
   /// The folder a desktop download is written to (docs/file-downloads.md).
   /// Read through its root provider, like [signOutNotice].
@@ -1752,8 +1768,19 @@ class Services implements SidebarBadgeContext {
     // Before the first HTTP client: both of the app's own clients consult it
     // when a handshake fails.
     final certificateTrust = CertificateTrustStore(prefs: devicePrefs);
+    // Every request goes through it: a self-hosted server behind a
+    // Cloudflare zone that challenges visitors answers with "Verify you are
+    // human" instead of JSON (docs/cloudflare-challenge.md). On the web it
+    // only recognises the challenge — the browser holds the clearance, so
+    // nothing is ever replayed there. Not around a client a test hands in.
+    final cloudflare = CloudflareClearanceStore();
+    final authTransport =
+        httpClient ?? CloudflareClearanceClient(http.Client(), cloudflare);
+    final apiTransport =
+        httpClient ??
+        CloudflareClearanceClient(createDefaultHttpClient(), cloudflare);
     final authService = AuthService(
-      httpClient: httpClient,
+      httpClient: authTransport,
       certificateTrust: certificateTrust,
     );
     // Never deletes a copy an outbox upload still names.
@@ -1804,6 +1831,7 @@ class Services implements SidebarBadgeContext {
     final spellCheck = SpellCheckController(prefs: devicePrefs);
     final webAppBanner = WebAppBannerController(prefs: devicePrefs);
     final showSeconds = ShowSecondsController(prefs: devicePrefs);
+    final documentThumbnails = DocumentThumbnailsController(prefs: devicePrefs);
     final downloadsFolder = DownloadsFolderController(prefs: devicePrefs);
     final mobileAppPromo = MobileAppPromoController(
       prefs: devicePrefs,
@@ -1893,7 +1921,7 @@ class Services implements SidebarBadgeContext {
       onAuthenticatedResponse: auth.markCredentialProven,
       onServerVersion: (v) => serverVersion.value = v,
       onClientTooOld: (info) => clientTooOld.value = info,
-      httpClient: httpClient,
+      httpClient: apiTransport,
       debugCaptureStore: debugStore,
       certificateTrust: certificateTrust,
     );
@@ -2807,6 +2835,7 @@ class Services implements SidebarBadgeContext {
       hidePeppolStatus: hidePeppolStatus,
       phoneActions: phoneActions,
       certificateTrust: certificateTrust,
+      cloudflare: cloudflare,
       signOutNotice: signOutNotice,
       mobileAppPromo: mobileAppPromo,
       whatsNew: whatsNew,
@@ -2815,6 +2844,7 @@ class Services implements SidebarBadgeContext {
       spellCheck: spellCheck,
       webAppBanner: webAppBanner,
       showSeconds: showSeconds,
+      documentThumbnails: documentThumbnails,
       downloadsFolder: downloadsFolder,
       pendingCall: pendingCall,
       contactsSync: contactsSync,

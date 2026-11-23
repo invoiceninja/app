@@ -970,6 +970,28 @@ class OutboxDao extends DatabaseAccessor<AppDatabase> with _$OutboxDaoMixin {
         );
   }
 
+  /// Make due now the [companyId] rows a not-sent failure parked for a short
+  /// wait — pending, with no status (nothing answered), due within [window]
+  /// — after whatever held them has cleared: a passed Cloudflare check
+  /// (docs/cloudflare-challenge.md). A row parked for a conflict or a 429
+  /// carries a status, and one parked for a year is past [window].
+  Future<int> readyNotSentRows({
+    required String companyId,
+    required int now,
+    required Duration window,
+  }) =>
+      (update(outbox)..where(
+            (o) =>
+                o.companyId.equals(companyId) &
+                o.state.equals('pending') &
+                o.lastStatusCode.isNull() &
+                o.nextAttemptAt.isBiggerThanValue(now) &
+                o.nextAttemptAt.isSmallerOrEqualValue(
+                  now + window.inMilliseconds,
+                ),
+          ))
+          .write(OutboxCompanion(nextAttemptAt: Value(now)));
+
   /// Park row [id] as `unconfirmed`: its attempt may have reached the server
   /// and a re-send could do it twice, so no drain sends it until the user
   /// chooses ([resendUnconfirmed], or a discard). [OutboxState] has the rest.

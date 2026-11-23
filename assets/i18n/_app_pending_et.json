@@ -2302,5 +2302,16 @@
   "desktop_app_promo_settings_body": "Suurem ekraan ja klaviatuuri otseteed, sama konto ja samad andmed.",
   "free_plan_client_limit_form": "Olete kasutanud kõik :count tasuta paketi klienti. Uuendage paketti, et see klient salvestada.",
   "free_plan_purge_note": "Kliendi koha vabastab ainult tema lõplik kustutamine, mis kustutab ka tema arved ja maksed.",
-  "free_plan_import_too_many": "See import ületaks tasuta paketi :count kliendi piiri, seega midagi ei imporditud. Uuendage paketti, et need kõik importida."
+  "free_plan_import_too_many": "See import ületaks tasuta paketi :count kliendi piiri, seega midagi ei imporditud. Uuendage paketti, et need kõik importida.",
+  "documents_added_immediately": "Siia lisatud failid lisatakse kohe, ilma salvestamata.",
+  "show_document_preview_help": "Näitab iga dokumendi kõrval fotot või PDF-i esimest lehte. Igaüks laaditakse alla, seega lülita see mahupõhise ühenduse korral välja.",
+  "cloudflare_check_title": "Kinnitage, et olete inimene",
+  "cloudflare_check_help": ":host on Cloudflare'i kaitse all. Lõpetage allolev kontroll ja rakendus jätkab ise.",
+  "cloudflare_check_failed": "Kontrolli leht ei laadinud. Kontrollige ühendust ja proovige uuesti.",
+  "cloudflare_banner": ":host palub kinnitada, et olete inimene. Muudatused ootavad selles seadmes, kuni seda teete.",
+  "cloudflare_banner_expired": ":host palub uuesti kinnitada, et olete inimene, tavaliselt pärast võrgu vahetust. Muudatused ootavad selles seadmes, kuni seda teete.",
+  "cloudflare_banner_unsupported": ":host palub kinnitada, et olete inimene, kuid see seade ei saa seda näidata. Paluge serveri administraatoril rakendus läbi lasta.",
+  "cloudflare_challenge_hosted": "Cloudflare kontrollib seda ühendust. Proovige mõne minuti pärast uuesti.",
+  "cloudflare_banner_refused": "Kontroll õnnestus, kuid :host Cloudflare'i seaded keelduvad rakendusest endiselt. Jagage Ray ID-d :ray serveri administraatoriga.",
+  "cloudflare_banner_web": ":host palub kinnitada, et olete inimene. Jätkamiseks laadige leht uuesti."
 }

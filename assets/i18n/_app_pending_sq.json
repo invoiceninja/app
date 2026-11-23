@@ -2385,5 +2385,16 @@
   "desktop_app_promo_settings_body": "Ekran më i madh dhe shkurtore të tastierës, me të njëjtën llogari dhe të dhëna.",
   "free_plan_client_limit_form": "Keni përdorur të gjithë :count klientët e planit falas. Përmirësoni planin për ta ruajtur këtë klient.",
   "free_plan_purge_note": "Vetëm fshirja përfundimtare e një klienti e liron vendin e tij, dhe ajo fshin edhe faturat dhe pagesat e tij.",
-  "free_plan_import_too_many": "Ky import do t'i kalonte :count klientët që lejon plani falas, prandaj nuk u importua asgjë. Përmirësoni planin për t'i importuar të gjithë."
+  "free_plan_import_too_many": "Ky import do t'i kalonte :count klientët që lejon plani falas, prandaj nuk u importua asgjë. Përmirësoni planin për t'i importuar të gjithë.",
+  "documents_added_immediately": "Skedarët e shtuar këtu bashkëngjiten menjëherë, pa ruajtur.",
+  "show_document_preview_help": "Shfaq një foto ose faqen e parë të një PDF-je pranë çdo dokumenti. Secila shkarkohet, ndaj çaktivizojeni në një lidhje me kufi të dhënash.",
+  "cloudflare_check_title": "Verifikoni që jeni njeri",
+  "cloudflare_check_help": ":host mbrohet nga Cloudflare. Plotësoni kontrollin më poshtë dhe aplikacioni do të vazhdojë vetë.",
+  "cloudflare_check_failed": "Faqja e kontrollit nuk u ngarkua. Kontrolloni lidhjen dhe provoni përsëri.",
+  "cloudflare_banner": ":host kërkon të verifikoni që jeni njeri. Ndryshimet presin në këtë pajisje derisa ta bëni.",
+  "cloudflare_banner_expired": ":host kërkon përsëri të verifikoni që jeni njeri, zakonisht pas ndërrimit të rrjetit. Ndryshimet presin në këtë pajisje derisa ta bëni.",
+  "cloudflare_banner_unsupported": ":host kërkon të verifikoni që jeni njeri, gjë që kjo pajisje nuk mund ta shfaqë. Kërkojini administratorit të serverit ta lejojë aplikacionin.",
+  "cloudflare_challenge_hosted": "Cloudflare po kontrollon këtë lidhje. Provoni përsëri pas disa minutash.",
+  "cloudflare_banner_refused": "Kontrolli kaloi, por cilësimet e Cloudflare për :host ende e refuzojnë aplikacionin. Ndajeni Ray ID :ray me administratorin e serverit.",
+  "cloudflare_banner_web": ":host kërkon të verifikoni që jeni njeri. Ringarkoni faqen për të vazhduar."
 }

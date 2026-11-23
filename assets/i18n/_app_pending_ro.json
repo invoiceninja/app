@@ -2373,5 +2373,16 @@
   "desktop_app_promo_settings_body": "Un ecran mai mare și comenzi rapide pe tastatură, cu același cont și aceleași date.",
   "free_plan_client_limit_form": "Ați folosit toți cei :count clienți ai planului gratuit. Faceți upgrade pentru a salva acest client.",
   "free_plan_purge_note": "Doar ștergerea definitivă a unui client îi eliberează locul, iar aceasta îi șterge și facturile și plățile.",
-  "free_plan_import_too_many": "Acest import ar depăși cei :count clienți permiși de planul gratuit, așa că nu s-a importat nimic. Faceți upgrade pentru a-i importa pe toți."
+  "free_plan_import_too_many": "Acest import ar depăși cei :count clienți permiși de planul gratuit, așa că nu s-a importat nimic. Faceți upgrade pentru a-i importa pe toți.",
+  "documents_added_immediately": "Fișierele adăugate aici sunt atașate imediat, fără salvare.",
+  "show_document_preview_help": "Afișează o fotografie sau prima pagină a unui PDF lângă fiecare document. Fiecare se descarcă, așa că dezactivați opțiunea pe o conexiune contorizată.",
+  "cloudflare_check_title": "Confirmați că sunteți om",
+  "cloudflare_check_help": ":host este protejat de Cloudflare. Finalizați verificarea de mai jos, iar aplicația va continua singură.",
+  "cloudflare_check_failed": "Pagina de verificare nu s-a încărcat. Verificați conexiunea și încercați din nou.",
+  "cloudflare_banner": ":host cere să confirmați că sunteți om. Modificările așteaptă pe acest dispozitiv până o faceți.",
+  "cloudflare_banner_expired": ":host cere din nou să confirmați că sunteți om, de obicei după o schimbare de rețea. Modificările așteaptă pe acest dispozitiv până o faceți.",
+  "cloudflare_banner_unsupported": ":host cere să confirmați că sunteți om, lucru pe care acest dispozitiv nu îl poate afișa. Rugați administratorul serverului să lase aplicația să treacă.",
+  "cloudflare_challenge_hosted": "Cloudflare verifică această conexiune. Încercați din nou peste câteva minute.",
+  "cloudflare_banner_refused": "Verificarea a reușit, dar setările Cloudflare ale :host încă resping aplicația. Trimiteți Ray ID :ray administratorului serverului.",
+  "cloudflare_banner_web": ":host cere să confirmați că sunteți om. Reîncărcați pagina pentru a continua."
 }

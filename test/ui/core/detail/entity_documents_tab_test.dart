@@ -39,6 +39,7 @@ Future<void> _pump(
   Future<void> Function(List<UploadSource>)? onUpload,
   Future<void> Function(Document)? onDelete,
   Future<void> Function(Document)? onToggleVisibility,
+  Future<void> Function(Document, String)? onRename,
   Services? services,
 }) async {
   final app = MaterialApp(
@@ -55,6 +56,7 @@ Future<void> _pump(
           onUpload: onUpload ?? (_) async {},
           onDelete: onDelete ?? (_) async {},
           onToggleVisibility: onToggleVisibility ?? (_) async {},
+          onRename: onRename,
         ),
       ),
     ),
@@ -178,6 +180,53 @@ void main() {
           .map((t) => (t.title! as Text).data)
           .toList();
       expect(labels, ['View', 'Download', 'Set private', 'Delete']);
+    });
+
+    testWidgets('Rename (invoiceninja/app#206) sits after Download, opens on '
+        'the name with its words selected, and hands back the new name', (
+      tester,
+    ) async {
+      final renamed = <(String, String)>[];
+      await _pump(
+        tester,
+        entityId: 'real_123',
+        documents: const [_docA],
+        onRename: (doc, name) async => renamed.add((doc.id, name)),
+      );
+      await tester.tap(find.byWidgetPredicate((w) => w is PopupMenuButton));
+      await tester.pumpAndSettle();
+      final labels = tester
+          .widgetList<ListTile>(find.byType(ListTile))
+          .map((t) => (t.title! as Text).data)
+          .toList();
+      expect(labels, ['View', 'Download', 'Rename', 'Set private', 'Delete']);
+
+      await tester.tap(find.text('Rename'));
+      await tester.pumpAndSettle();
+      final field = tester.widget<TextField>(find.byType(TextField));
+      expect(field.controller!.text, 'invoice.pdf');
+      expect(field.controller!.selection.extentOffset, 'invoice'.length);
+
+      await tester.enterText(find.byType(TextField), 'March invoice.pdf');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+      expect(renamed, [('d1', 'March invoice.pdf')]);
+      expect(find.byType(AlertDialog), findsNothing);
+    });
+
+    testWidgets('no Rename on a read-only record, or a host without one', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        entityId: 'real_123',
+        documents: const [_docA],
+        readOnly: true,
+        onRename: (_, _) async {},
+      );
+      await tester.tap(find.byWidgetPredicate((w) => w is PopupMenuButton));
+      await tester.pumpAndSettle();
+      expect(find.text('Rename'), findsNothing);
     });
 
     testWidgets('readOnly mode hides upload and the mutating row actions, '

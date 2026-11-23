@@ -2303,5 +2303,16 @@
   "desktop_app_promo_settings_body": "Un plus grand écran et des raccourcis clavier, avec le même compte et les mêmes données.",
   "free_plan_client_limit_form": "Vous avez utilisé les :count clients du forfait gratuit. Passez à un forfait supérieur pour enregistrer ce client.",
   "free_plan_purge_note": "Seule la purge d'un client libère sa place, et elle supprime aussi ses factures et ses paiements.",
-  "free_plan_import_too_many": "Cette importation dépasserait les :count clients permis par le forfait gratuit, donc rien n'a été importé. Passez à un forfait supérieur pour tous les importer."
+  "free_plan_import_too_many": "Cette importation dépasserait les :count clients permis par le forfait gratuit, donc rien n'a été importé. Passez à un forfait supérieur pour tous les importer.",
+  "documents_added_immediately": "Les fichiers ajoutés ici sont joints immédiatement, sans enregistrer.",
+  "show_document_preview_help": "Affiche une photo ou la première page d'un PDF à côté de chaque document. Chacune est téléchargée : désactivez cette option sur une connexion limitée.",
+  "cloudflare_check_title": "Vérifiez que vous êtes humain",
+  "cloudflare_check_help": ":host est protégé par Cloudflare. Effectuez la vérification ci-dessous et l'application reprendra d'elle-même.",
+  "cloudflare_check_failed": "La page de vérification ne s'est pas chargée. Vérifiez votre connexion et réessayez.",
+  "cloudflare_banner": ":host demande de vérifier que vous êtes humain. Les modifications attendent sur cet appareil jusque-là.",
+  "cloudflare_banner_expired": ":host demande à nouveau de vérifier que vous êtes humain, généralement après un changement de réseau. Les modifications attendent sur cet appareil jusque-là.",
+  "cloudflare_banner_unsupported": ":host demande de vérifier que vous êtes humain, ce que cet appareil ne peut pas afficher. Demandez à l'administrateur du serveur de laisser passer l'application.",
+  "cloudflare_challenge_hosted": "Cloudflare vérifie cette connexion. Réessayez dans quelques minutes.",
+  "cloudflare_banner_refused": "La vérification a réussi, mais les réglages Cloudflare de :host refusent toujours l'application. Transmettez le Ray ID :ray à l'administrateur du serveur.",
+  "cloudflare_banner_web": ":host demande de vérifier que vous êtes humain. Rechargez la page pour continuer."
 }

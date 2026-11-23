@@ -191,9 +191,16 @@ class TaskRepository extends BaseEntityRepository<Task, TaskApi>
 
   /// The single most-recently-updated running task, or null. Backs the
   /// global running-timer pill (mounted in `AppShell`).
-  Stream<Task?> watchRunning({required String companyId}) {
+  ///
+  /// [exceptTaskId] leaves out the task whose edit screen is open: its form
+  /// carries its own timer, and a Stop there is a draft until Save
+  /// (invoiceninja/app#204).
+  Stream<Task?> watchRunning({
+    required String companyId,
+    String? exceptTaskId,
+  }) {
     return db.taskDao
-        .watchRunning(companyId: companyId)
+        .watchRunning(companyId: companyId, exceptId: exceptTaskId)
         .map((row) => row == null ? null : _fromRow(row));
   }
 
@@ -595,27 +602,32 @@ class TaskRepository extends BaseEntityRepository<Task, TaskApi>
   /// someone standing outside a customer's house with one hand free. Ordered
   /// by the booking's start so the pill names the job that began soonest, not
   /// whichever row was touched last.
-  Stream<Task?> watchDueNow({required String companyId}) =>
-      db.taskDao.watchBooked(companyId: companyId).map((rows) {
-        final asOf = DateTime.now();
-        final due = <Task>[];
-        for (final row in rows) {
-          final task = _fromRow(row);
-          if (task.scheduleStateAt(asOf) == TaskScheduleState.dueNow) {
-            due.add(task);
-          }
-        }
-        if (due.isEmpty) return null;
-        // By the BOOKING's start, not `timeLog.first` — the earliest entry is
-        // often a worked block hours before it, so the pill named whichever job
-        // had the oldest history rather than the one the user is due at.
-        DateTime bookedStart(Task t) => t.timeLog
-            .where((e) => !e.isRunning && e.stop!.isAfter(asOf))
-            .map((e) => e.start!)
-            .reduce((a, b) => a.isBefore(b) ? a : b);
-        due.sort((a, b) => bookedStart(a).compareTo(bookedStart(b)));
-        return due.first;
-      });
+  ///
+  /// [exceptTaskId] as in [watchRunning].
+  Stream<Task?> watchDueNow({
+    required String companyId,
+    String? exceptTaskId,
+  }) => db.taskDao.watchBooked(companyId: companyId).map((rows) {
+    final asOf = DateTime.now();
+    final due = <Task>[];
+    for (final row in rows) {
+      if (row.id == exceptTaskId) continue;
+      final task = _fromRow(row);
+      if (task.scheduleStateAt(asOf) == TaskScheduleState.dueNow) {
+        due.add(task);
+      }
+    }
+    if (due.isEmpty) return null;
+    // By the BOOKING's start, not `timeLog.first` — the earliest entry is
+    // often a worked block hours before it, so the pill named whichever job
+    // had the oldest history rather than the one the user is due at.
+    DateTime bookedStart(Task t) => t.timeLog
+        .where((e) => !e.isRunning && e.stop!.isAfter(asOf))
+        .map((e) => e.start!)
+        .reduce((a, b) => a.isBefore(b) ? a : b);
+    due.sort((a, b) => bookedStart(a).compareTo(bookedStart(b)));
+    return due.first;
+  });
 
   /// Put a task's `time_log` and status back — the inverse of a claim, for the
   /// Undo on its toast.
@@ -649,8 +661,14 @@ class TaskRepository extends BaseEntityRepository<Task, TaskApi>
 
   /// Live count of running timers for the company (backs the global pill's
   /// concurrent-timer badge — `watchRunning` only surfaces one).
-  Stream<int> watchRunningCount({required String companyId}) =>
-      db.taskDao.watchRunningCount(companyId: companyId);
+  /// [exceptTaskId] as in [watchRunning].
+  Stream<int> watchRunningCount({
+    required String companyId,
+    String? exceptTaskId,
+  }) => db.taskDao.watchRunningCount(
+    companyId: companyId,
+    exceptId: exceptTaskId,
+  );
 
   /// Stop every running timer for the company (the pill's "Stop all") —
   /// every one [only] admits, when given (see [stopRunningTimer]).

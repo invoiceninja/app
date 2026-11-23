@@ -2385,5 +2385,16 @@
   "desktop_app_promo_settings_body": "Een groter scherm en sneltoetsen, met hetzelfde account en dezelfde gegevens.",
   "free_plan_client_limit_form": "U hebt alle :count klanten van het gratis abonnement gebruikt. Upgrade om deze klant op te slaan.",
   "free_plan_purge_note": "Alleen een klant definitief verwijderen maakt zijn plek vrij, en daarmee worden ook zijn facturen en betalingen verwijderd.",
-  "free_plan_import_too_many": "Deze import zou boven de :count klanten van het gratis abonnement uitkomen, dus er is niets geïmporteerd. Upgrade om ze allemaal te importeren."
+  "free_plan_import_too_many": "Deze import zou boven de :count klanten van het gratis abonnement uitkomen, dus er is niets geïmporteerd. Upgrade om ze allemaal te importeren.",
+  "documents_added_immediately": "Bestanden die u hier toevoegt, worden direct bijgevoegd, zonder opslaan.",
+  "show_document_preview_help": "Toont een foto of de eerste pagina van een pdf naast elk document. Elk wordt gedownload, dus zet dit uit op een verbinding met datalimiet.",
+  "cloudflare_check_title": "Bevestig dat u een mens bent",
+  "cloudflare_check_help": ":host wordt beschermd door Cloudflare. Voltooi de controle hieronder en de app gaat vanzelf verder.",
+  "cloudflare_check_failed": "De controlepagina is niet geladen. Controleer uw verbinding en probeer het opnieuw.",
+  "cloudflare_banner": ":host vraagt om te bevestigen dat u een mens bent. Wijzigingen wachten op dit apparaat tot u dat doet.",
+  "cloudflare_banner_expired": ":host vraagt opnieuw om te bevestigen dat u een mens bent, meestal na een netwerkwissel. Wijzigingen wachten op dit apparaat tot u dat doet.",
+  "cloudflare_banner_unsupported": ":host vraagt om te bevestigen dat u een mens bent, wat dit apparaat niet kan tonen. Vraag de beheerder van de server om de app door te laten.",
+  "cloudflare_challenge_hosted": "Cloudflare controleert deze verbinding. Probeer het over een paar minuten opnieuw.",
+  "cloudflare_banner_refused": "De controle is gelukt, maar de Cloudflare-instellingen van :host weigeren de app nog steeds. Geef Ray ID :ray door aan de beheerder van de server.",
+  "cloudflare_banner_web": ":host vraagt om te bevestigen dat u een mens bent. Laad de pagina opnieuw om verder te gaan."
 }

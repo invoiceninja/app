@@ -436,14 +436,18 @@ void main() {
       await tester.pump();
     }
 
-    Widget host(Services services) => Provider<Services>.value(
-      value: services,
-      child: MaterialApp(
-        localizationsDelegates: kTestLocalizationsDelegates,
-        theme: _theme,
-        home: const RunningTimerDock(child: _Probe()),
-      ),
-    );
+    Widget host(Services services, {String? hiddenTaskId}) =>
+        Provider<Services>.value(
+          value: services,
+          child: MaterialApp(
+            localizationsDelegates: kTestLocalizationsDelegates,
+            theme: _theme,
+            home: RunningTimerDock(
+              hiddenTaskId: hiddenTaskId,
+              child: const _Probe(),
+            ),
+          ),
+        );
 
     testWidgets('docks while a timer runs and undocks when it stops', (
       tester,
@@ -477,6 +481,65 @@ void main() {
 
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.pump(const Duration(milliseconds: 1));
+    });
+
+    testWidgets('leaves out the task whose edit screen is open', (
+      tester,
+    ) async {
+      // invoiceninja/app#204: that form's Stop is a draft until Save, so the
+      // bar went on ticking under a form that said the timer had stopped.
+      tester.view.physicalSize = _window;
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final f = await buildFixture(
+        companies: [const FakeCompany(id: 'co1', name: 'Acme')],
+        closeStreamsSynchronously: true,
+      );
+      addTearDown(f.dispose);
+      await tester.runAsync(() => running(f, on: true));
+
+      await tester.pumpWidget(host(f.services, hiddenTaskId: 't1'));
+      await settle(tester);
+      expect(find.text('Kitchen refit'), findsNothing);
+      expect(tester.getSize(find.byType(_Probe)).height, _window.height);
+
+      // Leaving the edit screen brings it back, on the same mounted dock.
+      await tester.pumpWidget(host(f.services));
+      await settle(tester);
+      expect(find.text('Kitchen refit'), findsOneWidget);
+
+      await tester.pumpWidget(host(f.services, hiddenTaskId: 't1'));
+      await settle(tester);
+      expect(find.text('Kitchen refit'), findsNothing);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(milliseconds: 1));
+    });
+  });
+
+  group('taskIdBeingEdited', () {
+    test('reads the id off a task edit route', () {
+      expect(
+        taskIdBeingEdited(Uri.parse('/tasks/Wpmbk5ezJn/edit')),
+        'Wpmbk5ezJn',
+      );
+      expect(
+        taskIdBeingEdited(Uri.parse('/tasks/Wpmbk5ezJn/edit?view=full')),
+        'Wpmbk5ezJn',
+      );
+    });
+
+    test('is null anywhere else', () {
+      for (final path in [
+        '/tasks',
+        '/tasks/new',
+        '/tasks/new/edit',
+        '/tasks/Wpmbk5ezJn',
+        '/clients/Wpmbk5ezJn/edit',
+        '/tasks/Wpmbk5ezJn/edit/extra',
+      ]) {
+        expect(taskIdBeingEdited(Uri.parse(path)), isNull, reason: path);
+      }
     });
   });
 }

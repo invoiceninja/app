@@ -65,9 +65,9 @@ class VendorEditLayout extends StatelessWidget {
               VendorEditContactsSection(vm: vm),
               const SizedBox(height: kFormCardGap),
               VendorEditNotesSection(vm: vm),
-              if (vm.offersDocuments) ...[
+              if (vm.showsDocuments) ...[
                 const SizedBox(height: kFormCardGap),
-                CreateFormDocumentsCard(vm: vm),
+                FormDocumentsCard(vm: vm),
               ],
             ],
           ),
@@ -89,9 +89,9 @@ class VendorEditLayout extends StatelessWidget {
         VendorEditContactsSection(vm: vm),
         const SizedBox(height: kFormCardGap),
         VendorEditNotesSection(vm: vm),
-        if (vm.offersDocuments) ...[
+        if (vm.showsDocuments) ...[
           const SizedBox(height: kFormCardGap),
-          CreateFormDocumentsCard(vm: vm),
+          FormDocumentsCard(vm: vm),
         ],
       ],
     );

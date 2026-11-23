@@ -2340,5 +2340,16 @@
   "desktop_app_promo_settings_body": "Didesnis ekranas ir spartieji klavišai, su ta pačia paskyra ir duomenimis.",
   "free_plan_client_limit_form": "Išnaudojote visus :count nemokamo plano klientus. Atnaujinkite planą, kad išsaugotumėte šį klientą.",
   "free_plan_purge_note": "Vietą atlaisvina tik visiškas kliento pašalinimas, o jis ištrina ir kliento sąskaitas bei mokėjimus.",
-  "free_plan_import_too_many": "Šis importas viršytų :count klientų, kuriuos leidžia nemokamas planas, todėl niekas nebuvo importuota. Atnaujinkite planą, kad importuotumėte visus."
+  "free_plan_import_too_many": "Šis importas viršytų :count klientų, kuriuos leidžia nemokamas planas, todėl niekas nebuvo importuota. Atnaujinkite planą, kad importuotumėte visus.",
+  "documents_added_immediately": "Čia pridėti failai prisegami iš karto, neišsaugant.",
+  "show_document_preview_help": "Rodo nuotrauką arba PDF pirmąjį puslapį šalia kiekvieno dokumento. Kiekviena atsisiunčiama, todėl išjunkite tai naudodami ribotą ryšį.",
+  "cloudflare_check_title": "Patvirtinkite, kad esate žmogus",
+  "cloudflare_check_help": ":host saugo Cloudflare. Užbaikite patikrą žemiau ir programėlė tęs pati.",
+  "cloudflare_check_failed": "Patikros puslapis neįsikėlė. Patikrinkite ryšį ir bandykite dar kartą.",
+  "cloudflare_banner": ":host prašo patvirtinti, kad esate žmogus. Pakeitimai laukia šiame įrenginyje, kol tai padarysite.",
+  "cloudflare_banner_expired": ":host vėl prašo patvirtinti, kad esate žmogus, dažniausiai pakeitus tinklą. Pakeitimai laukia šiame įrenginyje, kol tai padarysite.",
+  "cloudflare_banner_unsupported": ":host prašo patvirtinti, kad esate žmogus, bet šis įrenginys to parodyti negali. Paprašykite serverio administratoriaus praleisti programėlę.",
+  "cloudflare_challenge_hosted": "Cloudflare tikrina šį ryšį. Bandykite dar kartą po kelių minučių.",
+  "cloudflare_banner_refused": "Patikra praėjo, bet :host Cloudflare nustatymai vis tiek atmeta programėlę. Perduokite Ray ID :ray serverio administratoriui.",
+  "cloudflare_banner_web": ":host prašo patvirtinti, kad esate žmogus. Norėdami tęsti, įkelkite puslapį iš naujo."
 }

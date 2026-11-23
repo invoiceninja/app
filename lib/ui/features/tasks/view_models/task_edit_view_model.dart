@@ -44,6 +44,23 @@ class TaskEditViewModel extends GenericEditViewModel<Task> {
   /// Save (docs/attaching-documents.md).
   @override
   PendingUploadsRepository get documentUploadRepository => repo;
+
+  /// An existing record's form shows its own documents, live
+  /// (invoiceninja/app#205).
+  @override
+  SavedDocumentsBinding<Task>? get savedDocumentsBinding {
+    final id = original?.id;
+    if (id == null) return null;
+    return SavedDocumentsBinding(
+      id: id,
+      watch: () => repo
+          .watch(companyId: companyId, id: id)
+          .map((saved) => saved?.documents),
+      withDocuments: (entity, documents) =>
+          entity.copyWith(documents: documents),
+    );
+  }
+
   final String companyId;
   final DateTime Function() now;
 

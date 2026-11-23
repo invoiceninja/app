@@ -213,10 +213,11 @@ class _BillingDocEditLayoutState<T extends BillingDocFields>
   BillingDocType get _type => widget.type;
   BillingDocEditViewModel<T> get _vm => widget.vm;
 
-  /// The Documents tab, on a document that was never saved: files picked
-  /// there upload on Save (docs/attaching-documents.md). A saved document's
-  /// files are on its record screen.
-  bool get _showDocuments => _vm.offersDocuments;
+  /// The Documents tab: on a document that was never saved, files picked
+  /// there upload on Save; on a saved one, its own documents, acted on at
+  /// once as on its record screen (invoiceninja/app#205,
+  /// docs/attaching-documents.md).
+  bool get _showDocuments => _vm.showsDocuments;
 
   /// The narrow strip's tabs, in order — the only place a tab's presence is
   /// decided. [BillingDocEditTabStrip] sizes its own controller from the
@@ -233,7 +234,8 @@ class _BillingDocEditLayoutState<T extends BillingDocFields>
     // desktop-only; mobile gets it as its own tab so those fields are
     // reachable on a phone.
     _Tab.settings,
-    // A new document's files, uploaded on Save (docs/attaching-documents.md).
+    // A new document's files, uploaded on Save; a saved one's own, acted on
+    // at once (docs/attaching-documents.md).
     if (_showDocuments) _Tab.documents,
     if (widget.showPdfTab) _Tab.pdf,
     if (_showEInvoice) _Tab.eInvoice,
@@ -452,7 +454,7 @@ class _BillingDocEditLayoutState<T extends BillingDocFields>
       label: context.tr('documents'),
       body: SingleChildScrollView(
         padding: EdgeInsets.all(InSpacing.lg(context)),
-        child: CreateFormDocumentsPanel(vm: _vm),
+        child: FormDocumentsPanel(vm: _vm),
       ),
     ),
     _Tab.pdf => BillingDocEditTab(
@@ -1660,7 +1662,7 @@ class _NotesTabsCardDesktopState<T extends BillingDocFields>
                 if (widget.showDocuments)
                   SingleChildScrollView(
                     padding: EdgeInsets.all(InSpacing.lg(context)),
-                    child: CreateFormDocumentsPanel(vm: vm),
+                    child: FormDocumentsPanel(vm: vm),
                   ),
                 if (widget.showEInvoice) widget.slots.eInvoiceTab!(context),
               ],

@@ -2385,5 +2385,16 @@
   "desktop_app_promo_settings_body": "Daha büyük ekran ve klavye kısayolları, aynı hesap ve verilerle.",
   "free_plan_client_limit_form": "Ücretsiz plandaki :count müşterinin tamamını kullandınız. Bu müşteriyi kaydetmek için yükseltin.",
   "free_plan_purge_note": "Bir müşterinin yerini yalnızca kalıcı olarak silinmesi boşaltır ve bu, müşterinin faturalarını ve ödemelerini de siler.",
-  "free_plan_import_too_many": "Bu içe aktarma, Ücretsiz planın izin verdiği :count müşteriyi aşacağı için hiçbir şey içe aktarılmadı. Hepsini içe aktarmak için yükseltin."
+  "free_plan_import_too_many": "Bu içe aktarma, Ücretsiz planın izin verdiği :count müşteriyi aşacağı için hiçbir şey içe aktarılmadı. Hepsini içe aktarmak için yükseltin.",
+  "documents_added_immediately": "Buraya eklenen dosyalar kaydetmeden hemen eklenir.",
+  "show_document_preview_help": "Her belgenin yanında bir fotoğraf veya PDF'nin ilk sayfasını gösterir. Her biri indirilir, bu yüzden ölçülü bağlantıda bunu kapatın.",
+  "cloudflare_check_title": "İnsan olduğunuzu doğrulayın",
+  "cloudflare_check_help": ":host, Cloudflare ile korunuyor. Aşağıdaki doğrulamayı tamamlayın, uygulama kendiliğinden devam eder.",
+  "cloudflare_check_failed": "Doğrulama sayfası yüklenmedi. Bağlantınızı kontrol edip yeniden deneyin.",
+  "cloudflare_banner": ":host insan olduğunuzu doğrulamanızı istiyor. Siz doğrulayana kadar değişiklikler bu cihazda bekler.",
+  "cloudflare_banner_expired": ":host, genellikle ağ değişikliğinden sonra, insan olduğunuzu yeniden doğrulamanızı istiyor. Siz doğrulayana kadar değişiklikler bu cihazda bekler.",
+  "cloudflare_banner_unsupported": ":host insan olduğunuzu doğrulamanızı istiyor, ancak bu cihaz bunu gösteremiyor. Sunucu yöneticisinden uygulamanın geçişine izin vermesini isteyin.",
+  "cloudflare_challenge_hosted": "Cloudflare bu bağlantıyı denetliyor. Birkaç dakika sonra yeniden deneyin.",
+  "cloudflare_banner_refused": "Doğrulama geçti, ancak :host için Cloudflare ayarları uygulamayı hâlâ reddediyor. Ray ID :ray değerini sunucu yöneticisiyle paylaşın.",
+  "cloudflare_banner_web": ":host insan olduğunuzu doğrulamanızı istiyor. Devam etmek için sayfayı yeniden yükleyin."
 }

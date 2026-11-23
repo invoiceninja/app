@@ -103,9 +103,9 @@ class TaskEditLayout extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               _IdentitySection(vm: vm, locked: locked, formatter: formatter),
-              if (vm.offersDocuments) ...[
+              if (vm.showsDocuments) ...[
                 SizedBox(height: InSpacing.lg(context)),
-                CreateFormDocumentsCard(vm: vm),
+                FormDocumentsCard(vm: vm),
               ],
               SizedBox(height: InSpacing.lg(context)),
               _CustomFieldsSection(
@@ -138,9 +138,9 @@ class TaskEditLayout extends StatelessWidget {
             _CustomFieldsSection(vm: vm, formatter: formatter, locked: locked),
             SizedBox(height: InSpacing.lg(context)),
             TaskEditTimesSection(vm: vm, locked: locked, formatter: formatter),
-            if (vm.offersDocuments) ...[
+            if (vm.showsDocuments) ...[
               SizedBox(height: InSpacing.lg(context)),
-              CreateFormDocumentsCard(vm: vm),
+              FormDocumentsCard(vm: vm),
             ],
           ],
         ),

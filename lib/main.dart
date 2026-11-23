@@ -14,6 +14,7 @@ import 'package:admin/app/browser_chrome.dart';
 import 'package:admin/app/purchase_notices.dart';
 import 'package:admin/app/corrupt_store_boot.dart';
 import 'package:admin/app/entity_links.dart';
+import 'package:admin/data/services/cloudflare/cloudflare_clearance.dart';
 import 'package:admin/data/repositories/docuninja/docuninja_session.dart';
 import 'package:admin/data/services/docuninja/docuninja_api.dart';
 import 'package:admin/data/services/docuninja/docuninja_login_api.dart';
@@ -50,6 +51,7 @@ import 'package:admin/app/services.dart';
 import 'package:admin/app/sign_out_notice.dart';
 import 'package:admin/app/after_saving_controller.dart';
 import 'package:admin/app/show_seconds_controller.dart';
+import 'package:admin/app/document_thumbnails_controller.dart';
 import 'package:admin/app/spell_check_controller.dart';
 import 'package:admin/app/terminal_lifecycle_observer.dart';
 import 'package:admin/app/text_scale_controller.dart';
@@ -1028,6 +1030,12 @@ class _InvoiceNinjaAppState extends State<InvoiceNinjaApp> {
         ChangeNotifierProvider<CertificateTrustStore>.value(
           value: widget.services.certificateTrust,
         ),
+        // The Cloudflare check's banner and the login screen, read as
+        // `context.read<CloudflareClearanceStore?>()` for the same reason
+        // (docs/cloudflare-challenge.md).
+        ChangeNotifierProvider<CloudflareClearanceStore>.value(
+          value: widget.services.cloudflare,
+        ),
         // For the sign-in screen and the Two-Factor tab's Passkeys section,
         // read as `context.read<PasskeyReadiness?>()` /
         // `context.read<PasskeyRepository?>()` for the same reason.
@@ -1090,6 +1098,11 @@ class _InvoiceNinjaAppState extends State<InvoiceNinjaApp> {
         // for the same reason.
         ChangeNotifierProvider<ShowSecondsController>.value(
           value: widget.services.showSeconds,
+        ),
+        // Document thumbnails and their Device Settings switch, read through
+        // `watchDocumentThumbnails(context)` (invoiceninja/app#206).
+        ChangeNotifierProvider<DocumentThumbnailsController>.value(
+          value: widget.services.documentThumbnails,
         ),
         // What Save does next on an edit screen, and its Device Settings row,
         // read as `context.read<AfterSavingController?>()` for the same reason

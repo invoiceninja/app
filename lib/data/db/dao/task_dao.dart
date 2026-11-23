@@ -160,10 +160,32 @@ class TaskDao extends BaseEntityDao<$TasksTable, TaskRow> with _$TaskDaoMixin {
   /// date-sensitive badge mode carries (CLAUDE.md § Sidebar counters),
   /// truncated to the minute so the badge's stream and the list's — built at
   /// different moments — agree unless a booking begins between them.
-  Expression<bool> _startsInTheFuture() {
+  Expression<bool> _startsInTheFuture() => _lastEntryAfterNow(0);
+
+  /// Some entry's **stop** is after now — every booking that has not yet
+  /// ended, the one whose slot is live included. [watchBooked]'s SQL half: a
+  /// superset of what `taskScheduleState` then picks from. It used
+  /// [_startsInTheFuture], which by design leaves out exactly the live slot,
+  /// so "Due now" never had a row to show; and the last entry by start is not
+  /// enough either, because a block worked inside a longer booking sorts after
+  /// it and has already ended.
+  Expression<bool> _endsInTheFuture() {
+    final nowSeconds = _nowMinuteSeconds();
+    // Guarded like [_lastEntryAfterNow]: `json_each` on malformed JSON aborts
+    // the whole query, not just the row.
+    return CustomExpression<bool>(
+      'CASE WHEN json_valid(payload) THEN '
+      "CASE WHEN json_valid(json_extract(payload, '\$.time_log')) THEN "
+      "EXISTS (SELECT 1 FROM json_each(json_extract(payload, '\$.time_log')) "
+      "AS e WHERE CAST(json_extract(e.value, '\$[1]') AS INTEGER) "
+      '> $nowSeconds) ELSE 0 END ELSE 0 END',
+    );
+  }
+
+  /// Now, truncated to the minute — see [_startsInTheFuture].
+  static int _nowMinuteSeconds() {
     final now = DateTime.now();
-    final nowSeconds =
-        DateTime(
+    return DateTime(
           now.year,
           now.month,
           now.day,
@@ -171,13 +193,19 @@ class TaskDao extends BaseEntityDao<$TasksTable, TaskRow> with _$TaskDaoMixin {
           now.minute,
         ).millisecondsSinceEpoch ~/
         1000;
+  }
+
+  /// `time_log[-1][slot] > now` (0 = start, 1 = stop), guarded and truncated
+  /// as [_startsInTheFuture] explains. Only the start is asked for now.
+  Expression<bool> _lastEntryAfterNow(int slot) {
+    final nowSeconds = _nowMinuteSeconds();
     // `\$` is an escaped dollar: these are SQLite JSON paths, not Dart
     // interpolation. `\$nowSeconds` alone is interpolated.
     return CustomExpression<bool>(
       'CASE WHEN json_valid(payload) THEN '
       "CASE WHEN json_valid(json_extract(payload, '\$.time_log')) THEN "
       "CAST(json_extract(json_extract(payload, '\$.time_log'), "
-      "'\$[#-1][0]') AS INTEGER) END END > $nowSeconds",
+      "'\$[#-1][$slot]') AS INTEGER) END END > $nowSeconds",
     );
   }
 
@@ -416,13 +444,19 @@ class TaskDao extends BaseEntityDao<$TasksTable, TaskRow> with _$TaskDaoMixin {
   /// Watch the single most-recently-updated running task for the company.
   /// O(1) thanks to the denormalized `is_running` column. Backs the global
   /// running-timer pill.
-  Stream<TaskRow?> watchRunning({required String companyId}) {
+  ///
+  /// [exceptId] leaves one task out — the one whose edit screen is open, which
+  /// carries its own timer (`RunningTimerPill.hiddenTaskId`).
+  Stream<TaskRow?> watchRunning({required String companyId, String? exceptId}) {
     final q = select(tasks)
       ..where(
         (t) =>
             t.companyId.equals(companyId) &
             t.isRunning.equals(true) &
-            t.isDeleted.equals(false),
+            t.isDeleted.equals(false) &
+            (exceptId == null
+                ? const Constant(true)
+                : t.id.equals(exceptId).not()),
       )
       ..orderBy([
         (t) => OrderingTerm(expression: t.updatedAt, mode: OrderingMode.desc),
@@ -482,7 +516,8 @@ class TaskDao extends BaseEntityDao<$TasksTable, TaskRow> with _$TaskDaoMixin {
   ///
   /// Returns the whole (small) set rather than the one row the pill shows,
   /// because "is the clock inside this block?" needs `taskScheduleState`, and
-  /// that is Dart: the SQL half can only answer "does a block end after now",
+  /// that is Dart: the SQL half ([_endsInTheFuture]) can only answer "does a
+  /// block end after now",
   /// which is also true of a job booked for next Tuesday. Capped so a company
   /// that books months ahead can't hand the shell a thousand rows to decode.
   Stream<List<TaskRow>> watchBooked({required String companyId}) {
@@ -494,7 +529,7 @@ class TaskDao extends BaseEntityDao<$TasksTable, TaskRow> with _$TaskDaoMixin {
             t.isDeleted.equals(false) &
             t.archivedAt.isNull() &
             t.invoiceId.equals('') &
-            _startsInTheFuture(),
+            _endsInTheFuture(),
       )
       // DESC: the cap keeps the 50 most recently touched booked tasks. Ascending
       // threw away the job the user had just booked, which is the one the pill
@@ -506,9 +541,6 @@ class TaskDao extends BaseEntityDao<$TasksTable, TaskRow> with _$TaskDaoMixin {
     return q.watch().distinctRows();
   }
 
-  /// Live count of running (non-deleted) timers for the company. Backs the
-  /// global pill's "N running" affordance so concurrent timers stay visible
-  /// even though [watchRunning] surfaces only the most-recent one.
   /// Whether any non-deleted task in the company has an assignee. The phone
   /// task list drops its assignee column when none does (flutter#183): for a
   /// solo user, or a team that doesn't assign, it was a grey placeholder on
@@ -530,14 +562,21 @@ class TaskDao extends BaseEntityDao<$TasksTable, TaskRow> with _$TaskDaoMixin {
     return q.watch().map((rows) => rows.isNotEmpty).distinct();
   }
 
-  Stream<int> watchRunningCount({required String companyId}) {
+  /// Live count of running (non-deleted) timers for the company. Backs the
+  /// global pill's "N running" affordance so concurrent timers stay visible
+  /// even though [watchRunning] surfaces only the most-recent one.
+  /// [exceptId] as in [watchRunning].
+  Stream<int> watchRunningCount({required String companyId, String? exceptId}) {
     final count = tasks.id.count();
     final q = selectOnly(tasks)
       ..addColumns([count])
       ..where(
         tasks.companyId.equals(companyId) &
             tasks.isRunning.equals(true) &
-            tasks.isDeleted.equals(false),
+            tasks.isDeleted.equals(false) &
+            (exceptId == null
+                ? const Constant(true)
+                : tasks.id.equals(exceptId).not()),
       );
     return q.map((row) => row.read(count) ?? 0).watchSingle();
   }

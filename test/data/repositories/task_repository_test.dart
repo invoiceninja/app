@@ -486,6 +486,95 @@ void main() {
     expect(await repo.watchRunningCount(companyId: 'co').first, 0);
   });
 
+  test(
+    'the shell streams leave out the task whose edit screen is open',
+    () async {
+      // invoiceninja/app#204: the form's Stop is a draft until Save, so the
+      // pill kept ticking beside it. The shell passes that task's id and the
+      // pill and dock leave it out — but still show any other running timer.
+      final repo = makeRepo();
+      final a = await repo.create(companyId: 'co', draft: task());
+      final b = await repo.create(companyId: 'co', draft: task());
+      await repo.startTimer(companyId: 'co', taskId: a.entity.id);
+      await repo.startTimer(companyId: 'co', taskId: b.entity.id);
+      final newest = (await repo.watchRunning(companyId: 'co').first)!.id;
+      final other = newest == a.entity.id ? b.entity.id : a.entity.id;
+
+      expect(
+        (await repo.watchRunning(companyId: 'co', exceptTaskId: newest).first)
+            ?.id,
+        other,
+      );
+      expect(
+        await repo
+            .watchRunningCount(companyId: 'co', exceptTaskId: newest)
+            .first,
+        1,
+      );
+
+      await repo.stopRunningTimer(companyId: 'co', taskId: other);
+      expect(
+        await repo.watchRunning(companyId: 'co', exceptTaskId: newest).first,
+        isNull,
+      );
+      expect(
+        await repo
+            .watchRunningCount(companyId: 'co', exceptTaskId: newest)
+            .first,
+        0,
+      );
+      expect((await repo.watchRunning(companyId: 'co').first)?.id, newest);
+    },
+  );
+
+  test('watchDueNow leaves out the task whose edit screen is open', () async {
+    // A live slot: the clock is inside it. Before this fix `watchBooked`
+    // asked for a block that *starts* after now, so "Due now" never had a row.
+    final repo = makeRepo();
+    final now = DateTime.now();
+    final start = now.subtract(const Duration(minutes: 10));
+    final booked = await repo.create(
+      companyId: 'co',
+      draft: task(
+        // The anchor that tells a live booking from a block of worked time.
+        dueDate: Date(start.year, start.month, start.day),
+        timeLog: [
+          TimeEntry(start: start, stop: now.add(const Duration(minutes: 50))),
+        ],
+      ),
+    );
+    final id = booked.entity.id;
+    expect((await repo.watchDueNow(companyId: 'co').first)?.id, id);
+    expect(
+      await repo.watchDueNow(companyId: 'co', exceptTaskId: id).first,
+      isNull,
+    );
+  });
+
+  test('watchDueNow finds a live booking with a block worked inside it — '
+      'the last entry by start has already ended', () async {
+    final repo = makeRepo();
+    final now = DateTime.now();
+    final start = now.subtract(const Duration(hours: 3));
+    final booked = await repo.create(
+      companyId: 'co',
+      draft: task(
+        dueDate: Date(start.year, start.month, start.day),
+        timeLog: [
+          TimeEntry(start: start, stop: now.add(const Duration(hours: 5))),
+          TimeEntry(
+            start: now.subtract(const Duration(hours: 2)),
+            stop: now.subtract(const Duration(minutes: 90)),
+          ),
+        ],
+      ),
+    );
+    expect(
+      (await repo.watchDueNow(companyId: 'co').first)?.id,
+      booked.entity.id,
+    );
+  });
+
   test('stopAllRunning(only:) leaves the timers it refuses running', () async {
     // The pill's "Stop all" passes the user's edit rule: every running timer
     // in the company is in Drift, a teammate's too, and the server refuses

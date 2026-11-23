@@ -1343,6 +1343,19 @@ class SyncRepository {
     await drainOnce(companyId: companyId);
   }
 
+  /// Send now what a not-sent failure parked for [companyId] — rows waiting
+  /// out [kOfflineRetryDelay] — then kick a drain. Called once what held them
+  /// is gone (a passed Cloudflare check), so the changes the strip said were
+  /// waiting go out with it rather than a minute later.
+  Future<void> retryNotSentRows({required String companyId}) async {
+    await db.outboxDao.readyNotSentRows(
+      companyId: companyId,
+      now: _now().millisecondsSinceEpoch,
+      window: kOfflineRetryDelay * 5,
+    );
+    await drainOnce(companyId: companyId);
+  }
+
   /// Settle rows orphaned `in_flight` by a prior interrupted pass (app killed /
   /// process death between `markInFlight` and the catch handler). `nextReady`
   /// only selects `pending`, so without this an orphaned row is invisible

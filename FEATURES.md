@@ -78,6 +78,7 @@ the honest default.
 | Two-factor authentication (TOTP / Google Authenticator) | ✅ | ✅ | ✅ | ✅ | |
 | Two-step login (email → Continue → only the credentials the account needs, via `/login/precheck`) | ✅ | ❌ | ✅ | | |
 | Self-hosted server with an untrusted TLS certificate (plain-language reason and fix; trust that exact certificate; revoke in Device Settings) | — | 🟡 | ✅ | | |
+| Self-hosted server behind Cloudflare's "Verify you are human": the check in a real web view (iOS, Android, macOS, Windows), its clearance replayed on API calls, changes held until it passes — invoiceninja#13484 | — | ❌ | 🟡 | | Untested against a live challenged zone; TLS-fingerprint binding would need the `fetch()` fallback (`docs/cloudflare-challenge.md`) |
 | Passkey login | ✅ | ❌ | 🟡 | | App complete; shown per platform only once proven to work (docs/passkeys.md): Windows and web on the RP's host, the hosted Flutter web page as a related origin once the server lists it, iOS/macOS once app.invoicing.co serves `webcredentials`, Android once the server PR and that host's `get_login_creds` are live; never F-Droid/Linux |
 | Generic OIDC sign-in (self-hosted identity provider) | ✅ | ❌ | ❌ | | Blocked: the server returns the code to React's own `/oauth-callback` only (BACKEND.md § OIDC) |
 | Disable 2FA from login (SMS reset for a lost authenticator) | ✅ | ✅ | ✅ | | |
@@ -737,6 +738,9 @@ The company-wide list of every uploaded file, whatever record it is attached to 
 | Documents — record screen: details, linked-to record, inline PDF / image preview | ❌ | ✅ | ✅ | | |
 | Documents — view (in-app viewer) and download | ❌ | ✅ | ✅ | | |
 | Documents — rename | ❌ | ✅ | ✅ | | |
+| Documents — rename from a record's own Documents tab and its edit form (dialog shows the file, words selected, works offline) — app#206 | ❌ | ✅ | ✅ | | `docs/document-thumbnails.md` |
+| Documents — thumbnails: a photo or a PDF's first page beside each file (record tab, edit form, Documents list), tap to open; Device Settings → Show Document Preview — app#206 | 🟡 | 🟡 | ✅ | | React: png / jpg, opt-in. v1 drew the server's `preview`, which the server no longer generates. Memory-only, capped (`docs/document-thumbnails.md`) |
+| Documents — on an existing record's edit form (invoice, quote, credit, recurring invoice, purchase order, client, vendor, product, project, task, payment, expense, recurring expense): the record's own documents, upload / view / rename / public-private / delete at once — app#205 | 🟡 | 🟡 | ✅ | | React and v1: the billing documents' edit screens only (`docs/attaching-documents.md`) |
 | Documents — make public / private | ❌ | ❌ | ✅ | | |
 | Documents — delete (single and bulk, password-gated) | ❌ | ✅ | ✅ | | |
 | Documents — bulk download (server zips and emails a link) | ❌ | ✅ | ✅ | | |

@@ -80,6 +80,10 @@ class AuthService {
       );
     } on http.ClientException catch (e) {
       throw NetworkException(e.message);
+    } on CloudflareChallengeException {
+      // Cloudflare's "Verify you are human" (`CloudflareClearanceClient`):
+      // the login screen opens the check and signs in again.
+      rethrow;
     } catch (e) {
       // Everything else `post` can throw is transport too: `IOClient` wraps
       // only `SocketException` / `HttpException`, so a TLS

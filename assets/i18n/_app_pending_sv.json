@@ -2372,5 +2372,16 @@
   "desktop_app_promo_settings_body": "En större skärm och kortkommandon, med samma konto och data.",
   "free_plan_client_limit_form": "Du har använt alla :count kunder i Gratisplanen. Uppgradera för att spara den här kunden.",
   "free_plan_purge_note": "Bara en permanent radering av en kund frigör dess plats, och den raderar även kundens fakturor och betalningar.",
-  "free_plan_import_too_many": "Den här importen skulle gå över de :count kunder som Gratisplanen tillåter, så inget importerades. Uppgradera för att importera alla."
+  "free_plan_import_too_many": "Den här importen skulle gå över de :count kunder som Gratisplanen tillåter, så inget importerades. Uppgradera för att importera alla.",
+  "documents_added_immediately": "Filer som läggs till här bifogas direkt, utan att spara.",
+  "show_document_preview_help": "Visar ett foto eller första sidan i en PDF bredvid varje dokument. Var och en laddas ned, så stäng av detta på en anslutning med datapriser.",
+  "cloudflare_check_title": "Bekräfta att du är en människa",
+  "cloudflare_check_help": ":host skyddas av Cloudflare. Slutför kontrollen nedan så fortsätter appen av sig själv.",
+  "cloudflare_check_failed": "Kontrollsidan lästes inte in. Kontrollera anslutningen och försök igen.",
+  "cloudflare_banner": ":host ber dig bekräfta att du är en människa. Ändringar väntar på den här enheten tills du gör det.",
+  "cloudflare_banner_expired": ":host ber dig igen bekräfta att du är en människa, oftast efter ett nätverksbyte. Ändringar väntar på den här enheten tills du gör det.",
+  "cloudflare_banner_unsupported": ":host ber dig bekräfta att du är en människa, vilket den här enheten inte kan visa. Be serverns administratör att släppa igenom appen.",
+  "cloudflare_challenge_hosted": "Cloudflare kontrollerar den här anslutningen. Försök igen om några minuter.",
+  "cloudflare_banner_refused": "Kontrollen lyckades, men Cloudflare-inställningarna för :host avvisar fortfarande appen. Ge Ray ID :ray till serverns administratör.",
+  "cloudflare_banner_web": ":host ber dig bekräfta att du är en människa. Läs in sidan igen för att fortsätta."
 }

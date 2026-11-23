@@ -2385,5 +2385,16 @@
   "desktop_app_promo_settings_body": "Ein größerer Bildschirm und Tastatur-Schnellzugriffe, mit gleichem Konto und gleichen Daten.",
   "free_plan_client_limit_form": "Sie haben alle :count Kunden des kostenlosen Tarifs genutzt. Upgraden Sie, um diesen Kunden zu speichern.",
   "free_plan_purge_note": "Nur das endgültige Löschen eines Kunden gibt seinen Platz frei, und dabei werden auch seine Rechnungen und Zahlungen gelöscht.",
-  "free_plan_import_too_many": "Mit diesem Import würden Sie die :count Kunden des kostenlosen Tarifs überschreiten, daher wurde nichts importiert. Upgraden Sie, um alle zu importieren."
+  "free_plan_import_too_many": "Mit diesem Import würden Sie die :count Kunden des kostenlosen Tarifs überschreiten, daher wurde nichts importiert. Upgraden Sie, um alle zu importieren.",
+  "documents_added_immediately": "Hier hinzugefügte Dateien werden sofort angehängt, ohne Speichern.",
+  "show_document_preview_help": "Zeigt neben jedem Dokument ein Foto oder die erste Seite eines PDFs. Jede Vorschau wird heruntergeladen – bei einer getakteten Verbindung ausschalten.",
+  "cloudflare_check_title": "Bestätigen Sie, dass Sie ein Mensch sind",
+  "cloudflare_check_help": ":host wird von Cloudflare geschützt. Schließen Sie die Prüfung unten ab, dann macht die App von selbst weiter.",
+  "cloudflare_check_failed": "Die Prüfseite wurde nicht geladen. Prüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
+  "cloudflare_banner": ":host möchte bestätigt haben, dass Sie ein Mensch sind. Änderungen warten auf diesem Gerät, bis Sie das tun.",
+  "cloudflare_banner_expired": ":host möchte erneut bestätigt haben, dass Sie ein Mensch sind, meist nach einem Netzwerkwechsel. Änderungen warten auf diesem Gerät, bis Sie das tun.",
+  "cloudflare_banner_unsupported": ":host möchte bestätigt haben, dass Sie ein Mensch sind, was dieses Gerät nicht anzeigen kann. Bitten Sie den Administrator des Servers, die App durchzulassen.",
+  "cloudflare_challenge_hosted": "Cloudflare prüft diese Verbindung. Versuchen Sie es in ein paar Minuten erneut.",
+  "cloudflare_banner_refused": "Die Prüfung war erfolgreich, aber die Cloudflare-Einstellungen von :host weisen die App weiterhin ab. Geben Sie dem Administrator des Servers die Ray ID :ray.",
+  "cloudflare_banner_web": ":host möchte bestätigt haben, dass Sie ein Mensch sind. Laden Sie die Seite neu, um fortzufahren."
 }

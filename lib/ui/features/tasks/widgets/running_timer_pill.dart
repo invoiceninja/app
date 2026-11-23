@@ -40,8 +40,16 @@ import 'package:admin/utils/formatting.dart';
 /// The shell's railed (wide) branch floats it at [runningTimerPillBottom];
 /// the narrow branch docks the same two modes under the content instead
 /// ([RunningTimerDock]).
+///
+/// [hiddenTaskId] is the task whose edit screen is open ([taskIdBeingEdited]),
+/// and both modes leave it out. That form carries its own timer, and its Stop
+/// and Start change only the draft until Save — so the pill went on ticking
+/// beside a form that said the timer had stopped, and its own Stop wrote a
+/// second, different stop time under the draft (invoiceninja/app#204).
 class RunningTimerPill extends StatefulWidget {
-  const RunningTimerPill({super.key});
+  const RunningTimerPill({this.hiddenTaskId, super.key});
+
+  final String? hiddenTaskId;
 
   @override
   State<RunningTimerPill> createState() => _RunningTimerPillState();
@@ -83,6 +91,21 @@ double runningTimerPillBottom({
     (isPhone || screenAlwaysHasFab || paneWidth < Breakpoints.wide ? 112 : 16) +
     bottomBar;
 
+/// The task whose edit screen [uri] shows (`/tasks/<id>/edit`), or null — the
+/// one task [RunningTimerPill] and [RunningTimerDock] leave out. Not the create
+/// route: a new task is not in Drift, so the pill could not show it anyway.
+String? taskIdBeingEdited(Uri uri) {
+  final segments = uri.pathSegments;
+  if (segments.length != 3 ||
+      segments[0] != 'tasks' ||
+      segments[2] != 'edit' ||
+      segments[1].isEmpty ||
+      segments[1] == 'new') {
+    return null;
+  }
+  return segments[1];
+}
+
 class _RunningTimerPillState extends State<RunningTimerPill>
     with WidgetsBindingObserver {
   @override
@@ -97,6 +120,27 @@ class _RunningTimerPillState extends State<RunningTimerPill>
     super.dispose();
   }
 
+  /// The running streams, held so a rebuild — the shell rebuilds this widget
+  /// on every route change, the keyboard on every inset — re-subscribes only
+  /// when the company or [RunningTimerPill.hiddenTaskId] actually changed.
+  (String, String?)? _streamsKey;
+  Stream<Task?>? _running;
+  Stream<int>? _count;
+
+  void _openStreams(Services services, String companyId) {
+    final key = (companyId, widget.hiddenTaskId);
+    if (key == _streamsKey) return;
+    _streamsKey = key;
+    _running = services.tasks.watchRunning(
+      companyId: companyId,
+      exceptTaskId: widget.hiddenTaskId,
+    );
+    _count = services.tasks.watchRunningCount(
+      companyId: companyId,
+      exceptTaskId: widget.hiddenTaskId,
+    );
+  }
+
   /// "Due now" is computed against `DateTime.now()` at build time, and Drift
   /// only emits when a row changes — so a booking whose window opens while the
   /// app sits in a pocket would never surface it. A periodic ticker is the
@@ -105,8 +149,14 @@ class _RunningTimerPillState extends State<RunningTimerPill>
   /// between jobs is the first one after they unlock the phone.
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed && mounted) setState(() {});
+    if (state == AppLifecycleState.resumed && mounted) {
+      setState(() => _resumes++);
+    }
   }
+
+  /// Keys [_DueNowPill], so a resume re-creates it and re-opens its stream —
+  /// a rebuild alone reuses the element, and its stream with it.
+  int _resumes = 0;
 
   /// Whether the on-screen keyboard is up on a touch device. The pill floats
   /// over the wide shell's content, and an unfolded foldable (or a tablet in
@@ -168,12 +218,15 @@ class _RunningTimerPillState extends State<RunningTimerPill>
         if (company == null || !company.can('view_task')) {
           return const SizedBox.shrink();
         }
+        _openStreams(services, session.currentCompanyId);
         return StreamBuilder<Task?>(
-          stream: services.tasks.watchRunning(
-            companyId: session.currentCompanyId,
-          ),
+          stream: _running,
           builder: (context, snapshot) {
-            final task = snapshot.data;
+            // A `StreamBuilder` keeps its last data across a stream swap, so
+            // the frames before the new stream answers can still hold the task
+            // whose editor just opened.
+            final data = snapshot.data;
+            final task = data?.id == widget.hiddenTaskId ? null : data;
             if (task == null || !task.isRunning || task.timeLog.isEmpty) {
               // Nothing running — but a booked job whose window is open right
               // now is the other thing worth a permanent, thumb-height
@@ -182,18 +235,19 @@ class _RunningTimerPillState extends State<RunningTimerPill>
               // house it beats finding the Tasks list, picking a view and
               // scrolling (invoiceninja/flutter#149).
               return _DueNowPill(
+                key: ValueKey(_resumes),
                 services: services,
                 companyId: session.currentCompanyId,
+                hiddenTaskId: widget.hiddenTaskId,
               );
             }
             return StreamBuilder<int>(
-              stream: services.tasks.watchRunningCount(
-                companyId: session.currentCompanyId,
-              ),
+              stream: _count,
               builder: (context, countSnap) => _Pill(
                 task: task,
                 services: services,
                 runningCount: countSnap.data ?? 1,
+                hiddenTaskId: widget.hiddenTaskId,
               ),
             );
           },
@@ -208,10 +262,14 @@ class _Pill extends StatelessWidget {
     required this.task,
     required this.services,
     required this.runningCount,
+    this.hiddenTaskId,
   });
 
   final Task task;
   final Services services;
+
+  /// Left out of "Stop all" as well as the count: its form holds the draft.
+  final String? hiddenTaskId;
 
   /// Total running timers for the company. When > 1 the pill surfaces a
   /// "Stop all (N)" affordance — `watchRunning` only shows the newest one,
@@ -220,7 +278,8 @@ class _Pill extends StatelessWidget {
 
   Future<void> _stop(BuildContext context) => _stopTimer(services, task);
 
-  Future<void> _stopAll(BuildContext context) => _stopAllTimers(services);
+  Future<void> _stopAll(BuildContext context) =>
+      _stopAllTimers(services, exceptTaskId: hiddenTaskId);
 
   @override
   Widget build(BuildContext context) {
@@ -296,10 +355,16 @@ class _Pill extends StatelessWidget {
 /// place on screen means one thing ("the job you are on"), and the two states
 /// can never collide, since claiming a booking is what makes it running.
 class _DueNowPill extends StatefulWidget {
-  const _DueNowPill({required this.services, required this.companyId});
+  const _DueNowPill({
+    super.key,
+    required this.services,
+    required this.companyId,
+    this.hiddenTaskId,
+  });
 
   final Services services;
   final String companyId;
+  final String? hiddenTaskId;
 
   @override
   State<_DueNowPill> createState() => _DueNowPillState();
@@ -316,13 +381,18 @@ class _DueNowPillState extends State<_DueNowPill> {
   /// The freshness this used to get for free from that churn now comes from
   /// [_RunningTimerPillState.didChangeAppLifecycleState], which re-creates this
   /// element on resume — the frame that matters between jobs.
-  Stream<Task?> _open() =>
-      widget.services.tasks.watchDueNow(companyId: widget.companyId);
+  Stream<Task?> _open() => widget.services.tasks.watchDueNow(
+    companyId: widget.companyId,
+    exceptTaskId: widget.hiddenTaskId,
+  );
 
   @override
   void didUpdateWidget(_DueNowPill old) {
     super.didUpdateWidget(old);
-    if (old.companyId != widget.companyId) _stream = _open();
+    if (old.companyId != widget.companyId ||
+        old.hiddenTaskId != widget.hiddenTaskId) {
+      _stream = _open();
+    }
   }
 
   @override
@@ -334,7 +404,10 @@ class _DueNowPillState extends State<_DueNowPill> {
       stream: _stream,
       builder: (context, snap) {
         final task = snap.data;
-        if (task == null) return const SizedBox.shrink();
+        // Stale across a stream swap, as in the running pill.
+        if (task == null || task.id == widget.hiddenTaskId) {
+          return const SizedBox.shrink();
+        }
         final label = taskPrimaryLabel(task);
         return _FloatingBarShell(
           onTap: () => context.go('/tasks/${task.id}/edit'),
@@ -522,12 +595,14 @@ Future<void> _stopTimer(Services services, Task task) async {
 
 /// Stop every running timer this user may edit. Every running timer in the
 /// company is in Drift, a teammate's too — the server refuses the rest (401).
-Future<void> _stopAllTimers(Services services) async {
+/// [exceptTaskId] is the task whose edit screen is open: the pill does not
+/// count it, so "Stop all" does not stop it under its form's draft.
+Future<void> _stopAllTimers(Services services, {String? exceptTaskId}) async {
   final session = services.auth.session.value;
   if (session == null) return;
   await services.tasks.stopAllRunning(
     companyId: session.currentCompanyId,
-    only: (t) => TaskActions.canEditTask(session, t),
+    only: (t) => t.id != exceptTaskId && TaskActions.canEditTask(session, t),
   );
 }
 
@@ -569,9 +644,13 @@ const double kRunningTimerDockHeight = 48;
 /// Wide layouts keep the floating pill; the shell mounts this only in its
 /// narrow branch.
 class RunningTimerDock extends StatefulWidget {
-  const RunningTimerDock({required this.child, super.key});
+  const RunningTimerDock({required this.child, this.hiddenTaskId, super.key});
 
   final Widget child;
+
+  /// The task whose edit screen is open — left out, as by
+  /// [RunningTimerPill.hiddenTaskId].
+  final String? hiddenTaskId;
 
   @override
   State<RunningTimerDock> createState() => _RunningTimerDockState();
@@ -584,6 +663,9 @@ class _RunningTimerDockState extends State<RunningTimerDock>
   /// The company whose streams are open; null when there is no session or the
   /// user may not view tasks (the pill's permission gate).
   String? _companyId;
+
+  /// The [RunningTimerDock.hiddenTaskId] those streams leave out.
+  String? _hiddenTaskId;
   StreamSubscription<Task?>? _runningSub;
   StreamSubscription<int>? _countSub;
   StreamSubscription<Task?>? _dueSub;
@@ -596,7 +678,14 @@ class _RunningTimerDockState extends State<RunningTimerDock>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _services.auth.session.addListener(_onSession);
-    _onSession();
+    _resubscribe();
+  }
+
+  @override
+  void didUpdateWidget(RunningTimerDock oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // A build follows `didUpdateWidget` anyway, so no `setState` here.
+    if (oldWidget.hiddenTaskId != widget.hiddenTaskId) _resubscribe();
   }
 
   @override
@@ -628,24 +717,39 @@ class _RunningTimerDockState extends State<RunningTimerDock>
   }
 
   void _onSession() {
+    if (_resubscribe() && mounted) setState(() {});
+  }
+
+  /// Re-opens the streams for the current company and hidden task; false when
+  /// neither changed.
+  bool _resubscribe() {
     final session = _services.auth.session.value;
     final company = session?.currentCompany;
     final id = session != null && company != null && company.can('view_task')
         ? session.currentCompanyId
         : null;
-    if (id == _companyId) return;
+    final hidden = widget.hiddenTaskId;
+    if (id == _companyId && hidden == _hiddenTaskId) return false;
+    final sameCompany = id == _companyId;
     _cancelAll();
     _companyId = id;
-    _running = null;
-    _runningCount = 1;
-    _due = null;
+    _hiddenTaskId = hidden;
+    // Only the hidden task changed (a task editor opened or closed): keep
+    // what the bar shows until the new streams answer, unless it is the task
+    // now hidden. Clearing it dropped the 48 px bar for a frame and moved the
+    // whole screen under it on every route into or out of an editor.
+    if (!sameCompany || _running?.id == hidden) {
+      _running = null;
+      _runningCount = 1;
+    }
+    if (!sameCompany || _due?.id == hidden) _due = null;
     if (id != null) {
       _runningSub = _services.tasks
-          .watchRunning(companyId: id)
+          .watchRunning(companyId: id, exceptTaskId: hidden)
           .listen(_onRunning);
       _syncDue();
     }
-    if (mounted) setState(() {});
+    return true;
   }
 
   void _onRunning(Task? task) {
@@ -657,7 +761,7 @@ class _RunningTimerDockState extends State<RunningTimerDock>
     _running = running;
     if (running != null) {
       _countSub ??= _services.tasks
-          .watchRunningCount(companyId: id)
+          .watchRunningCount(companyId: id, exceptTaskId: _hiddenTaskId)
           .listen((n) => setState(() => _runningCount = n));
     } else {
       _countSub?.cancel();
@@ -675,7 +779,7 @@ class _RunningTimerDockState extends State<RunningTimerDock>
     final id = _companyId;
     if (id != null && _running == null) {
       _dueSub ??= _services.tasks
-          .watchDueNow(companyId: id)
+          .watchDueNow(companyId: id, exceptTaskId: _hiddenTaskId)
           .listen((t) => setState(() => _due = t));
     } else {
       _dueSub?.cancel();
@@ -695,7 +799,7 @@ class _RunningTimerDockState extends State<RunningTimerDock>
         runningCount: _runningCount,
         onOpen: () => context.go('/tasks/${running.id}/edit'),
         onStop: canStop ? () => _stopTimer(_services, running) : null,
-        onStopAll: () => _stopAllTimers(_services),
+        onStopAll: () => _stopAllTimers(_services, exceptTaskId: _hiddenTaskId),
       );
     }
     final due = _due;

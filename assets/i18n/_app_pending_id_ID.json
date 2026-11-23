@@ -2303,5 +2303,16 @@
   "desktop_app_promo_settings_body": "Layar lebih besar dan pintasan keyboard, dengan akun dan data yang sama.",
   "free_plan_client_limit_form": "Anda telah menggunakan semua :count klien di Paket Gratis. Tingkatkan paket untuk menyimpan klien ini.",
   "free_plan_purge_note": "Hanya menghapus permanen klien yang mengosongkan tempatnya, dan itu juga menghapus faktur serta pembayarannya.",
-  "free_plan_import_too_many": "Impor ini akan melebihi :count klien yang diizinkan Paket Gratis, jadi tidak ada yang diimpor. Tingkatkan paket untuk mengimpor semuanya."
+  "free_plan_import_too_many": "Impor ini akan melebihi :count klien yang diizinkan Paket Gratis, jadi tidak ada yang diimpor. Tingkatkan paket untuk mengimpor semuanya.",
+  "documents_added_immediately": "File yang ditambahkan di sini langsung dilampirkan, tanpa perlu menyimpan.",
+  "show_document_preview_help": "Tampilkan foto atau halaman pertama PDF di samping setiap dokumen. Masing-masing diunduh, jadi matikan ini pada koneksi terukur.",
+  "cloudflare_check_title": "Verifikasi bahwa Anda manusia",
+  "cloudflare_check_help": ":host dilindungi oleh Cloudflare. Selesaikan pemeriksaan di bawah dan aplikasi akan melanjutkan sendiri.",
+  "cloudflare_check_failed": "Halaman pemeriksaan tidak termuat. Periksa koneksi Anda dan coba lagi.",
+  "cloudflare_banner": ":host meminta verifikasi bahwa Anda manusia. Perubahan menunggu di perangkat ini sampai Anda melakukannya.",
+  "cloudflare_banner_expired": ":host kembali meminta verifikasi bahwa Anda manusia, biasanya setelah jaringan berganti. Perubahan menunggu di perangkat ini sampai Anda melakukannya.",
+  "cloudflare_banner_unsupported": ":host meminta verifikasi bahwa Anda manusia, yang tidak bisa ditampilkan perangkat ini. Minta administrator server untuk meloloskan aplikasi.",
+  "cloudflare_challenge_hosted": "Cloudflare sedang memeriksa koneksi ini. Coba lagi dalam beberapa menit.",
+  "cloudflare_banner_refused": "Pemeriksaan berhasil, tetapi pengaturan Cloudflare :host masih menolak aplikasi. Bagikan Ray ID :ray kepada administrator server.",
+  "cloudflare_banner_web": ":host meminta verifikasi bahwa Anda manusia. Muat ulang halaman untuk melanjutkan."
 }

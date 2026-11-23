@@ -3,12 +3,14 @@ import 'dart:async';
 import 'package:material_ui/material_ui.dart';
 
 import 'package:admin/app/design_tokens.dart';
+import 'package:admin/app/env.dart';
 import 'package:admin/data/models/domain/document.dart';
 import 'package:admin/data/services/upload_source.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/detail/document_open_actions.dart';
 import 'package:admin/ui/core/widgets/attachments_plan_gate.dart';
-import 'package:admin/ui/core/widgets/document_type_icon.dart';
+import 'package:admin/ui/core/widgets/document_thumbnail.dart';
+import 'package:admin/ui/core/widgets/rename_document_dialog.dart';
 import 'package:admin/ui/core/widgets/document_capture.dart';
 import 'package:admin/ui/core/widgets/documents_save_first.dart';
 import 'package:admin/ui/core/widgets/file_drop_zone.dart';
@@ -35,6 +37,8 @@ class EntityDocumentsTab extends StatefulWidget {
     required this.onToggleVisibility,
     this.formatter,
     this.readOnly = false,
+    this.onRename,
+    this.padded = true,
   });
 
   /// Server id of the parent entity. When it starts with `tmp_`, only the
@@ -71,6 +75,15 @@ class EntityDocumentsTab extends StatefulWidget {
   /// `disableEditableOptions`.
   final bool readOnly;
 
+  /// Rename a file (invoiceninja/app#206); null leaves the item out of the
+  /// row menu. Through `DocumentRepository.renameAttached` — see
+  /// [entityDocumentsTabFor].
+  final Future<void> Function(Document doc, String name)? onRename;
+
+  /// False inside a card that already pads its body — a record's edit form
+  /// (invoiceninja/app#205).
+  final bool padded;
+
   @override
   State<EntityDocumentsTab> createState() => _EntityDocumentsTabState();
 }
@@ -92,7 +105,9 @@ class _EntityDocumentsTabState extends State<EntityDocumentsTab> {
     final sorted = [...widget.documents]
       ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
     return Padding(
-      padding: EdgeInsets.all(InSpacing.lg(context)),
+      padding: widget.padded
+          ? EdgeInsets.all(InSpacing.lg(context))
+          : EdgeInsets.zero,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
@@ -123,11 +138,27 @@ class _EntityDocumentsTabState extends State<EntityDocumentsTab> {
               onDownload: _onDownload,
               onDelete: widget.onDelete,
               onToggleVisibility: widget.onToggleVisibility,
+              onRename: widget.onRename == null ? null : _onRename,
             ),
           ],
         ],
       ),
     );
+  }
+
+  Future<void> _onRename(Document doc) async {
+    final rename = widget.onRename;
+    if (rename == null) return;
+    final name = await showRenameDocumentDialog(context, doc);
+    if (name == null || !mounted) return;
+    try {
+      await rename(doc, name);
+      if (!mounted) return;
+      Notify.success(context, context.tr('renamed_document'));
+    } catch (e) {
+      if (!mounted) return;
+      Notify.error(context, context.tr('an_error_occurred'), error: e);
+    }
   }
 
   Widget _buildUploadAffordance(BuildContext context) {
@@ -184,6 +215,7 @@ class _DocumentList extends StatelessWidget {
     required this.onDownload,
     required this.onDelete,
     required this.onToggleVisibility,
+    this.onRename,
   });
 
   final List<Document> documents;
@@ -193,6 +225,7 @@ class _DocumentList extends StatelessWidget {
   final Future<void> Function(Document doc) onDownload;
   final Future<void> Function(Document doc) onDelete;
   final Future<void> Function(Document doc) onToggleVisibility;
+  final Future<void> Function(Document doc)? onRename;
 
   static const _narrowBreakpoint = 720.0;
 
@@ -215,6 +248,7 @@ class _DocumentList extends StatelessWidget {
                 onDownload: onDownload,
                 onDelete: onDelete,
                 onToggleVisibility: onToggleVisibility,
+                onRename: onRename,
               ),
             ],
           ],
@@ -234,6 +268,7 @@ class _DocumentRow extends StatelessWidget {
     required this.onDownload,
     required this.onDelete,
     required this.onToggleVisibility,
+    this.onRename,
   });
 
   final Document doc;
@@ -244,6 +279,7 @@ class _DocumentRow extends StatelessWidget {
   final Future<void> Function(Document doc) onDownload;
   final Future<void> Function(Document doc) onDelete;
   final Future<void> Function(Document doc) onToggleVisibility;
+  final Future<void> Function(Document doc)? onRename;
 
   String _formatDate(BuildContext context) {
     if (doc.updatedAt <= 0) return '';
@@ -258,7 +294,36 @@ class _DocumentRow extends StatelessWidget {
     return formatter?.date(iso) ?? iso;
   }
 
-  IconData _typeIcon() => documentTypeIcon(doc.type);
+  /// The file's thumbnail (a photo, a PDF's first page), or its type icon;
+  /// a tap opens it, like View (invoiceninja/app#206).
+  Widget _leading(BuildContext context) => Semantics(
+    button: true,
+    label: context.tr('view'),
+    excludeSemantics: true,
+    onTap: () => onView(doc),
+    child: GestureDetector(
+      onTap: () => onView(doc),
+      // The whole slot takes the tap, padded to the 44 px floor on touch
+      // (docs/touch-targets.md); the picture stays 40.
+      behavior: HitTestBehavior.opaque,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: ConstrainedBox(
+          constraints: Env.isTouchPrimary
+              ? const BoxConstraints(
+                  minWidth: InSizes.touchTarget,
+                  minHeight: InSizes.touchTarget,
+                )
+              : const BoxConstraints(),
+          child: Center(
+            widthFactor: 1,
+            heightFactor: 1,
+            child: DocumentThumbnail(document: doc, size: 40),
+          ),
+        ),
+      ),
+    ),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -277,7 +342,7 @@ class _DocumentRow extends StatelessWidget {
       ),
       child: narrow
           ? _NarrowLayout(
-              icon: _typeIcon(),
+              leading: _leading(context),
               displayName: displayName,
               isPrivate: !doc.isPublic,
               dateLabel: dateLabel,
@@ -293,10 +358,11 @@ class _DocumentRow extends StatelessWidget {
                 onDownload: onDownload,
                 onDelete: readOnly ? null : onDelete,
                 onToggleVisibility: readOnly ? null : onToggleVisibility,
+                onRename: readOnly ? null : onRename,
               ),
             )
           : _WideLayout(
-              icon: _typeIcon(),
+              leading: _leading(context),
               displayName: displayName,
               isPrivate: !doc.isPublic,
               dateLabel: dateLabel,
@@ -312,6 +378,7 @@ class _DocumentRow extends StatelessWidget {
                 onDownload: onDownload,
                 onDelete: readOnly ? null : onDelete,
                 onToggleVisibility: readOnly ? null : onToggleVisibility,
+                onRename: readOnly ? null : onRename,
               ),
             ),
     );
@@ -320,7 +387,7 @@ class _DocumentRow extends StatelessWidget {
 
 class _WideLayout extends StatelessWidget {
   const _WideLayout({
-    required this.icon,
+    required this.leading,
     required this.displayName,
     required this.isPrivate,
     required this.dateLabel,
@@ -329,7 +396,7 @@ class _WideLayout extends StatelessWidget {
     required this.trailing,
   });
 
-  final IconData icon;
+  final Widget leading;
   final String displayName;
   final bool isPrivate;
   final String dateLabel;
@@ -341,7 +408,7 @@ class _WideLayout extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, size: 20, color: tokens.ink2),
+        leading,
         SizedBox(width: InSpacing.md(context)),
         Expanded(
           flex: 4,
@@ -386,7 +453,7 @@ class _WideLayout extends StatelessWidget {
 
 class _NarrowLayout extends StatelessWidget {
   const _NarrowLayout({
-    required this.icon,
+    required this.leading,
     required this.displayName,
     required this.isPrivate,
     required this.dateLabel,
@@ -395,7 +462,7 @@ class _NarrowLayout extends StatelessWidget {
     required this.trailing,
   });
 
-  final IconData icon;
+  final Widget leading;
   final String displayName;
   final bool isPrivate;
   final String dateLabel;
@@ -412,7 +479,7 @@ class _NarrowLayout extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 20, color: tokens.ink2),
+        leading,
         SizedBox(width: InSpacing.md(context)),
         Expanded(
           child: Column(
@@ -453,7 +520,7 @@ class _NarrowLayout extends StatelessWidget {
   }
 }
 
-enum _RowAction { view, download, toggleVisibility, delete }
+enum _RowAction { view, download, rename, toggleVisibility, delete }
 
 class _ActionsMenu extends StatelessWidget {
   const _ActionsMenu({
@@ -462,11 +529,15 @@ class _ActionsMenu extends StatelessWidget {
     required this.onDownload,
     required this.onDelete,
     required this.onToggleVisibility,
+    this.onRename,
   });
 
   final Document doc;
   final Future<void> Function(Document doc) onView;
   final Future<void> Function(Document doc) onDownload;
+
+  /// Null on a read-only record, or a host that offers no rename.
+  final Future<void> Function(Document doc)? onRename;
 
   /// Null on a read-only record: the item is left out, not greyed.
   final Future<void> Function(Document doc)? onDelete;
@@ -483,6 +554,8 @@ class _ActionsMenu extends StatelessWidget {
             await onView(doc);
           case _RowAction.download:
             await onDownload(doc);
+          case _RowAction.rename:
+            await onRename?.call(doc);
           case _RowAction.toggleVisibility:
             await onToggleVisibility?.call(doc);
           case _RowAction.delete:
@@ -510,6 +583,14 @@ class _ActionsMenu extends StatelessWidget {
             title: Text(context.tr('download')),
           ),
         ),
+        if (onRename != null)
+          PopupMenuItem(
+            value: _RowAction.rename,
+            child: ListTile(
+              leading: const Icon(Icons.drive_file_rename_outline),
+              title: Text(context.tr('rename')),
+            ),
+          ),
         if (onToggleVisibility != null)
           PopupMenuItem(
             value: _RowAction.toggleVisibility,

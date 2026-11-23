@@ -2302,5 +2302,16 @@
   "desktop_app_promo_settings_body": "Veći zaslon i tipkovnički prečaci, s istim korisničkim računom i podacima.",
   "free_plan_client_limit_form": "Iskoristili ste svih :count klijenata besplatnog paketa. Nadogradite kako biste spremili ovog klijenta.",
   "free_plan_purge_note": "Mjesto oslobađa samo trajno brisanje klijenta, koje briše i njegove račune i uplate.",
-  "free_plan_import_too_many": "Ovaj bi uvoz premašio :count klijenata koje besplatni paket dopušta, pa ništa nije uvezeno. Nadogradite kako biste ih sve uvezli."
+  "free_plan_import_too_many": "Ovaj bi uvoz premašio :count klijenata koje besplatni paket dopušta, pa ništa nije uvezeno. Nadogradite kako biste ih sve uvezli.",
+  "documents_added_immediately": "Datoteke dodane ovdje odmah se prilažu, bez spremanja.",
+  "show_document_preview_help": "Prikazuje fotografiju ili prvu stranicu PDF-a uz svaki dokument. Svaka se preuzima, pa ovo isključite na ograničenoj vezi.",
+  "cloudflare_check_title": "Potvrdite da ste čovjek",
+  "cloudflare_check_help": ":host štiti Cloudflare. Dovršite provjeru ispod i aplikacija će nastaviti sama.",
+  "cloudflare_check_failed": "Stranica provjere nije se učitala. Provjerite vezu i pokušajte ponovno.",
+  "cloudflare_banner": ":host traži potvrdu da ste čovjek. Promjene čekaju na ovom uređaju dok to ne učinite.",
+  "cloudflare_banner_expired": ":host ponovno traži potvrdu da ste čovjek, obično nakon promjene mreže. Promjene čekaju na ovom uređaju dok to ne učinite.",
+  "cloudflare_banner_unsupported": ":host traži potvrdu da ste čovjek, a ovaj uređaj to ne može prikazati. Zamolite administratora poslužitelja da propusti aplikaciju.",
+  "cloudflare_challenge_hosted": "Cloudflare provjerava ovu vezu. Pokušajte ponovno za nekoliko minuta.",
+  "cloudflare_banner_refused": "Provjera je prošla, ali postavke Cloudflarea za :host i dalje odbijaju aplikaciju. Podijelite Ray ID :ray s administratorom poslužitelja.",
+  "cloudflare_banner_web": ":host traži potvrdu da ste čovjek. Ponovno učitajte stranicu za nastavak."
 }

@@ -3,12 +3,15 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:material_ui/material_ui.dart';
+import 'package:provider/provider.dart';
 
 import 'package:admin/app/design_tokens.dart';
+import 'package:admin/app/services.dart';
 import 'package:admin/data/services/shared_intake_files.dart';
 import 'package:admin/data/services/upload_source.dart';
 import 'package:admin/domain/expenses/receipt_scanner.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/core/detail/build_standard_documents_tab.dart';
 import 'package:admin/ui/core/edit/generic_edit_view_model.dart';
 import 'package:admin/ui/core/widgets/attachments_plan_gate.dart';
 import 'package:admin/ui/core/widgets/document_capture.dart';
@@ -44,8 +47,8 @@ typedef PendingDocumentReceiptReading = ({
 /// banner the record screen's own tab shows, so the feature is never simply
 /// missing.
 ///
-/// The bare body: [CreateFormDocumentsCard] puts it in a card, and the
-/// billing documents' edit screens put it in a tab.
+/// The bare body: [FormDocumentsCard] puts it in a card, and the billing
+/// documents' edit screens put it in a tab.
 class CreateFormDocumentsPanel extends StatelessWidget {
   const CreateFormDocumentsPanel({super.key, required this.vm, this.receipt});
 
@@ -122,11 +125,27 @@ class CreateFormDocumentsPanel extends StatelessWidget {
   }
 }
 
-/// [CreateFormDocumentsPanel] in a Documents card — the shape on every
-/// card-based create form. Gate it on `vm.offersDocuments` in the layout,
-/// with the gap beside it: a card that hid itself would still cost its gap.
-class CreateFormDocumentsCard extends StatelessWidget {
-  const CreateFormDocumentsCard({super.key, required this.vm, this.receipt});
+/// The Documents body of any form: files to attach on a new record's form
+/// ([CreateFormDocumentsPanel]), the record's own documents on an existing
+/// record's ([SavedRecordDocumentsPanel]). Gate it on `vm.showsDocuments`.
+class FormDocumentsPanel extends StatelessWidget {
+  const FormDocumentsPanel({super.key, required this.vm, this.receipt});
+
+  final GenericEditViewModel<Object?> vm;
+
+  /// New Expense's per-row Read receipt button; create forms only.
+  final PendingDocumentReceiptReading? receipt;
+
+  @override
+  Widget build(BuildContext context) => vm.offersDocuments
+      ? CreateFormDocumentsPanel(vm: vm, receipt: receipt)
+      : SavedRecordDocumentsPanel(vm: vm);
+}
+
+/// [FormDocumentsPanel] in a Documents card — the shape on every card-based
+/// form.
+class FormDocumentsCard extends StatelessWidget {
+  const FormDocumentsCard({super.key, required this.vm, this.receipt});
 
   final GenericEditViewModel<Object?> vm;
   final PendingDocumentReceiptReading? receipt;
@@ -134,7 +153,91 @@ class CreateFormDocumentsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) => DashboardCardShell(
     title: context.tr('documents'),
-    child: CreateFormDocumentsPanel(vm: vm, receipt: receipt),
+    child: FormDocumentsPanel(vm: vm, receipt: receipt),
+  );
+}
+
+/// An existing record's documents on its edit form (invoiceninja/app#205):
+/// the record screen's own Documents tab, live, acting at once through the
+/// outbox — upload, view, download, rename, public / private, delete. Not
+/// tied to Save: a file is the record's from the moment it is added, as on
+/// the record screen, and the form says so under the drop zone.
+///
+/// The view model follows the record's stored list
+/// (`GenericEditViewModel.watchSavedDocumentsLive`) and folds it into the
+/// draft, so the form's Save never writes back the list it opened with.
+class SavedRecordDocumentsPanel extends StatefulWidget {
+  const SavedRecordDocumentsPanel({super.key, required this.vm});
+
+  final GenericEditViewModel<Object?> vm;
+
+  @override
+  State<SavedRecordDocumentsPanel> createState() =>
+      _SavedRecordDocumentsPanelState();
+}
+
+class _SavedRecordDocumentsPanelState extends State<SavedRecordDocumentsPanel> {
+  static Formatter? _formatter(BuildContext context, String companyId) {
+    try {
+      return context.read<Services>().formatterIfReady(companyId);
+    } catch (_) {
+      return null; // a widget test's fake `Services`
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    widget.vm.watchSavedDocumentsLive();
+  }
+
+  @override
+  void didUpdateWidget(SavedRecordDocumentsPanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.vm, widget.vm)) {
+      widget.vm.watchSavedDocumentsLive();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: widget.vm,
+    builder: (context, _) {
+      final vm = widget.vm;
+      final repo = vm.savedDocumentsRepository;
+      final id = vm.savedRecordId;
+      final companyId = vm.formCompanyId;
+      if (repo == null || id == null || companyId == null) {
+        return const SizedBox.shrink();
+      }
+      final tokens = context.inTheme;
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          entityDocumentsTabFor(
+            context: context,
+            companyId: companyId,
+            entityId: id,
+            // Null until Drift answers: an empty list for that frame, which
+            // the tab draws as "no records" only for an instant.
+            documents: vm.savedDocuments ?? const [],
+            repo: repo,
+            padded: false,
+            // The company's date format, as on the record's own tab. The
+            // edit screen already built it, so this is the cached one.
+            formatter: _formatter(context, companyId),
+          ),
+          if (!id.startsWith('tmp_')) ...[
+            const SizedBox(height: InSpacing.sm),
+            Text(
+              context.tr('documents_added_immediately'),
+              style: TextStyle(color: tokens.ink3, fontSize: 12),
+            ),
+          ],
+        ],
+      );
+    },
   );
 }
 

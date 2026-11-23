@@ -72,9 +72,9 @@ class ClientEditLayout extends StatelessWidget {
               ClientEditContactsSection(vm: vm),
               const SizedBox(height: kFormCardGap),
               ClientEditNotesSection(vm: vm),
-              if (vm.offersDocuments) ...[
+              if (vm.showsDocuments) ...[
                 const SizedBox(height: kFormCardGap),
-                CreateFormDocumentsCard(vm: vm),
+                FormDocumentsCard(vm: vm),
               ],
             ],
           ),
@@ -130,9 +130,9 @@ class ClientEditLayout extends StatelessWidget {
         ClientEditSettingsSection(vm: vm),
         const SizedBox(height: kFormCardGap),
         ClientEditNotesSection(vm: vm),
-        if (vm.offersDocuments) ...[
+        if (vm.showsDocuments) ...[
           const SizedBox(height: kFormCardGap),
-          CreateFormDocumentsCard(vm: vm),
+          FormDocumentsCard(vm: vm),
         ],
       ],
     );

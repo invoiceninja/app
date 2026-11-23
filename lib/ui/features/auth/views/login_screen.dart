@@ -13,11 +13,13 @@ import 'package:admin/app/services.dart';
 import 'package:admin/app/sign_out_notice.dart';
 import 'package:admin/app/theme.dart';
 import 'package:admin/app/version.dart';
+import 'package:admin/data/services/cloudflare/cloudflare_clearance.dart';
 import 'package:admin/data/repositories/auth_repository.dart';
 import 'package:admin/data/services/passkey_readiness.dart';
 import 'package:admin/data/services/tls/certificate_trust_store.dart';
 import 'package:admin/data/services/web_sign_in.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/core/widgets/cloudflare_check.dart';
 import 'package:admin/ui/core/adaptive.dart';
 import 'package:admin/ui/core/dialogs/untrusted_certificate_dialog.dart';
 import 'package:admin/ui/core/utils/external_url.dart';
@@ -137,6 +139,51 @@ class _LoginScreenState extends State<LoginScreen> {
   /// they were; a password is never sent before this decision, because the
   /// email step's precheck is the first request to the server.
   Future<void> _reportFailure(Future<void> Function() retry) async {
+    // Cloudflare's "Verify you are human" in the server's place
+    // (docs/cloudflare-challenge.md): the check, then the same step again.
+    // Nothing reached the server, so a password was not spent.
+    final challenge = _vm.cloudflareChallenge;
+    if (challenge != null) {
+      _vm.clearCloudflareChallenge();
+      final waiting = context.read<CloudflareClearanceStore?>()?.outstandingFor(
+        challenge.url,
+      );
+      // A zone that turned the app away right after a pass: another check
+      // would pass at once and be turned away again, in a loop. Say why.
+      if (waiting != null && waiting.wait == CloudflareWait.refused) {
+        Notify.error(context, cloudflareWaitMessage(context, waiting));
+        // Said once: the next tap opens the check again, so a zone the
+        // administrator has since fixed is not a dead end.
+        context.read<CloudflareClearanceStore?>()?.acknowledgeRefused(
+          challenge.url,
+        );
+        return;
+      }
+      final passed = await showCloudflareCheck(context, url: challenge.url);
+      if (!mounted) return;
+      if (passed) {
+        await retry();
+        return;
+      }
+      // Closed, or no web view here: the step stays where it was, and the
+      // toast says why nothing happened.
+      final store = context.read<CloudflareClearanceStore?>();
+      final canVerify = store?.canVerify(challenge.url) ?? false;
+      Notify.error(
+        context,
+        waiting != null
+            ? cloudflareWaitMessage(context, waiting, canVerify: canVerify)
+            : context.tr(
+                !canVerify
+                    ? 'cloudflare_challenge_hosted'
+                    : cloudflareCheckAvailable
+                    ? 'cloudflare_banner'
+                    : cloudflareUnavailableKey(),
+                {'host': challenge.url.host},
+              ),
+      );
+      return;
+    }
     final refused = _vm.untrustedCertificate;
     if (refused == null) {
       _toastRequestError();
@@ -187,7 +234,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _onLogin() async {
     final ok = await _vm.submit();
     if (!mounted || ok) return;
-    if (_vm.untrustedCertificate != null) {
+    if (_vm.untrustedCertificate != null || _vm.cloudflareChallenge != null) {
       await _reportFailure(_onLogin);
       return;
     }
@@ -241,7 +288,7 @@ class _LoginScreenState extends State<LoginScreen> {
     }
     final ok = await _vm.submitPasskey();
     if (!mounted || ok) return;
-    if (_vm.untrustedCertificate != null) {
+    if (_vm.untrustedCertificate != null || _vm.cloudflareChallenge != null) {
       await _reportFailure(_onPasskey);
       return;
     }

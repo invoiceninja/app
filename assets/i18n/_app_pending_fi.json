@@ -2303,5 +2303,16 @@
   "desktop_app_promo_settings_body": "Isompi näyttö ja pikanäppäimet, samalla tilillä ja tiedoilla.",
   "free_plan_client_limit_form": "Olet käyttänyt kaikki Ilmaisen paketin :count asiakasta. Päivitä pakettisi tallentaaksesi tämän asiakkaan.",
   "free_plan_purge_note": "Vain asiakkaan pysyvä poistaminen vapauttaa sen paikan, ja se poistaa myös asiakkaan laskut ja maksut.",
-  "free_plan_import_too_many": "Tämä tuonti ylittäisi Ilmaisen paketin sallimat :count asiakasta, joten mitään ei tuotu. Päivitä pakettisi tuodaksesi ne kaikki."
+  "free_plan_import_too_many": "Tämä tuonti ylittäisi Ilmaisen paketin sallimat :count asiakasta, joten mitään ei tuotu. Päivitä pakettisi tuodaksesi ne kaikki.",
+  "documents_added_immediately": "Tähän lisätyt tiedostot liitetään heti ilman tallennusta.",
+  "show_document_preview_help": "Näyttää valokuvan tai PDF:n ensimmäisen sivun jokaisen asiakirjan vieressä. Jokainen ladataan, joten poista tämä käytöstä käyttöperusteisessa yhteydessä.",
+  "cloudflare_check_title": "Vahvista, että olet ihminen",
+  "cloudflare_check_help": ":host on Cloudflaren suojaama. Suorita alla oleva tarkistus, niin sovellus jatkaa itsestään.",
+  "cloudflare_check_failed": "Tarkistussivu ei latautunut. Tarkista yhteys ja yritä uudelleen.",
+  "cloudflare_banner": ":host pyytää vahvistamaan, että olet ihminen. Muutokset odottavat tällä laitteella, kunnes teet sen.",
+  "cloudflare_banner_expired": ":host pyytää taas vahvistamaan, että olet ihminen, yleensä verkon vaihduttua. Muutokset odottavat tällä laitteella, kunnes teet sen.",
+  "cloudflare_banner_unsupported": ":host pyytää vahvistamaan, että olet ihminen, eikä tämä laite voi näyttää sitä. Pyydä palvelimen ylläpitäjää päästämään sovellus läpi.",
+  "cloudflare_challenge_hosted": "Cloudflare tarkistaa tätä yhteyttä. Yritä uudelleen muutaman minuutin kuluttua.",
+  "cloudflare_banner_refused": "Tarkistus onnistui, mutta palvelimen :host Cloudflare-asetukset torjuvat yhä sovelluksen. Kerro Ray ID :ray palvelimen ylläpitäjälle.",
+  "cloudflare_banner_web": ":host pyytää vahvistamaan, että olet ihminen. Jatka lataamalla sivu uudelleen."
 }

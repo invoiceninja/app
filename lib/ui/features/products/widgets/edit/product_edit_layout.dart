@@ -65,8 +65,8 @@ class ProductEditLayout extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              if (vm.offersDocuments) ...[
-                CreateFormDocumentsCard(vm: vm),
+              if (vm.showsDocuments) ...[
+                FormDocumentsCard(vm: vm),
                 const SizedBox(height: kFormCardGap),
               ],
               _customFieldsSection(context),
@@ -108,9 +108,9 @@ class ProductEditLayout extends StatelessWidget {
         ProductEditInventorySection(vm: vm),
         const SizedBox(height: kFormCardGap),
         ProductEditTaxesSection(vm: vm),
-        if (vm.offersDocuments) ...[
+        if (vm.showsDocuments) ...[
           const SizedBox(height: kFormCardGap),
-          CreateFormDocumentsCard(vm: vm),
+          FormDocumentsCard(vm: vm),
         ],
         const SizedBox(height: kFormCardGap),
         _customFieldsSection(context),

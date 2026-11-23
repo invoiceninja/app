@@ -294,6 +294,7 @@ void main() {
         'appearance_synced_at',
         'appearance_seeded',
         'desktop_app_promo_json',
+        'document_thumbnails',
       };
       for (final key in DevicePrefKeys.all) {
         if (addedAfterV12.contains(key.name)) {

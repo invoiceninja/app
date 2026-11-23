@@ -8,7 +8,7 @@ import 'package:admin/ui/core/list/cell_slot.dart';
 import 'package:admin/ui/core/list/entity_actions_popup_button.dart';
 import 'package:admin/ui/core/list/entity_list_constants.dart';
 import 'package:admin/ui/core/list/selectable_list_row.dart';
-import 'package:admin/ui/core/widgets/document_type_icon.dart';
+import 'package:admin/ui/core/widgets/document_thumbnail.dart';
 import 'package:admin/ui/core/widgets/leading_select_slot.dart';
 import 'package:admin/ui/features/documents/widgets/document_actions.dart';
 import 'package:admin/utils/formatting.dart';
@@ -164,15 +164,13 @@ class DocumentListTile extends StatelessWidget {
       selecting: selecting,
       selected: selected,
       onSelectTap: onSelectTap,
-      // Keeps the slot's 32×32 footprint so the columns stay aligned.
-      defaultChild: SizedBox(
-        width: 32,
-        height: 32,
-        child: Icon(
-          documentTypeIcon(document.type),
-          size: 20,
-          color: context.inTheme.ink3,
-        ),
+      // Keeps the slot's 32×32 footprint so the columns stay aligned. A photo
+      // or a PDF shows its thumbnail, so a list of receipts can be told apart
+      // at a glance (invoiceninja/app#206); anything else its type icon.
+      defaultChild: DocumentThumbnail(
+        document: document.attachment,
+        size: 32,
+        iconColor: context.inTheme.ink3,
       ),
     );
   }

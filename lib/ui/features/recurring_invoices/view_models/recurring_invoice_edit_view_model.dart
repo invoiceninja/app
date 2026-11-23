@@ -1,5 +1,6 @@
 import 'package:decimal/decimal.dart';
 
+import 'package:admin/ui/core/edit/generic_edit_view_model.dart';
 import 'package:admin/data/models/domain/recurring_invoice.dart';
 import 'package:admin/data/models/domain/recurring_invoice_status.dart';
 import 'package:admin/data/models/value/date.dart';
@@ -40,6 +41,23 @@ class RecurringInvoiceEditViewModel
   /// Save (docs/attaching-documents.md).
   @override
   PendingUploadsRepository get documentUploadRepository => repo;
+
+  /// An existing record's form shows its own documents, live
+  /// (invoiceninja/app#205).
+  @override
+  SavedDocumentsBinding<RecurringInvoice>? get savedDocumentsBinding {
+    final id = original?.id;
+    if (id == null) return null;
+    return SavedDocumentsBinding(
+      id: id,
+      watch: () => repo
+          .watch(companyId: companyId, id: id)
+          .map((saved) => saved?.documents),
+      withDocuments: (entity, documents) =>
+          entity.copyWith(documents: documents),
+    );
+  }
+
   @override
   final String companyId;
 

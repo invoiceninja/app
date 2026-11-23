@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:admin/data/db/app_database.dart';
 import 'package:admin/data/models/api/document_api_model.dart';
+import 'package:admin/data/models/domain/document.dart';
 import 'package:admin/data/repositories/document_repository.dart';
 import 'package:admin/data/repositories/embedded_documents_owner.dart';
 import 'package:admin/data/services/company_switched_exception.dart';
@@ -664,6 +665,73 @@ void main() {
     );
     expect(await storedIds(), ['edited']);
     expect(owner.deleted.single, ('v1', 'gone'));
+  });
+
+  group('renameAttached (a record tab\'s rename, invoiceninja/app#206)', () {
+    const embedded = Document(
+      id: 'd9',
+      name: 'scan.jpg',
+      hash: 'h-d9',
+      type: 'jpg',
+      size: 512,
+      isPublic: false,
+      createdAt: 900,
+      updatedAt: 1000,
+    );
+
+    Future<List<OutboxRow>> updates() => db.outboxDao.pendingRowsForEntity(
+      companyId: co,
+      entityType: 'document',
+      entityId: 'd9',
+      mutationKind: MutationKind.update.wireName,
+    );
+
+    test('seeds a file the Documents list never cached, linked to its record, '
+        'and sends only the name — never a cached is_public', () async {
+      await repo.renameAttached(
+        companyId: co,
+        document: embedded,
+        parentType: EntityType.task,
+        parentId: 't1',
+        name: '  Receipt — hardware store.jpg ',
+      );
+
+      final rows = await updates();
+      expect(rows, hasLength(1));
+      expect(jsonDecode(rows.single.payload), {
+        'name': 'Receipt — hardware store.jpg',
+      });
+      final stored = await db.documentDao.byId(companyId: co, id: 'd9');
+      expect(stored!.name, 'Receipt — hardware store.jpg');
+      expect(stored.isDirty, isTrue);
+      expect(stored.parentId, 't1');
+    });
+
+    test('renames the record\'s own copy at once, offline too', () async {
+      await repo.renameAttached(
+        companyId: co,
+        document: embedded,
+        parentType: EntityType.task,
+        parentId: 't1',
+        name: 'Receipt.jpg',
+      );
+      expect(owner.lastType, EntityType.task);
+      expect(owner.changed, [('t1', 'd9', 'Receipt.jpg')]);
+    });
+
+    test('a blank or unchanged name queues nothing', () async {
+      for (final name in ['', '   ', 'scan.jpg']) {
+        await repo.renameAttached(
+          companyId: co,
+          document: embedded,
+          parentType: EntityType.task,
+          parentId: 't1',
+          name: name,
+        );
+      }
+      expect(await updates(), isEmpty);
+      expect(owner.changed, isEmpty);
+    });
   });
 }
 
