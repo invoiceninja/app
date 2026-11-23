@@ -2361,5 +2361,6 @@
   "free_plan_signup_note_info": "Nemokamas planas: iki :count klientų ir viena įmonė.",
   "free_plan_company_limit_reached": "Pasiekėte nemokamo plano įmonių ribą.",
   "store_subscription_ended_info": "Jūsų prenumerata programoje baigėsi.",
-  "free_plan_client_limit_hit": "Pasiekėte nemokamo plano klientų ribą."
+  "free_plan_client_limit_hit": "Pasiekėte nemokamo plano klientų ribą.",
+  "owner_only_sign_in_plan": "Šiame plane prisijungti gali tik paskyros savininkas."
 }

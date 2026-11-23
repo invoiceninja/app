@@ -2327,5 +2327,6 @@
   "free_plan_signup_note_info": "Gratis plan: op til :count kunder og én virksomhed.",
   "free_plan_company_limit_reached": "Du har nået Gratis-planens grænse for virksomheder.",
   "store_subscription_ended_info": "Dit abonnement i appen er udløbet.",
-  "free_plan_client_limit_hit": "Du har nået Gratis-planens grænse for kunder."
+  "free_plan_client_limit_hit": "Du har nået Gratis-planens grænse for kunder.",
+  "owner_only_sign_in_plan": "På dette abonnement kan kun kontoens ejer logge ind."
 }

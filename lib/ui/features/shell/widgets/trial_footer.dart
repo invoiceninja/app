@@ -96,7 +96,9 @@ class TrialFooter extends StatelessWidget {
                     color: urgent ? tokens.overdue : tokens.ink,
                   ),
                 ),
-                if (managedOnWeb || !withheld) ...[
+                // Withheld, not even "managed on the web": beside a plan
+                // countdown it reads as "go and pay on the web".
+                if (!withheld) ...[
                   const SizedBox(height: 2),
                   Text(
                     context.tr(

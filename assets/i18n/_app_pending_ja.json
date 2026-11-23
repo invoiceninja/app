@@ -2406,5 +2406,6 @@
   "free_plan_signup_note_info": "無料プラン：顧客 :count 件と会社 1 社まで。",
   "free_plan_company_limit_reached": "無料プランの会社数の上限に達しました。",
   "store_subscription_ended_info": "アプリ内サブスクリプションは終了しました。",
-  "free_plan_client_limit_hit": "無料プランの顧客数の上限に達しました。"
+  "free_plan_client_limit_hit": "無料プランの顧客数の上限に達しました。",
+  "owner_only_sign_in_plan": "このプランでは、アカウントの所有者のみがサインインできます。"
 }

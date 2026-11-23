@@ -198,6 +198,12 @@ const kPurchaseRetryBackoff = [
 /// config again. A failed ask is not an answer, so the next resume asks.
 const kPurchaseOfferMaxAge = Duration(minutes: 30);
 
+/// How long a return to the foreground waits after a failed ask (an error,
+/// no network) before asking again. Every Face ID prompt, Control Center
+/// pull and share sheet is an inactive→resumed round trip, so without it a
+/// server that keeps failing was asked on each.
+const kPurchaseOfferRetryAfter = Duration(minutes: 5);
+
 /// Delivers paid App Store / Play purchases to the hosted service, for the
 /// app's whole lifetime. Owned by `Services` and built only on a
 /// store-billing build (`isStoreBillingBuild`):
@@ -276,16 +282,20 @@ class PurchaseDelivery {
   /// any way to buy. False until the config answers yes for the current user
   /// and company; asked when one signs in or the company changes, when the
   /// account's store plan changes, and on a return to the foreground once
-  /// the last answer is older than [kPurchaseOfferMaxAge]. A failed ask
-  /// leaves the last answer for the same user and company standing.
+  /// the last answer is older than [kPurchaseOfferMaxAge] (a failed ask:
+  /// [kPurchaseOfferRetryAfter]). A failed ask leaves the last answer for the
+  /// same user and company standing; a 404 (a server without the route) is
+  /// an answer, closed.
   final PurchaseOffer offer = PurchaseOffer();
 
   /// The last config answer for [_offerFor], what [offer] is read from.
   IapConfig? _offerConfig;
   String? _offerFor;
 
-  /// When [_offerConfig] was answered; null until one was.
-  DateTime? _offerAnsweredAt;
+  /// When the config was last asked for [_offerFor], answered or not; null
+  /// until an ask finished. [_offerAskFailed] says whether it failed.
+  DateTime? _offerAskedAt;
+  bool _offerAskFailed = false;
 
   /// The store SDK. The purchase sheet uses the same instance to list
   /// products and start a purchase.
@@ -409,7 +419,7 @@ class PurchaseDelivery {
       _planState = null;
       _offerFor = null;
       _offerConfig = null;
-      _offerAnsweredAt = null;
+      _offerAskedAt = null;
       offer.update(false, open: false);
       _retry?.cancel();
       _retry = null;
@@ -429,7 +439,7 @@ class PurchaseDelivery {
       // Another user or company: nothing is offered until its own answer.
       _offerFor = scope;
       _offerConfig = null;
-      _offerAnsweredAt = null;
+      _offerAskedAt = null;
       _publishOffer();
       unawaited(_refreshOffer());
     } else if (planChanged) {
@@ -454,9 +464,11 @@ class PurchaseDelivery {
     if (!_canDeliverTo(session)) return;
     _forgetConfig();
     unawaited(_sweep(_ownerOf(session!)));
-    final answeredAt = _offerAnsweredAt;
-    if (answeredAt == null ||
-        _now().difference(answeredAt) >= kPurchaseOfferMaxAge) {
+    final askedAt = _offerAskedAt;
+    final maxAge = _offerAskFailed
+        ? kPurchaseOfferRetryAfter
+        : kPurchaseOfferMaxAge;
+    if (askedAt == null || _now().difference(askedAt) >= maxAge) {
       unawaited(_refreshOffer());
     }
   }
@@ -468,10 +480,28 @@ class PurchaseDelivery {
     final session = _auth.session.value;
     if (_disposed || !_canDeliverTo(session)) return;
     final scope = _scopeOf(session!);
+    final generation = _configGeneration;
     final answer = await _configAnswer();
     if (answer == null || _disposed || _offerFor != scope) return;
+    // Asked before a forget (a plan change, a resume): not this answer.
+    if (generation != _configGeneration) return;
     final now = _auth.session.value;
     if (now == null || _scopeOf(now) != scope) return;
+    _offerConfig = answer;
+    _publishOffer();
+  }
+
+  /// An ask of the config for [scope] has finished: [answer] is what it said
+  /// (a 404 is [IapConfig.closed]), null on a failure. Stamps the ask for
+  /// [onAppResumed]'s back-off, and moves [offer] unless the answer is stale
+  /// (asked before a forget, [generation]).
+  void _noteOfferAsk(String scope, int generation, IapConfig? answer) {
+    if (_disposed || _offerFor != scope) return;
+    final now = _auth.session.value;
+    if (now == null || _scopeOf(now) != scope) return;
+    _offerAskedAt = _now();
+    _offerAskFailed = answer == null;
+    if (answer == null || generation != _configGeneration) return;
     _offerConfig = answer;
     _publishOffer();
   }
@@ -660,6 +690,10 @@ class PurchaseDelivery {
       answer = IapConfig.fromJson(await _apiClient.getOne(kIapConfigPath));
     } catch (e) {
       _log.info('iap config unavailable, purchases left unfinished: $e');
+      // A server without the route (production before the hosted billing
+      // ships) answers 404 every time: closed, not a failure to retry.
+      final missing = e is ServerException && e.statusCode == 404;
+      _noteOfferAsk(scope, generation, missing ? IapConfig.closed : null);
       return null;
     }
     if (!answer.canDeliver) {
@@ -671,11 +705,7 @@ class PurchaseDelivery {
     // are still the current ones.
     final now = _auth.session.value;
     if (now == null || _scopeOf(now) != scope) return null;
-    if (_offerFor == scope) {
-      _offerConfig = answer;
-      _offerAnsweredAt = _now();
-      _publishOffer();
-    }
+    _noteOfferAsk(scope, generation, answer);
     if (generation != _configGeneration) {
       // Asked before the plan changed: good for delivering (the account and
       // its token are the same), never for selling over a store plan.
@@ -927,6 +957,7 @@ class PurchaseDelivery {
   }
 
   Future<void> dispose() async {
+    if (_disposed) return;
     _disposed = true;
     _retry?.cancel();
     _retry = null;

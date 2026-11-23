@@ -172,15 +172,58 @@ void main() {
       expect(copy.cta, isFalse);
     });
 
-    test('a plan billed on the web is still managed on the web', () {
+    test('a plan billed on the web names the plan, never "managed on the '
+        'web" (a locked feature would read it as "go upgrade there")', () {
       final copy = _copy(
         _session(plan: 'pro'),
         storeBilling: true,
         offered: false,
         level: PlanGateLevel.enterprise,
       );
-      expect(copy.key, 'plan_managed_on_web');
+      expect(copy.key, 'requires_an_enterprise_plan');
       expect(copy.cta, isFalse);
+    });
+
+    // A Pro store subscriber at an Enterprise gate: the button opens the
+    // store's own subscription page, which manages a plan, not a purchase.
+    group('a live store subscription', () {
+      final subscriber = _session(
+        plan: 'pro',
+      ).copyWith(planExpires: '2099-01-01', hasIapPlan: true);
+
+      PlanGateCopy copyFor({required bool open, bool isOwner = true}) {
+        final route = resolveUpgradeRoute(
+          purchasesOffered: false,
+          storeBilling: true,
+          session: subscriber,
+          now: DateTime.utc(2026, 11, 20, 12),
+        );
+        expect(route, UpgradeRoute.storeSubscriptions);
+        return planGateCopy(
+          PlanGateLevel.enterprise,
+          subscriber,
+          isOwner: isOwner,
+          route: route,
+          purchasesWithheld: true,
+          storeOpen: open,
+        );
+      }
+
+      test('keeps its button to the store once the store is open', () {
+        final copy = copyFor(open: true);
+        expect(copy.key, 'requires_an_enterprise_plan');
+        expect(copy.cta, isTrue);
+      });
+
+      test('no button while the store is closed', () {
+        expect(copyFor(open: false).cta, isFalse);
+      });
+
+      test('a member never gets it', () {
+        final copy = copyFor(open: true, isOwner: false);
+        expect(copy.key, 'owner_upgrade_to_paid_plan');
+        expect(copy.cta, isFalse);
+      });
     });
 
     test('desktop is unchanged whatever the offer', () {

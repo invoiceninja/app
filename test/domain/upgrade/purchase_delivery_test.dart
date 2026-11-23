@@ -1539,19 +1539,28 @@ void main() {
       expect(delivery.offer.offered, isFalse);
     });
 
-    test('a failed ask is retried on the next resume, and a failure keeps '
-        'the last answer', () async {
+    test('a failed ask is retried on a resume only after the back-off, and '
+        'a failure keeps the last answer', () async {
       var clock = DateTime.utc(2026, 11, 23, 12);
       api.iapConfig = const NetworkException('offline');
       final delivery = build(TargetPlatform.iOS, now: () => clock)..start();
       await pumpEventQueue();
       expect(delivery.offer.offered, isFalse);
+      expect(api.gets, hasLength(1));
 
       api.iapConfig = const {
         'purchases_enabled': true,
         'app_account_token': kTestAccountToken,
         'account_key': 'acct-key',
       };
+      // Face ID, Control Center, a share sheet: each an inactive→resumed
+      // round trip, none of them a reason to ask again so soon.
+      clock = clock.add(const Duration(minutes: 1));
+      delivery.onAppResumed();
+      await pumpEventQueue();
+      expect(api.gets, hasLength(1));
+
+      clock = clock.add(kPurchaseOfferRetryAfter);
       delivery.onAppResumed();
       await pumpEventQueue();
       expect(api.gets, hasLength(2));
@@ -1564,6 +1573,67 @@ void main() {
       await pumpEventQueue();
       expect(api.gets, hasLength(3));
       expect(delivery.offer.offered, isTrue);
+    });
+
+    test('a 404 (no such route) is a closed answer, asked again only after '
+        'the full age', () async {
+      var clock = DateTime.utc(2026, 11, 23, 12);
+      api.iapConfig = const ServerException(404, 'Route does not exist');
+      final delivery = build(TargetPlatform.iOS, now: () => clock)..start();
+      await pumpEventQueue();
+      expect(delivery.offer.offered, isFalse);
+      expect(delivery.offer.open, isFalse);
+
+      clock = clock.add(kPurchaseOfferRetryAfter * 2);
+      delivery.onAppResumed();
+      await pumpEventQueue();
+      expect(api.gets, hasLength(1));
+
+      clock = clock.add(kPurchaseOfferMaxAge);
+      delivery.onAppResumed();
+      await pumpEventQueue();
+      expect(api.gets, hasLength(2));
+    });
+
+    test('an answer asked before the plan changed never overwrites a newer '
+        'one', () async {
+      const yes = {
+        'purchases_enabled': true,
+        'app_account_token': kTestAccountToken,
+        'account_key': 'acct-key',
+      };
+      const no = {
+        'purchases_enabled': false,
+        'app_account_token': kTestAccountToken,
+        'account_key': 'acct-key',
+      };
+      final first = api.getGate = Completer<void>();
+      api.iapConfig = yes;
+      final delivery = build(TargetPlatform.android)..start();
+      await pumpEventQueue();
+
+      // The plan changes while the first ask is on the wire.
+      final second = api.getGate = Completer<void>();
+      api.iapConfig = no;
+      auth.session.value = testSession().copyWith(
+        plan: 'pro',
+        planExpires: '2099-01-01',
+        hasIapPlan: true,
+      );
+      await pumpEventQueue();
+      second.complete();
+      await pumpEventQueue();
+      expect(delivery.offer.offered, isFalse);
+
+      first.complete();
+      await pumpEventQueue();
+      expect(delivery.offer.offered, isFalse);
+    });
+
+    test('dispose is safe twice', () async {
+      final delivery = build(TargetPlatform.iOS)..start();
+      await delivery.dispose();
+      await delivery.dispose();
     });
 
     test('a change of the store plan asks again', () async {

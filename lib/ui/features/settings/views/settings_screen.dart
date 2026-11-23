@@ -29,6 +29,7 @@ import 'package:admin/ui/features/shell/widgets/app_drawer.dart';
 import 'package:admin/ui/features/shell/widgets/company_avatar.dart';
 import 'package:admin/ui/features/shell/widgets/show_company_picker.dart';
 import 'package:admin/ui/core/utils/router_state.dart';
+import 'package:admin/ui/features/settings/views/basic/account_management/plan_screen.dart';
 
 // `PlanTier` (the tier surfaced on a locked sidebar row / search hit) now
 // comes from `package:admin/domain/plan_gate.dart` — imported above.
@@ -366,6 +367,10 @@ class _SettingsListSidebarState extends State<SettingsListSidebar> {
       company: _company,
       serverVersion: context.read<Services>().serverVersion.value,
       activeGatewayCount: _activeGateways,
+      showsChangePlan: changePlanCardShown(
+        context,
+        context.read<Services>().auth.session.value,
+      ),
     ),
   );
 

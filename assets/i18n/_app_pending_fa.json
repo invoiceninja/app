@@ -2407,5 +2407,6 @@
   "free_plan_signup_note_info": "طرح رایگان: حداکثر :count مشتری و یک شرکت.",
   "free_plan_company_limit_reached": "به سقف شرکت‌های طرح رایگان رسیده‌اید.",
   "store_subscription_ended_info": "اشتراک درون‌برنامه‌ای شما به پایان رسیده است.",
-  "free_plan_client_limit_hit": "به سقف مشتریان طرح رایگان رسیده‌اید."
+  "free_plan_client_limit_hit": "به سقف مشتریان طرح رایگان رسیده‌اید.",
+  "owner_only_sign_in_plan": "در این طرح فقط مالک حساب می‌تواند وارد شود."
 }

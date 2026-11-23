@@ -2323,5 +2323,6 @@
   "free_plan_signup_note_info": "Gratis plan: tot :count kliënte en een maatskappy.",
   "free_plan_company_limit_reached": "Jy het die Gratis plan se maatskappylimiet bereik.",
   "store_subscription_ended_info": "Jou intekening in die toepassing het verval.",
-  "free_plan_client_limit_hit": "Jy het die Gratis plan se kliëntlimiet bereik."
+  "free_plan_client_limit_hit": "Jy het die Gratis plan se kliëntlimiet bereik.",
+  "owner_only_sign_in_plan": "Net die rekeningeienaar kan op hierdie plan aanmeld."
 }

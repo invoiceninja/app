@@ -2406,5 +2406,6 @@
   "free_plan_signup_note_info": "Plano gratuito: até :count clientes e uma empresa.",
   "free_plan_company_limit_reached": "Você atingiu o limite de empresas do plano gratuito.",
   "store_subscription_ended_info": "Sua assinatura no app terminou.",
-  "free_plan_client_limit_hit": "Você atingiu o limite de clientes do plano gratuito."
+  "free_plan_client_limit_hit": "Você atingiu o limite de clientes do plano gratuito.",
+  "owner_only_sign_in_plan": "Neste plano, apenas o proprietário da conta pode entrar."
 }

@@ -2406,5 +2406,6 @@
   "free_plan_signup_note_info": "Brezplačni paket: do :count strank in eno podjetje.",
   "free_plan_company_limit_reached": "Dosegli ste omejitev podjetij brezplačnega paketa.",
   "store_subscription_ended_info": "Vaša naročnina v aplikaciji je potekla.",
-  "free_plan_client_limit_hit": "Dosegli ste omejitev strank brezplačnega paketa."
+  "free_plan_client_limit_hit": "Dosegli ste omejitev strank brezplačnega paketa.",
+  "owner_only_sign_in_plan": "V tem paketu se lahko prijavi samo lastnik računa."
 }

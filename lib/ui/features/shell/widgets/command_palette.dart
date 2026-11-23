@@ -44,6 +44,7 @@ import 'package:admin/app/native_window.dart';
 import 'package:admin/ui/core/list/deep_link_filter_intent.dart';
 import 'package:admin/ui/features/shell/widgets/search_palette_results.dart';
 import 'package:admin/ui/features/shell/widgets/search_palette_scope_bar.dart';
+import 'package:admin/ui/features/settings/views/basic/account_management/plan_screen.dart';
 
 export 'package:admin/ui/features/shell/widgets/search_palette_results.dart'
     show entityTypeForSearchGroup, recordIdForSearchHit;
@@ -1016,6 +1017,10 @@ class _CommandPaletteState extends State<_CommandPalette> {
         services.settingsLevel,
         company: _company,
         serverVersion: services.serverVersion.value,
+        showsChangePlan: changePlanCardShown(
+          context,
+          services.auth.session.value,
+        ),
       ),
     ).take(_kMaxSettingsHits);
     return [for (final hit in hits) _settingsRowFor(hit, l10n)];

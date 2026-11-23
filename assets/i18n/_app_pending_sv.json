@@ -2393,5 +2393,6 @@
   "free_plan_signup_note_info": "Gratisplan: upp till :count kunder och ett företag.",
   "free_plan_company_limit_reached": "Du har nått Gratisplanens gräns för företag.",
   "store_subscription_ended_info": "Din prenumeration i appen har upphört.",
-  "free_plan_client_limit_hit": "Du har nått Gratisplanens gräns för kunder."
+  "free_plan_client_limit_hit": "Du har nått Gratisplanens gräns för kunder.",
+  "owner_only_sign_in_plan": "På den här nivån kan bara kontots ägare logga in."
 }

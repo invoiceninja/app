@@ -2406,5 +2406,6 @@
   "free_plan_signup_note_info": "Bezplatný tarif: až :count klientů a jedna firma.",
   "free_plan_company_limit_reached": "Dosáhli jste limitu firem v bezplatném tarifu.",
   "store_subscription_ended_info": "Vaše předplatné v aplikaci skončilo.",
-  "free_plan_client_limit_hit": "Dosáhli jste limitu klientů v bezplatném tarifu."
+  "free_plan_client_limit_hit": "Dosáhli jste limitu klientů v bezplatném tarifu.",
+  "owner_only_sign_in_plan": "V tomto tarifu se může přihlásit pouze vlastník účtu."
 }

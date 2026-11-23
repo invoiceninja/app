@@ -147,6 +147,23 @@ bool showsHostedActionsCard(
   return session.hasIapPlan || session.isWebBilled;
 }
 
+/// Whether the Plan tab draws its Change Plan card for [session] under
+/// [context] ([showsHostedActionsCard], read without subscribing): what
+/// settings search asks before it offers `change_plan`. A session not loaded
+/// yet fails open.
+bool changePlanCardShown(BuildContext context, AuthSession? session) {
+  if (session == null) return true;
+  return showsHostedActionsCard(
+    session,
+    purchasesWithheld: purchasesWithheld(
+      context,
+      session: session,
+      listen: false,
+    ),
+    storeOpen: inAppStoreOpenIn(context, listen: false),
+  );
+}
+
 /// Plan-expiry display: format through the active company's [Formatter] so it
 /// honors `date_format_id`, falling back to the raw date-only prefix when that
 /// company's formatter isn't cached yet (rare — the active company's formatter

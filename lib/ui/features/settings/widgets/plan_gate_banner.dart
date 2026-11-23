@@ -87,7 +87,7 @@ class PlanGateBanner extends StatelessWidget {
         purchasesOffered: !withheld,
       ),
       purchasesWithheld: withheld,
-      storeOpen: withheld && inAppStoreOpenIn(context),
+      storeOpen: isStoreBillingBuild && inAppStoreOpenIn(context),
     );
     switch (style) {
       case PlanGateStyle.inset:
@@ -118,8 +118,13 @@ typedef PlanGateCopy = ({String key, Map<String, String>? params, bool cta});
 /// A store build whose hosted service sells nothing to this account
 /// ([purchasesWithheld]) says only which plans the feature is on: no button,
 /// nothing to buy, upgrade or start (App Store 3.1.3(f), Play Payments
-/// policy). A member is told the owner can upgrade only once the store sells
-/// at all ([storeOpen], `purchases_open`), still with no button.
+/// policy), and never "managed on the web" either: on a locked feature that
+/// reads as "go and upgrade on the web" (the Plan card keeps it). A member is
+/// told the owner can upgrade only once the store sells at all ([storeOpen],
+/// `purchases_open`), still with no button. An owner whose plan is a live
+/// store subscription keeps the button once the store is open: it opens the
+/// store's own subscription page ([UpgradeRoute.storeSubscriptions]), which
+/// manages a plan rather than selling one.
 @visibleForTesting
 PlanGateCopy planGateCopy(
   PlanGateLevel level,
@@ -129,13 +134,20 @@ PlanGateCopy planGateCopy(
   bool purchasesWithheld = false,
   bool storeOpen = false,
 }) {
-  if (route == UpgradeRoute.planScreen && s.isWebBilled && isOwner) {
+  // Management, not a purchase: the store subscriber's way to change plan.
+  final managesInStore =
+      isOwner && storeOpen && route == UpgradeRoute.storeSubscriptions;
+  final withheld = purchasesWithheld && !managesInStore;
+  if (route == UpgradeRoute.planScreen &&
+      s.isWebBilled &&
+      isOwner &&
+      !withheld) {
     return (key: 'plan_managed_on_web', params: null, cta: false);
   }
-  if (purchasesWithheld && !isOwner && storeOpen) {
+  if (withheld && !isOwner && storeOpen) {
     return (key: 'owner_upgrade_to_paid_plan', params: null, cta: false);
   }
-  if (purchasesWithheld) {
+  if (withheld) {
     return (
       key: level == PlanGateLevel.enterprise
           ? 'requires_an_enterprise_plan'

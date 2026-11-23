@@ -334,6 +334,32 @@ void main() {
   });
 
   group('SettingsSearchScope', () {
+    // The Plan tab's Change Plan card is left out where it has nothing to
+    // offer (a store build that sells nothing to the account, self-hosted):
+    // search must not open the tab on a "Manage Plan" that isn't there.
+    test('Change Plan only where its card renders', () {
+      final l10n = bundledLocalization();
+      bool offered(SettingsSearchScope scope) =>
+          searchSettings(l10n.lookup('change_plan'), l10n, scope: scope).any(
+            (h) =>
+                h.section.slug == 'account_management' &&
+                h.fieldKey == 'change_plan',
+          );
+      expect(offered(_scope()), isTrue);
+      expect(
+        offered(
+          SettingsSearchScope(
+            enabledModules: _allModules,
+            isAdminOrOwner: true,
+            isCascade: false,
+            isHosted: true,
+            showsChangePlan: false,
+          ),
+        ),
+        isFalse,
+      );
+    });
+
     group('Device Settings cards that render only somewhere', () {
       final l10n = bundledLocalization();
       // Every label of [keys] that reaches Device Settings under [scope].

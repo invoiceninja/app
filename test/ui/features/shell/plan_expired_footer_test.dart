@@ -105,9 +105,21 @@ void main() {
     testWidgets('a store build: a plan still billed on the web is managed on '
         'the web, with no button', (tester) async {
       debugStoreBillingOverride = true;
+      debugInAppPurchasesOfferedOverride = true;
       await pump(tester, session());
 
       expect(find.text('Your plan is managed on the web.'), findsOneWidget);
+      expect(find.byType(InkWell), findsNothing);
+    });
+
+    testWidgets('a store build that sells nothing never says "managed on the '
+        'web" either', (tester) async {
+      debugStoreBillingOverride = true;
+      debugInAppPurchasesOfferedOverride = false;
+      await pump(tester, session());
+
+      expect(find.text('Account Plan Expired'), findsOneWidget);
+      expect(find.text('Your plan is managed on the web.'), findsNothing);
       expect(find.byType(InkWell), findsNothing);
     });
 

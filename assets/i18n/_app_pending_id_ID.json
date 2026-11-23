@@ -2324,5 +2324,6 @@
   "free_plan_signup_note_info": "Paket Gratis: hingga :count klien dan satu perusahaan.",
   "free_plan_company_limit_reached": "Anda telah mencapai batas perusahaan Paket Gratis.",
   "store_subscription_ended_info": "Langganan dalam aplikasi Anda telah berakhir.",
-  "free_plan_client_limit_hit": "Anda telah mencapai batas klien Paket Gratis."
+  "free_plan_client_limit_hit": "Anda telah mencapai batas klien Paket Gratis.",
+  "owner_only_sign_in_plan": "Pada paket ini hanya pemilik akun yang dapat masuk."
 }

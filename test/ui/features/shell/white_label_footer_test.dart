@@ -23,6 +23,7 @@ import 'package:admin/app/theme.dart';
 import 'package:admin/data/repositories/auth/auth_session.dart';
 import 'package:admin/data/repositories/auth_repository.dart';
 import 'package:admin/domain/upgrade/store_build.dart';
+import 'package:admin/domain/upgrade/upgrade_launcher.dart';
 import 'package:admin/ui/features/shell/widgets/trial_footer.dart';
 import 'package:admin/ui/features/shell/widgets/white_label_footer.dart';
 
@@ -113,7 +114,10 @@ void main() {
   // (`isStoreBillingBuild`). These cases are the desktop / web / F-Droid
   // builds; `flutter test` alone would read as a Play build.
   setUp(() => debugStoreBillingOverride = false);
-  tearDown(() => debugStoreBillingOverride = null);
+  tearDown(() {
+    debugStoreBillingOverride = null;
+    debugInAppPurchasesOfferedOverride = null;
+  });
 
   group('WhiteLabelFooter', () {
     testWidgets('shown to an unlicensed self-hosted owner', (tester) async {
@@ -335,6 +339,8 @@ void main() {
     testWidgets('a store build says the plan is managed on the web, with no '
         'link', (tester) async {
       debugStoreBillingOverride = true;
+      // A store build whose hosted service sells in-app.
+      debugInAppPurchasesOfferedOverride = true;
       await _pump(
         tester,
         _session(
@@ -346,6 +352,31 @@ void main() {
 
       expect(find.textContaining('days left'), findsOneWidget);
       expect(find.text('Your plan is managed on the web.'), findsOneWidget);
+      expect(
+        find.text('Upgrade to unlock recurring & multi-currency.'),
+        findsNothing,
+      );
+      expect(find.byType(InkWell), findsNothing);
+    });
+
+    // One that sells nothing (the hosted billing not live yet) says not even
+    // that: beside a countdown it reads as "go and pay on the web".
+    testWidgets('a store build that sells nothing shows the countdown alone', (
+      tester,
+    ) async {
+      debugStoreBillingOverride = true;
+      debugInAppPurchasesOfferedOverride = false;
+      await _pump(
+        tester,
+        _session(
+          isHosted: true,
+          baseUrl: 'https://invoicing.co',
+          trialDaysLeft: 2,
+        ),
+      );
+
+      expect(find.textContaining('days left'), findsOneWidget);
+      expect(find.text('Your plan is managed on the web.'), findsNothing);
       expect(
         find.text('Upgrade to unlock recurring & multi-currency.'),
         findsNothing,

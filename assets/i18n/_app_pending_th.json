@@ -2406,5 +2406,6 @@
   "free_plan_signup_note_info": "แพ็กเกจฟรี: ลูกค้าได้สูงสุด :count ราย และบริษัทเดียว",
   "free_plan_company_limit_reached": "คุณถึงขีดจำกัดจำนวนบริษัทของแพ็กเกจฟรีแล้ว",
   "store_subscription_ended_info": "การสมัครสมาชิกภายในแอปของคุณสิ้นสุดแล้ว",
-  "free_plan_client_limit_hit": "คุณถึงขีดจำกัดจำนวนลูกค้าของแพ็กเกจฟรีแล้ว"
+  "free_plan_client_limit_hit": "คุณถึงขีดจำกัดจำนวนลูกค้าของแพ็กเกจฟรีแล้ว",
+  "owner_only_sign_in_plan": "แผนนี้ให้เฉพาะเจ้าของบัญชีลงชื่อเข้าใช้ได้"
 }

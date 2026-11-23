@@ -82,13 +82,15 @@ class PlanExpiredFooter extends StatelessWidget {
                     color: tokens.overdue,
                   ),
                 ),
-                if (managedOnWeb) ...[
+                // Withheld, not even "managed on the web": under "plan
+                // expired" it reads as "go and pay on the web".
+                if (managedOnWeb && !withheld) ...[
                   const SizedBox(height: 6),
                   Text(
                     context.tr('plan_managed_on_web'),
                     style: TextStyle(fontSize: 11.5, color: tokens.overdue),
                   ),
-                ] else if (!withheld) ...[
+                ] else if (!managedOnWeb && !withheld) ...[
                   const SizedBox(height: 6),
                   // A local ink layer — see `TrialFooter` for why the sidebar's
                   // opaque boxes would otherwise swallow the splash.

@@ -2323,5 +2323,6 @@
   "free_plan_signup_note_info": "Tasuta pakett: kuni :count klienti ja üks ettevõte.",
   "free_plan_company_limit_reached": "Olete jõudnud tasuta paketi ettevõtete piirini.",
   "store_subscription_ended_info": "Teie rakendusesisene tellimus on lõppenud.",
-  "free_plan_client_limit_hit": "Olete jõudnud tasuta paketi klientide piirini."
+  "free_plan_client_limit_hit": "Olete jõudnud tasuta paketi klientide piirini.",
+  "owner_only_sign_in_plan": "Selle paketiga saab sisse logida ainult konto omanik."
 }

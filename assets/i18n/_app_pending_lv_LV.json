@@ -2407,5 +2407,6 @@
   "free_plan_signup_note_info": "Bezmaksas plāns: līdz :count klientiem un viens uzņēmums.",
   "free_plan_company_limit_reached": "Jūs esat sasniedzis bezmaksas plāna uzņēmumu limitu.",
   "store_subscription_ended_info": "Jūsu lietotnes abonements ir beidzies.",
-  "free_plan_client_limit_hit": "Jūs esat sasniedzis bezmaksas plāna klientu limitu."
+  "free_plan_client_limit_hit": "Jūs esat sasniedzis bezmaksas plāna klientu limitu.",
+  "owner_only_sign_in_plan": "Šajā plānā pieteikties var tikai konta īpašnieks."
 }

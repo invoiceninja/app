@@ -668,6 +668,13 @@ bool _addGatewayShown(SettingsSearchScope? scope) =>
 bool _wordPressPluginShown(SettingsSearchScope? scope) =>
     scope?.showsWordPressPlugin ?? true;
 
+/// The Plan tab's Change Plan card renders only where it has something to
+/// offer (`showsHostedActionsCard`): never on self-hosted, and not on a store
+/// build that sells nothing to the account, so search must not open the tab
+/// on a "Manage Plan" that isn't there.
+bool _changePlanShown(SettingsSearchScope? scope) =>
+    scope?.showsChangePlan ?? true;
+
 bool _chromeExtensionShown(SettingsSearchScope? scope) =>
     scope?.showsChromeExtension ?? true;
 
@@ -821,7 +828,12 @@ const kSettingsSearchCatalog = <String, List<SettingsSearchTab>>{
     ),
   ],
   'account_management': [
-    SettingsSearchTab('', kAccountManagementPlanSearchKeys, titleKey: 'plan'),
+    SettingsSearchTab(
+      '',
+      kAccountManagementPlanSearchKeys,
+      titleKey: 'plan',
+      keyGates: {'change_plan': _changePlanShown},
+    ),
     SettingsSearchTab('overview', [
       'account_id',
       'email',
@@ -1373,6 +1385,7 @@ class SettingsSearchScope {
     this.supportsDocumentsPublicByDefault = true,
     this.supportsFileNamePatterns = true,
     this.activeGatewayCount,
+    this.showsChangePlan = true,
   });
 
   /// [session] null (not loaded yet) fails open on hosted, matching
@@ -1387,6 +1400,7 @@ class SettingsSearchScope {
     Company? company,
     required String? serverVersion,
     int? activeGatewayCount,
+    bool showsChangePlan = true,
   }) {
     final me = session?.currentCompany;
     return SettingsSearchScope(
@@ -1408,11 +1422,16 @@ class SettingsSearchScope {
       supportsFileNamePatterns:
           company != null && fileNamePatternsSupported(company.rawSettings),
       activeGatewayCount: activeGatewayCount,
+      showsChangePlan: showsChangePlan,
     );
   }
 
   final int enabledModules;
   final bool isAdminOrOwner;
+
+  /// Whether the Plan tab draws its Change Plan card here
+  /// (`changePlanCardShown`, plan_screen.dart).
+  final bool showsChangePlan;
 
   /// Editing a client's or a group's settings. A company-only page opened
   /// from there renders under the "editing client X" banner with override

@@ -5,6 +5,7 @@ import 'package:flutter/semantics.dart';
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/native_window.dart';
 import 'package:admin/ui/core/adaptive.dart';
+import 'package:admin/ui/core/utils/store_safe_server_text.dart';
 import 'package:admin/ui/core/widgets/toast_controller.dart';
 
 /// Single global renderer for [ToastController]. Mounted once near the app
@@ -327,9 +328,10 @@ class _ToastEntryState extends State<_ToastEntry>
     if (!_announced) {
       _announced = true;
       final d = widget.data;
+      final message = storeSafeServerText(context, d.message);
       final text = d.detail == null || d.detail!.isEmpty
-          ? d.message
-          : '${d.message}. ${d.detail}';
+          ? message
+          : '$message. ${storeSafeServerText(context, d.detail!)}';
       SemanticsService.sendAnnouncement(
         View.of(context),
         text,
@@ -504,7 +506,9 @@ class _NotifyCard extends StatelessWidget {
                           children: [
                             Flexible(
                               child: Text(
-                                data.message,
+                                // A server's "please upgrade" in the app's
+                                // words on a store build.
+                                storeSafeServerText(context, data.message),
                                 style: titleStyle,
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
@@ -525,7 +529,7 @@ class _NotifyCard extends StatelessWidget {
                         if (data.detail?.trim().isNotEmpty ?? false) ...[
                           const SizedBox(height: 2),
                           Text(
-                            data.detail!,
+                            storeSafeServerText(context, data.detail!),
                             style: detailStyle,
                             maxLines: kToastDetailMaxLines,
                             overflow: TextOverflow.ellipsis,

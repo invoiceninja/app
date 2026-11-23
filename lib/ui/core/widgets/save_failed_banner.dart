@@ -10,6 +10,7 @@ import 'package:admin/domain/sync/mutation.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/edit/generic_edit_view_model.dart';
 import 'package:admin/ui/core/sync/unconfirmed_change_actions.dart';
+import 'package:admin/ui/core/utils/store_safe_server_text.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
 
 /// Top-of-form banner that surfaces when a save was rejected — either by
@@ -354,6 +355,10 @@ class SaveFailedBanner extends StatelessWidget {
         : <String>[message!];
     // ' · ' rather than newlines: the same single-line-joining convention the
     // toast host enforces, and it keeps the banner from growing unbounded.
-    return parts.where((p) => p.trim().isNotEmpty).join(' · ');
+    // A server's "please upgrade" is said in the app's words on a store build.
+    return storeSafeServerText(
+      context,
+      parts.where((p) => p.trim().isNotEmpty).join(' · '),
+    );
   }
 }

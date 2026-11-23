@@ -2322,5 +2322,6 @@
   "free_plan_signup_note_info": "תוכנית חינמית: עד :count לקוחות וחברה אחת.",
   "free_plan_company_limit_reached": "הגעת למגבלת החברות של התוכנית החינמית.",
   "store_subscription_ended_info": "המינוי שלך מתוך האפליקציה הסתיים.",
-  "free_plan_client_limit_hit": "הגעת למגבלת הלקוחות של התוכנית החינמית."
+  "free_plan_client_limit_hit": "הגעת למגבלת הלקוחות של התוכנית החינמית.",
+  "owner_only_sign_in_plan": "בתוכנית זו רק בעל החשבון יכול להתחבר."
 }

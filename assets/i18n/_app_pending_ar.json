@@ -2322,5 +2322,6 @@
   "free_plan_signup_note_info": "الخطة المجانية: حتى :count عملاء وشركة واحدة.",
   "free_plan_company_limit_reached": "لقد بلغت حد الشركات في الخطة المجانية.",
   "store_subscription_ended_info": "انتهى اشتراكك داخل التطبيق.",
-  "free_plan_client_limit_hit": "لقد بلغت حد العملاء في الخطة المجانية."
+  "free_plan_client_limit_hit": "لقد بلغت حد العملاء في الخطة المجانية.",
+  "owner_only_sign_in_plan": "لا يمكن تسجيل الدخول في هذه الخطة إلا لمالك الحساب."
 }
