@@ -770,17 +770,37 @@ class InvoiceActions {
   ) async {
     final availability = services.terminal.availabilityFor(companyId, invoice);
     if (availability == TerminalAvailability.upgrade) {
-      final me = services.auth.session.value?.currentCompany;
-      final owner = me?.isOwner ?? false;
+      final session = services.auth.session.value;
+      final owner = session?.currentCompany?.isOwner ?? false;
+      // The action's own name, Apple's on an iPhone.
+      final title = _offersTapToPayIPhone(context, availability)
+          ? tapToPayName(context)
+          : context.tr('collect_card_payment');
+      final planRequired = context.tr('terminal_server_plan_required');
+      // A store build whose hosted service sells nothing to this account
+      // says which plans have it, with Close only: nothing to upgrade.
+      if (purchasesWithheld(context, session: session, listen: false)) {
+        await showDialog<void>(
+          context: context,
+          anchorPoint: foldAnchorPoint(context),
+          builder: (ctx) => AlertDialog(
+            title: Text(title),
+            content: Text(planRequired),
+            actions: [
+              PrimaryDialogAction(
+                buttonKey: const ValueKey('terminal_plan_close'),
+                label: ctx.tr('close'),
+                onPressed: () => Navigator.of(ctx).pop(),
+              ),
+            ],
+          ),
+        );
+        return;
+      }
       final upgrade = await showConfirmActionDialog(
         context,
-        // The action's own name, Apple's on an iPhone.
-        title: _offersTapToPayIPhone(context, availability)
-            ? tapToPayName(context)
-            : context.tr('collect_card_payment'),
-        message: context.tr(
-          owner ? 'terminal_server_plan_required' : 'terminal_plan_ask_owner',
-        ),
+        title: title,
+        message: owner ? planRequired : context.tr('terminal_plan_ask_owner'),
       );
       if (upgrade && owner && context.mounted) await launchUpgrade(context);
       return;

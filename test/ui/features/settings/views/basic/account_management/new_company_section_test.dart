@@ -13,11 +13,18 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:admin/domain/upgrade/store_build.dart';
+import 'package:admin/domain/upgrade/upgrade_launcher.dart';
 import 'package:admin/ui/features/settings/views/basic/account_management/overview_screen.dart';
 
 import '../../../../shell/_shell_test_helpers.dart';
 
 void main() {
+  tearDown(() {
+    debugStoreBillingOverride = null;
+    debugInAppPurchasesOfferedOverride = null;
+  });
+
   Future<void> pumpOverview(
     WidgetTester tester, {
     bool isOwner = true,
@@ -100,6 +107,7 @@ void main() {
   ) async {
     // A dead end is worse than an upsell: "you need a bigger plan" with no way
     // to buy one is the one blocked state that must keep its button live.
+    debugInAppPurchasesOfferedOverride = true;
     await pumpOverview(tester, plan: '', hostedCompanyCount: 1);
 
     expect(
@@ -107,5 +115,32 @@ void main() {
       isNotNull,
     );
     expect(find.text('Upgrade your plan to add companies'), findsOneWidget);
+  });
+
+  testWidgets('on desktop the plan limit routes to upgrade, whatever the '
+      'offer', (tester) async {
+    debugStoreBillingOverride = false;
+    debugInAppPurchasesOfferedOverride = false;
+    await pumpOverview(tester, plan: '', hostedCompanyCount: 1);
+
+    expect(
+      tester.widget<FilledButton>(newCompanyButton()).onPressed,
+      isNotNull,
+    );
+    expect(find.text('Upgrade your plan to add companies'), findsOneWidget);
+  });
+
+  testWidgets('a store build that sells nothing blocks the plan limit and '
+      'says only the limit', (tester) async {
+    debugStoreBillingOverride = true;
+    debugInAppPurchasesOfferedOverride = false;
+    await pumpOverview(tester, plan: '', hostedCompanyCount: 1);
+
+    expect(tester.widget<FilledButton>(newCompanyButton()).onPressed, isNull);
+    expect(
+      find.text("You have reached the Free plan's company limit."),
+      findsOneWidget,
+    );
+    expect(find.textContaining('Upgrade'), findsNothing);
   });
 }

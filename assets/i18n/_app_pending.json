@@ -2399,5 +2399,14 @@
   "cloudflare_banner_unsupported": ":host is asking to verify you're human, which this device can't show. Ask the server's administrator to let the app through.",
   "cloudflare_challenge_hosted": "Cloudflare is checking this connection. Try again in a few minutes.",
   "cloudflare_banner_refused": "The check passed, but :host's Cloudflare settings still turn the app away. Share Ray ID :ray with the server's administrator.",
-  "cloudflare_banner_web": ":host is asking to verify you're human. Reload the page to continue."
+  "cloudflare_banner_web": ":host is asking to verify you're human. Reload the page to continue.",
+  "feature_needs_pro_or_enterprise": "This feature needs the Pro or Enterprise plan.",
+  "reports_need_pro_or_enterprise": "Reports need the Pro or Enterprise plan.",
+  "docuninja_needs_pro_or_enterprise": "DocuNinja needs the Pro or Enterprise plan.",
+  "free_plan_client_limit_reached_info": "You have used all :count clients on the Free plan.",
+  "free_plan_clients_over_info": "You have :count clients. The Free plan allows :limit. All your clients are kept.",
+  "free_plan_import_too_many_info": "This import would take you past the :count clients the Free plan allows, so nothing was imported.",
+  "free_plan_signup_note_info": "Free plan: up to :count clients and one company.",
+  "free_plan_company_limit_reached": "You have reached the Free plan's company limit.",
+  "store_subscription_ended_info": "Your in-app subscription has ended."
 }

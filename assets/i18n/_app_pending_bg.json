@@ -2313,5 +2313,14 @@
   "cloudflare_banner_unsupported": ":host иска да потвърдите, че сте човек, а това устройство не може да го покаже. Помолете администратора на сървъра да пропуска приложението.",
   "cloudflare_challenge_hosted": "Cloudflare проверява тази връзка. Опитайте отново след няколко минути.",
   "cloudflare_banner_refused": "Проверката мина, но настройките на Cloudflare за :host все още отказват приложението. Споделете Ray ID :ray с администратора на сървъра.",
-  "cloudflare_banner_web": ":host иска да потвърдите, че сте човек. Презаредете страницата, за да продължите."
+  "cloudflare_banner_web": ":host иска да потвърдите, че сте човек. Презаредете страницата, за да продължите.",
+  "feature_needs_pro_or_enterprise": "Тази функция изисква план Pro или Enterprise.",
+  "reports_need_pro_or_enterprise": "Справките изискват план Pro или Enterprise.",
+  "docuninja_needs_pro_or_enterprise": "DocuNinja изисква план Pro или Enterprise.",
+  "free_plan_client_limit_reached_info": "Използвали сте всички :count клиента в безплатния план.",
+  "free_plan_clients_over_info": "Имате :count клиента. Безплатният план позволява :limit. Всички ваши клиенти се запазват.",
+  "free_plan_import_too_many_info": "Този импорт би надхвърлил :count клиента, които безплатният план позволява, затова нищо не е импортирано.",
+  "free_plan_signup_note_info": "Безплатен план: до :count клиента и една фирма.",
+  "free_plan_company_limit_reached": "Достигнахте ограничението за фирми в безплатния план.",
+  "store_subscription_ended_info": "Абонаментът ви в приложението е изтекъл."
 }

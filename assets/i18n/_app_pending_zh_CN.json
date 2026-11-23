@@ -2396,5 +2396,14 @@
   "cloudflare_banner_unsupported": ":host 要求验证您是真人，但此设备无法显示该验证。请让服务器管理员放行此应用。",
   "cloudflare_challenge_hosted": "Cloudflare 正在检查此连接。请几分钟后重试。",
   "cloudflare_banner_refused": "验证已通过，但 :host 的 Cloudflare 设置仍拒绝此应用。请将 Ray ID :ray 告知服务器管理员。",
-  "cloudflare_banner_web": ":host 要求验证您是真人。请重新加载页面以继续。"
+  "cloudflare_banner_web": ":host 要求验证您是真人。请重新加载页面以继续。",
+  "feature_needs_pro_or_enterprise": "此功能需要 Pro 或 Enterprise 套餐。",
+  "reports_need_pro_or_enterprise": "报表需要 Pro 或 Enterprise 套餐。",
+  "docuninja_needs_pro_or_enterprise": "DocuNinja 需要 Pro 或 Enterprise 套餐。",
+  "free_plan_client_limit_reached_info": "您已用完免费版的全部 :count 个客户。",
+  "free_plan_clients_over_info": "您有 :count 个客户。免费版允许 :limit 个。您的所有客户都会保留。",
+  "free_plan_import_too_many_info": "此次导入会超出免费版允许的 :count 个客户，因此未导入任何内容。",
+  "free_plan_signup_note_info": "免费版：最多 :count 个客户和一家公司。",
+  "free_plan_company_limit_reached": "您已达到免费版的公司数量上限。",
+  "store_subscription_ended_info": "您的应用内订阅已结束。"
 }

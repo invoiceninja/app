@@ -2351,5 +2351,14 @@
   "cloudflare_banner_unsupported": ":host prašo patvirtinti, kad esate žmogus, bet šis įrenginys to parodyti negali. Paprašykite serverio administratoriaus praleisti programėlę.",
   "cloudflare_challenge_hosted": "Cloudflare tikrina šį ryšį. Bandykite dar kartą po kelių minučių.",
   "cloudflare_banner_refused": "Patikra praėjo, bet :host Cloudflare nustatymai vis tiek atmeta programėlę. Perduokite Ray ID :ray serverio administratoriui.",
-  "cloudflare_banner_web": ":host prašo patvirtinti, kad esate žmogus. Norėdami tęsti, įkelkite puslapį iš naujo."
+  "cloudflare_banner_web": ":host prašo patvirtinti, kad esate žmogus. Norėdami tęsti, įkelkite puslapį iš naujo.",
+  "feature_needs_pro_or_enterprise": "Šiai funkcijai reikia Pro arba Enterprise plano.",
+  "reports_need_pro_or_enterprise": "Ataskaitoms reikia Pro arba Enterprise plano.",
+  "docuninja_needs_pro_or_enterprise": "DocuNinja reikia Pro arba Enterprise plano.",
+  "free_plan_client_limit_reached_info": "Išnaudojote visus :count nemokamo plano klientus.",
+  "free_plan_clients_over_info": "Turite :count klientų. Nemokamas planas leidžia :limit. Visi jūsų klientai išsaugomi.",
+  "free_plan_import_too_many_info": "Šis importas viršytų :count klientų, kuriuos leidžia nemokamas planas, todėl niekas nebuvo importuota.",
+  "free_plan_signup_note_info": "Nemokamas planas: iki :count klientų ir viena įmonė.",
+  "free_plan_company_limit_reached": "Pasiekėte nemokamo plano įmonių ribą.",
+  "store_subscription_ended_info": "Jūsų prenumerata programoje baigėsi."
 }

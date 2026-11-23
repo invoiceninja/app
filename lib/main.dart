@@ -75,6 +75,7 @@ import 'package:admin/domain/expenses/receipt_scanner.dart';
 import 'package:admin/domain/upgrade/purchase_delivery.dart'
     show PurchaseResumeObserver;
 import 'package:admin/domain/upgrade/client_usage.dart';
+import 'package:admin/domain/upgrade/purchase_offer.dart';
 import 'package:admin/domain/upgrade/store_build.dart';
 import 'package:admin/l10n/company_labels_scope.dart';
 import 'package:admin/app/legacy_material_theme.dart';
@@ -1125,6 +1126,12 @@ class _InvoiceNinjaAppState extends State<InvoiceNinjaApp> {
         ChangeNotifierProvider<ClientUsage>.value(
           value: widget.services.clientUsage,
         ),
+        // Whether the hosted service sells in-app to the active account, read
+        // as `PurchaseOffer?` by every upgrade prompt: a store build without
+        // it shows no way to buy (docs/in-app-purchases.md). Store builds
+        // only, like the delivery that owns it.
+        if (widget.services.purchases case final delivery?)
+          ChangeNotifierProvider<PurchaseOffer>.value(value: delivery.offer),
       ],
       child: ListenableBuilder(
         listenable: Listenable.merge([

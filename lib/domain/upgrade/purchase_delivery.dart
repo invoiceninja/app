@@ -11,6 +11,8 @@ import 'package:admin/data/models/api/json_coercion.dart';
 import 'package:admin/data/repositories/auth_repository.dart';
 import 'package:admin/data/services/api_client.dart';
 import 'package:admin/data/services/api_exception.dart';
+import 'package:admin/domain/upgrade/purchase_offer.dart';
+import 'package:admin/domain/upgrade/upgrade_route.dart';
 
 /// This app's bundle id on the App Store and its package name on Play — the
 /// hosted endpoint checks the store-verified transaction against it.
@@ -180,6 +182,11 @@ const kPurchaseRetryBackoff = [
   Duration(minutes: 10),
 ];
 
+/// How long a return to the foreground trusts the last answer to whether
+/// purchases are offered ([PurchaseDelivery.offer]) before asking the hosted
+/// config again. A failed ask is not an answer, so the next resume asks.
+const kPurchaseOfferMaxAge = Duration(minutes: 30);
+
 /// Delivers paid App Store / Play purchases to the hosted service, for the
 /// app's whole lifetime. Owned by `Services` and built only on a
 /// store-billing build (`isStoreBillingBuild`):
@@ -238,17 +245,36 @@ class PurchaseDelivery {
     StoreBilling? billing,
     TargetPlatform? platform,
     Timer Function(Duration, void Function())? timer,
+    DateTime Function()? now,
   }) : _apiClient = apiClient,
        _auth = auth,
        billing = billing ?? StoreBilling(),
        _platform = platform ?? defaultTargetPlatform,
-       _timer = timer ?? Timer.new;
+       _timer = timer ?? Timer.new,
+       _now = now ?? DateTime.now;
 
   final ApiClient _apiClient;
   final AuthRepository _auth;
   final TargetPlatform _platform;
   final Timer Function(Duration, void Function()) _timer;
+  final DateTime Function() _now;
   final _log = Logger('PurchaseDelivery');
+
+  /// Whether the hosted service offers an in-app purchase to the active
+  /// account ([inAppPurchasesOffered]): what decides whether a screen shows
+  /// any way to buy. False until the config answers yes for the current user
+  /// and company; asked when one signs in or the company changes, when the
+  /// account's store plan changes, and on a return to the foreground once
+  /// the last answer is older than [kPurchaseOfferMaxAge]. A failed ask
+  /// leaves the last answer for the same user and company standing.
+  final PurchaseOffer offer = PurchaseOffer();
+
+  /// The last config answer for [_offerFor], what [offer] is read from.
+  IapConfig? _offerConfig;
+  String? _offerFor;
+
+  /// When [_offerConfig] was answered; null until one was.
+  DateTime? _offerAnsweredAt;
 
   /// The store SDK. The purchase sheet uses the same instance to list
   /// products and start a purchase.
@@ -370,6 +396,10 @@ class PurchaseDelivery {
       _sweptFor = null;
       _forgetConfig();
       _planState = null;
+      _offerFor = null;
+      _offerConfig = null;
+      _offerAnsweredAt = null;
+      offer.update(false);
       _retry?.cancel();
       _retry = null;
       _retries = 0;
@@ -380,9 +410,25 @@ class PurchaseDelivery {
       onError: (Object e) => _log.warning('purchaseStream error: $e'),
     );
     final planState = _planStateOf(session!);
-    if (_planState != null && _planState != planState) _forgetConfig();
+    final planChanged = _planState != null && _planState != planState;
+    if (planChanged) _forgetConfig();
     _planState = planState;
     final scope = _scopeOf(session);
+    if (_offerFor != scope) {
+      // Another user or company: nothing is offered until its own answer.
+      _offerFor = scope;
+      _offerConfig = null;
+      _offerAnsweredAt = null;
+      _publishOffer();
+      unawaited(_refreshOffer());
+    } else if (planChanged) {
+      // A delivered purchase or a lapsed plan changes what the hosted
+      // service sells this account.
+      unawaited(_refreshOffer());
+    } else {
+      // The session itself changed (its account key, a refresh).
+      _publishOffer();
+    }
     if (_sweptFor == scope) return;
     _sweptFor = scope;
     unawaited(_sweep(_ownerOf(session), repostRefused: true));
@@ -397,6 +443,41 @@ class PurchaseDelivery {
     if (!_canDeliverTo(session)) return;
     _forgetConfig();
     unawaited(_sweep(_ownerOf(session!)));
+    final answeredAt = _offerAnsweredAt;
+    if (answeredAt == null ||
+        _now().difference(answeredAt) >= kPurchaseOfferMaxAge) {
+      unawaited(_refreshOffer());
+    }
+  }
+
+  /// Asks the config (or takes the answer already kept, or on the wire) so
+  /// [offer] follows it. A fresh answer is published by [_askConfig] too, so
+  /// a sweep's ask moves [offer] as well; a failure changes nothing.
+  Future<void> _refreshOffer() async {
+    final session = _auth.session.value;
+    if (_disposed || !_canDeliverTo(session)) return;
+    final scope = _scopeOf(session!);
+    final answer = await _configAnswer();
+    if (answer == null || _disposed || _offerFor != scope) return;
+    final now = _auth.session.value;
+    if (now == null || _scopeOf(now) != scope) return;
+    _offerConfig = answer;
+    _publishOffer();
+  }
+
+  /// Sets [offer] from the last answer for the current user and company.
+  void _publishOffer() {
+    if (_disposed) return;
+    final session = _auth.session.value;
+    offer.update(
+      session != null &&
+          _offerFor == _scopeOf(session) &&
+          inAppPurchasesOffered(
+            storeBilling: true,
+            session: session,
+            config: _offerConfig,
+          ),
+    );
   }
 
   /// The signed-in user on this server: whom a refusal has been said to
@@ -572,6 +653,11 @@ class PurchaseDelivery {
     // are still the current ones.
     final now = _auth.session.value;
     if (now == null || _scopeOf(now) != scope) return null;
+    if (_offerFor == scope) {
+      _offerConfig = answer;
+      _offerAnsweredAt = _now();
+      _publishOffer();
+    }
     if (generation != _configGeneration) {
       // Asked before the plan changed: good for delivering (the account and
       // its token are the same), never for selling over a store plan.
@@ -827,6 +913,7 @@ class PurchaseDelivery {
     _retry?.cancel();
     _retry = null;
     if (_started) _auth.session.removeListener(_onSession);
+    offer.dispose();
     await _sub?.cancel();
     await _activity.close();
   }

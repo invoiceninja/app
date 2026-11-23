@@ -4,6 +4,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 
 import 'package:admin/app/design_tokens.dart';
+import 'package:admin/domain/upgrade/upgrade_launcher.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/adaptive.dart';
 import 'package:admin/app/shortcut_hint_controller.dart';
@@ -318,7 +319,6 @@ Future<void> runSettingsSave(
   }
   final successText = context.tr('saved_settings');
   final errorFallback = context.tr('error_refresh_page');
-  final needsPlanText = context.tr('upgrade_to_paid_plan');
   final result = await viewModel.save();
   if (!context.mounted) return;
   if (result != null) {
@@ -328,7 +328,16 @@ Future<void> runSettingsSave(
   // The server took the save and dropped a setting the account's plan cannot
   // keep; the draft still holds the user's choice.
   if (viewModel.submitNeedsPaidPlan) {
-    Notify.error(context, needsPlanText);
+    // No "Upgrade" on a store build whose hosted service sells nothing here.
+    // Read only now (the context is still mounted): most saves never need it.
+    Notify.error(
+      context,
+      context.tr(
+        purchasesWithheld(context, listen: false)
+            ? 'feature_needs_pro_or_enterprise'
+            : 'upgrade_to_paid_plan',
+      ),
+    );
     return;
   }
   // The VM stashes the raw exception text on `submitError`; surface it as

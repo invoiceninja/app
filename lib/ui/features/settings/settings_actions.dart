@@ -230,11 +230,15 @@ class SettingsActions {
   /// [CanAddCompanyResult.hostedPlanLimit] deliberately gets a *reason* but not
   /// a block: both callers keep that case tappable and route it to
   /// `launchUpgrade`, because "you need a bigger plan" with no way to buy one
-  /// is a dead end.
+  /// is a dead end. Except on a store build whose hosted service sells
+  /// nothing to the account ([purchasesWithheld], upgrade_launcher.dart):
+  /// there the row is blocked and says only that the Free plan's company
+  /// limit is reached, with nothing to upgrade.
   static String? addCompanyBlockedReason(
     BuildContext context,
-    CanAddCompanyResult reason,
-  ) {
+    CanAddCompanyResult reason, {
+    bool purchasesWithheld = false,
+  }) {
     switch (reason) {
       case CanAddCompanyResult.ok:
         return null;
@@ -243,7 +247,11 @@ class SettingsActions {
       case CanAddCompanyResult.capReached:
         return context.tr('max_companies_reached');
       case CanAddCompanyResult.hostedPlanLimit:
-        return context.tr('upgrade_to_add_company');
+        return context.tr(
+          purchasesWithheld
+              ? 'free_plan_company_limit_reached'
+              : 'upgrade_to_add_company',
+        );
       case CanAddCompanyResult.demoMode:
         return context.tr('demo_mode_disabled');
     }

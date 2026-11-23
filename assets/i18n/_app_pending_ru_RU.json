@@ -2396,5 +2396,14 @@
   "cloudflare_banner_unsupported": ":host просит подтвердить, что вы человек, но это устройство не может это показать. Попросите администратора сервера пропускать приложение.",
   "cloudflare_challenge_hosted": "Cloudflare проверяет это подключение. Попробуйте снова через несколько минут.",
   "cloudflare_banner_refused": "Проверка пройдена, но настройки Cloudflare для :host всё ещё не пропускают приложение. Передайте Ray ID :ray администратору сервера.",
-  "cloudflare_banner_web": ":host просит подтвердить, что вы человек. Перезагрузите страницу, чтобы продолжить."
+  "cloudflare_banner_web": ":host просит подтвердить, что вы человек. Перезагрузите страницу, чтобы продолжить.",
+  "feature_needs_pro_or_enterprise": "Для этой функции нужен тариф Pro или Enterprise.",
+  "reports_need_pro_or_enterprise": "Для отчетов нужен тариф Pro или Enterprise.",
+  "docuninja_needs_pro_or_enterprise": "Для DocuNinja нужен тариф Pro или Enterprise.",
+  "free_plan_client_limit_reached_info": "Вы использовали всех :count клиентов бесплатного тарифа.",
+  "free_plan_clients_over_info": "У вас :count клиентов. Бесплатный тариф допускает :limit. Все ваши клиенты сохраняются.",
+  "free_plan_import_too_many_info": "Этот импорт превысил бы :count клиентов, разрешённых бесплатным тарифом, поэтому ничего не импортировано.",
+  "free_plan_signup_note_info": "Бесплатный тариф: до :count клиентов и одна компания.",
+  "free_plan_company_limit_reached": "Вы достигли лимита компаний бесплатного тарифа.",
+  "store_subscription_ended_info": "Ваша подписка в приложении закончилась."
 }

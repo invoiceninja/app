@@ -2396,5 +2396,14 @@
   "cloudflare_banner_unsupported": ":host kërkon të verifikoni që jeni njeri, gjë që kjo pajisje nuk mund ta shfaqë. Kërkojini administratorit të serverit ta lejojë aplikacionin.",
   "cloudflare_challenge_hosted": "Cloudflare po kontrollon këtë lidhje. Provoni përsëri pas disa minutash.",
   "cloudflare_banner_refused": "Kontrolli kaloi, por cilësimet e Cloudflare për :host ende e refuzojnë aplikacionin. Ndajeni Ray ID :ray me administratorin e serverit.",
-  "cloudflare_banner_web": ":host kërkon të verifikoni që jeni njeri. Ringarkoni faqen për të vazhduar."
+  "cloudflare_banner_web": ":host kërkon të verifikoni që jeni njeri. Ringarkoni faqen për të vazhduar.",
+  "feature_needs_pro_or_enterprise": "Ky funksion kërkon planin Pro ose Enterprise.",
+  "reports_need_pro_or_enterprise": "Raportet kërkojnë planin Pro ose Enterprise.",
+  "docuninja_needs_pro_or_enterprise": "DocuNinja kërkon planin Pro ose Enterprise.",
+  "free_plan_client_limit_reached_info": "Keni përdorur të gjithë :count klientët e planit falas.",
+  "free_plan_clients_over_info": "Keni :count klientë. Plani falas lejon :limit. Të gjithë klientët tuaj ruhen.",
+  "free_plan_import_too_many_info": "Ky import do t'i kalonte :count klientët që lejon plani falas, prandaj nuk u importua asgjë.",
+  "free_plan_signup_note_info": "Plani falas: deri në :count klientë dhe një kompani.",
+  "free_plan_company_limit_reached": "Keni arritur kufirin e kompanive të planit falas.",
+  "store_subscription_ended_info": "Abonimi juaj brenda aplikacionit ka përfunduar."
 }

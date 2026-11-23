@@ -2397,5 +2397,14 @@
   "cloudflare_banner_unsupported": ":host lūdz apstiprināt, ka esat cilvēks, bet šī ierīce to nevar parādīt. Palūdziet servera administratoram ielaist lietotni.",
   "cloudflare_challenge_hosted": "Cloudflare pārbauda šo savienojumu. Mēģiniet vēlreiz pēc dažām minūtēm.",
   "cloudflare_banner_refused": "Pārbaude izdevās, bet :host Cloudflare iestatījumi joprojām atraida lietotni. Nododiet Ray ID :ray servera administratoram.",
-  "cloudflare_banner_web": ":host lūdz apstiprināt, ka esat cilvēks. Lai turpinātu, pārlādējiet lapu."
+  "cloudflare_banner_web": ":host lūdz apstiprināt, ka esat cilvēks. Lai turpinātu, pārlādējiet lapu.",
+  "feature_needs_pro_or_enterprise": "Šai funkcijai nepieciešams Pro vai Enterprise plāns.",
+  "reports_need_pro_or_enterprise": "Atskaitēm nepieciešams Pro vai Enterprise plāns.",
+  "docuninja_needs_pro_or_enterprise": "DocuNinja nepieciešams Pro vai Enterprise plāns.",
+  "free_plan_client_limit_reached_info": "Jūs esat izmantojis visus :count bezmaksas plāna klientus.",
+  "free_plan_clients_over_info": "Jums ir :count klienti. Bezmaksas plāns atļauj :limit. Visi jūsu klienti tiek saglabāti.",
+  "free_plan_import_too_many_info": "Šis imports pārsniegtu :count klientus, ko atļauj bezmaksas plāns, tāpēc nekas netika importēts.",
+  "free_plan_signup_note_info": "Bezmaksas plāns: līdz :count klientiem un viens uzņēmums.",
+  "free_plan_company_limit_reached": "Jūs esat sasniedzis bezmaksas plāna uzņēmumu limitu.",
+  "store_subscription_ended_info": "Jūsu lietotnes abonements ir beidzies."
 }

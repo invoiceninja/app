@@ -2313,5 +2313,14 @@
   "cloudflare_banner_unsupported": ":host palub kinnitada, et olete inimene, kuid see seade ei saa seda näidata. Paluge serveri administraatoril rakendus läbi lasta.",
   "cloudflare_challenge_hosted": "Cloudflare kontrollib seda ühendust. Proovige mõne minuti pärast uuesti.",
   "cloudflare_banner_refused": "Kontroll õnnestus, kuid :host Cloudflare'i seaded keelduvad rakendusest endiselt. Jagage Ray ID-d :ray serveri administraatoriga.",
-  "cloudflare_banner_web": ":host palub kinnitada, et olete inimene. Jätkamiseks laadige leht uuesti."
+  "cloudflare_banner_web": ":host palub kinnitada, et olete inimene. Jätkamiseks laadige leht uuesti.",
+  "feature_needs_pro_or_enterprise": "See funktsioon vajab Pro- või Enterprise-paketti.",
+  "reports_need_pro_or_enterprise": "Raportid vajavad Pro- või Enterprise-paketti.",
+  "docuninja_needs_pro_or_enterprise": "DocuNinja vajab Pro- või Enterprise-paketti.",
+  "free_plan_client_limit_reached_info": "Olete kasutanud kõik :count tasuta paketi klienti.",
+  "free_plan_clients_over_info": "Sul on :count klienti. Tasuta pakett lubab :limit. Kõik teie kliendid jäävad alles.",
+  "free_plan_import_too_many_info": "See import ületaks tasuta paketi :count kliendi piiri, seega midagi ei imporditud.",
+  "free_plan_signup_note_info": "Tasuta pakett: kuni :count klienti ja üks ettevõte.",
+  "free_plan_company_limit_reached": "Olete jõudnud tasuta paketi ettevõtete piirini.",
+  "store_subscription_ended_info": "Teie rakendusesisene tellimus on lõppenud."
 }

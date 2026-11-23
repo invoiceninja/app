@@ -26,12 +26,14 @@ void main() {
     billing = FakeBilling();
     api = FakeApi();
     auth = FakeAuth();
+    // Not started here: a started delivery asks the config at once (for
+    // `PurchaseOffer`), before a test below has said what it answers.
     delivery = PurchaseDelivery(
       apiClient: api,
       auth: auth,
       billing: billing,
       platform: TargetPlatform.iOS,
-    )..start();
+    );
     svc = PurchaseService(auth: auth, delivery: delivery);
   });
 
@@ -47,6 +49,7 @@ void main() {
 
   group('buying', () {
     setUp(() async {
+      delivery.start();
       await svc.loadConfig();
       await svc.init();
     });

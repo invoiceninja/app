@@ -19,6 +19,7 @@ import 'package:admin/ui/features/settings/views/settings_shell.dart'
     show hideSettingsListSidebar;
 import 'package:admin/ui/features/settings/views/advanced/invoice_design/wysiwyg/wysiwyg_design_screen.dart';
 import 'package:admin/ui/features/settings/views/advanced/invoice_design/wysiwyg/wysiwyg_design_view_model.dart';
+import 'package:admin/domain/upgrade/upgrade_launcher.dart';
 import 'package:admin/ui/features/settings/widgets/plan_gate_banner.dart';
 import 'package:admin/ui/features/settings/widgets/settings_form_shell.dart';
 import 'package:admin/ui/core/fold_geometry.dart';
@@ -64,6 +65,12 @@ class CustomDesignsNewDesignButton extends StatelessWidget {
     final session = context.read<Services>().auth.session.value;
     final isPro = session?.hasProAccess ?? false;
     if (!_mayAddDesign(context)) return const SizedBox.shrink();
+    // No upgrade to send a free user to on a store build whose hosted service
+    // sells nothing to the account: the tab's plan banner says which plan
+    // custom designs are on, and there is no button.
+    if (!isPro && purchasesWithheld(context, session: session)) {
+      return const SizedBox.shrink();
+    }
     return FilledButton.icon(
       style: FilledButton.styleFrom(minimumSize: const Size(64, 40)),
       onPressed: isPro
@@ -590,7 +597,11 @@ class _DesignTile extends StatelessWidget {
   /// only way back into a saved visual design.
   VoidCallback? _onTap(BuildContext context) {
     if (row.isCustom) {
-      if (!canEdit) return () => unawaited(openUpgradeFlow(context));
+      if (!canEdit) {
+        // Not a way to buy on a store build that sells nothing here.
+        if (purchasesWithheld(context, listen: false)) return null;
+        return () => unawaited(openUpgradeFlow(context));
+      }
       return row.isVisual
           ? () => showWysiwygDesignScreen(context, existingId: row.id)
           : () => showDesignEditScreen(context, existingId: row.id);

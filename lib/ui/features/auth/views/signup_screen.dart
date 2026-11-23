@@ -7,6 +7,7 @@ import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/data/services/web_sign_in.dart';
 import 'package:admin/domain/upgrade/client_limit.dart';
+import 'package:admin/domain/upgrade/store_build.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/form_save_scope.dart';
 import 'package:admin/ui/core/widgets/google_logo.dart';
@@ -184,12 +185,18 @@ class _SignupBody extends StatelessWidget {
                   // than learned from a refused sixth client — the surprise
                   // behind the previous app's one-star reviews. Signup is
                   // hosted-only, so it is never shown to a self-hosted user
-                  // (docs/free-plan-limits.md).
+                  // (docs/free-plan-limits.md). A store build leaves out
+                  // "Upgrade any time": before an account exists nothing says
+                  // the hosted service sells in this app
+                  // (docs/in-app-purchases.md).
                   Text(
                     key: const ValueKey('signup_free_plan_note'),
-                    context.tr('free_plan_signup_note', {
-                      'count': '$kFreePlanClientLimit',
-                    }),
+                    context.tr(
+                      isStoreBillingBuild
+                          ? 'free_plan_signup_note_info'
+                          : 'free_plan_signup_note',
+                      {'count': '$kFreePlanClientLimit'},
+                    ),
                     textAlign: TextAlign.center,
                     style: TextStyle(color: tokens.ink2, fontSize: 13),
                   ),

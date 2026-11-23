@@ -45,10 +45,18 @@ const kIapRebuyAfter = Duration(days: 60);
 /// the hosted [config] says a purchase replaces it
 /// ([offersLegacyPlayReplacement]): [store] is `storeOfBuild`, and with no
 /// [config] (not asked, or no answer) nothing is offered over a store plan.
+///
+/// [purchasesOffered] is [inAppPurchasesOffered] for the active account (read
+/// off the store through `PurchaseOffer`, and ignored there). On a store
+/// build without it nothing is sold, in the store or anywhere else: an active
+/// in-app plan is still managed in its store, and every other account goes to
+/// the Plan screen, which offers no purchase (docs/in-app-purchases.md, "A
+/// store build launches without purchases").
 UpgradeRoute resolveUpgradeRoute({
   required bool storeBilling,
   required AuthSession? session,
   required DateTime now,
+  required bool purchasesOffered,
   PurchaseStore? store,
   IapConfig? config,
 }) {
@@ -81,7 +89,8 @@ UpgradeRoute resolveUpgradeRoute({
   }
 
   if (session.hasActiveIapPlan) {
-    return canBuyForActiveAccount(session) &&
+    return purchasesOffered &&
+            canBuyForActiveAccount(session) &&
             offersLegacyPlayReplacement(
               store: store,
               session: session,
@@ -94,6 +103,11 @@ UpgradeRoute resolveUpgradeRoute({
   // Billed on the web (a paid plan, or a trial, which hosted runs on a card):
   // a store purchase would bill twice, and the portal is off limits here.
   if (session.isWebBilled) return UpgradeRoute.planScreen;
+
+  // The hosted service has not said it takes purchases for this account (no
+  // answer yet, a server without the route, switched off, or not the owner):
+  // nothing to sell, and nowhere else a store build may send anyone to buy.
+  if (!purchasesOffered) return UpgradeRoute.planScreen;
 
   // A plan is bought for the whole account, and only its owner may buy it.
   // Checked before the ended-subscription branch: the store page on someone
@@ -117,6 +131,43 @@ bool planManagedOnWeb({
   required AuthSession? session,
 }) =>
     storeBilling && session != null && session.isHosted && session.isWebBilled;
+
+/// Whether this build offers an in-app purchase to [session]'s active account
+/// right now: a store-billing build ([storeBilling], `isStoreBillingBuild`),
+/// a hosted session, and the hosted config ([config], `GET kIapConfigPath`)
+/// says purchases are on for this account and names it as the one a purchase
+/// lands on ([IapConfig.sellsTo]: `purchases_enabled`, a UUID
+/// `app_account_token`, the active account's `account_key`).
+///
+/// Fails closed: no config yet, an error, a server without the route (a 404,
+/// production before the hosted billing ships) or `purchases_enabled: false`
+/// (switched off, a non-owner, an account with a running store or web plan)
+/// all answer false. Until it answers true a store build shows no way to buy
+/// anything ([storePurchasesWithheld]) and is a free companion to a plan
+/// bought elsewhere (App Store 3.1.3(f), Play Payments policy).
+bool inAppPurchasesOffered({
+  required bool storeBilling,
+  required AuthSession? session,
+  required IapConfig? config,
+}) =>
+    storeBilling &&
+    session != null &&
+    session.isHosted &&
+    config != null &&
+    config.sellsTo(session);
+
+/// Whether every upgrade prompt must leave out its button and any copy that
+/// asks the user to buy, upgrade or start a trial: a hosted session on a
+/// store-billing build ([storeBilling]) to which the hosted service does not
+/// offer a purchase ([offered], [inAppPurchasesOffered]). Such a prompt says
+/// only which plan a feature or a limit belongs to. Desktop, the web, the
+/// F-Droid build and a self-hosted server are never withheld: they keep the
+/// billing portal or have no hosted plan to sell.
+bool storePurchasesWithheld({
+  required bool storeBilling,
+  required AuthSession? session,
+  required bool offered,
+}) => storeBilling && session != null && session.isHosted && !offered;
 
 /// Whether a plan bought now replaces [session]'s Legacy-app Google Play
 /// subscription, which the hosted service then revokes with a prorated refund:

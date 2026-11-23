@@ -2313,5 +2313,14 @@
   "cloudflare_banner_unsupported": ":host demana que verifiqueu que sou humà, i aquest dispositiu no ho pot mostrar. Demaneu a l'administrador del servidor que deixi passar l'aplicació.",
   "cloudflare_challenge_hosted": "Cloudflare està comprovant aquesta connexió. Torneu-ho a provar d'aquí a uns minuts.",
   "cloudflare_banner_refused": "La comprovació s'ha superat, però la configuració de Cloudflare de :host encara rebutja l'aplicació. Compartiu el Ray ID :ray amb l'administrador del servidor.",
-  "cloudflare_banner_web": ":host demana que verifiqueu que sou humà. Torneu a carregar la pàgina per continuar."
+  "cloudflare_banner_web": ":host demana que verifiqueu que sou humà. Torneu a carregar la pàgina per continuar.",
+  "feature_needs_pro_or_enterprise": "Aquesta funció requereix el pla Pro o Enterprise.",
+  "reports_need_pro_or_enterprise": "Els informes requereixen el pla Pro o Enterprise.",
+  "docuninja_needs_pro_or_enterprise": "DocuNinja requereix el pla Pro o Enterprise.",
+  "free_plan_client_limit_reached_info": "Heu fet servir els :count clients del pla gratuït.",
+  "free_plan_clients_over_info": "Teniu :count clients. El pla gratuït en permet :limit. Es conserven tots els vostres clients.",
+  "free_plan_import_too_many_info": "Aquesta importació superaria els :count clients que permet el pla gratuït, així que no s'ha importat res.",
+  "free_plan_signup_note_info": "Pla gratuït: fins a :count clients i una empresa.",
+  "free_plan_company_limit_reached": "Heu arribat al límit d'empreses del pla gratuït.",
+  "store_subscription_ended_info": "La vostra subscripció dins l'aplicació ha finalitzat."
 }

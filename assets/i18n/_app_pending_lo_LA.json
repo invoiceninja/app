@@ -2396,5 +2396,14 @@
   "cloudflare_banner_unsupported": ":host ຂໍໃຫ້ຢືນຢັນວ່າທ່ານເປັນມະນຸດ ເຊິ່ງອຸປະກອນນີ້ບໍ່ສາມາດສະແດງໄດ້. ກະລຸນາຂໍໃຫ້ຜູ້ດູແລເຊີບເວີອະນຸຍາດໃຫ້ແອັບຜ່ານ.",
   "cloudflare_challenge_hosted": "Cloudflare ກຳລັງກວດສອບການເຊື່ອມຕໍ່ນີ້. ລອງໃໝ່ໃນອີກບໍ່ເທົ່າໃດນາທີ.",
   "cloudflare_banner_refused": "ການກວດສອບຜ່ານແລ້ວ, ແຕ່ການຕັ້ງຄ່າ Cloudflare ຂອງ :host ຍັງປະຕິເສດແອັບຢູ່. ກະລຸນາແບ່ງປັນ Ray ID :ray ກັບຜູ້ດູແລເຊີບເວີ.",
-  "cloudflare_banner_web": ":host ຂໍໃຫ້ຢືນຢັນວ່າທ່ານເປັນມະນຸດ. ໂຫຼດໜ້າຄືນໃໝ່ເພື່ອດຳເນີນຕໍ່."
+  "cloudflare_banner_web": ":host ຂໍໃຫ້ຢືນຢັນວ່າທ່ານເປັນມະນຸດ. ໂຫຼດໜ້າຄືນໃໝ່ເພື່ອດຳເນີນຕໍ່.",
+  "feature_needs_pro_or_enterprise": "ຄຸນສົມບັດນີ້ຕ້ອງໃຊ້ແຜນ Pro ຫຼື Enterprise.",
+  "reports_need_pro_or_enterprise": "ບົດລາຍງານຕ້ອງໃຊ້ແຜນ Pro ຫຼື Enterprise.",
+  "docuninja_needs_pro_or_enterprise": "DocuNinja ຕ້ອງໃຊ້ແຜນ Pro ຫຼື Enterprise.",
+  "free_plan_client_limit_reached_info": "ທ່ານໄດ້ໃຊ້ລູກຄ້າທັງໝົດ :count ຄົນຂອງແຜນຟຣີແລ້ວ.",
+  "free_plan_clients_over_info": "ທ່ານມີລູກຄ້າ :count ຄົນ. ແຜນຟຣີອະນຸຍາດ :limit ຄົນ. ລູກຄ້າທັງໝົດຂອງທ່ານຍັງຖືກເກັບໄວ້.",
+  "free_plan_import_too_many_info": "ການນຳເຂົ້ານີ້ຈະເກີນ :count ລູກຄ້າທີ່ແຜນຟຣີອະນຸຍາດ, ສະນັ້ນບໍ່ມີຫຍັງຖືກນຳເຂົ້າ.",
+  "free_plan_signup_note_info": "ແຜນຟຣີ: ລູກຄ້າສູງສຸດ :count ຄົນ ແລະ ບໍລິສັດດຽວ.",
+  "free_plan_company_limit_reached": "ທ່ານໄດ້ຮອດຂີດຈຳກັດບໍລິສັດຂອງແຜນຟຣີແລ້ວ.",
+  "store_subscription_ended_info": "ການສະໝັກໃຊ້ພາຍໃນແອັບຂອງທ່ານໄດ້ສິ້ນສຸດແລ້ວ."
 }

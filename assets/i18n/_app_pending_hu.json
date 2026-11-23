@@ -2351,5 +2351,14 @@
   "cloudflare_banner_unsupported": "A(z) :host azt kéri, igazolja, hogy ember, de ez az eszköz nem tudja megjeleníteni. Kérje meg a szerver rendszergazdáját, hogy engedje át az alkalmazást.",
   "cloudflare_challenge_hosted": "A Cloudflare ellenőrzi ezt a kapcsolatot. Próbálja újra néhány perc múlva.",
   "cloudflare_banner_refused": "Az ellenőrzés sikerült, de a(z) :host Cloudflare-beállításai továbbra is elutasítják az alkalmazást. Adja meg a :ray Ray ID-t a szerver rendszergazdájának.",
-  "cloudflare_banner_web": "A(z) :host azt kéri, igazolja, hogy ember. A folytatáshoz töltse újra az oldalt."
+  "cloudflare_banner_web": "A(z) :host azt kéri, igazolja, hogy ember. A folytatáshoz töltse újra az oldalt.",
+  "feature_needs_pro_or_enterprise": "Ehhez a funkcióhoz Pro vagy Enterprise csomag szükséges.",
+  "reports_need_pro_or_enterprise": "A jelentésekhez Pro vagy Enterprise csomag szükséges.",
+  "docuninja_needs_pro_or_enterprise": "A DocuNinjához Pro vagy Enterprise csomag szükséges.",
+  "free_plan_client_limit_reached_info": "Felhasználta az ingyenes csomag mind a(z) :count ügyfelét.",
+  "free_plan_clients_over_info": ":count ügyfele van. Az ingyenes csomag :limit ügyfelet enged. Minden ügyfele megmarad.",
+  "free_plan_import_too_many_info": "Ez az importálás túllépné az ingyenes csomag :count ügyfeles keretét, ezért semmi nem lett importálva.",
+  "free_plan_signup_note_info": "Ingyenes csomag: legfeljebb :count ügyfél és egy cég.",
+  "free_plan_company_limit_reached": "Elérte az ingyenes csomag cégkorlátját.",
+  "store_subscription_ended_info": "Az alkalmazáson belüli előfizetése lejárt."
 }

@@ -2317,5 +2317,14 @@
   "cloudflare_banner_unsupported": ":host beder dig bekræfte, at du er et menneske, hvilket denne enhed ikke kan vise. Bed serverens administrator om at lukke appen igennem.",
   "cloudflare_challenge_hosted": "Cloudflare tjekker denne forbindelse. Prøv igen om et par minutter.",
   "cloudflare_banner_refused": "Tjekket lykkedes, men Cloudflare-indstillingerne for :host afviser stadig appen. Del Ray ID :ray med serverens administrator.",
-  "cloudflare_banner_web": ":host beder dig bekræfte, at du er et menneske. Genindlæs siden for at fortsætte."
+  "cloudflare_banner_web": ":host beder dig bekræfte, at du er et menneske. Genindlæs siden for at fortsætte.",
+  "feature_needs_pro_or_enterprise": "Denne funktion kræver Pro- eller Enterprise-abonnementet.",
+  "reports_need_pro_or_enterprise": "Rapporter kræver Pro- eller Enterprise-abonnementet.",
+  "docuninja_needs_pro_or_enterprise": "DocuNinja kræver Pro- eller Enterprise-abonnementet.",
+  "free_plan_client_limit_reached_info": "Du har brugt alle :count kunder på Gratis-planen.",
+  "free_plan_clients_over_info": "Du har :count kunder. Gratis-planen tillader :limit. Alle dine kunder bevares.",
+  "free_plan_import_too_many_info": "Denne import ville gå ud over de :count kunder, Gratis-planen tillader, så intet blev importeret.",
+  "free_plan_signup_note_info": "Gratis plan: op til :count kunder og én virksomhed.",
+  "free_plan_company_limit_reached": "Du har nået Gratis-planens grænse for virksomheder.",
+  "store_subscription_ended_info": "Dit abonnement i appen er udløbet."
 }

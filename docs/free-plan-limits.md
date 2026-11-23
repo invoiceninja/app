@@ -46,6 +46,20 @@ The previous app's one-star reviews were mostly people surprised that it was not
 
 **Upgrade** always goes through `launchUpgrade`, so a store build never links to an outside purchase.
 
+## A store build that sells nothing still states every limit, and only drops the Upgrade
+
+While the hosted service does not sell in-app to the account (`purchasesWithheld`, docs/in-app-purchases.md), a store build may not show Upgrade or ask anyone to buy. The limit stays as plain as before, so nobody meets it as a surprise; only the sentence after it and the button go:
+
+- the list line: "3 of 5 clients on the Free plan", no Upgrade button;
+- the dialog: "You have used all 5 clients on the Free plan." (`free_plan_client_limit_reached_info`), the archived-and-deleted note, **Close** only (the primary, so Enter takes it);
+- the form notice: the same sentence, no Upgrade (Save still opens the dialog and is not sent);
+- over the cap: "You have 11 clients. The Free plan allows 5. All your clients are kept." (`free_plan_clients_over_info`);
+- the import: "…so nothing was imported." (`free_plan_import_too_many_info`);
+- the Plan tab's Free plan limits card is unchanged; the signup note on a store build is "Free plan: up to 5 clients and one company." (`free_plan_signup_note_info`);
+- the company limit: New company is disabled and says "You have reached the Free plan's company limit."
+
+A cap the app does not know still shows the server's own `limit_clients` message, which may say "upgrade": it is the server's text, not ours. Tests: `test/ui/features/store_purchases_withheld_test.dart`.
+
 ## A hosted trial, and how the app recognises one
 
 A hosted trial is `plan: pro`, `trial_started`, and `plan_expires` 14 days on (`NinjaPlanController::finalizeTrialAccount`). The transformer sends `trial_days_left` as a literal 0 on hosted and never sends `is_trial`, so `AuthSession.isTrial` cannot see it (a separate, known defect; `trial_footer.dart` explains). `hostedTrialEndsOn` reads the shape instead: a live pro slug with `trial_started` and a `plan_expires` no more than `kHostedTrialMaxDays` (21) after it. A plan paid after the trial moves `plan_expires` a month or more on and stops matching. During the trial the account is not limited; the Plan screen says "Your Pro trial ends on <date>. Without a paid plan after that, the Free plan allows 5 clients." The wording allows for the card on file: hosted bills the trial's recurring invoice at its end, so the cap applies only if that does not happen.

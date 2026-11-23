@@ -2396,5 +2396,14 @@
   "cloudflare_banner_unsupported": ":host prosi za potrditev, da ste človek, česar ta naprava ne more prikazati. Prosite skrbnika strežnika, naj aplikacijo spusti skozi.",
   "cloudflare_challenge_hosted": "Cloudflare preverja to povezavo. Poskusite znova čez nekaj minut.",
   "cloudflare_banner_refused": "Preverjanje je uspelo, vendar nastavitve Cloudflare za :host še vedno zavračajo aplikacijo. Ray ID :ray posredujte skrbniku strežnika.",
-  "cloudflare_banner_web": ":host prosi za potrditev, da ste človek. Za nadaljevanje znova naložite stran."
+  "cloudflare_banner_web": ":host prosi za potrditev, da ste človek. Za nadaljevanje znova naložite stran.",
+  "feature_needs_pro_or_enterprise": "Ta funkcija zahteva paket Pro ali Enterprise.",
+  "reports_need_pro_or_enterprise": "Poročila zahtevajo paket Pro ali Enterprise.",
+  "docuninja_needs_pro_or_enterprise": "DocuNinja zahteva paket Pro ali Enterprise.",
+  "free_plan_client_limit_reached_info": "Porabili ste vseh :count strank brezplačnega paketa.",
+  "free_plan_clients_over_info": "Imate :count strank. Brezplačni paket dovoljuje :limit. Vse vaše stranke ostanejo.",
+  "free_plan_import_too_many_info": "Ta uvoz bi presegel :count strank, ki jih dovoljuje brezplačni paket, zato ni bilo nič uvoženo.",
+  "free_plan_signup_note_info": "Brezplačni paket: do :count strank in eno podjetje.",
+  "free_plan_company_limit_reached": "Dosegli ste omejitev podjetij brezplačnega paketa.",
+  "store_subscription_ended_info": "Vaša naročnina v aplikaciji je potekla."
 }

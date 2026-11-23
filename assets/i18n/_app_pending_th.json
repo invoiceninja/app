@@ -2396,5 +2396,14 @@
   "cloudflare_banner_unsupported": ":host ขอให้ยืนยันว่าคุณเป็นมนุษย์ ซึ่งอุปกรณ์นี้แสดงไม่ได้ โปรดขอให้ผู้ดูแลเซิร์ฟเวอร์อนุญาตให้แอปผ่าน",
   "cloudflare_challenge_hosted": "Cloudflare กำลังตรวจสอบการเชื่อมต่อนี้ ลองอีกครั้งในอีกไม่กี่นาที",
   "cloudflare_banner_refused": "ผ่านการตรวจสอบแล้ว แต่การตั้งค่า Cloudflare ของ :host ยังคงปฏิเสธแอป โปรดแจ้ง Ray ID :ray แก่ผู้ดูแลเซิร์ฟเวอร์",
-  "cloudflare_banner_web": ":host ขอให้ยืนยันว่าคุณเป็นมนุษย์ โหลดหน้าใหม่เพื่อดำเนินการต่อ"
+  "cloudflare_banner_web": ":host ขอให้ยืนยันว่าคุณเป็นมนุษย์ โหลดหน้าใหม่เพื่อดำเนินการต่อ",
+  "feature_needs_pro_or_enterprise": "ฟีเจอร์นี้ต้องใช้แผน Pro หรือ Enterprise",
+  "reports_need_pro_or_enterprise": "รายงานต้องใช้แผน Pro หรือ Enterprise",
+  "docuninja_needs_pro_or_enterprise": "DocuNinja ต้องใช้แผน Pro หรือ Enterprise",
+  "free_plan_client_limit_reached_info": "คุณใช้ลูกค้าครบทั้ง :count รายของแพ็กเกจฟรีแล้ว",
+  "free_plan_clients_over_info": "คุณมีลูกค้า :count ราย แพ็กเกจฟรีอนุญาต :limit ราย ลูกค้าทั้งหมดของคุณยังคงอยู่",
+  "free_plan_import_too_many_info": "การนำเข้านี้จะเกินลูกค้า :count รายที่แพ็กเกจฟรีอนุญาต จึงไม่มีการนำเข้าใดๆ",
+  "free_plan_signup_note_info": "แพ็กเกจฟรี: ลูกค้าได้สูงสุด :count ราย และบริษัทเดียว",
+  "free_plan_company_limit_reached": "คุณถึงขีดจำกัดจำนวนบริษัทของแพ็กเกจฟรีแล้ว",
+  "store_subscription_ended_info": "การสมัครสมาชิกภายในแอปของคุณสิ้นสุดแล้ว"
 }

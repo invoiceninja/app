@@ -16,6 +16,7 @@ import 'package:admin/domain/reports/report_csv.dart';
 import 'package:admin/domain/reports/report_engine.dart';
 import 'package:admin/domain/reports/report_group_label.dart';
 import 'package:admin/domain/reports/report_schedule.dart';
+import 'package:admin/domain/upgrade/upgrade_launcher.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/utils/save_bytes.dart';
 import 'package:admin/ui/core/utils/session_permissions.dart';
@@ -187,6 +188,7 @@ class ReportExportActions {
   }) async {
     final toasts = Notify.capture(context);
     final tr = context.tr;
+    final withheld = purchasesWithheld(context, listen: false);
     // Named before the wait, while the context is certainly alive. The
     // extension is what the file turned out to be — the server decides, the
     // app only reads the answer.
@@ -221,7 +223,7 @@ class ReportExportActions {
     }
     // A captured controller has no fallback of its own for a blank message,
     // so the server's string is never passed through bare.
-    toasts?.error(reportErrorText(tr, error));
+    toasts?.error(reportErrorText(tr, error, purchasesWithheld: withheld));
   }
 
   Future<void> _downloadTemplate(BuildContext context) async {

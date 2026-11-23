@@ -10,6 +10,7 @@ import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/data/repositories/auth/auth_session.dart';
 import 'package:admin/domain/upgrade/purchase_delivery.dart';
+import 'package:admin/domain/upgrade/purchase_offer.dart';
 import 'package:admin/domain/upgrade/purchase_service.dart';
 import 'package:admin/domain/upgrade/store_build.dart';
 import 'package:admin/domain/upgrade/upgrade_route.dart';
@@ -50,6 +51,50 @@ final ValueNotifier<bool> upgradeBusy = ValueNotifier<bool>(false);
 /// Whether a [launchUpgrade] is still running.
 @visibleForTesting
 bool get upgradeInProgress => upgradeBusy.value;
+
+/// Stands in for the hosted config's answer in tests, as
+/// [debugStoreBillingOverride] stands in for the build: true is a store build
+/// whose hosted service sells to the active account. Null in the app, where
+/// the answer is the root [PurchaseOffer] (none in most widget tests, which
+/// reads as not offered).
+@visibleForTesting
+bool? debugInAppPurchasesOfferedOverride;
+
+/// Whether the hosted service offers an in-app purchase to the active
+/// account ([PurchaseOffer], set by `PurchaseDelivery` from the hosted
+/// config): false with none provided. [listen] subscribes [context], for a
+/// build method; pass false from a callback.
+bool inAppPurchasesOfferedIn(BuildContext context, {bool listen = true}) {
+  final override = debugInAppPurchasesOfferedOverride;
+  if (override != null) return override;
+  final offer = listen
+      ? context.watch<PurchaseOffer?>()
+      : context.read<PurchaseOffer?>();
+  return offer?.offered ?? false;
+}
+
+/// Whether an upgrade prompt under [context] must offer no way to buy:
+/// [storePurchasesWithheld] for [session] (the active session when not
+/// given) on this build. Every surface that would show Upgrade, Buy, Restore,
+/// a trial or "upgrade to …" copy asks this first, and says only which plan
+/// the feature or limit belongs to when it answers true (docs/in-app-purchases.md).
+///
+/// Never true off a store-billing build or for a self-hosted session, and
+/// reads nothing there: those keep the billing portal path unchanged.
+bool purchasesWithheld(
+  BuildContext context, {
+  AuthSession? session,
+  bool listen = true,
+}) {
+  if (!isStoreBillingBuild) return false;
+  final s = session ?? context.read<Services?>()?.auth.session.value;
+  if (s == null || !s.isHosted) return false;
+  return storePurchasesWithheld(
+    storeBilling: true,
+    session: s,
+    offered: inAppPurchasesOfferedIn(context, listen: listen),
+  );
+}
 
 /// How long an Upgrade tap waits for the hosted config before it treats the
 /// answer as no: the store plan is then managed in the store (fails closed).
@@ -111,6 +156,7 @@ Future<void> _launchUpgrade(BuildContext context) async {
     storeBilling: storeBilling,
     session: session,
     now: DateTime.now(),
+    purchasesOffered: inAppPurchasesOfferedIn(context, listen: false),
     store: store,
     config: config,
   );

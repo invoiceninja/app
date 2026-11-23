@@ -2396,5 +2396,14 @@
   "cloudflare_banner_unsupported": ":host insan olduğunuzu doğrulamanızı istiyor, ancak bu cihaz bunu gösteremiyor. Sunucu yöneticisinden uygulamanın geçişine izin vermesini isteyin.",
   "cloudflare_challenge_hosted": "Cloudflare bu bağlantıyı denetliyor. Birkaç dakika sonra yeniden deneyin.",
   "cloudflare_banner_refused": "Doğrulama geçti, ancak :host için Cloudflare ayarları uygulamayı hâlâ reddediyor. Ray ID :ray değerini sunucu yöneticisiyle paylaşın.",
-  "cloudflare_banner_web": ":host insan olduğunuzu doğrulamanızı istiyor. Devam etmek için sayfayı yeniden yükleyin."
+  "cloudflare_banner_web": ":host insan olduğunuzu doğrulamanızı istiyor. Devam etmek için sayfayı yeniden yükleyin.",
+  "feature_needs_pro_or_enterprise": "Bu özellik Pro veya Enterprise planı gerektirir.",
+  "reports_need_pro_or_enterprise": "Raporlar Pro veya Enterprise planı gerektirir.",
+  "docuninja_needs_pro_or_enterprise": "DocuNinja, Pro veya Enterprise planı gerektirir.",
+  "free_plan_client_limit_reached_info": "Ücretsiz plandaki :count müşterinin tamamını kullandınız.",
+  "free_plan_clients_over_info": ":count müşteriniz var. Ücretsiz plan :limit müşteriye izin verir. Tüm müşterileriniz korunur.",
+  "free_plan_import_too_many_info": "Bu içe aktarma, Ücretsiz planın izin verdiği :count müşteriyi aşacağı için hiçbir şey içe aktarılmadı.",
+  "free_plan_signup_note_info": "Ücretsiz plan: en fazla :count müşteri ve bir şirket.",
+  "free_plan_company_limit_reached": "Ücretsiz planın şirket sınırına ulaştınız.",
+  "store_subscription_ended_info": "Uygulama içi aboneliğiniz sona erdi."
 }

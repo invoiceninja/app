@@ -2279,5 +2279,14 @@
   "cloudflare_banner_unsupported": ":host yêu cầu xác minh bạn là con người, nhưng thiết bị này không thể hiển thị. Hãy nhờ quản trị viên máy chủ cho phép ứng dụng đi qua.",
   "cloudflare_challenge_hosted": "Cloudflare đang kiểm tra kết nối này. Hãy thử lại sau vài phút.",
   "cloudflare_banner_refused": "Đã qua bước kiểm tra, nhưng cài đặt Cloudflare của :host vẫn từ chối ứng dụng. Hãy gửi Ray ID :ray cho quản trị viên máy chủ.",
-  "cloudflare_banner_web": ":host yêu cầu xác minh bạn là con người. Hãy tải lại trang để tiếp tục."
+  "cloudflare_banner_web": ":host yêu cầu xác minh bạn là con người. Hãy tải lại trang để tiếp tục.",
+  "feature_needs_pro_or_enterprise": "Tính năng này cần gói Pro hoặc Enterprise.",
+  "reports_need_pro_or_enterprise": "Báo cáo cần gói Pro hoặc Enterprise.",
+  "docuninja_needs_pro_or_enterprise": "DocuNinja cần gói Pro hoặc Enterprise.",
+  "free_plan_client_limit_reached_info": "Bạn đã dùng hết :count khách hàng của gói miễn phí.",
+  "free_plan_clients_over_info": "Bạn có :count khách hàng. Gói miễn phí cho phép :limit. Tất cả khách hàng của bạn vẫn được giữ lại.",
+  "free_plan_import_too_many_info": "Lần nhập này sẽ vượt quá :count khách hàng mà gói miễn phí cho phép, nên không có gì được nhập.",
+  "free_plan_signup_note_info": "Gói miễn phí: tối đa :count khách hàng và một công ty.",
+  "free_plan_company_limit_reached": "Bạn đã đạt giới hạn công ty của gói miễn phí.",
+  "store_subscription_ended_info": "Gói đăng ký trong ứng dụng của bạn đã kết thúc."
 }

@@ -2312,5 +2312,14 @@
   "cloudflare_banner_unsupported": ":host מבקש לאמת שאתם בני אדם, והמכשיר הזה לא יכול להציג את זה. בקשו ממנהל השרת לאפשר לאפליקציה לעבור.",
   "cloudflare_challenge_hosted": "Cloudflare בודק את החיבור הזה. נסו שוב בעוד כמה דקות.",
   "cloudflare_banner_refused": "הבדיקה עברה, אבל הגדרות Cloudflare של :host עדיין חוסמות את האפליקציה. שתפו את Ray ID :ray עם מנהל השרת.",
-  "cloudflare_banner_web": ":host מבקש לאמת שאתם בני אדם. טענו מחדש את הדף כדי להמשיך."
+  "cloudflare_banner_web": ":host מבקש לאמת שאתם בני אדם. טענו מחדש את הדף כדי להמשיך.",
+  "feature_needs_pro_or_enterprise": "תכונה זו דורשת תוכנית Pro או Enterprise.",
+  "reports_need_pro_or_enterprise": "דוחות דורשים תוכנית Pro או Enterprise.",
+  "docuninja_needs_pro_or_enterprise": "DocuNinja דורש תוכנית Pro או Enterprise.",
+  "free_plan_client_limit_reached_info": "ניצלת את כל :count הלקוחות של התוכנית החינמית.",
+  "free_plan_clients_over_info": "יש לך :count לקוחות. התוכנית החינמית מאפשרת :limit. כל הלקוחות שלך נשמרים.",
+  "free_plan_import_too_many_info": "הייבוא הזה היה עובר את :count הלקוחות שהתוכנית החינמית מאפשרת, ולכן שום דבר לא יובא.",
+  "free_plan_signup_note_info": "תוכנית חינמית: עד :count לקוחות וחברה אחת.",
+  "free_plan_company_limit_reached": "הגעת למגבלת החברות של התוכנית החינמית.",
+  "store_subscription_ended_info": "המינוי שלך מתוך האפליקציה הסתיים."
 }

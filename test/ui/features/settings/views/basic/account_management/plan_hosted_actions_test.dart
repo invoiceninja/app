@@ -98,8 +98,12 @@ Future<void> _pump(
   PurchaseDelivery? purchases,
   AuthRepository? auth,
   bool settle = true,
+  bool offered = true,
 }) async {
   debugStoreBillingOverride = storeBuild;
+  // Whether the hosted service sells in-app to this account: yes unless a
+  // test says otherwise, so the groups below are the card as it has been.
+  debugInAppPurchasesOfferedOverride = offered;
   await tester.pumpWidget(
     MaterialApp(
       theme: buildInTheme(InTheme.light),
@@ -123,7 +127,10 @@ const _billedInStore =
 const _billedOnWeb = 'Your plan is managed on the web.';
 
 void main() {
-  tearDown(() => debugStoreBillingOverride = null);
+  tearDown(() {
+    debugStoreBillingOverride = null;
+    debugInAppPurchasesOfferedOverride = null;
+  });
 
   group('store build', () {
     testWidgets('an active in-app plan gets Manage subscription', (
@@ -450,8 +457,8 @@ void main() {
     }
   });
 
-  // Restore lives outside the purchase sheet too, so it works while new
-  // purchases are switched off: it only re-delivers what was paid for.
+  // Restore lives outside the purchase sheet too: it only re-delivers what
+  // was paid for. Not while the hosted service sells nothing here (below).
   group('Restore Purchases', () {
     final restore = find.byKey(const ValueKey('plan_restore_purchases'));
 
@@ -468,7 +475,7 @@ void main() {
       });
     }
 
-    testWidgets('asks the store, even with purchases switched off', (
+    testWidgets('asks the store, whatever the delivery\'s config says', (
       tester,
     ) async {
       final billing = FakeBilling();
@@ -500,6 +507,80 @@ void main() {
     });
   });
 
+  // Until the hosted config sells to the account (production before the
+  // hosted billing ships), a store build offers no way to buy: the card is
+  // left out unless it has a store plan to manage or a web plan to explain.
+  group('store build that sells nothing', () {
+    Future<void> pumpWithheld(WidgetTester tester, AuthSession s) =>
+        _pump(tester, s, storeBuild: true, offered: false);
+
+    final restore = find.byKey(const ValueKey('plan_restore_purchases'));
+
+    for (final MapEntry(key: name, value: session) in {
+      'a free owner': _free,
+      'a member': _session(isOwner: false),
+    }.entries) {
+      testWidgets('$name gets no Change Plan card at all', (tester) async {
+        await pumpWithheld(tester, session);
+
+        expect(find.text('Manage Plan'), findsNothing);
+        expect(find.text('Upgrade Plan'), findsNothing);
+        expect(find.byKey(const ValueKey('plan_upgrade')), findsNothing);
+        expect(restore, findsNothing);
+        expect(
+          find.text('Only the account owner can change the plan.'),
+          findsNothing,
+        );
+        // The plan itself is still said.
+        expect(find.text('Free'), findsWidgets);
+      });
+    }
+
+    testWidgets('an active in-app plan keeps Manage subscription, no Restore', (
+      tester,
+    ) async {
+      await pumpWithheld(tester, _activeIap);
+
+      expect(find.text(_billedInStore), findsOneWidget);
+      expect(find.text('Manage subscription'), findsOneWidget);
+      expect(restore, findsNothing);
+      expect(find.text('Upgrade Plan'), findsNothing);
+    });
+
+    testWidgets('a lapsed in-app plan is said to have ended, not where to '
+        'renew it', (tester) async {
+      final ended = DateTime.now()
+          .toUtc()
+          .subtract(const Duration(days: 10))
+          .toIso8601String()
+          .substring(0, 10);
+      await pumpWithheld(
+        tester,
+        _session(planExpires: ended, hasIapPlan: true),
+      );
+
+      expect(find.text('Your in-app subscription has ended.'), findsOneWidget);
+      expect(find.textContaining('renew'), findsNothing);
+      expect(restore, findsNothing);
+      expect(find.bySubtype<ButtonStyleButton>(), findsNothing);
+    });
+
+    for (final MapEntry(key: name, value: session) in {
+      'a web-billed plan': _webPaid,
+      'a trial': _trial,
+    }.entries) {
+      testWidgets('$name keeps "managed on the web", no Restore', (
+        tester,
+      ) async {
+        await pumpWithheld(tester, session);
+
+        expect(find.text(_billedOnWeb), findsOneWidget);
+        expect(restore, findsNothing);
+        expect(find.bySubtype<ButtonStyleButton>(), findsNothing);
+      });
+    }
+  });
+
   group('desktop, web and F-Droid', () {
     testWidgets('an active in-app plan is text only: no Manage, no portal', (
       tester,
@@ -524,6 +605,12 @@ void main() {
 
     testWidgets('a free account keeps Upgrade Plan', (tester) async {
       await _pump(tester, _free, storeBuild: false);
+
+      expect(find.text('Upgrade Plan'), findsOneWidget);
+    });
+
+    testWidgets('the hosted offer changes nothing here', (tester) async {
+      await _pump(tester, _free, storeBuild: false, offered: false);
 
       expect(find.text('Upgrade Plan'), findsOneWidget);
     });

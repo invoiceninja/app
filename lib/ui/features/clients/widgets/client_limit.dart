@@ -32,22 +32,33 @@ String formatClientCount(BuildContext context, int n) {
 /// form, "…Upgrade to save this client.", [onForm]), or, for an account
 /// holding more than the cap (a plan or trial that lapsed), one that says
 /// those are kept — never "11 of 5", never a negative count.
+///
+/// On a store build whose hosted service sells nothing to the account
+/// ([purchasesWithheld]) the same sentences stop before "Upgrade …": the
+/// limit is still said plainly, with nothing to buy.
 String clientLimitReachedMessage(
   BuildContext context, {
   required int limit,
   int? used,
   bool onForm = false,
 }) {
+  final withheld = purchasesWithheld(context, listen: false);
   if (used != null && used > limit) {
-    return context.tr('free_plan_clients_over', {
-      'count': formatClientCount(context, used),
-      'limit': formatClientCount(context, limit),
-    });
+    return context.tr(
+      withheld ? 'free_plan_clients_over_info' : 'free_plan_clients_over',
+      {
+        'count': formatClientCount(context, used),
+        'limit': formatClientCount(context, limit),
+      },
+    );
   }
-  return context.tr(
-    onForm ? 'free_plan_client_limit_form' : 'free_plan_client_limit_reached',
-    {'count': formatClientCount(context, limit)},
-  );
+  // Withheld, the form says the same as everywhere else: the limit.
+  final key = withheld
+      ? 'free_plan_client_limit_reached_info'
+      : onForm
+      ? 'free_plan_client_limit_form'
+      : 'free_plan_client_limit_reached';
+  return context.tr(key, {'count': formatClientCount(context, limit)});
 }
 
 /// The quota as the usage line words it: "3 of 5 clients on the Free plan", or
@@ -118,9 +129,12 @@ bool showImportClientLimit(BuildContext context, Object error) {
     showClientLimitDialog(
       context,
       limit: limit,
-      detail: context.tr('free_plan_import_too_many', {
-        'count': formatClientCount(context, limit),
-      }),
+      detail: context.tr(
+        purchasesWithheld(context, listen: false)
+            ? 'free_plan_import_too_many_info'
+            : 'free_plan_import_too_many',
+        {'count': formatClientCount(context, limit)},
+      ),
     ),
   );
   return true;
@@ -129,7 +143,10 @@ bool showImportClientLimit(BuildContext context, Object error) {
 /// "You have used all 5 clients on the Free plan. Upgrade to add more." with
 /// Upgrade and Close (nothing is cancelled: the form never opened). Upgrade
 /// goes through [launchUpgrade], the one entry point that
-/// knows which store, portal or Plan screen this build may open.
+/// knows which store, portal or Plan screen this build may open. On a store
+/// build whose hosted service sells nothing to the account
+/// ([purchasesWithheld]) it is "You have used all 5 clients on the Free
+/// plan." with Close only.
 ///
 /// [detail], when given, is said instead of the sentence built from [limit]
 /// and [used]: the server's own `limit_clients` message for a refusal whose
@@ -160,6 +177,7 @@ class ClientLimitDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = context.inTheme;
+    final withheld = purchasesWithheld(context);
     return AlertDialog(
       title: Text(context.tr('client_limit')),
       content: ConstrainedBox(
@@ -187,16 +205,25 @@ class ClientLimitDialog extends StatelessWidget {
         ),
       ),
       actions: [
-        TextButton(
-          key: const ValueKey('client_limit_close'),
-          onPressed: () => Navigator.of(context).pop(false),
-          child: Text(context.tr('close')),
-        ),
-        PrimaryDialogAction(
-          buttonKey: const ValueKey('client_limit_upgrade'),
-          label: context.tr('upgrade'),
-          onPressed: () => Navigator.of(context).pop(true),
-        ),
+        // Nothing to buy here: Close is the one action, and Enter takes it.
+        if (withheld)
+          PrimaryDialogAction(
+            buttonKey: const ValueKey('client_limit_close'),
+            label: context.tr('close'),
+            onPressed: () => Navigator.of(context).pop(false),
+          )
+        else ...[
+          TextButton(
+            key: const ValueKey('client_limit_close'),
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(context.tr('close')),
+          ),
+          PrimaryDialogAction(
+            buttonKey: const ValueKey('client_limit_upgrade'),
+            label: context.tr('upgrade'),
+            onPressed: () => Navigator.of(context).pop(true),
+          ),
+        ],
       ],
     );
   }
@@ -271,8 +298,14 @@ class _ClientUsageBannerState extends State<ClientUsageBanner> {
                   ),
                 ),
               ),
-              const SizedBox(width: InSpacing.sm),
-              _UpgradeButton(buttonKey: const ValueKey('client_usage_upgrade')),
+              // Nothing to buy on a store build that sells nothing here.
+              if (!purchasesWithheld(context)) ...[
+                const SizedBox(width: InSpacing.sm),
+                _UpgradeButton(
+                  buttonKey: const ValueKey('client_usage_upgrade'),
+                ),
+              ] else
+                const SizedBox(width: InSpacing.sm),
             ],
           ),
         );
@@ -379,9 +412,10 @@ class ClientLimitFormBanner extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: InSpacing.sm),
-                const _UpgradeButton(
-                  buttonKey: ValueKey('client_limit_form_upgrade'),
-                ),
+                if (!purchasesWithheld(context))
+                  const _UpgradeButton(
+                    buttonKey: ValueKey('client_limit_form_upgrade'),
+                  ),
               ],
             ),
           ),

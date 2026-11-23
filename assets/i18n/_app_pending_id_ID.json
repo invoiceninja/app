@@ -2314,5 +2314,14 @@
   "cloudflare_banner_unsupported": ":host meminta verifikasi bahwa Anda manusia, yang tidak bisa ditampilkan perangkat ini. Minta administrator server untuk meloloskan aplikasi.",
   "cloudflare_challenge_hosted": "Cloudflare sedang memeriksa koneksi ini. Coba lagi dalam beberapa menit.",
   "cloudflare_banner_refused": "Pemeriksaan berhasil, tetapi pengaturan Cloudflare :host masih menolak aplikasi. Bagikan Ray ID :ray kepada administrator server.",
-  "cloudflare_banner_web": ":host meminta verifikasi bahwa Anda manusia. Muat ulang halaman untuk melanjutkan."
+  "cloudflare_banner_web": ":host meminta verifikasi bahwa Anda manusia. Muat ulang halaman untuk melanjutkan.",
+  "feature_needs_pro_or_enterprise": "Fitur ini memerlukan paket Pro atau Enterprise.",
+  "reports_need_pro_or_enterprise": "Laporan memerlukan paket Pro atau Enterprise.",
+  "docuninja_needs_pro_or_enterprise": "DocuNinja memerlukan paket Pro atau Enterprise.",
+  "free_plan_client_limit_reached_info": "Anda telah menggunakan semua :count klien di Paket Gratis.",
+  "free_plan_clients_over_info": "Anda memiliki :count klien. Paket Gratis mengizinkan :limit. Semua klien Anda tetap disimpan.",
+  "free_plan_import_too_many_info": "Impor ini akan melebihi :count klien yang diizinkan Paket Gratis, jadi tidak ada yang diimpor.",
+  "free_plan_signup_note_info": "Paket Gratis: hingga :count klien dan satu perusahaan.",
+  "free_plan_company_limit_reached": "Anda telah mencapai batas perusahaan Paket Gratis.",
+  "store_subscription_ended_info": "Langganan dalam aplikasi Anda telah berakhir."
 }

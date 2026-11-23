@@ -16,6 +16,8 @@ import 'package:admin/data/repositories/docuninja/docuninja_session.dart';
 import 'package:admin/data/services/docuninja/docuninja_api.dart';
 import 'package:admin/data/services/docuninja/docuninja_login_api.dart';
 import 'package:admin/domain/docuninja/docuninja_access.dart';
+import 'package:admin/domain/upgrade/store_build.dart';
+import 'package:admin/domain/upgrade/upgrade_launcher.dart';
 import 'package:admin/domain/entity_registry.dart';
 import 'package:admin/domain/entity_type.dart';
 import 'package:admin/l10n/localization.dart';
@@ -284,6 +286,9 @@ void main() {
 
     testWidgets('users: React\'s columns, New User in the AppBar, and the '
         'seat-limit alert when every seat is taken', (tester) async {
+      // A build that sells (the purchase path as it has been).
+      debugInAppPurchasesOfferedOverride = true;
+      addTearDown(() => debugInAppPurchasesOfferedOverride = null);
       _size(tester, 1200);
       await pump(
         tester,
@@ -316,6 +321,36 @@ void main() {
         ),
       );
       expect(add.onPressed, isNull);
+      await dispose(tester);
+    });
+
+    testWidgets('users: a store build that sells nothing says the seat limit '
+        'with no Upgrade', (tester) async {
+      debugStoreBillingOverride = true;
+      debugInAppPurchasesOfferedOverride = false;
+      addTearDown(() {
+        debugStoreBillingOverride = null;
+        debugInAppPurchasesOfferedOverride = null;
+      });
+      _size(tester, 1200);
+      await pump(
+        tester,
+        const DocuNinjaUsersScreen(),
+        api: _Api(
+          people: [
+            _user('u1', 'Ann', 'ann@example.com'),
+            _user('u2', 'Bob', 'bob@example.com', deleted: true),
+          ],
+          seats: 2,
+        ),
+        session: _Session(numUsers: 2),
+      );
+      expect(
+        find.text('The maximum number of users has been reached.'),
+        findsOneWidget,
+      );
+      expect(find.text('Need more users? Upgrade your plan!'), findsNothing);
+      expect(find.widgetWithText(TextButton, 'Upgrade'), findsNothing);
       await dispose(tester);
     });
 

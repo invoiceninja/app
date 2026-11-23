@@ -2282,5 +2282,14 @@
   "cloudflare_banner_unsupported": ":host demande de vérifier que vous êtes humain, ce que cet appareil ne peut pas afficher. Demandez à l'administrateur du serveur de laisser passer l'application.",
   "cloudflare_challenge_hosted": "Cloudflare vérifie cette connexion. Réessayez dans quelques minutes.",
   "cloudflare_banner_refused": "La vérification a réussi, mais les réglages Cloudflare de :host refusent toujours l'application. Transmettez le Ray ID :ray à l'administrateur du serveur.",
-  "cloudflare_banner_web": ":host demande de vérifier que vous êtes humain. Rechargez la page pour continuer."
+  "cloudflare_banner_web": ":host demande de vérifier que vous êtes humain. Rechargez la page pour continuer.",
+  "feature_needs_pro_or_enterprise": "Cette fonctionnalité nécessite le forfait Pro ou Enterprise.",
+  "reports_need_pro_or_enterprise": "Les rapports nécessitent le forfait Pro ou Enterprise.",
+  "docuninja_needs_pro_or_enterprise": "DocuNinja nécessite le forfait Pro ou Enterprise.",
+  "free_plan_client_limit_reached_info": "Vous avez utilisé les :count clients du forfait gratuit.",
+  "free_plan_clients_over_info": "Vous avez :count clients. Le forfait gratuit en autorise :limit. Tous vos clients sont conservés.",
+  "free_plan_import_too_many_info": "Cette importation dépasserait les :count clients permis par le forfait gratuit, donc rien n'a été importé.",
+  "free_plan_signup_note_info": "Forfait gratuit : jusqu'à :count clients et une entreprise.",
+  "free_plan_company_limit_reached": "Vous avez atteint la limite d'entreprises du forfait gratuit.",
+  "store_subscription_ended_info": "Votre abonnement intégré à l'application a pris fin."
 }

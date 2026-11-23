@@ -6,6 +6,8 @@ import 'package:provider/provider.dart';
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/app/theme.dart';
+import 'package:admin/domain/upgrade/store_build.dart';
+import 'package:admin/domain/upgrade/upgrade_launcher.dart';
 import 'package:admin/data/models/domain/design.dart';
 import 'package:admin/data/repositories/auth_repository.dart';
 import 'package:admin/data/repositories/design_repository.dart';
@@ -195,5 +197,37 @@ void main() {
     expect(find.byType(SimpleDialog), findsOneWidget);
 
     await tester.pumpWidget(const SizedBox.shrink());
+  });
+  // A free user's "+ New design" is the upgrade CTA; on a store build whose
+  // hosted service sells nothing to the account there is nothing to upgrade
+  // to, so it is not drawn (the tab's banner names the plans).
+  group('free account, the New design button', () {
+    tearDown(() {
+      debugStoreBillingOverride = null;
+      debugInAppPurchasesOfferedOverride = null;
+    });
+
+    for (final (name, store, offered, shown) in [
+      ('a store build that sells nothing: none', true, false, false),
+      ('a store build that sells: the upgrade CTA', true, true, true),
+      ('desktop: the upgrade CTA', false, false, true),
+    ]) {
+      testWidgets(name, (tester) async {
+        debugStoreBillingOverride = store;
+        debugInAppPurchasesOfferedOverride = offered;
+        await tester.pumpWidget(
+          _host(
+            _services(pro: false),
+            body: const Center(child: CustomDesignsNewDesignButton()),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(
+          find.byType(FilledButton),
+          shown ? findsOneWidget : findsNothing,
+        );
+        await tester.pumpWidget(const SizedBox.shrink());
+      });
+    }
   });
 }

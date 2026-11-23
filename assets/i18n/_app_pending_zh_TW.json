@@ -2313,5 +2313,14 @@
   "cloudflare_banner_unsupported": ":host 要求驗證您是真人，但此裝置無法顯示該驗證。請伺服器管理員放行此應用程式。",
   "cloudflare_challenge_hosted": "Cloudflare 正在檢查此連線。請幾分鐘後再試一次。",
   "cloudflare_banner_refused": "驗證已通過，但 :host 的 Cloudflare 設定仍拒絕此應用程式。請將 Ray ID :ray 告知伺服器管理員。",
-  "cloudflare_banner_web": ":host 要求驗證您是真人。請重新載入頁面以繼續。"
+  "cloudflare_banner_web": ":host 要求驗證您是真人。請重新載入頁面以繼續。",
+  "feature_needs_pro_or_enterprise": "此功能需要 Pro 或 Enterprise 方案。",
+  "reports_need_pro_or_enterprise": "報告需要 Pro 或 Enterprise 方案。",
+  "docuninja_needs_pro_or_enterprise": "DocuNinja 需要 Pro 或 Enterprise 方案。",
+  "free_plan_client_limit_reached_info": "您已用完免費方案的全部 :count 位客戶。",
+  "free_plan_clients_over_info": "您有 :count 位客戶。免費方案允許 :limit 位。您的所有客戶都會保留。",
+  "free_plan_import_too_many_info": "此次匯入會超出免費方案允許的 :count 位客戶，因此未匯入任何內容。",
+  "free_plan_signup_note_info": "免費方案：最多 :count 位客戶和一家公司。",
+  "free_plan_company_limit_reached": "您已達到免費方案的公司數量上限。",
+  "store_subscription_ended_info": "您的 App 內訂閱已結束。"
 }

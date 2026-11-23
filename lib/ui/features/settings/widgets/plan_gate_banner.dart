@@ -75,6 +75,7 @@ class PlanGateBanner extends StatelessWidget {
     // certain the user can't act on the upgrade.
     final me = session.currentCompany;
     final isOwner = me == null ? true : me.isOwner;
+    final withheld = purchasesWithheld(context, session: session);
     final copy = planGateCopy(
       level,
       session,
@@ -83,7 +84,9 @@ class PlanGateBanner extends StatelessWidget {
         storeBilling: isStoreBillingBuild,
         session: session,
         now: DateTime.now(),
+        purchasesOffered: !withheld,
       ),
+      purchasesWithheld: withheld,
     );
     switch (style) {
       case PlanGateStyle.inset:
@@ -110,18 +113,33 @@ typedef PlanGateCopy = ({String key, Map<String, String>? params, bool cta});
 /// plan. And on a store build a trial or web-billed plan gets no button at
 /// all ([planManagedOnWeb]): it would only reach a Plan screen saying the
 /// plan is managed on the web.
+///
+/// A store build whose hosted service sells nothing to this account
+/// ([purchasesWithheld]) says only which plans the feature is on, for owner
+/// and non-owner alike: no button, nothing to buy, upgrade or start, and no
+/// "the owner can upgrade" (App Store 3.1.3(f), Play Payments policy).
 @visibleForTesting
 PlanGateCopy planGateCopy(
   PlanGateLevel level,
   AuthSession s, {
   required bool isOwner,
   required UpgradeRoute route,
+  bool purchasesWithheld = false,
 }) {
+  if (route == UpgradeRoute.planScreen && s.isWebBilled && isOwner) {
+    return (key: 'plan_managed_on_web', params: null, cta: false);
+  }
+  if (purchasesWithheld) {
+    return (
+      key: level == PlanGateLevel.enterprise
+          ? 'requires_an_enterprise_plan'
+          : 'feature_needs_pro_or_enterprise',
+      params: null,
+      cta: false,
+    );
+  }
   if (!isOwner) {
     return (key: 'owner_upgrade_to_paid_plan', params: null, cta: false);
-  }
-  if (route == UpgradeRoute.planScreen && s.isWebBilled) {
-    return (key: 'plan_managed_on_web', params: null, cta: false);
   }
   if (s.isTrial) {
     return (

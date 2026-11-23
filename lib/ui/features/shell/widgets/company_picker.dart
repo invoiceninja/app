@@ -222,18 +222,26 @@ class _CompanyPickerState extends State<CompanyPicker> {
                     final reason = session.canAddCompany;
                     // The plan-limit case is not a dead end: make the row
                     // tappable and route it to the upgrade flow instead of
-                    // greying it out with no recourse.
-                    final isPlanLimit =
+                    // greying it out with no recourse. Unless this store
+                    // build sells nothing to the account: then it is a
+                    // block that says the Free plan's limit is reached.
+                    final withheld = purchasesWithheld(
+                      rowCtx,
+                      session: session,
+                    );
+                    final planLimited =
                         reason == CanAddCompanyResult.hostedPlanLimit;
+                    final isPlanLimit = planLimited && !withheld;
                     final enabled =
                         (reason == CanAddCompanyResult.ok || isPlanLimit) &&
                         !_switching;
                     final reasonText = SettingsActions.addCompanyBlockedReason(
                       rowCtx,
                       reason,
+                      purchasesWithheld: withheld,
                     );
                     return _ActionRow(
-                      icon: isPlanLimit ? Icons.lock_outline : Icons.add,
+                      icon: planLimited ? Icons.lock_outline : Icons.add,
                       label: rowCtx.tr('new_company'),
                       subtitle: reasonText,
                       tooltip: reasonText,

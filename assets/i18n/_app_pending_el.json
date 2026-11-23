@@ -2313,5 +2313,14 @@
   "cloudflare_banner_unsupported": "Ο :host ζητά επιβεβαίωση ότι είστε άνθρωπος, κάτι που αυτή η συσκευή δεν μπορεί να εμφανίσει. Ζητήστε από τον διαχειριστή του διακομιστή να επιτρέψει την εφαρμογή.",
   "cloudflare_challenge_hosted": "Το Cloudflare ελέγχει αυτήν τη σύνδεση. Δοκιμάστε ξανά σε λίγα λεπτά.",
   "cloudflare_banner_refused": "Ο έλεγχος πέτυχε, αλλά οι ρυθμίσεις Cloudflare του :host εξακολουθούν να απορρίπτουν την εφαρμογή. Δώστε το Ray ID :ray στον διαχειριστή του διακομιστή.",
-  "cloudflare_banner_web": "Ο :host ζητά επιβεβαίωση ότι είστε άνθρωπος. Φορτώστε ξανά τη σελίδα για να συνεχίσετε."
+  "cloudflare_banner_web": "Ο :host ζητά επιβεβαίωση ότι είστε άνθρωπος. Φορτώστε ξανά τη σελίδα για να συνεχίσετε.",
+  "feature_needs_pro_or_enterprise": "Αυτή η λειτουργία χρειάζεται το πρόγραμμα Pro ή Enterprise.",
+  "reports_need_pro_or_enterprise": "Οι αναφορές χρειάζονται το πρόγραμμα Pro ή Enterprise.",
+  "docuninja_needs_pro_or_enterprise": "Το DocuNinja χρειάζεται το πρόγραμμα Pro ή Enterprise.",
+  "free_plan_client_limit_reached_info": "Έχετε χρησιμοποιήσει και τους :count πελάτες του Δωρεάν προγράμματος.",
+  "free_plan_clients_over_info": "Έχετε :count πελάτες. Το Δωρεάν πρόγραμμα επιτρέπει :limit. Όλοι οι πελάτες σας διατηρούνται.",
+  "free_plan_import_too_many_info": "Αυτή η εισαγωγή θα ξεπερνούσε τους :count πελάτες που επιτρέπει το Δωρεάν πρόγραμμα, οπότε δεν εισήχθη τίποτα.",
+  "free_plan_signup_note_info": "Δωρεάν πρόγραμμα: έως :count πελάτες και μία εταιρεία.",
+  "free_plan_company_limit_reached": "Έχετε φτάσει το όριο εταιρειών του Δωρεάν προγράμματος.",
+  "store_subscription_ended_info": "Η συνδρομή σας εντός εφαρμογής έληξε."
 }

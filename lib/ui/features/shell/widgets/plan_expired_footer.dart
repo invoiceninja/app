@@ -24,6 +24,8 @@ import 'package:admin/l10n/localization.dart';
 /// on the web can't be paid for here, so it says the plan is managed on the
 /// web and offers no button ([planManagedOnWeb]); once the server has blanked
 /// the slug the account is free again and Pay Now opens the purchase sheet.
+/// A store build whose hosted service sells nothing to the account
+/// ([purchasesWithheld]) says only that the plan expired, with no Pay Now.
 class PlanExpiredFooter extends StatelessWidget {
   const PlanExpiredFooter({this.compact = false, super.key});
 
@@ -56,6 +58,9 @@ class PlanExpiredFooter extends StatelessWidget {
           storeBilling: isStoreBillingBuild,
           session: value,
         );
+        // A store build whose hosted service sells nothing to this account
+        // says only that the plan has expired: no Pay Now.
+        final withheld = purchasesWithheld(context, session: value);
         // Same insets as `TrialFooter`, whose slot this shares.
         return Padding(
           padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
@@ -77,13 +82,14 @@ class PlanExpiredFooter extends StatelessWidget {
                     color: tokens.overdue,
                   ),
                 ),
-                const SizedBox(height: 6),
-                if (managedOnWeb)
+                if (managedOnWeb) ...[
+                  const SizedBox(height: 6),
                   Text(
                     context.tr('plan_managed_on_web'),
                     style: TextStyle(fontSize: 11.5, color: tokens.overdue),
-                  )
-                else
+                  ),
+                ] else if (!withheld) ...[
+                  const SizedBox(height: 6),
                   // A local ink layer — see `TrialFooter` for why the sidebar's
                   // opaque boxes would otherwise swallow the splash.
                   Material(
@@ -101,6 +107,7 @@ class PlanExpiredFooter extends StatelessWidget {
                       ),
                     ),
                   ),
+                ],
               ],
             ),
           ),

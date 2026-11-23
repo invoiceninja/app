@@ -2396,5 +2396,14 @@
   "cloudflare_banner_unsupported": ":host möchte bestätigt haben, dass Sie ein Mensch sind, was dieses Gerät nicht anzeigen kann. Bitten Sie den Administrator des Servers, die App durchzulassen.",
   "cloudflare_challenge_hosted": "Cloudflare prüft diese Verbindung. Versuchen Sie es in ein paar Minuten erneut.",
   "cloudflare_banner_refused": "Die Prüfung war erfolgreich, aber die Cloudflare-Einstellungen von :host weisen die App weiterhin ab. Geben Sie dem Administrator des Servers die Ray ID :ray.",
-  "cloudflare_banner_web": ":host möchte bestätigt haben, dass Sie ein Mensch sind. Laden Sie die Seite neu, um fortzufahren."
+  "cloudflare_banner_web": ":host möchte bestätigt haben, dass Sie ein Mensch sind. Laden Sie die Seite neu, um fortzufahren.",
+  "feature_needs_pro_or_enterprise": "Diese Funktion erfordert den Pro- oder Enterprise-Tarif.",
+  "reports_need_pro_or_enterprise": "Berichte erfordern den Pro- oder Enterprise-Tarif.",
+  "docuninja_needs_pro_or_enterprise": "DocuNinja erfordert den Pro- oder Enterprise-Tarif.",
+  "free_plan_client_limit_reached_info": "Sie haben alle :count Kunden des kostenlosen Tarifs genutzt.",
+  "free_plan_clients_over_info": "Sie haben :count Kunden. Der kostenlose Tarif erlaubt :limit. Alle Ihre Kunden bleiben erhalten.",
+  "free_plan_import_too_many_info": "Mit diesem Import würden Sie die :count Kunden des kostenlosen Tarifs überschreiten, daher wurde nichts importiert.",
+  "free_plan_signup_note_info": "Kostenloser Tarif: bis zu :count Kunden und eine Firma.",
+  "free_plan_company_limit_reached": "Sie haben das Firmenlimit des kostenlosen Tarifs erreicht.",
+  "store_subscription_ended_info": "Ihr In-App-Abonnement ist abgelaufen."
 }

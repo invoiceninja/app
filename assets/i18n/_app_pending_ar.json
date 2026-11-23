@@ -2312,5 +2312,14 @@
   "cloudflare_banner_unsupported": "يطلب :host التحقق من أنك إنسان، ولا يستطيع هذا الجهاز عرض ذلك. اطلب من مسؤول الخادم السماح للتطبيق بالمرور.",
   "cloudflare_challenge_hosted": "يتحقق Cloudflare من هذا الاتصال. حاول مرة أخرى بعد بضع دقائق.",
   "cloudflare_banner_refused": "نجح التحقق، لكن إعدادات Cloudflare في :host ما زالت ترفض التطبيق. شارك معرّف Ray :ray مع مسؤول الخادم.",
-  "cloudflare_banner_web": "يطلب :host التحقق من أنك إنسان. أعد تحميل الصفحة للمتابعة."
+  "cloudflare_banner_web": "يطلب :host التحقق من أنك إنسان. أعد تحميل الصفحة للمتابعة.",
+  "feature_needs_pro_or_enterprise": "تتطلب هذه الميزة خطة Pro أو Enterprise.",
+  "reports_need_pro_or_enterprise": "تتطلب التقارير خطة Pro أو Enterprise.",
+  "docuninja_needs_pro_or_enterprise": "يتطلب DocuNinja خطة Pro أو Enterprise.",
+  "free_plan_client_limit_reached_info": "لقد استخدمت كل العملاء الـ :count في الخطة المجانية.",
+  "free_plan_clients_over_info": "لديك :count عملاء. تسمح الخطة المجانية بـ :limit. يُحتفظ بجميع عملائك.",
+  "free_plan_import_too_many_info": "كان هذا الاستيراد سيتجاوز :count عملاء تسمح بهم الخطة المجانية، لذلك لم يُستورد شيء.",
+  "free_plan_signup_note_info": "الخطة المجانية: حتى :count عملاء وشركة واحدة.",
+  "free_plan_company_limit_reached": "لقد بلغت حد الشركات في الخطة المجانية.",
+  "store_subscription_ended_info": "انتهى اشتراكك داخل التطبيق."
 }

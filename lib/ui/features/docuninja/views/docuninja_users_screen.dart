@@ -14,6 +14,7 @@ import 'package:admin/data/repositories/docuninja/docuninja_session.dart';
 import 'package:admin/data/services/docuninja/docuninja_api.dart';
 import 'package:admin/data/services/docuninja/docuninja_login_api.dart';
 import 'package:admin/domain/docuninja/docuninja_access.dart';
+import 'package:admin/domain/upgrade/upgrade_launcher.dart';
 import 'package:admin/domain/docuninja/docuninja_permissions.dart';
 import 'package:admin/domain/docuninja/docuninja_signature.dart';
 import 'package:admin/domain/docuninja/docuninja_users.dart';
@@ -447,7 +448,10 @@ class _UsersListState extends State<_UsersList> {
           Padding(
             padding: EdgeInsetsDirectional.fromSTEB(inset, 8, inset, 0),
             child: _SeatLimitAlert(
-              onUpgrade: () => context.go('/settings/account_management'),
+              // A store build that sells nothing here says the limit only.
+              onUpgrade: purchasesWithheld(context)
+                  ? null
+                  : () => context.go('/settings/account_management'),
             ),
           ),
         // The selection header takes the search row's place while
@@ -794,7 +798,9 @@ class _UserRow extends StatelessWidget {
 class _SeatLimitAlert extends StatelessWidget {
   const _SeatLimitAlert({required this.onUpgrade});
 
-  final VoidCallback onUpgrade;
+  /// Null on a store build whose hosted service sells nothing to the
+  /// account ([purchasesWithheld]): the limit is said, with no Upgrade.
+  final VoidCallback? onUpgrade;
 
   @override
   Widget build(BuildContext context) {
@@ -815,17 +821,22 @@ class _SeatLimitAlert extends StatelessWidget {
               child: Semantics(
                 liveRegion: true,
                 child: Text(
-                  context.tr('user_limit_reached'),
+                  context.tr(
+                    onUpgrade == null
+                        ? 'max_users_reached'
+                        : 'user_limit_reached',
+                  ),
                   style: TextStyle(color: tokens.ink2),
                 ),
               ),
             ),
             const SizedBox(width: InSpacing.sm),
-            TextButton(
-              style: TextButton.styleFrom(foregroundColor: tokens.warning),
-              onPressed: onUpgrade,
-              child: Text(context.tr('upgrade')),
-            ),
+            if (onUpgrade case final upgrade?)
+              TextButton(
+                style: TextButton.styleFrom(foregroundColor: tokens.warning),
+                onPressed: upgrade,
+                child: Text(context.tr('upgrade')),
+              ),
           ],
         ),
       ),
@@ -1677,14 +1688,19 @@ class _GrantAccessState extends State<_GrantAccess> {
     final seats = _seats0!;
     final Widget users;
     // React's two dead ends each say the way on: upgrade for more seats, or
-    // add an Invoice Ninja user to give one to.
-    Widget upgrade() => Align(
-      alignment: AlignmentDirectional.centerStart,
-      child: TextButton(
-        onPressed: () => context.go('/settings/account_management'),
-        child: Text(context.tr('upgrade')),
-      ),
-    );
+    // add an Invoice Ninja user to give one to. Not on a store build whose
+    // hosted service sells nothing to the account: the limit is said alone.
+    // Read only on a full house (late): nothing else here needs it.
+    late final withheld = purchasesWithheld(context);
+    Widget upgrade() => withheld
+        ? const SizedBox.shrink()
+        : Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: TextButton(
+              onPressed: () => context.go('/settings/account_management'),
+              child: Text(context.tr('upgrade')),
+            ),
+          );
     if (available.isEmpty) {
       users = Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1714,7 +1730,7 @@ class _GrantAccessState extends State<_GrantAccess> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            context.tr('user_limit_reached'),
+            context.tr(withheld ? 'max_users_reached' : 'user_limit_reached'),
             style: TextStyle(color: tokens.ink2),
           ),
           upgrade(),

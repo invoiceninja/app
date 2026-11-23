@@ -7,8 +7,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
+import 'package:provider/provider.dart';
 import 'package:admin/app/design_tokens.dart';
+import 'package:admin/app/services.dart';
 import 'package:admin/app/theme.dart';
+import 'package:admin/data/repositories/auth_repository.dart';
+import 'package:admin/domain/upgrade/store_build.dart';
+import 'package:admin/domain/upgrade/upgrade_launcher.dart';
 import 'package:admin/data/models/domain/document_version.dart';
 import 'package:admin/data/services/api_client.dart';
 import 'package:admin/data/services/api_credentials.dart';
@@ -111,9 +116,35 @@ DocumentVersion _v({
   isSystem: isSystem,
 );
 
+class _FakeAuth implements AuthRepository {
+  @override
+  final ValueNotifier<AuthSession?> session = ValueNotifier(
+    const AuthSession(
+      baseUrl: 'https://invoicing.co',
+      isHosted: true,
+      accountId: 'acct',
+      currentCompanyId: 'co',
+      companies: [],
+    ),
+  );
+  @override
+  Object? noSuchMethod(Invocation invocation) =>
+      throw UnimplementedError(invocation.memberName.toString());
+}
+
+/// A signed-in hosted session, for whether purchases are withheld.
+class _FakeServices implements Services {
+  @override
+  final AuthRepository auth = _FakeAuth();
+  @override
+  Object? noSuchMethod(Invocation invocation) =>
+      throw UnimplementedError(invocation.memberName.toString());
+}
+
 Future<void> _pump(
   WidgetTester tester, {
   required DocumentVersionsApi api,
+  bool signedIn = false,
   String entityId = 'inv1',
   bool settle = true,
   bool showSelection = false,
@@ -121,37 +152,39 @@ Future<void> _pump(
   bool planBlocksBackups = false,
   void Function(String?)? onOpen,
 }) async {
-  await tester.pumpWidget(
-    MaterialApp(
-      theme: buildInTheme(InTheme.light),
-      localizationsDelegates: kTestLocalizationsDelegates,
-      supportedLocales: kTestSupportedLocales,
-      home: Scaffold(
-        body: SingleChildScrollView(
-          child: SizedBox(
-            width: 480,
-            child: BillingDocHistoryTab(
-              api: api,
-              basePath: '/api/v1/invoices',
-              entityId: entityId,
-              contacts: const {
-                'c1': (name: 'Dana Portal', email: 'dana@example.test'),
-              },
-              userNames: const {'u1': 'Jane Doe'},
-              currentAmount: Decimal.parse('100'),
-              currentUpdatedAt: DateTime.utc(2026, 9, 18, 12),
-              formatter: _formatter,
-              currencyId: '1',
-              showSelection: showSelection,
-              selectedActivityId: selectedActivityId,
-              planBlocksBackups: planBlocksBackups,
-              onOpenVersion: onOpen ?? (_) {},
-            ),
+  Widget app = MaterialApp(
+    theme: buildInTheme(InTheme.light),
+    localizationsDelegates: kTestLocalizationsDelegates,
+    supportedLocales: kTestSupportedLocales,
+    home: Scaffold(
+      body: SingleChildScrollView(
+        child: SizedBox(
+          width: 480,
+          child: BillingDocHistoryTab(
+            api: api,
+            basePath: '/api/v1/invoices',
+            entityId: entityId,
+            contacts: const {
+              'c1': (name: 'Dana Portal', email: 'dana@example.test'),
+            },
+            userNames: const {'u1': 'Jane Doe'},
+            currentAmount: Decimal.parse('100'),
+            currentUpdatedAt: DateTime.utc(2026, 9, 18, 12),
+            formatter: _formatter,
+            currencyId: '1',
+            showSelection: showSelection,
+            selectedActivityId: selectedActivityId,
+            planBlocksBackups: planBlocksBackups,
+            onOpenVersion: onOpen ?? (_) {},
           ),
         ),
       ),
     ),
   );
+  if (signedIn) {
+    app = Provider<Services>.value(value: _FakeServices(), child: app);
+  }
+  await tester.pumpWidget(app);
   if (settle) await tester.pumpAndSettle();
 }
 
@@ -425,6 +458,55 @@ void main() {
       findsOneWidget,
     );
     expect(find.widgetWithText(FilledButton, 'Upgrade'), findsOneWidget);
+  });
+
+  group('a store build that sells nothing', () {
+    tearDown(() {
+      debugStoreBillingOverride = null;
+      debugInAppPurchasesOfferedOverride = null;
+    });
+
+    testWidgets('says history needs a paid plan, with no Upgrade', (
+      tester,
+    ) async {
+      debugStoreBillingOverride = true;
+      debugInAppPurchasesOfferedOverride = false;
+      await _pump(
+        tester,
+        api: _FakeVersionsApi(),
+        planBlocksBackups: true,
+        signedIn: true,
+      );
+      expect(
+        find.text('Document history is available on a paid plan.'),
+        findsOneWidget,
+      );
+      expect(find.text('Upgrade'), findsNothing);
+    });
+
+    testWidgets('keeps Upgrade once the config sells here', (tester) async {
+      debugStoreBillingOverride = true;
+      debugInAppPurchasesOfferedOverride = true;
+      await _pump(
+        tester,
+        api: _FakeVersionsApi(),
+        planBlocksBackups: true,
+        signedIn: true,
+      );
+      expect(find.widgetWithText(FilledButton, 'Upgrade'), findsOneWidget);
+    });
+
+    testWidgets('desktop keeps Upgrade', (tester) async {
+      debugStoreBillingOverride = false;
+      debugInAppPurchasesOfferedOverride = false;
+      await _pump(
+        tester,
+        api: _FakeVersionsApi(),
+        planBlocksBackups: true,
+        signedIn: true,
+      );
+      expect(find.widgetWithText(FilledButton, 'Upgrade'), findsOneWidget);
+    });
   });
 }
 

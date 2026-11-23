@@ -2313,5 +2313,14 @@
   "cloudflare_banner_unsupported": ":host vra om te bevestig dat jy 'n mens is, wat hierdie toestel nie kan wys nie. Vra die bediener se administrateur om die toep deur te laat.",
   "cloudflare_challenge_hosted": "Cloudflare kontroleer hierdie verbinding. Probeer weer oor 'n paar minute.",
   "cloudflare_banner_refused": "Die toets het geslaag, maar :host se Cloudflare-instellings weier steeds die toep. Deel Ray ID :ray met die bediener se administrateur.",
-  "cloudflare_banner_web": ":host vra om te bevestig dat jy 'n mens is. Herlaai die bladsy om voort te gaan."
+  "cloudflare_banner_web": ":host vra om te bevestig dat jy 'n mens is. Herlaai die bladsy om voort te gaan.",
+  "feature_needs_pro_or_enterprise": "Hierdie funksie benodig die Pro- of Enterprise-plan.",
+  "reports_need_pro_or_enterprise": "Verslae benodig die Pro- of Enterprise-plan.",
+  "docuninja_needs_pro_or_enterprise": "DocuNinja benodig die Pro- of Enterprise-plan.",
+  "free_plan_client_limit_reached_info": "Jy het al :count kliënte op die Gratis plan gebruik.",
+  "free_plan_clients_over_info": "Jy het :count kliënte. Die Gratis plan laat :limit toe. Al jou kliënte word behou.",
+  "free_plan_import_too_many_info": "Hierdie invoer sou jou verby die :count kliënte neem wat die Gratis plan toelaat, dus is niks ingevoer nie.",
+  "free_plan_signup_note_info": "Gratis plan: tot :count kliënte en een maatskappy.",
+  "free_plan_company_limit_reached": "Jy het die Gratis plan se maatskappylimiet bereik.",
+  "store_subscription_ended_info": "Jou intekening in die toepassing het verval."
 }

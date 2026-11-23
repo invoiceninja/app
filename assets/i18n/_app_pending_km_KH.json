@@ -2312,5 +2312,14 @@
   "cloudflare_banner_unsupported": ":host ស្នើឱ្យផ្ទៀងផ្ទាត់ថាអ្នកជាមនុស្ស ដែលឧបករណ៍នេះមិនអាចបង្ហាញបាន។ សូមស្នើអ្នកគ្រប់គ្រងម៉ាស៊ីនមេឱ្យអនុញ្ញាតកម្មវិធី។",
   "cloudflare_challenge_hosted": "Cloudflare កំពុងពិនិត្យការតភ្ជាប់នេះ។ សូមព្យាយាមម្ដងទៀតក្នុងរយៈពេលពីរបីនាទី។",
   "cloudflare_banner_refused": "ការត្រួតពិនិត្យបានជោគជ័យ ប៉ុន្តែការកំណត់ Cloudflare របស់ :host នៅតែបដិសេធកម្មវិធី។ សូមចែករំលែក Ray ID :ray ជាមួយអ្នកគ្រប់គ្រងម៉ាស៊ីនមេ។",
-  "cloudflare_banner_web": ":host ស្នើឱ្យផ្ទៀងផ្ទាត់ថាអ្នកជាមនុស្ស។ សូមផ្ទុកទំព័រឡើងវិញដើម្បីបន្ត។"
+  "cloudflare_banner_web": ":host ស្នើឱ្យផ្ទៀងផ្ទាត់ថាអ្នកជាមនុស្ស។ សូមផ្ទុកទំព័រឡើងវិញដើម្បីបន្ត។",
+  "feature_needs_pro_or_enterprise": "មុខងារនេះត្រូវការគម្រោង Pro ឬ Enterprise។",
+  "reports_need_pro_or_enterprise": "របាយការណ៍ត្រូវការគម្រោង Pro ឬ Enterprise។",
+  "docuninja_needs_pro_or_enterprise": "DocuNinja ត្រូវការគម្រោង Pro ឬ Enterprise។",
+  "free_plan_client_limit_reached_info": "អ្នកបានប្រើអតិថិជនទាំង :count នៃគម្រោងឥតគិតថ្លៃអស់ហើយ។",
+  "free_plan_clients_over_info": "អ្នកមានអតិថិជន :count។ គម្រោងឥតគិតថ្លៃអនុញ្ញាត :limit។ អតិថិជនរបស់អ្នកទាំងអស់ត្រូវបានរក្សាទុក។",
+  "free_plan_import_too_many_info": "ការនាំចូលនេះនឹងលើសពីអតិថិជន :count ដែលគម្រោងឥតគិតថ្លៃអនុញ្ញាត ដូច្នេះគ្មានអ្វីត្រូវបាននាំចូលទេ។",
+  "free_plan_signup_note_info": "គម្រោងឥតគិតថ្លៃ៖ អតិថិជនរហូតដល់ :count និងក្រុមហ៊ុនមួយ។",
+  "free_plan_company_limit_reached": "អ្នកបានដល់ដែនកំណត់ក្រុមហ៊ុននៃគម្រោងឥតគិតថ្លៃហើយ។",
+  "store_subscription_ended_info": "ការជាវក្នុងកម្មវិធីរបស់អ្នកបានបញ្ចប់ហើយ។"
 }

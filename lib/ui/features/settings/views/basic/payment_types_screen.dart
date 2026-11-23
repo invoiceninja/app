@@ -7,6 +7,7 @@ import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/data/models/value/payment_type.dart';
 import 'package:admin/domain/payment_types.dart';
+import 'package:admin/domain/upgrade/upgrade_launcher.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/back_dismissible_menu_anchor.dart';
 import 'package:admin/ui/core/widgets/field_label.dart';
@@ -119,14 +120,22 @@ class _PaymentTypesDialogState extends State<_PaymentTypesDialog> {
   Future<void> _save() async {
     final saved = context.tr('saved_settings');
     final failed = context.tr('error_refresh_page');
-    final needsPlan = context.tr('upgrade_to_paid_plan');
     final result = await _vm.save();
     if (!mounted) return;
     if (result == null) {
       // The server took the save and dropped the change: the dialog stays
       // open on the user's choice.
       if (_vm.submitNeedsPaidPlan) {
-        Notify.error(context, needsPlan);
+        // No "Upgrade" on a store build whose hosted service sells nothing
+        // here.
+        Notify.error(
+          context,
+          context.tr(
+            purchasesWithheld(context, listen: false)
+                ? 'feature_needs_pro_or_enterprise'
+                : 'upgrade_to_paid_plan',
+          ),
+        );
         return;
       }
       Notify.error(context, failed, detail: _vm.submitError);

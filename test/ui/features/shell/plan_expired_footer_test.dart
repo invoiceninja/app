@@ -8,6 +8,7 @@ import 'package:admin/app/services.dart';
 import 'package:admin/app/theme.dart';
 import 'package:admin/data/repositories/auth_repository.dart';
 import 'package:admin/domain/upgrade/store_build.dart';
+import 'package:admin/domain/upgrade/upgrade_launcher.dart';
 import 'package:admin/ui/features/shell/widgets/plan_expired_footer.dart';
 
 import '../../../_localization_helper.dart';
@@ -81,7 +82,10 @@ void main() {
   });
 
   group('Pay Now', () {
-    tearDown(() => debugStoreBillingOverride = null);
+    tearDown(() {
+      debugStoreBillingOverride = null;
+      debugInAppPurchasesOfferedOverride = null;
+    });
 
     Future<void> pump(WidgetTester tester, AuthSession s) async {
       await tester.pumpWidget(
@@ -110,14 +114,28 @@ void main() {
     testWidgets('a store build: a blanked slug is a free account, offered '
         'the purchase', (tester) async {
       debugStoreBillingOverride = true;
+      debugInAppPurchasesOfferedOverride = true;
       await pump(tester, session(plan: ''));
 
       expect(find.byType(InkWell), findsOneWidget);
       expect(find.text('Your plan is managed on the web.'), findsNothing);
     });
 
+    testWidgets('a store build that sells nothing says only that the plan '
+        'expired: no Pay Now', (tester) async {
+      debugStoreBillingOverride = true;
+      debugInAppPurchasesOfferedOverride = false;
+      await pump(tester, session(plan: ''));
+
+      expect(find.text('Account Plan Expired'), findsOneWidget);
+      expect(find.byType(InkWell), findsNothing);
+      expect(find.text('Pay Now'), findsNothing);
+    });
+
     testWidgets('desktop keeps Pay Now', (tester) async {
       debugStoreBillingOverride = false;
+      // The offer is a store-build question: desktop never reads it.
+      debugInAppPurchasesOfferedOverride = false;
       await pump(tester, session());
 
       expect(find.byType(InkWell), findsOneWidget);

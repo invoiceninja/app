@@ -325,9 +325,17 @@ class NewCompanySection extends StatelessWidget {
   Widget build(BuildContext context) {
     final tokens = context.inTheme;
     final reason = session.canAddCompany;
-    final isPlanLimit = reason == CanAddCompanyResult.hostedPlanLimit;
+    // A store build that sells nothing to this account has no upgrade to
+    // route the plan limit to: it is a block like any other.
+    final withheld = purchasesWithheld(context, session: session);
+    final isPlanLimit =
+        reason == CanAddCompanyResult.hostedPlanLimit && !withheld;
     final enabled = reason == CanAddCompanyResult.ok || isPlanLimit;
-    final reasonText = SettingsActions.addCompanyBlockedReason(context, reason);
+    final reasonText = SettingsActions.addCompanyBlockedReason(
+      context,
+      reason,
+      purchasesWithheld: withheld,
+    );
     return FormSection(
       title: context.tr('new_company'),
       children: [

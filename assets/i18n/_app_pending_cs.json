@@ -2396,5 +2396,14 @@
   "cloudflare_banner_unsupported": ":host žádá ověření, že jste člověk, což toto zařízení nedokáže zobrazit. Požádejte správce serveru, aby aplikaci pustil.",
   "cloudflare_challenge_hosted": "Cloudflare kontroluje toto připojení. Zkuste to znovu za pár minut.",
   "cloudflare_banner_refused": "Ověření proběhlo, ale nastavení Cloudflare serveru :host aplikaci stále odmítá. Sdělte Ray ID :ray správci serveru.",
-  "cloudflare_banner_web": ":host žádá ověření, že jste člověk. Pokračujte obnovením stránky."
+  "cloudflare_banner_web": ":host žádá ověření, že jste člověk. Pokračujte obnovením stránky.",
+  "feature_needs_pro_or_enterprise": "Tato funkce vyžaduje tarif Pro nebo Enterprise.",
+  "reports_need_pro_or_enterprise": "Reporty vyžadují tarif Pro nebo Enterprise.",
+  "docuninja_needs_pro_or_enterprise": "DocuNinja vyžaduje tarif Pro nebo Enterprise.",
+  "free_plan_client_limit_reached_info": "Využili jste všech :count klientů v bezplatném tarifu.",
+  "free_plan_clients_over_info": "Máte :count klientů. Bezplatný tarif umožňuje :limit. Všichni vaši klienti zůstávají.",
+  "free_plan_import_too_many_info": "Tento import by překročil :count klientů, které bezplatný tarif umožňuje, proto nebylo nic importováno.",
+  "free_plan_signup_note_info": "Bezplatný tarif: až :count klientů a jedna firma.",
+  "free_plan_company_limit_reached": "Dosáhli jste limitu firem v bezplatném tarifu.",
+  "store_subscription_ended_info": "Vaše předplatné v aplikaci skončilo."
 }

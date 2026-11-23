@@ -2396,5 +2396,14 @@
   "cloudflare_banner_unsupported": ":host бара да потврдите дека сте човек, што овој уред не може да го прикаже. Побарајте од администраторот на серверот да ја пушти апликацијата.",
   "cloudflare_challenge_hosted": "Cloudflare ја проверува оваа врска. Обидете се повторно за неколку минути.",
   "cloudflare_banner_refused": "Проверката помина, но поставките на Cloudflare за :host сè уште ја одбиваат апликацијата. Споделете го Ray ID :ray со администраторот на серверот.",
-  "cloudflare_banner_web": ":host бара да потврдите дека сте човек. Освежете ја страницата за да продолжите."
+  "cloudflare_banner_web": ":host бара да потврдите дека сте човек. Освежете ја страницата за да продолжите.",
+  "feature_needs_pro_or_enterprise": "Оваа функција бара план Pro или Enterprise.",
+  "reports_need_pro_or_enterprise": "Извештаите бараат план Pro или Enterprise.",
+  "docuninja_needs_pro_or_enterprise": "DocuNinja бара план Pro или Enterprise.",
+  "free_plan_client_limit_reached_info": "Ги искористивте сите :count клиенти од бесплатниот план.",
+  "free_plan_clients_over_info": "Имате :count клиенти. Бесплатниот план дозволува :limit. Сите ваши клиенти се зачувуваат.",
+  "free_plan_import_too_many_info": "Овој увоз би ги надминал :count клиенти што ги дозволува бесплатниот план, па ништо не е увезено.",
+  "free_plan_signup_note_info": "Бесплатен план: до :count клиенти и една компанија.",
+  "free_plan_company_limit_reached": "Го достигнавте ограничувањето за компании на бесплатниот план.",
+  "store_subscription_ended_info": "Вашата претплата во апликацијата истече."
 }

@@ -2314,5 +2314,14 @@
   "cloudflare_banner_unsupported": ":host prosi o potwierdzenie, że jesteś człowiekiem, czego to urządzenie nie może wyświetlić. Poproś administratora serwera o przepuszczanie aplikacji.",
   "cloudflare_challenge_hosted": "Cloudflare sprawdza to połączenie. Spróbuj ponownie za kilka minut.",
   "cloudflare_banner_refused": "Weryfikacja przeszła, ale ustawienia Cloudflare dla :host nadal odrzucają aplikację. Przekaż Ray ID :ray administratorowi serwera.",
-  "cloudflare_banner_web": ":host prosi o potwierdzenie, że jesteś człowiekiem. Odśwież stronę, aby kontynuować."
+  "cloudflare_banner_web": ":host prosi o potwierdzenie, że jesteś człowiekiem. Odśwież stronę, aby kontynuować.",
+  "feature_needs_pro_or_enterprise": "Ta funkcja wymaga planu Pro lub Enterprise.",
+  "reports_need_pro_or_enterprise": "Raporty wymagają planu Pro lub Enterprise.",
+  "docuninja_needs_pro_or_enterprise": "DocuNinja wymaga planu Pro lub Enterprise.",
+  "free_plan_client_limit_reached_info": "Wykorzystano wszystkich :count klientów planu darmowego.",
+  "free_plan_clients_over_info": "Masz :count klientów. Plan darmowy pozwala na :limit. Wszyscy Twoi klienci zostają zachowani.",
+  "free_plan_import_too_many_info": "Ten import przekroczyłby :count klientów dozwolonych w planie darmowym, więc nic nie zostało zaimportowane.",
+  "free_plan_signup_note_info": "Plan darmowy: do :count klientów i jedna firma.",
+  "free_plan_company_limit_reached": "Osiągnięto limit firm w planie darmowym.",
+  "store_subscription_ended_info": "Twoja subskrypcja w aplikacji wygasła."
 }

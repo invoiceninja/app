@@ -245,14 +245,24 @@ void main() {
 
     test('off the stores it opens the billing portal', () {
       expect(
-        resolveUpgradeRoute(storeBilling: false, session: lapsed, now: _now),
+        resolveUpgradeRoute(
+          purchasesOffered: true,
+          storeBilling: false,
+          session: lapsed,
+          now: _now,
+        ),
         UpgradeRoute.billingPortal,
       );
     });
 
     test('on a store build its owner gets the purchase sheet', () {
       expect(
-        resolveUpgradeRoute(storeBilling: true, session: lapsed, now: _now),
+        resolveUpgradeRoute(
+          purchasesOffered: true,
+          storeBilling: true,
+          session: lapsed,
+          now: _now,
+        ),
         UpgradeRoute.purchaseSheet,
       );
     });

@@ -16,6 +16,7 @@ import 'package:admin/ui/core/widgets/party_contacts_builder.dart';
 import 'package:admin/ui/features/billing_shared/activity/activity_list_card.dart';
 import 'package:admin/ui/features/billing_shared/history/document_version_view_model.dart';
 import 'package:admin/ui/features/dashboard/helpers/activity_formatter.dart';
+import 'package:admin/domain/upgrade/upgrade_launcher.dart';
 import 'package:admin/ui/features/settings/widgets/plan_gate_banner.dart';
 import 'package:admin/utils/formatting.dart';
 
@@ -247,11 +248,15 @@ class _BillingDocHistoryTabState extends State<BillingDocHistoryTab> {
         icon: Icons.layers_outlined,
         title: context.tr('history'),
         subtitle: context.tr('document_history_requires_plan'),
-        action: FilledButton.tonal(
-          style: FilledButton.styleFrom(minimumSize: const Size(64, 44)),
-          onPressed: () => unawaited(openUpgradeFlow(context)),
-          child: Text(context.tr('upgrade')),
-        ),
+        // No Upgrade on a store build whose hosted service sells nothing to
+        // this account: the subtitle already says which plans have it.
+        action: purchasesWithheld(context)
+            ? null
+            : FilledButton.tonal(
+                style: FilledButton.styleFrom(minimumSize: const Size(64, 44)),
+                onPressed: () => unawaited(openUpgradeFlow(context)),
+                child: Text(context.tr('upgrade')),
+              ),
       );
     }
     return EmptyState(

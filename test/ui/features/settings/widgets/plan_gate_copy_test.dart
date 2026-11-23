@@ -34,16 +34,26 @@ PlanGateCopy _copy(
   required bool storeBilling,
   PlanGateLevel level = PlanGateLevel.pro,
   bool isOwner = true,
-}) => planGateCopy(
-  level,
-  s,
-  isOwner: isOwner,
-  route: resolveUpgradeRoute(
+  bool offered = true,
+}) {
+  final withheld = storePurchasesWithheld(
     storeBilling: storeBilling,
     session: s,
-    now: DateTime.utc(2026, 11, 20, 12),
-  ),
-);
+    offered: offered,
+  );
+  return planGateCopy(
+    level,
+    s,
+    isOwner: isOwner,
+    route: resolveUpgradeRoute(
+      purchasesOffered: !withheld,
+      storeBilling: storeBilling,
+      session: s,
+      now: DateTime.utc(2026, 11, 20, 12),
+    ),
+    purchasesWithheld: withheld,
+  );
+}
 
 void main() {
   test('a trial-eligible free account is offered the trial off store', () {
@@ -94,6 +104,56 @@ void main() {
         level: PlanGateLevel.enterprise,
       );
       expect(copy.key, 'requires_an_enterprise_plan');
+      expect(copy.cta, isTrue);
+    });
+  });
+
+  // Until the hosted config sells to the account, a store build says only
+  // which plans have the feature: no button, no "upgrade", no trial, and no
+  // "the owner can upgrade" (App Store 3.1.3(f), Play Payments policy).
+  group('a store build that sells nothing', () {
+    test('a free account at a Pro gate: the plans, no button, no trial', () {
+      final copy = _copy(_session(), storeBilling: true, offered: false);
+      expect(copy.key, 'feature_needs_pro_or_enterprise');
+      expect(copy.cta, isFalse);
+    });
+
+    test('an Enterprise gate names the Enterprise plan, no button', () {
+      final copy = _copy(
+        _session(),
+        storeBilling: true,
+        offered: false,
+        level: PlanGateLevel.enterprise,
+      );
+      expect(copy.key, 'requires_an_enterprise_plan');
+      expect(copy.cta, isFalse);
+    });
+
+    test('a member is not told the owner can upgrade', () {
+      final copy = _copy(
+        _session(),
+        storeBilling: true,
+        offered: false,
+        isOwner: false,
+      );
+      expect(copy.key, 'feature_needs_pro_or_enterprise');
+      expect(copy.cta, isFalse);
+    });
+
+    test('a plan billed on the web is still managed on the web', () {
+      final copy = _copy(
+        _session(plan: 'pro'),
+        storeBilling: true,
+        offered: false,
+        level: PlanGateLevel.enterprise,
+      );
+      expect(copy.key, 'plan_managed_on_web');
+      expect(copy.cta, isFalse);
+    });
+
+    test('desktop is unchanged whatever the offer', () {
+      final copy = _copy(_session(), storeBilling: false, offered: false);
+      expect(copy.key, 'start_free_trial_message');
       expect(copy.cta, isTrue);
     });
   });

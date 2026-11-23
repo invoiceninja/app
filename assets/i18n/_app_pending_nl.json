@@ -2396,5 +2396,14 @@
   "cloudflare_banner_unsupported": ":host vraagt om te bevestigen dat u een mens bent, wat dit apparaat niet kan tonen. Vraag de beheerder van de server om de app door te laten.",
   "cloudflare_challenge_hosted": "Cloudflare controleert deze verbinding. Probeer het over een paar minuten opnieuw.",
   "cloudflare_banner_refused": "De controle is gelukt, maar de Cloudflare-instellingen van :host weigeren de app nog steeds. Geef Ray ID :ray door aan de beheerder van de server.",
-  "cloudflare_banner_web": ":host vraagt om te bevestigen dat u een mens bent. Laad de pagina opnieuw om verder te gaan."
+  "cloudflare_banner_web": ":host vraagt om te bevestigen dat u een mens bent. Laad de pagina opnieuw om verder te gaan.",
+  "feature_needs_pro_or_enterprise": "Deze functie vereist het Pro- of Enterprise-abonnement.",
+  "reports_need_pro_or_enterprise": "Rapporten vereisen het Pro- of Enterprise-abonnement.",
+  "docuninja_needs_pro_or_enterprise": "DocuNinja vereist het Pro- of Enterprise-abonnement.",
+  "free_plan_client_limit_reached_info": "U hebt alle :count klanten van het gratis abonnement gebruikt.",
+  "free_plan_clients_over_info": "U hebt :count klanten. Het gratis abonnement staat er :limit toe. Al uw klanten blijven bewaard.",
+  "free_plan_import_too_many_info": "Deze import zou boven de :count klanten van het gratis abonnement uitkomen, dus er is niets geïmporteerd.",
+  "free_plan_signup_note_info": "Gratis abonnement: tot :count klanten en één bedrijf.",
+  "free_plan_company_limit_reached": "U hebt de bedrijfslimiet van het gratis abonnement bereikt.",
+  "store_subscription_ended_info": "Uw in-app-abonnement is beëindigd."
 }

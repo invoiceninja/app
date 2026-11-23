@@ -2397,5 +2397,14 @@
   "cloudflare_banner_unsupported": ":host درخواست تأیید انسان بودن شما را دارد و این دستگاه نمی‌تواند آن را نمایش دهد. از مدیر سرور بخواهید اجازهٔ عبور برنامه را بدهد.",
   "cloudflare_challenge_hosted": "Cloudflare در حال بررسی این اتصال است. چند دقیقهٔ دیگر دوباره تلاش کنید.",
   "cloudflare_banner_refused": "بررسی انجام شد، اما تنظیمات Cloudflare برای :host همچنان برنامه را رد می‌کند. شناسهٔ Ray :ray را با مدیر سرور در میان بگذارید.",
-  "cloudflare_banner_web": ":host درخواست تأیید انسان بودن شما را دارد. برای ادامه صفحه را دوباره بارگذاری کنید."
+  "cloudflare_banner_web": ":host درخواست تأیید انسان بودن شما را دارد. برای ادامه صفحه را دوباره بارگذاری کنید.",
+  "feature_needs_pro_or_enterprise": "این قابلیت به طرح Pro یا Enterprise نیاز دارد.",
+  "reports_need_pro_or_enterprise": "گزارش‌ها به طرح Pro یا Enterprise نیاز دارند.",
+  "docuninja_needs_pro_or_enterprise": "DocuNinja به طرح Pro یا Enterprise نیاز دارد.",
+  "free_plan_client_limit_reached_info": "شما همه :count مشتری طرح رایگان را استفاده کرده‌اید.",
+  "free_plan_clients_over_info": "شما :count مشتری دارید. طرح رایگان :limit مشتری را مجاز می‌داند. همه مشتریان شما حفظ می‌شوند.",
+  "free_plan_import_too_many_info": "این درون‌ریزی از :count مشتری مجاز طرح رایگان فراتر می‌رفت، بنابراین چیزی درون‌ریزی نشد.",
+  "free_plan_signup_note_info": "طرح رایگان: حداکثر :count مشتری و یک شرکت.",
+  "free_plan_company_limit_reached": "به سقف شرکت‌های طرح رایگان رسیده‌اید.",
+  "store_subscription_ended_info": "اشتراک درون‌برنامه‌ای شما به پایان رسیده است."
 }

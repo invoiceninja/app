@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/env.dart';
 import 'package:admin/domain/docuninja/docuninja_access.dart';
+import 'package:admin/domain/upgrade/upgrade_launcher.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/adaptive.dart';
 import 'package:admin/ui/core/widgets/empty_state.dart';
@@ -117,6 +118,14 @@ class DocuNinjaJoinView extends StatelessWidget {
                 : 'create_docuninja_account',
           ),
         ),
+      );
+    } else if (purchasesWithheld(context)) {
+      // A store build whose hosted service sells nothing to this account:
+      // which plans have DocuNinja, and no Upgrade.
+      action = Text(
+        context.tr('docuninja_needs_pro_or_enterprise'),
+        textAlign: TextAlign.center,
+        style: theme.textTheme.bodyMedium?.copyWith(color: tokens.ink2),
       );
     } else {
       action = Column(
@@ -259,15 +268,25 @@ class DocuNinjaPlanWallView extends StatelessWidget {
   final VoidCallback onUpgrade;
 
   @override
-  Widget build(BuildContext context) => EmptyState(
-    icon: Icons.draw_outlined,
-    title: context.tr('upgrade_plan_docuninja'),
-    action: FilledButton(
-      style: FilledButton.styleFrom(minimumSize: const Size(64, 44)),
-      onPressed: onUpgrade,
-      child: Text(context.tr('upgrade_plan')),
-    ),
-  );
+  Widget build(BuildContext context) {
+    // A store build whose hosted service sells nothing to this account says
+    // which plans have DocuNinja, with no Upgrade.
+    if (purchasesWithheld(context)) {
+      return EmptyState(
+        icon: Icons.draw_outlined,
+        title: context.tr('docuninja_needs_pro_or_enterprise'),
+      );
+    }
+    return EmptyState(
+      icon: Icons.draw_outlined,
+      title: context.tr('upgrade_plan_docuninja'),
+      action: FilledButton(
+        style: FilledButton.styleFrom(minimumSize: const Size(64, 44)),
+        onPressed: onUpgrade,
+        child: Text(context.tr('upgrade_plan')),
+      ),
+    );
+  }
 }
 
 /// A DocuNinja page other than the home (a document, the templates, users
@@ -284,7 +303,11 @@ class DocuNinjaGoHomeState extends StatelessWidget {
     final why = switch (access) {
       DocuNinjaAccess.notJoined => context.tr('docuninja_join_tagline'),
       DocuNinjaAccess.companySetup => _companySetupHelp(context),
-      DocuNinjaAccess.planWall => context.tr('upgrade_plan_docuninja'),
+      DocuNinjaAccess.planWall => context.tr(
+        purchasesWithheld(context)
+            ? 'docuninja_needs_pro_or_enterprise'
+            : 'upgrade_plan_docuninja',
+      ),
       DocuNinjaAccess.offline => context.tr('offline'),
       DocuNinjaAccess.failed => context.tr('an_error_occurred_try_again'),
       _ => null,

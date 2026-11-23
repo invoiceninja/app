@@ -116,12 +116,31 @@ class AccountManagementPlanScreen extends StatelessWidget {
             // `isWhiteLabeled` alone is true on hosted too.
             if (showWhiteLabelCard(value))
               _SelfHostedLicenseCard(session: value),
-            if (value.isHosted) _HostedActionsCard(session: value),
+            if (showsHostedActionsCard(
+              value,
+              purchasesWithheld: purchasesWithheld(context, session: value),
+            ))
+              _HostedActionsCard(session: value),
           ],
         );
       },
     );
   }
+}
+
+/// Whether the Plan tab shows its hosted Change Plan card. Always on hosted,
+/// except on a store build whose hosted service sells nothing to the account
+/// ([purchasesWithheld]): there the card would hold only a disabled Upgrade,
+/// so it is left out, unless it has something to manage or explain (a store
+/// plan, which keeps Manage subscription, or a plan billed on the web).
+@visibleForTesting
+bool showsHostedActionsCard(
+  AuthSession session, {
+  required bool purchasesWithheld,
+}) {
+  if (!session.isHosted) return false;
+  if (!purchasesWithheld) return true;
+  return session.hasIapPlan || session.isWebBilled;
 }
 
 /// Plan-expiry display: format through the active company's [Formatter] so it
@@ -378,8 +397,9 @@ class _HostedActionsCardState extends State<_HostedActionsCard> {
   Future<IapConfig?>? _config;
   AuthSession? _configFor;
 
-  Future<IapConfig?>? _configFuture(AuthSession session) {
+  Future<IapConfig?>? _configFuture(AuthSession session, bool withheld) {
     final asks =
+        !withheld &&
         isStoreBillingBuild &&
         storeOfBuild == PurchaseStore.googlePlay &&
         session.hasActiveIapPlan &&
@@ -399,8 +419,9 @@ class _HostedActionsCardState extends State<_HostedActionsCard> {
 
   @override
   Widget build(BuildContext context) {
-    final future = _configFuture(widget.session);
-    if (future == null) return _card(context, null);
+    final withheld = purchasesWithheld(context, session: widget.session);
+    final future = _configFuture(widget.session, withheld);
+    if (future == null) return _card(context, null, withheld);
     // Until the config answers (or with no answer), the store plan is
     // managed in the store: nothing is offered over it.
     return FutureBuilder<IapConfig?>(
@@ -420,21 +441,24 @@ class _HostedActionsCardState extends State<_HostedActionsCard> {
             ],
           );
         }
-        return _card(context, snapshot.data);
+        return _card(context, snapshot.data, withheld);
       },
     );
   }
 
-  Widget _card(BuildContext context, IapConfig? config) {
+  Widget _card(BuildContext context, IapConfig? config, bool withheld) {
     final session = widget.session;
     final tokens = context.inTheme;
     final storeBilling = isStoreBillingBuild;
     final hint = TextStyle(color: tokens.ink2);
     // Restore re-delivers purchases already paid for, so it is offered to the
-    // account's owner on every store-billing build, whether or not new
-    // purchases are on sale.
+    // account's owner on a store-billing build that sells in-app. Not while
+    // the hosted service sells nothing here ([purchasesWithheld]): nothing
+    // can have been bought in this app then, and the button would read as a
+    // way to buy (a purchase left over from a sale that was switched off is
+    // still delivered on its own, at launch and on every resume).
     final showRestore =
-        storeBilling && (session.currentCompany?.isOwner ?? false);
+        storeBilling && !withheld && (session.currentCompany?.isOwner ?? false);
 
     // Where an Upgrade tap goes decides what this card offers, so the card
     // never shows a button that `launchUpgrade` would not honour.
@@ -442,6 +466,7 @@ class _HostedActionsCardState extends State<_HostedActionsCard> {
       storeBilling: storeBilling,
       session: session,
       now: DateTime.now(),
+      purchasesOffered: !withheld,
       store: storeOfBuild,
       config: config,
     );
@@ -478,6 +503,10 @@ class _HostedActionsCardState extends State<_HostedActionsCard> {
           return explained(
             session.hasActiveIapPlan
                 ? 'plan_billed_in_app_store'
+                // A store build that sells nothing says only that it ended,
+                // not where to renew it.
+                : withheld
+                ? 'store_subscription_ended_info'
                 : 'store_subscription_ended_renew',
           );
         }

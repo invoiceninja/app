@@ -2312,5 +2312,14 @@
   "cloudflare_banner_unsupported": ":host traži da potvrdite da ste čovek, što ovaj uređaj ne može da prikaže. Zamolite administratora servera da propusti aplikaciju.",
   "cloudflare_challenge_hosted": "Cloudflare proverava ovu vezu. Pokušajte ponovo za nekoliko minuta.",
   "cloudflare_banner_refused": "Provera je prošla, ali Cloudflare podešavanja za :host i dalje odbijaju aplikaciju. Podelite Ray ID :ray sa administratorom servera.",
-  "cloudflare_banner_web": ":host traži da potvrdite da ste čovek. Ponovo učitajte stranicu da biste nastavili."
+  "cloudflare_banner_web": ":host traži da potvrdite da ste čovek. Ponovo učitajte stranicu da biste nastavili.",
+  "feature_needs_pro_or_enterprise": "Ova funkcija zahteva Pro ili Enterprise plan.",
+  "reports_need_pro_or_enterprise": "Izveštaji zahtevaju Pro ili Enterprise plan.",
+  "docuninja_needs_pro_or_enterprise": "DocuNinja zahteva Pro ili Enterprise plan.",
+  "free_plan_client_limit_reached_info": "Iskoristili ste svih :count klijenata besplatnog paketa.",
+  "free_plan_clients_over_info": "Imate :count klijenata. Besplatni paket dozvoljava :limit. Svi vaši klijenti ostaju sačuvani.",
+  "free_plan_import_too_many_info": "Ovaj uvoz bi premašio :count klijenata koje besplatni paket dozvoljava, pa ništa nije uvezeno.",
+  "free_plan_signup_note_info": "Besplatni paket: do :count klijenata i jedna firma.",
+  "free_plan_company_limit_reached": "Dostigli ste ograničenje kompanija besplatnog paketa.",
+  "store_subscription_ended_info": "Vaša pretplata u aplikaciji je istekla."
 }

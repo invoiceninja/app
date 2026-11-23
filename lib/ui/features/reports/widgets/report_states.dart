@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/env.dart';
 import 'package:admin/data/repositories/reports_repository.dart';
+import 'package:admin/domain/upgrade/upgrade_launcher.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/features/dashboard/widgets/dashboard_figures.dart';
 import 'package:admin/ui/features/reports/view_models/reports_view_model.dart';
@@ -16,14 +17,21 @@ import 'package:admin/utils/formatting.dart';
 /// validation message, a server's own reason), and never blank: `join` of no
 /// field errors is `''`, and a message field can arrive as `""`.
 String reportErrorMessage(BuildContext context, ReportError error) =>
-    reportErrorText(context.tr, error);
+    reportErrorText(
+      context.tr,
+      error,
+      purchasesWithheld: purchasesWithheld(context, listen: false),
+    );
 
 /// [reportErrorMessage] for a caller that only holds the translate function
 /// — one that captured it before an `await` and may have no context left.
+/// [purchasesWithheld] (upgrade_launcher.dart) says a plan refusal without
+/// "Upgrade": a store build whose hosted service sells nothing here.
 String reportErrorText(
   String Function(String, [Map<String, String>?]) tr,
-  ReportError error,
-) {
+  ReportError error, {
+  bool purchasesWithheld = false,
+}) {
   String? nonBlank(String? value) {
     final trimmed = value?.trim();
     return trimmed == null || trimmed.isEmpty ? null : trimmed;
@@ -33,7 +41,11 @@ String reportErrorText(
     case ReportErrorKind.timeout:
       return tr('report_still_working');
     case ReportErrorKind.planRequired:
-      return tr('upgrade_to_view_reports');
+      return tr(
+        purchasesWithheld
+            ? 'reports_need_pro_or_enterprise'
+            : 'upgrade_to_view_reports',
+      );
     case ReportErrorKind.unauthorized:
       return tr('access_denied');
     case ReportErrorKind.validation:

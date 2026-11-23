@@ -2384,5 +2384,14 @@
   "cloudflare_banner_unsupported": ":host cere să confirmați că sunteți om, lucru pe care acest dispozitiv nu îl poate afișa. Rugați administratorul serverului să lase aplicația să treacă.",
   "cloudflare_challenge_hosted": "Cloudflare verifică această conexiune. Încercați din nou peste câteva minute.",
   "cloudflare_banner_refused": "Verificarea a reușit, dar setările Cloudflare ale :host încă resping aplicația. Trimiteți Ray ID :ray administratorului serverului.",
-  "cloudflare_banner_web": ":host cere să confirmați că sunteți om. Reîncărcați pagina pentru a continua."
+  "cloudflare_banner_web": ":host cere să confirmați că sunteți om. Reîncărcați pagina pentru a continua.",
+  "feature_needs_pro_or_enterprise": "Această funcție necesită planul Pro sau Enterprise.",
+  "reports_need_pro_or_enterprise": "Rapoartele necesită planul Pro sau Enterprise.",
+  "docuninja_needs_pro_or_enterprise": "DocuNinja necesită planul Pro sau Enterprise.",
+  "free_plan_client_limit_reached_info": "Ați folosit toți cei :count clienți ai planului gratuit.",
+  "free_plan_clients_over_info": "Aveți :count clienți. Planul gratuit permite :limit. Toți clienții dvs. sunt păstrați.",
+  "free_plan_import_too_many_info": "Acest import ar depăși cei :count clienți permiși de planul gratuit, așa că nu s-a importat nimic.",
+  "free_plan_signup_note_info": "Plan gratuit: până la :count clienți și o firmă.",
+  "free_plan_company_limit_reached": "Ați atins limita de firme a planului gratuit.",
+  "store_subscription_ended_info": "Abonamentul dumneavoastră din aplicație s-a încheiat."
 }

@@ -2314,5 +2314,14 @@
   "cloudflare_banner_unsupported": ":host pyytää vahvistamaan, että olet ihminen, eikä tämä laite voi näyttää sitä. Pyydä palvelimen ylläpitäjää päästämään sovellus läpi.",
   "cloudflare_challenge_hosted": "Cloudflare tarkistaa tätä yhteyttä. Yritä uudelleen muutaman minuutin kuluttua.",
   "cloudflare_banner_refused": "Tarkistus onnistui, mutta palvelimen :host Cloudflare-asetukset torjuvat yhä sovelluksen. Kerro Ray ID :ray palvelimen ylläpitäjälle.",
-  "cloudflare_banner_web": ":host pyytää vahvistamaan, että olet ihminen. Jatka lataamalla sivu uudelleen."
+  "cloudflare_banner_web": ":host pyytää vahvistamaan, että olet ihminen. Jatka lataamalla sivu uudelleen.",
+  "feature_needs_pro_or_enterprise": "Tämä ominaisuus vaatii Pro- tai Enterprise-paketin.",
+  "reports_need_pro_or_enterprise": "Raportit vaativat Pro- tai Enterprise-paketin.",
+  "docuninja_needs_pro_or_enterprise": "DocuNinja vaatii Pro- tai Enterprise-paketin.",
+  "free_plan_client_limit_reached_info": "Olet käyttänyt kaikki Ilmaisen paketin :count asiakasta.",
+  "free_plan_clients_over_info": "Sinulla on :count asiakasta. Ilmainen paketti sallii :limit. Kaikki asiakkaasi säilyvät.",
+  "free_plan_import_too_many_info": "Tämä tuonti ylittäisi Ilmaisen paketin sallimat :count asiakasta, joten mitään ei tuotu.",
+  "free_plan_signup_note_info": "Ilmainen paketti: enintään :count asiakasta ja yksi yritys.",
+  "free_plan_company_limit_reached": "Olet saavuttanut Ilmaisen paketin yritysrajan.",
+  "store_subscription_ended_info": "Sovelluksen sisäinen tilauksesi on päättynyt."
 }

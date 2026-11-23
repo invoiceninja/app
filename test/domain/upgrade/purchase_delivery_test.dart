@@ -22,13 +22,18 @@ void main() {
   late List<PurchaseActivity> activity;
   late FakeTimers timers;
 
-  PurchaseDelivery build(TargetPlatform platform, {FakeAuth? withAuth}) {
+  PurchaseDelivery build(
+    TargetPlatform platform, {
+    FakeAuth? withAuth,
+    DateTime Function()? now,
+  }) {
     final delivery = PurchaseDelivery(
       apiClient: api,
       auth: withAuth ?? auth,
       billing: billing,
       platform: platform,
       timer: timers.call,
+      now: now,
     );
     delivery.activity.listen(activity.add);
     addTearDown(delivery.dispose);
@@ -594,7 +599,12 @@ void main() {
                   : googlePurchase(),
             );
 
-            expect(api.gets, ['/api/admin/iap/config']);
+            // Asked at sign-in (whether purchases are offered), and again
+            // for the purchase: a failure is never kept.
+            expect(api.gets, [
+              '/api/admin/iap/config',
+              '/api/admin/iap/config',
+            ]);
             expect(api.posts, isEmpty);
             expect(billing.completed, isEmpty);
             expect(auth.refreshes, 0);
@@ -733,7 +743,8 @@ void main() {
 
       api.iapConfig = const {'purchases_enabled': true, 'account_key': 'k'};
       await emit(applePurchase());
-      expect(api.gets, hasLength(2));
+      // The sign-in's ask and the first purchase's failed; the second asks.
+      expect(api.gets, hasLength(3));
       expect(api.posts, hasLength(1));
     });
 
@@ -1351,5 +1362,168 @@ void main() {
         expect(appleOriginalTransactionId(googleJson), isNull);
       },
     );
+  });
+  // Whether a store build shows any way to buy (docs/in-app-purchases.md, "A
+  // store build launches without purchases"): the hosted config's yes for
+  // the active account, asked at sign-in and on a company switch, and false
+  // on anything less.
+  group('purchase offer', () {
+    test('false until started, then the config\'s yes', () async {
+      final delivery = build(TargetPlatform.iOS);
+      expect(delivery.offer.offered, isFalse);
+      delivery.start();
+      expect(delivery.offer.offered, isFalse);
+      await pumpEventQueue();
+      expect(delivery.offer.offered, isTrue);
+      expect(api.gets, ['/api/admin/iap/config']);
+    });
+
+    final noes = <String, Object?>{
+      '404 (production before the hosted billing)': const ServerException(
+        404,
+        'Route does not exist',
+      ),
+      '500': const ServerException(500, 'Server Error'),
+      'network': const NetworkException('offline'),
+      'switched off': const {
+        'purchases_enabled': false,
+        'app_account_token': kTestAccountToken,
+        'account_key': 'acct-key',
+      },
+      'a non-owner (no account_key)': const {'purchases_enabled': false},
+      'no token': const {'purchases_enabled': true, 'account_key': 'acct-key'},
+      "another account's key": const {
+        'purchases_enabled': true,
+        'app_account_token': kTestAccountToken,
+        'account_key': 'their-acct',
+      },
+    };
+    for (final MapEntry(key: why, value: answer) in noes.entries) {
+      test('not offered: $why', () async {
+        api.iapConfig = answer;
+        final delivery = build(TargetPlatform.android)..start();
+        await pumpEventQueue();
+        expect(delivery.offer.offered, isFalse);
+      });
+    }
+
+    test('another company is not offered until its own answer', () async {
+      final delivery = build(TargetPlatform.iOS)..start();
+      await pumpEventQueue();
+      expect(delivery.offer.offered, isTrue);
+
+      final gate = api.getGate = Completer<void>();
+      auth.session.value = testSession(companyId: 'co2');
+      expect(delivery.offer.offered, isFalse);
+      gate.complete();
+      await pumpEventQueue();
+      expect(delivery.offer.offered, isTrue);
+      expect(api.gets, hasLength(2));
+    });
+
+    test('a refresh of the same session asks nothing more', () async {
+      final delivery = build(TargetPlatform.iOS)..start();
+      await pumpEventQueue();
+      auth.session.value = testSession();
+      await pumpEventQueue();
+      expect(delivery.offer.offered, isTrue);
+      expect(api.gets, hasLength(1));
+      // The session now names another account: not sold to, no request.
+      auth.session.value = testSession(accountKey: 'their-acct');
+      await pumpEventQueue();
+      expect(delivery.offer.offered, isFalse);
+      expect(api.gets, hasLength(1));
+    });
+
+    test('a sign-out withdraws it', () async {
+      final delivery = build(TargetPlatform.iOS)..start();
+      await pumpEventQueue();
+      auth.session.value = null;
+      await pumpEventQueue();
+      expect(delivery.offer.offered, isFalse);
+    });
+
+    test('a resume asks again only once the answer is old', () async {
+      var clock = DateTime.utc(2026, 11, 23, 12);
+      final delivery = build(TargetPlatform.iOS, now: () => clock)..start();
+      await pumpEventQueue();
+      expect(api.gets, hasLength(1));
+
+      clock = clock.add(const Duration(minutes: 5));
+      delivery.onAppResumed();
+      await pumpEventQueue();
+      expect(api.gets, hasLength(1));
+
+      // Support switched purchases off.
+      api.iapConfig = const {
+        'purchases_enabled': false,
+        'app_account_token': kTestAccountToken,
+        'account_key': 'acct-key',
+      };
+      clock = clock.add(kPurchaseOfferMaxAge);
+      delivery.onAppResumed();
+      await pumpEventQueue();
+      expect(api.gets, hasLength(2));
+      expect(delivery.offer.offered, isFalse);
+    });
+
+    test('a failed ask is retried on the next resume, and a failure keeps '
+        'the last answer', () async {
+      var clock = DateTime.utc(2026, 11, 23, 12);
+      api.iapConfig = const NetworkException('offline');
+      final delivery = build(TargetPlatform.iOS, now: () => clock)..start();
+      await pumpEventQueue();
+      expect(delivery.offer.offered, isFalse);
+
+      api.iapConfig = const {
+        'purchases_enabled': true,
+        'app_account_token': kTestAccountToken,
+        'account_key': 'acct-key',
+      };
+      delivery.onAppResumed();
+      await pumpEventQueue();
+      expect(api.gets, hasLength(2));
+      expect(delivery.offer.offered, isTrue);
+
+      // Offline an hour later: the yes for this user and company stands.
+      api.iapConfig = const NetworkException('offline');
+      clock = clock.add(const Duration(hours: 1));
+      delivery.onAppResumed();
+      await pumpEventQueue();
+      expect(api.gets, hasLength(3));
+      expect(delivery.offer.offered, isTrue);
+    });
+
+    test('a change of the store plan asks again', () async {
+      final delivery = build(TargetPlatform.android)..start();
+      await pumpEventQueue();
+      expect(delivery.offer.offered, isTrue);
+
+      // A purchase applied: the server no longer sells over the live plan.
+      api.iapConfig = const {
+        'purchases_enabled': false,
+        'app_account_token': kTestAccountToken,
+        'account_key': 'acct-key',
+      };
+      auth.session.value = testSession().copyWith(
+        plan: 'pro',
+        planExpires: '2099-01-01',
+        hasIapPlan: true,
+      );
+      await pumpEventQueue();
+      expect(api.gets, hasLength(2));
+      expect(delivery.offer.offered, isFalse);
+    });
+
+    test('notifies only on a change', () async {
+      final delivery = build(TargetPlatform.iOS);
+      var notes = 0;
+      delivery.offer.addListener(() => notes++);
+      delivery.start();
+      await pumpEventQueue();
+      auth.session.value = testSession();
+      await pumpEventQueue();
+      expect(notes, 1);
+    });
   });
 }

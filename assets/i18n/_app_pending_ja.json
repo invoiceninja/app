@@ -2396,5 +2396,14 @@
   "cloudflare_banner_unsupported": ":host が人間であることの確認を求めていますが、この端末では表示できません。サーバーの管理者にアプリを通過させるよう依頼してください。",
   "cloudflare_challenge_hosted": "Cloudflare がこの接続を確認しています。数分後にもう一度お試しください。",
   "cloudflare_banner_refused": "確認は完了しましたが、:host の Cloudflare 設定がまだアプリを拒否しています。Ray ID :ray をサーバーの管理者に伝えてください。",
-  "cloudflare_banner_web": ":host が人間であることの確認を求めています。続行するにはページを再読み込みしてください。"
+  "cloudflare_banner_web": ":host が人間であることの確認を求めています。続行するにはページを再読み込みしてください。",
+  "feature_needs_pro_or_enterprise": "この機能には Pro または Enterprise プランが必要です。",
+  "reports_need_pro_or_enterprise": "レポートには Pro または Enterprise プランが必要です。",
+  "docuninja_needs_pro_or_enterprise": "DocuNinja には Pro または Enterprise プランが必要です。",
+  "free_plan_client_limit_reached_info": "無料プランの顧客 :count 件をすべて使用しました。",
+  "free_plan_clients_over_info": "顧客が :count 件あります。無料プランでは :limit 件までです。既存の顧客はすべてそのまま残ります。",
+  "free_plan_import_too_many_info": "このインポートでは無料プランの上限 :count 件を超えるため、何もインポートされませんでした。",
+  "free_plan_signup_note_info": "無料プラン：顧客 :count 件と会社 1 社まで。",
+  "free_plan_company_limit_reached": "無料プランの会社数の上限に達しました。",
+  "store_subscription_ended_info": "アプリ内サブスクリプションは終了しました。"
 }

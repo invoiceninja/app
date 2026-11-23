@@ -75,6 +75,7 @@ final _accounts = <String, AuthSession>{
 };
 
 UpgradeRoute _route(bool storeBilling, String account) => resolveUpgradeRoute(
+  purchasesOffered: true,
   storeBilling: storeBilling,
   session: _accounts[account],
   now: _now,
@@ -160,7 +161,12 @@ void main() {
         );
       }
       expect(
-        resolveUpgradeRoute(storeBilling: true, session: null, now: _now),
+        resolveUpgradeRoute(
+          purchasesOffered: true,
+          storeBilling: true,
+          session: null,
+          now: _now,
+        ),
         isNot(UpgradeRoute.billingPortal),
       );
     });
@@ -172,7 +178,12 @@ void main() {
         isOwner: false,
       );
       expect(
-        resolveUpgradeRoute(storeBilling: true, session: s, now: _now),
+        resolveUpgradeRoute(
+          purchasesOffered: true,
+          storeBilling: true,
+          session: s,
+          now: _now,
+        ),
         UpgradeRoute.planScreen,
       );
     });
@@ -202,6 +213,7 @@ void main() {
       PurchaseStore? store = PurchaseStore.googlePlay,
       IapConfig? iapConfig,
     }) => resolveUpgradeRoute(
+      purchasesOffered: true,
       storeBilling: storeBilling,
       session: session ?? activeIap,
       now: _now,
@@ -408,9 +420,192 @@ void main() {
         isFalse,
       );
       expect(
-        resolveUpgradeRoute(storeBilling: true, session: expiredWeb, now: _now),
+        resolveUpgradeRoute(
+          purchasesOffered: true,
+          storeBilling: true,
+          session: expiredWeb,
+          now: _now,
+        ),
         UpgradeRoute.purchaseSheet,
       );
+    });
+  });
+
+  // A store build may launch before the hosted billing does: until the hosted
+  // config says it sells to this account, nothing is sold and no prompt shows
+  // a way to buy (App Store 3.1.3(f), Play Payments policy).
+  group('a store build launches without purchases', () {
+    const token = '6f1c2a54-9d0e-5b7f-8a3c-1e2d3f4a5b6c';
+    final free = _accounts['free']!;
+    IapConfig config({
+      bool enabled = true,
+      String? appAccountToken = token,
+      String accountKey = 'acct-key',
+    }) => IapConfig(
+      purchasesEnabled: enabled,
+      appAccountToken: appAccountToken,
+      accountKey: accountKey,
+    );
+
+    test(
+      'purchases are offered only on the config\'s yes for this account',
+      () {
+        expect(
+          inAppPurchasesOffered(
+            storeBilling: true,
+            session: free,
+            config: config(),
+          ),
+          isTrue,
+        );
+        final noes = <String, IapConfig?>{
+          'no answer (404, error, offline)': null,
+          'closed': IapConfig.closed,
+          'switched off': config(enabled: false),
+          'no token': config(appAccountToken: null),
+          'no account key (a non-owner)': config(accountKey: ''),
+          "another account's key": config(accountKey: 'their-acct'),
+        };
+        for (final MapEntry(key: why, value: c) in noes.entries) {
+          expect(
+            inAppPurchasesOffered(storeBilling: true, session: free, config: c),
+            isFalse,
+            reason: why,
+          );
+        }
+      },
+    );
+
+    test('never off the store, signed out or self-hosted', () {
+      expect(
+        inAppPurchasesOffered(
+          storeBilling: false,
+          session: free,
+          config: config(),
+        ),
+        isFalse,
+      );
+      expect(
+        inAppPurchasesOffered(
+          storeBilling: true,
+          session: null,
+          config: config(),
+        ),
+        isFalse,
+      );
+      expect(
+        inAppPurchasesOffered(
+          storeBilling: true,
+          session: _accounts['self-hosted'],
+          config: config(),
+        ),
+        isFalse,
+      );
+    });
+
+    test('withheld only for a hosted session on a store build', () {
+      expect(
+        storePurchasesWithheld(
+          storeBilling: true,
+          session: free,
+          offered: false,
+        ),
+        isTrue,
+      );
+      expect(
+        storePurchasesWithheld(
+          storeBilling: true,
+          session: free,
+          offered: true,
+        ),
+        isFalse,
+      );
+      // Desktop, the web and F-Droid keep the billing portal.
+      expect(
+        storePurchasesWithheld(
+          storeBilling: false,
+          session: free,
+          offered: false,
+        ),
+        isFalse,
+      );
+      expect(
+        storePurchasesWithheld(
+          storeBilling: true,
+          session: _accounts['self-hosted'],
+          offered: false,
+        ),
+        isFalse,
+      );
+      expect(
+        storePurchasesWithheld(
+          storeBilling: true,
+          session: null,
+          offered: false,
+        ),
+        isFalse,
+      );
+    });
+
+    test('a store build sells nothing; a store plan is still managed', () {
+      const expected = {
+        'free': UpgradeRoute.planScreen,
+        'trial': UpgradeRoute.planScreen,
+        'web-paid': UpgradeRoute.planScreen,
+        'active IAP': UpgradeRoute.storeSubscriptions,
+        'lapsed IAP, recent': UpgradeRoute.planScreen,
+        'lapsed IAP, >60 days': UpgradeRoute.planScreen,
+        'lapsed IAP, no date': UpgradeRoute.planScreen,
+        'self-hosted': UpgradeRoute.planScreen,
+        'non-owner, free': UpgradeRoute.planScreen,
+        "owner, another account's company": UpgradeRoute.planScreen,
+      };
+      for (final MapEntry(key: account, value: route) in expected.entries) {
+        expect(
+          resolveUpgradeRoute(
+            purchasesOffered: false,
+            storeBilling: true,
+            session: _accounts[account],
+            now: _now,
+          ),
+          route,
+          reason: account,
+        );
+      }
+    });
+
+    test('no Legacy Play replacement without the offer', () {
+      expect(
+        resolveUpgradeRoute(
+          purchasesOffered: false,
+          storeBilling: true,
+          session: _accounts['active IAP'],
+          now: _now,
+          store: PurchaseStore.googlePlay,
+          config: const IapConfig(
+            purchasesEnabled: true,
+            appAccountToken: token,
+            accountKey: 'acct-key',
+            replacesLegacyPlay: true,
+          ),
+        ),
+        UpgradeRoute.storeSubscriptions,
+      );
+    });
+
+    test('off the store the offer changes nothing', () {
+      for (final account in _accounts.keys) {
+        expect(
+          resolveUpgradeRoute(
+            purchasesOffered: false,
+            storeBilling: false,
+            session: _accounts[account],
+            now: _now,
+          ),
+          _route(false, account),
+          reason: account,
+        );
+      }
     });
   });
 
@@ -453,13 +648,23 @@ void main() {
     final legacy = _session(hasIapPlan: true);
     test('reaches the billing portal off the store', () {
       expect(
-        resolveUpgradeRoute(storeBilling: false, session: legacy, now: _now),
+        resolveUpgradeRoute(
+          purchasesOffered: true,
+          storeBilling: false,
+          session: legacy,
+          now: _now,
+        ),
         UpgradeRoute.billingPortal,
       );
     });
     test('is not sold a second store plan on a store build', () {
       expect(
-        resolveUpgradeRoute(storeBilling: true, session: legacy, now: _now),
+        resolveUpgradeRoute(
+          purchasesOffered: true,
+          storeBilling: true,
+          session: legacy,
+          now: _now,
+        ),
         UpgradeRoute.storeSubscriptionsEnded,
       );
     });

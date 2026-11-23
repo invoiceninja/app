@@ -11,11 +11,15 @@ import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 
 import 'package:admin/app/design_tokens.dart';
+import 'package:admin/app/services.dart';
 import 'package:admin/app/theme.dart';
 import 'package:admin/data/repositories/_repository_helpers.dart';
-import 'package:admin/data/repositories/auth/auth_session.dart';
+import 'package:admin/data/repositories/auth_repository.dart';
 import 'package:admin/data/services/api_exception.dart';
 import 'package:admin/domain/upgrade/client_usage.dart';
+import 'package:admin/domain/upgrade/store_build.dart';
+import 'package:admin/domain/upgrade/upgrade_launcher.dart';
+import 'package:admin/utils/formatting.dart';
 import 'package:admin/ui/core/edit/generic_edit_view_model.dart';
 import 'package:admin/ui/features/clients/widgets/client_limit.dart';
 
@@ -41,17 +45,45 @@ ClientUsage _usage({int? total, String plan = ''}) => ClientUsage(
   watchQueued: (_) => Stream.value((creates: 0, removals: 0)),
 );
 
+class _FakeAuth implements AuthRepository {
+  _FakeAuth(AuthSession s) : session = ValueNotifier<AuthSession?>(s);
+  @override
+  final ValueNotifier<AuthSession?> session;
+  @override
+  Object? noSuchMethod(Invocation invocation) =>
+      throw UnimplementedError(invocation.memberName.toString());
+}
+
+/// The signed-in hosted session, which says whose purchases are withheld.
+class _FakeServices implements Services {
+  _FakeServices(AuthSession s) : auth = _FakeAuth(s);
+  @override
+  final AuthRepository auth;
+  @override
+  Formatter? formatterIfReady(String companyId) => null;
+  @override
+  Object? noSuchMethod(Invocation invocation) =>
+      throw UnimplementedError(invocation.memberName.toString());
+}
+
 Future<void> _pump(
   WidgetTester tester, {
   required ClientUsage? usage,
   required Widget Function(BuildContext context) child,
+  bool signedIn = false,
 }) async {
-  final app = MaterialApp(
+  Widget app = MaterialApp(
     theme: buildInTheme(InTheme.light),
     localizationsDelegates: kTestLocalizationsDelegates,
     supportedLocales: kTestSupportedLocales,
     home: Scaffold(body: Builder(builder: child)),
   );
+  if (signedIn) {
+    app = Provider<Services>.value(
+      value: _FakeServices(_session()),
+      child: app,
+    );
+  }
   await tester.pumpWidget(
     usage == null
         ? app
@@ -417,6 +449,149 @@ void main() {
         'skip_header': ['bad'],
       });
       expect(await fail(tester, _usage(total: 3), other), isFalse);
+    });
+  });
+  // A store build whose hosted service does not sell in-app to the account
+  // (docs/free-plan-limits.md): every limit is still said in full, only the
+  // "Upgrade …" sentence and the button go.
+  group('a store build that sells nothing', () {
+    const atLimitInfo = 'You have used all 5 clients on the Free plan.';
+    const overInfo =
+        'You have 11 clients. The Free plan allows 5. All your clients are '
+        'kept.';
+    final upgradeKeys = [
+      const ValueKey('client_limit_upgrade'),
+      const ValueKey('client_usage_upgrade'),
+      const ValueKey('client_limit_form_upgrade'),
+    ];
+    void expectNoUpgrade() {
+      for (final key in upgradeKeys) {
+        expect(find.byKey(key), findsNothing, reason: '$key');
+      }
+      expect(find.textContaining('Upgrade'), findsNothing);
+    }
+
+    setUp(() {
+      debugStoreBillingOverride = true;
+      debugInAppPurchasesOfferedOverride = false;
+    });
+    tearDown(() {
+      debugStoreBillingOverride = null;
+      debugInAppPurchasesOfferedOverride = null;
+    });
+
+    Future<void> openDialog(WidgetTester tester, {int used = 5}) async {
+      await _pump(
+        tester,
+        usage: null,
+        signedIn: true,
+        child: (context) => TextButton(
+          onPressed: () => showClientLimitDialog(context, limit: 5, used: used),
+          child: const Text('open'),
+        ),
+      );
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('the dialog states the limit, with Close only', (tester) async {
+      await openDialog(tester);
+      expect(find.text(atLimitInfo), findsOneWidget);
+      expect(
+        find.text('Archived and deleted clients count toward the limit.'),
+        findsOneWidget,
+      );
+      expectNoUpgrade();
+      await tester.tap(find.byKey(const ValueKey('client_limit_close')));
+      await tester.pumpAndSettle();
+      expect(find.text(atLimitInfo), findsNothing);
+    });
+
+    testWidgets('over the cap the clients are still said to be kept', (
+      tester,
+    ) async {
+      await openDialog(tester, used: 11);
+      expect(find.text(overInfo), findsOneWidget);
+      expectNoUpgrade();
+    });
+
+    testWidgets('the list line keeps its count, without Upgrade', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        usage: _usage(total: 4),
+        signedIn: true,
+        child: (_) => const ClientUsageBanner(),
+      );
+      await tester.pump();
+      expect(find.text('4 of 5 clients on the Free plan'), findsOneWidget);
+      expectNoUpgrade();
+    });
+
+    testWidgets('the form notice states the limit, without Upgrade', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        usage: _usage(total: 5),
+        signedIn: true,
+        child: (_) => ClientLimitFormBanner(vm: _FormVm()),
+      );
+      await tester.pump();
+      expect(
+        find.byKey(const ValueKey('client_limit_form_banner')),
+        findsOneWidget,
+      );
+      expect(find.text(atLimitInfo), findsOneWidget);
+      expectNoUpgrade();
+    });
+
+    testWidgets('an import over the cap says nothing was imported', (
+      tester,
+    ) async {
+      const limitError = ValidationException('invalid', {
+        'files.client': ["You've hit the 5 client limit on Free accounts."],
+      });
+      await _pump(
+        tester,
+        usage: _usage(total: 3),
+        signedIn: true,
+        child: (context) => TextButton(
+          onPressed: () => showImportClientLimit(context, limitError),
+          child: const Text('import'),
+        ),
+      );
+      await tester.tap(find.text('import'));
+      await tester.pumpAndSettle();
+      expect(
+        find.text(
+          'This import would take you past the 5 clients the Free plan '
+          'allows, so nothing was imported.',
+        ),
+        findsOneWidget,
+      );
+      expectNoUpgrade();
+    });
+
+    testWidgets('once the config sells here, Upgrade is back', (tester) async {
+      debugInAppPurchasesOfferedOverride = true;
+      await openDialog(tester);
+      expect(find.text(_atLimit), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('client_limit_upgrade')),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('desktop keeps Upgrade, whatever the offer', (tester) async {
+      debugStoreBillingOverride = false;
+      await openDialog(tester);
+      expect(find.text(_atLimit), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('client_limit_upgrade')),
+        findsOneWidget,
+      );
     });
   });
 }
