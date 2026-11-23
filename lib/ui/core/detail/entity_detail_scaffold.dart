@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -6,6 +7,7 @@ import 'package:admin/app/design_tokens.dart';
 import 'package:admin/data/repositories/ensure_loaded_outcome.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/adaptive.dart';
+import 'package:admin/ui/core/detail/detail_find_navigator.dart';
 import 'package:admin/ui/core/detail/detail_scroll_scope.dart';
 import 'package:admin/ui/core/detail/detail_tab_navigator.dart';
 import 'package:admin/ui/core/detail/entity_detail_actions_row.dart';
@@ -157,6 +159,42 @@ class _EntityDetailScaffoldState<T> extends State<EntityDetailScaffold<T>> {
   /// The `[` / `]` channel to whichever tab strip the body mounts.
   final DetailTabNavigator _tabNavigator = DetailTabNavigator();
 
+  /// The key map, built once: the find chord depends on the platform, so the
+  /// map cannot be `const`, and a map rebuilt every frame would hand
+  /// `ShortcutManager` new activators (no `==`) each time, which it takes as a
+  /// change — a re-index and a notify from every rebuild.
+  late final Map<ShortcutActivator, Intent>
+  _shortcuts = <ShortcutActivator, Intent>{
+    ..._findActivators(),
+    const SingleActivator(LogicalKeyboardKey.keyE): const _EditCurrentIntent(),
+    const SingleActivator(LogicalKeyboardKey.bracketLeft): const _StepTabIntent(
+      -1,
+    ),
+    const SingleActivator(LogicalKeyboardKey.bracketRight):
+        const _StepTabIntent(1),
+    // The same two keys **by character**. On a German, French or Nordic
+    // layout a bracket is typed with a modifier — Option on a Mac, AltGr
+    // (which arrives as Ctrl+Alt) on Windows and Linux — and a
+    // `SingleActivator` accepts neither the physical key nor the
+    // modifier, so the bindings above never fire there.
+    const CharacterActivator('['): const _StepTabIntent(-1),
+    const CharacterActivator('[', alt: true): const _StepTabIntent(-1),
+    const CharacterActivator('[', alt: true, control: true):
+        const _StepTabIntent(-1),
+    const CharacterActivator(']'): const _StepTabIntent(1),
+    const CharacterActivator(']', alt: true): const _StepTabIntent(1),
+    const CharacterActivator(']', alt: true, control: true):
+        const _StepTabIntent(1),
+    // Not on key-repeat: holding the key would re-run the whole refresh
+    // on every repeat event.
+    const SingleActivator(LogicalKeyboardKey.keyR, includeRepeats: false):
+        const _RefreshIntent(),
+  };
+
+  /// The ⌘F / Ctrl+F channel to whatever find the body binds (the billing
+  /// documents' find in line items). Unbound, the chord falls through.
+  final DetailFindNavigator _findNavigator = DetailFindNavigator();
+
   /// Whether the page has scrolled far enough to hide the header — drives
   /// [EntityDetailScaffold.compactTitleForItem]. A notifier so a scroll frame
   /// rebuilds one opacity, not the scaffold.
@@ -295,31 +333,15 @@ class _EntityDetailScaffoldState<T> extends State<EntityDetailScaffold<T>> {
 
   Widget _build(BuildContext context, bool inPane) {
     return Shortcuts(
-      shortcuts: const <ShortcutActivator, Intent>{
-        SingleActivator(LogicalKeyboardKey.keyE): _EditCurrentIntent(),
-        SingleActivator(LogicalKeyboardKey.bracketLeft): _StepTabIntent(-1),
-        SingleActivator(LogicalKeyboardKey.bracketRight): _StepTabIntent(1),
-        // The same two keys **by character**. On a German, French or Nordic
-        // layout a bracket is typed with a modifier — Option on a Mac, AltGr
-        // (which arrives as Ctrl+Alt) on Windows and Linux — and a
-        // `SingleActivator` accepts neither the physical key nor the
-        // modifier, so the bindings above never fire there.
-        CharacterActivator('['): _StepTabIntent(-1),
-        CharacterActivator('[', alt: true): _StepTabIntent(-1),
-        CharacterActivator('[', alt: true, control: true): _StepTabIntent(-1),
-        CharacterActivator(']'): _StepTabIntent(1),
-        CharacterActivator(']', alt: true): _StepTabIntent(1),
-        CharacterActivator(']', alt: true, control: true): _StepTabIntent(1),
-        // Not on key-repeat: holding the key would re-run the whole refresh
-        // on every repeat event.
-        SingleActivator(LogicalKeyboardKey.keyR, includeRepeats: false):
-            _RefreshIntent(),
-      },
+      shortcuts: _shortcuts,
       child: Actions(
         actions: <Type, Action<Intent>>{
           // `[` / `]`: previous / next tab. Disabled — so the key falls
           // through — on a screen whose body mounts no strip.
           _StepTabIntent: _TabStepAction(_tabNavigator),
+          // ⌘F / Ctrl+F: the body's find. Disabled, so the chord falls
+          // through, on a record that bound none.
+          _FindIntent: _FindAction(_findNavigator),
           // `R`: re-fetch the record. Disabled, so the key falls through, on a
           // screen that has not wired a refresh.
           _RefreshIntent: _RefreshAction(
@@ -609,16 +631,19 @@ class _EntityDetailScaffoldState<T> extends State<EntityDetailScaffold<T>> {
     // SingleChildScrollView's `DetailScrollScope.maybeOf` resolves.
     final scoped = DetailTabNavigatorScope(
       navigator: _tabNavigator,
-      child: DetailScrollScope(
-        controller: _outerScroll,
-        child: Builder(
-          builder: (context) {
-            final body = widget.bodyBuilder(context, item);
-            // Selectable on every platform: drag + Cmd/Ctrl+C with a mouse,
-            // long-press on touch (invoiceninja/flutter#188), where a value's
-            // tap-to-copy still copies the whole value in one tap.
-            return AppSelectionArea(child: body);
-          },
+      child: DetailFindNavigatorScope(
+        navigator: _findNavigator,
+        child: DetailScrollScope(
+          controller: _outerScroll,
+          child: Builder(
+            builder: (context) {
+              final body = widget.bodyBuilder(context, item);
+              // Selectable on every platform: drag + Cmd/Ctrl+C with a mouse,
+              // long-press on touch (invoiceninja/flutter#188), where a value's
+              // tap-to-copy still copies the whole value in one tap.
+              return AppSelectionArea(child: body);
+            },
+          ),
         ),
       ),
     );
@@ -651,6 +676,47 @@ const double kDetailCompactTitleMaxWidth = 260;
 
 class _EditCurrentIntent extends Intent {
   const _EditCurrentIntent();
+}
+
+class _FindIntent extends Intent {
+  const _FindIntent();
+}
+
+/// ⌘F on Apple platforms, Ctrl+F elsewhere — one modifier each, never both:
+/// ⌃F is Cocoa's forward-a-character inside a text field.
+Map<ShortcutActivator, Intent> _findActivators() {
+  final apple =
+      defaultTargetPlatform == TargetPlatform.macOS ||
+      defaultTargetPlatform == TargetPlatform.iOS;
+  return <ShortcutActivator, Intent>{
+    SingleActivator(LogicalKeyboardKey.keyF, meta: apple, control: !apple):
+        const _FindIntent(),
+  };
+}
+
+/// The find chord fires from inside a text field too — it types nothing, and
+/// pressed again in the find field it re-selects the query, as a browser's
+/// does — but stands down mid leader sequence, and is disabled (so the chord
+/// falls through) while the body has bound no find.
+class _FindAction extends GuardedShortcutAction<_FindIntent> {
+  _FindAction(this.navigator)
+    : super(
+        onInvoke: (_) {
+          navigator.find();
+          return null;
+        },
+        firesInTextInput: () => true,
+      );
+
+  final DetailFindNavigator navigator;
+
+  @override
+  bool isEnabled(_FindIntent intent) =>
+      navigator.hasFind && super.isEnabled(intent);
+
+  @override
+  bool consumesKey(_FindIntent intent) =>
+      navigator.hasFind && super.consumesKey(intent);
 }
 
 class _StepTabIntent extends Intent {

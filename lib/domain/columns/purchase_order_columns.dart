@@ -7,6 +7,7 @@ import 'package:admin/domain/columns/column_definition.dart';
 import 'package:admin/ui/features/projects/widgets/project_name_label.dart';
 import 'package:admin/domain/columns/custom_field_columns.dart';
 import 'package:admin/ui/core/widgets/design_name_label.dart';
+import 'package:admin/ui/core/widgets/expense_name_label.dart';
 import 'package:admin/ui/core/widgets/party_money_cell.dart';
 import 'package:admin/ui/core/widgets/vendor_name_label.dart';
 import 'package:admin/ui/features/purchase_orders/widgets/purchase_order_status_pill.dart';
@@ -120,6 +121,20 @@ final kAllPurchaseOrderColumns = <PurchaseOrderColumn>[
         ? cellEmpty()
         : ProjectNameLabel(projectId: p.projectId, link: true),
     valueBuilder: (p) => cellNonZeroString(p.projectId),
+    copiesCellName: true,
+  ),
+  // The expense this purchase order was converted to — its number, linked.
+  // Display-only: the Drift column holds the hashed id, and ordering by it
+  // looks random beside the numbers the cells show.
+  PurchaseOrderColumn(
+    id: PurchaseOrderFieldIds.expenseId,
+    labelKey: 'expense',
+    width: 140,
+    sortable: false,
+    cellBuilder: (p, _) => p.expenseId.isEmpty
+        ? cellEmpty()
+        : ExpenseNameLabel(expenseId: p.expenseId, link: true),
+    valueBuilder: (p) => cellNonZeroString(p.expenseId),
     copiesCellName: true,
   ),
   // Payload-only on this table, so display-only — lift the field into

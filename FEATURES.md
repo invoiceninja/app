@@ -220,6 +220,7 @@ the honest default.
 | Invoice — edit (line items, dates, totals) | ✅ | ✅ | ✅ | ✅ | |
 | Line item — free-text row on phone (not only picked Products / Tasks / Expenses) | ✅ | ✅ | ✅ | ✅ | |
 | Line item — text-only row on phone (`Add Text`: description with no product / cost / quantity, full-screen spell-checked editor; the card shows the text, not `$0.00 × 0`) | — | — | ✅ | | |
+| Line items — find on the record screen (⌘F / Ctrl+F, or the Find button on a long document): searches item, description, custom values and figures, highlights every hit, steps between them; invoice / quote / credit / recurring invoice / purchase order | ✅ | — | ✅ | | Browser Ctrl+F in React; a Flutter web page has no text for the browser to find. Edit screen not yet (docs/find-in-line-items.md) |
 | Line item — tap a line on the record screen (invoice / quote / credit / purchase order / recurring invoice Overview) to open the edit screen with that line's editor up; inert for a deleted record or one the user may not edit, and a locked invoice gets its dialog | — | ✅ | ✅ | | |
 | Billing-doc edit — Products / Tasks line-item tabs: Settings → Task Settings → Show Tasks Table keeps Tasks on offer before any hourly line (invoice / recurring), and a quote always offers it, setting or not (React parity: its quote page always renders the tab); new Tasks rows are hourly (`type_id` 2, the PDF task table) with Service / Rate / Hours columns, and Hours takes `1:30` / `90m` | ✅ | ✅ | ✅ | | |
 | Line item — optional quote lines (`is_optional`): an Optional toggle in the row menu (wide) or the line editor (phone), the line marked and left out of the quote's subtotal, taxes and total; kept only when cloning to a quote. Offered only once the server is seen to model the field (its saved lines carry `is_optional: false`), so it turns itself on when the server ships it | ❌ | ❌ | ✅ | | Server and React do not model it yet (2026-11) |
@@ -601,6 +602,7 @@ the honest default.
 | Purchase order — import | ✅ | 🟡 | ✅ | ✅ | |
 | Purchase order — custom fields | ✅ | ✅ | ✅ | ✅ | |
 | Purchase order — list columns for public / private notes, project, assigned user | ✅ | ✅ | ✅ | | |
+| Purchase order — Expense list column (the expense it was converted to, by number, linked) | ❌ | ✅ | ✅ | | Beta-user request |
 | Purchase order — tags (attach via picker, list `tag_ids` filter + column, detail chips) | ✅ | — | ✅ | | |
 
 ---

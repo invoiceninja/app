@@ -4,15 +4,21 @@ import 'package:go_router/go_router.dart';
 
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/data/models/domain/billing/billing_doc_fields.dart';
+import 'package:admin/app/shortcut_hint_controller.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/core/detail/detail_find_navigator.dart';
+import 'package:admin/ui/core/detail/detail_tab_indices.dart';
 import 'package:admin/ui/core/detail/entity_detail_actions_row.dart';
 import 'package:admin/ui/core/detail/entity_detail_tabs.dart';
 import 'package:admin/ui/core/detail/entity_quick_actions.dart';
 import 'package:admin/ui/core/detail/record_screen_controller.dart';
 import 'package:admin/ui/core/sync/require_synced.dart';
+import 'package:admin/ui/core/utils/platform_modifier.dart';
+import 'package:admin/ui/core/widgets/shortcut_hint_scope.dart';
 import 'package:admin/ui/core/widgets/party_money_cell.dart';
 import 'package:admin/ui/features/billing_shared/billing_doc_type.dart';
 import 'package:admin/ui/features/billing_shared/detail/billing_doc_record_header.dart';
+import 'package:admin/ui/features/billing_shared/line_item_find.dart';
 import 'package:admin/utils/formatting.dart';
 import 'package:admin/ui/core/widgets/ltr_value.dart';
 
@@ -95,8 +101,50 @@ class _BillingDocRecordBodyState extends State<BillingDocRecordBody> {
   /// See [BillingDocRecordBody.tabs]. Set by the first layout.
   int? _landingTab;
 
+  /// Find in line items (`docs/find-in-line-items.md`): the Overview tab's
+  /// table highlights, the bar pinned under the strip drives it.
+  final LineItemFindController _find = LineItemFindController();
+
+  /// The scaffold's ⌘F / Ctrl+F channel, bound to [_openFind].
+  DetailFindNavigator? _findNavigator;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final navigator = DetailFindNavigatorScope.maybeOf(context);
+    if (identical(navigator, _findNavigator)) return;
+    _findNavigator?.unbind(_openFind);
+    _findNavigator = navigator?..bind(_openFind);
+  }
+
+  @override
+  void dispose() {
+    _findNavigator?.unbind(_openFind);
+    _find.dispose();
+    super.dispose();
+  }
+
+  /// ⌘F: the line items are on the Overview tab, so go there (and bring the
+  /// strip, with the bar under it, into view), then open the bar.
+  void _openFind() {
+    widget.record.selectTab.selectId(DetailTabIds.overview);
+    _find.open();
+  }
+
   @override
   Widget build(BuildContext context) {
+    return ShortcutHintScope(
+      hints: [
+        ShortcutHint(
+          keys: [platformModifierLabel(), 'F'],
+          labelKey: 'find_in_items',
+        ),
+      ],
+      child: LineItemFindScope(controller: _find, child: _layout(context)),
+    );
+  }
+
+  Widget _layout(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final split = constraints.maxWidth >= kBillingDocPdfSplitMinWidth;
@@ -112,7 +160,23 @@ class _BillingDocRecordBodyState extends State<BillingDocRecordBody> {
               Expanded(
                 flex: 5,
                 child: widget.record.buildPage(
-                  strip: strip,
+                  // The find bar pins with the strip, so it stays on screen
+                  // while the page scrolls from one hit to the next.
+                  strip: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // One shape open or closed, so opening the bar never
+                      // remounts the strip.
+                      strip,
+                      ListenableBuilder(
+                        listenable: _find,
+                        builder: (context, _) => _find.isOpen
+                            ? LineItemFindBar(controller: _find)
+                            : const SizedBox.shrink(),
+                      ),
+                    ],
+                  ),
                   body: body,
                   top: widget.top(context, split),
                 ),

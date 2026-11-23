@@ -14,6 +14,7 @@ import 'package:admin/ui/core/widgets/party_money_cell.dart';
 import 'package:admin/ui/features/billing_shared/billing_doc_type.dart';
 import 'package:admin/ui/features/billing_shared/detail/billing_doc_notes.dart';
 import 'package:admin/ui/features/billing_shared/edit/open_line_item_request.dart';
+import 'package:admin/ui/features/billing_shared/line_item_find.dart';
 import 'package:admin/ui/features/billing_shared/line_items_readonly_table.dart';
 import 'package:admin/ui/features/billing_shared/totals_widget.dart';
 import 'package:admin/utils/formatting.dart';
@@ -102,6 +103,20 @@ class _BillingDocOverviewState extends State<BillingDocOverview> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     _ensureCompanyStream();
+    _closeFindWhenHidden();
+  }
+
+  /// The find bar is pinned under the tab strip, so it would outlive this tab:
+  /// leaving Overview closes it. `TickerMode` is off for a tab body that is
+  /// kept alive but not showing (`EntityDetailTabs`). After the frame, since
+  /// closing rebuilds the strip.
+  void _closeFindWhenHidden() {
+    if (TickerMode.valuesOf(context).enabled) return;
+    final find = LineItemFindScope.maybeOf(context);
+    if (find == null || !find.isOpen) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && !TickerMode.valuesOf(context).enabled) find.close();
+    });
   }
 
   @override
@@ -145,6 +160,7 @@ class _BillingDocOverviewState extends State<BillingDocOverview> {
           discountIsAmount: totalsInput.isAmountDiscount,
           customFields: company?.customFields,
           onTapItem: widget.onEditLineItem,
+          find: LineItemFindScope.maybeOf(context),
           // The totals are the table's foot, under the column they add up:
           // at the end of the row and no wider than a sum needs to be where
           // there is room to see that, and the whole row where there is not —

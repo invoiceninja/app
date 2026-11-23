@@ -90,6 +90,13 @@ class _KeyboardShortcutsDialog extends StatelessWidget {
             ],
             description: context.tr('edit_current'),
           ),
+          // On an invoice, quote, credit, recurring invoice or purchase order.
+          _Row(
+            chords: [
+              [mod, 'F'],
+            ],
+            description: context.tr('find_in_items'),
+          ),
         ],
       ),
       _Section(

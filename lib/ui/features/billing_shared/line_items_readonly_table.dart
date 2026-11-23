@@ -2,11 +2,14 @@ import 'package:decimal/decimal.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'package:admin/app/design_tokens.dart';
+import 'package:admin/app/env.dart';
 import 'package:admin/data/models/domain/billing/line_item.dart';
 import 'package:admin/data/models/domain/billing/line_item_custom_fields.dart';
+import 'package:admin/domain/billing/line_item_find.dart';
 import 'package:admin/domain/date_placeholders.dart';
 import 'package:admin/domain/tasks/line_item_notes_display.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/features/billing_shared/line_item_find.dart';
 import 'package:admin/ui/core/widgets/cell_copy_hover.dart';
 import 'package:admin/utils/formatting.dart';
 import 'package:admin/ui/core/widgets/ltr_value.dart';
@@ -19,6 +22,11 @@ const double _kDiscW = 84;
 const double _kTaxW = 104;
 const double _kTotalW = 112;
 const double _kGap = 10;
+
+/// From this many drawn lines the table's header carries a Find button — the
+/// way into find in line items without a keyboard. Under it the whole
+/// document is on one screen; ⌘F / Ctrl+F still opens the bar there.
+const int kLineItemFindButtonMinLines = 5;
 
 /// Read-only line-items table for the billing-doc detail Overview (Invoice /
 /// Quote / Credit). Mirrors the edit screen's column set
@@ -42,6 +50,12 @@ const double _kGap = 10;
 /// With [onTapItem], each line is one tap target into the edit screen with
 /// that line's editor open — admin-portal's tap-a-line-to-edit, which the
 /// rebuild had lost to Edit → Items → tap the line.
+///
+/// With [find], the table is where the record screen's find in line items
+/// looks (`docs/find-in-line-items.md`): it hands the controller each drawn
+/// line's texts as it draws them, highlights every hit while the bar is open,
+/// and lifts the three-line cap on a line that has one, so no hit is hidden
+/// behind an ellipsis.
 class LineItemsReadonlyTable extends StatelessWidget {
   const LineItemsReadonlyTable({
     super.key,
@@ -52,6 +66,7 @@ class LineItemsReadonlyTable extends StatelessWidget {
     this.customFields,
     this.onTapItem,
     this.footer,
+    this.find,
   });
 
   final List<LineItem> items;
@@ -76,8 +91,20 @@ class LineItemsReadonlyTable extends StatelessWidget {
   /// on the page, and as two cards the sum sat a gap away from its column.
   final Widget? footer;
 
+  /// The record screen's find in line items, or null where there is none.
+  final LineItemFindController? find;
+
   @override
   Widget build(BuildContext context) {
+    final find = this.find;
+    if (find == null) return _build(context, null);
+    return ListenableBuilder(
+      listenable: find,
+      builder: (context, _) => _build(context, find),
+    );
+  }
+
+  Widget _build(BuildContext context, LineItemFindController? find) {
     final tokens = context.inTheme;
     // Each drawn line keeps its index in [items], which is what [onTapItem]
     // hands back: the edit view model's draft holds the blank lines too.
@@ -86,6 +113,23 @@ class LineItemsReadonlyTable extends StatelessWidget {
         if (!items[i].isBlank) i,
     ];
     final rows = [for (final i in indexes) items[i]];
+    final texts = [for (final it in rows) _findTexts(context, it)];
+    final query = (find != null && find.isOpen) ? find.normalizedQuery : '';
+    final active = query.isEmpty ? null : find?.active;
+    _RowFind rowFind(int i) => _RowFind(
+      query: query,
+      texts: texts[i],
+      active: active?.row == i ? active : null,
+    );
+    // Every line carries its key, so the controller can scroll to the one
+    // holding the current hit. Always, not only on that line: moving one key
+    // between lines remounted both on every step.
+    Widget keyed(int i, Widget row) =>
+        find == null ? row : KeyedSubtree(key: find.rowKey(i), child: row);
+    final findButton =
+        find != null && rows.length >= kLineItemFindButtonMinLines
+        ? _findButton(context, find)
+        : null;
     final footer = this.footer;
     final foot = footer == null
         ? null
@@ -120,18 +164,40 @@ class LineItemsReadonlyTable extends StatelessWidget {
           // Keep ~200px for the Item column (the name over its description);
           // below that the table is unreadable, so stack instead.
           final stacked = constraints.maxWidth - fixed < 200;
+          // Counted in the order this layout draws a line's slots.
+          find?.updateRows(
+            texts,
+            order: stacked ? kStackedFindOrder : LineFindSegment.values,
+          );
           if (stacked) {
             return Column(
               children: [
+                // No column heads to hang it on here, so the button gets a
+                // slim head of its own, naming the list.
+                if (findButton != null)
+                  _headBar(
+                    context,
+                    findButton: true,
+                    child: Row(
+                      children: [
+                        _flexHead(context.tr('items'), tokens),
+                        findButton,
+                      ],
+                    ),
+                  ),
                 for (var i = 0; i < rows.length; i++)
-                  _tappable(
-                    indexes[i],
-                    _stackedRow(
-                      context,
-                      rows[i],
-                      isLast: i == rows.length - 1,
-                      showTax: showTax,
-                      showDiscount: showDiscount,
+                  keyed(
+                    i,
+                    _tappable(
+                      indexes[i],
+                      _stackedRow(
+                        context,
+                        rows[i],
+                        rowFind(i),
+                        isLast: i == rows.length - 1,
+                        showTax: showTax,
+                        showDiscount: showDiscount,
+                      ),
                     ),
                   ),
                 ?foot,
@@ -140,16 +206,25 @@ class LineItemsReadonlyTable extends StatelessWidget {
           }
           return Column(
             children: [
-              _headerRow(context, showTax: showTax, showDiscount: showDiscount),
+              _headerRow(
+                context,
+                showTax: showTax,
+                showDiscount: showDiscount,
+                findButton: findButton,
+              ),
               for (var i = 0; i < rows.length; i++)
-                _tappable(
-                  indexes[i],
-                  _dataRow(
-                    context,
-                    rows[i],
-                    isLast: i == rows.length - 1,
-                    showTax: showTax,
-                    showDiscount: showDiscount,
+                keyed(
+                  i,
+                  _tappable(
+                    indexes[i],
+                    _dataRow(
+                      context,
+                      rows[i],
+                      rowFind(i),
+                      isLast: i == rows.length - 1,
+                      showTax: showTax,
+                      showDiscount: showDiscount,
+                    ),
                   ),
                 ),
               ?foot,
@@ -182,20 +257,28 @@ class LineItemsReadonlyTable extends StatelessWidget {
     BuildContext context, {
     required bool showTax,
     required bool showDiscount,
+    Widget? findButton,
   }) {
     final tokens = context.inTheme;
-    return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: InSpacing.lg(context),
-        vertical: 10,
-      ),
-      decoration: BoxDecoration(
-        color: tokens.surfaceAlt,
-        border: Border(bottom: BorderSide(color: tokens.border)),
-      ),
+    return _headBar(
+      context,
+      findButton: findButton != null,
       child: Row(
         children: [
-          _flexHead(context.tr('item'), tokens),
+          if (findButton == null)
+            _flexHead(context.tr('item'), tokens)
+          else
+            // Beside the Item head it names, not at the end of the column,
+            // where it read as a control of the Quantity column beside it.
+            Expanded(
+              child: Row(
+                children: [
+                  Flexible(child: _headText(context.tr('item'), tokens)),
+                  const SizedBox(width: 4),
+                  findButton,
+                ],
+              ),
+            ),
           _numHead(_kQtyW, context.tr('quantity'), tokens),
           _numHead(_kCostW, context.tr('unit_cost'), tokens),
           if (showDiscount) _numHead(_kDiscW, context.tr('discount'), tokens),
@@ -206,9 +289,52 @@ class LineItemsReadonlyTable extends StatelessWidget {
     );
   }
 
+  /// The header band. A Find button is taller than a line of small capitals,
+  /// so with one the band gives back the padding the button brings.
+  Widget _headBar(
+    BuildContext context, {
+    required bool findButton,
+    required Widget child,
+  }) {
+    final tokens = context.inTheme;
+    final v = findButton ? (Env.isTouchPrimary ? 0.0 : 4.0) : 10.0;
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: InSpacing.lg(context),
+        vertical: v,
+      ),
+      decoration: BoxDecoration(
+        color: tokens.surfaceAlt,
+        border: Border(bottom: BorderSide(color: tokens.border)),
+      ),
+      child: child,
+    );
+  }
+
+  /// Opens find in line items. 28 px under a pointer; the touch floor on a
+  /// touch platform, with Material's own 48 px layout inflation switched off.
+  Widget _findButton(BuildContext context, LineItemFindController find) {
+    final size = Env.isTouchPrimary ? InSizes.touchTarget : 28.0;
+    return IconButton(
+      tooltip: context.tr('find_in_items'),
+      onPressed: find.open,
+      iconSize: 16,
+      padding: EdgeInsets.zero,
+      // The desktop theme's compact density would take 8 off these.
+      visualDensity: VisualDensity.standard,
+      constraints: BoxConstraints.tightFor(width: size, height: size),
+      style: IconButton.styleFrom(
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      ),
+      color: context.inTheme.ink2,
+      icon: const Icon(Icons.search),
+    );
+  }
+
   Widget _dataRow(
     BuildContext context,
-    LineItem it, {
+    LineItem it,
+    _RowFind f, {
     required bool isLast,
     required bool showTax,
     required bool showDiscount,
@@ -227,18 +353,21 @@ class LineItemsReadonlyTable extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _itemCell(context, it, tokens),
-          _numCell(_kQtyW, _qty(it.quantity), tokens),
-          _numCell(_kCostW, _money(it.cost), tokens),
+          _itemCell(context, it, f, tokens),
+          _numCell(context, _kQtyW, f, LineFindSegment.quantity, tokens),
+          _numCell(context, _kCostW, f, LineFindSegment.cost, tokens),
           if (showDiscount)
-            _numCell(
-              _kDiscW,
-              it.discount == Decimal.zero ? '—' : _discountLabel(it),
-              tokens,
-            ),
+            _numCell(context, _kDiscW, f, LineFindSegment.discount, tokens),
           if (showTax)
-            _numCell(_kTaxW, _hasTax(it) ? _taxLabel(it) : '—', tokens),
-          _numCell(_kTotalW, _money(it.gross), tokens, strong: true),
+            _numCell(context, _kTaxW, f, LineFindSegment.tax, tokens),
+          _numCell(
+            context,
+            _kTotalW,
+            f,
+            LineFindSegment.total,
+            tokens,
+            strong: true,
+          ),
         ],
       ),
     );
@@ -248,25 +377,70 @@ class LineItemsReadonlyTable extends StatelessWidget {
 
   Widget _stackedRow(
     BuildContext context,
-    LineItem it, {
+    LineItem it,
+    _RowFind f, {
     required bool isLast,
     required bool showTax,
     required bool showDiscount,
   }) {
     final tokens = context.inTheme;
-    final meta = <String>[
-      '${_qty(it.quantity)} × ${_money(it.cost)}',
-      if (showDiscount && it.discount != Decimal.zero)
-        '${context.tr('discount')}: ${_discountLabel(it)}',
-      if (showTax && _hasTax(it)) '${context.tr('tax')}: ${_taxLabel(it)}',
-    ];
-    final notes = _notesText(it);
-    final custom = _customSummary(context, it);
-    final title = it.productKey.isNotEmpty
-        ? it.productKey
+    final notes = f.text(LineFindSegment.notes);
+    final custom = f.text(LineFindSegment.custom);
+    final metaStyle = TextStyle(
+      fontSize: 11.5,
+      color: tokens.ink3,
+      fontFeatures: const [FontFeature.tabularFigures()],
+    );
+    // Each value its own span, so a hit in one is marked where it is.
+    Widget metaValue(LineFindSegment s) =>
+        f.highlight(context, s, style: metaStyle, ltr: true);
+    const sep = SizedBox(width: 16);
+    final meta = Wrap(
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        metaValue(LineFindSegment.quantity),
+        Text(' × ', style: metaStyle),
+        metaValue(LineFindSegment.cost),
+        if (showDiscount && it.discount != Decimal.zero) ...[
+          sep,
+          Text('${context.tr('discount')}: ', style: metaStyle),
+          metaValue(LineFindSegment.discount),
+        ],
+        if (showTax && _hasTax(it)) ...[
+          sep,
+          Text('${context.tr('tax')}: ', style: metaStyle),
+          metaValue(LineFindSegment.tax),
+        ],
+      ],
+    );
+    final hasKey = it.productKey.isNotEmpty;
+    // With no item name, the title is the first line of the description —
+    // and the description is not repeated under it, so a hit in a later line
+    // of it would be invisible: while one is there the whole description is
+    // the title.
+    final titleIsNotes = !hasKey && notes.isNotEmpty;
+    final titleStyle = TextStyle(
+      fontSize: 13.5,
+      fontWeight: FontWeight.w600,
+      color: tokens.ink,
+    );
+    final Widget titleText;
+    if (hasKey) {
+      titleText = f.highlight(context, LineFindSegment.name, style: titleStyle);
+    } else if (titleIsNotes && f.hasHits) {
+      titleText = f.highlight(
+        context,
+        LineFindSegment.notes,
+        style: titleStyle,
+      );
+    } else {
+      titleText = Text(
         // One line only for the title — the rest of the note follows in the
         // subtitle below when there's a product key to head the row.
-        : (notes.isEmpty ? '—' : notes.split('\n').first);
+        titleIsNotes ? notes.split('\n').first : '—',
+        style: titleStyle,
+      );
+    }
     return Container(
       padding: EdgeInsets.symmetric(
         horizontal: InSpacing.lg(context),
@@ -286,21 +460,13 @@ class LineItemsReadonlyTable extends StatelessWidget {
               Expanded(
                 // Only an item name copies: a title borrowed from the first
                 // line of the description is not the item's name.
-                child: _copyable(
-                  it.productKey,
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w600,
-                      color: tokens.ink,
-                    ),
-                  ),
-                ),
+                child: _copyable(it.productKey, titleText),
               ),
               const SizedBox(width: 12),
-              LtrText(
-                _money(it.gross),
+              f.highlight(
+                context,
+                LineFindSegment.total,
+                ltr: true,
                 style: moneyTextStyle(
                   fontSize: 13.5,
                   fontWeight: FontWeight.w600,
@@ -309,23 +475,24 @@ class LineItemsReadonlyTable extends StatelessWidget {
               ),
             ],
           ),
-          if (it.productKey.isNotEmpty && notes.isNotEmpty) ...[
+          if (hasKey && notes.isNotEmpty) ...[
             const SizedBox(height: 2),
-            Text(notes, style: TextStyle(fontSize: 12, color: tokens.ink2)),
+            f.highlight(
+              context,
+              LineFindSegment.notes,
+              style: TextStyle(fontSize: 12, color: tokens.ink2),
+            ),
           ],
           if (custom.isNotEmpty) ...[
             const SizedBox(height: 2),
-            Text(custom, style: _customStyle(tokens)),
+            f.highlight(
+              context,
+              LineFindSegment.custom,
+              style: _customStyle(tokens),
+            ),
           ],
           const SizedBox(height: 4),
-          Text(
-            meta.join('   ·   '),
-            style: TextStyle(
-              fontSize: 11.5,
-              color: tokens.ink3,
-              fontFeatures: const [FontFeature.tabularFigures()],
-            ),
-          ),
+          meta,
         ],
       ),
     );
@@ -364,10 +531,17 @@ class LineItemsReadonlyTable extends StatelessWidget {
   /// the name it describes was a column away. Neither is capped to fewer
   /// lines than the notes always had: this is the one place a value too long
   /// for the edit table can be read.
-  Widget _itemCell(BuildContext context, LineItem it, InTheme tokens) {
-    final notes = _notesText(it);
-    final custom = _customSummary(context, it);
+  Widget _itemCell(
+    BuildContext context,
+    LineItem it,
+    _RowFind f,
+    InTheme tokens,
+  ) {
+    final notes = f.text(LineFindSegment.notes);
+    final custom = f.text(LineFindSegment.custom);
     final hasKey = it.productKey.isNotEmpty;
+    // A hit past the third line must not sit behind the ellipsis.
+    final cap = f.hasHits ? null : 3;
     return Expanded(
       child: Padding(
         padding: const EdgeInsetsDirectional.only(end: _kGap),
@@ -380,23 +554,32 @@ class LineItemsReadonlyTable extends StatelessWidget {
             if (hasKey || notes.isEmpty)
               _copyable(
                 it.productKey,
-                Text(
-                  hasKey ? it.productKey : '—',
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: tokens.ink,
-                  ),
-                ),
+                hasKey
+                    ? f.highlight(
+                        context,
+                        LineFindSegment.name,
+                        maxLines: cap,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: tokens.ink,
+                        ),
+                      )
+                    : Text(
+                        '—',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: tokens.ink,
+                        ),
+                      ),
               ),
             if (notes.isNotEmpty) ...[
               if (hasKey) const SizedBox(height: 2),
-              Text(
-                notes,
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
+              f.highlight(
+                context,
+                LineFindSegment.notes,
+                maxLines: cap,
                 style: TextStyle(
                   fontSize: 13,
                   color: hasKey ? tokens.ink2 : tokens.ink,
@@ -405,7 +588,11 @@ class LineItemsReadonlyTable extends StatelessWidget {
             ],
             if (custom.isNotEmpty) ...[
               const SizedBox(height: 2),
-              Text(custom, style: _customStyle(tokens)),
+              f.highlight(
+                context,
+                LineFindSegment.custom,
+                style: _customStyle(tokens),
+              ),
             ],
           ],
         ),
@@ -441,13 +628,15 @@ class LineItemsReadonlyTable extends StatelessWidget {
   Widget _flexHead(String text, InTheme tokens) => Expanded(
     child: Padding(
       padding: const EdgeInsetsDirectional.only(end: _kGap),
-      child: Text(
-        text.toUpperCase(),
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: _headStyle(tokens),
-      ),
+      child: _headText(text, tokens),
     ),
+  );
+
+  Widget _headText(String text, InTheme tokens) => Text(
+    text.toUpperCase(),
+    maxLines: 1,
+    overflow: TextOverflow.ellipsis,
+    style: _headStyle(tokens),
   );
 
   Widget _numHead(double w, String text, InTheme tokens) => SizedBox(
@@ -474,25 +663,56 @@ class LineItemsReadonlyTable extends StatelessWidget {
     child: SizedBox(width: double.infinity, child: child),
   );
 
+  /// A numeric column's cell: [segment]'s text, or a dash where the line
+  /// has none (no discount, no tax).
   Widget _numCell(
+    BuildContext context,
     double w,
-    String text,
+    _RowFind f,
+    LineFindSegment segment,
     InTheme tokens, {
     bool strong = false,
-  }) => SizedBox(
-    width: w,
-    child: LtrText(
-      text,
-      textAlign: TextAlign.end,
-      maxLines: 2,
-      overflow: TextOverflow.ellipsis,
-      style: moneyTextStyle(
-        fontSize: 13,
-        fontWeight: strong ? FontWeight.w600 : FontWeight.w400,
-        color: tokens.ink,
-      ),
-    ),
-  );
+  }) {
+    final style = moneyTextStyle(
+      fontSize: 13,
+      fontWeight: strong ? FontWeight.w600 : FontWeight.w400,
+      color: tokens.ink,
+    );
+    return SizedBox(
+      width: w,
+      child: f.text(segment).isEmpty
+          ? LtrText('—', textAlign: TextAlign.end, style: style)
+          : f.highlight(
+              context,
+              segment,
+              ltr: true,
+              textAlign: TextAlign.end,
+              // Like the Item cell: a hit must not sit behind an ellipsis.
+              // No ellipsis without a cap either: with no `maxLines` one
+              // stops the text at its first line.
+              maxLines: f.hasHits ? null : 2,
+              overflow: f.hasHits ? null : TextOverflow.ellipsis,
+              style: style,
+            ),
+    );
+  }
+
+  /// Each drawn text of [it], by the slot find counts it in — what both
+  /// layouts render, so a hit is the same hit whichever one is showing. A
+  /// slot the line does not draw is empty.
+  Map<LineFindSegment, String> _findTexts(BuildContext context, LineItem it) =>
+      {
+        LineFindSegment.name: it.productKey,
+        LineFindSegment.notes: _notesText(it),
+        LineFindSegment.custom: _customSummary(context, it),
+        LineFindSegment.quantity: _qty(it.quantity),
+        LineFindSegment.cost: _money(it.cost),
+        LineFindSegment.discount: it.discount == Decimal.zero
+            ? ''
+            : _discountLabel(it),
+        LineFindSegment.tax: _hasTax(it) ? _taxLabel(it) : '',
+        LineFindSegment.total: _money(it.gross),
+      };
 
   // ── Formatting ───────────────────────────────────────────────────────────
 
@@ -550,4 +770,43 @@ class LineItemsReadonlyTable extends StatelessWidget {
     add(it.taxName3, it.taxRate3);
     return parts.join(', ');
   }
+}
+
+/// One drawn line's find state: its texts, the query (blank while the bar is
+/// closed) and, when the current hit is on this line, that hit.
+class _RowFind {
+  _RowFind({required this.query, required this.texts, required this.active})
+    : hasHits =
+          query.isNotEmpty &&
+          texts.values.any((t) => findOccurrences(t, query).isNotEmpty);
+
+  final String query;
+  final Map<LineFindSegment, String> texts;
+  final FindHit? active;
+
+  /// Whether any text of this line matches — which lifts its line caps.
+  final bool hasHits;
+
+  String text(LineFindSegment segment) => texts[segment] ?? '';
+
+  /// [segment]'s text, its hits marked.
+  Widget highlight(
+    BuildContext context,
+    LineFindSegment segment, {
+    required TextStyle style,
+    int? maxLines,
+    TextOverflow? overflow,
+    TextAlign textAlign = TextAlign.start,
+    bool ltr = false,
+  }) => findHighlightedText(
+    context,
+    text(segment),
+    query: query,
+    activeStart: active?.segment == segment ? active!.start : null,
+    style: style,
+    maxLines: maxLines,
+    overflow: maxLines == null ? overflow : (overflow ?? TextOverflow.ellipsis),
+    textAlign: textAlign,
+    ltr: ltr,
+  );
 }

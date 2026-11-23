@@ -311,6 +311,7 @@ void main() {
       ],
       'purchase_order': [
         PurchaseOrderFieldIds.tagIds,
+        PurchaseOrderFieldIds.expenseId,
         PurchaseOrderFieldIds.publicNotes,
         PurchaseOrderFieldIds.privateNotes,
         ...sharedMetadata,

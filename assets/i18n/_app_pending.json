@@ -2385,5 +2385,8 @@
   "desktop_app_promo_settings_body": "A bigger screen and keyboard shortcuts, with the same account and data.",
   "free_plan_client_limit_form": "You have used all :count clients on the Free plan. Upgrade to save this client.",
   "free_plan_purge_note": "Only purging a client frees its place, and purging also deletes its invoices and payments.",
-  "free_plan_import_too_many": "This import would take you past the :count clients the Free plan allows, so nothing was imported. Upgrade to import them all."
+  "free_plan_import_too_many": "This import would take you past the :count clients the Free plan allows, so nothing was imported. Upgrade to import them all.",
+  "find_in_items": "Find in items",
+  "find_match_count": ":current of :total",
+  "find_no_matches": "No matches"
 }
