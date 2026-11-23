@@ -30,7 +30,6 @@ import 'package:admin/ui/features/expenses/views/expense_list_screen.dart';
 import 'package:admin/ui/features/gateways/views/company_gateway_detail_screen.dart';
 import 'package:admin/ui/features/gateways/views/company_gateway_edit_screen.dart';
 import 'package:admin/ui/features/gateways/views/company_gateway_list_screen.dart';
-import 'package:admin/data/models/domain/invoice.dart';
 import 'package:admin/ui/features/invoices/views/invoice_detail_screen.dart';
 import 'package:admin/ui/features/invoices/views/invoice_edit_screen.dart';
 import 'package:admin/ui/features/invoices/views/invoice_list_screen.dart';
@@ -545,11 +544,10 @@ final kWiredEntityModules = <EntityModuleSpec>[
         InvoiceDetailScreen(id: state.pathParameters['id']!),
     editBuilder: (context, state) => InvoiceEditScreen(
       existingId: state.pathParameters['id'],
-      // "Add to invoice" (task / expense) routes here with the chosen
-      // invoice + appended line item as `extra` so the user reviews
-      // before the normal update mutation. Normal edit navigation passes
-      // no extra → behaves exactly as before.
-      cloneFrom: state.extra is Invoice ? state.extra as Invoice : null,
+      // "Add to invoice" (task / expense / project) stages its draft on
+      // `Services` (`goEntityEditWithDraft`) — never `extra`, which the
+      // cross-branch jump and a reused editor both lose (app#207). The
+      // screen takes it in `buildVm`.
       // A line tapped on the record screen (`InvoiceActions.edit`).
       openLineItem: OpenLineItemRequest.of(state.extra),
     ),

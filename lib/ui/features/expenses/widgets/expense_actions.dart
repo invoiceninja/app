@@ -563,10 +563,11 @@ class ExpenseActions {
       Notify.info(context, context.tr('no_billable_expenses'));
       return;
     }
-    _warnMixedCurrencies(context, fresh);
-    _reportSkipped(context, fresh.length, expenses.length);
-    // The target invoice's tax mode is fixed — cost every line for it.
-    goEntityEditWithDraft(
+    // The target invoice's tax mode is fixed — cost every line for it. The
+    // notices are the navigation's `announce`: queued after `go` they are
+    // lost, and before the unsaved-edits question they may be untrue
+    // (`TaskActions.addTasksToInvoice`).
+    await goEntityEditWithDraft(
       context,
       '/invoices',
       target.id,
@@ -580,6 +581,10 @@ class ExpenseActions {
             ),
         ],
       ),
+      announce: () {
+        _warnMixedCurrencies(context, fresh);
+        _reportSkipped(context, fresh.length, expenses.length);
+      },
     );
   }
 }

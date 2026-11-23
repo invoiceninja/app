@@ -695,29 +695,33 @@ class TaskActions {
       Notify.info(context, context.tr('no_billable_tasks'));
       return;
     }
-    // Toast BEFORE navigating: `Notify` resolves the toast host through this
-    // context, and `go` deactivates the element it belongs to — the lookup
-    // then fails and is swallowed, so a toast queued afterwards silently never
-    // appears. The host itself is global and outlives the route, so queueing
-    // first is both safe and visible on the destination screen.
+    // The toast is `announce`, run just BEFORE the navigation: `Notify`
+    // resolves the toast host through this context, and `go` deactivates the
+    // element it belongs to — the lookup then fails and is swallowed, so a
+    // toast queued afterwards silently never appears. The host itself is
+    // global and outlives the route, so queueing first is both safe and
+    // visible on the destination screen. Not earlier than that: the user may
+    // still keep an open editor's unsaved edits, and then nothing was added.
     //
     // Worth saying at all because the lines land on a *draft*: without it the
     // user arrives at an edit screen with no sign anything happened and no
     // hint that a Save is still required.
-    Notify.success(
-      context,
-      fresh.length == tasks.length
-          ? context.tr('added_invoice_items', {'count': '${lineItems.length}'})
-          : context.tr('added_invoice_items_partial', {
-              'count': '${lineItems.length}',
-              'total': '${tasks.length}',
-            }),
-    );
-    goEntityEditWithDraft(
+    await goEntityEditWithDraft(
       context,
       '/invoices',
       target.id,
       target.copyWith(lineItems: [...target.lineItems, ...lineItems]),
+      announce: () => Notify.success(
+        context,
+        fresh.length == tasks.length
+            ? context.tr('added_invoice_items', {
+                'count': '${lineItems.length}',
+              })
+            : context.tr('added_invoice_items_partial', {
+                'count': '${lineItems.length}',
+                'total': '${tasks.length}',
+              }),
+      ),
     );
   }
 

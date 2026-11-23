@@ -499,13 +499,32 @@ ShellRoute buildEntityRouteBlock({
             // form slides in see-through and the two screens' text overlaps
             // for the length of the push / pop. A `Material`, not a
             // `ColoredBox`, so ink splashes paint above it, not under it.
-            builder: (context, state) => Material(
-              color: context.inTheme.bg,
-              child: KeyedSubtree(
-                key: ValueKey('edit:$basePath:${state.pathParameters['id']}'),
+            //
+            // The key also carries the record's hand-off generation
+            // (`Services.stageEditDraft`), so an "Add to invoice" aimed at an
+            // invoice whose editor is already open recreates that editor —
+            // go_router would otherwise reuse it and the draft would never be
+            // read (invoiceninja/app#207).
+            // (`Services?`: a route test that mounts the block bare has no
+            // hand-offs to key on.)
+            builder: (context, state) {
+              final services = context.read<Services?>();
+              final id = state.pathParameters['id']!;
+              Widget keyed(int gen) => KeyedSubtree(
+                key: ValueKey('edit:$basePath:$id:$gen'),
                 child: edit(context, state),
-              ),
-            ),
+              );
+              return Material(
+                color: context.inTheme.bg,
+                child: services == null
+                    ? keyed(0)
+                    : ValueListenableBuilder<int>(
+                        valueListenable: services.seedGenTick,
+                        builder: (context, _, _) =>
+                            keyed(services.editSeedGenFor(basePath, id)),
+                      ),
+              );
+            },
             onExit: _confirmExitIfDirty,
           ),
           ...extraChildRoutes,
@@ -682,22 +701,40 @@ void goEntityEdit(
 ///
 /// This is the "Add to invoice" shape: a task / expense / project appends its
 /// line items to an invoice the user picked and hands the modified copy over
-/// for review rather than saving behind their back. The edit route reads
-/// `state.extra` as `cloneFrom` while still loading the row for `existingId`,
-/// so the VM gets `initialDraft: draft, original: existing` — Save issues an
-/// update (not a create) and the unsaved-changes guard covers the additions.
+/// for review rather than saving behind their back. The edit screen takes the
+/// draft from `Services.takeEditDraft` while still loading the row for
+/// `existingId`, so the VM gets `initialDraft: draft, original: existing` —
+/// Save issues an update (not a create) and the unsaved-changes guard covers
+/// the additions.
+///
+/// The draft is staged on `Services`, never passed as route `extra`: the jump
+/// is cross-branch, and the Invoices branch may already hold an editor for
+/// this very record (the user opened it to tidy the lines first) — go_router
+/// reuses that one, so a route-borne draft was silently ignored
+/// (invoiceninja/app#207). Staging bumps the route's key, which recreates the
+/// editor; since that discards whatever it held, any unsaved edits are asked
+/// about first. Returns false — without navigating — when the user keeps
+/// them. [announce] runs just before the navigation (a toast resolves its
+/// host through [context], which `go` deactivates).
 ///
 /// `?view=full` is explicit for the same reason as [goEntityCreateFullWidth]:
 /// the auto-promote redirect is dedup-suppressible across a cross-branch jump.
-/// (`MasterDetailLayout` re-attaches `state.extra` to its internal `go(...)`,
-/// so the draft survives either way — this just avoids the extra hop.)
-void goEntityEditWithDraft(
+Future<bool> goEntityEditWithDraft(
   BuildContext context,
   String basePath,
   String id,
-  Object draft,
-) {
-  GoRouter.of(context).go('$basePath/$id/edit?view=full', extra: draft);
+  Object draft, {
+  VoidCallback? announce,
+}) async {
+  final services = context.read<Services>();
+  if (!await services.unsavedChangesGuard.confirmIfDirty(context)) {
+    return false;
+  }
+  if (!context.mounted) return false;
+  announce?.call();
+  services.stageEditDraft(basePath, id, draft);
+  GoRouter.of(context).go('$basePath/$id/edit?view=full');
+  return true;
 }
 
 /// Navigate to an entity's create route with an explicit `?view=full`,

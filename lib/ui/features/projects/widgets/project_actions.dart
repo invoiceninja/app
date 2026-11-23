@@ -708,20 +708,21 @@ class ProjectActions {
       Notify.info(context, context.tr('no_billable_tasks'));
       return;
     }
-    // Toast before navigating — see `TaskActions.addTasksToInvoice` for why
-    // the order matters (the toast host is resolved through this context, and
-    // `go` deactivates it). The lines land on a *draft*, so without this the
-    // user arrives at an edit screen with no sign anything happened and no
-    // hint that a Save is still required.
-    Notify.success(
-      context,
-      context.tr('added_invoice_items', {'count': '${lineItems.length}'}),
-    );
-    goEntityEditWithDraft(
+    // Toast as the navigation's `announce` — see
+    // `TaskActions.addTasksToInvoice` for why the order matters (the toast
+    // host is resolved through this context, and `go` deactivates it). The
+    // lines land on a *draft*, so without this the user arrives at an edit
+    // screen with no sign anything happened and no hint that a Save is still
+    // required.
+    await goEntityEditWithDraft(
       context,
       '/invoices',
       target.id,
       target.copyWith(lineItems: [...target.lineItems, ...lineItems]),
+      announce: () => Notify.success(
+        context,
+        context.tr('added_invoice_items', {'count': '${lineItems.length}'}),
+      ),
     );
   }
 

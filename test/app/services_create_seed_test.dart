@@ -100,4 +100,43 @@ void main() {
     services.clearStagedCreateDraft();
     expect(services.takeCreateSeed<Expense>('/expenses'), isNull);
   });
+
+  // "Add to invoice" (invoiceninja/app#207): an existing record's draft,
+  // staged for its edit route. `test/app/edit_draft_handoff_test.dart` covers
+  // the route side.
+  group('edit hand-off', () {
+    test('is taken once, and only by that record\'s editor', () {
+      services.stageEditDraft('/invoices', 'i1', 'draft');
+
+      expect(services.takeEditDraft<String>('/invoices', 'i2'), isNull);
+      expect(services.takeEditDraft<String>('/quotes', 'i1'), isNull);
+      expect(services.takeEditDraft<int>('/invoices', 'i1'), isNull);
+      expect(services.takeEditDraft<String>('/invoices', 'i1'), 'draft');
+      expect(services.takeEditDraft<String>('/invoices', 'i1'), isNull);
+    });
+
+    test('bumps only its own record\'s generation, and the shared tick', () {
+      final tick = services.seedGenTick.value;
+      services.stageEditDraft('/invoices', 'i1', 'draft');
+
+      expect(services.editSeedGenFor('/invoices', 'i1'), 1);
+      expect(services.editSeedGenFor('/invoices', 'i2'), 0);
+      expect(services.seedGenFor('/invoices'), 0);
+      expect(services.seedGenTick.value, tick + 1);
+    });
+
+    test('leaves the create seed alone, and the create seed leaves it', () {
+      services.stageEditDraft('/invoices', 'i1', 'edit');
+      services.stageCreateDraft('/invoices', 'create');
+
+      expect(services.takeCreateDraft<String>('/invoices'), 'create');
+      expect(services.takeEditDraft<String>('/invoices', 'i1'), 'edit');
+    });
+
+    test('is forgotten at sign-out', () {
+      services.stageEditDraft('/invoices', 'i1', 'draft');
+      services.clearStagedCreateDraft();
+      expect(services.takeEditDraft<String>('/invoices', 'i1'), isNull);
+    });
+  });
 }

@@ -1286,11 +1286,55 @@ class Services implements SidebarBadgeContext {
     return (draft: draft, isClone: isClone, attachments: attachments);
   }
 
+  // -- Cross-branch edit hand-off -----------------------------------------
+
+  /// The "Add to invoice" draft: an EXISTING record with unsaved additions,
+  /// handed to its edit screen for review (invoiceninja/app#207).
+  ///
+  /// The same two go_router behaviours as the create seed above, and they
+  /// bite harder here: the jump from `/tasks` (or `/expenses`, `/projects`) to
+  /// `/invoices/:id/edit` is cross-branch, so a route `extra:` can be dropped,
+  /// and the Invoices branch keeps its stack — an editor already open on that
+  /// invoice is reused without re-running `buildVm`, so the appended lines
+  /// never reach the form. The draft rides here instead, and
+  /// [editSeedGenFor] bumps the edit route's key so the screen is recreated
+  /// and takes it.
+  Object? _stagedEditDraft;
+  String? _stagedEditKey;
+
+  /// Stage [draft] for the edit screen of record [id] at [basePath], and bump
+  /// that route's generation (via [seedGenTick]) so a mounted editor for the
+  /// same record is recreated rather than reused.
+  void stageEditDraft(String basePath, String id, Object draft) {
+    final key = '$basePath/$id';
+    _stagedEditDraft = draft;
+    _stagedEditKey = key;
+    _seedGen[key] = (_seedGen[key] ?? 0) + 1;
+    seedGenTick.value++;
+  }
+
+  /// Monotonic hand-off counter for the edit route of [id] at [basePath] —
+  /// the `/:id/edit` route keys its content on it.
+  int editSeedGenFor(String basePath, String id) =>
+      _seedGen['$basePath/$id'] ?? 0;
+
+  /// One-shot read of the draft [stageEditDraft] left for [id] at
+  /// [basePath], clearing it. Null when nothing is staged for that record.
+  T? takeEditDraft<T>(String basePath, String id) {
+    final draft = _stagedEditDraft;
+    if (_stagedEditKey != '$basePath/$id' || draft is! T) return null;
+    _stagedEditDraft = null;
+    _stagedEditKey = null;
+    return draft;
+  }
+
   /// Forget a staged draft no create screen took — on sign-out, so the next
   /// account's New Expense can't open on the last one's shared receipt — and
   /// hand back its files' copies.
   void clearStagedCreateDraft() {
     final attachments = _stagedAttachments;
+    _stagedEditDraft = null;
+    _stagedEditKey = null;
     _stagedDraft = null;
     _stagedDraftBasePath = null;
     _stagedDraftIsClone = false;

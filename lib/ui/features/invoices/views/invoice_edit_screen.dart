@@ -44,10 +44,11 @@ class InvoiceEditScreen extends StatelessWidget {
 
   final String? existingId;
 
-  /// Edit-mode override draft: the "Add to invoice" (task / expense) flow
-  /// routes to `/invoices/:id/edit` with the chosen invoice + appended line
-  /// item as `extra` for review before saving. Null for a normal edit (uses the
-  /// fetched record) and for create (which reads the staged draft instead).
+  /// Edit-mode override draft, for a caller that builds the screen directly.
+  /// The routed "Add to invoice" flow (task / expense / project) stages its
+  /// draft on `Services` instead (`goEntityEditWithDraft`), which wins over
+  /// this. Null for a normal edit (uses the fetched record) and for create
+  /// (which reads the staged create draft instead).
   final Invoice? cloneFrom;
 
   /// A line tapped on the record screen, to open the editor on — see
@@ -208,8 +209,18 @@ class InvoiceEditScreen extends StatelessWidget {
         }
         return invoice;
       },
-      buildVm: (ctx, services, companyId, existing) =>
-          _buildVm(ctx, services, companyId, existing, handoff: cloneFrom),
+      // The "Add to invoice" draft is staged on `Services`
+      // (`goEntityEditWithDraft`); taken here, once per editor State.
+      buildVm: (ctx, services, companyId, existing) => _buildVm(
+        ctx,
+        services,
+        companyId,
+        existing,
+        handoff: existingId == null
+            ? cloneFrom
+            : services.takeEditDraft<Invoice>('/invoices', existingId!) ??
+                  cloneFrom,
+      ),
       // A stay-in-editor Save reloads without the route's one-shot "Add to
       // invoice" draft: the record it saved already holds it
       // (docs/after-saving.md).
