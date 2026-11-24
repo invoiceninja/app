@@ -5,6 +5,7 @@ import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/env.dart';
 import 'package:admin/data/services/templates_api.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/core/widgets/html_inline_svg.dart';
 import 'package:admin/ui/core/widgets/html_web_view.dart';
 import 'package:admin/ui/core/widgets/ltr_value.dart';
 import 'package:admin/utils/html_preview.dart';
@@ -434,6 +435,8 @@ class _HtmlPreview extends StatelessWidget {
         child: HtmlWidget(
           body,
           textStyle: const TextStyle(color: Colors.black),
+          // `$sepa_qr_code_raw` is an inline SVG.
+          customWidgetBuilder: htmlInlineSvgBuilder,
         ),
       ),
     );

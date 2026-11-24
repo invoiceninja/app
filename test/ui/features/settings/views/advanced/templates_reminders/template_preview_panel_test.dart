@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:admin/ui/core/widgets/html_web_view.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_widget_from_html_core/flutter_widget_from_html_core.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 // ignore: depend_on_referenced_packages
@@ -14,6 +15,7 @@ import 'package:admin/ui/features/settings/views/advanced/templates_reminders/pr
 import 'package:admin/ui/features/settings/views/advanced/templates_reminders/widgets/template_preview_panel.dart';
 
 import '../../../../../../_localization_helper.dart';
+import '../../../../../core/widgets/sepa_qr_svg_fixture.dart';
 
 class _FakeTemplatesApi implements TemplatesApi {
   @override
@@ -172,6 +174,34 @@ void main() {
         expect(find.byType(WebViewWidget), findsNothing);
         // Subject bar reflects the server-substituted subject.
         expect(find.text('Welcome'), findsOneWidget);
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
+    },
+  );
+
+  testWidgets(
+    'the HtmlWidget fallback draws an inline SVG (\$sepa_qr_code_raw)',
+    (tester) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+      try {
+        final controller = PreviewController(api: _FakeTemplatesApi());
+        addTearDown(controller.dispose);
+        controller.schedule(
+          template: 'invoice',
+          subject: 'Invoice',
+          body: '<p>Code:<br>$kSepaQrSvg</p>',
+          immediate: true,
+        );
+
+        await tester.pumpWidget(host(controller));
+        await tester.pumpAndSettle();
+
+        expect(find.byType(SvgPicture), findsOneWidget);
+        expect(
+          find.textContaining('Code:', findRichText: true),
+          findsOneWidget,
+        );
       } finally {
         debugDefaultTargetPlatformOverride = null;
       }
