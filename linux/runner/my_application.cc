@@ -1,17 +1,9 @@
 #include "my_application.h"
 
-#include <dlfcn.h>
 #include <flutter_linux/flutter_linux.h>
 #include <glib/gstdio.h>
-#ifdef GDK_WINDOWING_X11
-#include <gdk/gdkx.h>
-#endif
-#ifdef GDK_WINDOWING_WAYLAND
-#include <gdk/gdkwayland.h>
-#endif
 
 #include <cerrno>
-#include <cstring>
 
 #include "flutter/generated_plugin_registrant.h"
 
@@ -294,103 +286,10 @@ static gboolean first_frame_timeout_cb(gpointer data) {
   return G_SOURCE_REMOVE;
 }
 
-// Flutter 3.50.0's OpenGL compositor draws the whole frame half a window off
-// (the interface in the lower-left quarter, the rest black) wherever it
-// cannot blit, and it never blits on NVIDIA's driver: flutter/flutter#195885,
-// invoiceninja/app#196, docs/upstream-workarounds.md entry 27. The fix ships
-// in Flutter 3.50.1; until then the engine's software renderer, which never
-// reaches that code, is the one way to draw correctly on that driver.
-//
-// The question is the one the engine asks: does the EGL display it is about to
-// open on this GDK display belong to NVIDIA? EGL_VENDOR answers it without a
-// context, and under libglvnd it names the same vendor library the engine's
-// own glGetString(GL_VENDOR) check would end up in. libEGL is opened at run
-// time, so the runner gains no link dependency; anything missing means "not
-// NVIDIA" and the default renderer. The display is left initialized: the
-// engine's eglInitialize on it is then a no-op, where a terminate here would
-// make it a second start-up of the driver.
-static gboolean egl_vendor_is_nvidia() {
-  using GetProcAddress = void* (*)(const char*);
-  using GetPlatformDisplay = void* (*)(unsigned int, void*, const intptr_t*);
-  using Initialize = unsigned int (*)(void*, int*, int*);
-  using QueryString = const char* (*)(void*, int);
-  constexpr unsigned int kPlatformX11 = 0x31D5;      // EGL_PLATFORM_X11_EXT
-  constexpr unsigned int kPlatformWayland = 0x31D8;  // EGL_PLATFORM_WAYLAND_EXT
-  constexpr int kVendor = 0x3053;                    // EGL_VENDOR
-
-  GdkDisplay* display = gdk_display_get_default();
-  if (display == nullptr) {
-    return FALSE;
-  }
-  unsigned int platform = 0;
-  void* native_display = nullptr;
-#ifdef GDK_WINDOWING_WAYLAND
-  if (GDK_IS_WAYLAND_DISPLAY(display)) {
-    platform = kPlatformWayland;
-    native_display = gdk_wayland_display_get_wl_display(display);
-  }
-#endif
-#ifdef GDK_WINDOWING_X11
-  if (GDK_IS_X11_DISPLAY(display)) {
-    platform = kPlatformX11;
-    native_display = gdk_x11_display_get_xdisplay(display);
-  }
-#endif
-  if (native_display == nullptr) {
-    return FALSE;
-  }
-
-  // Never dlclose'd: the engine loads the same library a moment later.
-  void* egl = dlopen("libEGL.so.1", RTLD_NOW | RTLD_GLOBAL);
-  if (egl == nullptr) {
-    return FALSE;
-  }
-  auto get_proc_address =
-      reinterpret_cast<GetProcAddress>(dlsym(egl, "eglGetProcAddress"));
-  auto initialize = reinterpret_cast<Initialize>(dlsym(egl, "eglInitialize"));
-  auto query_string =
-      reinterpret_cast<QueryString>(dlsym(egl, "eglQueryString"));
-  if (get_proc_address == nullptr || initialize == nullptr ||
-      query_string == nullptr) {
-    return FALSE;
-  }
-  auto get_platform_display = reinterpret_cast<GetPlatformDisplay>(
-      get_proc_address("eglGetPlatformDisplayEXT"));
-  if (get_platform_display == nullptr) {
-    return FALSE;
-  }
-  void* egl_display = get_platform_display(platform, native_display, nullptr);
-  if (egl_display == nullptr || !initialize(egl_display, nullptr, nullptr)) {
-    return FALSE;
-  }
-  const char* vendor = query_string(egl_display, kVendor);
-  return vendor != nullptr && strstr(vendor, "NVIDIA") != nullptr;
-}
-
-// Picks the software renderer on NVIDIA (see egl_vendor_is_nvidia), unless the
-// user already chose one with the engine's own FLUTTER_LINUX_RENDERER, which
-// is also the way back: FLUTTER_LINUX_RENDERER=opengl. Returns whether it set
-// the variable, which the engine reads once, in fl_view_new, and which the
-// caller then clears so no process the app starts inherits it.
-static gboolean choose_renderer() {
-  if (g_getenv("FLUTTER_LINUX_RENDERER") != nullptr) {
-    return FALSE;
-  }
-  if (!egl_vendor_is_nvidia()) {
-    return FALSE;
-  }
-  g_message(
-      "NVIDIA driver: drawing with the software renderer "
-      "(invoiceninja/app#196). FLUTTER_LINUX_RENDERER=opengl switches back.");
-  g_setenv("FLUTTER_LINUX_RENDERER", "software", TRUE);
-  return TRUE;
-}
-
 // The engine honours FLUTTER_LINUX_RENDERER=software but still starts Impeller,
 // which has no software backend: the first frame aborts with "Impeller DlText
 // cannot be drawn to a Skia canvas" (docs/upstream-workarounds.md entry 30).
-// So whoever chose the software renderer, the runner or the user, Impeller is
-// turned off with it.
+// So when a user chooses the software renderer, Impeller is turned off with it.
 static void match_impeller_to_renderer(FlDartProject* project) {
   if (g_strcmp0(g_getenv("FLUTTER_LINUX_RENDERER"), "software") == 0) {
     fl_dart_project_set_enable_impeller(project, FALSE);
@@ -469,13 +368,9 @@ static void my_application_activate(GApplication* application) {
     g_message("INVOICENINJA_NO_IMPELLER=1: Impeller is off.");
     fl_dart_project_set_enable_impeller(project, FALSE);
   }
-  const gboolean set_renderer = choose_renderer();
   match_impeller_to_renderer(project);
 
   FlView* view = fl_view_new(project);
-  if (set_renderer) {
-    g_unsetenv("FLUTTER_LINUX_RENDERER");
-  }
   GdkRGBA background_color;
   // Background defaults to black, override it here if necessary, e.g. #00000000
   // for transparent.

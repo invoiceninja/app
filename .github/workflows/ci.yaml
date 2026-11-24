@@ -75,7 +75,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      # Pinned to match local dev (3.50.0). Bumped deliberately from 3.47.7:
+      # Pinned to match local dev (3.50.1). Bumped deliberately from 3.47.7:
       # 3.50 needs AGP 9.1.1+ and deprecates package:flutter/material.dart, so
       # the app moved onto material_ui (docs/upgrading-to-flutter-3-50.md).
       # 3.47 (from 3.44.1) raised Flutter's own floors to iOS 15.0 / macOS 12.0 (the tool
@@ -91,7 +91,7 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
-          flutter-version: ${{ inputs.flutter_version || '3.50.0' }}
+          flutter-version: ${{ inputs.flutter_version || '3.50.1' }}
           cache: true
 
       - name: Install dependencies
@@ -146,7 +146,7 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
-          flutter-version: ${{ inputs.flutter_version || '3.50.0' }}
+          flutter-version: ${{ inputs.flutter_version || '3.50.1' }}
           cache: true
 
       - name: Install dependencies
@@ -175,7 +175,7 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
-          flutter-version: ${{ inputs.flutter_version || '3.50.0' }}
+          flutter-version: ${{ inputs.flutter_version || '3.50.1' }}
           cache: true
 
       - name: Install dependencies
@@ -202,7 +202,7 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
-          flutter-version: ${{ inputs.flutter_version || '3.50.0' }}
+          flutter-version: ${{ inputs.flutter_version || '3.50.1' }}
           cache: true
 
       # A trial version moves the SDK-pinned packages, so the store lock and
@@ -302,7 +302,7 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
-          flutter-version: ${{ inputs.flutter_version || '3.50.0' }}
+          flutter-version: ${{ inputs.flutter_version || '3.50.1' }}
           cache: true
 
       - name: Install Linux build deps
@@ -350,7 +350,7 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
-          flutter-version: ${{ inputs.flutter_version || '3.50.0' }}
+          flutter-version: ${{ inputs.flutter_version || '3.50.1' }}
           cache: true
 
       - name: Install dependencies
@@ -385,7 +385,7 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
-          flutter-version: ${{ inputs.flutter_version || '3.50.0' }}
+          flutter-version: ${{ inputs.flutter_version || '3.50.1' }}
           cache: true
 
       # Pinned, not the image default: the `xcode-27` image carries 27.0, 27.1
@@ -420,7 +420,7 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
-          flutter-version: ${{ inputs.flutter_version || '3.50.0' }}
+          flutter-version: ${{ inputs.flutter_version || '3.50.1' }}
           cache: true
 
       - name: Select Xcode 26.4.1

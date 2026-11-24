@@ -368,19 +368,6 @@ When an upstream fix ships: follow the revert, verify, then **delete the entry**
 - Revert: when `readelf --dyn-syms --wide build/linux/*/release/bundle/lib/libpdfium.so | grep ' FT_'` prints nothing, delete the three pieces above.
 - Recheck trigger: any `printing` bump, and any change to the PDFium version Flathub pins.
 
-## 27. Flutter 3.50.0: on NVIDIA the Linux window shows the interface in its lower-left quarter
-
-- Issue / waiting on: [flutter/flutter#195885](https://github.com/flutter/flutter/issues/195885) (closed; the fix is merged and the Flutter team says it ships in 3.50.1, not tagged as of 2026-11-18). • Found: 2026-11-16 (invoiceninja/app#196, and the window in #194; NVIDIA proprietary driver, X11 and Wayland) • Flutter: 3.50.0 (app 5.1.26 on); 3.47 aborted on the same machines instead.
-- Symptom: the window opens mostly black, with the top-right quarter of the interface drawn 1:1 in its lower-left quarter. Clicks land where the full-size interface would be. `INVOICENINJA_NO_IMPELLER=1` does not help: Skia goes through the same compositor.
-- Root cause: `fl_compositor_opengl.cc` `composite_layer()` sets the shader offset to `2 * x / width - 1.0`, but the quad already spans the whole NDC range, so a layer at (0, 0) lands at (-width/2, -height/2). Before 3.50 that path drew only overlay layers; since flutter#189476 it also draws the first layer whenever `fl_opengl_manager_can_blit` is false, and that is always false when `GL_VENDOR` contains `NVIDIA` (blit blocklist, flutter#152099). The software renderer (`FLUTTER_LINUX_RENDERER=software`, read in `fl_engine_new_full`) never reaches the compositor.
-- Commit ref: 89592b94 (shipped in 5.1.31)
-- Change(s):
-  - `linux/runner/my_application.cc` — **MUST-REVERT**: `choose_renderer()` runs before `fl_view_new`. It dlopen's `libEGL.so.1` and opens the EGL platform display the engine will open on the GDK display (`eglGetPlatformDisplayEXT`, X11 or Wayland). When its `EGL_VENDOR` contains `NVIDIA`, it sets `FLUTTER_LINUX_RENDERER=software` (entry 30 then turns Impeller off), then unsets the variable once the engine has read it. A user's own `FLUTTER_LINUX_RENDERER` always wins, so `FLUTTER_LINUX_RENDERER=opengl` is the way back. No link dependency is added, and any failure along the way leaves the default renderer. The display is left initialized, so the engine's own `eglInitialize` is a no-op.
-- Cost: on NVIDIA the app draws on the CPU with Skia. That is slower on a large window, but for this app's screens it is far better than an unusable one. Machines without NVIDIA EGL are untouched. Other no-blit GPUs (OpenGL ES 2 without `GL_EXT_framebuffer_blit`, the `ARM` / `Vivante Corporation` vendors) still meet the bug; detecting those would need a GL context before the engine has one.
-- Upstream state (2026-11-18): the fix is cherry-picked onto `flutter-3.50-candidate.0` as [flutter/flutter#196418](https://github.com/flutter/flutter/pull/196418) (`4d35714800b`), so 3.50.1 carries it as soon as it is tagged.
-- Revert: delete `egl_vendor_is_nvidia`, `choose_renderer` and the call (with its `g_unsetenv`), but keep entry 30's `match_impeller_to_renderer`, plus the `<dlfcn.h>`, `<gdk/gdkx.h>`, `<gdk/gdkwayland.h>` and `<cstring>` includes if nothing else uses them, in the same commit that moves every workflow to Flutter 3.50.1 or later. Then post on #196 and #194.
-- Recheck trigger: any Flutter bump. Read `composite_layer()` in that tag's `engine/src/flutter/shell/platform/linux/fl_compositor_opengl.cc`: the offset must no longer subtract `1.0`.
-
 ## 28. Flutter: a spell-check result is applied outside a frame, and a mouse move before the next one crashes the hit test
 
 - Issue / waiting on: [flutter/flutter#191881](https://github.com/flutter/flutter/issues/191881) (open); our report [#196223](https://github.com/flutter/flutter/issues/196223) and PR [#196219](https://github.com/flutter/flutter/pull/196219), whose hit-test fix the maintainer rejected (layout must never be marked dirty after the layout phase). The proposed upstream fix is `_performSpellCheck` going through `setState`. • Found: 2026-11-04 (Sentry FLUTTER-ADMIN-Y, -10, macOS, 5.1.21; spell check shipped in 5.1.20) • Flutter: 3.47.7, still present in 3.50.0
@@ -411,11 +398,11 @@ When an upstream fix ships: follow the revert, verify, then **delete the entry**
 ## 30. Flutter Linux engine: the software renderer starts Impeller anyway, and the first frame aborts
 
 - Issue / waiting on: [flutter/flutter#196905](https://github.com/flutter/flutter/issues/196905) (open; reproduced on a stock `flutter create` app, 3.50.0 release, and still in `master`; also seen as a side note in flutter#191775) • Found: 2026-11-18 (forum thread 23658, post 6: `FLUTTER_LINUX_RENDERER=software` on 5.1.30, NVIDIA, Flatpak, KDE Wayland) • Flutter: 3.50.0
-- Symptom: with `FLUTTER_LINUX_RENDERER=software` the app aborts on launch with `Impeller DlText cannot be drawn to a Skia canvas`. 5.1.31 avoided it only where the runner itself picked software (entry 27); a user who set the variable by hand, on any GPU, still hit it.
+- Symptom: with `FLUTTER_LINUX_RENDERER=software` the app aborts on launch with `Impeller DlText cannot be drawn to a Skia canvas`. 5.1.31 avoided it only where the runner itself picked software (its NVIDIA workaround for flutter/flutter#195885, removed with the move to Flutter 3.50.1, which fixed that compositor bug); a user who set the variable by hand, on any GPU, still hit it.
 - Root cause: `fl_engine_new_full` reads `FLUTTER_LINUX_RENDERER` and picks the software backing store, but the engine's command line is built from `fl_dart_project_get_enable_impeller` alone (`TRUE` by default), so `--enable-impeller` goes out with a renderer that only Skia can draw into. `FLUTTER_ENGINE_SWITCHES` is compiled out of release builds, so a user has no switch of their own to turn Impeller off.
 - Commit ref: (this change)
 - Change(s):
-  - `linux/runner/my_application.cc` — **MUST-REVERT** (harmless to keep): `match_impeller_to_renderer()` runs after `choose_renderer()` and before `fl_view_new`, and turns Impeller off whenever `FLUTTER_LINUX_RENDERER` is `software`, whoever set it.
+  - `linux/runner/my_application.cc` — **MUST-REVERT** (harmless to keep): `match_impeller_to_renderer()` runs before `fl_view_new` and turns Impeller off whenever `FLUTTER_LINUX_RENDERER` is `software`, whoever set it.
 - Revert: delete `match_impeller_to_renderer` and its call once the engine stops passing `--enable-impeller` with the software renderer.
 - Recheck trigger: any Flutter bump. Read `fl_engine_new_full` and the switch list in `fl_engine_start` (`engine/src/flutter/shell/platform/linux/fl_engine.cc`): if `kSoftware` already forces Impeller off, revert.
 

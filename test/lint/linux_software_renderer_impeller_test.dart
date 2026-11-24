@@ -8,8 +8,8 @@ import 'package:flutter_test/flutter_test.dart';
 /// Flutter 3.50's Linux engine reads `FLUTTER_LINUX_RENDERER=software` but
 /// still passes `--enable-impeller`, and Impeller has no software backend: the
 /// first frame aborts with "Impeller DlText cannot be drawn to a Skia canvas".
-/// The runner sets that variable itself on NVIDIA (entry 27), and users set it
-/// by hand to get round a GPU problem, so both have to land on Skia.
+/// Users set that variable by hand to get round a GPU problem, so they have to
+/// land on Skia.
 ///
 /// Nothing else notices if the call goes: the C++ is not built on the machines
 /// that run these tests, and the app runs on every GPU-rendered machine. See
@@ -32,13 +32,10 @@ void main() {
       ),
     );
 
-    // After the runner's own choice (so its "software" counts), before the
-    // engine reads the project in fl_view_new.
-    final choose = source.indexOf('choose_renderer();');
+    // Before the engine reads the project in fl_view_new.
     final call = source.indexOf('match_impeller_to_renderer(project);');
     final view = source.indexOf('fl_view_new(project)');
-    expect(choose, isNot(-1));
-    expect(call, greaterThan(choose));
+    expect(call, isNot(-1));
     expect(view, greaterThan(call));
   });
 }

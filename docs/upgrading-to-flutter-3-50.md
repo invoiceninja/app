@@ -2,6 +2,16 @@
 
 Companion to CLAUDE.md § Strict rules (the pinned toolchain) and `docs/setup.md` § Dependency updates. What was done on 3.47.7 so the move to Flutter 3.50 is a pin change, what 3.50 still needs on the day, and what was measured against 3.50.0 before any pin moved.
 
+## The pin moved to 3.50.1 on 2026-11-24
+
+A patch over 3.50.0: the same Dart (3.14.0) and framework, so neither lock file moved. What it carries for this app:
+
+- **The Linux compositor fix** ([flutter#196418](https://github.com/flutter/flutter/pull/196418), for #195885): the window drawn in its lower-left quarter on NVIDIA. The runner's software-renderer workaround is removed (it was entry 27 of `docs/upstream-workarounds.md`); entry 30's `match_impeller_to_renderer` stays, since the engine still starts Impeller with `FLUTTER_LINUX_RENDERER=software`.
+- **Split-APK version codes** ([flutter#196923](https://github.com/flutter/flutter/pull/196923)) now come from a manifest-only `versionCode` too, and a split build with no positive `versionCode` fails. `defaultConfig` sets `versionCode = flutter.versionCode`, and our `versionCodeOverride` (build × 10 + ABI digit) still runs after Flutter's own.
+- **`--web-content-hash` keeps `index.html`** ([flutter#196800](https://github.com/flutter/flutter/pull/196800)), one less thing to check when step 11 below is taken up.
+
+Rechecked and unchanged in 3.50.1: the engine still exports `_Unwind_*` (entry 23), `fl_engine.cc` still passes `--enable-impeller` with the software renderer (entry 30), and the framework, `editable_text.dart` included, is byte-identical to 3.50.0 (entries 17, 28, 31).
+
 ## The pin moved to 3.50.0 on 2026-11-15, with the material_ui migration
 
 Done in one change, built and tested in a detached worktree with a 3.50.0 SDK before it reached main:
