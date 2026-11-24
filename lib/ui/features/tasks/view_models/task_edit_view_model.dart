@@ -297,19 +297,12 @@ class TaskEditViewModel extends GenericEditViewModel<Task> {
     updateDraft(draft.copyWith(timeLog: entries));
   }
 
-  /// Resume tracking, seeded with the previous entry's description +
-  /// billable so the user doesn't re-type context for an ongoing session.
-  /// Falls through to [startTimer], which decides whether this is an append or
-  /// a claim.
-  void resumeTimer() {
-    final entries = draft.timeLog;
-    if (entries.isEmpty) {
-      startTimer();
-      return;
-    }
-    final last = entries.last;
-    startTimer(description: last.description, billable: last.billable);
-  }
+  /// Resume tracking: a new entry, blank and billable like every other start
+  /// (the server's, React's and v1's) — the previous entry's notes describe
+  /// the previous session, not this one (invoiceninja/app#210). Kept as its
+  /// own verb for the timer card's Resume button; [startTimer] decides
+  /// whether this is an append or a claim.
+  void resumeTimer() => startTimer();
 
   /// Seed a single running entry on a brand-new task when the company has
   /// `auto_start_tasks` enabled (admin-portal parity). No-op when the draft

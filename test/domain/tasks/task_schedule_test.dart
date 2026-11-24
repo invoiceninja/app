@@ -340,7 +340,7 @@ void main() {
       expect(plan.entries.last.stop, isNull);
     });
 
-    test('an appended entry never inherits billable from the last one', () {
+    test('an appended entry inherits neither description nor billable', () {
       final worked = TimeEntry(
         start: DateTime(2026, 9, 14, 9),
         stop: DateTime(2026, 9, 14, 10),
@@ -348,7 +348,7 @@ void main() {
         billable: false,
       );
       final plan = planTaskStart([worked], now: now);
-      expect(plan.entries.last.description, 'carried');
+      expect(plan.entries.last.description, isEmpty);
       expect(plan.entries.last.billable, isTrue);
     });
 

@@ -440,38 +440,36 @@ void main() {
     expect(after.isRunning, isTrue);
   });
 
-  test(
-    'startTimer carries description but NOT billable from the last entry',
-    () async {
-      final repo = makeRepo();
-      final created = await repo.create(
-        companyId: 'co',
-        draft: task(
-          timeLog: [
-            // Real (non-zero) timestamps: unix second 0 is the "no time"
-            // sentinel and would round-trip to a null start and be dropped.
-            // Last entry is NON-billable to prove billable is not inherited.
-            TimeEntry(
-              start: DateTime.utc(2026, 1, 1, 9),
-              stop: DateTime.utc(2026, 1, 1, 10),
-              description: 'Design work',
-              billable: false,
-            ),
-          ],
-        ),
-      );
-      final id = created.entity.id;
+  test('startTimer starts a blank, billable entry — nothing carries from the '
+      'last one (invoiceninja/app#210)', () async {
+    final repo = makeRepo();
+    final created = await repo.create(
+      companyId: 'co',
+      draft: task(
+        timeLog: [
+          // Real (non-zero) timestamps: unix second 0 is the "no time"
+          // sentinel and would round-trip to a null start and be dropped.
+          // Last entry is NON-billable to prove billable is not inherited.
+          TimeEntry(
+            start: DateTime.utc(2026, 1, 1, 9),
+            stop: DateTime.utc(2026, 1, 1, 10),
+            description: 'Design work',
+            billable: false,
+          ),
+        ],
+      ),
+    );
+    final id = created.entity.id;
 
-      await repo.startTimer(companyId: 'co', taskId: id);
+    await repo.startTimer(companyId: 'co', taskId: id);
 
-      final after = await repo.watchByRealId(companyId: 'co', id: id).first;
-      expect(after!.timeLog, hasLength(2));
-      final running = after.timeLog.last;
-      expect(running.isRunning, isTrue);
-      expect(running.description, 'Design work', reason: 'description carries');
-      expect(running.billable, isTrue, reason: 'a new timer starts billable');
-    },
-  );
+    final after = await repo.watchByRealId(companyId: 'co', id: id).first;
+    expect(after!.timeLog, hasLength(2));
+    final running = after.timeLog.last;
+    expect(running.isRunning, isTrue);
+    expect(running.description, isEmpty, reason: 'a new piece of work');
+    expect(running.billable, isTrue, reason: 'a new timer starts billable');
+  });
 
   test('watchRunningCount + stopAllRunning cover concurrent timers', () async {
     final repo = makeRepo();

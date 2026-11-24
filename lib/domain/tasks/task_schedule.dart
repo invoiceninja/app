@@ -447,16 +447,13 @@ TaskStartPlan planTaskStart(
         claimed: claimed,
       ));
     }
-    // Unchanged behaviour: carry the last entry's description onto the new
-    // one, but never its `billable` flag — a Start must not silently inherit
-    // a non-billable one (`TaskRepository.startTimer`'s long-standing rule).
-    final last = log.isNotEmpty ? log.last : null;
+    // A new entry starts blank and billable, as the server's own `start`
+    // writes it (`[time(), 0, "", true]`, `TaskRepository::start`) and as
+    // React and v1 do: it is a new piece of work, and the last one's notes
+    // copied into it read as describing it (invoiceninja/app#210).
     return legal((
       outcome: TaskStartOutcome.append,
-      entries: sortTimeLog([
-        ...log,
-        TimeEntry(start: now, stop: null, description: last?.description ?? ''),
-      ]),
+      entries: sortTimeLog([...log, TimeEntry(start: now, stop: null)]),
       claimed: null,
     ));
   }
