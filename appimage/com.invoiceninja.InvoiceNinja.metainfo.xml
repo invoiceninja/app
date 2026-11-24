@@ -89,6 +89,20 @@
     <control>touch</control>
   </supports>
   <releases>
+    <release version="5.1.34" date="2026-11-24">
+      <description>
+        <ul>
+          <li>Resize list columns by dragging a header's edge</li>
+          <li>Find in line items on invoices, quotes and more</li>
+          <li>Document thumbnails, rename, and documents on edit screens</li>
+          <li>The hosted Free plan's client limit is shown up front</li>
+          <li>Self-hosted sign-in accepts more addresses and explains errors</li>
+          <li>Email previews fit the screen and zoom</li>
+          <li>Fixes for invoice lists, Add to invoice, timers and sign-out</li>
+          <li>Many smaller fixes</li>
+        </ul>
+      </description>
+    </release>
     <release version="5.1.33" date="2026-11-21">
       <description>
         <ul>
