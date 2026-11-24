@@ -204,6 +204,15 @@ final Map<PrefKey<Object>, _Probe> _probes = {
     (s) => s.listColumnWidths.setWidth('invoice', 'client_id', 320),
     (s) => s.listColumnWidths.value.isEmpty,
   ),
+  // What a signed-out user gets back on their return — the sign-out that
+  // fills it must not empty it.
+  DevicePrefKeys.accountPrefsKept: _Probe(
+    (s) => s.devicePrefs.write(
+      DevicePrefKeys.accountPrefsKept,
+      '{"someone":{"tasks_view":"kanban"}}',
+    ),
+    (s) => s.devicePrefs.read(DevicePrefKeys.accountPrefsKept) == null,
+  ),
   DevicePrefKeys.downloadsFolder: _Probe(
     (s) => s.downloadsFolder.set('/x'),
     (s) => s.downloadsFolder.value == '',

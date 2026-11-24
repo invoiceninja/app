@@ -94,8 +94,8 @@ on the next launch. An end that keeps local data wipes nothing, so every
 preference stays: a 401 (`LocalDataPolicy.keep`), and an idle timeout while any
 company has unsynced work. An idle timeout with nothing unsynced is a sign-out
 (`LocalDataPolicy.destroy`, `IdleTimeoutController._expire`), and the account
-preferences go with it. The idle timeout runs on the web only
-(`IdleTimeoutController.enforced`).
+preferences go with it — until the same user signs back in (next section). The
+idle timeout runs on the web only (`IdleTimeoutController.enforced`).
 
 A key's scope is pinned in `device_pref_keys_test.dart`, because changing it
 changes what a sign-out does.
@@ -110,6 +110,18 @@ with a card that always renders). Each synced row also says "Synced with your
 account" (`SyncedWithAccountNote`). Until invoiceninja/app#199 the subtitle
 said "never synced"; the old keys were retired rather than reworded, so no
 translation of the old promise survives.
+
+## A returning user gets their account preferences back
+
+**A sign-out puts the user's account preferences aside under their identity, and the same identity signing in gets them back; anyone else starts clean.** Reported as [invoiceninja/app#209](https://github.com/invoiceninja/app/issues/209): the sidebar counters set in Device Settings were gone at the next sign-in. The account scope exists so the next *person* does not inherit them, but it also took them from the same person, at every sign-out — on the web, every idle timeout with nothing unsynced.
+
+- **Kept aside, not kept.** `LocalDataDisposer.wipeAll(keepPrefsFor:)` calls `DevicePrefsStore.keepForReturningUser` before the wipe, so the account rows still go and every owner is back on its default for whoever signs in next. The copy lives in `DevicePrefKeys.accountPrefsKept` (device scope, or the sign-out that fills it would empty it), at most five identities, oldest out first.
+- **Which keys:** `DevicePrefKeys.keptForReturningUser` — the sidebar counters, the main menu, the Tasks layout and board, "Hide unverified users", "Hide empty panels", the default items tab, hours format, "Hide PEPPOL status", "Confirm actions" and the two Tap to Pay "already told" flags. **Not** contacts sync (the sign-out took its contacts out of the address book; switching it back on unasked would put them back), the pending card payments, the card-reader flag, or the appearance sync stamp.
+- **The identity** is `AuthRepository._identityOf`: a SHA-256 of the user id and the canonical server, so the same user id on another self-hosted server is someone else (as in `_wipeIfIdentityChanged`). It keeps the raw id and URL out of a plain-text row, and is no secret: hashids are small sequential ids, so it can be enumerated. Both wipe sites pass the identity still on disk — the destructive `logout()`, and `_wipeForIncomingIdentity` when someone else signs in — read by `_storedIdentity`, which never throws: a failing keychain costs the kept copy, never the wipe.
+- **Restore** happens only into a database that was wiped — just now, or by the sign-out that ended the last session (no stored user id) — which `_wipeIfIdentityChanged` reports by returning the identity. It runs **after `_persistAndActivate` commits** (`_restoreReturningUser`, at all five sign-in paths): restored first, a failed activation left them on the device for whoever signed in next, with the kept copy already gone. It fills **only keys that are unset**, drops the entry, and notifies the owners. A same-user sign-in that kept its data (a 401, an idle re-lock) restores nothing and drops any stale copy (`forgetKeptFor`), which handed back later would undo a preference reset since.
+- **Only from a loaded store.** Keep, restore and forget do nothing when `load()` failed: the mirror is empty then, and writing "nothing kept" from it would delete every other user's copy.
+
+Pinned by `auth_repository_test` › a returning user gets their account preferences back (the same user, someone else, and the same id on another server) and `device_prefs_store_test` › a returning user.
 
 ## A device preference that follows the account is still a device preference
 
@@ -136,7 +148,8 @@ in memory, so every read is synchronous. The rules:
   another preference. A failed write is logged and keeps the new value in
   memory, as every controller did before.
 - **Listeners hear only about changes an owner did not make.** That means the
-  load and `forgetWiped`, never a `write`. Each key has one owner, which
+  load, `forgetWiped` and `restoreForReturningUser` (§ A returning user gets
+  their account preferences back), never a `write`. Each key has one owner, which
   already holds what it wrote. An owner that writes several keys in a row (the
   theme) must not be re-synced from a half-written set.
 - **Nothing else touches the rows.** `test/lint/device_prefs_wiring_test.dart`

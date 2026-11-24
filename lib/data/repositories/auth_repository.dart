@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/foundation.dart';
 import 'package:collection/collection.dart';
+import 'package:crypto/crypto.dart';
 import 'package:logging/logging.dart';
 
 import 'package:admin/data/db/app_database.dart';
@@ -466,11 +467,85 @@ class AuthRepository {
   /// `LocalDataPolicy.keep` re-login. A wipe that throws propagates, so the
   /// login fails before `_persistAndActivate` rather than activating over the
   /// previous user's rows.
-  Future<void> _wipeIfIdentityChanged(
+  Future<String?> _wipeIfIdentityChanged(
     LoginResponseApi response, {
     required String baseUrl,
   }) async {
-    if (response.data.isEmpty) return;
+    final afterWipe = await _wipeIfIdentityChangedInner(
+      response,
+      baseUrl: baseUrl,
+    );
+    // The account preferences a sign-out of this user put aside
+    // (invoiceninja/app#209) come back only into a database that was wiped —
+    // just now, or by the sign-out that ended the last session — and only once
+    // the sign-in has committed (`_restoreReturningUser`, after
+    // `_persistAndActivate`): restored first, a failed activation would leave
+    // them on the device for whoever signs in next.
+    if (response.data.isEmpty || baseUrl.isEmpty) return null;
+    final userId = response.data.first.user.id;
+    if (userId.isEmpty) return null;
+    final identity = _identityOf(userId, baseUrl);
+    if (afterWipe) return identity;
+    // The same user, with their data kept (a 401, an idle re-lock): nothing
+    // was taken, so anything still kept aside for them is stale — handed back
+    // later it would undo a preference they reset since.
+    try {
+      await _disposer.forgetKeptPrefsFor(identity);
+    } catch (e, st) {
+      _log.warning('Could not drop a stale kept-preferences copy', e, st);
+    }
+    return null;
+  }
+
+  /// Hand [identity] back its kept account preferences, once its sign-in has
+  /// committed. Best-effort: a failure here must not fail the sign-in.
+  Future<void> _restoreReturningUser(String? identity) async {
+    if (identity == null || _session.value == null) return;
+    try {
+      await _disposer.restorePrefsFor(identity);
+    } catch (e, st) {
+      _log.warning(
+        'Could not restore the returning user\'s preferences',
+        e,
+        st,
+      );
+    }
+  }
+
+  /// Who a database belongs to, as the key its kept preferences are filed
+  /// under: a hash of the user id and the canonical server. Not a secret —
+  /// hashids are small sequential ids, so it can be enumerated — only a key
+  /// that keeps the raw id and URL out of a plain-text row. The server is part
+  /// of it for the reason [_wipeIfIdentityChanged] compares it: self-hosted
+  /// user ids collide across servers.
+  static String _identityOf(String userId, String baseUrl) => sha256
+      .convert(utf8.encode('$userId\n${canonicalBaseUrl(baseUrl)}'))
+      .toString();
+
+  /// The identity on disk, or null when either half is missing.
+  ///
+  /// Never throws: it is read on the way into a wipe, and a keychain that
+  /// fails here must cost only the kept copy, never the wipe.
+  Future<String?> _storedIdentity() async {
+    try {
+      final userId = await _secure.read(kAuthUserIdKey) ?? '';
+      final baseUrl = await _secure.read(kAuthBaseUrlKey) ?? '';
+      if (userId.isEmpty || baseUrl.isEmpty) return null;
+      return _identityOf(userId, baseUrl);
+    } catch (e, st) {
+      _log.warning('Could not read the signed-in identity', e, st);
+      return null;
+    }
+  }
+
+  /// Returns whether this sign-in follows a wipe of the local data: one it
+  /// just ran, or the sign-out that ended the last session (which deletes the
+  /// stored user id).
+  Future<bool> _wipeIfIdentityChangedInner(
+    LoginResponseApi response, {
+    required String baseUrl,
+  }) async {
+    if (response.data.isEmpty) return false;
     final wipePending = (await _secure.read(kAuthWipePendingKey)) == 'true';
     if (wipePending) {
       _log.warning(
@@ -479,7 +554,7 @@ class AuthRepository {
       );
       await _wipeForIncomingIdentity(DisposalReason.sessionEnded);
       await _secure.delete(kAuthWipePendingKey);
-      return;
+      return true;
     }
     final incomingUserId = response.data.first.user.id;
     final storedUserId = await _secure.read(kAuthUserIdKey) ?? '';
@@ -499,7 +574,7 @@ class AuthRepository {
       if (storedUserId.isNotEmpty && incomingUserId.isNotEmpty) {
         await _reviveRowsKilledByDeadToken();
       }
-      return;
+      return storedUserId.isEmpty;
     }
     _log.warning(
       'A different identity is signing in on this device '
@@ -510,6 +585,7 @@ class AuthRepository {
     // Harmless when absent; keeps "a successful wipe clears the marker" true
     // on this path too.
     await _secure.delete(kAuthWipePendingKey);
+    return true;
   }
 
   /// The same identity is signing back in: bring back what a dead token
@@ -596,7 +672,7 @@ class AuthRepository {
         _log.warning('onBeforeDataWipe failed', e, st);
       }
     }
-    await _disposer.wipeAll(reason);
+    await _disposer.wipeAll(reason, keepPrefsFor: await _storedIdentity());
     // The per-company token map lives in secure storage, not Drift, so
     // `_db.wipe()` does not touch it and the incoming user would otherwise
     // activate over the outgoing user's tokens.
@@ -630,13 +706,14 @@ class AuthRepository {
     );
     // A different user (or a brand-new signup) on this device must not inherit
     // the previous session's preserved database — see [_wipeIfIdentityChanged].
-    await _wipeIfIdentityChanged(response, baseUrl: baseUrl);
+    final restore = await _wipeIfIdentityChanged(response, baseUrl: baseUrl);
     _noteSigningIn(response, baseUrl: baseUrl, isSignup: false);
     await _persistAndActivate(
       response: response,
       baseUrl: baseUrl,
       isHosted: isHosted,
     );
+    await _restoreReturningUser(restore);
   }
 
   /// The WebAuthn options for signing [email] in with a passkey — see
@@ -674,13 +751,14 @@ class AuthRepository {
     );
     // A different user (or a brand-new signup) on this device must not inherit
     // the previous session's preserved database — see [_wipeIfIdentityChanged].
-    await _wipeIfIdentityChanged(response, baseUrl: baseUrl);
+    final restore = await _wipeIfIdentityChanged(response, baseUrl: baseUrl);
     _noteSigningIn(response, baseUrl: baseUrl, isSignup: false);
     await _persistAndActivate(
       response: response,
       baseUrl: baseUrl,
       isHosted: isHosted,
     );
+    await _restoreReturningUser(restore);
   }
 
   /// Bootstrap a session from a pre-issued API token instead of an
@@ -701,12 +779,13 @@ class AuthRepository {
     );
     // A different user (or a brand-new signup) on this device must not inherit
     // the previous session's preserved database — see [_wipeIfIdentityChanged].
-    await _wipeIfIdentityChanged(response, baseUrl: baseUrl);
+    final restore = await _wipeIfIdentityChanged(response, baseUrl: baseUrl);
     await _persistAndActivate(
       response: response,
       baseUrl: baseUrl,
       isHosted: isHosted,
     );
+    await _restoreReturningUser(restore);
   }
 
   /// OAuth login (Sign in with Apple, etc). Calls `/api/v1/oauth_login`
@@ -737,7 +816,7 @@ class AuthRepository {
     );
     // A different user (or a brand-new signup) on this device must not inherit
     // the previous session's preserved database — see [_wipeIfIdentityChanged].
-    await _wipeIfIdentityChanged(response, baseUrl: baseUrl);
+    final restore = await _wipeIfIdentityChanged(response, baseUrl: baseUrl);
     // Never a sign-up, even with `create`: the server logs an existing
     // Google or Microsoft user in before it reads the flag
     // (`LoginController::handleGoogleOauth`). A truly new account lands on
@@ -748,6 +827,7 @@ class AuthRepository {
       baseUrl: baseUrl,
       isHosted: isHosted,
     );
+    await _restoreReturningUser(restore);
   }
 
   /// Native account creation. Calls `/api/v1/signup` then activates the
@@ -769,13 +849,14 @@ class AuthRepository {
     );
     // A different user (or a brand-new signup) on this device must not inherit
     // the previous session's preserved database — see [_wipeIfIdentityChanged].
-    await _wipeIfIdentityChanged(response, baseUrl: baseUrl);
+    final restore = await _wipeIfIdentityChanged(response, baseUrl: baseUrl);
     _noteSigningIn(response, baseUrl: baseUrl, isSignup: true);
     await _persistAndActivate(
       response: response,
       baseUrl: baseUrl,
       isHosted: isHosted,
     );
+    await _restoreReturningUser(restore);
   }
 
   /// Re-pull `/api/v1/refresh` and re-populate the session. Used by the
@@ -1535,7 +1616,10 @@ class AuthRepository {
         _log.warning('onBeforeDataWipe failed', e, st);
       }
     }
-    await _disposer.wipeAll(DisposalReason.sessionEnded);
+    await _disposer.wipeAll(
+      DisposalReason.sessionEnded,
+      keepPrefsFor: await _storedIdentity(),
+    );
     // Only now is the identity that described the database meaningless;
     // leaving it would only make the next sign-in do a redundant wipe. Deleted
     // AFTER the wipe, never before: a wipe that throws must leave the identity

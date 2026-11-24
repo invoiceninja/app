@@ -9,6 +9,8 @@ import 'package:admin/data/models/api/user_api_model.dart';
 import 'package:admin/data/repositories/auth/auth_helpers.dart';
 import 'package:admin/data/repositories/auth_repository.dart';
 import 'package:admin/data/repositories/local_data_disposer.dart';
+import 'package:admin/data/prefs/device_pref_keys.dart';
+import 'package:admin/data/prefs/device_prefs_store.dart';
 import 'package:admin/data/repositories/user_repository.dart';
 import 'package:admin/data/repositories/user_settings_repository.dart'
     show kUserSettingsWireName;
@@ -146,12 +148,12 @@ class _FlakyDisposer extends LocalDataDisposer {
   int failuresLeft = 0;
 
   @override
-  Future<void> wipeAll(DisposalReason reason) async {
+  Future<void> wipeAll(DisposalReason reason, {String? keepPrefsFor}) async {
     if (failuresLeft > 0) {
       failuresLeft--;
       throw StateError('wipe failed');
     }
-    await super.wipeAll(reason);
+    await super.wipeAll(reason, keepPrefsFor: keepPrefsFor);
   }
 }
 
@@ -5212,6 +5214,72 @@ void main() {
       expect(await storage.read(kAuthUserIdKey), isNull);
       expect(await storage.read(kAuthAccountIdKey), isNull);
       expect(await storage.read(kAuthWipePendingKey), isNull);
+    });
+
+    // invoiceninja/app#209: the sidebar counters (and every account
+    // preference) were lost at each sign-out — the web's idle timeout
+    // included — so the same user signing back in found them reset.
+    group('a returning user gets their account preferences back', () {
+      late DevicePrefsStore prefs;
+
+      setUp(() async {
+        prefs = DevicePrefsStore(db);
+        await prefs.load();
+        repo = AuthRepository(
+          db: db,
+          authService: authService,
+          tokenStorage: storage,
+          passwordCache: passwordCache,
+          disposer: LocalDataDisposer(db, prefs: prefs),
+        );
+      });
+
+      Future<void> loginAs(String userId, {String baseUrl = 'https://x'}) {
+        authService.queueLogin(_envelope(user: UserSummaryApi(id: userId)));
+        return repo.login(
+          baseUrl: baseUrl,
+          isHosted: true,
+          email: '$userId@example.com',
+          password: 'pw',
+        );
+      }
+
+      test('the same user signing back in, and nobody else', () async {
+        await loginAs('alice');
+        await prefs.write(DevicePrefKeys.tasksView, 'kanban');
+        await prefs.write(
+          DevicePrefKeys.sidebarBadgeModes,
+          '{"client":"total"}',
+        );
+        await prefs.write(DevicePrefKeys.contactsSync, '{"enabled":true}');
+
+        await repo.logout(data: LocalDataPolicy.destroy);
+        expect(prefs.read(DevicePrefKeys.tasksView), isNull, reason: 'wiped');
+
+        // Someone else on this device inherits nothing.
+        await loginAs('bob');
+        expect(prefs.read(DevicePrefKeys.tasksView), isNull);
+        await repo.logout(data: LocalDataPolicy.destroy);
+
+        // Alice gets hers back — but not contacts sync, whose contacts the
+        // sign-out took out of the address book.
+        await loginAs('alice');
+        expect(prefs.read(DevicePrefKeys.tasksView), 'kanban');
+        expect(
+          prefs.read(DevicePrefKeys.sidebarBadgeModes),
+          '{"client":"total"}',
+        );
+        expect(prefs.read(DevicePrefKeys.contactsSync), isNull);
+      });
+
+      test('the same user id on another server is someone else', () async {
+        await loginAs('alice', baseUrl: 'https://one.example');
+        await prefs.write(DevicePrefKeys.tasksView, 'kanban');
+        await repo.logout(data: LocalDataPolicy.destroy);
+
+        await loginAs('alice', baseUrl: 'https://two.example');
+        expect(prefs.read(DevicePrefKeys.tasksView), isNull);
+      });
     });
 
     // A destructive sign-out used to delete the stored identity BEFORE its

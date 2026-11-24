@@ -296,6 +296,7 @@ void main() {
         'desktop_app_promo_json',
         'document_thumbnails',
         'list_column_widths_json',
+        'account_prefs_kept_json',
       };
       for (final key in DevicePrefKeys.all) {
         if (addedAfterV12.contains(key.name)) {

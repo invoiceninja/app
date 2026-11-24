@@ -72,8 +72,20 @@ class LocalDataDisposer {
   /// the device keys (theme, language, …) and forgets the account ones, and
   /// the store follows — so every preference controller is back on its
   /// default the moment the data it described is gone.
-  Future<void> wipeAll(DisposalReason reason) async {
+  ///
+  /// [keepPrefsFor] names the identity being signed out: its account
+  /// preferences are put aside first, for that same user's return
+  /// ([restorePrefsFor], invoiceninja/app#209).
+  Future<void> wipeAll(DisposalReason reason, {String? keepPrefsFor}) async {
     await _logWhatGoes(reason);
+    if (keepPrefsFor != null) {
+      try {
+        await _prefs?.keepForReturningUser(keepPrefsFor);
+      } catch (e, st) {
+        // Never in the way of the wipe.
+        _log.warning('wipeAll: keeping preferences aside failed', e, st);
+      }
+    }
     await _db.wipe();
     _prefs?.forgetWiped();
     // After the rows: a file an outbox row still pointed at is only safe to
@@ -85,6 +97,16 @@ class LocalDataDisposer {
       _log.warning('wipeAll: removing shared files failed', e, st);
     }
   }
+
+  /// Hand back the account preferences [wipeAll] put aside for [identity] —
+  /// called when that identity signs in (`AuthRepository`).
+  Future<void> restorePrefsFor(String identity) async =>
+      _prefs?.restoreForReturningUser(identity);
+
+  /// Drop what [wipeAll] kept aside for [identity] — a stale copy, when that
+  /// identity signed in with its data kept.
+  Future<void> forgetKeptPrefsFor(String identity) async =>
+      _prefs?.forgetKeptFor(identity);
 
   Future<void> wipeCompany(String companyId, DisposalReason reason) async {
     await _logWhatGoes(reason, companyId: companyId);

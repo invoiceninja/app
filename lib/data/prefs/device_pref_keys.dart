@@ -427,6 +427,17 @@ abstract final class DevicePrefKeys {
     PrefScope.device,
   );
 
+  /// A signed-out user's account preferences ([keptForReturningUser]), kept
+  /// aside per identity so the same user signing back in gets them back
+  /// (`DevicePrefsStore.keepForReturningUser`, invoiceninja/app#209). JSON
+  /// `{"<identity hash>": {"<key name>": "<stored value>"}}`, at most five
+  /// identities. Device scope, or the sign-out that fills it would empty it.
+  static const accountPrefsKept = PrefKey<String>(
+    'account_prefs_kept_json',
+    PrefCodec.string,
+    PrefScope.device,
+  );
+
   /// In the order they were added; append new keys at the end.
   static const List<PrefKey<Object>> all = [
     locale,
@@ -471,7 +482,29 @@ abstract final class DevicePrefKeys {
     desktopAppPromo,
     documentThumbnails,
     listColumnWidths,
+    accountPrefsKept,
   ];
+
+  /// The account preferences a sign-out keeps aside for the SAME user's
+  /// return ([accountPrefsKept]) — choices about how this user works: the
+  /// sidebar counters, menu, Tasks layout, dashboard, confirmations. Left out
+  /// on purpose: contacts sync (the sign-out removed its contacts from the
+  /// address book, and turning it back on silently would re-add them), the
+  /// card-payment state, and the appearance sync stamp.
+  static final Set<String> keptForReturningUser = {
+    sidebarBadgeModes.name,
+    confirmActions.name,
+    sidebarMenu.name,
+    tasksView.name,
+    kanban.name,
+    hideUnverifiedUsers.name,
+    hideEmptyPanels.name,
+    defaultItemsTab.name,
+    hoursFormat.name,
+    hidePeppolStatus.name,
+    howToTapShown.name,
+    tapToPayAnnounced.name,
+  };
 
   /// The rows a data wipe leaves in place: the [PrefScope.device] keys and the
   /// carry marker. Anything else — an account key, or a key this build does
