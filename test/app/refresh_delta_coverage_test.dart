@@ -98,12 +98,27 @@ void main() {
   // tolerant enough that forcing a real throw isn't practical. What matters is
   // structural — the loop must isolate each applier.
   test('the delta fan-out isolates each applier', () {
+    // The hook hands every applier to `runRefreshDeltaAppliers`, whose
+    // behaviour `refresh_delta_fanout_test` pins; this pins the wiring and the
+    // shape of its loop.
     final services = File('lib/app/services.dart').readAsStringSync();
+    expect(
+      services.contains(
+        'runRefreshDeltaAppliers(\n            entities.refreshDeltaAppliers,',
+      ),
+      isTrue,
+      reason:
+          'the onPersistBundles hook must run the appliers through '
+          'runRefreshDeltaAppliers, and return what it says',
+    );
+    final wiring = File(
+      'lib/app/services_entity_wiring.dart',
+    ).readAsStringSync();
     final loop = RegExp(
-      r'for \(final entry in entities\.refreshDeltaAppliers\.entries\) \{'
-      r'(.*?)\n          \}',
+      r'for \(final entry in appliers\.entries\) \{'
+      r'(.*?)\n  \}',
       dotAll: true,
-    ).firstMatch(services);
+    ).firstMatch(wiring);
     expect(
       loop,
       isNotNull,

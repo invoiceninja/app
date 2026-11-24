@@ -2230,10 +2230,28 @@ abstract class BaseEntityRepository<TDomain, TApi> {
       companyId: companyId,
       ids: [for (final a in bundle) idOf(a)],
     );
-    final fresh = [
-      for (final a in bundle)
-        if (updatedAtOf(a) >= (stored[idOf(a)] ?? 0)) a,
-    ];
+    // Mapped one row at a time. A row that will not map is skipped and named,
+    // not allowed to throw: the throw rolled back the entity's whole delta,
+    // every row changed in the window, and an invoice paid and archived on the
+    // server stayed Sent here for days (invoiceninja/app#208).
+    final companions = <String, TCompanion>{};
+    final fresh = <TItem>[];
+    final skipped = <String>[];
+    for (final a in bundle) {
+      final id = idOf(a);
+      if (updatedAtOf(a) < (stored[id] ?? 0)) continue;
+      try {
+        companions[id] = toCompanion(a);
+        fresh.add(a);
+      } catch (e, st) {
+        skipped.add(id);
+        _log.warning(
+          'refresh delta: $entityTypeName $id skipped — it would not map',
+          e,
+          st,
+        );
+      }
+    }
     if (fresh.isNotEmpty) {
       _log.fine(
         'refresh delta: $entityTypeName applied ${fresh.length}/'
@@ -2245,9 +2263,30 @@ abstract class BaseEntityRepository<TDomain, TApi> {
       bundle: fresh,
       idOf: idOf,
       updatedAtOf: updatedAtOf,
-      toCompanion: toCompanion,
+      toCompanion: (a) => companions[idOf(a)] as TCompanion,
       upsert: upsert,
       wasFullSync: false,
     );
+    // The rest landed; say the delta did not, so the company's watermark is
+    // held and the next refresh asks for the skipped rows again (bounded —
+    // `kMaxDeltaRetries`).
+    if (skipped.isNotEmpty) {
+      throw RefreshDeltaRowsSkipped(entityTypeName, skipped);
+    }
   }
+}
+
+/// A `/refresh` delta landed every row but [ids], which would not map
+/// (`BaseEntityRepository.applyRefreshDeltaTemplate`). Thrown AFTER the rest
+/// is written, so the delta fan-out counts the entity as not fully landed and
+/// the company's watermark is held for a retry.
+class RefreshDeltaRowsSkipped implements Exception {
+  const RefreshDeltaRowsSkipped(this.entity, this.ids);
+
+  final String entity;
+  final List<String> ids;
+
+  @override
+  String toString() =>
+      'RefreshDeltaRowsSkipped: $entity ${ids.join(', ')} would not map';
 }

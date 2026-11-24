@@ -291,6 +291,7 @@ void main() {
               companyId: companyId,
               bundle: company.users,
             );
+            return true;
           };
       authService.queueLogin(
         _envelope(
@@ -692,6 +693,7 @@ void main() {
       repo.onPersistBundles =
           ({required companyId, required company, required fullSync}) async {
             calls.add((companyId: companyId, company: company));
+            return true;
           };
       authService.queueLogin(
         _envelope(
@@ -761,6 +763,7 @@ void main() {
                 ),
               ),
             );
+            return true;
           };
 
       final emissions = <int>[];
@@ -2213,6 +2216,7 @@ void main() {
             logoutFuture ??= Zone.root.run(
               () => repo.logout(data: LocalDataPolicy.destroy),
             );
+            return true;
           };
       repo.apiClient = gatedClient(
         MockClient((req) async {
@@ -3284,6 +3288,116 @@ void main() {
         expect(fixedRepo.credentials.value!.token, 'tok_b');
       });
 
+      test('a delta that did not fully land keeps the watermark, so the next '
+          'refresh asks for the same window (invoiceninja/app#208)', () async {
+        var nowMs = 1700000000000;
+        final fixedRepo = AuthRepository(
+          db: db,
+          authService: authService,
+          tokenStorage: storage,
+          passwordCache: passwordCache,
+          now: () => DateTime.fromMillisecondsSinceEpoch(nowMs),
+        );
+        authService.queueLogin(_envelope());
+        await fixedRepo.login(
+          baseUrl: 'https://test',
+          isHosted: false,
+          email: 'a',
+          password: 'b',
+        );
+
+        final sent = <String?>[];
+        fixedRepo.apiClient = ApiClient(
+          credentials: fixedRepo.credentials,
+          passwordCache: PasswordCache(),
+          onUnauthorized: () async {},
+          httpClient: MockClient((req) async {
+            if (req.url.path != '/api/v1/refresh') {
+              return http.Response('not found', 404);
+            }
+            sent.add(req.url.queryParameters['updated_at']);
+            return http.Response(jsonEncode(_envelope().toJson()), 200);
+          }),
+        );
+
+        // The watermark the next delta sends, for a refresh stamped at `ms`.
+        String delta(int ms) => '${(ms ~/ 1000) - 600}';
+        final loginMs = nowMs;
+
+        // An entity's applier threw this tick (and the next).
+        var landed = false;
+        fixedRepo.onPersistBundles =
+            ({required companyId, required company, required fullSync}) async =>
+                fullSync || landed;
+        nowMs += 5 * 60 * 1000;
+        await fixedRepo.refresh();
+        nowMs += 5 * 60 * 1000;
+        await fixedRepo.refresh();
+        expect(sent, [
+          delta(loginMs),
+          delta(loginMs),
+        ], reason: 'the window the failed delta carried is asked for again');
+
+        // It lands this time, and the watermark moves on to this refresh.
+        landed = true;
+        nowMs += 5 * 60 * 1000;
+        final landedMs = nowMs;
+        await fixedRepo.refresh();
+        nowMs += 5 * 60 * 1000;
+        await fixedRepo.refresh();
+        expect(sent.sublist(2), [delta(loginMs), delta(landedMs)]);
+      });
+
+      test('a delta that never lands is retried $kMaxDeltaRetries times, '
+          'then lets the watermark move on', () async {
+        var nowMs = 1700000000000;
+        final fixedRepo = AuthRepository(
+          db: db,
+          authService: authService,
+          tokenStorage: storage,
+          passwordCache: passwordCache,
+          now: () => DateTime.fromMillisecondsSinceEpoch(nowMs),
+        );
+        authService.queueLogin(_envelope());
+        await fixedRepo.login(
+          baseUrl: 'https://test',
+          isHosted: false,
+          email: 'a',
+          password: 'b',
+        );
+        final sent = <String?>[];
+        fixedRepo.apiClient = ApiClient(
+          credentials: fixedRepo.credentials,
+          passwordCache: PasswordCache(),
+          onUnauthorized: () async {},
+          httpClient: MockClient((req) async {
+            if (req.url.path != '/api/v1/refresh') {
+              return http.Response('not found', 404);
+            }
+            sent.add(req.url.queryParameters['updated_at']);
+            return http.Response(jsonEncode(_envelope().toJson()), 200);
+          }),
+        );
+        fixedRepo.onPersistBundles =
+            ({required companyId, required company, required fullSync}) async =>
+                fullSync;
+        String delta(int ms) => '${(ms ~/ 1000) - 600}';
+        final loginMs = nowMs;
+        final stamps = <int>[];
+        for (var i = 0; i < kMaxDeltaRetries + 2; i++) {
+          nowMs += 5 * 60 * 1000;
+          stamps.add(nowMs);
+          await fixedRepo.refresh();
+        }
+        expect(sent, [
+          // The first delta and its kMaxDeltaRetries retries all ask from the
+          // login…
+          for (var i = 0; i <= kMaxDeltaRetries; i++) delta(loginMs),
+          // …then the last failure's stamp stands.
+          delta(stamps[kMaxDeltaRetries]),
+        ]);
+      });
+
       test('fullSync:true forces a full snapshot even with a non-zero '
           'last_sync_at', () async {
         const tMs = 1700000000000;
@@ -3377,6 +3491,7 @@ void main() {
                 invoices: company.invoices.length,
                 clients: company.clients.length,
               ));
+              return true;
             };
 
         await fixedRepo.refresh(fullSync: true);

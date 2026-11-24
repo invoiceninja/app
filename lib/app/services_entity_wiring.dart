@@ -1,3 +1,5 @@
+import 'package:logging/logging.dart';
+
 import 'package:admin/app/services_clone_handlers.dart';
 import 'package:admin/app/services_comment_handlers.dart';
 import 'package:admin/app/services_document_handlers.dart';
@@ -166,6 +168,41 @@ BundleApplier _deltaOnly(
   if (fullSync) return;
   await apply(companyId, company);
 };
+
+/// Run every browsable entity's `/refresh` delta applier, each isolated, and
+/// say whether all of them landed.
+///
+/// One entity's failure — a throw, or rows skipped because they would not map
+/// (`RefreshDeltaRowsSkipped`) — is logged under that entity's name and does
+/// not stop the rest. `false` makes the auth layer hold the company's
+/// watermark for a retry (docs/sync.md § A `/refresh` delta that did not fully
+/// land keeps its watermark).
+Future<bool> runRefreshDeltaAppliers(
+  Map<EntityType, BundleApplier> appliers, {
+  required String companyId,
+  required CompanyEnvelopeApi company,
+  required bool fullSync,
+  required Logger log,
+}) async {
+  var landed = true;
+  for (final entry in appliers.entries) {
+    try {
+      await entry.value(
+        companyId: companyId,
+        company: company,
+        fullSync: fullSync,
+      );
+    } catch (e, st) {
+      landed = false;
+      log.warning(
+        'refresh delta: "${entry.key.name}" failed for company $companyId',
+        e,
+        st,
+      );
+    }
+  }
+  return landed;
+}
 
 /// Delta appliers that read no array of their own in the `/refresh` envelope,
 /// so they don't join `kBrowsableDeltaJsonKeys`. The Documents list is the

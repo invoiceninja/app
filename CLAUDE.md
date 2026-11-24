@@ -404,7 +404,7 @@ Step shapes, action helpers (non-standard ones like Invoice `markPaid` via `cust
 
 ### Action confirmations
 
-A risky action sets `confirm: true` on its `EntityActionItem` (+ `confirmSubject:`, `isDestructive:` if it destroys data, `confirmMessageKey:` for sharper copy). The switch is Device Settings → Security → **Confirm actions** (`DevicePrefKeys.confirmActions`, on by default). Tag a verb only if it fires a mutation at once **and** is outward-facing, financial or hard to reverse — never one that opens its own dialog or screen; bulk items stay untagged (`BulkAction.confirm` owns that).
+A risky action sets `confirm: true` on its `EntityActionItem` (+ `confirmSubject:`, `isDestructive:` if it destroys data, `confirmMessageKey:` for sharper copy). The switch is Device Settings → Security → **Confirm actions** (`DevicePrefKeys.confirmActions`, on by default). Tag a verb only if it fires a mutation at once **and** is outward-facing, financial or hard to reverse — never one that opens its own dialog or screen (`markPaid`); bulk items stay untagged (`BulkAction.confirm` owns that).
 
 Every surface calls `guardedOnTap(context, item)`, never `item.onTap`; surfaces outside the item model use `showConfirmActionDialog`, which autofocuses **Cancel**. → `docs/adding-an-entity.md`
 
@@ -436,6 +436,7 @@ Every surface calls `guardedOnTap(context, item)`, never `item.onTap`; surfaces 
 - **Server-side list ordering / cursor.** → `docs/sync.md`
 - **A narrowed fetch neither reads nor advances the cursor** → `docs/sync.md`
 - **A delta asks for every state and pages to its end.** → `docs/sync.md`
+- **A `/refresh` delta that did not fully land keeps its watermark.** → `docs/sync.md`
 - **`hasMore` is not the gate for widening the Drift window.** → `docs/sync.md`
 - **A bulk re-download re-arms mounted lists.** → `docs/sync.md`
 - **Lists sort newest-first where the sort key is monotonic.** → `docs/sync.md`
@@ -447,7 +448,6 @@ Every surface calls `guardedOnTap(context, item)`, never `item.onTap`; surfaces 
 - **A page or a mutation is bound to the company whose token fetched it, and the binding is a `throw`.** → `docs/sync.md`
 - **A different identity on the same device wipes the local database, and only the login entry points check.** → `docs/sync.md`
 - **The server's rounding scale is a two-level map, not one precision.** → `docs/sync.md`
-- **`markPaid`'s confirmation is a hook, not `confirm: true`:** it opens its own dialog (§ Action confirmations).
 - **A Sync pass re-downloads the fifteen entity tables and nothing else — every cache that hangs off them is re-seeded by hand.** → `docs/sync.md`
 - **A Documents-list row leaves only by a confirmed delete, a record whose complete `documents` no longer lists it, or a full Sync sweep that reached the end — never while dirty or named by an outbox row.** → `docs/documents-list.md`
 - **A `/refresh` delta carries the fourteen browsable entity tables too, and they are applied as an upsert-only top-up (the Documents harvest also prunes, above) — never on a full sync, and never over a newer local row.** → `docs/sync.md`

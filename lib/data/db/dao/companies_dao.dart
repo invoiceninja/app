@@ -33,6 +33,23 @@ class CompaniesDao extends DatabaseAccessor<AppDatabase>
     await batch((b) => b.insertAllOnConflictUpdate(companies, rows));
   }
 
+  /// Put a company's delta watermark back from [from] to [to] — a refresh
+  /// whose delta did not fully land (`AuthRepository.onPersistBundles`). Only
+  /// while the row still holds [from]: a newer refresh's stamp stands. Returns
+  /// whether it did.
+  Future<bool> rewindLastSyncAt(
+    String companyId, {
+    required int from,
+    required int to,
+  }) async {
+    final n =
+        await (update(
+              companies,
+            )..where((c) => c.id.equals(companyId) & c.lastSyncAt.equals(from)))
+            .write(CompaniesCompanion(lastSyncAt: Value(to)));
+    return n > 0;
+  }
+
   /// Refresh only the columns the server owns outright, leaving every column
   /// the user can edit locally alone.
   ///

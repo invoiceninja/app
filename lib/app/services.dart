@@ -2334,22 +2334,17 @@ class Services implements SidebarBadgeContext {
           // so catching here rolls back exactly the failing entity. Mirrors
           // `resyncAllEntities`, which collects per-entity failures rather than
           // aborting the pass, and names the entity for the same reason.
-          for (final entry in entities.refreshDeltaAppliers.entries) {
-            try {
-              await entry.value(
-                companyId: companyId,
-                company: company,
-                fullSync: fullSync,
-              );
-            } catch (e, st) {
-              _servicesLog.warning(
-                'refresh delta: "${entry.key.name}" failed for company '
-                '$companyId',
-                e,
-                st,
-              );
-            }
-          }
+          //
+          // A failure is reported back (`false`), so the auth layer keeps the
+          // company's watermark and the next refresh asks for this window again
+          // — the lost rows are not lost for good (invoiceninja/app#208).
+          return runRefreshDeltaAppliers(
+            entities.refreshDeltaAppliers,
+            companyId: companyId,
+            company: company,
+            fullSync: fullSync,
+            log: _servicesLog,
+          );
         };
     // Seed the static catalog from the /refresh envelope's `static` blob
     // instead of a separate GET /api/v1/statics. No-op on the empty map a

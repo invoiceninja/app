@@ -154,9 +154,20 @@ What the bounded walk can't tell reads as landing, the answer from before it loo
 3. **A delta was one page.** The server orders it `id DESC`, so page 1 held only the fifty newest ids that changed, and the cursor then moved to that page's last row — past an older invoice archived on delta page 2. `ensurePageLoadedTemplate` now follows a full delta page (`_kMaxDeltaPages`, 20) and moves the cursor only once a short page ends it; a delta still full at the cap leaves the cursor alone.
 4. **Pull-to-refresh skipped exactly those rows.** `refreshAllTemplate` walks every page in every state, but its page 1 read the cursor unless `full`. Pages 2+ never apply it, so a non-full sweep re-read the whole table *except* the newest fifty rows, where a just-paid invoice sits. Page 1 now always ignores the cursor; `full` only adds the reset and the `last_full_sync_at` stamp. A page that is not a delta moves the cursor only *forward*: its `data.last` is the fiftieth-newest id's `updated_at`, which can be months older than the stored watermark, and dragging the cursor back there widened every later delta.
 
-**The `/refresh` delta should have caught it on its own, and on that server it did not.** A demo `/refresh` payload with invoices flipped to paid and archived parses and applies correctly (Unpaid drops to 0). So the miss is upstream of the app: either the delta never ran there, or it never carried the rows. One candidate is a watermark the server reads differently. The delta's `updated_at` comes from the device clock, and the buffer is 10 min where v1's was effectively 25 (`kMillisecondsToRefreshData` + `kUpdatedAtBufferSeconds`). Another candidate is the server's own timezone switching: `Company::utc_offset()` calls `date_default_timezone_set('GMT')`, and a queue worker that ran it then writes `updated_at` in GMT under a non-UTC `SERVER_TIMEZONE`. Neither is confirmed. The list fixes above converge either way, because the cursor is the server's own `updated_at`, not the device clock.
+**The `/refresh` delta should have caught it on its own, and on that server it did not.** A demo `/refresh` payload with invoices flipped to paid and archived parses and applies correctly (Unpaid drops to 0), and the reporter ruled out the clock: `SERVER_TIMEZONE` unset (UTC), host clock UTC and NTP-synced, and the invoices stayed wrong for days, not one tick. That left the app's own handling of a delta that fails part-way — § A `/refresh` delta that did not fully land keeps its watermark.
 
 Pinned by `client_repository_test` › pagination › a record that left the active list since the watermark (seven tests).
+
+## A `/refresh` delta that did not fully land keeps its watermark
+
+**A `/refresh` delta that did not fully land keeps its watermark.** Each browsable entity's delta applier runs in its own SAVEPOINT and a throw is caught and logged (§ The refresh delta tops up the browsable tables), so one bad row rolled back that entity's *whole* delta — every invoice changed in the window. And `_persistAndActivate` had already stamped the company's `lastSyncAt` before the fan-out ran, so the next tick asked only for what changed after it: the lost window was never asked for again. A refresh after a few days away carries days of changes, so one failure there loses days. The `/refresh` half of [invoiceninja/app#208](https://github.com/invoiceninja/app/issues/208) is consistent with exactly that, and nothing else the reporter could check explained it.
+
+Two changes:
+
+1. **A row that will not map is skipped, then reported.** `applyRefreshDeltaTemplate` maps each row in its own try/catch, writes the rows that mapped, and only then throws `RefreshDeltaRowsSkipped` naming the ones it dropped — so the rest of the entity's delta lands, and the skip still counts as a delta that did not fully land. (The Documents harvest, `DocumentRepository.applyRefreshDelta`, is the one hand-rolled applier; it still fails whole, and the next item covers it.)
+2. **A delta that did not fully land rewinds the watermark — a bounded number of times.** `runRefreshDeltaAppliers` (`services_entity_wiring.dart`) runs each entity's applier isolated and returns `false` if any threw; `onPersistBundles` passes that up. `_persistAndActivate` reads each company's `lastSyncAt` before writing the new one and, on `false` (or a throwing hook) for a delta, writes the old one back with `CompaniesDao.rewindLastSyncAt` — a compare-and-set against this refresh's own stamp, after a session-generation check, so a newer refresh's watermark is never undone. The next tick asks for the same window again, which is safe: the delta is upsert-only and a row older than the stored one is dropped (§ The refresh delta tops up the browsable tables, invariant 3). **Bounded by `kMaxDeltaRetries` (3) rewinds in a row per company** (`_deltaRewinds`, in memory): a failure that never clears — one row that never maps — would otherwise hold the watermark for good and re-download an ever-wider window on every tick, repainting every list. After the cap the stamp stands, the loss is logged, and a full Sync is what brings the rest back. A full sync is unaffected: its appliers are no-ops.
+
+Pinned by `auth_repository_test` › a delta that did not fully land keeps the watermark (exact `updated_at` values; fails without the rewind) and › a delta that never lands is retried 3 times, `refresh_delta_fanout_test` (a throwing applier makes the fan-out `false` and the rest still run) and `refresh_delta_row_tolerance_test`.
 
 ## `hasMore` is not the gate for widening the Drift window
 
@@ -564,7 +575,8 @@ twins. `sql_in_chunking_test` pins it with a 40 000-row delta applied twice.
 **Why a quiet tick is free.** `applyBundleUpsertOnly` returns early on an empty bundle and
 `upsertAllPreservingDirty` is empty-safe, so a refresh where nothing changed leaves every entity
 table untouched and their watch streams quiet. (The refresh itself still writes — `_persistAndActivate`
-stamps each company's `lastSyncAt` unconditionally — but nothing a list is watching.) That is what
+stamps each company's `lastSyncAt`, rewinding it only after a delta that did not fully land — but
+nothing a list is watching.) That is what
 stops every mounted list repainting on a timer; it is pinned by a test because it is invisible in
 review.
 

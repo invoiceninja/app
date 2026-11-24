@@ -78,6 +78,12 @@ class CompanyCreatedNotActivatedException implements Exception {
 /// The UI listens to two things:
 ///   * [session] — the rich envelope (companies, account, permissions).
 ///   * [credentials] — what [ApiClient] reads on every request.
+/// How many refreshes in a row a delta that did not fully land rewinds the
+/// company's watermark before it lets the stamp stand
+/// (`AuthRepository.onPersistBundles`, docs/sync.md § A `/refresh` delta that
+/// did not fully land keeps its watermark).
+const int kMaxDeltaRetries = 3;
+
 class AuthRepository {
   AuthRepository({
     required AppDatabase db,
@@ -229,12 +235,21 @@ class AuthRepository {
   /// delta refresh — the envelope's bundled arrays are then *partial*, so
   /// `applyBundle` must upsert without claiming a full snapshot (it must not
   /// regress the per-entity keyset cursor or set `lastFullSyncAt`).
-  Future<void> Function({
+  ///
+  /// Returns `false` when part of a DELTA did not land (one entity's applier
+  /// threw). The company's `lastSyncAt` is then put back where it was, so the
+  /// next refresh asks for the same window again instead of skipping past the
+  /// changes it lost (invoiceninja/app#208). `null` / `true` mean it all
+  /// landed; a hook that throws counts as not landed.
+  Future<bool?> Function({
     required String companyId,
     required CompanyEnvelopeApi company,
     required bool fullSync,
   })?
   onPersistBundles;
+
+  /// Consecutive watermark rewinds per company — see [kMaxDeltaRetries].
+  final Map<String, int> _deltaRewinds = {};
 
   /// Wired by DI to `StaticsRepository.applyStatic`. The `/refresh` envelope
   /// already carries the full static catalog (`response.static`) when
@@ -2030,6 +2045,14 @@ class AuthRepository {
         expectedGeneration != _sessionGeneration) {
       return;
     }
+    // Each company's watermark before this response moves it — what a delta
+    // that did not fully land puts back (see [onPersistBundles]).
+    final priorSyncAt = <String, int>{
+      if (!isFullSync)
+        for (final uc in response.data)
+          uc.company.id:
+              (await _db.companiesDao.byId(uc.company.id))?.lastSyncAt ?? 0,
+    };
     await _db.transaction(() async {
       // Full snapshot: the response is the authoritative company set, so prune
       // the ones the account no longer has (plus a stale account row). Delta:
@@ -2428,19 +2451,68 @@ class AuthRepository {
             expectedGeneration != _sessionGeneration) {
           return;
         }
+        var landed = true;
         try {
-          await _db.transaction(
-            () => bundlesHook(
-              companyId: uc.company.id,
-              company: uc.company,
-              fullSync: isFullSync,
-            ),
-          );
+          landed =
+              await _db.transaction(
+                () => bundlesHook(
+                  companyId: uc.company.id,
+                  company: uc.company,
+                  fullSync: isFullSync,
+                ),
+              ) !=
+              false;
         } catch (e, st) {
+          landed = false;
           _log.warning(
             'onPersistBundles failed for company ${uc.company.id}',
             e,
             st,
+          );
+        }
+        // A delta that lost part of itself must not count as synced: stamped,
+        // the next tick asks only for what changed after it, and the lost
+        // changes — an invoice paid and archived — are never asked for again.
+        // Re-applying the window is safe: an older row never overwrites a
+        // newer one, and the delta is upsert-only.
+        //
+        // Bounded: a failure that never clears would otherwise hold the
+        // watermark for good and every tick would re-download a window that
+        // only grows. After [kMaxDeltaRetries] rewinds in a row the stamp is
+        // left to stand and the loss is logged.
+        final companyId = uc.company.id;
+        final prior = priorSyncAt[companyId];
+        if (landed || prior == null) {
+          _deltaRewinds.remove(companyId);
+          continue;
+        }
+        final rewinds = _deltaRewinds[companyId] ?? 0;
+        if (prior <= 0 || rewinds >= kMaxDeltaRetries) {
+          _deltaRewinds.remove(companyId);
+          _log.warning(
+            'refresh delta for company $companyId did not fully land '
+            '${rewinds + 1} time(s) running; moving on — a full Sync brings '
+            'back what it missed',
+          );
+          continue;
+        }
+        // A logout or a re-login since this refresh began owns the row now.
+        if (expectedGeneration != null &&
+            expectedGeneration != _sessionGeneration) {
+          return;
+        }
+        // Only over this refresh's own stamp: a newer refresh that landed in
+        // the meantime keeps its watermark.
+        final rewound = await _db.companiesDao.rewindLastSyncAt(
+          companyId,
+          from: syncMark,
+          to: prior,
+        );
+        if (rewound) {
+          _deltaRewinds[companyId] = rewinds + 1;
+          _log.warning(
+            'refresh delta for company $companyId did not fully land; '
+            'the next refresh asks for the same window again',
           );
         }
       }
