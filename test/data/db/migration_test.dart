@@ -295,6 +295,7 @@ void main() {
         'appearance_seeded',
         'desktop_app_promo_json',
         'document_thumbnails',
+        'list_column_widths_json',
       };
       for (final key in DevicePrefKeys.all) {
         if (addedAfterV12.contains(key.name)) {
