@@ -195,11 +195,17 @@ const double kColumnFlexMinWidth = 220;
 /// header so the scaffold can decide when to engage the horizontal
 /// scroller. Mirrors the (previously duplicated) `_computeTableMinWidth`
 /// helper that lived in each list screen.
-double computeTableMinWidth(List<ColumnDefinition<dynamic>> columns) {
+///
+/// [widths] overrides a column's declared width — a width the user dragged
+/// (`resolveColumnWidths`); a column missing from it counts its own.
+double computeTableMinWidth(
+  List<ColumnDefinition<dynamic>> columns, {
+  Map<String, double> widths = const {},
+}) {
   var total = colWMoreMenu() + kColActionsLeadingGap; // actions + tight gap
   total += kColLeadingWidth + kColCellGap; // avatar/checkbox + gap
   for (final c in columns) {
-    total += c.isFlex ? kColumnFlexMinWidth : c.width!;
+    total += widths[c.id] ?? (c.isFlex ? kColumnFlexMinWidth : c.width!);
     total += kColCellGap;
   }
   total += kColWPillSlot;

@@ -82,6 +82,7 @@ import 'package:admin/app/legacy_material_theme.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/l10n/supported_locales.dart';
 import 'package:admin/ui/features/shell/widgets/window_frame.dart';
+import 'package:admin/ui/core/list/list_column_widths.dart';
 import 'package:admin/ui/core/list/list_density_scope.dart';
 import 'package:admin/ui/core/widgets/call_log_prompter.dart';
 import 'package:admin/ui/core/widgets/laid_out_traversal_policy.dart';
@@ -1289,7 +1290,13 @@ class _InvoiceNinjaAppState extends State<InvoiceNinjaApp> {
                                 // docs/list-density.md.
                                 child: ListDensityScope(
                                   controller: widget.services.listDensity,
-                                  child: child ?? const SizedBox.shrink(),
+                                  // Dragged list column widths, the same way
+                                  // (docs/entity-lists.md).
+                                  child: ListColumnWidthsScope(
+                                    controller:
+                                        widget.services.listColumnWidths,
+                                    child: child ?? const SizedBox.shrink(),
+                                  ),
                                 ),
                               ),
                             ),

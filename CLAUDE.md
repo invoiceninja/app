@@ -480,7 +480,7 @@ Before adding a new module, decide how its data is fetched. Two buckets:
 
 Rule of thumb: small / mostly-read / company-shared (≲ a few hundred rows) → **bundled** (`docs/adding-an-entity.md` § Bundled entities); something a user scrolls / searches / filters → **own route**. Unsure? Probe `/api/v1/refresh?first_load=true&include_static=true` on the demo API.
 
-**Bundled today**: the auth user record (`data[N].user`, written directly in `_persistAndActivate`), `task_statuses`, `company_gateways`. `applyBundle` is **upsert-only — never deletes**; it advances the keyset cursor with `wasFullSync: true` so the screen's first `ensurePageLoaded` short-circuits.
+**Bundled today**: the auth user record (`data[N].user`), `task_statuses`, `company_gateways`. `applyBundle` is **upsert-only — never deletes**; it advances the keyset cursor with `wasFullSync: true` so the screen's first `ensurePageLoaded` short-circuits.
 
 ## Sidebar counters
 
@@ -497,10 +497,11 @@ Rule of thumb: small / mostly-read / company-shared (≲ a few hundred rows) →
 
 ## List columns
 
-`lib/domain/columns/<entity>_columns.dart` is one registry per entity (`kAll…`, `kDefault…`, `…ColumnsById`). The user's selection lives in `user_settings.table_columns` in admin-portal's format, so **renaming a column id silently drops a saved layout** — don't. → `docs/entity-lists.md`
+`lib/domain/columns/<entity>_columns.dart` is one registry per entity. The user's selection lives in `user_settings.table_columns` in admin-portal's format, so **renaming a column id silently drops a saved layout** — don't. → `docs/entity-lists.md`
 
 - **Every field the entity's edit screen can set earns a column** → `docs/entity-lists.md`
 - **Real Drift column ⇒ `sortable: true` plus a `_sortExpression` case in the DAO. Derived or payload-only ⇒ `sortable: false` plus an entry in `sortable_columns_test`'s `displayOnly` map.** → `docs/entity-lists.md`
+- **A dragged column width is a device preference.** → `docs/entity-lists.md`
 - **Custom-field slots go through `customFieldColumns` (`custom_field_columns.dart`), never a hand-written `custom1` column.** → `docs/entity-lists.md`
 - **A list embedded in a record's tab reads the standalone list's saved columns, never writes them, and drops the column naming its parent.** → `docs/entity-lists.md`
 - **Client and Vendor ids must also join `k<Entity>ColumnIds`** (`column_ids_match_registry_test`); hiding a column is never destructive; label created-by with `user`, never `created_by`. → `docs/entity-lists.md`

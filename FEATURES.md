@@ -1832,6 +1832,7 @@ Field-level breakdown of every option under each advanced settings panel. Source
 | Responsive layout — tablet | ✅ | ✅ | ✅ | ✅ | |
 | Responsive layout — desktop | ✅ | ✅ | ✅ | ✅ | |
 | Column picker on lists | ✅ | ✅ | ✅ | ✅ | |
+| Resizable list columns: drag a header's edge (pointer or touch), saved per device, double-click resets; spare width widens the text columns | ✅ | ❌ | ✅ | | |
 | List columns — custom fields under the company's configured label, values formatted by type (date / Yes-No), unconfigured slots hidden | ✅ | 🟡 | ✅ | | |
 | List columns — record metadata on every entity (state, created, archived, deleted, documents, created-by, assigned user) | ✅ | ✅ | ✅ | | |
 | List filter — checkbox multi-select for status / state | — | — | ✅ | ✅ | Lifecycle set is never empty (#126): clearing it returns to Active, so archived / deleted are opt-in; a key at its default renders no chip |

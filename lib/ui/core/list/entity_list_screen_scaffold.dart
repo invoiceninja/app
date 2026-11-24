@@ -43,6 +43,8 @@ import 'package:admin/ui/core/list/list_totals_line.dart';
 import 'package:admin/ui/core/list/entity_list_top_row.dart';
 import 'package:admin/ui/core/list/entity_list_column_headers.dart';
 import 'package:admin/ui/core/list/entity_list_constants.dart';
+import 'package:admin/ui/core/list/list_column_widths.dart';
+import 'package:admin/app/list_column_widths_controller.dart';
 import 'package:admin/ui/core/list/archived_hidden_footer.dart';
 import 'package:admin/ui/core/list/entity_list_footer.dart';
 import 'package:admin/ui/core/list/entity_list_status_tabs.dart';
@@ -593,6 +595,34 @@ class _EntityListScreenScaffoldState<T, VM extends GenericListViewModel<T>>
   /// at/near its end, so no scroll event would ever fire).
   bool _embeddedPrimed = false;
 
+  /// The column being dragged and the width it has reached — live, not yet
+  /// saved. A notifier, so a drag rebuilds the table and not the screen
+  /// (see `_wideTable`).
+  final _columnDrag = ValueNotifier<({String id, double width})?>(null);
+
+  /// One instance for the State's life, so `ListColumnLayout` sees the same
+  /// callbacks on every rebuild and the header cells don't rebuild for them.
+  late final _columnResize = ColumnResizeCallbacks(
+    onUpdate: (id, width) => _columnDrag.value = (id: id, width: width),
+    onEnd: (id) {
+      final ended = _columnDrag.value;
+      final controller = _widthsController;
+      if (ended != null && ended.id == id && controller != null) {
+        // The controller's value changes before this returns, so the saved
+        // width is in place on the same frame the drag clears.
+        unawaited(controller.setWidth(_vm.entityType.name, id, ended.width));
+      }
+      _columnDrag.value = null;
+    },
+    onReset: (id) {
+      _columnDrag.value = null;
+      unawaited(_widthsController?.clearWidth(_vm.entityType.name, id));
+    },
+  );
+
+  ListColumnWidthsController? get _widthsController =>
+      context.getInheritedWidgetOfExactType<ListColumnWidthsScope>()?.notifier;
+
   /// Last URL-derived selected id we observed during a build, used to
   /// detect selection changes for the auto-scroll-to-selected behavior
   /// (slide-over UX) — animating the list whenever a row enters/exits the
@@ -810,6 +840,7 @@ class _EntityListScreenScaffoldState<T, VM extends GenericListViewModel<T>>
     _parentRefresh?.removeListener(_onParentRefresh);
     _parentIntents?.removeListener(_onParentIntent);
     _hScroll.dispose();
+    _columnDrag.dispose();
     _bodyFocus.dispose();
     _vm.dispose();
     super.dispose();
@@ -2303,58 +2334,95 @@ class _EntityListScreenScaffoldState<T, VM extends GenericListViewModel<T>>
   /// parent and the nested Flex Row would overflow.
   Widget _wideTable(BuildContext context, Widget list) {
     final columns = _vm.columns;
-    final minWidth = computeTableMinWidth(columns);
+    // Widths the user dragged on this entity's list (docs/entity-lists.md
+    // § A dragged column width is a device preference). No controller — a
+    // widget test — means the declared widths and no handles; an embedded list
+    // reads the standalone list's widths but never writes them, as it reads
+    // that list's columns.
+    final widthsController = ListColumnWidthsScope.maybeOf(context);
+    final saved = widthsController?.widthsFor(_vm.entityType.name) ?? const {};
+    final resize = widthsController == null || widget.embedded
+        ? null
+        : _columnResize;
     final headersBuilder = widget.wideColumnHeadersBuilder;
     final headers = headersBuilder != null
         ? headersBuilder(context, _vm)
         : EntityListColumnHeaders<T>(vm: _vm);
     final inner = LayoutBuilder(
-      builder: (context, c) {
-        final tableWidth = math.max(c.maxWidth, minWidth);
-        // A table wider than its pane says so: an edge fade on whichever side
-        // has columns scrolled out of view, gated on the horizontal position
-        // (none while it all fits). Only the horizontal scroll view is at
-        // notification depth 0 here — the rows' vertical list is nested
-        // inside it, so its scrolling never toggles a fade. Fades into the
-        // surface behind the table: the panel's, embedded or standalone.
-        // Directional, so RTL fades the correct edge.
-        return ScrollEdgeFades(
-          color: context.inTheme.surface,
-          width: 32,
-          child: Scrollbar(
-            controller: _hScroll,
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
+      builder: (context, c) => ValueListenableBuilder(
+        // The live drag rebuilds this table only, not the screen around it.
+        valueListenable: _columnDrag,
+        builder: (context, drag, _) {
+          final dragged = <String, double>{
+            ...saved,
+            if (drag != null) drag.id: drag.width,
+          };
+          final minWidth = computeTableMinWidth(
+            columns,
+            widths: resolveColumnWidths(
+              columns: columns,
+              dragged: dragged,
+              available: 0,
+            ),
+          );
+          final tableWidth = math.max(c.maxWidth, minWidth);
+          final widths = resolveColumnWidths(
+            columns: columns,
+            dragged: dragged,
+            available: tableWidth,
+          );
+          // A table wider than its pane says so: an edge fade on whichever side
+          // has columns scrolled out of view, gated on the horizontal position
+          // (none while it all fits). Only the horizontal scroll view is at
+          // notification depth 0 here — the rows' vertical list is nested
+          // inside it, so its scrolling never toggles a fade. Fades into the
+          // surface behind the table: the panel's, embedded or standalone.
+          // Directional, so RTL fades the correct edge.
+          return ScrollEdgeFades(
+            color: context.inTheme.surface,
+            width: 32,
+            child: Scrollbar(
               controller: _hScroll,
-              child: SizedBox(
-                width: tableWidth,
-                child: Column(
-                  // Embedded sits in the page's unbounded-height scroll, so
-                  // it must shrink-wrap; standalone fills the bounded card.
-                  mainAxisSize: widget.embedded
-                      ? MainAxisSize.min
-                      : MainAxisSize.max,
-                  children: [
-                    headers,
-                    if (widget.embedded)
-                      list
-                    else
-                      // The full width, explicitly. The list fills it either
-                      // way (a viewport is as wide as it may be), but the
-                      // Column hands a centred child a loose width, and under
-                      // loose constraints the list's build-scope fence (see
-                      // `_body`) is no relayout boundary: a row's `setState`
-                      // then relaid out — and repainted — this whole card.
-                      Expanded(
-                        child: SizedBox(width: double.infinity, child: list),
-                      ),
-                  ],
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                controller: _hScroll,
+                child: ListColumnLayout(
+                  widths: widths,
+                  resize: resize,
+                  child: SizedBox(
+                    width: tableWidth,
+                    child: Column(
+                      // Embedded sits in the page's unbounded-height scroll, so
+                      // it must shrink-wrap; standalone fills the bounded card.
+                      mainAxisSize: widget.embedded
+                          ? MainAxisSize.min
+                          : MainAxisSize.max,
+                      children: [
+                        headers,
+                        if (widget.embedded)
+                          list
+                        else
+                          // The full width, explicitly. The list fills it either
+                          // way (a viewport is as wide as it may be), but the
+                          // Column hands a centred child a loose width, and under
+                          // loose constraints the list's build-scope fence (see
+                          // `_body`) is no relayout boundary: a row's `setState`
+                          // then relaid out — and repainted — this whole card.
+                          Expanded(
+                            child: SizedBox(
+                              width: double.infinity,
+                              child: list,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
     // Embedded: a card at full content width, so it lines up with the
     // toolbar, tab strip, and Details/Address/Contacts cards (the detail page

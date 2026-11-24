@@ -36,6 +36,7 @@ import 'package:admin/app/deep_link_router.dart';
 import 'package:admin/app/diagnostics_log.dart';
 import 'package:admin/app/entity_modules.dart';
 import 'package:admin/app/env.dart';
+import 'package:admin/app/list_column_widths_controller.dart';
 import 'package:admin/app/list_density_controller.dart';
 import 'package:admin/app/locale_controller.dart';
 import 'package:admin/app/pending_call_controller.dart';
@@ -409,6 +410,7 @@ class Services implements SidebarBadgeContext {
     required this.locale,
     required this.textScale,
     required this.listDensity,
+    required this.listColumnWidths,
     required this.keyboardShortcuts,
     required this.appLocale,
     required this.companyLabels,
@@ -800,6 +802,10 @@ class Services implements SidebarBadgeContext {
   /// tree by `ListDensityScope` in `main.dart`'s `MaterialApp.builder`, so only
   /// the rows and list chrome rebuild when it flips — never the app.
   final ListDensityController listDensity;
+
+  /// Column widths dragged on the wide entity lists, per entity — provided
+  /// to every list by `ListColumnWidthsScope` in `main.dart`.
+  final ListColumnWidthsController listColumnWidths;
 
   /// Device-local keyboard-shortcut overrides (Settings → Keyboard Shortcuts).
   /// Resolves user overrides over the catalog defaults and feeds all three
@@ -2378,6 +2384,7 @@ class Services implements SidebarBadgeContext {
     final locale = LocaleController(prefs: devicePrefs);
     final textScale = TextScaleController(prefs: devicePrefs);
     final listDensity = ListDensityController(prefs: devicePrefs);
+    final listColumnWidths = ListColumnWidthsController(prefs: devicePrefs);
     final keyboardShortcuts = KeyboardShortcutsController(prefs: devicePrefs);
     // Resolves the UI locale: device override → active company's
     // settings.language_id → English. Listens to the override + auth.session,
@@ -2864,6 +2871,7 @@ class Services implements SidebarBadgeContext {
       locale: locale,
       textScale: textScale,
       listDensity: listDensity,
+      listColumnWidths: listColumnWidths,
       keyboardShortcuts: keyboardShortcuts,
       appLocale: appLocale,
       companyLabels: companyLabels,

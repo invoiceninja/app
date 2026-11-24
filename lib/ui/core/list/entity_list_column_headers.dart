@@ -1,10 +1,14 @@
+import 'package:flutter/gestures.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'package:admin/app/design_tokens.dart';
+import 'package:admin/app/env.dart';
+import 'package:admin/app/list_column_widths_controller.dart';
 import 'package:admin/domain/columns/column_definition.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/list/entity_list_constants.dart';
 import 'package:admin/ui/core/list/generic_list_view_model.dart';
+import 'package:admin/ui/core/list/list_column_widths.dart';
 import 'package:admin/ui/core/list/list_density_scope.dart';
 import 'package:admin/ui/core/widgets/selection_checkbox.dart';
 
@@ -54,10 +58,10 @@ class EntityListColumnHeaders<T> extends StatelessWidget {
             child: _HeaderSelectAllSlot<T>(vm: vm),
           ),
           const SizedBox(width: kColCellGap),
-          for (final col in vm.columns) ...[
+          // Each cell carries the gap after it, which is where its resize
+          // handle sits — the same total width as cell + gap in the rows.
+          for (final col in vm.columns)
             _HeaderCell<T>(column: col, labelStyle: labelStyle, vm: vm),
-            const SizedBox(width: kColCellGap),
-          ],
           // Pill column: reserved, unlabeled.
           const SizedBox(width: kColWPillSlot),
         ],
@@ -138,8 +142,161 @@ class _HeaderCell<T> extends StatelessWidget {
         ),
       ),
     );
-    if (column.isFlex) return Expanded(child: content);
-    return SizedBox(width: column.width, child: content);
+    // The table's resolved width (a dragged one, or the stretch), else the
+    // declared one — the same lookup every row's `CellSlot` makes.
+    final width = ListColumnLayout.widthOf(context, column);
+    final resize = ListColumnLayout.resizeOf(context);
+    final withGap = Row(
+      children: [
+        Expanded(child: content),
+        const SizedBox(width: kColCellGap),
+      ],
+    );
+    final slot = resize == null
+        ? withGap
+        : LayoutBuilder(
+            builder: (context, c) => Stack(
+              children: [
+                withGap,
+                PositionedDirectional(
+                  top: 0,
+                  bottom: 0,
+                  end: 0,
+                  width:
+                      kColCellGap + _ColumnResizeHandle.insetInto(column.align),
+                  child: _ColumnResizeHandle(
+                    columnId: column.id,
+                    currentWidth: c.maxWidth - kColCellGap,
+                    callbacks: resize,
+                  ),
+                ),
+              ],
+            ),
+          );
+    if (width == null) return Expanded(child: slot);
+    return SizedBox(width: width + kColCellGap, child: slot);
+  }
+}
+
+/// The drag target on a header cell's trailing edge: the gap after the cell
+/// plus a few pixels into it (docs/entity-lists.md § A dragged column width is
+/// a device preference). Dragging sets the column's width live; letting go
+/// saves it; a double-click or double-tap puts the declared width back.
+///
+/// The line it draws shows on hover and while dragging. On a touch-first
+/// device, where nothing hovers, a faint one stays drawn so the edge reads as
+/// something to pull.
+class _ColumnResizeHandle extends StatefulWidget {
+  const _ColumnResizeHandle({
+    required this.columnId,
+    required this.currentWidth,
+    required this.callbacks,
+  });
+
+  final String columnId;
+
+  /// What the column renders at now — the start of a drag, whether its width
+  /// came from the user, its definition or the stretch.
+  final double currentWidth;
+  final ColumnResizeCallbacks callbacks;
+
+  /// How far the target reaches into the cell, past the gap: a finger needs
+  /// more than a pointer. Never into an end-aligned cell — its label and sort
+  /// arrow sit right there (an amount, a balance), and the header must stay a
+  /// sort control across the whole label.
+  static double insetInto(ColumnAlign align) {
+    if (align == ColumnAlign.end) return 0;
+    return Env.isTouchPrimary ? 16 : 6;
+  }
+
+  @override
+  State<_ColumnResizeHandle> createState() => _ColumnResizeHandleState();
+}
+
+class _ColumnResizeHandleState extends State<_ColumnResizeHandle> {
+  bool _hovered = false;
+  double? _startWidth;
+  double _dragged = 0;
+
+  void _onStart(DragStartDetails _) {
+    setState(() {
+      _startWidth = widget.currentWidth;
+      _dragged = 0;
+    });
+  }
+
+  void _onUpdate(DragUpdateDetails d) {
+    final start = _startWidth;
+    if (start == null) return;
+    // Rightward widens in a left-to-right layout; the edge is on the left in
+    // right-to-left, so leftward widens there.
+    final sign = Directionality.of(context) == TextDirection.rtl ? -1 : 1;
+    // The running total stays inside the limits too, so an edge pinned at
+    // 56 px follows the pointer the moment it turns back.
+    _dragged =
+        (start + _dragged + sign * (d.primaryDelta ?? 0)).clamp(
+          kListColumnMinWidth,
+          kListColumnMaxWidth,
+        ) -
+        start;
+    // Whole pixels, as the width is saved — nothing shifts on release.
+    widget.callbacks.onUpdate(
+      widget.columnId,
+      (start + _dragged).roundToDouble(),
+    );
+  }
+
+  void _onEnd() {
+    if (_startWidth == null) return;
+    setState(() => _startWidth = null);
+    widget.callbacks.onEnd(widget.columnId);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.inTheme;
+    final dragging = _startWidth != null;
+    final Color? line = dragging
+        ? tokens.accent
+        : _hovered
+        ? tokens.ink3
+        : Env.isTouchPrimary
+        ? tokens.border
+        : null;
+    return ExcludeSemantics(
+      child: MouseRegion(
+        cursor: SystemMouseCursors.resizeColumn,
+        onEnter: (_) => setState(() => _hovered = true),
+        onExit: (_) => setState(() => _hovered = false),
+        child: GestureDetector(
+          // Translucent: a tap on the part over the cell still reaches the
+          // header's sort control below; only a drag or a double-tap is ours.
+          behavior: HitTestBehavior.translucent,
+          // From the press, not from where the drag slop ran out: the edge
+          // follows the pointer exactly.
+          dragStartBehavior: DragStartBehavior.down,
+          onHorizontalDragStart: _onStart,
+          onHorizontalDragUpdate: _onUpdate,
+          onHorizontalDragEnd: (_) => _onEnd(),
+          onHorizontalDragCancel: _onEnd,
+          onDoubleTap: () => widget.callbacks.onReset(widget.columnId),
+          child: Align(
+            // Centred on the gap between this column and the next.
+            alignment: AlignmentDirectional.centerEnd,
+            child: Padding(
+              padding: const EdgeInsetsDirectional.only(
+                end: kColCellGap / 2 - 1,
+              ),
+              child: SizedBox(
+                width: 2,
+                height: 16,
+                child: line == null ? null : ColoredBox(color: line),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 

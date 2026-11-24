@@ -1,6 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 
 import 'package:admin/domain/columns/column_definition.dart';
+import 'package:admin/ui/core/list/list_column_widths.dart';
 import 'package:admin/ui/core/widgets/cell_copy_hover.dart';
 
 /// One cell of a wide-table row: aligns the cell, wraps it in the hover-copy
@@ -41,7 +42,10 @@ class CellSlot<T> extends StatelessWidget {
       align: column.align,
       child: aligned,
     );
-    if (column.isFlex) return Expanded(child: cell);
-    return SizedBox(width: column.width, child: cell);
+    // The table's resolved width (a dragged one, or the stretch), else the
+    // declared one — the same lookup the header strip makes.
+    final width = ListColumnLayout.widthOf(context, column);
+    if (width == null) return Expanded(child: cell);
+    return SizedBox(width: width, child: cell);
   }
 }

@@ -416,6 +416,17 @@ abstract final class DevicePrefKeys {
     PrefScope.device,
   );
 
+  /// Column widths the user dragged on the wide entity lists, as JSON
+  /// `{"<entityType>": {"<columnId>": <width>}}` (`ListColumnWidthsController`,
+  /// docs/entity-lists.md). Device scope: the right width depends on this
+  /// screen, like [listDensity] — a laptop and a wide monitor want different
+  /// ones, so they do not follow the account.
+  static const listColumnWidths = PrefKey<String>(
+    'list_column_widths_json',
+    PrefCodec.string,
+    PrefScope.device,
+  );
+
   /// In the order they were added; append new keys at the end.
   static const List<PrefKey<Object>> all = [
     locale,
@@ -459,6 +470,7 @@ abstract final class DevicePrefKeys {
     appearanceSeeded,
     desktopAppPromo,
     documentThumbnails,
+    listColumnWidths,
   ];
 
   /// The rows a data wipe leaves in place: the [PrefScope.device] keys and the

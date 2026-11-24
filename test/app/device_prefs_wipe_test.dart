@@ -199,6 +199,11 @@ final Map<PrefKey<Object>, _Probe> _probes = {
     (s) => s.documentThumbnails.set(false),
     (s) => s.documentThumbnails.value,
   ),
+  // How wide this screen shows each list column.
+  DevicePrefKeys.listColumnWidths: _Probe(
+    (s) => s.listColumnWidths.setWidth('invoice', 'client_id', 320),
+    (s) => s.listColumnWidths.value.isEmpty,
+  ),
   DevicePrefKeys.downloadsFolder: _Probe(
     (s) => s.downloadsFolder.set('/x'),
     (s) => s.downloadsFolder.value == '',

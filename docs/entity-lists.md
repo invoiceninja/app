@@ -144,6 +144,26 @@ Vendors, Products, Projects, Tasks, Transactions and Documents have no line: non
 
 **A narrow list's floating create button is an extended FAB — "+ New Client" — through `EntityCreateFab`**, on every list that floats one: the entity lists and the Daily / Weekly / Calendar task views (the kanban board still has none). It is 56 px tall like the bare `+` it replaced, so `fabScrollClearance` is unchanged; `fab_clearance_wiring_test.dart` now looks for `EntityCreateFab(`.
 
+## A dragged column width is a device preference
+
+**A dragged column width is a device preference, and spare width goes to the text columns.** Asked for twice in one week: a customer whose Description column was cut short with half the window empty, and an iPad user whose client names ("LA CARNICERIA MEAT MA…") the old app showed in full. Every column used to render the fixed `ColumnDefinition.width` it was declared with, so neither had any way out.
+
+**One lookup, two readers.** `ListColumnLayout` (`lib/ui/core/list/list_column_widths.dart`) is an inherited widget `_wideTable` puts around the header strip and the rows. `_HeaderCell` and `CellSlot` both size through `ListColumnLayout.widthOf`, so the two cannot drift apart; outside a layout (a widget test, a preview) a column renders its declared width as before. `resolveColumnWidths` is the whole rule, and `computeTableMinWidth(widths:)` takes its answer so the sideways scroller engages at the right point.
+
+**Where a width comes from, in order:**
+
+1. A width the user dragged, clamped to `kListColumnMinWidth`..`kListColumnMaxWidth` (56..1200). Dragging a flex column makes it fixed.
+2. The declared width; a flex column (none ships today) stays `Expanded`.
+3. **The stretch.** With no flex column and width to spare, the spare goes to the *stretchable* columns — start-aligned, declared at least `kStretchableColumnMinWidth` (160), not dragged — in proportion to their widths, floored, with a pixel of slack so the rows never overflow. That is Client on the default invoice list, plus notes and custom fields when shown; dates, numbers, amounts and pills keep their width. A dragged column is never stretched, so dragging every text column hands the spare back as an empty strip — the user's choice.
+
+**The handle.** Each header cell carries the gap after it (the rows still lay out cell + gap, the same total), and `_ColumnResizeHandle` covers that gap plus a few pixels into the cell — 6 with a pointer, 16 on a touch-first device, because the iPad user is who asked — and never into an end-aligned cell, whose label and sort arrow sit right there. It is translucent, so a tap on the part over a label still sorts (after the double-tap timeout); only a drag or a double-tap is the handle's. It drags from the press (`DragStartBehavior.down`, so the edge tracks the pointer with no slop lag), clamps its running total so an edge pinned at a limit turns back at once, reports whole pixels (as saved, so nothing shifts on release), flips direction in RTL, starts from the column's *rendered* width (stretched or not), and double-click / double-tap resets. The line it draws shows on hover and while dragging; on touch, where nothing hovers, a faint one stays drawn so the edge reads as something to pull.
+
+**Live, then saved.** `_wideTable` holds the drag in the `_columnDrag` notifier, so only the table rebuilds while it moves — and `ListColumnLayout` is an `InheritedModel` keyed by column id, so a window resize that re-stretches Client rebuilds the Client cells, not every cell; letting go writes `ListColumnWidthsController.setWidth`, whose value changes before the write is awaited, so the saved width replaces the live one on the same frame.
+
+**Why the device, not the account.** `DevicePrefKeys.listColumnWidths` (`{entityType: {columnId: width}}`, device scope, owned by `ListColumnWidthsController`, provided by `ListColumnWidthsScope` in `main.dart` next to `ListDensityScope`): the right width depends on the window, so a laptop and a wide monitor want different ones, and a drag never becomes a server write. Keyed by entity, so a client's embedded Invoices tab shows the Invoices list's widths, as it shows that list's columns — and, like the columns, it never writes them: an embedded list draws no handles. A column id is never renamed (§ List columns), so a stored width keeps finding its column.
+
+Pinned by `test/ui/core/list/list_column_widths_test.dart` (the rule, the controller, the handle) and `wide_table_column_widths_test.dart` (stretch, live drag, save and reset through the real scaffold).
+
 ## List status tabs
 
 A one-tap status strip above every entity list — `All / Draft / Unpaid / Overdue / Paid` on Invoices, and so on for the other 13 entities that declare status counters (invoiceninja/flutter#98: reaching a draft through the search field's filter menu cost three or four taps). It is a **view over the sidebar-counter catalog**, not a second one: `lib/domain/list_status_tabs.dart` adds only the tab *order* (lifecycle, deliberately not the badge lists' "most actionable first") and the optional server translation. Labels, tones and the inventory gate all resolve from the entity's own `badgeModes` at render time.
