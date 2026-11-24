@@ -294,6 +294,80 @@ List<ReleaseNotes> releasesToShow({
 
 const List<ReleaseNotes> kReleaseNotes = [
   ReleaseNotes(
+    version: '5.1.34',
+    highlights: [
+      ReleaseHighlight(
+        icon: Icons.view_column_outlined,
+        title: 'Resizable columns',
+        body: "Drag a column header's edge to make it wider or narrower.",
+        target: ReleaseHighlightRoute('/invoices', module: EntityType.invoice),
+      ),
+      ReleaseHighlight(
+        icon: Icons.find_in_page_outlined,
+        title: 'Find in line items',
+        body: 'Search the lines of a long invoice, quote or purchase order.',
+        target: ReleaseHighlightRoute('/invoices', module: EntityType.invoice),
+      ),
+      ReleaseHighlight(
+        icon: Icons.description_outlined,
+        title: 'Document thumbnails',
+        body:
+            'See photos and PDFs at a glance, rename them, and manage them '
+            'while you edit.',
+        target: ReleaseHighlightRoute(
+          '/documents',
+          module: EntityType.document,
+        ),
+      ),
+    ],
+    items: [
+      ReleaseNoteItem(
+        "Added: Drag a list column header's edge to resize it (saved on this "
+        'device, double-click to reset), and on a wide window the client, '
+        'description and notes columns take the spare room',
+      ),
+      ReleaseNoteItem(
+        'Added: Find in line items on invoices, quotes, credits, recurring '
+        'invoices and purchase orders (Ctrl+F / Cmd+F or the Find button), '
+        'and an Expense column on purchase orders',
+      ),
+      ReleaseNoteItem(
+        "Added: An existing record's edit screen shows its documents, "
+        'documents can be renamed, and photos and PDFs show thumbnails '
+        '(Device Settings > Show Document Preview) '
+        '[#205](https://github.com/invoiceninja/flutter/issues/205) '
+        '[#206](https://github.com/invoiceninja/flutter/issues/206)',
+      ),
+      ReleaseNoteItem(
+        "Updated: The Free plan's 5-client limit is shown up front, and a "
+        'sixth client is stopped before it is saved instead of failing to '
+        'sync',
+        hiddenOn: {ReleaseNoteSurface.selfHosted},
+      ),
+      ReleaseNoteItem(
+        'Updated: Self-hosted sign-in accepts an address copied from the '
+        'browser and plain http://, says what is wrong with a mistyped '
+        'address, and gets past a Cloudflare check',
+        hiddenOn: {ReleaseNoteSurface.hosted},
+      ),
+      ReleaseNoteItem(
+        'Updated: Email previews fit the screen and can be zoomed, and lists '
+        'scroll more smoothly, especially in the browser',
+      ),
+      ReleaseNoteItem(
+        'Fixed: A paid and archived invoice now leaves Unpaid and Outstanding '
+        '[#208](https://github.com/invoiceninja/flutter/issues/208), Add to '
+        'invoice reaches an invoice already open in the editor '
+        '[#207](https://github.com/invoiceninja/flutter/issues/207), a '
+        'restarted timer starts a blank time entry '
+        '[#210](https://github.com/invoiceninja/flutter/issues/210), signing '
+        'out keeps your preferences for when you sign back in '
+        '[#209](https://github.com/invoiceninja/flutter/issues/209), and on '
+        'Linux with an NVIDIA GPU the app draws on the GPU again',
+      ),
+    ],
+  ),
+  ReleaseNotes(
     version: '5.1.33',
     highlights: [
       ReleaseHighlight(

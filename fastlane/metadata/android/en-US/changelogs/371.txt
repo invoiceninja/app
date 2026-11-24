@@ -1,0 +1,8 @@
+- Resize list columns by dragging a header's edge
+- Find in line items on invoices, quotes and more
+- Document thumbnails, rename, and documents on edit screens
+- The hosted Free plan's client limit is shown up front
+- Self-hosted sign-in accepts more addresses and explains errors
+- Email previews fit the screen and zoom
+- Fixes for invoice lists, Add to invoice, timers and sign-out
+- Many smaller fixes
