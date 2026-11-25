@@ -24,3 +24,14 @@ File layout:
 3. On macOS dev, the conventional path is `~/Library/Containers/<bundle-id>/Data/Library/Application Support/<bundle-id>/claude-diagnostics.log` (or, outside the App Sandbox, `~/Library/Application Support/<bundle-id>/`).
 
 Once you have the path, `Read <path>` (or `Read <path>.1` for the rotated backup) ingests it. Lines are pre-redacted, but the file still contains real company/entity ids — treat as user data.
+
+## A widget that throws in a release build shows its error, not a grey box
+
+Outside debug, `main.dart` sets `ErrorWidget.builder = releaseErrorWidgetBuilder` (`lib/ui/core/widgets/release_error_widget.dart`). A widget that throws while building draws "An error occurred", the exception, and **Copy Error** (version, platform, exception, top 40 stack lines) instead of Flutter's plain light-grey box. Debug keeps the red screen.
+
+- Why: invoiceninja/app#211 was a whole window of the grey box on an Intel Mac, before sign-in. Sentry sends nothing until a signed-in account opts in, so the user's copy is the only report there is.
+- It must render with nothing above it: no theme, `Localization`, `Directionality` or `MediaQuery`. Tokens fall back to `InTheme.light` / `.dark` by platform brightness, strings to English. Its theme and `Localization` lookups are caught: if one of those is what threw, an uncaught lookup here would throw again and recurse through the builder.
+- It fills a bounded axis and takes 560×360 on an unbounded one, with zero intrinsics, so it is safe in a scrollable or under an `IntrinsicHeight` (a `LayoutBuilder` throws there). The framework's `RenderErrorBox` takes 100000 on an unbounded axis, which would centre the panel 50000 px down a list.
+- Below 280×220 it paints only a neutral fill and keeps focus out of the panel (`ExcludeFocus`, fed by the render box after layout). The panel is still laid out, so focus traversal never measures an unlaid button (`docs/upstream-workarounds.md` entry 17).
+- A release error still prints to stdout, so launching the binary from Terminal (`"/Applications/Invoice Ninja.app/Contents/MacOS/Invoice Ninja"`) shows it too.
+- Pinned by `test/ui/core/widgets/release_error_widget_test.dart`.

@@ -234,6 +234,7 @@ When an upstream fix ships: follow the revert, verify, then **delete the entry**
   - `lib/ui/core/widgets/laid_out_traversal_policy.dart` — **MUST-REVERT**: `LaidOutReadingOrderTraversalPolicy`. `sortDescendants` drops never-laid-out nodes (an unmeasurable current node goes first, so Tab steps off it). `inDirection` sets them `skipTraversal` for the length of the synchronous call and is a no-op from an unmeasurable node.
   - `lib/main.dart` — **MUST-REVERT**: one `FocusTraversalGroup(policy: _traversalPolicy)` over the router builder's tree; each Navigator copies the enclosing policy.
   - `test/ui/core/widgets/laid_out_traversal_policy_test.dart` — the stock-policy group pins the bug. When it starts failing, upstream has fixed it.
+  - `lib/ui/core/widgets/release_error_widget.dart` — **KEEP**: `_RenderErrorBox` lays its hidden panel out at the panel's minimum instead of leaving it unlaid. Harmless once fixed (focus is excluded from the hidden panel anyway), so nothing to revert.
 - Revert: delete the policy file and its test, and drop the `FocusTraversalGroup` wrapper and `_traversalPolicy` from `main.dart`.
 - Recheck trigger: any Flutter bump. The stock-policy tests in the test file fail once traversal stops measuring unlaid nodes.
 - Not covered: FLUTTER-ADMIN-P (iPad), where Scribble's `_ScribbleFocusableState.bounds` measures every registered `EditableText`, including one on a covered page. That path goes through no traversal policy. Its own fix is flutter/flutter#196220.

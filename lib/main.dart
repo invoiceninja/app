@@ -86,6 +86,7 @@ import 'package:admin/ui/core/list/list_column_widths.dart';
 import 'package:admin/ui/core/list/list_density_scope.dart';
 import 'package:admin/ui/core/widgets/call_log_prompter.dart';
 import 'package:admin/ui/core/widgets/laid_out_traversal_policy.dart';
+import 'package:admin/ui/core/widgets/release_error_widget.dart';
 import 'package:admin/ui/core/widgets/shortcut_hint_overlay.dart';
 import 'package:admin/ui/core/widgets/toast_host.dart';
 import 'package:admin/ui/features/settings/state/settings_level_controller.dart';
@@ -192,6 +193,10 @@ const _kStoreSweepCeiling = Duration(seconds: 5);
 
 Future<void> _bootstrap() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // A widget that throws while building names its error and offers Copy
+  // Error, in place of the framework's blank grey box (invoiceninja/app#211).
+  // Debug keeps the red screen.
+  if (!kDebugMode) ErrorWidget.builder = releaseErrorWidgetBuilder;
   // Before `Services.build` constructs the first `HttpClient`: the overrides
   // apply only to clients created after they are installed. A no-op on web,
   // where the browser owns TLS (docs/trusting-a-self-hosted-certificate.md).

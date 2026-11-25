@@ -680,7 +680,9 @@ The block designer (`invoice_design/wysiwyg/`) is a picture of what the server p
 
 ## Diagnostics log
 
-Debug-only capture of uncaught errors and every `WARNING`+ `Logger` record to `getApplicationSupportDirectory()/claude-diagnostics.log` (off in release and on web), surfaced in Settings → Advanced → System Logs. When the user says *"read the diagnostics log"*, take the path from System Logs or the boot log line. → `docs/diagnostics.md`
+Debug-only (not web) capture of uncaught errors and `WARNING`+ `Logger` records to `getApplicationSupportDirectory()/claude-diagnostics.log`, in Settings → Advanced → System Logs; for *"read the diagnostics log"*, use that path or the boot log. → `docs/diagnostics.md`
+
+- **A widget that throws in a release build shows its error, not a grey box.** → `docs/diagnostics.md`
 
 ## Deep links
 
