@@ -16,14 +16,19 @@ import 'package:admin/data/models/domain/credit.dart';
 import 'package:admin/data/models/domain/invoice.dart';
 import 'package:admin/data/models/value/date.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/app/shortcut_hint_controller.dart';
 import 'package:admin/ui/core/edit/create_form_documents.dart';
 import 'package:admin/ui/core/edit/entity_custom_fields_section.dart';
+import 'package:admin/ui/core/utils/find_chord.dart';
+import 'package:admin/ui/core/utils/platform_modifier.dart';
 import 'package:admin/ui/core/widgets/centered_form_column.dart';
 import 'package:admin/ui/core/widgets/field_action_button.dart';
 import 'package:admin/ui/core/widgets/field_label.dart';
+import 'package:admin/ui/core/widgets/focus_owner_keeper.dart';
 import 'package:admin/ui/core/widgets/form_save_scope.dart';
 import 'package:admin/ui/core/widgets/in_date_field.dart';
 import 'package:admin/ui/core/widgets/party_money_cell.dart';
+import 'package:admin/ui/core/widgets/shortcut_hint_scope.dart';
 import 'package:admin/ui/features/billing_shared/billing_doc_type.dart';
 import 'package:admin/ui/features/billing_shared/billing_edit_totals.dart';
 import 'package:admin/ui/features/billing_shared/contacts/billing_doc_contacts_section.dart';
@@ -32,6 +37,7 @@ import 'package:admin/ui/features/billing_shared/edit/billing_doc_client_picker.
 import 'package:admin/ui/features/billing_shared/edit/billing_doc_date_order.dart';
 import 'package:admin/ui/features/billing_shared/edit/billing_doc_edit_desktop_shell.dart';
 import 'package:admin/ui/features/billing_shared/edit/billing_doc_edit_fab.dart';
+import 'package:admin/ui/features/billing_shared/edit/billing_doc_edit_find.dart';
 import 'package:admin/ui/features/billing_shared/edit/billing_doc_edit_items_body.dart';
 import 'package:admin/ui/features/billing_shared/edit/billing_doc_edit_tab_strip.dart';
 import 'package:admin/ui/features/billing_shared/edit/billing_doc_party_notes.dart';
@@ -47,6 +53,7 @@ import 'package:admin/ui/features/billing_shared/edit/open_line_item_request.dar
 import 'package:admin/ui/features/billing_shared/edit/save_default_helper.dart';
 import 'package:admin/ui/features/billing_shared/items/billing_doc_items_tabs.dart';
 import 'package:admin/ui/features/billing_shared/line_item_editor/edit_line_item_flow.dart';
+import 'package:admin/ui/features/billing_shared/line_item_find.dart';
 import 'package:admin/ui/features/billing_shared/line_item_editor/line_item_column_config.dart';
 import 'package:admin/ui/features/billing_shared/line_item_editor/line_item_editor.dart';
 import 'package:admin/ui/features/billing_shared/line_item_editor/line_item_table_desktop.dart';
@@ -213,6 +220,46 @@ class _BillingDocEditLayoutState<T extends BillingDocFields>
   BillingDocType get _type => widget.type;
   BillingDocEditViewModel<T> get _vm => widget.vm;
 
+  /// Find in line items (`docs/find-in-line-items.md` § The editor tints the
+  /// matching lines): ⌘F / Ctrl+F opens the bar, the matching lines are
+  /// tinted. One line, one hit — see [LineItemFindController.oneHitPerLine].
+  final LineItemFindController _find = LineItemFindController(
+    oneHitPerLine: true,
+  );
+
+  /// The editor's resting focus owner, below the find chord's `Shortcuts`
+  /// (and the edit scaffold's ⌘S above them). An edit screen opens with focus
+  /// on the route's scope or the pane's root — both *above* every `Shortcuts`
+  /// here — so without it ⌘F did nothing until the user clicked into a field
+  /// (`docs/keyboard.md` § The whole keyboard layer hangs off one focus node).
+  final FocusNode _bodyFocus = FocusNode(debugLabel: 'billing-doc-edit');
+
+  /// Built once — see [findChordShortcuts].
+  late final Map<ShortcutActivator, Intent> _findShortcuts =
+      findChordShortcuts();
+  late final Map<Type, Action<Intent>> _findActions = <Type, Action<Intent>>{
+    FindChordIntent: FindChordAction(onFind: _openFind),
+  };
+
+  /// Moves the narrow strip to Items when find opens; a no-op on the wide
+  /// layout, which has no strip.
+  final BillingDocEditTabSelector _tabSelector = BillingDocEditTabSelector();
+
+  /// ⌘F: the line items are on the narrow Items tab, so go there, then open
+  /// the bar.
+  void _openFind() {
+    final items = _tabKeys.indexOf(_Tab.items);
+    if (items >= 0) _tabSelector.show(items);
+    _find.open();
+  }
+
+  @override
+  void dispose() {
+    _find.dispose();
+    _bodyFocus.dispose();
+    super.dispose();
+  }
+
   /// The Documents tab: on a document that was never saved, files picked
   /// there upload on Save; on a saved one, its own documents, acted on at
   /// once as on its record screen (invoiceninja/app#205,
@@ -348,18 +395,52 @@ class _BillingDocEditLayoutState<T extends BillingDocFields>
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _vm,
-      builder: (context, _) {
-        return LayoutBuilder(
-          builder: (context, constraints) {
-            final wide = constraints.maxWidth >= 1024;
-            return wide
-                ? _buildDesktop(context)
-                : CenteredFormColumn(child: _buildMobile(context));
-          },
-        );
-      },
+    return LineItemFindScope(
+      controller: _find,
+      child: ShortcutHintScope(
+        hints: [
+          ShortcutHint(
+            keys: [platformModifierLabel(), 'F'],
+            labelKey: 'find_in_items',
+          ),
+        ],
+        child: Shortcuts(
+          shortcuts: _findShortcuts,
+          child: Actions(
+            actions: _findActions,
+            // The keeper takes back only focus that went *up*: a field, a
+            // dialog or a sheet keeps what it took. Gated on `TickerMode`, so
+            // an editor left mounted behind another branch does not claim.
+            child: FocusOwnerKeeper(
+              node: _bodyFocus,
+              enabled: TickerMode.valuesOf(context).enabled,
+              child: Focus(
+                focusNode: _bodyFocus,
+                child: AnimatedBuilder(
+                  animation: _vm,
+                  builder: (context, _) {
+                    return BillingDocEditFindRows(
+                      find: _find,
+                      vm: _vm,
+                      party: _type.party,
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          final wide = constraints.maxWidth >= 1024;
+                          return wide
+                              ? _buildDesktop(context)
+                              : CenteredFormColumn(
+                                  child: _buildMobile(context),
+                                );
+                        },
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -485,6 +566,9 @@ class _BillingDocEditLayoutState<T extends BillingDocFields>
   void _rememberTab(int index) {
     final keys = _tabKeys;
     if (index < keys.length) _vm.formUiState[_kStripTabKey] = keys[index].name;
+    // The bar sits on the Items tab, so leaving it closes the find, as
+    // leaving the record's Overview does.
+    if (index >= keys.length || keys[index] != _Tab.items) _find.close();
   }
 
   Widget _buildMobile(BuildContext context) {
@@ -499,7 +583,10 @@ class _BillingDocEditLayoutState<T extends BillingDocFields>
           Expanded(
             child: BillingDocEditTabStrip(
               excludeInactiveFocus: _type.excludesInactiveTabFocus,
-              initialIndex: _openOnItems
+              selector: _tabSelector,
+              // A find still open — the window narrowed past 1024 with the
+              // bar up — opens on Items, where the bar now is.
+              initialIndex: _openOnItems || _find.isOpen
                   ? _tabKeys.indexOf(_Tab.items)
                   : _rememberedTabIndex(),
               onIndexChanged: _rememberTab,
@@ -575,6 +662,7 @@ class _BillingDocEditLayoutState<T extends BillingDocFields>
         ],
       ),
       pdfPane: _PdfPaneDesktop<T>(type: _type, vm: _vm, slots: widget.slots),
+      findBar: LineItemFindBarSlot(controller: _find),
       stickyTotals: _Totals<T>(type: _type, vm: _vm, dense: true, slim: true),
     );
     // Shortcut wrapping covers the whole shell so Cmd/Ctrl-N fires no

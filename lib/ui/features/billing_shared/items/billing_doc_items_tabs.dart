@@ -14,6 +14,7 @@ import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/features/billing_shared/line_item_editor/line_item_column_config.dart';
 import 'package:admin/ui/features/billing_shared/line_item_editor/line_item_editor.dart';
 import 'package:admin/ui/features/billing_shared/line_item_editor/line_item_table_desktop.dart';
+import 'package:admin/ui/features/billing_shared/line_item_find.dart';
 import 'package:admin/ui/features/billing_shared/view_models/billing_doc_edit_view_model.dart';
 
 /// Items-section wrapper that surfaces a Products / Tasks / Expenses TabBar
@@ -288,6 +289,15 @@ class _BillingDocItemsTabsState extends State<BillingDocItemsTabs>
   bool _hasTasks = false;
   bool _hasExpenses = false;
 
+  /// The editor's find in line items, followed across the tabs: a step to a
+  /// line on another tab moves there (`docs/find-in-line-items.md`).
+  LineItemFindController? _find;
+
+  /// The [LineItemFindController.revealGeneration] last followed — so only
+  /// an open, a step or a new query moves the tabs, never a notification
+  /// that merely re-counted.
+  int _followedFind = 0;
+
   @override
   void initState() {
     super.initState();
@@ -357,6 +367,30 @@ class _BillingDocItemsTabsState extends State<BillingDocItemsTabs>
     // arrives — honour the default then, as a remembered tab is.
     if (tasksTab != _LineKind.tasks) _restoreOnCompany ??= _LineKind.tasks;
     return tasksTab;
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final find = LineItemFindScope.maybeOf(context);
+    if (identical(find, _find)) return;
+    _find?.removeListener(_followFind);
+    _find = find?..addListener(_followFind);
+    _followedFind = find?.revealGeneration ?? 0;
+  }
+
+  /// Show the tab holding the current hit's line.
+  void _followFind() {
+    final find = _find;
+    if (find == null || !find.isOpen) return;
+    if (find.revealGeneration == _followedFind) return;
+    _followedFind = find.revealGeneration;
+    final row = find.active?.row;
+    final lines = widget.lineItems;
+    if (row == null || row < 0 || row >= lines.length) return;
+    final kind = _LineKind.values.firstWhere((k) => _predicate(k, lines[row]));
+    final index = _tabs.indexOf(kind);
+    if (index >= 0 && kind != _activeKind()) _tabCtl!.animateTo(index);
   }
 
   void _listenToCompany() {
@@ -465,6 +499,7 @@ class _BillingDocItemsTabsState extends State<BillingDocItemsTabs>
 
   @override
   void dispose() {
+    _find?.removeListener(_followFind);
     _companySub?.cancel();
     _unregisterProductsFlush?.call();
     _unregisterTasksFlush?.call();
@@ -473,6 +508,12 @@ class _BillingDocItemsTabsState extends State<BillingDocItemsTabs>
     _tabCtl?.dispose();
     super.dispose();
   }
+
+  /// The index in the full list of each line [_subset] keeps, in its order.
+  List<int> _draftIndexes(_LineKind kind) => [
+    for (var i = 0; i < widget.lineItems.length; i++)
+      if (_predicate(kind, widget.lineItems[i])) i,
+  ];
 
   List<LineItem> _subset(_LineKind kind) {
     return widget.lineItems.where((li) => _predicate(kind, li)).toList();
@@ -603,7 +644,13 @@ class _BillingDocItemsTabsState extends State<BillingDocItemsTabs>
                       constraints: BoxConstraints(
                         minHeight: math.max(0, constraints.minHeight - chrome),
                       ),
-                      child: _editor(kind),
+                      // Each tab draws only its own kind of line; find counts
+                      // the whole draft, so the tab says which draft line each
+                      // of its rows is.
+                      child: LineItemFindRows(
+                        draftIndexes: _draftIndexes(kind),
+                        child: _editor(kind),
+                      ),
                     ),
                   ),
               ],

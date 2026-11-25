@@ -14,17 +14,29 @@ import 'package:admin/ui/core/widgets/ltr_value.dart';
 /// (`docs/find-in-line-items.md`): whether the bar is open, the query, and
 /// which hit is the current one.
 ///
-/// Owned by `BillingDocRecordBody`, which all five billing documents share,
-/// and published through [LineItemFindScope]. Two widgets read it: the bar
-/// ([LineItemFindBar], pinned under the tab strip so it stays on screen while
-/// the page scrolls from hit to hit) and the read-only line-items table, which
-/// highlights. The table is also where the searched texts come from — it
-/// hands each drawn line's texts in through [updateRows], exactly as it draws
-/// them, so the bar's count and the table's highlights cannot disagree.
+/// Two owners, one per screen, each publishing it through
+/// [LineItemFindScope]:
+///
+///  * **The record** (`BillingDocRecordBody`, which all five billing documents
+///    share). Two widgets read it: the bar ([LineItemFindBar], pinned under the
+///    tab strip so it stays on screen while the page scrolls from hit to hit)
+///    and the read-only line-items table, which highlights. The table is also
+///    where the searched texts come from — it hands each drawn line's texts in
+///    through [updateRows], exactly as it draws them, so the bar's count and
+///    the table's highlights cannot disagree.
+///  * **The editor** (`BillingDocEditLayout`), where every line is a row of
+///    editable fields, so nothing is highlighted inside a field: the matching
+///    lines are tinted instead ([LineItemFindRowMarker]), one row per line of
+///    the draft, and [oneHitPerLine] makes a step always move to another line.
 class LineItemFindController extends ChangeNotifier {
-  LineItemFindController() {
+  LineItemFindController({this.oneHitPerLine = false}) {
     query.addListener(_onQueryChanged);
   }
+
+  /// Count a line once, however often it matches — the editor's mode. A
+  /// tinted row cannot show which of two hits inside it is the current one,
+  /// so stepping between them would change the count and nothing on screen.
+  final bool oneHitPerLine;
 
   /// The find field's text.
   final TextEditingController query = TextEditingController();
@@ -56,17 +68,66 @@ class LineItemFindController extends ChangeNotifier {
   /// When Enter last stepped, as a key event — see [submitted].
   DateTime? _keyStepAt;
   List<FindHit>? _hits;
+  Set<int>? _hitRows;
   bool _notifyScheduled = false;
+  int _revealGeneration = 0;
+
+  /// The editor's tinted rows, by row — the context [_reveal] scrolls to,
+  /// registered by each [LineItemFindRowMarker]. A context rather than a
+  /// [rowKey]: the editor's rows reorder, and a `GlobalKey` that followed an
+  /// index would move the editable row under it from line to line.
+  final Map<int, BuildContext> _rowContexts = {};
 
   bool get isOpen => _open;
 
   /// The query as it is matched — blank is "no search".
   String get normalizedQuery => normalizeFindQuery(query.text);
 
-  /// Every hit, in reading order. Recomputed only when the query or the rows
-  /// change.
-  List<FindHit> get hits =>
-      _hits ??= findHits(_rows, query.text, order: _order);
+  /// Every hit, in reading order — with [oneHitPerLine], each line's first.
+  /// Recomputed only when the query or the rows change.
+  List<FindHit> get hits => _hits ??= _computeHits();
+
+  List<FindHit> _computeHits() {
+    final all = findHits(_rows, query.text, order: _order);
+    if (!oneHitPerLine) return all;
+    final seen = <int>{};
+    return [
+      for (final hit in all)
+        if (seen.add(hit.row)) hit,
+    ];
+  }
+
+  /// The rows holding at least one hit.
+  Set<int> get hitRows => _hitRows ??= {for (final hit in hits) hit.row};
+
+  /// Bumped each time the current hit is to be brought into view — an open, a
+  /// step, a new query — and never otherwise. A listener that has to *move*
+  /// something to show the hit (the editor's Products / Tasks / Expenses tabs)
+  /// acts only when this changes, so a notification from a rows update can't
+  /// drag the user back to a tab they just left.
+  int get revealGeneration => _revealGeneration;
+
+  /// How drawn line [row] is marked: the current hit's line, another line with
+  /// a hit, or neither — always neither while the bar is closed.
+  LineItemFindMark markFor(int row) {
+    if (!_open || normalizedQuery.isEmpty || row < 0) {
+      return LineItemFindMark.none;
+    }
+    if (active?.row == row) return LineItemFindMark.current;
+    return hitRows.contains(row)
+        ? LineItemFindMark.match
+        : LineItemFindMark.none;
+  }
+
+  /// Register [context] as drawn line [row], for [_reveal]. See
+  /// [_rowContexts].
+  void attachRow(int row, BuildContext context) => _rowContexts[row] = context;
+
+  /// Undo [attachRow] — only if [row] still names [context]: a reorder can
+  /// hand the row to another marker before this one lets go of it.
+  void detachRow(int row, BuildContext context) {
+    if (identical(_rowContexts[row], context)) _rowContexts.remove(row);
+  }
 
   /// Index of the current hit in [hits], or -1 when there is none.
   int get activeIndex {
@@ -81,12 +142,13 @@ class LineItemFindController extends ChangeNotifier {
   }
 
   /// Show the bar (if it is not showing) and put the caret in it with the
-  /// query selected, then bring the current hit back into view.
+  /// query selected, then bring the current hit back into view. Notifies even
+  /// when the bar was already open: a surface that must move to show the hit
+  /// (a tab the line is on) listens for [revealGeneration].
   void open() {
-    if (!_open) {
-      _open = true;
-      notifyListeners();
-    }
+    _open = true;
+    _revealGeneration++;
+    notifyListeners();
     SchedulerBinding.instance.addPostFrameCallback((_) {
       if (_disposed) return;
       field.requestFocus();
@@ -137,6 +199,7 @@ class LineItemFindController extends ChangeNotifier {
     final n = hits.length;
     if (n == 0) return;
     _current = (activeIndex + delta) % n;
+    _revealGeneration++;
     notifyListeners();
     _scheduleReveal();
   }
@@ -156,6 +219,7 @@ class LineItemFindController extends ChangeNotifier {
     _rows = rows;
     _order = order;
     _hits = null;
+    _hitRows = null;
     if (_notifyScheduled) return;
     _notifyScheduled = true;
     SchedulerBinding.instance.addPostFrameCallback((_) {
@@ -170,7 +234,9 @@ class LineItemFindController extends ChangeNotifier {
     if (q == _lastQuery) return;
     _lastQuery = q;
     _hits = null;
+    _hitRows = null;
     _current = 0;
+    _revealGeneration++;
     notifyListeners();
     _scheduleReveal();
   }
@@ -185,7 +251,7 @@ class LineItemFindController extends ChangeNotifier {
     if (_disposed || !_open) return;
     final row = active?.row;
     if (row == null) return;
-    final context = rowKey(row).currentContext;
+    final context = _rowContexts[row] ?? rowKey(row).currentContext;
     if (context == null || !context.mounted) return;
     Scrollable.ensureVisible(
       context,
@@ -224,6 +290,158 @@ class LineItemFindScope extends InheritedWidget {
   @override
   bool updateShouldNotify(LineItemFindScope oldWidget) =>
       !identical(oldWidget.controller, controller);
+}
+
+/// How a drawn line is marked while find is open — see
+/// [LineItemFindController.markFor].
+enum LineItemFindMark { none, match, current }
+
+/// The draft index of each line a subset editor draws, in its order — for the
+/// editor's Products / Tasks / Expenses tabs, each of which draws only its own
+/// kind of line (`BillingDocItemsTabs`). The controller's rows are the whole
+/// draft, so a tab's row `i` is draft line `draftIndexes[i]`. With no scope
+/// the editor draws the whole draft and the two indexes are the same.
+class LineItemFindRows extends InheritedWidget {
+  const LineItemFindRows({
+    super.key,
+    required this.draftIndexes,
+    required super.child,
+  });
+
+  final List<int> draftIndexes;
+
+  /// The enclosing tab's draft indexes, or null when the editor draws the
+  /// whole draft. Subscribing: the indexes move whenever a line of another
+  /// kind is added or removed. Read it in a `build`, then map each row with
+  /// [draftIndexFor].
+  static List<int>? of(BuildContext context) => context
+      .dependOnInheritedWidgetOfExactType<LineItemFindRows>()
+      ?.draftIndexes;
+
+  @override
+  bool updateShouldNotify(LineItemFindRows oldWidget) =>
+      !listEquals(oldWidget.draftIndexes, draftIndexes);
+}
+
+/// The draft index of drawn row [row], given [LineItemFindRows.of]: -1 for a
+/// row past the subset (the desktop table's trailing blank row), which is
+/// never marked.
+int draftIndexFor(List<int>? draftIndexes, int row) {
+  if (draftIndexes == null) return row;
+  return row >= 0 && row < draftIndexes.length ? draftIndexes[row] : -1;
+}
+
+/// One editor row's find mark (`docs/find-in-line-items.md` § The editor
+/// tints the matching lines). Rebuilds [builder] only when this row's mark
+/// changes, so a step repaints two rows, not the table, and registers the row
+/// with the controller so a step can scroll it into view.
+///
+/// Always mount it where a find exists — on every row, the blank ones
+/// included (pass a [row] of -1) — never only on a row that matches: a
+/// wrapper that came and went would remount the editable row under it and
+/// drop the field the user is typing in.
+class LineItemFindRowMarker extends StatefulWidget {
+  const LineItemFindRowMarker({
+    super.key,
+    required this.controller,
+    required this.row,
+    required this.builder,
+  });
+
+  final LineItemFindController controller;
+
+  /// The draft line this row draws, or -1 for one that is not a line yet.
+  final int row;
+
+  final Widget Function(BuildContext context, LineItemFindMark mark) builder;
+
+  @override
+  State<LineItemFindRowMarker> createState() => _LineItemFindRowMarkerState();
+}
+
+class _LineItemFindRowMarkerState extends State<LineItemFindRowMarker> {
+  late LineItemFindMark _mark = widget.controller.markFor(widget.row);
+
+  @override
+  void initState() {
+    super.initState();
+    widget.controller.addListener(_onFind);
+    _attach();
+  }
+
+  @override
+  void didUpdateWidget(LineItemFindRowMarker oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.controller, widget.controller)) {
+      oldWidget.controller.removeListener(_onFind);
+      widget.controller.addListener(_onFind);
+    }
+    if (!identical(oldWidget.controller, widget.controller) ||
+        oldWidget.row != widget.row) {
+      if (oldWidget.row >= 0) {
+        oldWidget.controller.detachRow(oldWidget.row, context);
+      }
+      _attach();
+    }
+    _mark = widget.controller.markFor(widget.row);
+  }
+
+  void _attach() {
+    if (widget.row >= 0) widget.controller.attachRow(widget.row, context);
+  }
+
+  void _onFind() {
+    final mark = widget.controller.markFor(widget.row);
+    if (mark != _mark) setState(() => _mark = mark);
+  }
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(_onFind);
+    if (widget.row >= 0) widget.controller.detachRow(widget.row, context);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.builder(context, _mark);
+}
+
+/// The fill a marked editor row is tinted with: amber for a line with a hit,
+/// the accent for the current one. Opaque — blended over [base], the row's
+/// own surface — so it can paint a card's background. Null when unmarked.
+Color? lineItemFindRowFill(
+  InTheme tokens,
+  LineItemFindMark mark, {
+  required Color base,
+}) => switch (mark) {
+  LineItemFindMark.none => null,
+  // The amber at a fifth, not `warningSoft`: in the dark themes that is all
+  // but the card's own colour (the same reason the record's marks use it).
+  LineItemFindMark.match => Color.alphaBlend(
+    tokens.warning.withValues(alpha: 0.2),
+    base,
+  ),
+  LineItemFindMark.current => Color.alphaBlend(
+    tokens.accent.withValues(alpha: 0.16),
+    base,
+  ),
+};
+
+/// The bar while find is open, nothing while it is closed — one shape either
+/// way, so a host that mounts it beside its content never remounts that
+/// content when the bar opens.
+class LineItemFindBarSlot extends StatelessWidget {
+  const LineItemFindBarSlot({super.key, required this.controller});
+
+  final LineItemFindController controller;
+
+  @override
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: controller,
+    builder: (context, _) => controller.isOpen
+        ? LineItemFindBar(controller: controller)
+        : const SizedBox.shrink(),
+  );
 }
 
 /// The find bar: a field, the "3 of 12" count, previous / next and close.

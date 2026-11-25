@@ -5,6 +5,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/ui/features/billing_shared/edit/billing_doc_edit_fab.dart';
 import 'package:admin/ui/features/billing_shared/line_item_editor/line_item_editor.dart';
+import 'package:admin/ui/features/billing_shared/line_item_find.dart';
 
 /// The narrow (tabbed) Items-tab body shared by all five billing-doc edit
 /// layouts — invoice, quote, credit, purchase order and recurring invoice.
@@ -83,39 +84,52 @@ class BillingDocEditItemsBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final pad = InSpacing.lg(context);
-    return BillingDocEditPickerShortcuts(
-      onPickItems: onPickItems,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final wideTable = lineItemEditorShowsWideTable(
-            constraints.maxWidth - pad * 2,
-          );
-          final available = math.max(0.0, constraints.maxHeight - pad * 2);
-          return Stack(
-            fit: StackFit.expand,
-            children: [
-              SingleChildScrollView(
-                padding: EdgeInsets.all(pad),
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(
-                    minHeight: wideTable ? 0 : available,
-                  ),
-                  child: child,
+    // Find in line items' bar, above the scroll host so it stays put while the
+    // tab scrolls from one matching line to the next. Read from the editor's
+    // scope, which is there for the screen's life, so the Column is too.
+    final find = LineItemFindScope.maybeOf(context);
+    final body = LayoutBuilder(
+      builder: (context, constraints) {
+        final wideTable = lineItemEditorShowsWideTable(
+          constraints.maxWidth - pad * 2,
+        );
+        final available = math.max(0.0, constraints.maxHeight - pad * 2);
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            SingleChildScrollView(
+              padding: EdgeInsets.all(pad),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: wideTable ? 0 : available,
+                ),
+                child: child,
+              ),
+            ),
+            if (wideTable)
+              PositionedDirectional(
+                bottom: 16,
+                end: 16,
+                child: BillingDocEditFab(
+                  heroTag: heroTag,
+                  onPressed: onPickItems,
                 ),
               ),
-              if (wideTable)
-                PositionedDirectional(
-                  bottom: 16,
-                  end: 16,
-                  child: BillingDocEditFab(
-                    heroTag: heroTag,
-                    onPressed: onPickItems,
-                  ),
-                ),
-            ],
-          );
-        },
-      ),
+          ],
+        );
+      },
+    );
+    return BillingDocEditPickerShortcuts(
+      onPickItems: onPickItems,
+      child: find == null
+          ? body
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                LineItemFindBarSlot(controller: find),
+                Expanded(child: body),
+              ],
+            ),
     );
   }
 }

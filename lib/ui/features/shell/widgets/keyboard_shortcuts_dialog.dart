@@ -196,6 +196,14 @@ class _KeyboardShortcutsDialog extends StatelessWidget {
             ],
             description: context.tr('save'),
           ),
+          // The same find as the record's, in a billing document's editor —
+          // listed here too, so nobody reads the Records row as record-only.
+          _Row(
+            chords: [
+              [mod, 'F'],
+            ],
+            description: context.tr('find_in_items'),
+          ),
         ],
       ),
       _Section(

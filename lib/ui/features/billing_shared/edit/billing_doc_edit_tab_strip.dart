@@ -28,6 +28,15 @@ class BillingDocEditTab {
   final int? count;
 }
 
+/// Lets the layout move the strip to a tab — find in line items opening on
+/// Items. The strip binds it while mounted; unbound (the wide layout, which
+/// has no strip) [show] does nothing.
+class BillingDocEditTabSelector {
+  ValueChanged<int>? _select;
+
+  void show(int index) => _select?.call(index);
+}
+
 /// The narrow (below `Breakpoints.wide`) tab strip and body shared by all five
 /// billing-doc edit layouts — invoice, quote, credit, purchase order and
 /// recurring invoice.
@@ -55,7 +64,11 @@ class BillingDocEditTabStrip extends StatefulWidget {
     this.excludeInactiveFocus = false,
     this.initialIndex = 0,
     this.onIndexChanged,
+    this.selector,
   });
+
+  /// Bound to this strip while it is mounted — see [BillingDocEditTabSelector].
+  final BillingDocEditTabSelector? selector;
 
   /// The tabs, in order. The list's **length** drives the controller, so a
   /// conditional tab is expressed by leaving it out rather than by any second
@@ -105,6 +118,13 @@ class _BillingDocEditTabStripState extends State<BillingDocEditTabStrip>
     _tab = TabController(length: widget.tabs.length, vsync: this)
       ..index = widget.initialIndex.clamp(0, last)
       ..addListener(_reportIndex);
+    widget.selector?._select = _select;
+  }
+
+  void _select(int index) {
+    if (index >= 0 && index < _tab.length && index != _tab.index) {
+      _tab.animateTo(index);
+    }
   }
 
   void _reportIndex() {
@@ -126,6 +146,12 @@ class _BillingDocEditTabStripState extends State<BillingDocEditTabStrip>
   @override
   void didUpdateWidget(BillingDocEditTabStrip oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.selector, widget.selector)) {
+      if (oldWidget.selector?._select == _select) {
+        oldWidget.selector?._select = null;
+      }
+      widget.selector?._select = _select;
+    }
     final length = widget.tabs.length;
     if (_tab.length == length) return;
     final previousIndex = _tab.index;
@@ -139,6 +165,12 @@ class _BillingDocEditTabStripState extends State<BillingDocEditTabStrip>
 
   @override
   void dispose() {
+    // Only its own binding (a tear-off of the same method on the same state
+    // is `==`, not necessarily `identical`): a strip mounted in its place
+    // binds first.
+    if (widget.selector?._select == _select) {
+      widget.selector?._select = null;
+    }
     _tab.dispose();
     super.dispose();
   }

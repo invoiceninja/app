@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -14,6 +13,7 @@ import 'package:admin/ui/core/detail/entity_detail_actions_row.dart';
 import 'package:admin/ui/core/detail/generic_detail_view_model.dart';
 import 'package:admin/ui/core/detail/quick_action_kinds_scope.dart';
 import 'package:admin/ui/core/list/master_detail_layout.dart';
+import 'package:admin/ui/core/utils/find_chord.dart';
 import 'package:admin/ui/core/utils/text_input_focus.dart';
 import 'package:admin/ui/core/widgets/app_selection_area.dart';
 import 'package:admin/ui/core/widgets/empty_state.dart';
@@ -165,7 +165,7 @@ class _EntityDetailScaffoldState<T> extends State<EntityDetailScaffold<T>> {
   /// change — a re-index and a notify from every rebuild.
   late final Map<ShortcutActivator, Intent>
   _shortcuts = <ShortcutActivator, Intent>{
-    ..._findActivators(),
+    ...findChordShortcuts(),
     const SingleActivator(LogicalKeyboardKey.keyE): const _EditCurrentIntent(),
     const SingleActivator(LogicalKeyboardKey.bracketLeft): const _StepTabIntent(
       -1,
@@ -341,7 +341,10 @@ class _EntityDetailScaffoldState<T> extends State<EntityDetailScaffold<T>> {
           _StepTabIntent: _TabStepAction(_tabNavigator),
           // ⌘F / Ctrl+F: the body's find. Disabled, so the chord falls
           // through, on a record that bound none.
-          _FindIntent: _FindAction(_findNavigator),
+          FindChordIntent: FindChordAction(
+            onFind: _findNavigator.find,
+            canFind: () => _findNavigator.hasFind,
+          ),
           // `R`: re-fetch the record. Disabled, so the key falls through, on a
           // screen that has not wired a refresh.
           _RefreshIntent: _RefreshAction(
@@ -676,47 +679,6 @@ const double kDetailCompactTitleMaxWidth = 260;
 
 class _EditCurrentIntent extends Intent {
   const _EditCurrentIntent();
-}
-
-class _FindIntent extends Intent {
-  const _FindIntent();
-}
-
-/// ⌘F on Apple platforms, Ctrl+F elsewhere — one modifier each, never both:
-/// ⌃F is Cocoa's forward-a-character inside a text field.
-Map<ShortcutActivator, Intent> _findActivators() {
-  final apple =
-      defaultTargetPlatform == TargetPlatform.macOS ||
-      defaultTargetPlatform == TargetPlatform.iOS;
-  return <ShortcutActivator, Intent>{
-    SingleActivator(LogicalKeyboardKey.keyF, meta: apple, control: !apple):
-        const _FindIntent(),
-  };
-}
-
-/// The find chord fires from inside a text field too — it types nothing, and
-/// pressed again in the find field it re-selects the query, as a browser's
-/// does — but stands down mid leader sequence, and is disabled (so the chord
-/// falls through) while the body has bound no find.
-class _FindAction extends GuardedShortcutAction<_FindIntent> {
-  _FindAction(this.navigator)
-    : super(
-        onInvoke: (_) {
-          navigator.find();
-          return null;
-        },
-        firesInTextInput: () => true,
-      );
-
-  final DetailFindNavigator navigator;
-
-  @override
-  bool isEnabled(_FindIntent intent) =>
-      navigator.hasFind && super.isEnabled(intent);
-
-  @override
-  bool consumesKey(_FindIntent intent) =>
-      navigator.hasFind && super.consumesKey(intent);
 }
 
 class _StepTabIntent extends Intent {

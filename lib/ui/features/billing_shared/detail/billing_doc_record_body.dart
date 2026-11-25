@@ -169,12 +169,7 @@ class _BillingDocRecordBodyState extends State<BillingDocRecordBody> {
                       // One shape open or closed, so opening the bar never
                       // remounts the strip.
                       strip,
-                      ListenableBuilder(
-                        listenable: _find,
-                        builder: (context, _) => _find.isOpen
-                            ? LineItemFindBar(controller: _find)
-                            : const SizedBox.shrink(),
-                      ),
+                      LineItemFindBarSlot(controller: _find),
                     ],
                   ),
                   body: body,

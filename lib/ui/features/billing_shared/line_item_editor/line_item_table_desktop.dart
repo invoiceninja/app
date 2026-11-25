@@ -32,6 +32,7 @@ import 'package:admin/ui/core/widgets/picker_dismissal.dart';
 import 'package:admin/ui/core/widgets/scroll_edge_fades.dart';
 import 'package:admin/ui/core/widgets/spell_check.dart';
 import 'package:admin/ui/features/billing_shared/line_item_editor/line_item_column_config.dart';
+import 'package:admin/ui/features/billing_shared/line_item_find.dart';
 import 'package:admin/ui/features/billing_shared/line_item_editor/product_stock_label.dart';
 import 'package:admin/ui/features/billing_shared/line_item_picker/quick_product_dialog.dart';
 import 'package:admin/utils/formatting.dart';
@@ -754,6 +755,22 @@ class _LineItemTableDesktopState extends State<LineItemTableDesktop> {
       stream: _companyStream,
       builder: (context, snapshot) {
         final company = snapshot.data;
+        // Find in line items, on the editor (docs/find-in-line-items.md): each
+        // row is wrapped in a marker that tints it while its line matches.
+        // Every row, the ghost one too, whenever the editor has a find — a
+        // wrapper that came and went would remount the row under its field.
+        final find = LineItemFindScope.maybeOf(context);
+        final findRows = LineItemFindRows.of(context);
+        Widget marked(_RowState row, int index, bool isGhost, Widget built) {
+          if (find == null) return built;
+          return LineItemFindRowMarker(
+            key: ValueKey(row.id),
+            controller: find,
+            row: isGhost ? -1 : draftIndexFor(findRows, index),
+            builder: (context, mark) => _FindRowTint(mark: mark, child: built),
+          );
+        }
+
         // The ghost row stays in `_rows` either way — `_commitPending` pairs
         // rows with items by position — but a table that takes no new rows
         // doesn't render it.
@@ -873,7 +890,7 @@ class _LineItemTableDesktopState extends State<LineItemTableDesktop> {
                         );
                         final cached = row.built;
                         if (cached != null && cached.inputs == inputs) {
-                          return cached.widget;
+                          return marked(row, index, isGhost, cached.widget);
                         }
                         final built = _Row(
                           key: ValueKey(row.id),
@@ -1022,7 +1039,7 @@ class _LineItemTableDesktopState extends State<LineItemTableDesktop> {
                           },
                         );
                         row.built = _BuiltRow(inputs, built);
-                        return built;
+                        return marked(row, index, isGhost, built);
                       },
                     ),
                     Divider(height: 1, color: tokens.border),
@@ -1069,6 +1086,35 @@ LineItem _mergeProductInto(
   partyTaxExempt: partyTaxExempt,
   vendorDoc: vendorDoc,
 );
+
+/// A row's find mark: the amber fill behind a line that matches, the accent
+/// fill and outline on the current one. Both boxes are always there, so a
+/// mark coming or going never changes the tree above the row's fields.
+class _FindRowTint extends StatelessWidget {
+  const _FindRowTint({required this.mark, required this.child});
+
+  final LineItemFindMark mark;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.inTheme;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: lineItemFindRowFill(tokens, mark, base: tokens.surface),
+      ),
+      child: DecoratedBox(
+        position: DecorationPosition.foreground,
+        decoration: BoxDecoration(
+          border: mark == LineItemFindMark.current
+              ? Border.all(color: tokens.accent, width: 2)
+              : null,
+        ),
+        child: child,
+      ),
+    );
+  }
+}
 
 /// Lays [child] out at [minWidth] and scrolls it sideways when the pane is
 /// narrower; otherwise hands it the pane's width untouched.

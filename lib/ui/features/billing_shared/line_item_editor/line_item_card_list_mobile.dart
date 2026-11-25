@@ -14,6 +14,7 @@ import 'package:admin/ui/features/billing_shared/line_item_editor/edit_line_item
 import 'package:admin/ui/features/billing_shared/line_item_editor/line_item_column_config.dart';
 import 'package:admin/ui/features/billing_shared/line_item_editor/line_item_edit_dialog.dart';
 import 'package:admin/ui/features/billing_shared/line_item_editor/line_item_text_dialog.dart';
+import 'package:admin/ui/features/billing_shared/line_item_find.dart';
 import 'package:admin/utils/formatting.dart';
 import 'package:admin/ui/core/widgets/ltr_value.dart';
 
@@ -215,6 +216,11 @@ class LineItemCardListMobile extends StatelessWidget {
   }
 
   Widget _buildCards(BuildContext context) {
+    // Find in line items, on the editor (docs/find-in-line-items.md): a card
+    // whose line matches is tinted. Every card is wrapped whenever the editor
+    // has a find, so the list's shape never depends on the query.
+    final find = LineItemFindScope.maybeOf(context);
+    final findRows = LineItemFindRows.of(context);
     return ReorderableListView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -223,8 +229,9 @@ class LineItemCardListMobile extends StatelessWidget {
       onReorderItem: _onReorder,
       itemBuilder: (context, index) {
         final item = items[index];
-        return _ItemCard(
-          key: ValueKey('line_item_$index'),
+        Widget card(LineItemFindMark mark, {Key? key}) => _ItemCard(
+          key: key,
+          findMark: mark,
           item: item,
           index: index,
           companyId: companyId,
@@ -241,6 +248,14 @@ class LineItemCardListMobile extends StatelessWidget {
                   item.isTextOnly
               ? null
               : () => onCreateTaskFromLineItem!(item),
+        );
+        final key = ValueKey('line_item_$index');
+        if (find == null) return card(LineItemFindMark.none, key: key);
+        return LineItemFindRowMarker(
+          key: key,
+          controller: find,
+          row: draftIndexFor(findRows, index),
+          builder: (context, mark) => card(mark),
         );
       },
     );
@@ -359,7 +374,12 @@ class _ItemCard extends StatelessWidget {
     required this.onTap,
     required this.onRemove,
     required this.onCreateTask,
+    this.findMark = LineItemFindMark.none,
   });
+
+  /// Find in line items' mark on this line — a tint, and an outline on the
+  /// current one.
+  final LineItemFindMark findMark;
 
   final LineItem item;
   final int index;
@@ -425,7 +445,17 @@ class _ItemCard extends StatelessWidget {
           color: errorText == null ? tokens.border : errorColor,
         ),
         borderRadius: BorderRadius.circular(InRadii.r2),
-        color: tokens.surface,
+        color:
+            lineItemFindRowFill(tokens, findMark, base: tokens.surface) ??
+            tokens.surface,
+      ),
+      // Always a decoration, so the outline coming and going never changes
+      // the tree under it.
+      foregroundDecoration: BoxDecoration(
+        border: findMark == LineItemFindMark.current
+            ? Border.all(color: tokens.accent, width: 2)
+            : null,
+        borderRadius: BorderRadius.circular(InRadii.r2),
       ),
       child: InkWell(
         onTap: onTap,

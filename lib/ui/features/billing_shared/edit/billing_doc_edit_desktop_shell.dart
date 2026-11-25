@@ -31,7 +31,14 @@ class BillingDocEditDesktopShell extends StatelessWidget {
     required this.totalsCard,
     required this.pdfPane,
     required this.stickyTotals,
+    this.findBar,
   });
+
+  /// Find in line items' bar, pinned over the scrolling page so it stays on
+  /// screen while the page scrolls from one matching line to the next. Mounted
+  /// whether or not the bar shows (it draws nothing while closed), so opening
+  /// it never remounts the page.
+  final Widget? findBar;
 
   final Widget details;
   final Widget itemsSection;
@@ -77,6 +84,7 @@ class BillingDocEditDesktopShell extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        ?findBar,
         Expanded(
           child: SingleChildScrollView(
             padding: EdgeInsets.all(InSpacing.lg(context)),
