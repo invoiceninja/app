@@ -39,6 +39,7 @@ import 'package:admin/ui/features/clients/widgets/detail/client_detail_tabs.dart
 import 'package:admin/ui/features/clients/widgets/detail/client_past_due_line.dart';
 import 'package:admin/utils/formatting.dart';
 import 'package:admin/ui/core/widgets/ltr_value.dart';
+import 'package:admin/ui/core/widgets/private_notes_callout.dart';
 
 /// The client record screen, and the first on the record layout
 /// (`docs/detail-screen-layout.md`): identity, quick actions, standing,
@@ -341,6 +342,8 @@ class _ClientDetailScreenState extends State<ClientDetailScreen>
             );
           },
         ),
+        // Unconditional: it hides itself when there is no note.
+        alert: PrivateNotesCallout(notes: c.privateNotes),
         comments: EntityCommentsCard(
           vm: _activityVm,
           formatter: formatter,

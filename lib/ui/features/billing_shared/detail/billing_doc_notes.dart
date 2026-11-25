@@ -9,40 +9,6 @@ import 'package:admin/ui/features/dashboard/widgets/card_shell.dart';
 import 'package:admin/utils/formatting.dart';
 import 'package:admin/utils/notes_html.dart';
 
-/// The note a document's owner left for themselves and their team — the one
-/// text field on a billing document that never prints. In the profile, above
-/// the tabs: it is written for whoever opens this screen.
-///
-/// Clamped, with an in-place More, so a long one does not decide where the
-/// tabs start.
-class BillingDocPrivateNotesCard extends StatelessWidget {
-  const BillingDocPrivateNotesCard({super.key, required this.doc});
-
-  final BillingDocFields doc;
-
-  /// Whether this card would render anything. The field is HTML on the wire,
-  /// so the question is whether it holds any *words* — markup that renders as
-  /// nothing (`<p></p>`) must not open a card.
-  static bool hasContent(BillingDocFields doc) =>
-      plainTextFromHtml(doc.privateNotes).isNotEmpty;
-
-  @override
-  Widget build(BuildContext context) {
-    final text = plainTextFromHtml(doc.privateNotes);
-    if (text.isEmpty) return const SizedBox.shrink();
-    return DashboardCardShell(
-      title: context.tr('private_notes'),
-      child: ClampedText(
-        text: text,
-        maxLines: 4,
-        style: Theme.of(
-          context,
-        ).textTheme.bodyMedium?.copyWith(color: context.inTheme.ink),
-      ),
-    );
-  }
-}
-
 /// The text that prints on the document — public notes, terms, footer — in
 /// the order the page prints it, at the foot of the Overview tab under the
 /// totals.
@@ -67,8 +33,9 @@ class BillingDocPrintedNotesCard extends StatelessWidget {
     ('footer', doc.footer),
   ];
 
-  /// Whether this card would render anything — see
-  /// [BillingDocPrivateNotesCard.hasContent].
+  /// Whether this card would render anything. The fields are HTML on the
+  /// wire, so the question is whether they hold any *words* — markup that
+  /// renders as nothing (`<p></p>`) must not open a card.
   static bool hasContent(BillingDocFields doc) =>
       _fields(doc).any((f) => plainTextFromHtml(f.$2).isNotEmpty);
 

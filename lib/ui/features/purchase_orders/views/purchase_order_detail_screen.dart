@@ -48,6 +48,7 @@ import 'package:admin/ui/features/purchase_orders/view_models/purchase_order_det
 import 'package:admin/ui/features/purchase_orders/widgets/purchase_order_actions.dart';
 import 'package:admin/ui/features/purchase_orders/widgets/purchase_order_status_pill.dart';
 import 'package:admin/utils/formatting.dart';
+import 'package:admin/ui/core/widgets/private_notes_callout.dart';
 
 /// The purchase order record screen, on the record layout
 /// (`docs/detail-screen-layout.md`). Everything the five billing documents
@@ -411,6 +412,8 @@ class _PurchaseOrderDetailScreenState extends State<PurchaseOrderDetailScreen>
         doc: po,
         formatter: formatter,
       ),
+      // Unconditional: it hides itself when there is no note.
+      alert: PrivateNotesCallout(notes: po.privateNotes),
       comments: EntityCommentsCard(
         vm: _activityVm,
         formatter: formatter,

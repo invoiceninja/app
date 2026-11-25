@@ -45,6 +45,7 @@ import 'package:admin/ui/features/recurring_invoices/view_models/recurring_invoi
 import 'package:admin/ui/features/recurring_invoices/widgets/recurring_invoice_actions.dart';
 import 'package:admin/ui/features/recurring_invoices/widgets/recurring_invoice_status_pill.dart';
 import 'package:admin/utils/formatting.dart';
+import 'package:admin/ui/core/widgets/private_notes_callout.dart';
 
 /// The recurring invoice record screen, on the record layout
 /// (`docs/detail-screen-layout.md`). Everything the five billing documents
@@ -394,6 +395,8 @@ class _RecurringInvoiceDetailScreenState
         frequencyId: ri.frequencyId,
         remainingCycles: ri.remainingCycles,
       ),
+      // Unconditional: it hides itself when there is no note.
+      alert: PrivateNotesCallout(notes: ri.privateNotes),
       comments: EntityCommentsCard(
         vm: _activityVm,
         formatter: formatter,

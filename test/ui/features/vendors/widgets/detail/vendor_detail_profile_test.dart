@@ -121,10 +121,17 @@ void main() {
     testWidgets('notes alone open the Notes card and nothing else', (
       tester,
     ) async {
-      await _pump(tester, _vendor(privateNotes: 'Net 30.'), 500);
+      await _pump(tester, _vendor(publicNotes: 'Net 30.'), 500);
       expect(find.byType(VendorDetailNotesCard), findsOneWidget);
       expect(find.text('Net 30.'), findsOneWidget);
       expect(find.byType(VendorDetailDetailsCard), findsNothing);
+    });
+
+    testWidgets('private notes open no profile card — they are the callout '
+        'above the comments', (tester) async {
+      await _pump(tester, _vendor(privateNotes: 'Ships on Tuesdays'), 500);
+      expect(find.byType(VendorDetailNotesCard), findsNothing);
+      expect(find.text('Ships on Tuesdays'), findsNothing);
     });
 
     testWidgets('notes that are only markup are not content', (tester) async {
@@ -323,7 +330,7 @@ void main() {
         _vendor(
           phone: '555-1234',
           address1: '1 Main St',
-          privateNotes: 'Net 30.',
+          publicNotes: 'Net 30.',
         ),
         1200,
       );
@@ -382,7 +389,7 @@ void main() {
         _vendor(
           phone: '555-1234',
           address1: '1 Main St',
-          privateNotes: 'note',
+          publicNotes: 'note',
           contacts: const [_blankContact],
         ),
         500,
@@ -406,7 +413,7 @@ void main() {
         vatNumber: 'DE811907980',
         address1: 'Friedrichstraße 112',
         city: 'Berlin',
-        privateNotes: 'Net 30.',
+        publicNotes: 'Net 30.',
         contacts: const [
           VendorContactApi(
             id: 'k1',

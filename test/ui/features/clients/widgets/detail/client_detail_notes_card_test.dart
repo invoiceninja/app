@@ -51,23 +51,32 @@ void main() {
   testWidgets('a note that renders as nothing opens no card', (tester) async {
     // `<p></p>` is what an HTML editor stores for an empty body; gating on the
     // raw string would reserve a card with nothing in it.
-    await _pump(tester, _client(privateNotes: '<p></p>'));
+    await _pump(tester, _client(publicNotes: '<p></p>'));
 
     expect(find.byType(SizedBox), findsWidgets);
     expect(
-      ClientDetailNotesCard.hasContent(_client(privateNotes: '<p></p>')),
+      ClientDetailNotesCard.hasContent(_client(publicNotes: '<p></p>')),
       isFalse,
     );
     expect(
-      ClientDetailNotesCard.hasContent(_client(privateNotes: '<p>x</p>')),
+      ClientDetailNotesCard.hasContent(_client(publicNotes: '<p>x</p>')),
       isTrue,
     );
+  });
+
+  testWidgets('the private notes are not here — they are the callout above '
+      'the comments', (tester) async {
+    final client = _client(privateNotes: 'On credit hold');
+    expect(ClientDetailNotesCard.hasContent(client), isFalse);
+    await _pump(tester, client);
+    expect(find.text('On credit hold'), findsNothing);
+    expect(find.text('Private Notes'), findsNothing);
   });
 
   testWidgets('legacy plain text still renders its line breaks', (
     tester,
   ) async {
-    await _pump(tester, _client(privateNotes: 'line one\nline two'));
+    await _pump(tester, _client(publicNotes: 'line one\nline two'));
 
     expect(find.text('line one\nline two'), findsOneWidget);
   });

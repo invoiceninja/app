@@ -64,6 +64,7 @@ import 'package:admin/ui/features/invoices/widgets/invoice_status_pill.dart';
 import 'package:admin/ui/features/invoices/widgets/rectify_invoice.dart';
 import 'package:admin/ui/features/projects/widgets/project_name_label.dart';
 import 'package:admin/utils/formatting.dart';
+import 'package:admin/ui/core/widgets/private_notes_callout.dart';
 
 /// The invoice record screen, on the record layout
 /// (`docs/detail-screen-layout.md`): identity, quick actions, standing,
@@ -532,6 +533,8 @@ class _InvoiceDetailScreenState extends State<InvoiceDetailScreen>
           isOpen: invoiceAwaitsPayment(invoice),
         ),
       ),
+      // Unconditional: it hides itself when there is no note.
+      alert: PrivateNotesCallout(notes: invoice.privateNotes),
       comments: EntityCommentsCard(
         vm: _activityVm,
         formatter: formatter,

@@ -11,6 +11,7 @@ import 'package:admin/data/models/api/client_api_model.dart';
 import 'package:admin/data/models/api/vendor_api_model.dart';
 import 'package:admin/data/models/domain/client.dart';
 import 'package:admin/ui/features/billing_shared/billing_doc_type.dart';
+import 'package:admin/ui/features/billing_shared/edit/billing_doc_client_picker.dart';
 import 'package:admin/ui/features/billing_shared/edit/billing_doc_party_notes.dart';
 import 'package:admin/ui/features/invoices/view_models/invoice_edit_view_model.dart';
 import 'package:admin/ui/features/invoices/widgets/edit/invoice_edit_layout.dart';
@@ -20,6 +21,7 @@ import '../../shell/_shell_test_helpers.dart';
 import '_billing_edit_harness.dart';
 
 const _notesKey = ValueKey('billing-party-notes');
+const _calloutKey = ValueKey('private-notes-callout');
 
 Future<void> _seedClient(
   Services services, {
@@ -115,10 +117,57 @@ void main() {
         tester.getBottomLeft(find.byKey(const ValueKey('above'))).dy,
       );
       expect(
-        tester.getTopLeft(find.text('Private Notes')).dy -
+        tester.getTopLeft(find.byKey(_calloutKey)).dy -
             tester.getTopLeft(find.byKey(_notesKey)).dy,
         12,
       );
+      await unmount(tester, fixture);
+    });
+
+    testWidgets('the private note is the account alert: the highlighted '
+        'callout; the public note stays plain', (tester) async {
+      setWindow(tester, 800);
+      final fixture = await _fixture();
+      await _seedClient(
+        fixture.services,
+        privateNotes: '<p>On credit hold</p>',
+        publicNotes: 'Thanks for your business',
+      );
+      await tester.pumpWidget(
+        wrapWithShell(fixture.services, _notes(BillingDocParty.client, 'c1')),
+      );
+      await settle(tester);
+
+      final callout = find.byKey(_calloutKey);
+      expect(callout, findsOneWidget);
+      expect(
+        find.descendant(of: callout, matching: find.text('On credit hold')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: callout, matching: find.byIcon(Icons.lock_outline)),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: callout,
+          matching: find.text('Thanks for your business'),
+        ),
+        findsNothing,
+      );
+      await unmount(tester, fixture);
+    });
+
+    testWidgets('public notes alone raise no alert', (tester) async {
+      setWindow(tester, 800);
+      final fixture = await _fixture();
+      await _seedClient(fixture.services, publicNotes: 'Net 15 for this one');
+      await tester.pumpWidget(
+        wrapWithShell(fixture.services, _notes(BillingDocParty.client, 'c1')),
+      );
+      await settle(tester);
+
+      expect(find.byKey(_calloutKey), findsNothing);
       await unmount(tester, fixture);
     });
 
@@ -139,7 +188,9 @@ void main() {
 
     for (final (name, privateNotes, publicNotes) in [
       ('blank', '', ''),
+      ('whitespace', '  \n ', ' '),
       ('markup that renders as nothing', '<p></p>', '<p><br></p>'),
+      ('whitespace markup', '<p> </p>', '<p>&nbsp;</p>'),
     ]) {
       testWidgets('$name notes draw nothing, not even the gap', (tester) async {
         setWindow(tester, 800);
@@ -326,6 +377,61 @@ void main() {
       expect(find.text('Ships on Tuesdays'), findsOneWidget);
       await unmount(tester, fixture);
     });
+
+    for (final (label, width) in [('phone', 390.0), ('desktop', 1440.0)]) {
+      testWidgets('a new invoice follows the picked client ($label), and the '
+          'picker keeps its place in the tree', (tester) async {
+        setWindow(tester, width);
+        final fixture = await _fixture();
+        await _seedClient(fixture.services, privateNotes: 'On credit hold');
+        await _seedClient(fixture.services, id: 'c2');
+        await _seedClient(
+          fixture.services,
+          id: 'c3',
+          privateNotes: 'Always add their PO number',
+        );
+        final mounted = buildLayout(
+          BillingDoc.invoice,
+          fixture.services,
+          showPdfTab: false,
+        );
+        addTearDown(mounted.vm.dispose);
+        await tester.pumpWidget(
+          wrapWithShell(fixture.services, mounted.layout),
+        );
+        await settle(tester);
+        expect(find.byKey(_calloutKey), findsNothing);
+
+        final picker = find.byWidgetPredicate(
+          (w) => w is BillingDocClientPicker,
+        );
+        final pickerElement = tester.element(picker);
+
+        (mounted.vm as InvoiceEditViewModel).setClientId('c1');
+        await settle(tester);
+        expect(find.byKey(_calloutKey), findsOneWidget);
+        expect(find.text('On credit hold'), findsOneWidget);
+        // Directly under the picker.
+        expect(
+          tester.getTopLeft(find.byKey(_calloutKey)).dy,
+          greaterThan(tester.getTopLeft(picker).dy),
+        );
+
+        // A client with no private notes: the alert goes.
+        (mounted.vm as InvoiceEditViewModel).setClientId('c2');
+        await settle(tester);
+        expect(find.byKey(_calloutKey), findsNothing);
+        expect(find.text('On credit hold'), findsNothing);
+
+        (mounted.vm as InvoiceEditViewModel).setClientId('c3');
+        await settle(tester);
+        expect(find.text('Always add their PO number'), findsOneWidget);
+
+        // The alert came and went beside the picker, never around it.
+        expect(identical(tester.element(picker), pickerElement), isTrue);
+        await unmount(tester, fixture);
+      });
+    }
 
     testWidgets('a saved invoice still shows its client\'s notes (wide)', (
       tester,

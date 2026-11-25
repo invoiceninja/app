@@ -11,7 +11,6 @@ import 'package:admin/ui/core/widgets/party_contact_row.dart';
 import 'package:admin/ui/core/widgets/status_pill.dart';
 import 'package:admin/ui/core/widgets/party_contacts_builder.dart';
 import 'package:admin/ui/features/billing_shared/billing_doc_type.dart';
-import 'package:admin/ui/features/billing_shared/detail/billing_doc_notes.dart';
 import 'package:admin/ui/features/billing_shared/detail/billing_doc_profile.dart';
 import 'package:admin/ui/features/billing_shared/detail/billing_doc_record_header.dart';
 
@@ -262,33 +261,36 @@ void main() {
       contacts: _contacts,
     );
 
-    testWidgets('narrow: one stack — Contacts, Details, Private Notes', (
-      tester,
-    ) async {
+    testWidgets('narrow: one stack — Contacts, Details', (tester) async {
       await _pump(tester, 480, profile(_invoice()));
       final contacts = tester.getRect(find.byType(BillingDocContactsCard));
       final details = tester.getRect(find.byType(BillingDocDetailsCard));
-      final notes = tester.getRect(find.byType(BillingDocPrivateNotesCard));
       expect(details.top, greaterThan(contacts.bottom));
-      expect(notes.top, greaterThan(details.bottom));
       expect(details.left, contacts.left);
       expect(details.width, contacts.width);
     });
 
+    testWidgets('the private note is not in the profile — it is the callout '
+        'above the comments', (tester) async {
+      await _pump(
+        tester,
+        480,
+        profile(_invoice({'private_notes': 'Call Jane first.'})),
+      );
+      expect(find.text('Call Jane first.'), findsNothing);
+      expect(find.text('Private Notes'), findsNothing);
+    });
+
     testWidgets('wide: Contacts and Details are equal cards that end on one '
-        'line, with the note full width under them', (tester) async {
+        'line', (tester) async {
       await _pump(tester, 1200, profile(_invoice()));
       final contacts = tester.getRect(find.byType(BillingDocContactsCard));
       final details = tester.getRect(find.byType(BillingDocDetailsCard));
-      final notes = tester.getRect(find.byType(BillingDocPrivateNotesCard));
       expect(details.top, contacts.top);
       expect(details.left, greaterThan(contacts.right));
       expect(details.width, moreOrLessEquals(contacts.width, epsilon: 0.5));
       // Two contacts against one row of details: the shorter card stretches.
       expect(details.bottom, moreOrLessEquals(contacts.bottom, epsilon: 0.5));
-      expect(notes.top, greaterThan(contacts.bottom));
-      expect(notes.left, contacts.left);
-      expect(notes.right, moreOrLessEquals(details.right, epsilon: 0.5));
     });
 
     testWidgets('a section with nothing in it costs no card and no gap', (
@@ -299,14 +301,12 @@ void main() {
         480,
         Column(
           children: [
-            profile(_invoice({'po_number': '', 'private_notes': '<p></p>'})),
+            profile(_invoice({'po_number': ''})),
             const Text('AFTER'),
           ],
         ),
       );
       expect(find.byType(BillingDocDetailsCard), findsNothing);
-      // Markup that renders as nothing is not a note.
-      expect(find.byType(BillingDocPrivateNotesCard), findsNothing);
       final contacts = tester.getRect(find.byType(BillingDocContactsCard));
       expect(tester.getTopLeft(find.text('AFTER')).dy, contacts.bottom);
     });

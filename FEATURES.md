@@ -170,6 +170,7 @@ the honest default.
 | Client — statement PDF | ✅ | ✅ | ✅ | ✅ | |
 | Client — run template (one client or a list selection; the PDF opens in the app or is emailed to you; a `##statement##` template renders statements) | ✅ | ✅ | ✅ | | docs/running-a-template.md |
 | Client — comments / internal notes | ✅ | ✅ | ✅ | ✅ | |
+| Client — private notes as a highlighted callout (lock, warning tone) under the standing card, above the fold; the Notes card keeps the public notes | 🟡 | ✅ | ✅ | | React: a plain Private Notes card on the client page; docs/detail-screen-layout.md |
 | Client — documents / attachments | ✅ | ✅ | ✅ | ✅ | |
 | Client — activity / audit feed | ✅ | ✅ | ✅ | ✅ | |
 | Client — ledger tab (running balance, filter chips, tap-through) | ✅ | ✅ | ✅ | ✅ | |
@@ -235,11 +236,12 @@ the honest default.
 | Billing-doc edit — default items tab (Products / Tasks) as a device preference | ✅ | — | ✅ | | |
 | Billing-doc edit — picker Tasks tab grouped by project with per-project select-all | ❌ | ❌ | ✅ | | |
 | Billing-doc detail — call the client/vendor from the header: one tap for a single number, a contact picker when there are several — invoice / quote / credit / recurring / PO | ❌ | ❌ | ✅ | | |
+| Billing-doc detail — the document's private notes as a highlighted callout (lock, warning tone) under the standing card, above the fold, instead of a card at the foot of the profile — invoice / quote / credit / recurring / PO | ❌ | ✅ | ✅ | | v1: `IconMessage` at the head of the overview; docs/detail-screen-layout.md |
 | Billing-doc detail — who viewed it and when: a `Viewed <date>` line in the header on every status, and a `Viewed` pill that opens the Activity tab and flashes the entry — invoice / quote / credit / PO | ❌ | ❌ | ✅ | | |
 | Billing-doc edit — document-level tax rates (1–3) + custom surcharges (1–4) + inclusive-taxes toggle (Settings tab), gated on company `enabled_tax_rates` / surcharge custom-fields — invoice / quote / credit / recurring / PO | ✅ | ✅ | ✅ | | |
 | Billing-doc edit — a new document takes the Default Tax Rates (client → group → company), re-applied when the client (a PO's vendor) changes and cleared for a tax-exempt one; with line-item taxes only, a picked product's blank tax slots take the company default — invoice / quote / credit / recurring / PO | ✅ | 🟡 | ✅ | | v1 has no line-item default and doesn't clear for an exempt vendor. A clone (Clone, Clone to …, Rectify) keeps its source's rates; a draft built from a product / task / expense / project takes the defaults (invoiceninja/flutter#178) |
 | Billing-doc edit — a new document shows the defaults the server fills in for a blank field: terms and footer muted in their fields, payment terms (`Net 30` / Due on Receipt) or quote validity under the due date — invoice / quote / credit / recurring / PO | 🟡 | ✅ | ✅ | | React shows only a payment-terms tooltip |
-| Billing-doc edit — the client's (a PO's vendor's) private and public notes, read-only under the picker, on a new and a saved document — invoice / quote / credit / recurring / PO | ❌ | ✅ | ✅ | | v1's phone layout showed them only on a new document (invoiceninja/app#201) |
+| Billing-doc edit — the client's (a PO's vendor's) private and public notes, read-only under the picker, on a new and a saved document; the private notes as a highlighted account alert (lock, warning tone, clamped with More, copyable) — invoice / quote / credit / recurring / PO | ❌ | ✅ | ✅ | | v1's phone layout showed them only on a new document (invoiceninja/app#201); docs/detail-screen-layout.md |
 | Billing-doc detail — Maximize in the side PDF pane's toolbar opens the document (or the version it shows) full size | — | — | ✅ | | |
 | Invoice — create | ✅ | ✅ | ✅ | ✅ | |
 | Edit/create screen action bar (Save & mark sent/paid/cancel/auto-bill via save query-param; email/clone/etc. after-save) — all entities | ✅ | ✅ | ✅ | | |
@@ -545,6 +547,7 @@ the honest default.
 |---|---|---|---|---|---|
 | Vendor — list | ✅ | ✅ | ✅ | ✅ | 🟡 |
 | Vendor — detail | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Vendor — private notes as a highlighted callout (lock, warning tone) under the standing card, above the fold; the Notes card keeps the public notes | ❌ | ✅ | ✅ | | docs/detail-screen-layout.md |
 | Vendor — edit | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Vendor — create | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Vendor — clone | ✅ | ❌ | ✅ | ✅ | |

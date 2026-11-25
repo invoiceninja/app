@@ -245,6 +245,20 @@ void main() {
       expect(find.text('DE811907980'), findsOneWidget);
       expect(find.byType(VendorDetailAddressCard), findsOneWidget);
       expect(find.text('Net 30. Ask Katrin.'), findsOneWidget);
+      // The private note is the highlighted callout above the comments and
+      // the profile — drawn once, not again in a Notes card.
+      final callout = find.byKey(const ValueKey('private-notes-callout'));
+      expect(
+        find.descendant(
+          of: callout,
+          matching: find.text('Net 30. Ask Katrin.'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        tester.getBottomLeft(callout).dy,
+        lessThan(tester.getTopLeft(find.text('Katrin Vogel')).dy),
+      );
       expect(find.byIcon(Icons.expand_more), findsNothing);
       expect(find.byIcon(Icons.expand_less), findsNothing);
 

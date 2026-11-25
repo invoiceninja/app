@@ -39,6 +39,7 @@ import 'package:admin/ui/features/vendors/widgets/detail/vendor_detail_standing.
 import 'package:admin/ui/features/vendors/widgets/vendor_actions.dart';
 import 'package:admin/utils/formatting.dart';
 import 'package:admin/ui/core/widgets/ltr_value.dart';
+import 'package:admin/ui/core/widgets/private_notes_callout.dart';
 
 /// The vendor record screen, on the record layout
 /// (`docs/detail-screen-layout.md`): identity, quick actions, standing,
@@ -439,6 +440,8 @@ class _VendorDetailScreenState extends State<VendorDetailScreen>
                     _record.selectTab.selectId(DetailTabIds.expenses),
               )
             : null,
+        // Unconditional: it hides itself when there is no note.
+        alert: PrivateNotesCallout(notes: v.privateNotes),
         comments: EntityCommentsCard(
           vm: _activityVm,
           formatter: formatter,

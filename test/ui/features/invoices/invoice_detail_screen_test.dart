@@ -135,11 +135,29 @@ void main() {
       expect(find.text('Jane Doe'), findsOneWidget);
       expect(find.text('jane@acme.example.com'), findsOneWidget);
       expect(find.text('Sam Lee'), findsOneWidget);
-      // Its details, and the note left for whoever opens it.
+      // Its details.
       expect(find.text('PO Number'), findsOneWidget);
       expect(find.text('PO-7781'), findsOneWidget);
-      expect(find.byType(BillingDocPrivateNotesCard), findsOneWidget);
+      // The note left for whoever opens it: the highlighted callout under the
+      // standing card, above the comments and the profile — once.
+      final callout = find.byKey(const ValueKey('private-notes-callout'));
+      expect(callout, findsOneWidget);
       expect(find.text('Call Jane before the next phase.'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: callout,
+          matching: find.text('Call Jane before the next phase.'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        tester.getTopLeft(callout).dy,
+        greaterThan(tester.getBottomLeft(find.byType(StandingCard)).dy),
+      );
+      expect(
+        tester.getBottomLeft(callout).dy,
+        lessThan(tester.getTopLeft(find.byType(PartyContactRow).first).dy),
+      );
 
       // Comments and Activity still lead the strip, and it opens on the
       // document itself.
@@ -551,7 +569,11 @@ void main() {
       (tester, screen) async {
         expect(find.byType(BillingDocContactsCard), findsOneWidget);
         expect(find.byType(BillingDocDetailsCard), findsNothing);
-        expect(find.byType(BillingDocPrivateNotesCard), findsNothing);
+        // No note, no callout — and no gap where it would be.
+        expect(
+          find.byKey(const ValueKey('private-notes-callout')),
+          findsNothing,
+        );
       },
     );
 

@@ -11,8 +11,8 @@ import 'package:admin/ui/core/widgets/clamped_text.dart';
 /// non-empty (markup that renders as nothing must not draw a label over
 /// nothing).
 ///
-/// Shared by the client and vendor record screens' notes cards and the
-/// billing-doc edit form's party notes, so the three read the same.
+/// The billing-doc edit form's party public notes. (Private notes are a
+/// `PrivateNotesCallout` everywhere they are shown.)
 class NotesBlock extends StatelessWidget {
   const NotesBlock({
     super.key,

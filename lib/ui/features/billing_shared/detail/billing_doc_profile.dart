@@ -21,16 +21,14 @@ import 'package:admin/ui/core/widgets/status_pill.dart';
 import 'package:admin/ui/core/widgets/user_name_label.dart';
 import 'package:admin/ui/core/widgets/watch_builder.dart';
 import 'package:admin/ui/features/billing_shared/billing_doc_type.dart';
-import 'package:admin/ui/features/billing_shared/detail/billing_doc_notes.dart';
 import 'package:admin/ui/features/dashboard/widgets/card_shell.dart';
 import 'package:admin/utils/formatting.dart';
 
-/// A billing document's reference fields — who it went to, its details, the
-/// note its owner left themselves. Always shown, between the comments card and
-/// the tabs.
+/// A billing document's reference fields — who it went to, its details.
+/// Always shown, between the comments card and the tabs.
 ///
-/// In order: Contacts (the people invited to it), Details, Private Notes. Tags
-/// are not here; they are drawn under the document's number.
+/// In order: Contacts (the people invited to it), Details. Tags are not here;
+/// they are drawn under the document's number.
 ///
 /// **What prints on the document is not here either.** Line items, totals,
 /// public notes, terms and footer are the document's *content*: they stay on
@@ -40,15 +38,17 @@ import 'package:admin/utils/formatting.dart';
 /// paragraph of boilerplate terms between the balance and the line items, in
 /// the 440–560 px pane where there is one column and every card is a scroll.
 /// A private note is different: it is written for whoever opens this screen,
-/// and is worth reading before anything else is done with the document.
+/// and is worth reading before anything else is done with the document — so
+/// it is not here either, but higher: the `PrivateNotesCallout` under the
+/// standing card (`EntityRecordColumn.alert`; docs/detail-screen-layout.md
+/// § Private notes are a callout above the comments).
 ///
 /// **Every entry is gated on having content**, in both layouts — the gap
 /// between cards is paid per entry, so a card that drew nothing from its own
 /// `build` would leave a doubled gap between its neighbours.
 ///
 /// * **≥ [Breakpoints.entityFormMultiColumn] of its own width**: Contacts and
-///   Details side by side as equal cards ending on one line, Private Notes
-///   full width beneath. That width is rare here — beside the PDF pane this column is
+///   Details side by side as equal cards ending on one line. That width is rare here — beside the PDF pane this column is
 ///   five elevenths of the window — so in practice it is a very wide monitor.
 /// * **below**: one stack. The record column above this has already centred
 ///   and capped it.
@@ -95,7 +95,6 @@ class BillingDocProfile extends StatelessWidget {
       formatter: formatter,
       extraRows: detailRows,
     );
-    final hasNotes = BillingDocPrivateNotesCard.hasContent(doc);
     final gap = SizedBox(height: InSpacing.md(context));
 
     final contactsCard = recipients.isEmpty
@@ -112,7 +111,6 @@ class BillingDocProfile extends StatelessWidget {
           extraRows: detailRows,
         ),
     ];
-    final tail = <Widget>[if (hasNotes) BillingDocPrivateNotesCard(doc: doc)];
     return LayoutBuilder(
       builder: (context, constraints) {
         final inRow =
@@ -138,8 +136,7 @@ class BillingDocProfile extends StatelessWidget {
         final rows = <Widget>[
           if (inRow)
             // `IntrinsicHeight` so the two cards end on one line. Legal here
-            // because neither contains a `LayoutBuilder` — which is why the
-            // note, whose clamp measures its own width, is not in the row.
+            // because neither contains a `LayoutBuilder`.
             IntrinsicHeight(
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -153,7 +150,6 @@ class BillingDocProfile extends StatelessWidget {
             )
           else
             ...sized,
-          ...tail,
         ];
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,

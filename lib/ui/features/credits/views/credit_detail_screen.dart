@@ -42,6 +42,7 @@ import 'package:admin/ui/features/credits/view_models/credit_detail_view_model.d
 import 'package:admin/ui/features/credits/widgets/credit_actions.dart';
 import 'package:admin/ui/features/credits/widgets/credit_status_pill.dart';
 import 'package:admin/utils/formatting.dart';
+import 'package:admin/ui/core/widgets/private_notes_callout.dart';
 
 /// The credit record screen, on the record layout
 /// (`docs/detail-screen-layout.md`). Everything the five billing documents
@@ -390,6 +391,8 @@ class _CreditDetailScreenState extends State<CreditDetailScreen>
         // What has been applied — the credit's "paid".
         settled: credit.paidToDate,
       ),
+      // Unconditional: it hides itself when there is no note.
+      alert: PrivateNotesCallout(notes: credit.privateNotes),
       comments: EntityCommentsCard(
         vm: _activityVm,
         formatter: formatter,

@@ -152,4 +152,35 @@ void main() {
     );
     expect(_tiles(tester), isEmpty);
   });
+
+  // The note left for whoever opens it is a highlighted callout under the
+  // standing card — docs/detail-screen-layout.md § Private notes are a
+  // callout above the comments.
+  _screenTest(
+    'a order\'s private note is the callout above the profile',
+    _order(),
+    (tester, screen) async {
+      final callout = find.byKey(const ValueKey('private-notes-callout'));
+      expect(
+        find.descendant(
+          of: callout,
+          matching: find.text('Call Jane before the next phase.'),
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('Call Jane before the next phase.'), findsOneWidget);
+      expect(
+        tester.getTopLeft(callout).dy,
+        greaterThan(tester.getBottomLeft(find.byType(StandingCard)).dy),
+      );
+    },
+  );
+
+  _screenTest(
+    'a order whose private note is only markup draws no callout',
+    {..._order(), 'private_notes': '<p> </p>'},
+    (tester, screen) async {
+      expect(find.byKey(const ValueKey('private-notes-callout')), findsNothing);
+    },
+  );
 }

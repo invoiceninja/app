@@ -11,7 +11,7 @@ import 'package:admin/ui/core/widgets/centered_form_column.dart';
 /// Everything a record screen shows above its tabs, in the one order every
 /// entity uses:
 ///
-///   identity → quick actions → standing → comments → profile
+///   identity → quick actions → standing → alert → comments → profile
 ///
 /// **The profile is always shown.** It used to sit behind a remembered
 /// disclosure row, closed by default, with a one-contact summary above it; in
@@ -36,6 +36,7 @@ class EntityRecordColumn extends StatelessWidget {
     required this.header,
     this.quickActions,
     this.standing,
+    this.alert,
     this.comments,
     this.profile,
     this.timestamps,
@@ -57,6 +58,15 @@ class EntityRecordColumn extends StatelessWidget {
 
   final Widget? standing;
 
+  /// What must not be scrolled past — the record's private notes as a
+  /// `PrivateNotesCallout` — directly under the standing card and above the
+  /// comments, so it is on the first screen at every width
+  /// (docs/detail-screen-layout.md § Private notes are a callout above the
+  /// comments). **Pass it unconditionally**: it hides itself, and the column
+  /// pays the gap under it only when it laid out at a height, so a note
+  /// added or cleared never moves the comments card in the tree.
+  final Widget? alert;
+
   /// **Owns its trailing gap** — `EntityCommentsCard` is always mounted and
   /// hides itself, which is the documented exception to "gate the entry".
   final Widget? comments;
@@ -77,7 +87,9 @@ class EntityRecordColumn extends StatelessWidget {
     final gap = SizedBox(height: gapSize);
     final profile = this.profile;
     final timestamps = this.timestamps;
+    final alert = this.alert;
     final below = <Widget>[
+      if (alert != null) _GapAfterIfPainted(gap: gapSize, child: alert),
       ?comments,
       // With the dates line under it, the profile pays the gap between them —
       // but only when it draws something. The line cannot tell a card above
@@ -194,7 +206,7 @@ enum RecordColumnPart {
   /// Identity and quick actions: what stays above the tabs beside a rail.
   lead,
 
-  /// Standing, comments, profile and dates, stacked: the rail itself.
+  /// Standing, alert, comments, profile and dates, stacked: the rail itself.
   rail,
 }
 

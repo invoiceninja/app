@@ -7,10 +7,13 @@ import 'package:admin/data/models/domain/client.dart';
 import 'package:admin/data/models/domain/vendor.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/notes_block.dart';
+import 'package:admin/ui/core/widgets/private_notes_callout.dart';
 import 'package:admin/ui/features/billing_shared/billing_doc_type.dart';
 import 'package:admin/utils/notes_html.dart';
 
-/// The party's notes as plain text — either may be empty.
+/// The party's notes — the private ones as stored (the callout flattens them
+/// itself; flattening twice would re-read a literal `<` as markup), the public
+/// ones as plain text. Either may be empty.
 typedef _PartyNotes = ({String privateNotes, String publicNotes});
 
 /// Lines of a note shown before its More — what v1 showed, enough for a
@@ -22,6 +25,12 @@ const int kBillingDocPartyNoteLines = 3;
 /// invoiceninja/app#201. Users keep invoicing information on the client
 /// ("driving distance", "special prices") and need it while they bill; v1
 /// showed both notes here, private first, and so does this.
+///
+/// **The private notes are an account alert**: the highlighted
+/// `PrivateNotesCallout` the record screens use, so what a user wrote down
+/// about the account ("always add a PO number", "on credit hold") is not read
+/// past as one more muted label at the moment it matters (beta feedback,
+/// Nov 2026). The public notes stay a plain [NotesBlock] under it.
 ///
 /// Shown on a new document and a saved one alike: the notes matter as much
 /// when a draft is reopened as when it is started.
@@ -67,14 +76,14 @@ class _BillingDocPartyNotesState extends State<BillingDocPartyNotes> {
   static _PartyNotes? _ofClient(Client? c) => c == null
       ? null
       : (
-          privateNotes: plainTextFromHtml(c.privateNotes),
+          privateNotes: c.privateNotes,
           publicNotes: plainTextFromHtml(c.publicNotes),
         );
 
   static _PartyNotes? _ofVendor(Vendor? v) => v == null
       ? null
       : (
-          privateNotes: plainTextFromHtml(v.privateNotes),
+          privateNotes: v.privateNotes,
           publicNotes: plainTextFromHtml(v.publicNotes),
         );
 
@@ -117,7 +126,8 @@ class _BillingDocPartyNotesState extends State<BillingDocPartyNotes> {
       stream: _notes,
       builder: (context, snapshot) {
         final notes = snapshot.data;
-        final hasPrivate = notes?.privateNotes.isNotEmpty ?? false;
+        final hasPrivate =
+            notes != null && PrivateNotesCallout.hasContent(notes.privateNotes);
         final hasPublic = notes?.publicNotes.isNotEmpty ?? false;
         if (!hasPrivate && !hasPublic) return const SizedBox.shrink();
         return Padding(
@@ -128,9 +138,8 @@ class _BillingDocPartyNotesState extends State<BillingDocPartyNotes> {
             mainAxisSize: MainAxisSize.min,
             children: [
               if (hasPrivate)
-                NotesBlock(
-                  label: context.tr('private_notes'),
-                  body: notes!.privateNotes,
+                PrivateNotesCallout(
+                  notes: notes.privateNotes,
                   maxLines: kBillingDocPartyNoteLines,
                 ),
               if (hasPrivate && hasPublic)

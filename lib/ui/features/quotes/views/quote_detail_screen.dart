@@ -47,6 +47,7 @@ import 'package:admin/ui/features/quotes/view_models/quote_detail_view_model.dar
 import 'package:admin/ui/features/quotes/widgets/quote_actions.dart';
 import 'package:admin/ui/features/quotes/widgets/quote_status_pill.dart';
 import 'package:admin/utils/formatting.dart';
+import 'package:admin/ui/core/widgets/private_notes_callout.dart';
 
 /// The quote record screen, on the record layout
 /// (`docs/detail-screen-layout.md`). Everything the five billing documents
@@ -408,6 +409,8 @@ class _QuoteDetailScreenState extends State<QuoteDetailScreen>
           isOpen: quoteAwaitsAnswer(quote),
         ),
       ),
+      // Unconditional: it hides itself when there is no note.
+      alert: PrivateNotesCallout(notes: quote.privateNotes),
       comments: EntityCommentsCard(
         vm: _activityVm,
         formatter: formatter,

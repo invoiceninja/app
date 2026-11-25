@@ -26,36 +26,6 @@ Future<void> _pump(WidgetTester tester, Widget child) async {
 }
 
 void main() {
-  group('the private note', () {
-    test('is content only when it holds words', () {
-      expect(
-        BillingDocPrivateNotesCard.hasContent(_invoice({'private_notes': 'x'})),
-        isTrue,
-      );
-      // HTML on the wire: markup that renders as nothing is not a note.
-      for (final empty in ['', '<p></p>', '<p><br></p>']) {
-        expect(
-          BillingDocPrivateNotesCard.hasContent(
-            _invoice({'private_notes': empty}),
-          ),
-          isFalse,
-          reason: '"$empty"',
-        );
-      }
-    });
-
-    testWidgets('shows the words, not the markup', (tester) async {
-      await _pump(
-        tester,
-        BillingDocPrivateNotesCard(
-          doc: _invoice({'private_notes': '<p>Call <b>Jane</b> first.</p>'}),
-        ),
-      );
-      expect(find.text('Private Notes'), findsOneWidget);
-      expect(find.text('Call Jane first.'), findsOneWidget);
-    });
-  });
-
   group('what prints on the document', () {
     testWidgets('public notes, terms, then footer — the order on the page', (
       tester,
