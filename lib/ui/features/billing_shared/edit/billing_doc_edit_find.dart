@@ -62,9 +62,15 @@ Map<LineFindSegment, String> _texts(
 }
 
 /// Hands the draft's lines to [find] on every build of the editor (each
-/// change of the view model), in the document's currency — then builds
-/// [child], the editor, which it never rebuilds on its own: when the currency
-/// resolves, [child] is the same widget and is left alone.
+/// change of the view model), in the document's currency — and lays out
+/// [child], the editor, exactly as if it were not here.
+///
+/// The currency comes from a [PartyCurrencyBuilder], which changes its own
+/// shape when the party does (it adds a keyed `StreamBuilder` once there is a
+/// client). So it is a zero-size sibling of [child], never its parent: as a
+/// parent it remounted the whole editor — the client picker under the user's
+/// finger included — the moment a client was picked (`docs/form-fields.md`
+/// § A focused field never changes its place in the tree on state).
 ///
 /// The editor's tables cannot be the source, as the record's read-only table
 /// is: a client document draws its lines in three tabs (Products / Tasks /
@@ -87,21 +93,34 @@ class BillingDocEditFindRows extends StatelessWidget {
   Widget build(BuildContext context) {
     final draft = vm.draft;
     final client = party == BillingDocParty.client;
-    return PartyCurrencyBuilder(
-      clientId: client ? draft.clientId : null,
-      vendorId: client ? null : draft.vendorId,
-      builder: (context, currencyId) {
-        find.updateRows(
-          editorLineFindTexts(
-            draft.lineItems,
-            formatter: context.read<Services?>()?.formatterIfReady(
-              vm.companyId,
-            ),
-            currencyId: currencyId,
+    return Stack(
+      // The editor gets the constraints it would get alone, and sizes this.
+      fit: StackFit.passthrough,
+      children: [
+        child,
+        PositionedDirectional(
+          start: 0,
+          top: 0,
+          width: 0,
+          height: 0,
+          child: PartyCurrencyBuilder(
+            clientId: client ? draft.clientId : null,
+            vendorId: client ? null : draft.vendorId,
+            builder: (context, currencyId) {
+              find.updateRows(
+                editorLineFindTexts(
+                  draft.lineItems,
+                  formatter: context.read<Services?>()?.formatterIfReady(
+                    vm.companyId,
+                  ),
+                  currencyId: currencyId,
+                ),
+              );
+              return const SizedBox.shrink();
+            },
           ),
-        );
-        return child;
-      },
+        ),
+      ],
     );
   }
 }
