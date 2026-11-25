@@ -35,6 +35,7 @@ void main() {
     String taxRate2 = '0',
     String taxName3 = '',
     String taxRate3 = '0',
+    bool isOptional = false,
   }) => LineItem(
     productKey: '',
     notes: '',
@@ -54,6 +55,7 @@ void main() {
     customValue4: '',
     discount: d(discount),
     taxCategoryId: '',
+    isOptional: isOptional,
   );
 
   /// One parity case: the same invoice expressed for both calculators.
@@ -81,7 +83,13 @@ void main() {
       label: label,
       precision: precision,
       input: BillingTotalsInput(
-        lineItems: [for (final l in lines) l.item],
+        // An optional quote line counts toward nothing: the app leaves it out
+        // of the input (`BillingDocTotals.totalsInput`), the server is sent it
+        // with `is_optional` and skips it itself (since v5.14.0).
+        lineItems: [
+          for (final l in lines)
+            if (!l.item.isOptional) l.item,
+        ],
         discount: d(discount),
         isAmountDiscount: isAmountDiscount,
         usesInclusiveTaxes: usesInclusiveTaxes,
@@ -126,6 +134,7 @@ void main() {
     String taxRate1 = '0',
     String taxName2 = '',
     String taxRate2 = '0',
+    bool optional = false,
   }) => (
     item: item(
       cost: cost,
@@ -135,6 +144,7 @@ void main() {
       taxRate1: taxRate1,
       taxName2: taxName2,
       taxRate2: taxRate2,
+      isOptional: optional,
     ),
     json: {
       'cost': num.parse(cost),
@@ -144,6 +154,7 @@ void main() {
       'tax_rate1': num.parse(taxRate1),
       'tax_name2': taxName2,
       'tax_rate2': num.parse(taxRate2),
+      if (optional) 'is_optional': true,
     },
   );
 
@@ -265,6 +276,46 @@ void main() {
         line(cost: '333.33', quantity: '3', taxName1: 'CT', taxRate1: '8'),
       ],
       discount: '10',
+    ),
+    // Optional quote lines (v5.14.0): the server skips them in every total.
+    kase(
+      label: 'optional taxed line, percent discount and invoice tax',
+      lines: [
+        line(cost: '100', taxName1: 'VAT', taxRate1: '20'),
+        line(cost: '55.55', taxName1: 'VAT', taxRate1: '20', optional: true),
+      ],
+      discount: '10',
+      taxName1: 'ST',
+      taxRate1: '5',
+    ),
+    kase(
+      label: 'optional line beside an amount discount',
+      lines: [
+        line(cost: '40', taxName1: 'VAT', taxRate1: '20'),
+        line(cost: '60', taxName1: 'VAT', taxRate1: '20', optional: true),
+      ],
+      discount: '15',
+      isAmountDiscount: true,
+    ),
+    kase(
+      label: 'inclusive, optional line beside a taxed one',
+      lines: [
+        line(cost: '110', taxName1: 'VAT', taxRate1: '10'),
+        line(cost: '220', taxName1: 'VAT', taxRate1: '10', optional: true),
+      ],
+      usesInclusiveTaxes: true,
+      taxName1: 'GST',
+      taxRate1: '5',
+    ),
+    kase(
+      label: 'inclusive amount discount with an optional line',
+      lines: [
+        line(cost: '100', taxName1: 'VAT', taxRate1: '10'),
+        line(cost: '50', taxName1: 'VAT', taxRate1: '10', optional: true),
+      ],
+      usesInclusiveTaxes: true,
+      discount: '20',
+      isAmountDiscount: true,
     ),
   ];
 

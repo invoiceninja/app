@@ -63,6 +63,8 @@ namespace App\Models {
          * so this is the correct baseline for parity, not an omission.
          */
         public $company = null;
+        /** A self-billed (PEPPOL 389) invoice; the app models none. */
+        public function isSelfBilled(): bool { return false; }
     }
     class Quote extends Invoice {}
     class Credit extends Invoice {}
@@ -118,6 +120,9 @@ namespace {
         '/app/Helpers/Invoice/Taxer.php',
         '/app/Helpers/Invoice/Discounter.php',
         '/app/Helpers/Invoice/CustomValuer.php',
+        // Used by InvoiceItemSum since cb9dcb08e0 (2026-09-09); until it was
+        // listed here the oracle died loading it and the parity test skipped.
+        '/app/Helpers/Invoice/HarvestsSurchargeTaxCategories.php',
         '/app/Helpers/Invoice/InvoiceItemSum.php',
         '/app/Helpers/Invoice/InvoiceItemSumInclusive.php',
         '/app/Helpers/Invoice/InvoiceSum.php',
