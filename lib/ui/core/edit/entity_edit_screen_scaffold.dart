@@ -79,6 +79,7 @@ class EntityEditScreenScaffold<T, VM extends GenericEditViewModel<T>>
     this.onAfterSaveAction,
     this.onAfterSaveActionOnCreate,
     this.titleTrailingBuilder,
+    this.printAction,
   });
 
   /// Existing entity id when editing; null for create.
@@ -248,6 +249,12 @@ class EntityEditScreenScaffold<T, VM extends GenericEditViewModel<T>>
   /// no navigating after-save actions.
   final Future<bool> Function(BuildContext context, T saved, Object action)?
   onAfterSaveActionOnCreate;
+
+  /// The AFTER-SAVE action that prints the record (a billing document's
+  /// Print PDF), forwarded to [EntityEditScaffold.printAction]: ⌘P / Ctrl+P
+  /// saves then runs it, and so does a plain Save while "Print After Saving"
+  /// is on (docs/after-saving.md). Null for an entity with nothing to print.
+  final Object? printAction;
 
   @override
   State<EntityEditScreenScaffold<T, VM>> createState() =>
@@ -931,6 +938,7 @@ class _EntityEditScreenScaffoldState<T, VM extends GenericEditViewModel<T>>
           : (ctx) => widget.confirmSave!(ctx, vm),
       onAfterSaveAction: widget.onAfterSaveAction,
       onAfterSaveActionOnCreate: widget.onAfterSaveActionOnCreate,
+      printAction: widget.printAction,
       titleBuilder: (ctx) => widget.titleBuilder(ctx, vm),
       titleTrailing: widget.titleTrailingBuilder == null
           ? null

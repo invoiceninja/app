@@ -204,6 +204,14 @@ class _KeyboardShortcutsDialog extends StatelessWidget {
             ],
             description: context.tr('find_in_items'),
           ),
+          // Invoices, quotes, credits, recurring invoices and purchase orders
+          // — the editors with a Print PDF (`EntityEditScaffold.printAction`).
+          _Row(
+            chords: [
+              [mod, 'P'],
+            ],
+            description: context.tr('save_and_print'),
+          ),
         ],
       ),
       _Section(

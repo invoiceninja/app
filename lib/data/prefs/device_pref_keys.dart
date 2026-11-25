@@ -476,6 +476,19 @@ abstract final class DevicePrefKeys {
     PrefScope.device,
   );
 
+  /// Whether a plain Save of a billing document that can be printed
+  /// (invoice, quote, credit, recurring invoice, purchase order) also prints
+  /// it, as choosing Print PDF from the editor's menu does — Device Settings
+  /// → Forms → Print After Saving (`PrintAfterSavingController`,
+  /// docs/after-saving.md). Off by default. Device scope: whether this
+  /// device has a printer worth sending every save to is the device's
+  /// business, like [afterSaving].
+  static const printAfterSaving = PrefKey<bool>(
+    'print_after_saving',
+    PrefCodec.boolean,
+    PrefScope.device,
+  );
+
   /// In the order they were added; append new keys at the end.
   static const List<PrefKey<Object>> all = [
     locale,
@@ -524,6 +537,7 @@ abstract final class DevicePrefKeys {
     commentReads,
     lockAfterInactivity,
     alwaysShowScrollbars,
+    printAfterSaving,
   ];
 
   /// The account preferences a sign-out keeps aside for the SAME user's

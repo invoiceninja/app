@@ -275,6 +275,13 @@ final Map<PrefKey<Object>, _Probe> _probes = {
     (s) => s.afterSaving.set(false, isPhone: false),
     (s) => s.afterSaving.value == null,
   ),
+  // Whether a Save of a billing document also prints it — whether this
+  // device has a printer to send it to, kept across a sign-out like After
+  // Saving.
+  DevicePrefKeys.printAfterSaving: _Probe(
+    (s) => s.printAfterSaving.set(true),
+    (s) => !s.printAfterSaving.value,
+  ),
   // Whose choice the appearance was: a sign-out forgets it — the look itself
   // stays (the theme probes above) — so the next person to sign in adopts
   // their own synced one rather than racing it.

@@ -51,6 +51,7 @@ import 'package:admin/utils/formatting.dart';
 import 'package:admin/ui/core/utils/router_state.dart';
 import 'package:admin/ui/features/settings/widgets/settings_tab_strip.dart';
 import 'package:admin/app/after_saving_controller.dart';
+import 'package:admin/app/print_after_saving_controller.dart';
 import 'package:admin/ui/core/edit/after_saving.dart';
 
 // Search keys for the settings search, one list per tab. Colocated with the
@@ -111,6 +112,8 @@ const kDeviceSettingsFormsSearchKeys = <String>[
   'after_saving_help',
   'edit_record',
   'view_record',
+  'print_after_saving',
+  'print_after_saving_help',
   'items_section_help',
   'default_tab',
   'spell_check',
@@ -437,6 +440,9 @@ class _FormsTab extends StatelessWidget {
 /// invoiceninja/app#202. Two choices, so both stay in view (CLAUDE.md
 /// § Two-choice fields). The selection shown is the effective one, so an
 /// untouched setting reads as this device's automatic answer.
+///
+/// Then "Print After Saving": whether a billing document's Save also prints
+/// it, as Print PDF from the editor's menu does (off by default).
 class _AfterSavingSection extends StatelessWidget {
   const _AfterSavingSection();
 
@@ -444,10 +450,11 @@ class _AfterSavingSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final afterSaving = context.read<AfterSavingController?>();
     if (afterSaving == null) return const SizedBox.shrink();
+    final printAfterSaving = context.read<PrintAfterSavingController?>();
     return FormSection(
       title: context.tr('save'),
       flush: true,
-      children: [
+      children: withSettingDividers([
         ValueListenableBuilder<bool?>(
           valueListenable: afterSaving,
           builder: (context, _, _) => SettingRow(
@@ -464,7 +471,18 @@ class _AfterSavingSection extends StatelessWidget {
             ),
           ),
         ),
-      ],
+        if (printAfterSaving != null)
+          ValueListenableBuilder<bool>(
+            valueListenable: printAfterSaving,
+            builder: (context, enabled, _) => SettingRow.toggle(
+              icon: const Icon(Icons.print_outlined),
+              title: context.tr('print_after_saving'),
+              subtitle: context.tr('print_after_saving_help'),
+              value: enabled,
+              onChanged: printAfterSaving.set,
+            ),
+          ),
+      ]),
     );
   }
 }

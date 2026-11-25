@@ -273,3 +273,47 @@ Tests: `test/ui/core/edit/entity_edit_screen_scaffold_after_saving_test.dart`,
 `test/ui/core/edit/generic_edit_view_model_edited_during_save_test.dart`,
 `test/ui/features/billing_shared/edit/reload_skips_one_shot_extras_test.dart`,
 `test/ui/features/billing_shared/edit/open_line_item_test.dart`.
+
+## Print After Saving runs Print PDF's own after-save path, and ⌘P runs it whatever the setting says
+
+Beta feedback asked for a setting that prints a document straight after it
+is saved. "Print After Saving" is a device preference
+(`DevicePrefKeys.printAfterSaving`, `PrintAfterSavingController`, Device
+Settings → Forms, under After Saving), off by default, device scope like After
+Saving. It applies to the editors that have a Print PDF — invoice, quote,
+credit, recurring invoice and purchase order, each passing its
+`<E>Action.printPdf` as `EntityEditScreenScaffold.printAction`; every other
+editor passes none, and the setting and ⌘P do nothing there.
+
+**It adds no print code of its own.** With the setting on, a plain Save — the
+button, Enter, ⌘S, the save-failed banner's Retry — goes through
+`EntityEditScaffold._onAction(printAction)`, the path a tap on Print PDF in the
+editor's ⋮ menu takes, so everything that path does, a Save with the setting
+on does too:
+
+| | What happens (the menu's Print PDF, today) |
+|---|---|
+| Existing record | saves, runs the prior-dead-row cleanup, then `<E>Actions.dispatch(printPdf)` against the saved record; no "Saved" toast, no After Saving navigation and no reload — the editor stays as it is, like Email or Clone from the menu (§ Save stays in the editor only where After Saving says so) |
+| New record | saves, then `dispatchAfterSaveOnCreate` resolves the `tmp_` id and prints the real record; Print takes no navigation over, so the save goes to the record (`onSavedByAction`) |
+| Offline, new record | the create is queued, the dispatch's `tmpGate` says "sync first" and nothing prints — the PDF is the server's |
+| Offline, existing record | the save is queued; the PDF download fails and the dispatch shows its error toast |
+| Save refused (validation, a 422) or failed (network, 5xx) | `_runSave` returns null and nothing prints |
+| `lock_invoices` | the record is the one just saved, unchanged by printing; nothing reopens an editor |
+
+One difference, on purpose: the menu skips the save of an unchanged record
+(skip-redundant-save) and only prints; a Save with the setting on still saves
+first (`_onAction(..., alwaysSave: true)`), because Save re-saves an unchanged
+record so the server recalculates (§ Save stays enabled, gives the focus back,
+and never creates twice).
+
+**⌘P (Apple) / Ctrl+P (elsewhere) saves then prints in those editors whatever
+the setting says** — exactly the menu's tap, skip-redundant-save included, so
+an unchanged record just prints. It binds one modifier per platform, not ⌘S's
+pair: ⌃P is Cocoa's previous-line key inside a Mac text field, and Win+P is
+Windows' display switcher. The action is always enabled, so the key is
+consumed even while the form is saving: on the web an unconsumed ⌘P is the
+browser printing the page. The keyboard side — the hint bar, the `?` dialog,
+and the focus owner that lets it fire with no click — is in
+`docs/keyboard.md` § An edit form owns its focus, so ⌘S and ⌘P need no click.
+
+Tests: `test/ui/core/edit/entity_edit_scaffold_save_and_print_test.dart`.

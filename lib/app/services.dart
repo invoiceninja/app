@@ -14,6 +14,7 @@ import 'package:logging/logging.dart';
 import 'package:admin/app/lock_after_inactivity_controller.dart';
 import 'package:admin/app/accent_color_controller.dart';
 import 'package:admin/app/after_saving_controller.dart';
+import 'package:admin/app/print_after_saving_controller.dart';
 import 'package:admin/app/app_locale_resolver.dart';
 import 'package:admin/app/appearance_sync_controller.dart';
 import 'package:admin/app/company_label_overrides.dart';
@@ -424,6 +425,7 @@ class Services implements SidebarBadgeContext {
     required this.kanbanPrefs,
     required this.hideEmptyPanels,
     required this.afterSaving,
+    required this.printAfterSaving,
     required this.defaultItemsTab,
     required this.hoursFormat,
     required this.hidePeppolStatus,
@@ -882,6 +884,11 @@ class Services implements SidebarBadgeContext {
   /// automatic (the editor except on a phone), so read it through
   /// `staysIn(context)` (`ui/core/edit/after_saving.dart`), never `value`.
   final AfterSavingController afterSaving;
+
+  /// "Print After Saving" — whether a plain Save of a billing document also
+  /// prints it (Device Settings → Forms, docs/after-saving.md). Read through
+  /// its root provider by `EntityEditScaffold`.
+  final PrintAfterSavingController printAfterSaving;
 
   /// Which items tab a billing document opens on when its lines don't decide
   /// (React #3355) — Device Settings → Forms → Items.
@@ -2435,6 +2442,7 @@ class Services implements SidebarBadgeContext {
     final kanbanPrefs = KanbanPrefsController(prefs: devicePrefs);
     final hideEmptyPanels = HideEmptyPanelsController(prefs: devicePrefs);
     final afterSaving = AfterSavingController(prefs: devicePrefs);
+    final printAfterSaving = PrintAfterSavingController(prefs: devicePrefs);
     final defaultItemsTab = DefaultItemsTabController(prefs: devicePrefs);
     final hoursFormat = HoursFormatController(prefs: devicePrefs);
     final hidePeppolStatus = HidePeppolStatusController(prefs: devicePrefs);
@@ -2918,6 +2926,7 @@ class Services implements SidebarBadgeContext {
       kanbanPrefs: kanbanPrefs,
       hideEmptyPanels: hideEmptyPanels,
       afterSaving: afterSaving,
+      printAfterSaving: printAfterSaving,
       defaultItemsTab: defaultItemsTab,
       hoursFormat: hoursFormat,
       hidePeppolStatus: hidePeppolStatus,

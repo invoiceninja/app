@@ -300,6 +300,10 @@ class InvoiceEditScreen extends StatelessWidget {
       // On create the save returns a tmp-id draft; resolve it to the real id
       // so server-bound actions work, and let navigating ones (Send Email, …)
       // own the post-save navigation instead of the detail redirect.
+      // ⌘P saves then prints, and so does Save with "Print After Saving" on
+      // — Print PDF from the menu, the same after-save path
+      // (docs/after-saving.md).
+      printAction: InvoiceAction.printPdf,
       onAfterSaveActionOnCreate: (ctx, saved, a) {
         final services = ctx.read<Services>();
         final companyId = services.auth.session.value!.currentCompanyId;

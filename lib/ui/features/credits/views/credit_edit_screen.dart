@@ -160,6 +160,10 @@ class CreditEditScreen extends StatelessWidget {
       },
       // Create-mode: resolve the tmp id to the real one so navigating actions
       // (Send Email, View PDF, Apply to Invoice) keep their navigation.
+      // ⌘P saves then prints, and so does Save with "Print After Saving" on
+      // — Print PDF from the menu, the same after-save path
+      // (docs/after-saving.md).
+      printAction: CreditAction.printPdf,
       onAfterSaveActionOnCreate: (ctx, saved, a) {
         final services = ctx.read<Services>();
         final companyId = services.auth.session.value!.currentCompanyId;

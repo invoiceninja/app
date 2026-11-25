@@ -182,6 +182,36 @@ void main() {
     });
   });
 
+  group('the edit form owns focus for ⌘S and ⌘P', () {
+    final edit = read('lib/ui/core/edit/entity_edit_scaffold.dart');
+
+    test('the scaffold keeps a retained node behind a keeper', () {
+      // ⌘S and ⌘P live in the scaffold's own `Shortcuts`; a form opened with
+      // no click has focus on its route's scope or the pane's root, above
+      // them, so without an owner neither fired (docs/keyboard.md § An edit
+      // form owns its focus, so ⌘S and ⌘P need no click).
+      expect(edit.contains('_EditFormFocusOwner('), isTrue);
+      expect(edit.contains('FocusOwnerKeeper('), isTrue);
+      expect(edit.contains('node: _node'), isTrue);
+      expect(edit.contains('focusNode: _node'), isTrue);
+      expect(edit.contains('_node.dispose()'), isTrue);
+    });
+
+    test('it arms after the first frame and is gated on TickerMode', () {
+      expect(
+        edit.contains('scheduleMicrotask('),
+        isTrue,
+        reason:
+            'armed in the first post-frame callback, the keeper claims '
+            'before the create form\'s autofocus applies and drops it',
+      );
+      expect(
+        edit.contains('_armed && TickerMode.valuesOf(context).enabled'),
+        isTrue,
+      );
+    });
+  });
+
   group('the / search slot follows the visible branch', () {
     test('TokenSearchField claims the slot under a TickerMode gate', () {
       expect(

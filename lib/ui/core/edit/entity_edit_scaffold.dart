@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -12,11 +13,13 @@ import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/adaptive.dart';
 import 'package:admin/ui/core/detail/entity_detail_actions_row.dart';
 import 'package:admin/ui/core/dialogs/discard_changes_dialog.dart';
+import 'package:admin/ui/core/edit/after_saving.dart';
 import 'package:admin/ui/core/edit/generic_edit_view_model.dart';
 import 'package:admin/ui/core/edit/unsaved_label.dart';
 import 'package:admin/ui/core/list/master_detail_layout.dart';
 import 'package:admin/ui/core/unsaved_changes/unsaved_changes_scope.dart';
 import 'package:admin/ui/core/utils/platform_modifier.dart';
+import 'package:admin/ui/core/widgets/focus_owner_keeper.dart';
 import 'package:admin/ui/core/widgets/form_save_scope.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/core/widgets/shortcut_hint_scope.dart';
@@ -73,6 +76,7 @@ class EntityEditScaffold<T> extends StatelessWidget {
     this.onAfterSaveActionOnCreate,
     this.onSaveCleanup,
     this.titleTrailing,
+    this.printAction,
   });
 
   final GenericEditViewModel<T> vm;
@@ -191,6 +195,13 @@ class EntityEditScaffold<T> extends StatelessWidget {
   /// a successful re-save — otherwise a prior 422's `dead` row lingers and the
   /// entity re-hydrates a false SaveFailedBanner on the next open. Awaited.
   final FutureOr<void> Function()? onSaveCleanup;
+
+  /// The AFTER-SAVE action that prints this record — a billing document's
+  /// Print PDF (`InvoiceAction.printPdf`, …) — or null where there is none.
+  /// Non-null binds ⌘P / Ctrl+P to save, then run it ([_onAction], exactly
+  /// as choosing it from the menu), and makes a plain Save do the same while
+  /// Device Settings → Print After Saving is on (docs/after-saving.md).
+  final Object? printAction;
 
   /// Drawn after the title on a wide header, before the "Unsaved" label —
   /// a billing document's status pill. Wide only, like that label: the
@@ -312,12 +323,31 @@ class EntityEditScaffold<T> extends StatelessWidget {
     await (viaAction ? onSavedByAction ?? onSaved : onSaved)(context, result);
   }
 
+  /// A plain Save — the button, Enter, ⌘S, the save-failed banner's Retry.
+  /// With "Print After Saving" on and a [printAction], it is that action's
+  /// save-then-print, through [_onAction] like a menu tap, so After Saving,
+  /// the create-then-resolve-id path and offline behave as Print PDF from
+  /// the menu does; `alwaysSave` keeps Save's re-save of an unchanged record,
+  /// which the menu would skip (docs/after-saving.md).
+  Future<void> _onPlainSave(BuildContext context) {
+    final toPrint = printAction;
+    if (toPrint != null && printsAfterSave(context)) {
+      return _onAction(context, toPrint, alwaysSave: true);
+    }
+    return _onSave(context);
+  }
+
   /// Overflow action-bar tap. Three buckets (see plan / CLAUDE.md):
   ///   * SAVE-PARAM  — server performs it via the save request's query.
   ///   * AFTER-SAVE  — save first, then `<E>Actions.dispatch`.
   ///   * skip-save   — unchanged existing record + after-save action:
-  ///                   dispatch directly, no redundant outbox row.
-  Future<void> _onAction(BuildContext context, Object action) async {
+  ///                   dispatch directly, no redundant outbox row — unless
+  ///                   [alwaysSave], which a plain Save that prints passes.
+  Future<void> _onAction(
+    BuildContext context,
+    Object action, {
+    bool alwaysSave = false,
+  }) async {
     if (vm.isSaving) return;
     final query = saveParamFor?.call(action);
 
@@ -343,7 +373,7 @@ class EntityEditScaffold<T> extends StatelessWidget {
 
     // AFTER-SAVE / SECOND-REQUEST.
     final wasCreate = vm.isCreate;
-    if (!wasCreate && !vm.isDirty) {
+    if (!wasCreate && !vm.isDirty && !alwaysSave) {
       // Skip-redundant-save: nothing to persist — dispatch straight away
       // (matches old admin-portal `isOld && !isChanged && isClientSide`).
       await onAfterSaveAction?.call(context, vm.draft, action);
@@ -444,7 +474,7 @@ class EntityEditScaffold<T> extends StatelessWidget {
               // so a text/type finder is fragile — key it instead.
               key: const ValueKey('entity_edit_save'),
               style: FilledButton.styleFrom(minimumSize: const Size(64, 44)),
-              onPressed: canSave ? () => _onSave(context) : null,
+              onPressed: canSave ? () => _onPlainSave(context) : null,
               child: vm.isSaving
                   ? const SizedBox(
                       width: 36,
@@ -472,19 +502,27 @@ class EntityEditScaffold<T> extends StatelessWidget {
               (action) => _onAction(context, action),
               saveButton,
             );
+            final toPrint = printAction;
             final body = ShortcutHintScope(
               hints: [
                 ShortcutHint(
                   keys: [platformModifierLabel(), 'S'],
                   labelKey: 'save',
                 ),
+                if (toPrint != null)
+                  ShortcutHint(
+                    keys: [platformModifierLabel(), 'P'],
+                    labelKey: 'save_and_print',
+                  ),
               ],
               child: Shortcuts(
-                shortcuts: const <ShortcutActivator, Intent>{
-                  SingleActivator(LogicalKeyboardKey.keyS, meta: true):
-                      _SaveFormIntent(),
-                  SingleActivator(LogicalKeyboardKey.keyS, control: true):
-                      _SaveFormIntent(),
+                shortcuts: <ShortcutActivator, Intent>{
+                  const SingleActivator(LogicalKeyboardKey.keyS, meta: true):
+                      const _SaveFormIntent(),
+                  const SingleActivator(LogicalKeyboardKey.keyS, control: true):
+                      const _SaveFormIntent(),
+                  if (toPrint != null)
+                    saveAndPrintActivator(): const _SaveAndPrintIntent(),
                 },
                 child: Actions(
                   actions: <Type, Action<Intent>>{
@@ -493,22 +531,41 @@ class EntityEditScaffold<T> extends StatelessWidget {
                         // Mirror the Save button — same gate, same handler.
                         // Pressing ⌘S while the form is invalid or already
                         // saving is a silent no-op.
-                        if (canSave) _onSave(context);
+                        if (canSave) _onPlainSave(context);
                         return null;
                       },
                     ),
+                    // ⌘P / Ctrl+P: save, then print — Print PDF from the
+                    // menu, whatever "Print After Saving" says. Enabled, so
+                    // the key is consumed even while it does nothing (a form
+                    // saving, or invalid): on the web an unconsumed ⌘P is
+                    // the browser's own print of the page.
+                    if (toPrint != null)
+                      _SaveAndPrintIntent: CallbackAction<_SaveAndPrintIntent>(
+                        onInvoke: (_) {
+                          _onAction(context, toPrint);
+                          return null;
+                        },
+                      ),
                   },
-                  child: FormSaveScope(
-                    enabled: canSave,
-                    onSubmit: () => _onSave(context),
-                    child: topBanner == null
-                        ? bodyBuilder(context)
-                        : Column(
-                            children: [
-                              topBanner!,
-                              Expanded(child: bodyBuilder(context)),
-                            ],
-                          ),
+                  // The form's resting focus owner: without one, a form
+                  // opened with no click has focus on the route's scope (or
+                  // the pane's root), *above* this `Shortcuts`, and ⌘S / ⌘P
+                  // reach nothing (docs/keyboard.md § The whole keyboard
+                  // layer hangs off one focus node).
+                  child: _EditFormFocusOwner(
+                    child: FormSaveScope(
+                      enabled: canSave,
+                      onSubmit: () => _onPlainSave(context),
+                      child: topBanner == null
+                          ? bodyBuilder(context)
+                          : Column(
+                              children: [
+                                topBanner!,
+                                Expanded(child: bodyBuilder(context)),
+                              ],
+                            ),
+                    ),
                   ),
                 ),
               ),
@@ -675,4 +732,78 @@ class EntityEditScaffold<T> extends StatelessWidget {
 
 class _SaveFormIntent extends Intent {
   const _SaveFormIntent();
+}
+
+class _SaveAndPrintIntent extends Intent {
+  const _SaveAndPrintIntent();
+}
+
+/// ⌘P on Apple platforms, Ctrl+P elsewhere — one modifier each, unlike ⌘S's
+/// pair: ⌃P is Cocoa's previous-line key inside a text field on a Mac, and
+/// Win+P is Windows' own display switcher (docs/keyboard.md).
+SingleActivator saveAndPrintActivator([TargetPlatform? platform]) {
+  final p = platform ?? defaultTargetPlatform;
+  final apple = p == TargetPlatform.macOS || p == TargetPlatform.iOS;
+  return SingleActivator(LogicalKeyboardKey.keyP, meta: apple, control: !apple);
+}
+
+/// An edit form's resting focus owner, so the `Shortcuts` above it (⌘S, ⌘P)
+/// answer on a form the user has not clicked into — the detail scaffold's
+/// `_bodyFocus` again (docs/keyboard.md § The whole keyboard layer hangs off
+/// one focus node).
+///
+/// **It arms only after the first frame's autofocus has landed.** A create
+/// form autofocuses its first field (a client's name), and an autofocus is
+/// applied in a microtask after the frame — only while its scope has focused
+/// nothing yet. The keeper's own post-frame claim runs first and would set
+/// that scope's focused child, so the field's autofocus was dropped. Armed a
+/// microtask later, the keeper finds the field focused (below it) and leaves
+/// it; with no autofocus it finds focus above it and claims.
+///
+/// Skipped by traversal, so Tab never stops on it; gated on `TickerMode`, so
+/// an editor left mounted behind another branch does not claim.
+class _EditFormFocusOwner extends StatefulWidget {
+  const _EditFormFocusOwner({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_EditFormFocusOwner> createState() => _EditFormFocusOwnerState();
+}
+
+class _EditFormFocusOwnerState extends State<_EditFormFocusOwner> {
+  /// Retained: an anonymous node cannot be re-focused.
+  final FocusNode _node = FocusNode(
+    debugLabel: 'entity-edit',
+    skipTraversal: true,
+  );
+
+  bool _armed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // After `FocusManager`'s own microtask, which applies the autofocus
+      // requests this frame queued.
+      scheduleMicrotask(() {
+        if (mounted) setState(() => _armed = true);
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _node.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FocusOwnerKeeper(
+      node: _node,
+      enabled: _armed && TickerMode.valuesOf(context).enabled,
+      child: Focus(focusNode: _node, child: widget.child),
+    );
+  }
 }

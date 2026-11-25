@@ -52,6 +52,7 @@ import 'package:admin/app/sentry_gate.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/app/sign_out_notice.dart';
 import 'package:admin/app/after_saving_controller.dart';
+import 'package:admin/app/print_after_saving_controller.dart';
 import 'package:admin/app/show_seconds_controller.dart';
 import 'package:admin/app/always_show_scrollbars_controller.dart';
 import 'package:admin/app/document_thumbnails_controller.dart';
@@ -1163,6 +1164,12 @@ class _InvoiceNinjaAppState extends State<InvoiceNinjaApp> {
         // (docs/after-saving.md).
         ChangeNotifierProvider<AfterSavingController>.value(
           value: widget.services.afterSaving,
+        ),
+        // Whether a billing document's Save also prints it, and its Device
+        // Settings row, read as `context.read<PrintAfterSavingController?>()`
+        // for the same reason (docs/after-saving.md).
+        ChangeNotifierProvider<PrintAfterSavingController>.value(
+          value: widget.services.printAfterSaving,
         ),
         // Where a desktop download is written, read as
         // `DownloadsFolderController?` by `bytesSaver` and its Device

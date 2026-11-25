@@ -165,6 +165,10 @@ class RecurringInvoiceEditScreen extends StatelessWidget {
       },
       // Create-mode: resolve the tmp id to the real one so navigating actions
       // (View PDF) keep their navigation instead of the redirect.
+      // ⌘P saves then prints, and so does Save with "Print After Saving" on
+      // — Print PDF from the menu, the same after-save path
+      // (docs/after-saving.md).
+      printAction: RecurringInvoiceAction.printPdf,
       onAfterSaveActionOnCreate: (ctx, saved, a) {
         final services = ctx.read<Services>();
         final companyId = services.auth.session.value!.currentCompanyId;

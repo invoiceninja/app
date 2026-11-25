@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:provider/provider.dart';
 
 import 'package:admin/app/after_saving_controller.dart';
+import 'package:admin/app/print_after_saving_controller.dart';
 import 'package:admin/ui/core/adaptive.dart';
 
 /// Whether Save keeps an edit screen open by default on the device showing
@@ -28,3 +29,10 @@ extension AfterSavingInContext on AfterSavingController {
 /// as it did before the setting existed.
 bool staysInEditorAfterSave(BuildContext context) =>
     context.read<AfterSavingController?>()?.staysIn(context) ?? false;
+
+/// Whether a plain Save on the editor at [context] also prints the record —
+/// Device Settings → Print After Saving, for an editor that has a print
+/// action (`EntityEditScaffold.printAction`). Without the controller (a test
+/// with no provider) it is false.
+bool printsAfterSave(BuildContext context) =>
+    context.read<PrintAfterSavingController?>()?.value ?? false;
