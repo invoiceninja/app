@@ -152,7 +152,14 @@ const Set<String> kModeledLineItemKeys = {
 
 /// Line fields the server writes on every save from the document's own
 /// state (`InvoiceItemSum`: the totals, and `is_amount_discount` copied from
-/// the document) — echoing a stale copy back would mean nothing.
+/// the document). Carried through an edit and sent back like any other
+/// [LineItemApi.extra] field, as React sends them: the server recomputes them
+/// on every save, so a stale copy on an edited line costs nothing, but an
+/// untouched line has to go back exactly as stored. A quote whose optional
+/// picks the client has confirmed refuses any save whose `line_items` differ
+/// from the stored ones (`QuoteOptions::assertEditable`, v5.14.0), and the
+/// request's line cleaner fills a missing key with `0` / `false`, so leaving
+/// these out locked every save of such a quote, a private-notes edit included.
 const Set<String> kServerComputedLineItemKeys = {
   'line_total',
   'gross_line_total',
@@ -176,9 +183,7 @@ Map<String, Object?> lineItemExtraFields(Map<String, dynamic> json) {
     if (stored is Map)
       for (final e in stored.entries) '${e.key}': e.value,
     for (final e in json.entries)
-      if (e.key != kLineItemExtraKey &&
-          !kModeledLineItemKeys.contains(e.key) &&
-          !kServerComputedLineItemKeys.contains(e.key))
+      if (e.key != kLineItemExtraKey && !kModeledLineItemKeys.contains(e.key))
         e.key: e.value,
   };
 }

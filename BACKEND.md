@@ -48,6 +48,7 @@ the Flutter app) so they are explicitly **out of scope** here.
 - **Multi-rate inclusive tax** — server adopted the additive `InclusiveTax::backout` model 2026-07-09 (two small client-side residuals noted in that section).
 - **`last_login`** (§ F5), **PEPPOL Singapore `government`**, and **`documents_public_by_default`** — all three landed server-side by 2026-09-08; see each section for the one client-visible caveat (`last_login` emits `0`, not `null`, for "never").
 - **Found shipped 2026-09-28** (all released by v5.13.37, 2026-09-02): the PO PDF's vendor currency (`47fa071e6d`), `/refresh` minting the `is_system` token per (company, user) (`878b080b60`), bank-rule `is_empty` validation (§ U2) and five of the six reserved-date-keyword defects (§ Reserved date keywords), both in `fd8cd8ad6c`. The optional CORS `Access-Control-Expose-Headers: X-MINIMUM-CLIENT-VERSION` is also live (`app/Http/Middleware/Cors.php`).
+- **Optional quote lines** (§ Optional quote lines) — `is_optional` modelled, left out of every total, and picked in the portal, in v5.14.0 (2026-11-25). It brought a new open item, § Optional quote lines: a confirmed selection locks the quote, and the app cannot see it.
 
 **Provenance**
 - **2026-05-15** — empirical curl probe vs `demo.invoiceninja.com`.
@@ -3428,6 +3429,18 @@ A self-hosted server still on `.env.example`'s `REACT_URL=http://localhost:3001`
 
 ## Optional quote lines (`is_optional`) — the server's totals still count them — **O**
 
+**STATUS 2026-11-25: (1), (2) and (3) shipped in v5.14.0** (`153b80c57a` "Optional quote items",
+merged as `9101e3e5ac`). `InvoiceItem::$is_optional` defaults to `false` (so the app's
+`serverModelsOptionalLines` signal fires); `InvoiceItemSum` / `InvoiceItemSumInclusive` zero an
+optional line (`line_total`, `gross_line_total`, `tax_amount`, `net_cost` all `0`) and skip it in
+the amount-discount and tax passes; `CleanLineItems::entityTotalAmount` and the PDF's task-quantity
+total skip it too. Checked against the real code: `test/domain/billing/totals_parity_test.dart` runs
+four optional cases (exclusive and inclusive, percent and amount discounts) through
+`tool/totals_oracle.php` and the app agrees on every total. The portal's pick (`QuoteOptions::apply`)
+rewrites `line_items` to the chosen lines (each `is_optional: false`) and keeps the offer in
+`backup.option_selection`. One new problem came with it, logged as its own item below
+(§ Optional quote lines: a confirmed selection locks the quote, and the app cannot see it).
+
 **Provenance** — 2026-11-09, spec from the team: a new line item prop `is_optional` (bool, default
 false) marks a quote line the client may choose to include when approving it in the portal. Nothing
 on `origin/v5-develop`, any server branch or React models it yet.
@@ -3457,6 +3470,28 @@ prevent. Nothing the client can read proves (2) before an optional line exists.
 
 Until (2) ships, a quote with an optional line shows one total in the app and another in its PDF
 and list row.
+
+## Optional quote lines: a confirmed selection locks the quote, and the app cannot see it — **O (found 2026-11-25, read against v5-develop `c77d7d4409`, v5.14.0)**
+
+**What the server does.** Once a client confirms their optional picks in the portal,
+`QuoteRepository::save` calls `QuoteOptions::assertEditable`: it `fill`s a clone with the request
+data and refuses the save with a 422 (`quote_options_locked`, on the first field that differs) if any
+`SCOPE_FIELDS` attribute or `backup` `!=` the stored one. `hasOptionSelection()` stays true after
+approval (`state` → `accepted`, `confirmed_at` kept), so the lock never ends.
+
+**What it did to the app (fixed client-side, 2026-11-25).** The comparison is of the *request*,
+after `cleanItems` fills each absent `InvoiceItem` key with its default. The app left out the
+server-computed line keys (`line_total`, `gross_line_total`, `tax_amount`, `net_cost`,
+`is_amount_discount`), so they arrived as `0` / `false` against the stored values and **every** app
+save of such a quote was refused, a `private_notes` edit included. React echoes those keys, and now
+so does the app (`kServerComputedLineItemKeys`, carried in `LineItemApi.extra`). Checked by running
+an app payload through the server's own `CleanLineItems` and the lock's comparison: an untouched
+line now passes, an edited one is still refused (as it should be), and the old payload was refused.
+
+**Still asked of the server:** expose the selection on the quote (e.g. `option_selection: {state,
+confirmed_at, selected_options}`). `QuoteTransformer` does not serialise `backup`, so nothing tells
+the app (or React) that a quote is locked; the first sign is a refused scope edit. With it the edit
+screen could show the quote as locked and say why.
 
 ## Found during the 2026-11-17 redesign round — **O (unverified until the batch review)**
 

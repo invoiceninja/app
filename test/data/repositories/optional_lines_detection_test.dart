@@ -74,7 +74,9 @@ void main() {
         'unit_code': 'HUR',
         'income_account_id': 'qb-41',
         'tags': 'urgent',
-        'line_total': 100, // server-computed: not carried
+        // Server-computed, and carried too: React echoes it, and a quote
+        // with a confirmed option selection refuses a save without it.
+        'line_total': 100,
       }),
     ]);
     final quote = await repo.watch(companyId: 'co', id: 'q1').first;
@@ -84,13 +86,14 @@ void main() {
       'unit_code': 'HUR',
       'income_account_id': 'qb-41',
       'tags': 'urgent',
+      'line_total': 100,
     });
     final wire = line.toApiJson();
     expect(wire['unit_code'], 'HUR');
     expect(wire['income_account_id'], 'qb-41');
     // The storage key is local: never sent, never nested.
     expect(wire.containsKey(kLineItemExtraKey), isFalse);
-    expect(wire.containsKey('line_total'), isFalse);
+    expect(wire['line_total'], 100);
   });
 
   group('serverModelsOptionalLines', () {

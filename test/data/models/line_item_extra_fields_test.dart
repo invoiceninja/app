@@ -44,19 +44,30 @@ void main() {
     expect(out['some_future_field'], {'nested': true});
   });
 
-  test('server-computed fields are not echoed back', () {
-    final out = _parse(
-      _wire({
-        'line_total': 200,
-        'gross_line_total': 220,
-        'tax_amount': 20,
-        'net_cost': 100,
-        'is_amount_discount': true,
-      }),
-    ).toApiJson();
+  // As React sends them. A quote whose optional picks the client confirmed
+  // refuses a save whose lines differ from the stored ones, and a missing
+  // key arrives as 0 / false (QuoteOptions::assertEditable, v5.14.0).
+  test('server-computed fields go back as the server sent them', () {
+    const computed = {
+      'line_total': 200,
+      'gross_line_total': 220,
+      'tax_amount': 20,
+      'net_cost': 100,
+      'is_amount_discount': true,
+    };
+    expect(computed.keys.toSet(), kServerComputedLineItemKeys);
+    final item = _parse(_wire(computed));
 
-    for (final key in kServerComputedLineItemKeys) {
-      expect(out.containsKey(key), isFalse, reason: key);
+    expect(item.toApiJson(), containsPair('line_total', 200));
+    for (final e in computed.entries) {
+      expect(item.toApiJson()[e.key], e.value, reason: e.key);
+    }
+    // And through the stored row, which is what an edit starts from.
+    final stored = LineItemApi.fromJson(
+      LineItemApi.fromJson(_wire(computed)).toJson(),
+    );
+    for (final e in computed.entries) {
+      expect(LineItem.fromApi(stored).toApiJson()[e.key], e.value);
     }
   });
 
