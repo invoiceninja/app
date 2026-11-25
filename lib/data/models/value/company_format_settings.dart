@@ -1,3 +1,7 @@
+import 'package:material_ui/material_ui.dart' show kMaterialSupportedLanguages;
+
+import 'package:admin/data/models/value/language.dart';
+
 /// Subset of the company settings JSON that the number / date formatter
 /// needs. Built once per company switch and held on `Services`.
 ///
@@ -72,7 +76,16 @@ class CompanyFormatSettings {
   /// `settings: jsonEncode(uc.company.settings)` column in
   /// `auth_repository.dart`). Accepts either the settings map directly or a
   /// company envelope wrapping it under a `settings` key.
-  factory CompanyFormatSettings.fromCompanyJson(Map<String, dynamic> json) {
+  ///
+  /// [languages] is the statics catalog (`StaticsRepository.languages`): a
+  /// `language_id` becomes that row's `locale`, as admin-portal's
+  /// `localeSelector` does. Never a hand-kept id table: one was wrong from id
+  /// 18 up, and English (United Kingdom), id 20, rendered every month word in
+  /// Romanian. See [formattableLocale] for what becomes empty.
+  factory CompanyFormatSettings.fromCompanyJson(
+    Map<String, dynamic> json, {
+    Map<String, Language> languages = const {},
+  }) {
     final settings = json['settings'] is Map<String, dynamic>
         ? json['settings'] as Map<String, dynamic>
         : json;
@@ -84,7 +97,9 @@ class CompanyFormatSettings {
       dateFormatId: _str(settings, 'date_format_id', fallback.dateFormatId),
       showCurrencyCode: _bool(settings, 'show_currency_code'),
       enableMilitaryTime: _bool(settings, 'military_time'),
-      locale: _localeFromLanguageId(_str(settings, 'language_id', '')),
+      locale: formattableLocale(
+        languages[_str(settings, 'language_id', '')]?.locale ?? '',
+      ),
       // first_month_of_year / first_day_of_week / use_comma_as_decimal_place are
       // TOP-LEVEL company fields (not inside `settings`), so read them off the
       // outer `json`. In the common path `Services._buildFormatter` overrides
@@ -175,93 +190,18 @@ int? _intOrNull(Map<String, dynamic> m, String key) {
   return int.tryParse(v.toString());
 }
 
-/// Map server language IDs to `intl` locale strings. Mirrors the subset of
-/// `admin-portal/lib/redux/company/company_selectors.dart:localeSelector`
-/// that actually affects formatting. Falls back to `en` for unknown ids
-/// (and for `mk_MK` / `sq` which admin-portal also forces to `en`).
-String _localeFromLanguageId(String languageId) {
-  switch (languageId) {
-    case '1':
-      return 'en';
-    case '2':
-      return 'it';
-    case '3':
-      return 'de';
-    case '4':
-      return 'fr';
-    case '5':
-      return 'pt_BR';
-    case '6':
-      return 'nl';
-    case '7':
-      return 'es';
-    case '8':
-      return 'nb_NO';
-    case '9':
-      return 'da';
-    case '10':
-      return 'ja';
-    case '11':
-      return 'sv';
-    case '12':
-      return 'es_ES';
-    case '13':
-      return 'fr_CA';
-    case '14':
-      return 'lt';
-    case '15':
-      return 'pl';
-    case '16':
-      return 'cs';
-    case '17':
-      return 'hr';
-    case '18':
-      return 'sk';
-    case '19':
-      return 'el';
-    case '20':
-      return 'ro';
-    case '21':
-      return 'tr_TR';
-    case '22':
-      return 'th';
-    case '23':
-      return 'pt_PT';
-    case '24':
-      return 'ru_RU';
-    case '25':
-      return 'fi';
-    case '26':
-      return 'zh_TW';
-    case '27':
-      return 'fa';
-    case '28':
-      return 'lv_LV';
-    case '29':
-      return 'sr';
-    case '30':
-      return 'sl';
-    case '31':
-      return 'et';
-    case '32':
-      return 'bg';
-    case '33':
-      return 'he';
-    case '34':
-      return 'km_KH';
-    case '35':
-      return 'hu';
-    case '36':
-      return 'fr_CH';
-    case '37':
-      return 'en_GB';
-    case '39':
-      return 'ar';
-    case '40':
-      return 'zh_CN';
-    case '41':
-      return 'vi';
-    default:
-      return '';
-  }
+/// [locale] when `DateFormat` can format in it, else `''` (the device locale).
+///
+/// Every `Formatter` date method passes the company locale to `DateFormat`
+/// unguarded, and an unknown one throws in every cell that shows a date. The
+/// date symbols are the ones `GlobalMaterialLocalizations` loads at boot, for
+/// each of its languages, and intl falls back from `lo_LA` to `lo`; so a
+/// locale whose language Material ships is safe, and a language a server adds
+/// later that Material does not ship follows the device instead. Albanian and
+/// Macedonian are not forced to English as admin-portal does (flutter#32090,
+/// since fixed): Material ships both.
+String formattableLocale(String locale) {
+  if (locale.isEmpty) return '';
+  final language = locale.split(RegExp('[_-]')).first.toLowerCase();
+  return kMaterialSupportedLanguages.contains(language) ? locale : '';
 }

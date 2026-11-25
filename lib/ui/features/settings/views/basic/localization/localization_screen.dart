@@ -341,17 +341,25 @@ final Decimal kLocalizationPreviewAmount = Decimal.parse('1234.56');
 
 /// A [Formatter] for the page's unsaved draft: the currency, currency format,
 /// date format, 24-hour time, language and country as [draft] resolves them,
-/// over the saved company's [base] for everything else.
+/// over the saved company's [base] for everything else. [languages] is the
+/// statics catalog the draft's `language_id` is looked up in.
 ///
 /// The decimal comma deliberately comes from [base], whatever the draft says:
 /// `use_comma_as_decimal_place` decides how typed amounts are *parsed*, and
 /// the separators an amount is *shown* with come from the currency (and the
 /// Euro country override), so flipping it here would preview something no
 /// other screen renders.
-Formatter localizationPreviewFormatter(Formatter base, CompanySettings draft) {
+Formatter localizationPreviewFormatter(
+  Formatter base,
+  CompanySettings draft, {
+  Map<String, Language> languages = const {},
+}) {
   final saved = base.settings;
-  final draftFormat = CompanyFormatSettings.fromCompanyJson(draft.toJson())
-      .withCompanyColumns(
+  final draftFormat =
+      CompanyFormatSettings.fromCompanyJson(
+        draft.toJson(),
+        languages: languages,
+      ).withCompanyColumns(
         firstMonthOfYear: saved.firstMonthOfYear,
         firstDayOfWeek: saved.configuredFirstDayOfWeek,
         useCommaAsDecimalPlace: saved.useCommaAsDecimalPlace,
@@ -385,7 +393,11 @@ class _FormatPreview extends StatelessWidget {
       builder: (context, snapshot) {
         final base = snapshot.data;
         if (base == null) return const SizedBox.shrink();
-        final f = localizationPreviewFormatter(base, settings);
+        final f = localizationPreviewFormatter(
+          base,
+          settings,
+          languages: services.statics.languages,
+        );
         final tokens = context.inTheme;
         final theme = Theme.of(context);
         final valueStyle = theme.textTheme.bodyMedium?.copyWith(

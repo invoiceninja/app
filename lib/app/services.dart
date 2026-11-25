@@ -1720,6 +1720,7 @@ class Services implements SidebarBadgeContext {
             row.settings.isEmpty
                 ? const {}
                 : jsonDecode(row.settings) as Map<String, dynamic>,
+            languages: statics.languages,
           );
     if (row != null) {
       // first_month_of_year / first_day_of_week / use_comma_as_decimal_place
