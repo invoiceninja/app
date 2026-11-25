@@ -89,6 +89,7 @@ the honest default.
 | Logout | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Idle session timeout (web only — the phone and desktop apps never sign out for being idle, as v1) | ✅ | ✅ | ✅ | ✅ | |
 | Session-about-to-expire warning with Stay Logged In (web, 2 minutes before the idle timeout) | ❌ | ✅ | ✅ | | |
+| Soft lock after inactivity — locks the app in place after Never / 1 / 5 / 15 / 30 / 60 minutes without signing out (open editors, timers and sync carry on underneath); unlock with the device's biometrics or passcode, or Sign out (confirmed, unsynced work prompted) from the lock. Device Settings → Security, only where the device can verify its owner | — | — | ✅ | | `docs/soft-lock.md` |
 | Single-flight 401 → logout coordination | ✅ | ✅ | ✅ | ✅ | |
 | A 401 that refuses one request ends nothing — the session is checked with `/ping` before a 401 signs anyone out (the task timer's "Insufficient permissions" used to) | — | — | ✅ | | |
 | Sign-in screen says why the last session ended on its own (inactivity, or a rejected session with the request) | — | — | ✅ | | |
@@ -1321,6 +1322,7 @@ Field-level breakdown of every option under each settings panel. Source of truth
 | Show seconds — adds seconds to the kanban cards' timers, durations past a day and time-entry start / end times (local, off by default; running timers always tick seconds) | — | — | ✅ | | |
 | Downloads folder — a desktop Download is saved straight into it, with the path and an Open action in the toast; Windows / Linux can choose the folder, macOS shows Downloads read-only (local) | — | ✅ | ✅ | | |
 | Biometric Authentication toggle | — | ✅ | ✅ | ✅ | |
+| Lock after inactivity — Never / 1 / 5 / 15 / 30 / 60 minutes (local; asks the device's own authentication before turning on; hidden where the device has none — Linux, web) | — | — | ✅ | | `docs/soft-lock.md` |
 | Confirm actions — "Are you sure?" before Approve / Mark Sent / Cancel / Send Now / Archive / Delete etc. (local, on by default) | — | — | ✅ | | |
 | After Saving — Save keeps an edit screen open (Edit Record) or goes to the record (View Record); automatic is Edit Record on a tablet or desktop and View Record on a phone; an action's save (Mark Sent, Email, …) always goes to the record (local; React always stays, v1's setting was desktop-only, invoiceninja/app#202) | ✅ | ✅ | ✅ | | |
 | Sync (pushes queued edits, re-downloads, shows last-updated) | — | ✅ | ✅ | ✅ | ✅ |

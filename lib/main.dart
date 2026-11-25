@@ -34,6 +34,7 @@ import 'package:admin/app/diagnostics_log.dart';
 import 'package:admin/app/downloads_folder_controller.dart';
 import 'package:admin/app/env.dart';
 import 'package:admin/app/idle_timeout_controller.dart';
+import 'package:admin/app/lock_after_inactivity_controller.dart';
 import 'package:admin/app/logging.dart';
 import 'package:admin/app/memory_pressure_observer.dart';
 import 'package:admin/app/mobile_app_promo_controller.dart';
@@ -57,7 +58,9 @@ import 'package:admin/app/spell_check_controller.dart';
 import 'package:admin/app/terminal_lifecycle_observer.dart';
 import 'package:admin/app/text_scale_controller.dart';
 import 'package:admin/app/theme.dart';
+import 'package:admin/app/soft_lock_controller.dart';
 import 'package:admin/app/user_activity_notification.dart';
+import 'package:admin/app/user_activity_tracker.dart';
 import 'package:admin/app/version.dart';
 import 'package:admin/app/script_fonts.dart';
 import 'package:admin/data/db/app_database.dart';
@@ -82,6 +85,7 @@ import 'package:admin/l10n/company_labels_scope.dart';
 import 'package:admin/app/legacy_material_theme.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/l10n/supported_locales.dart';
+import 'package:admin/ui/features/auth/views/soft_lock_host.dart';
 import 'package:admin/ui/features/shell/widgets/window_frame.dart';
 import 'package:admin/ui/core/list/list_column_widths.dart';
 import 'package:admin/ui/core/list/list_density_scope.dart';
@@ -731,15 +735,15 @@ class _InvoiceNinjaAppState extends State<InvoiceNinjaApp> {
   /// The wipe hook this state chained onto, put back on dispose.
   Future<void> Function()? _priorBeforeDataWipe;
 
-  /// Keeps the reset notice back behind the lock screen and while no one is
+  /// Keeps the reset notice back behind either lock and while no one is
   /// signed in (see [LocalDataNoticeHold]).
   late final LocalDataNoticeHold _localDataNoticeHold = LocalDataNoticeHold(
     triggers: Listenable.merge([
-      widget.services.auth.requiresBiometricUnlock,
+      widget.services.auth.appLocked,
       widget.services.auth.credentials,
     ]),
     held: () =>
-        widget.services.auth.requiresBiometricUnlock.value ||
+        widget.services.auth.appLocked.value ||
         !(widget.services.auth.credentials.value?.isAuthenticated ?? false),
   );
 
@@ -861,11 +865,28 @@ class _InvoiceNinjaAppState extends State<InvoiceNinjaApp> {
         null => null,
       };
 
+  /// When the user last touched, typed or edited — the clock both the web's
+  /// idle sign-out and the soft lock measure inactivity against.
+  final UserActivityTracker _activity = UserActivityTracker();
+
   late final IdleTimeoutController _idleTimeout = IdleTimeoutController(
     auth: widget.services.auth,
     company: widget.services.company,
     sync: widget.services.sync,
     notice: widget.services.signOutNotice,
+    activity: _activity,
+  );
+
+  /// Locks the app in place after Device Settings → Security → "Lock after
+  /// inactivity" (docs/soft-lock.md); `SoftLockHost` below draws the lock.
+  late final SoftLockController _softLock = SoftLockController(
+    session: widget.services.auth.session,
+    isSignedIn: () => widget.services.auth.isAuthenticated,
+    locked: widget.services.auth.appLocked,
+    lock: widget.services.auth.engageSoftLock,
+    setting: widget.services.lockAfterInactivity,
+    activity: _activity,
+    canAuthenticate: widget.services.biometric.canAuthenticateOwner,
   );
 
   @override
@@ -934,6 +955,7 @@ class _InvoiceNinjaAppState extends State<InvoiceNinjaApp> {
     WidgetsBinding.instance.addObserver(_passwordCacheObserver);
     WidgetsBinding.instance.addObserver(_syncObserver);
     WidgetsBinding.instance.addObserver(_idleTimeout);
+    WidgetsBinding.instance.addObserver(_softLock);
     WidgetsBinding.instance.addObserver(_memoryPressureObserver);
     WidgetsBinding.instance.addObserver(_terminalObserver);
     if (_purchaseResume case final observer?) {
@@ -983,10 +1005,13 @@ class _InvoiceNinjaAppState extends State<InvoiceNinjaApp> {
     }
     WidgetsBinding.instance.removeObserver(_terminalObserver);
     WidgetsBinding.instance.removeObserver(_memoryPressureObserver);
+    WidgetsBinding.instance.removeObserver(_softLock);
     WidgetsBinding.instance.removeObserver(_idleTimeout);
     WidgetsBinding.instance.removeObserver(_syncObserver);
     WidgetsBinding.instance.removeObserver(_passwordCacheObserver);
+    _softLock.dispose();
     _idleTimeout.dispose();
+    _activity.dispose();
     widget.services.refreshScheduler.dispose();
     widget.services.realtime.dispose();
     _navPersister.dispose();
@@ -1068,6 +1093,12 @@ class _InvoiceNinjaAppState extends State<InvoiceNinjaApp> {
         // For the shell's `SessionExpiryBanner`, read as
         // `context.read<IdleTimeoutController?>()` for the same reason.
         Provider<IdleTimeoutController>.value(value: _idleTimeout),
+        // For Device Settings → Security's "Lock after inactivity", read as
+        // `context.read<LockAfterInactivityController?>()` for the same
+        // reason (docs/soft-lock.md).
+        ChangeNotifierProvider<LockAfterInactivityController>.value(
+          value: widget.services.lockAfterInactivity,
+        ),
         // For the sign-in screen's "why you were signed out", read as
         // `context.read<SignOutNotice?>()` for the same reason.
         ChangeNotifierProvider<SignOutNotice>.value(
@@ -1225,6 +1256,8 @@ class _InvoiceNinjaAppState extends State<InvoiceNinjaApp> {
               // rest of the MediaQuery. The controller is in this builder's
               // merged listenable, so a change rebuilds here.
               final mq = MediaQuery.of(context);
+              // Hoisted only to keep the deeply nested lines below readable.
+              final screenshotWindow = widget.services.screenshotWindow;
               // The company's Custom Labels, over every string below — the
               // router, the toast host and the shortcut-hint bar alike. Below
               // `Localizations` (which `MaterialApp` puts above this builder)
@@ -1238,137 +1271,147 @@ class _InvoiceNinjaAppState extends State<InvoiceNinjaApp> {
                       widget.services.textScale.value,
                     ),
                   ),
-                  // Feed user activity to the idle-timeout enforcer. Translucent
-                  // so it never intercepts gestures; `poke()` is a cheap clock
-                  // stamp read by the controller's periodic check — on the web
-                  // only; off it the controller is inert and nothing reads
-                  // it. The
-                  // notification carries edits in a `MarkdownTextField`, which
-                  // neither a pointer nor (on a soft keyboard) a key event
-                  // reports; plain text fields and hardware keys are fed by the
-                  // controller itself.
+                  // Feed user activity to the shared tracker the web's idle
+                  // sign-out and the soft lock both read. Translucent so it
+                  // never intercepts gestures; `poke()` is a cheap clock stamp
+                  // read by their periodic checks. The notification carries
+                  // edits in a `MarkdownTextField`, which neither a pointer nor
+                  // (on a soft keyboard) a key event reports; plain text
+                  // fields and hardware keys are fed by the tracker itself.
                   child: NotificationListener<UserActivityNotification>(
                     onNotification: (_) {
-                      _idleTimeout.poke();
+                      _activity.poke();
                       return true;
                     },
                     child: Listener(
                       behavior: HitTestBehavior.translucent,
-                      onPointerDown: (_) => _idleTimeout.poke(),
-                      onPointerMove: (_) => _idleTimeout.poke(),
-                      onPointerSignal: (_) => _idleTimeout.poke(),
-                      onPointerHover: (_) => _idleTimeout.poke(),
+                      onPointerDown: (_) => _activity.poke(),
+                      onPointerMove: (_) => _activity.poke(),
+                      onPointerSignal: (_) => _activity.poke(),
+                      onPointerHover: (_) => _activity.poke(),
                       // iOS: layer an animated splash overlay above all routes so
                       // the storyboard → Flutter handoff has a gentle exit instead
                       // of a hard cut. Passthrough on every other platform.
                       child: NativeSplash.wrap(
-                        // Global toast host (top layer) over the app. A later
-                        // sibling in this Stack paints ABOVE every route AND modal
-                        // dialog/sheet (they live inside `child` on the root
-                        // navigator's overlay), so toasts are never hidden behind a
-                        // password/conflict sheet. `Positioned.fill` gives the host
-                        // tight constraints; it lays out only a small corner column,
-                        // so taps outside a toast fall through to the app/barrier.
-                        // Excluded from the screenshot RepaintBoundary on purpose —
-                        // a transient toast shouldn't bleed into store captures.
-                        child: Stack(
-                          children: [
-                            // Root capture boundary for the Debug Panel's screenshot
-                            // button: snapshotting this yields the full window at
-                            // exactly `physicalSize`. Inside `NativeSplash.wrap` so
-                            // the iOS splash overlay is excluded; below the
-                            // textScaler MediaQuery so the shot reflects the user's
-                            // text scale.
-                            RepaintBoundary(
-                              key: widget.services.screenshotWindow.boundaryKey,
-                              // Frameless Windows/Linux only: paints the app's own
-                              // title bar above every route (a passthrough on macOS,
-                              // mobile and web). It must wrap the router rather than
-                              // live in the shell — `/login`, `/lock` and the route
-                              // error screen have no sidebar, and a frameless window
-                              // with no chrome there could not be moved or closed.
-                              // Inside the boundary so store captures match the app.
-                              child: WindowFrame(
-                                screenshotWindow:
-                                    widget.services.screenshotWindow,
-                                railCollapsed:
-                                    widget.services.sidebar.effective,
-                                shellMounted: widget.services.shellMounted,
-                                // List row density (Settings → Device
-                                // Settings), above the router's Navigator so
-                                // every route, dialog and sheet is under it. An
-                                // InheritedNotifier: a flip rebuilds only the
-                                // rows and list chrome that read it. See
-                                // docs/list-density.md.
-                                child: ListDensityScope(
-                                  controller: widget.services.listDensity,
-                                  // Dragged list column widths, the same way
-                                  // (docs/entity-lists.md).
-                                  child: ListColumnWidthsScope(
-                                    controller:
-                                        widget.services.listColumnWidths,
-                                    child: child ?? const SizedBox.shrink(),
+                        // The soft lock (docs/soft-lock.md): an opaque panel
+                        // over everything below — routes, dialogs, toasts —
+                        // that disposes none of it. Not a `/lock` redirect,
+                        // which would take an open editor's unsaved changes
+                        // with it.
+                        child: SoftLockHost(
+                          locked: widget.services.auth.softLocked,
+                          backButtonDispatcher: _router.backButtonDispatcher,
+                          titleBand: WindowFrame.paintsTitleBar()
+                              ? NativeWindow.instance.customFrame
+                              : null,
+                          // Global toast host (top layer) over the app. A later
+                          // sibling in this Stack paints ABOVE every route AND modal
+                          // dialog/sheet (they live inside `child` on the root
+                          // navigator's overlay), so toasts are never hidden behind a
+                          // password/conflict sheet. `Positioned.fill` gives the host
+                          // tight constraints; it lays out only a small corner column,
+                          // so taps outside a toast fall through to the app/barrier.
+                          // Excluded from the screenshot RepaintBoundary on purpose —
+                          // a transient toast shouldn't bleed into store captures.
+                          child: Stack(
+                            children: [
+                              // Root capture boundary for the Debug Panel's screenshot
+                              // button: snapshotting this yields the full window at
+                              // exactly `physicalSize`. Inside `NativeSplash.wrap` so
+                              // the iOS splash overlay is excluded; below the
+                              // textScaler MediaQuery so the shot reflects the user's
+                              // text scale.
+                              RepaintBoundary(
+                                key: screenshotWindow.boundaryKey,
+                                // Frameless Windows/Linux only: paints the app's own
+                                // title bar above every route (a passthrough on macOS,
+                                // mobile and web). It must wrap the router rather than
+                                // live in the shell — `/login`, `/lock` and the route
+                                // error screen have no sidebar, and a frameless window
+                                // with no chrome there could not be moved or closed.
+                                // Inside the boundary so store captures match the app.
+                                child: WindowFrame(
+                                  screenshotWindow: screenshotWindow,
+                                  railCollapsed:
+                                      widget.services.sidebar.effective,
+                                  shellMounted: widget.services.shellMounted,
+                                  locked: widget.services.auth.softLocked,
+                                  // List row density (Settings → Device
+                                  // Settings), above the router's Navigator so
+                                  // every route, dialog and sheet is under it. An
+                                  // InheritedNotifier: a flip rebuilds only the
+                                  // rows and list chrome that read it. See
+                                  // docs/list-density.md.
+                                  child: ListDensityScope(
+                                    controller: widget.services.listDensity,
+                                    // Dragged list column widths, the same way
+                                    // (docs/entity-lists.md).
+                                    child: ListColumnWidthsScope(
+                                      controller:
+                                          widget.services.listColumnWidths,
+                                      child: child ?? const SizedBox.shrink(),
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
-                            Positioned.fill(
-                              child: ToastHost(
-                                controller: widget.services.toasts,
+                              Positioned.fill(
+                                child: ToastHost(
+                                  controller: widget.services.toasts,
+                                ),
                               ),
-                            ),
-                            // Hands the home-screen widgets the app's strings
-                            // and lifecycle; draws nothing. Below
-                            // `Localizations`, which only a context reaches.
-                            // (The widgets take the bundled words, not the
-                            // Custom Labels — see `HomeWidgetsHost`.)
-                            HomeWidgetsHost(
-                              publisher: widget.services.homeWidgets,
-                              commands: widget.services.homeWidgetCommands,
-                            ),
-                            // Slack-style hint bar: holding ⌘/Ctrl reveals the
-                            // modifier shortcuts available in the current context.
-                            // A sibling of ToastHost so it too paints above every
-                            // route and modal; non-interactive so taps fall
-                            // through.
-                            Positioned.fill(
-                              child: ShortcutHintOverlay(
-                                controller: widget.services.shortcutHints,
+                              // Hands the home-screen widgets the app's strings
+                              // and lifecycle; draws nothing. Below
+                              // `Localizations`, which only a context reaches.
+                              // (The widgets take the bundled words, not the
+                              // Custom Labels — see `HomeWidgetsHost`.)
+                              HomeWidgetsHost(
+                                publisher: widget.services.homeWidgets,
+                                commands: widget.services.homeWidgetCommands,
                               ),
-                            ),
-                            // Paints nothing — it watches the app lifecycle and
-                            // raises the "log this call?" toast when the user comes
-                            // back from the dialer (invoiceninja/flutter#120). A
-                            // widget rather than a fourth `WidgetsBindingObserver`
-                            // above, because the offer opens a form and enqueues
-                            // through the repositories, so it needs a context under
-                            // the providers.
-                            CallLogPrompter(
-                              services: widget.services,
-                              // A context inside the router's Navigator — this
-                              // widget's own sits above it, so a sheet pushed from
-                              // there would find no Navigator at all. Same supplier
-                              // `deepLinks.attach` takes, for the same reason.
-                              contextOf: () => _router
-                                  .routerDelegate
-                                  .navigatorKey
-                                  .currentContext,
-                            ),
-                            // Paints nothing — once the app is up, it tells the
-                            // user what a reset of their local data did: a toast
-                            // when everything came across, a dialog when their
-                            // unsynced work may not have. Needs a context inside
-                            // the router's Navigator, like the prompter above.
-                            LocalDataRecoveryNotice(
-                              slot: _localDataNotice,
-                              holdWhile: _localDataNoticeHold,
-                              toasts: widget.services.toasts,
-                              contextOf: () => _router
-                                  .routerDelegate
-                                  .navigatorKey
-                                  .currentContext,
-                            ),
-                          ],
+                              // Slack-style hint bar: holding ⌘/Ctrl reveals the
+                              // modifier shortcuts available in the current context.
+                              // A sibling of ToastHost so it too paints above every
+                              // route and modal; non-interactive so taps fall
+                              // through.
+                              Positioned.fill(
+                                child: ShortcutHintOverlay(
+                                  controller: widget.services.shortcutHints,
+                                ),
+                              ),
+                              // Paints nothing — it watches the app lifecycle and
+                              // raises the "log this call?" toast when the user comes
+                              // back from the dialer (invoiceninja/flutter#120). A
+                              // widget rather than a fourth `WidgetsBindingObserver`
+                              // above, because the offer opens a form and enqueues
+                              // through the repositories, so it needs a context under
+                              // the providers.
+                              CallLogPrompter(
+                                services: widget.services,
+                                // A context inside the router's Navigator — this
+                                // widget's own sits above it, so a sheet pushed from
+                                // there would find no Navigator at all. Same supplier
+                                // `deepLinks.attach` takes, for the same reason.
+                                contextOf: () => _router
+                                    .routerDelegate
+                                    .navigatorKey
+                                    .currentContext,
+                              ),
+                              // Paints nothing — once the app is up, it tells the
+                              // user what a reset of their local data did: a toast
+                              // when everything came across, a dialog when their
+                              // unsynced work may not have. Needs a context inside
+                              // the router's Navigator, like the prompter above.
+                              LocalDataRecoveryNotice(
+                                slot: _localDataNotice,
+                                holdWhile: _localDataNoticeHold,
+                                toasts: widget.services.toasts,
+                                contextOf: () => _router
+                                    .routerDelegate
+                                    .navigatorKey
+                                    .currentContext,
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),

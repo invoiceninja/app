@@ -22,6 +22,19 @@ abstract class BiometricService {
   /// Show the FaceID/TouchID prompt. Returns true on success, false on
   /// cancel / no biometrics enrolled / OS-revoked authentication.
   Future<bool> authenticate({required String reason});
+
+  /// True when the device can verify its owner at all: biometrics, or the
+  /// device's own passcode / password / PIN (`local_auth`'s
+  /// `isDeviceSupported` — iOS and macOS `deviceOwnerAuthentication`, Android
+  /// a secure lock screen, Windows Hello). Wider than [isAvailable], which
+  /// also needs enrolled biometrics. The soft lock is offered only where this
+  /// is true (docs/soft-lock.md).
+  Future<bool> canAuthenticateOwner();
+
+  /// Verify the device's owner: biometrics, falling back to the device
+  /// passcode / password / PIN the OS offers — never the Invoice Ninja
+  /// password. Same failure mapping as [authenticate].
+  Future<bool> authenticateOwner({required String reason});
 }
 
 /// Web has no `local_auth` implementation (no FaceID/TouchID/Windows Hello
@@ -37,6 +50,12 @@ class WebBiometricService implements BiometricService {
 
   @override
   Future<bool> authenticate({required String reason}) async => false;
+
+  @override
+  Future<bool> canAuthenticateOwner() async => false;
+
+  @override
+  Future<bool> authenticateOwner({required String reason}) async => false;
 }
 
 class LocalAuthBiometricService implements BiometricService {
@@ -63,14 +82,42 @@ class LocalAuthBiometricService implements BiometricService {
   }
 
   @override
-  Future<bool> authenticate({required String reason}) async {
+  Future<bool> canAuthenticateOwner() async {
+    try {
+      return await _auth.isDeviceSupported();
+    } on LocalAuthException catch (e, st) {
+      _log.fine('canAuthenticateOwner() failed', e, st);
+      return false;
+    } on PlatformException catch (e, st) {
+      _log.fine('canAuthenticateOwner() failed', e, st);
+      return false;
+    } on MissingPluginException catch (e, st) {
+      _log.fine('canAuthenticateOwner(): no local_auth implementation', e, st);
+      return false;
+    }
+  }
+
+  @override
+  Future<bool> authenticate({required String reason}) => _authenticate(
+    reason: reason,
+    // local_auth_windows throws UnsupportedError for biometricOnly:true;
+    // Windows Hello (UserConsentVerifier) is the OS's strong-auth surface —
+    // let it pick face/fingerprint/PIN there.
+    biometricOnly: defaultTargetPlatform != TargetPlatform.windows,
+  );
+
+  @override
+  Future<bool> authenticateOwner({required String reason}) =>
+      _authenticate(reason: reason, biometricOnly: false);
+
+  Future<bool> _authenticate({
+    required String reason,
+    required bool biometricOnly,
+  }) async {
     try {
       return await _auth.authenticate(
         localizedReason: reason,
-        // local_auth_windows throws UnsupportedError for biometricOnly:true;
-        // Windows Hello (UserConsentVerifier) is the OS's strong-auth
-        // surface — let it pick face/fingerprint/PIN there.
-        biometricOnly: defaultTargetPlatform != TargetPlatform.windows,
+        biometricOnly: biometricOnly,
         persistAcrossBackgrounding: true,
       );
     } on LocalAuthException catch (e, st) {

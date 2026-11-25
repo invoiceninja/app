@@ -2326,5 +2326,8 @@
   "free_plan_client_limit_hit": "Dosegli ste ograničenje klijenata besplatnog paketa.",
   "owner_only_sign_in_plan": "Na ovom paketu prijaviti se može samo vlasnik računa.",
   "comments_new_count": ":count novih",
-  "no_team_comments": "Nema nedavnih komentara vašeg tima"
+  "no_team_comments": "Nema nedavnih komentara vašeg tima",
+  "lock_after_inactivity": "Zaključaj nakon neaktivnosti",
+  "lock_after_inactivity_help": "Zaključava aplikaciju kad se neko vrijeme ne koristi, bez odjave. Otključajte je otiskom prsta, licem ili kodom ovog uređaja.",
+  "soft_lock_message": "I dalje ste prijavljeni i ništa od vašeg rada nije izgubljeno. Otključajte za nastavak."
 }

@@ -2409,5 +2409,8 @@
   "free_plan_client_limit_hit": "Você atingiu o limite de clientes do plano gratuito.",
   "owner_only_sign_in_plan": "Neste plano, apenas o proprietário da conta pode entrar.",
   "comments_new_count": ":count novos",
-  "no_team_comments": "Nenhum comentário recente da sua equipe"
+  "no_team_comments": "Nenhum comentário recente da sua equipe",
+  "lock_after_inactivity": "Bloquear após inatividade",
+  "lock_after_inactivity_help": "Bloqueia o app quando ele fica um tempo sem uso, sem sair da conta. Desbloqueie com a digital, o rosto ou o código deste dispositivo.",
+  "soft_lock_message": "Você continua conectado e nada do que estava fazendo foi perdido. Desbloqueie para continuar."
 }

@@ -11,6 +11,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 
 import 'package:admin/app/design_tokens.dart';
+import 'package:admin/app/lock_after_inactivity_controller.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/app/text_scale_controller.dart';
 import 'package:admin/app/theme.dart';
@@ -45,11 +46,11 @@ class _NoContacts implements DeviceContactsService {
 
 const _kTabs = <String>['', 'security', 'phone', 'forms', 'data'];
 
-Future<ShellFixture> _fixture() async {
+Future<ShellFixture> _fixture({FakeBiometricService? biometric}) async {
   final fixture = await buildFixture(
     companies: const [FakeCompany(id: 'co1', name: 'Acme')],
     closeStreamsSynchronously: true,
-    biometricService: FakeBiometricService(),
+    biometricService: biometric ?? FakeBiometricService(),
     deviceContactsService: _NoContacts(),
   );
   addTearDown(fixture.dispose);
@@ -97,6 +98,10 @@ Future<void> _pump(
         ChangeNotifierProvider<SettingsLevelController>(
           create: (_) => SettingsLevelController(),
         ),
+        // As `main.dart` provides it.
+        ChangeNotifierProvider<LockAfterInactivityController>.value(
+          value: fixture.services.lockAfterInactivity,
+        ),
       ],
       child: MaterialApp.router(
         theme: buildInTheme(dark ? InTheme.darkEspresso : InTheme.light),
@@ -140,6 +145,66 @@ Finder _visible(Finder f) => find.descendant(
 );
 
 void main() {
+  // docs/soft-lock.md: offered only where the device can verify its owner.
+  group('lock after inactivity', () {
+    testWidgets('offered on Security where the device can verify its owner', (
+      tester,
+    ) async {
+      final fixture = await _fixture();
+      await _pump(tester, fixture, width: 1440, tab: 'security');
+      expect(_visible(find.text('Lock after inactivity')), findsOneWidget);
+      expect(_visible(find.text('Never')), findsOneWidget);
+      await _dispose(tester);
+    }, variant: _desktop);
+
+    testWidgets('absent where it cannot — no device passcode, Linux, the web', (
+      tester,
+    ) async {
+      final fixture = await _fixture(
+        biometric: FakeBiometricService()
+          ..available = false
+          ..ownerAvailable = false,
+      );
+      await _pump(tester, fixture, width: 1440, tab: 'security');
+      expect(find.text('Lock after inactivity'), findsNothing);
+      expect(_visible(find.text('Confirm actions')), findsOneWidget);
+      await _dispose(tester);
+    }, variant: _desktop);
+
+    testWidgets('turning it on asks the device first; declined, it stays off', (
+      tester,
+    ) async {
+      final biometric = FakeBiometricService();
+      final fixture = await _fixture(biometric: biometric);
+      await _pump(tester, fixture, width: 1440, tab: 'security');
+
+      biometric.outcomes.add(false);
+      await tester.tap(_visible(find.text('Never')));
+      await _frames(tester);
+      await tester.tap(find.text('5 Minutes').last);
+      await _frames(tester);
+      expect(biometric.ownerPrompts, 1);
+      expect(fixture.services.lockAfterInactivity.minutes, 0);
+
+      biometric.outcomes.add(true);
+      await tester.tap(_visible(find.text('Never')));
+      await _frames(tester);
+      await tester.tap(find.text('5 Minutes').last);
+      await _frames(tester);
+      expect(biometric.ownerPrompts, 2);
+      expect(fixture.services.lockAfterInactivity.minutes, 5);
+
+      // Another span, or off: no prompt.
+      await tester.tap(_visible(find.text('5 Minutes')));
+      await _frames(tester);
+      await tester.tap(find.text('1 Minute').last);
+      await _frames(tester);
+      expect(biometric.ownerPrompts, 2);
+      expect(fixture.services.lockAfterInactivity.minutes, 1);
+      await _dispose(tester);
+    }, variant: _desktop);
+  });
+
   group('every tab lays out', () {
     for (final width in const <double>[320, 390, 720, 1000, 1440]) {
       testWidgets('at $width px', (tester) async {

@@ -2326,5 +2326,8 @@
   "free_plan_client_limit_hit": "Heu arribat al límit de clients del pla gratuït.",
   "owner_only_sign_in_plan": "Amb aquest pla només el propietari del compte pot iniciar la sessió.",
   "comments_new_count": ":count nous",
-  "no_team_comments": "No hi ha comentaris recents del teu equip"
+  "no_team_comments": "No hi ha comentaris recents del teu equip",
+  "lock_after_inactivity": "Bloqueja després d'inactivitat",
+  "lock_after_inactivity_help": "Bloqueja l'aplicació quan no s'ha fet servir durant una estona, sense tancar la sessió. Desbloqueja-la amb l'empremta, la cara o el codi d'aquest dispositiu.",
+  "soft_lock_message": "Encara tens la sessió iniciada i no s'ha perdut res del que feies. Desbloqueja per continuar."
 }

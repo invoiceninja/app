@@ -31,9 +31,10 @@ void main() {
     'lib/data/repositories/auth_repository.dart':
         'lib/ui/features/settings/views/basic/account_management/'
         'security_settings_screen.dart',
-    // This VM only holds the busy flag; the lock screen owns the prompt.
+    // This VM only holds the busy flag; `signOutFromLock` — the cold-launch
+    // lock screen's and the soft lock's Sign out — owns the prompt.
     'lib/ui/features/auth/view_models/lock_view_model.dart':
-        'lib/ui/features/auth/views/lock_screen.dart',
+        'lib/ui/features/auth/widgets/lock_panel.dart',
     // Reached only after type-to-confirm + a password gate (cancel account /
     // delete the last company), where a sign-out prompt would be a fourth.
     'lib/ui/features/settings/views/basic/account_management/'

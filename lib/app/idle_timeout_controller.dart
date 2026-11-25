@@ -3,10 +3,10 @@ import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
 import 'package:admin/app/sign_out_notice.dart';
+import 'package:admin/app/user_activity_tracker.dart';
 import 'package:admin/data/repositories/auth_repository.dart';
 import 'package:admin/data/repositories/company_repository.dart';
 import 'package:admin/data/repositories/sync_repository.dart';
@@ -25,7 +25,8 @@ import 'package:admin/data/repositories/sync_repository.dart';
 /// backgrounded counted as idle, so coming back to stop the timer was itself
 /// the sign-out), or the work happens in another desktop app — and with an
 /// empty outbox that sign-out wiped the local database too. A native device
-/// has its own lock and the app's biometric lock.
+/// has its own lock, the app's biometric lock, and the soft lock
+/// (`SoftLockController`, docs/soft-lock.md), which locks without signing out.
 ///
 /// [warnBefore] the deadline, [expiringSoon] turns true — `SessionExpiryBanner`
 /// shows it in the shell with a Stay Logged In button (admin-portal's
@@ -33,15 +34,10 @@ import 'package:admin/data/repositories/sync_repository.dart';
 ///
 /// Design mirrors [SyncLifecycleObserver]/[PasswordCacheLifecycleObserver]:
 /// the controller owns only timing state; the actual work delegates to
-/// [AuthRepository.logout]. Activity is fed in via [poke] from four sources:
-/// the root-level pointer `Listener` in `main.dart`; every hardware key event
-/// ([HardwareKeyboard]); edits to the focused text field's
-/// `TextEditingController` — a soft keyboard sends no key events, so typing a
-/// long note on a phone used to count as idle; and the
-/// `UserActivityNotification` a `MarkdownTextField` bubbles up to `main.dart`
-/// for its `super_editor` document, which is not a `TextEditingController`.
-/// Deliberately NOT the unsaved-changes guard: background Drift re-emits flip
-/// it too, and would keep an unattended session alive. A low-frequency
+/// [AuthRepository.logout]. Activity is the shared [UserActivityTracker]'s —
+/// the same four sources the soft lock measures (pointer, hardware keys, the
+/// focused text field's edits, a markdown field's edits); see that class for
+/// what deliberately does not count. A low-frequency
 /// periodic check compares elapsed-since-last-activity against the timeout so
 /// each event stays cheap. App-resume runs the check immediately so time spent
 /// backgrounded counts toward the timeout.
@@ -52,18 +48,25 @@ class IdleTimeoutController with WidgetsBindingObserver {
     required this.sync,
     this.enforced = kIsWeb,
     this.notice,
+    UserActivityTracker? activity,
     DateTime Function() now = DateTime.now,
-  }) : _now = now {
-    _lastActivity = _now();
+  }) : _now = now,
+       _ownsActivity = activity == null,
+       activity = activity ?? UserActivityTracker(now: now) {
+    _armedAt = _now();
     // Inert off the web: no listeners, no ticker, so nothing can expire.
-    // `dispose` removing listeners that were never added is a no-op.
     if (!enforced) return;
     auth.session.addListener(_onSessionChanged);
     _onSessionChanged();
-    HardwareKeyboard.instance.addHandler(_onKey);
-    FocusManager.instance.addListener(_onFocusChanged);
-    _onFocusChanged();
+    this.activity
+      ..attachSources()
+      ..addListener(_onActivity);
   }
+
+  /// Where activity is read from — shared with the soft lock in the app, owned
+  /// here when none is passed (tests).
+  final UserActivityTracker activity;
+  final bool _ownsActivity;
 
   final AuthRepository auth;
   final CompanyRepository company;
@@ -88,42 +91,26 @@ class IdleTimeoutController with WidgetsBindingObserver {
 
   StreamSubscription<void>? _companySub;
   Timer? _ticker;
-  DateTime _lastActivity = DateTime.fromMillisecondsSinceEpoch(0);
+
+  /// When the timeout was last (re)armed: idle time is measured from the later
+  /// of this and the tracker's last activity, so arming never fires against
+  /// stale inactivity — without resetting the clock the soft lock shares.
+  DateTime _armedAt = DateTime.fromMillisecondsSinceEpoch(0);
   int _timeoutMs = 0;
   String? _watchedCompanyId;
 
-  /// The focused text field's controller, listened to so each edit pokes.
-  TextEditingController? _watchedText;
+  /// Record user activity — the same as poking [activity] directly. Kept for
+  /// the Stay Logged In button and the tests.
+  void poke() => activity.poke();
 
-  /// Record user activity. Cheap — just stamps the clock (and drops a raised
-  /// warning); the periodic [_check] reads it. Safe to call on every pointer
-  /// event.
-  void poke() {
-    _lastActivity = _now();
+  /// Any activity drops a raised warning.
+  void _onActivity() {
     if (_expiringSoon.value) _expiringSoon.value = false;
   }
 
-  /// Every hardware key event is activity. Returns false so the event carries
-  /// on to the shortcut layer and the focused field untouched.
-  bool _onKey(KeyEvent _) {
-    poke();
-    return false;
-  }
-
-  /// Follow the primary focus to the [EditableText] it sits in (the focus
-  /// node's context is below `EditableTextState`) and listen to that field's
-  /// controller, so soft-keyboard typing — which produces no key events —
-  /// still counts.
-  void _onFocusChanged() {
-    final next = FocusManager.instance.primaryFocus?.context
-        ?.findAncestorStateOfType<EditableTextState>()
-        ?.widget
-        .controller;
-    if (identical(next, _watchedText)) return;
-    // Removing from a controller its owner already disposed is allowed.
-    _watchedText?.removeListener(poke);
-    _watchedText = next;
-    next?.addListener(poke);
+  DateTime get _lastActivity {
+    final last = activity.lastActivity;
+    return last.isAfter(_armedAt) ? last : _armedAt;
   }
 
   void _onSessionChanged() {
@@ -166,9 +153,9 @@ class IdleTimeoutController with WidgetsBindingObserver {
       _ticker = null;
       return;
     }
-    // Reset the activity clock when (re)arming so a freshly-loaded or
-    // changed timeout doesn't fire against stale inactivity.
-    _lastActivity = _now();
+    // Measure from now when (re)arming so a freshly-loaded or changed timeout
+    // doesn't fire against stale inactivity.
+    _armedAt = _now();
     // Check often enough to be timely without being chatty: at most every
     // 30 s, at least every 5 s, never longer than the timeout itself.
     final intervalMs = _timeoutMs.clamp(5000, 30000);
@@ -239,10 +226,12 @@ class IdleTimeoutController with WidgetsBindingObserver {
   }
 
   void dispose() {
-    HardwareKeyboard.instance.removeHandler(_onKey);
-    FocusManager.instance.removeListener(_onFocusChanged);
-    _watchedText?.removeListener(poke);
-    _watchedText = null;
+    if (enforced) {
+      activity
+        ..removeListener(_onActivity)
+        ..detachSources();
+    }
+    if (_ownsActivity) activity.dispose();
     auth.session.removeListener(_onSessionChanged);
     _companySub?.cancel();
     _ticker?.cancel();

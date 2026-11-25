@@ -55,6 +55,7 @@ void main() {
     'list_column_widths_json': PrefScope.device,
     'account_prefs_kept_json': PrefScope.device,
     'comment_reads_json': PrefScope.account,
+    'lock_after_inactivity_minutes': PrefScope.device,
   };
 
   final names = [for (final k in DevicePrefKeys.all) k.name];

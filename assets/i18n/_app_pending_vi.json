@@ -2292,5 +2292,8 @@
   "free_plan_client_limit_hit": "Bạn đã đạt giới hạn khách hàng của gói miễn phí.",
   "owner_only_sign_in_plan": "Với gói này, chỉ chủ tài khoản mới có thể đăng nhập.",
   "comments_new_count": ":count mới",
-  "no_team_comments": "Không có bình luận gần đây từ nhóm của bạn"
+  "no_team_comments": "Không có bình luận gần đây từ nhóm của bạn",
+  "lock_after_inactivity": "Khóa sau khi không hoạt động",
+  "lock_after_inactivity_help": "Khóa ứng dụng khi không được dùng một lúc, mà không đăng xuất. Mở khóa bằng vân tay, khuôn mặt hoặc mật mã của thiết bị này.",
+  "soft_lock_message": "Bạn vẫn đang đăng nhập và không mất gì trong những việc bạn đang làm. Mở khóa để tiếp tục."
 }

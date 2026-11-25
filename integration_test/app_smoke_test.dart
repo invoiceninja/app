@@ -93,6 +93,12 @@ class _AlwaysCancelBiometric implements BiometricService {
 
   @override
   Future<bool> authenticate({required String reason}) async => false;
+
+  @override
+  Future<bool> canAuthenticateOwner() async => true;
+
+  @override
+  Future<bool> authenticateOwner({required String reason}) async => false;
 }
 
 /// Suppresses every outbound request with a 500. Used by scenarios that

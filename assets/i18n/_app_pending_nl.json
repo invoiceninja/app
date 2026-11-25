@@ -2409,5 +2409,8 @@
   "free_plan_client_limit_hit": "U hebt de klantlimiet van het gratis abonnement bereikt.",
   "owner_only_sign_in_plan": "Bij dit abonnement kan alleen de eigenaar van het account inloggen.",
   "comments_new_count": ":count nieuw",
-  "no_team_comments": "Geen recente opmerkingen van je team"
+  "no_team_comments": "Geen recente opmerkingen van je team",
+  "lock_after_inactivity": "Vergrendelen na inactiviteit",
+  "lock_after_inactivity_help": "Vergrendelt de app als die een tijdje niet is gebruikt, zonder uit te loggen. Ontgrendel met de vingerafdruk, het gezicht of de toegangscode van dit apparaat.",
+  "soft_lock_message": "Je bent nog steeds ingelogd en er is niets verloren gegaan van waar je mee bezig was. Ontgrendel om verder te gaan."
 }

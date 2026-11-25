@@ -2364,5 +2364,8 @@
   "free_plan_client_limit_hit": "Pasiekėte nemokamo plano klientų ribą.",
   "owner_only_sign_in_plan": "Šiame plane prisijungti gali tik paskyros savininkas.",
   "comments_new_count": ":count nauji",
-  "no_team_comments": "Nėra naujų jūsų komandos komentarų"
+  "no_team_comments": "Nėra naujų jūsų komandos komentarų",
+  "lock_after_inactivity": "Užrakinti po neveiklumo",
+  "lock_after_inactivity_help": "Užrakina programą, kai ji kurį laiką nenaudojama, neatjungiant jūsų. Atrakinkite šio įrenginio piršto atspaudu, veidu arba kodu.",
+  "soft_lock_message": "Vis dar esate prisijungę ir niekas iš to, ką darėte, neprarasta. Atrakinkite, kad tęstumėte."
 }

@@ -2409,5 +2409,8 @@
   "free_plan_client_limit_hit": "無料プランの顧客数の上限に達しました。",
   "owner_only_sign_in_plan": "このプランでは、アカウントの所有者のみがサインインできます。",
   "comments_new_count": ":count 件の新着",
-  "no_team_comments": "チームからの最近のコメントはありません"
+  "no_team_comments": "チームからの最近のコメントはありません",
+  "lock_after_inactivity": "操作がないときにロック",
+  "lock_after_inactivity_help": "しばらく使用しないとアプリをロックします（サインアウトはしません）。このデバイスの指紋、顔、またはパスコードでロックを解除します。",
+  "soft_lock_message": "サインインしたままで、作業中の内容も失われていません。続けるにはロックを解除してください。"
 }

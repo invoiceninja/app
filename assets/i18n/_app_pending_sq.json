@@ -2409,5 +2409,8 @@
   "free_plan_client_limit_hit": "Keni arritur kufirin e klientëve të planit falas.",
   "owner_only_sign_in_plan": "Në këtë plan mund të hyjë vetëm pronari i llogarisë.",
   "comments_new_count": ":count të reja",
-  "no_team_comments": "Nuk ka komente të fundit nga ekipi juaj"
+  "no_team_comments": "Nuk ka komente të fundit nga ekipi juaj",
+  "lock_after_inactivity": "Kyç pas mosveprimit",
+  "lock_after_inactivity_help": "Kyç aplikacionin kur nuk përdoret për një kohë, pa dalë nga llogaria. Shkyçe me gjurmën e gishtit, fytyrën ose kodin e kësaj pajisjeje.",
+  "soft_lock_message": "Je ende i identifikuar dhe asgjë nga ajo që po bëje nuk ka humbur. Shkyç për të vazhduar."
 }

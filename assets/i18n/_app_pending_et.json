@@ -2326,5 +2326,8 @@
   "free_plan_client_limit_hit": "Olete jõudnud tasuta paketi klientide piirini.",
   "owner_only_sign_in_plan": "Selle paketiga saab sisse logida ainult konto omanik.",
   "comments_new_count": ":count uut",
-  "no_team_comments": "Teie meeskonnalt pole hiljutisi kommentaare"
+  "no_team_comments": "Teie meeskonnalt pole hiljutisi kommentaare",
+  "lock_after_inactivity": "Lukusta pärast tegevusetust",
+  "lock_after_inactivity_help": "Lukustab rakenduse, kui seda pole mõnda aega kasutatud, ilma välja logimata. Ava see selle seadme sõrmejälje, näo või pääsukoodiga.",
+  "soft_lock_message": "Oled endiselt sisse logitud ja midagi sinu tööst pole kadunud. Jätkamiseks ava lukk."
 }

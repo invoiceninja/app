@@ -175,7 +175,8 @@ class _ReviewPromptHostState extends State<ReviewPromptHost>
     }
     final companyId = _session?.value?.currentCompanyId;
     if (companyId == null || !_eligibleSession) return;
-    if (services.auth.requiresBiometricUnlock.value) return _retryLater();
+    // Either lock: the native review sheet would open over it.
+    if (services.auth.appLocked.value) return _retryLater();
 
     final (:pending, :attention) = await (widget.outboxCounts ?? _outboxCounts)(
       companyId,

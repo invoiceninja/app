@@ -2409,5 +2409,8 @@
   "free_plan_client_limit_hit": "Sie haben das Kundenlimit des kostenlosen Tarifs erreicht.",
   "owner_only_sign_in_plan": "In diesem Tarif kann sich nur der Kontoinhaber anmelden.",
   "comments_new_count": ":count neu",
-  "no_team_comments": "Keine neuen Kommentare von Ihrem Team"
+  "no_team_comments": "Keine neuen Kommentare von Ihrem Team",
+  "lock_after_inactivity": "Nach Inaktivität sperren",
+  "lock_after_inactivity_help": "Sperrt die App, wenn sie eine Weile nicht benutzt wurde, ohne Sie abzumelden. Entsperren Sie sie mit Fingerabdruck, Gesicht oder Code dieses Geräts.",
+  "soft_lock_message": "Sie sind weiterhin angemeldet, und nichts von Ihrer Arbeit geht verloren. Entsperren Sie, um fortzufahren."
 }

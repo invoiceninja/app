@@ -2409,5 +2409,8 @@
   "free_plan_client_limit_hit": "您已达到免费版的客户数量上限。",
   "owner_only_sign_in_plan": "此套餐仅账户所有者可以登录。",
   "comments_new_count": ":count 条新",
-  "no_team_comments": "团队最近没有评论"
+  "no_team_comments": "团队最近没有评论",
+  "lock_after_inactivity": "闲置后锁定",
+  "lock_after_inactivity_help": "一段时间未使用时锁定应用，但不会退出登录。使用此设备的指纹、面容或密码解锁。",
+  "soft_lock_message": "您仍处于登录状态，正在进行的工作不会丢失。解锁以继续。"
 }

@@ -37,10 +37,16 @@ enum OutboxConfirmResult { proceed, cancelled }
 /// companies' rows behind, the flow cancels with a pointer to switch there
 /// (or pick Discard). Company-SWITCH callers leave the flag off — switching
 /// preserves the DB, so only the outgoing company matters.
+///
+/// [canOpenOutbox] false drops the review's View, which navigates the app to
+/// the Outbox: the soft lock (docs/soft-lock.md) asks from above the router,
+/// where there is no router to go with, and the app under it must not move.
+/// Cancel, Unlock and the Outbox still get the user there.
 Future<OutboxConfirmResult> confirmPendingOutboxIfAny(
   BuildContext context, {
   required String companyId,
   bool checkAllCompanies = false,
+  bool canOpenOutbox = true,
 }) async {
   final services = context.read<Services>();
   final pending = await _confirmPendingRows(
@@ -63,6 +69,7 @@ Future<OutboxConfirmResult> confirmPendingOutboxIfAny(
             companyId: companyId,
             pending: pending,
             checkAllCompanies: checkAllCompanies,
+            canOpenOutbox: canOpenOutbox,
           )
         : OutboxConfirmResult.cancelled;
   } finally {
@@ -81,11 +88,16 @@ Future<OutboxConfirmResult> _reviewThenDiscard(
   required String companyId,
   required _PendingChoice pending,
   required bool checkAllCompanies,
+  required bool canOpenOutbox,
 }) async {
   // A company switch keeps the database, so only a full logout can destroy
   // failed rows — and only it needs to ask about them.
   if (checkAllCompanies) {
-    final review = await _confirmFailedRows(context, companyId: companyId);
+    final review = await _confirmFailedRows(
+      context,
+      companyId: companyId,
+      canOpenOutbox: canOpenOutbox,
+    );
     if (review != OutboxConfirmResult.proceed) return review;
   }
   // Nothing the user chose to discard goes until every question is answered:
@@ -118,6 +130,7 @@ Future<OutboxConfirmResult> _reviewThenDiscard(
 Future<OutboxConfirmResult> _confirmFailedRows(
   BuildContext context, {
   required String companyId,
+  required bool canOpenOutbox,
 }) async {
   final services = context.read<Services>();
   final int failed;
@@ -153,11 +166,12 @@ Future<OutboxConfirmResult> _confirmFailedRows(
           onPressed: () => Navigator.of(ctx).pop(_ReviewChoice.cancel),
           child: Text(ctx.tr('cancel')),
         ),
-        OutlinedButton(
-          style: OutlinedButton.styleFrom(minimumSize: const Size(64, 40)),
-          onPressed: () => Navigator.of(ctx).pop(_ReviewChoice.view),
-          child: Text(ctx.tr('view')),
-        ),
+        if (canOpenOutbox)
+          OutlinedButton(
+            style: OutlinedButton.styleFrom(minimumSize: const Size(64, 40)),
+            onPressed: () => Navigator.of(ctx).pop(_ReviewChoice.view),
+            child: Text(ctx.tr('view')),
+          ),
         PrimaryDialogAction(
           variant: DialogActionVariant.destructive,
           label: ctx.tr('discard'),

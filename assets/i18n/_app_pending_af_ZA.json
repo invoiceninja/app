@@ -2326,5 +2326,8 @@
   "free_plan_client_limit_hit": "Jy het die Gratis plan se kliëntlimiet bereik.",
   "owner_only_sign_in_plan": "Net die rekeningeienaar kan op hierdie plan aanmeld.",
   "comments_new_count": ":count nuut",
-  "no_team_comments": "Geen onlangse kommentaar van jou span nie"
+  "no_team_comments": "Geen onlangse kommentaar van jou span nie",
+  "lock_after_inactivity": "Sluit ná onaktiwiteit",
+  "lock_after_inactivity_help": "Sluit die toep wanneer dit 'n ruk lank nie gebruik is nie, sonder om af te meld. Ontsluit met hierdie toestel se vingerafdruk, gesig of wagkode.",
+  "soft_lock_message": "Jy is steeds aangemeld en niks waarmee jy besig was, is verlore nie. Ontsluit om voort te gaan."
 }

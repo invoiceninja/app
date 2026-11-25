@@ -2396,5 +2396,8 @@
   "free_plan_client_limit_hit": "Du har nått Gratisplanens gräns för kunder.",
   "owner_only_sign_in_plan": "På den här nivån kan bara kontots ägare logga in.",
   "comments_new_count": ":count nya",
-  "no_team_comments": "Inga nya kommentarer från ditt team"
+  "no_team_comments": "Inga nya kommentarer från ditt team",
+  "lock_after_inactivity": "Lås efter inaktivitet",
+  "lock_after_inactivity_help": "Låser appen när den inte har använts på ett tag, utan att logga ut. Lås upp med enhetens fingeravtryck, ansikte eller lösenkod.",
+  "soft_lock_message": "Du är fortfarande inloggad och inget av det du höll på med har gått förlorat. Lås upp för att fortsätta."
 }

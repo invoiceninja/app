@@ -213,6 +213,11 @@ final Map<PrefKey<Object>, _Probe> _probes = {
     ),
     (s) => s.devicePrefs.read(DevicePrefKeys.accountPrefsKept) == null,
   ),
+  // A security choice about this device's owner, not the signed-in account.
+  DevicePrefKeys.lockAfterInactivity: _Probe(
+    (s) => s.lockAfterInactivity.set(5),
+    (s) => s.lockAfterInactivity.value == 0,
+  ),
   DevicePrefKeys.downloadsFolder: _Probe(
     (s) => s.downloadsFolder.set('/x'),
     (s) => s.downloadsFolder.value == '',

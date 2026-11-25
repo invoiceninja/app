@@ -2326,5 +2326,8 @@
   "free_plan_client_limit_hit": "Dosiahli ste limit klientov bezplatného programu.",
   "owner_only_sign_in_plan": "V tomto programe sa môže prihlásiť iba vlastník účtu.",
   "comments_new_count": ":count nové",
-  "no_team_comments": "Žiadne nedávne komentáre od vášho tímu"
+  "no_team_comments": "Žiadne nedávne komentáre od vášho tímu",
+  "lock_after_inactivity": "Zamknúť po nečinnosti",
+  "lock_after_inactivity_help": "Zamkne aplikáciu, keď sa nejaký čas nepoužíva, bez odhlásenia. Odomknete ju odtlačkom prsta, tvárou alebo kódom tohto zariadenia.",
+  "soft_lock_message": "Stále ste prihlásení a nič z rozpracovanej práce sa nestratilo. Odomknite a pokračujte."
 }

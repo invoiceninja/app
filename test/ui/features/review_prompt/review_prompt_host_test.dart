@@ -36,6 +36,8 @@ class _FakeAuth implements AuthRepository {
   @override
   ValueListenable<bool> get requiresBiometricUnlock => locked;
   @override
+  ValueListenable<bool> get appLocked => locked;
+  @override
   Object? noSuchMethod(Invocation invocation) =>
       throw UnimplementedError(invocation.memberName.toString());
 }

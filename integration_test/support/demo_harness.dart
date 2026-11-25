@@ -80,6 +80,12 @@ class AlwaysCancelBiometric implements BiometricService {
   Future<bool> isAvailable() async => true;
   @override
   Future<bool> authenticate({required String reason}) async => false;
+
+  @override
+  Future<bool> canAuthenticateOwner() async => true;
+
+  @override
+  Future<bool> authenticateOwner({required String reason}) async => false;
 }
 
 /// Register the once-per-file reachability `setUpAll`. Call from each test

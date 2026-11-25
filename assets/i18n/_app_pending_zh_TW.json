@@ -2326,5 +2326,8 @@
   "free_plan_client_limit_hit": "您已達到免費方案的客戶數量上限。",
   "owner_only_sign_in_plan": "此方案僅帳戶擁有者可以登入。",
   "comments_new_count": ":count 則新",
-  "no_team_comments": "團隊最近沒有留言"
+  "no_team_comments": "團隊最近沒有留言",
+  "lock_after_inactivity": "閒置後鎖定",
+  "lock_after_inactivity_help": "一段時間未使用時鎖定 App，但不會登出。使用此裝置的指紋、臉孔或密碼解鎖。",
+  "soft_lock_message": "您仍保持登入，進行中的工作也不會遺失。解鎖以繼續。"
 }

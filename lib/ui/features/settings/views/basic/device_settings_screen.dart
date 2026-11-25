@@ -33,6 +33,7 @@ import 'package:admin/ui/features/settings/widgets/downloads_folder_section.dart
 import 'package:admin/ui/features/settings/widgets/form_section.dart';
 import 'package:admin/ui/features/settings/widgets/home_widgets_section.dart';
 import 'package:admin/ui/features/settings/widgets/list_status_tabs_section.dart';
+import 'package:admin/ui/features/settings/widgets/lock_after_inactivity_tile.dart';
 import 'package:admin/ui/features/settings/widgets/local_data_copies.dart';
 import 'package:admin/ui/features/settings/widgets/desktop_app_section.dart';
 import 'package:admin/ui/features/settings/widgets/mobile_app_section.dart';
@@ -84,6 +85,8 @@ const kDeviceSettingsSecuritySearchKeys = <String>[
   'confirm_actions',
   'confirm_actions_help',
   'biometric_authentication',
+  'lock_after_inactivity',
+  'lock_after_inactivity_help',
   ...kTrustedCertificatesSearchKeys,
 ];
 
@@ -332,15 +335,23 @@ class _SecurityTabState extends State<_SecurityTab> {
   // actions" lives in it — both are guard rails (one against unintended
   // access, one against unintended changes), and on desktop, where biometrics
   // are unavailable, the tab would otherwise be empty.
-  late final Future<bool> _biometricAvailable = context
-      .read<Services>()
-      .biometric
-      .isAvailable();
+  //
+  // "Lock after inactivity" asks a wider question: whether the device can
+  // verify its owner at all — biometrics, or the device passcode it falls
+  // back to (docs/soft-lock.md). Nowhere else (Linux, the web) is it offered.
+  late final Future<({bool biometric, bool owner})> _availability = () async {
+    final biometric = context.read<Services>().biometric;
+    final results = await Future.wait([
+      biometric.isAvailable(),
+      biometric.canAuthenticateOwner(),
+    ]);
+    return (biometric: results[0], owner: results[1]);
+  }();
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<bool>(
-      future: _biometricAvailable,
+    return FutureBuilder<({bool biometric, bool owner})>(
+      future: _availability,
       builder: (context, snap) => SettingsFormShell(
         sections: [
           // Not "Security": that would only repeat the tab.
@@ -350,7 +361,8 @@ class _SecurityTabState extends State<_SecurityTab> {
             flush: true,
             children: withSettingDividers([
               const ConfirmActionsTile(),
-              if (snap.data == true) const BiometricToggleTile(),
+              if (snap.data?.biometric ?? false) const BiometricToggleTile(),
+              if (snap.data?.owner ?? false) const LockAfterInactivityTile(),
             ]),
           ),
           // Hides itself unless a server certificate has been trusted — and

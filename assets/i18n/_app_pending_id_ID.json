@@ -2327,5 +2327,8 @@
   "free_plan_client_limit_hit": "Anda telah mencapai batas klien Paket Gratis.",
   "owner_only_sign_in_plan": "Pada paket ini hanya pemilik akun yang dapat masuk.",
   "comments_new_count": ":count baru",
-  "no_team_comments": "Tidak ada komentar terbaru dari tim Anda"
+  "no_team_comments": "Tidak ada komentar terbaru dari tim Anda",
+  "lock_after_inactivity": "Kunci setelah tidak aktif",
+  "lock_after_inactivity_help": "Kunci aplikasi saat tidak digunakan beberapa saat, tanpa keluar. Buka kunci dengan sidik jari, wajah, atau kode sandi perangkat ini.",
+  "soft_lock_message": "Anda masih masuk dan tidak ada pekerjaan yang hilang. Buka kunci untuk melanjutkan."
 }

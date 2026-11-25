@@ -2410,5 +2410,8 @@
   "free_plan_client_limit_hit": "Jūs esat sasniedzis bezmaksas plāna klientu limitu.",
   "owner_only_sign_in_plan": "Šajā plānā pieteikties var tikai konta īpašnieks.",
   "comments_new_count": ":count jauni",
-  "no_team_comments": "Nav jaunu jūsu komandas komentāru"
+  "no_team_comments": "Nav jaunu jūsu komandas komentāru",
+  "lock_after_inactivity": "Bloķēt pēc neaktivitātes",
+  "lock_after_inactivity_help": "Bloķē lietotni, ja tā kādu laiku nav lietota, neizrakstoties. Atbloķējiet ar šīs ierīces pirksta nospiedumu, seju vai piekļuves kodu.",
+  "soft_lock_message": "Jūs joprojām esat pierakstījies, un nekas no paveiktā nav zaudēts. Atbloķējiet, lai turpinātu."
 }

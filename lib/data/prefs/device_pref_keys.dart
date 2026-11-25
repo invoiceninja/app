@@ -453,6 +453,19 @@ abstract final class DevicePrefKeys {
     PrefScope.account,
   );
 
+  /// Minutes of inactivity after which the app locks behind the device's own
+  /// authentication without signing out; `0` (or no row) is Never
+  /// (`LockAfterInactivityController`, docs/soft-lock.md). Device scope: the
+  /// lock proves the person holding *this device* is its owner — Face ID, a
+  /// fingerprint, the device passcode — not who is signed in, and a sign-out
+  /// that forgot it would quietly drop a security choice the next sign-in on
+  /// the same device never made.
+  static const lockAfterInactivity = PrefKey<double>(
+    'lock_after_inactivity_minutes',
+    PrefCodec.decimal,
+    PrefScope.device,
+  );
+
   /// In the order they were added; append new keys at the end.
   static const List<PrefKey<Object>> all = [
     locale,
@@ -499,6 +512,7 @@ abstract final class DevicePrefKeys {
     listColumnWidths,
     accountPrefsKept,
     commentReads,
+    lockAfterInactivity,
   ];
 
   /// The account preferences a sign-out keeps aside for the SAME user's

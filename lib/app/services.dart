@@ -11,6 +11,7 @@ import 'package:admin/data/services/cloudflare/cloudflare_clearance_client.dart'
 import 'package:admin/data/services/http_client_factory.dart';
 import 'package:logging/logging.dart';
 
+import 'package:admin/app/lock_after_inactivity_controller.dart';
 import 'package:admin/app/accent_color_controller.dart';
 import 'package:admin/app/after_saving_controller.dart';
 import 'package:admin/app/app_locale_resolver.dart';
@@ -437,6 +438,7 @@ class Services implements SidebarBadgeContext {
     required this.spellCheck,
     required this.webAppBanner,
     required this.showSeconds,
+    required this.lockAfterInactivity,
     required this.documentThumbnails,
     required this.downloadsFolder,
     required this.pendingCall,
@@ -959,6 +961,11 @@ class Services implements SidebarBadgeContext {
   /// [signOutNotice].
   final ShowSecondsController showSeconds;
 
+  /// Device Settings → Security → "Lock after inactivity" (docs/soft-lock.md).
+  /// Read by `SoftLockController`; the Security tab reads it through its root
+  /// provider, as `LockAfterInactivityController?`.
+  final LockAfterInactivityController lockAfterInactivity;
+
   /// Whether document lists draw thumbnails (invoiceninja/app#206).
   final DocumentThumbnailsController documentThumbnails;
 
@@ -1052,7 +1059,8 @@ class Services implements SidebarBadgeContext {
   late final DeepLinkRouter deepLinks = DeepLinkRouter(
     session: auth.session,
     credentials: auth.credentials,
-    requiresBiometricUnlock: auth.requiresBiometricUnlock,
+    // Either lock — the cold-launch gate or the soft lock.
+    requiresBiometricUnlock: auth.appLocked,
     registry: entityRegistry,
     toasts: toasts,
   );
@@ -1067,7 +1075,8 @@ class Services implements SidebarBadgeContext {
         toasts: toasts,
         session: auth.session,
         credentials: auth.credentials,
-        requiresBiometricUnlock: auth.requiresBiometricUnlock,
+        // Either lock — the cold-launch gate or the soft lock.
+        requiresBiometricUnlock: auth.appLocked,
       );
 
   /// The app-owned copies of files shared into the app from other ones, and
@@ -1139,7 +1148,8 @@ class Services implements SidebarBadgeContext {
   late final SharedFileIntake sharedFiles = SharedFileIntake(
     session: auth.session,
     credentials: auth.credentials,
-    requiresBiometricUnlock: auth.requiresBiometricUnlock,
+    // Either lock — the cold-launch gate or the soft lock.
+    requiresBiometricUnlock: auth.appLocked,
     isSetupRequired: isCompanySetupRequired,
     // The dashboard's create gate (create route, module, `create_expense`),
     // so the share sheet and the `+` can't disagree about who may start one.
@@ -1889,6 +1899,9 @@ class Services implements SidebarBadgeContext {
     final spellCheck = SpellCheckController(prefs: devicePrefs);
     final webAppBanner = WebAppBannerController(prefs: devicePrefs);
     final showSeconds = ShowSecondsController(prefs: devicePrefs);
+    final lockAfterInactivity = LockAfterInactivityController(
+      prefs: devicePrefs,
+    );
     final documentThumbnails = DocumentThumbnailsController(prefs: devicePrefs);
     final downloadsFolder = DownloadsFolderController(prefs: devicePrefs);
     final mobileAppPromo = MobileAppPromoController(
@@ -2911,6 +2924,7 @@ class Services implements SidebarBadgeContext {
       spellCheck: spellCheck,
       webAppBanner: webAppBanner,
       showSeconds: showSeconds,
+      lockAfterInactivity: lockAfterInactivity,
       documentThumbnails: documentThumbnails,
       downloadsFolder: downloadsFolder,
       pendingCall: pendingCall,

@@ -65,4 +65,10 @@ class _DeclinedBiometric implements BiometricService {
 
   @override
   Future<bool> authenticate({required String reason}) async => false;
+
+  @override
+  Future<bool> canAuthenticateOwner() async => true;
+
+  @override
+  Future<bool> authenticateOwner({required String reason}) async => false;
 }

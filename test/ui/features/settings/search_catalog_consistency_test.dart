@@ -194,6 +194,7 @@ final List<_TabUnderTest> _tabsUnderTest = [
       'lib/ui/features/settings/views/basic/device_settings_screen.dart',
       'lib/ui/features/settings/widgets/biometric_toggle_tile.dart',
       'lib/ui/features/settings/widgets/confirm_actions_tile.dart',
+      'lib/ui/features/settings/widgets/lock_after_inactivity_tile.dart',
       'lib/ui/features/settings/widgets/trusted_certificates_section.dart',
     ],
     keys: kDeviceSettingsSecuritySearchKeys,

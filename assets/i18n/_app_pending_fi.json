@@ -2327,5 +2327,8 @@
   "free_plan_client_limit_hit": "Olet saavuttanut Ilmaisen paketin asiakasrajan.",
   "owner_only_sign_in_plan": "Tässä paketissa vain tilin omistaja voi kirjautua sisään.",
   "comments_new_count": ":count uutta",
-  "no_team_comments": "Ei tuoreita kommentteja tiimiltäsi"
+  "no_team_comments": "Ei tuoreita kommentteja tiimiltäsi",
+  "lock_after_inactivity": "Lukitse käyttämättömyyden jälkeen",
+  "lock_after_inactivity_help": "Lukitsee sovelluksen, kun sitä ei ole käytetty hetkeen, kirjaamatta ulos. Avaa lukitus tämän laitteen sormenjäljellä, kasvoilla tai pääsykoodilla.",
+  "soft_lock_message": "Olet yhä kirjautuneena, eikä mitään tekemääsi ole menetetty. Jatka avaamalla lukitus."
 }

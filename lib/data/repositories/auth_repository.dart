@@ -283,6 +283,21 @@ class AuthRepository {
     false,
   );
 
+  /// The soft lock (docs/soft-lock.md): the signed-in app locked in place
+  /// after inactivity — an overlay above the router, never a route, so
+  /// nothing under it is disposed. Engaged by `SoftLockController`
+  /// ([engageSoftLock]); cleared by [completeBiometricUnlock] and by
+  /// [logout]. The router does NOT watch it.
+  final ValueNotifier<bool> _softLocked = ValueNotifier<bool>(false);
+
+  /// Either lock — the cold-launch gate or the soft lock. What anything that
+  /// acts from outside the app (a deep link, a shared file, a widget's Start,
+  /// a review ask) waits on.
+  late final ValueListenable<bool> appLocked = _AnyLocked(
+    _requiresBiometricUnlock,
+    _softLocked,
+  );
+
   /// Subscription to the Drift `companies` table. Rebuilds the
   /// `AuthSession.companies` slice whenever a row changes (e.g. the user
   /// edits the company name on Settings → Company Details) so the picker in
@@ -304,6 +319,17 @@ class AuthRepository {
 
   ValueListenable<ApiCredentials?> get credentials => _credentials;
   ValueListenable<bool> get requiresBiometricUnlock => _requiresBiometricUnlock;
+
+  /// See [_softLocked].
+  ValueListenable<bool> get softLocked => _softLocked;
+
+  /// Lock the signed-in app in place. A no-op with no signed-in session, or
+  /// behind the cold-launch gate (which already covers everything).
+  void engageSoftLock() {
+    if (!isAuthenticated || _session.value == null) return;
+    if (_requiresBiometricUnlock.value) return;
+    _softLocked.value = true;
+  }
 
   /// Set to the company id of a switch that was rolled back because the server
   /// rejected that company's token. The shell listens and raises the existing
@@ -1552,6 +1578,7 @@ class AuthRepository {
     _session.value = null;
     _credentials.value = null;
     _requiresBiometricUnlock.value = false;
+    _softLocked.value = false;
     _tokensByCompany = const {};
     _accountsById = const {};
     _accountIdByCompanyId = const {};
@@ -1657,6 +1684,8 @@ class AuthRepository {
     if (_requiresBiometricUnlock.value) {
       _requiresBiometricUnlock.value = false;
     }
+    // The soft lock is passed with the same device authentication.
+    if (_softLocked.value) _softLocked.value = false;
     // A successful biometric unlock is a re-auth — clear any idle-timeout
     // re-lock flag so a later cold start restores normally.
     unawaited(_secure.delete(kAuthSessionLockedKey));
@@ -3003,6 +3032,38 @@ class AuthRepository {
     _session.dispose();
     _credentials.dispose();
     _requiresBiometricUnlock.dispose();
+    _softLocked.dispose();
     _companySwitchRejected.dispose();
   }
+}
+
+/// True while either listenable is — [AuthRepository.appLocked].
+class _AnyLocked extends ChangeNotifier implements ValueListenable<bool> {
+  _AnyLocked(this._a, this._b);
+
+  final ValueListenable<bool> _a;
+  final ValueListenable<bool> _b;
+
+  @override
+  bool get value => _a.value || _b.value;
+
+  @override
+  void addListener(VoidCallback listener) {
+    if (!hasListeners) {
+      _a.addListener(_changed);
+      _b.addListener(_changed);
+    }
+    super.addListener(listener);
+  }
+
+  @override
+  void removeListener(VoidCallback listener) {
+    super.removeListener(listener);
+    if (!hasListeners) {
+      _a.removeListener(_changed);
+      _b.removeListener(_changed);
+    }
+  }
+
+  void _changed() => notifyListeners();
 }

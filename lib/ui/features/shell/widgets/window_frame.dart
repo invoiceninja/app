@@ -56,7 +56,14 @@ class WindowFrame extends StatelessWidget {
     required this.railCollapsed,
     required this.shellMounted,
     required this.child,
+    this.locked,
   });
+
+  /// `AuthRepository.softLocked`: the soft lock leaves this band uncovered
+  /// so the window can still be moved and closed, so the history arrows —
+  /// the one control in it that acts on the app — go while it is up
+  /// (docs/soft-lock.md).
+  final ValueListenable<bool>? locked;
 
   /// Watched so the drawn buttons vanish for a clean screenshot.
   final ScreenshotWindowController screenshotWindow;
@@ -106,6 +113,7 @@ class WindowFrame extends StatelessWidget {
               screenshotWindow: screenshotWindow,
               railCollapsed: railCollapsed,
               shellMounted: shellMounted,
+              locked: locked,
             ),
             Expanded(child: child),
           ],
@@ -120,16 +128,18 @@ class _TitleBar extends StatelessWidget {
     required this.screenshotWindow,
     required this.railCollapsed,
     required this.shellMounted,
+    required this.locked,
   });
 
   final ScreenshotWindowController screenshotWindow;
   final ValueListenable<bool> railCollapsed;
   final ShellMountedNotifier shellMounted;
+  final ValueListenable<bool>? locked;
 
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: Listenable.merge([shellMounted, railCollapsed]),
+      listenable: Listenable.merge([shellMounted, railCollapsed, ?locked]),
       builder: (context, _) {
         final tokens = context.inTheme;
         // The same threshold the shell's own LayoutBuilder splits on, and
@@ -144,7 +154,7 @@ class _TitleBar extends StatelessWidget {
         // Arrows only on the expanded rail. The collapsed 64-px rail keeps them
         // in its own row, where two 32-px buttons fill it exactly — the same
         // split the macOS caption strip makes.
-        final arrows = leading == kInSidebarWidth;
+        final arrows = leading == kInSidebarWidth && !(locked?.value ?? false);
         // The collapsed 64-px rail has room for the mark but not the words.
         final showWordmark = leading != kInSidebarCollapsedWidth;
 

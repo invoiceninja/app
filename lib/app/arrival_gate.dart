@@ -8,10 +8,14 @@ import 'package:admin/data/services/api_credentials.dart';
 /// shared from another app — may act yet, and a way to be told when it can.
 ///
 /// Shared by `DeepLinkRouter` and `SharedFileIntake`: both hold what they were
-/// handed while the app is signed out or biometric-locked, and replay it once
-/// the user is through. Acting earlier would put a dialog over the lock screen
-/// (an ordinary Scaffold, so nothing stops a `showDialog` landing on top of it)
-/// or navigate behind a lock the user hasn't passed.
+/// handed while the app is signed out or locked, and replay it once the user is
+/// through. Acting earlier would put a dialog over the lock screen (an ordinary
+/// Scaffold, so nothing stops a `showDialog` landing on top of it) or navigate
+/// behind a lock the user hasn't passed. "Locked" is either lock —
+/// `AuthRepository.appLocked`, which `Services` passes as
+/// `requiresBiometricUnlock`: the cold-launch `/lock` gate, or the soft lock
+/// (docs/soft-lock.md), under which a navigation would move the app the user
+/// left — and could close an editor with unsaved changes.
 class ArrivalGate {
   ArrivalGate({
     required ValueListenable<AuthSession?> session,

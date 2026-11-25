@@ -3,17 +3,25 @@ import 'package:flutter/foundation.dart';
 import 'package:admin/data/repositories/auth_repository.dart';
 import 'package:admin/data/services/biometric_service.dart';
 
-/// Drives the cold-launch lock screen. The screen auto-triggers [unlock] on
-/// mount; the user can retry via the Unlock button or bail out via [signOut].
+/// Drives the cold-launch lock screen and the soft lock (docs/soft-lock.md).
+/// Each auto-triggers [unlock]; the user can retry via the Unlock button or
+/// bail out via [signOut].
 class LockViewModel extends ChangeNotifier {
   LockViewModel({
     required AuthRepository auth,
     required BiometricService biometric,
+    this.allowDeviceCredential = false,
   }) : _auth = auth,
        _biometric = biometric;
 
   final AuthRepository _auth;
   final BiometricService _biometric;
+
+  /// Let the OS fall back to the device passcode / password / PIN
+  /// ([BiometricService.authenticateOwner]) — the soft lock, which is offered
+  /// wherever the device can verify its owner at all. The cold-launch lock
+  /// stays biometric-only, as its toggle promises.
+  final bool allowDeviceCredential;
 
   bool _busy = false;
   bool _disposed = false;
@@ -28,7 +36,9 @@ class LockViewModel extends ChangeNotifier {
     _busy = true;
     _safeNotify();
     try {
-      final ok = await _biometric.authenticate(reason: reason);
+      final ok = allowDeviceCredential
+          ? await _biometric.authenticateOwner(reason: reason)
+          : await _biometric.authenticate(reason: reason);
       if (ok) _auth.completeBiometricUnlock();
     } finally {
       _busy = false;
