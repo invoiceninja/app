@@ -2407,5 +2407,7 @@
   "free_plan_company_limit_reached": "Vous avez atteint la limite d'entreprises du forfait gratuit.",
   "store_subscription_ended_info": "Votre abonnement intégré à l'application a pris fin.",
   "free_plan_client_limit_hit": "Vous avez atteint la limite de clients du forfait gratuit.",
-  "owner_only_sign_in_plan": "Avec ce forfait, seul le propriétaire du compte peut se connecter."
+  "owner_only_sign_in_plan": "Avec ce forfait, seul le propriétaire du compte peut se connecter.",
+  "comments_new_count": ":count nouveaux",
+  "no_team_comments": "Aucun commentaire récent de votre équipe"
 }

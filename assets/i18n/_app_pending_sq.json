@@ -2407,5 +2407,7 @@
   "free_plan_company_limit_reached": "Keni arritur kufirin e kompanive të planit falas.",
   "store_subscription_ended_info": "Abonimi juaj brenda aplikacionit ka përfunduar.",
   "free_plan_client_limit_hit": "Keni arritur kufirin e klientëve të planit falas.",
-  "owner_only_sign_in_plan": "Në këtë plan mund të hyjë vetëm pronari i llogarisë."
+  "owner_only_sign_in_plan": "Në këtë plan mund të hyjë vetëm pronari i llogarisë.",
+  "comments_new_count": ":count të reja",
+  "no_team_comments": "Nuk ka komente të fundit nga ekipi juaj"
 }

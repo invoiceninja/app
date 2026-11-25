@@ -58,6 +58,7 @@ class ActivityRecordRow extends StatefulWidget {
     this.bodyMaxLines,
     this.hostWireName,
     this.highlighted = false,
+    this.isNew = false,
     super.key,
   });
 
@@ -128,6 +129,13 @@ class ActivityRecordRow extends StatefulWidget {
   /// its target, i.e. no fade either way), this `State`'s `_spans` and their
   /// recognizers, and the row's `Material`/`InkWell` focus with it.
   final bool highlighted;
+
+  /// A teammate's comment the user has not seen yet — the Comments card's
+  /// read state (docs/comments-and-activity.md § A teammate's comment is new
+  /// until you have seen it). Leads the meta line with a "New" in the accent
+  /// ink; words, not a dot, so a screen reader and a colour-blind reader get
+  /// it too.
+  final bool isNew;
 
   @override
   State<ActivityRecordRow> createState() => _ActivityRecordRowState();
@@ -312,8 +320,20 @@ class _ActivityRecordRowState extends State<ActivityRecordRow> {
         const SizedBox(height: 2),
         Tooltip(
           message: absolute,
-          child: Text(
-            meta,
+          child: Text.rich(
+            TextSpan(
+              children: [
+                if (widget.isNew)
+                  TextSpan(
+                    text: '${context.tr('new')} · ',
+                    style: TextStyle(
+                      color: tokens.accentInk,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                TextSpan(text: meta),
+              ],
+            ),
             style: theme.textTheme.bodySmall?.copyWith(color: tokens.ink3),
           ),
         ),

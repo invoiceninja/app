@@ -1871,6 +1871,7 @@ Field-level breakdown of every option under each advanced settings panel. Source
 | Per-entity logged phone calls (a call-shaped activity note, with a Calls lens on the activity feed) | ❌ | ❌ | ✅ | | |
 | Per-entity comments card + Comments tab (comments surfaced on the record, not only in the activity feed) | — | — | ✅ | | |
 | Per-entity comment row actions (copy a comment, open the record it was filed against, delete one still queued offline) | — | — | ✅ | | Edit/delete of a *synced* comment is server-blocked — the API has no update or delete route for an activity note and `activities` has no soft-delete column (BACKEND.md § F3d) |
+| Teammates' new comments flagged (a "N new" tag on the record's Comments card, and a sidebar Comments inbox with an unread count that lists recent teammate comments and opens their records) | ❌ | ❌ | ✅ | | Read state is device-local and per user. The inbox is admin-only: the server narrows the company activity feed to the caller's own rows for a non-admin, so it could never hold a teammate's comment; their record cards still flag new ones. See docs/comments-and-activity.md |
 | Unsaved-changes guard on navigation | ✅ | ✅ | ✅ | ✅ | |
 | Phone-number input with validation | ✅ | ✅ | ✅ | ✅ | |
 | Signature pad | ✅ | ✅ | ✅ | ✅ | |

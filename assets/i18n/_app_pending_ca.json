@@ -2324,5 +2324,7 @@
   "free_plan_company_limit_reached": "Heu arribat al límit d'empreses del pla gratuït.",
   "store_subscription_ended_info": "La vostra subscripció dins l'aplicació ha finalitzat.",
   "free_plan_client_limit_hit": "Heu arribat al límit de clients del pla gratuït.",
-  "owner_only_sign_in_plan": "Amb aquest pla només el propietari del compte pot iniciar la sessió."
+  "owner_only_sign_in_plan": "Amb aquest pla només el propietari del compte pot iniciar la sessió.",
+  "comments_new_count": ":count nous",
+  "no_team_comments": "No hi ha comentaris recents del teu equip"
 }

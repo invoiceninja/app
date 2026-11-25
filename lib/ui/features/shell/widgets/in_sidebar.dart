@@ -25,6 +25,7 @@ import 'package:admin/ui/core/list/saved_view_icons.dart';
 import 'package:admin/ui/features/settings/settings_actions.dart';
 import 'package:admin/ui/features/shell/widgets/cached_stream.dart';
 import 'package:admin/ui/features/shell/widgets/command_palette.dart';
+import 'package:admin/ui/features/shell/widgets/comments_inbox_entry.dart';
 import 'package:admin/ui/features/shell/widgets/nav_history_buttons.dart';
 import 'package:admin/ui/features/shell/widgets/sidebar_footer_actions.dart';
 import 'package:admin/ui/features/shell/widgets/sidebar_menu_entries.dart';
@@ -950,6 +951,15 @@ class _InSidebarState extends State<InSidebar> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // Teammates' new comments (docs/comments-and-activity.md): absent
+            // at zero like Outbox, and above it for the same reason Outbox is
+            // above Settings — a row that comes and goes must not move the
+            // permanent one under the user's thumb.
+            CommentsInboxSidebarRow(
+              compact: compact,
+              touch: touch,
+              onBeforeModal: widget.onBeforeModal,
+            ),
             // Known and pre-existing, but newly always on screen: `StreamBuilder`
             // carries `snapshot.data` across a stream identity change, and
             // `_syncStreams` closes and clears `_badgeStreams` wholesale on a

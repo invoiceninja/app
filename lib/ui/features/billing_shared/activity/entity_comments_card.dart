@@ -1,8 +1,11 @@
 import 'package:material_ui/material_ui.dart';
+import 'package:provider/provider.dart';
 
+import 'package:admin/app/comments_inbox_controller.dart';
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/env.dart';
 import 'package:admin/data/models/domain/activity.dart';
+import 'package:admin/domain/activity/comment_reads.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/adaptive.dart';
 import 'package:admin/ui/core/detail/activity_note_buttons.dart';
@@ -38,7 +41,14 @@ const int kCommentsCardInlineLimit = 2;
 /// returns one widget, so it cannot spread `...[card, gap]` into the host's
 /// `Column`. Staying mounted is also the only way the [AnimatedSize] has a
 /// prior size to grow from; one mounted on the flip would simply snap.
-class EntityCommentsCard extends StatelessWidget {
+///
+/// **Teammates' new comments are tagged** (docs/comments-and-activity.md § A
+/// teammate's comment is new until you have seen it): a "N new" tag in the
+/// header and a "New" on each row, against the record's read stamp as it
+/// stood when the card was mounted. Showing the card is what marks them seen
+/// — for the next visit and for the shell's inbox count — so the tags stay
+/// for this visit and are gone on the next.
+class EntityCommentsCard extends StatefulWidget {
   const EntityCommentsCard({
     super.key,
     required this.vm,
@@ -57,7 +67,7 @@ class EntityCommentsCard extends StatelessWidget {
   final EntityNoteActions actions;
 
   /// Selects the Comments tab. Null hides the `View All` link — and so does
-  /// having nothing to defer to it; see [_defersRows].
+  /// having nothing to defer to it; see `_defersRows` on the state.
   final VoidCallback? onViewAll;
 
   /// Forwarded to [ActivityRecordRow.hostWireName].
@@ -71,6 +81,37 @@ class EntityCommentsCard extends StatelessWidget {
   /// under `EntityRecordColumn`, which centres the whole stack at the same
   /// width: the inner cap is then a no-op.
   final bool matchFormColumn;
+
+  @override
+  State<EntityCommentsCard> createState() => _EntityCommentsCardState();
+}
+
+class _EntityCommentsCardState extends State<EntityCommentsCard> {
+  EntityActivityViewModel get vm => widget.vm;
+
+  /// Null when there is no inbox above (a test) or nobody is signed in: then
+  /// nothing is tagged and nothing is marked.
+  CommentsInboxController? _inbox;
+
+  /// The record's read stamp as it stood when this card was mounted — frozen
+  /// for the visit, so the tags marking seen cannot take away before the user
+  /// has had a chance to read them.
+  int? _visitThreshold;
+
+  /// The newest comment already reported to [_inbox], so a rebuild doesn't
+  /// queue the same report again.
+  int _markedUpTo = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _inbox = context.read<CommentsInboxController?>();
+    _visitThreshold = _inbox?.recordThreshold(
+      companyId: vm.companyId,
+      wireName: vm.entityWireName,
+      id: vm.entityId,
+    );
+  }
 
   /// Whether the Comments tab holds anything this card is not already showing
   /// — the only thing that earns `View All` its place
@@ -116,8 +157,49 @@ class EntityCommentsCard extends StatelessWidget {
   bool get _defersRows =>
       vm.pendingRows.length + vm.comments.length > kCommentsCardInlineLimit;
 
+  /// Teammates' comments newer than [_visitThreshold].
+  Set<Activity> _newComments() {
+    final inbox = _inbox;
+    final threshold = _visitThreshold;
+    if (inbox == null || threshold == null) return const {};
+    return {
+      for (final c in vm.comments)
+        if (isNewOnRecord(
+          c,
+          currentUserId: inbox.currentUserId,
+          threshold: threshold,
+        ))
+          c,
+    };
+  }
+
+  /// Reports the newest comment on screen as seen — after the frame, since
+  /// the inbox notifies, and only while this card is really showing (a detail
+  /// screen kept offstage behind another branch must not read for the user).
+  void _markSeen() {
+    final inbox = _inbox;
+    if (inbox == null || vm.comments.isEmpty) return;
+    if (!TickerMode.valuesOf(context).enabled) return;
+    var newest = 0;
+    for (final c in vm.comments) {
+      final at = activityEpochSeconds(c);
+      if (at > newest) newest = at;
+    }
+    if (newest <= _markedUpTo) return;
+    _markedUpTo = newest;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      inbox.markRecordSeen(
+        companyId: vm.companyId,
+        wireName: vm.entityWireName,
+        id: vm.entityId,
+        upTo: newest,
+      );
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
+    final onViewAll = widget.onViewAll;
     return ListenableBuilder(
       listenable: vm,
       builder: (context, _) {
@@ -126,6 +208,8 @@ class EntityCommentsCard extends StatelessWidget {
         // whenever the network is down is worse than silence. The tab owns the
         // error and its Retry.
         final visible = vm.hasAnyComment;
+        if (visible) _markSeen();
+        final fresh = _newComments();
         // Resolved once and threaded into both halves of the header: the link
         // and the forgiving target around it have to appear and disappear
         // together, or a header navigates with nothing on it saying so.
@@ -140,7 +224,7 @@ class EntityCommentsCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    _card(context, onViewAllTap),
+                    _card(context, onViewAllTap, fresh),
                     SizedBox(height: InSpacing.lg(context)),
                   ],
                 )
@@ -150,7 +234,17 @@ class EntityCommentsCard extends StatelessWidget {
     );
   }
 
-  Widget _card(BuildContext context, VoidCallback? onViewAllTap) {
+  Widget _card(
+    BuildContext context,
+    VoidCallback? onViewAllTap,
+    Set<Activity> fresh,
+  ) {
+    final link = onViewAllTap == null
+        ? null
+        : DashboardCardFooterLink(
+            label: context.tr('view_all'),
+            onTap: onViewAllTap,
+          );
     final card = DashboardCardShell(
       title: context.tr('comments'),
       // A compact link, where two labelled buttons would overflow the header
@@ -167,11 +261,21 @@ class EntityCommentsCard extends StatelessWidget {
       // Transifex-translated string for an app-local machine-translated one on
       // twelve detail screens, and the N would be silently bounded by the feed
       // window.
-      trailing: onViewAllTap == null
-          ? null
-          : DashboardCardFooterLink(
-              label: context.tr('view_all'),
-              onTap: onViewAllTap,
+      //
+      // The "N new" tag sits before the link and carries no tap of its own:
+      // with the link it shares the header band's target, which still opens
+      // the tab that lists every one of them.
+      trailing: fresh.isEmpty
+          ? link
+          : Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                NewCommentsTag(count: fresh.length),
+                if (link != null) ...[
+                  SizedBox(width: InSpacing.md(context)),
+                  link,
+                ],
+              ],
             ),
       // The link's own box is ~25 dp tall — well under `InSizes.touchTarget` —
       // and the rest of the header had no handler at all, so a near miss was
@@ -196,9 +300,9 @@ class EntityCommentsCard extends StatelessWidget {
       // the body lines those borders up with the header's divider; the header
       // keeps its own inset, so the rows are told to match it.
       padding: EdgeInsets.zero,
-      child: _body(context),
+      child: _body(context, fresh),
     );
-    if (!matchFormColumn) return card;
+    if (!widget.matchFormColumn) return card;
     // Match the grid's branch, don't just cap unconditionally: the cards grids
     // centre themselves at 820 only *below*
     // `Breakpoints.entityFormMultiColumn` and go full-width multi-column above
@@ -212,11 +316,11 @@ class EntityCommentsCard extends StatelessWidget {
     );
   }
 
-  Widget _body(BuildContext context) {
+  Widget _body(BuildContext context, Set<Activity> fresh) {
     final inset = InSpacing.lg(context);
     final pending = vm.pendingRows;
     final comments = vm.comments;
-    final onAddComment = actions.onAddComment;
+    final onAddComment = widget.actions.onAddComment;
 
     final shownPending = pending.take(kCommentsCardInlineLimit).toList();
     final room = kCommentsCardInlineLimit - shownPending.length;
@@ -248,12 +352,13 @@ class EntityCommentsCard extends StatelessWidget {
       children.add(
         ActivityRecordRow(
           activity: activity,
-          formatter: formatter,
+          formatter: widget.formatter,
           isLast: isLast(i),
           showIp: false,
           horizontalPadding: inset,
           bodyMaxLines: 2,
-          hostWireName: hostWireName,
+          hostWireName: widget.hostWireName,
+          isNew: fresh.contains(activity),
         ),
       );
       i++;
@@ -287,6 +392,37 @@ class EntityCommentsCard extends StatelessWidget {
         else
           SizedBox(height: InSpacing.sm),
       ],
+    );
+  }
+}
+
+/// The Comments card's "N new" tag: a teammate's comments the user has not
+/// seen yet. Never drawn for zero.
+///
+/// A rounded rectangle in the accent's soft fill with accent ink — the pairing
+/// the theme guarantees legible whatever accent the user picked, white
+/// included (docs/accent-colour.md).
+class NewCommentsTag extends StatelessWidget {
+  const NewCommentsTag({super.key, required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.inTheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: tokens.accentSoft,
+        borderRadius: BorderRadius.circular(InRadii.r1),
+      ),
+      child: Text(
+        context.tr('comments_new_count', {'count': '$count'}),
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+          color: tokens.accentInk,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
     );
   }
 }

@@ -2407,5 +2407,7 @@
   "free_plan_company_limit_reached": "Ücretsiz planın şirket sınırına ulaştınız.",
   "store_subscription_ended_info": "Uygulama içi aboneliğiniz sona erdi.",
   "free_plan_client_limit_hit": "Ücretsiz planın müşteri sınırına ulaştınız.",
-  "owner_only_sign_in_plan": "Bu planda yalnızca hesap sahibi oturum açabilir."
+  "owner_only_sign_in_plan": "Bu planda yalnızca hesap sahibi oturum açabilir.",
+  "comments_new_count": ":count yeni",
+  "no_team_comments": "Ekibinizden yakın zamanda yorum yok"
 }

@@ -2407,5 +2407,7 @@
   "free_plan_company_limit_reached": "您已达到免费版的公司数量上限。",
   "store_subscription_ended_info": "您的应用内订阅已结束。",
   "free_plan_client_limit_hit": "您已达到免费版的客户数量上限。",
-  "owner_only_sign_in_plan": "此套餐仅账户所有者可以登录。"
+  "owner_only_sign_in_plan": "此套餐仅账户所有者可以登录。",
+  "comments_new_count": ":count 条新",
+  "no_team_comments": "团队最近没有评论"
 }

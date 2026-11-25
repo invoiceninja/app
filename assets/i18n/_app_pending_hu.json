@@ -2362,5 +2362,7 @@
   "free_plan_company_limit_reached": "Elérte az ingyenes csomag cégkorlátját.",
   "store_subscription_ended_info": "Az alkalmazáson belüli előfizetése lejárt.",
   "free_plan_client_limit_hit": "Elérte az ingyenes csomag ügyfélkorlátját.",
-  "owner_only_sign_in_plan": "Ebben a csomagban csak a fiók tulajdonosa jelentkezhet be."
+  "owner_only_sign_in_plan": "Ebben a csomagban csak a fiók tulajdonosa jelentkezhet be.",
+  "comments_new_count": ":count új",
+  "no_team_comments": "Nincs friss megjegyzés a csapatától"
 }

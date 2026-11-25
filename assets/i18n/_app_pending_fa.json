@@ -2408,5 +2408,7 @@
   "free_plan_company_limit_reached": "به سقف شرکت‌های طرح رایگان رسیده‌اید.",
   "store_subscription_ended_info": "اشتراک درون‌برنامه‌ای شما به پایان رسیده است.",
   "free_plan_client_limit_hit": "به سقف مشتریان طرح رایگان رسیده‌اید.",
-  "owner_only_sign_in_plan": "در این طرح فقط مالک حساب می‌تواند وارد شود."
+  "owner_only_sign_in_plan": "در این طرح فقط مالک حساب می‌تواند وارد شود.",
+  "comments_new_count": ":count جدید",
+  "no_team_comments": "نظر اخیری از تیم شما وجود ندارد"
 }

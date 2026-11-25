@@ -2407,5 +2407,7 @@
   "free_plan_company_limit_reached": "Вы достигли лимита компаний бесплатного тарифа.",
   "store_subscription_ended_info": "Ваша подписка в приложении закончилась.",
   "free_plan_client_limit_hit": "Вы достигли лимита клиентов бесплатного тарифа.",
-  "owner_only_sign_in_plan": "На этом тарифе входить может только владелец аккаунта."
+  "owner_only_sign_in_plan": "На этом тарифе входить может только владелец аккаунта.",
+  "comments_new_count": ":count новых",
+  "no_team_comments": "Нет недавних комментариев от вашей команды"
 }

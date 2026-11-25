@@ -2328,5 +2328,7 @@
   "free_plan_company_limit_reached": "Du har nået Gratis-planens grænse for virksomheder.",
   "store_subscription_ended_info": "Dit abonnement i appen er udløbet.",
   "free_plan_client_limit_hit": "Du har nået Gratis-planens grænse for kunder.",
-  "owner_only_sign_in_plan": "På dette abonnement kan kun kontoens ejer logge ind."
+  "owner_only_sign_in_plan": "På dette abonnement kan kun kontoens ejer logge ind.",
+  "comments_new_count": ":count nye",
+  "no_team_comments": "Ingen nylige kommentarer fra dit team"
 }

@@ -438,6 +438,21 @@ abstract final class DevicePrefKeys {
     PrefScope.device,
   );
 
+  /// Which teammates' comments this user has seen, per company and per
+  /// record (`CommentsInboxController`, docs/comments-and-activity.md § A
+  /// teammate's comment is new until you have seen it): JSON naming its
+  /// `user`, and per company id a `base` (when tracking started), a `feed`
+  /// (the inbox last opened) and `records` (`wire:id` → the newest comment its
+  /// card showed), all in epoch seconds — `CommentReads.encode`. Account
+  /// scope: what one person has read says nothing about the next; and the
+  /// blob names its user, so a copy that outlives a kept-data session end is
+  /// never read by someone else.
+  static const commentReads = PrefKey<String>(
+    'comment_reads_json',
+    PrefCodec.string,
+    PrefScope.account,
+  );
+
   /// In the order they were added; append new keys at the end.
   static const List<PrefKey<Object>> all = [
     locale,
@@ -483,6 +498,7 @@ abstract final class DevicePrefKeys {
     documentThumbnails,
     listColumnWidths,
     accountPrefsKept,
+    commentReads,
   ];
 
   /// The account preferences a sign-out keeps aside for the SAME user's
@@ -504,6 +520,7 @@ abstract final class DevicePrefKeys {
     hidePeppolStatus.name,
     howToTapShown.name,
     tapToPayAnnounced.name,
+    commentReads.name,
   };
 
   /// The rows a data wipe leaves in place: the [PrefScope.device] keys and the

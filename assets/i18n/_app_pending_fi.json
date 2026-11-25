@@ -2325,5 +2325,7 @@
   "free_plan_company_limit_reached": "Olet saavuttanut Ilmaisen paketin yritysrajan.",
   "store_subscription_ended_info": "Sovelluksen sisäinen tilauksesi on päättynyt.",
   "free_plan_client_limit_hit": "Olet saavuttanut Ilmaisen paketin asiakasrajan.",
-  "owner_only_sign_in_plan": "Tässä paketissa vain tilin omistaja voi kirjautua sisään."
+  "owner_only_sign_in_plan": "Tässä paketissa vain tilin omistaja voi kirjautua sisään.",
+  "comments_new_count": ":count uutta",
+  "no_team_comments": "Ei tuoreita kommentteja tiimiltäsi"
 }

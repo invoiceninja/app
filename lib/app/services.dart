@@ -26,6 +26,7 @@ import 'package:admin/app/terminal_controller.dart';
 import 'package:admin/app/terminal_decline_notices.dart';
 import 'package:admin/app/welcome_controller.dart';
 import 'package:admin/app/whats_new_controller.dart';
+import 'package:admin/app/comments_inbox_controller.dart';
 import 'package:admin/app/sign_out_notice.dart';
 import 'package:admin/app/default_items_tab_controller.dart';
 import 'package:admin/app/hide_peppol_status_controller.dart';
@@ -430,6 +431,7 @@ class Services implements SidebarBadgeContext {
     required this.signOutNotice,
     required this.mobileAppPromo,
     required this.whatsNew,
+    required this.commentsInbox,
     required this.welcome,
     required this.reviewPrompt,
     required this.spellCheck,
@@ -928,6 +930,11 @@ class Services implements SidebarBadgeContext {
   /// The "What's new" dialog's schedule (docs/whats-new-dialog.md), armed
   /// only by `main()`. Read through its root provider, like [signOutNotice].
   final WhatsNewController whatsNew;
+
+  /// Teammates' comments and which of them this user has seen
+  /// (docs/comments-and-activity.md). Read through its root provider, like
+  /// [signOutNotice].
+  final CommentsInboxController commentsInbox;
 
   /// The first-run experience's schedule (docs/first-run-welcome.md), armed
   /// only by `main()`. Read through its root provider, like [signOutNotice].
@@ -2785,6 +2792,17 @@ class Services implements SidebarBadgeContext {
       );
     }
 
+    // Rides the delta refresh's own cadence (tick, resume, push) rather than
+    // a clock of its own, and reads the activity row the dashboard shares.
+    final commentsInbox = CommentsInboxController(
+      prefs: devicePrefs,
+      session: auth.session,
+      watchFeed: dashboardRepo.watchActivities,
+      watchFeedFetchedAt: dashboardRepo.watchActivitiesFetchedAt,
+      refreshFeed: dashboardRepo.refreshActivities,
+      refreshCycles: refreshScheduler.completedRefreshes,
+    );
+
     services = Services._(
       db: db,
       auth: auth,
@@ -2887,6 +2905,7 @@ class Services implements SidebarBadgeContext {
       signOutNotice: signOutNotice,
       mobileAppPromo: mobileAppPromo,
       whatsNew: whatsNew,
+      commentsInbox: commentsInbox,
       welcome: welcome,
       reviewPrompt: reviewPrompt,
       spellCheck: spellCheck,

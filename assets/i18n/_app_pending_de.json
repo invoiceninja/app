@@ -2407,5 +2407,7 @@
   "free_plan_company_limit_reached": "Sie haben das Firmenlimit des kostenlosen Tarifs erreicht.",
   "store_subscription_ended_info": "Ihr In-App-Abonnement ist abgelaufen.",
   "free_plan_client_limit_hit": "Sie haben das Kundenlimit des kostenlosen Tarifs erreicht.",
-  "owner_only_sign_in_plan": "In diesem Tarif kann sich nur der Kontoinhaber anmelden."
+  "owner_only_sign_in_plan": "In diesem Tarif kann sich nur der Kontoinhaber anmelden.",
+  "comments_new_count": ":count neu",
+  "no_team_comments": "Keine neuen Kommentare von Ihrem Team"
 }

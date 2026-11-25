@@ -2324,5 +2324,7 @@
   "free_plan_company_limit_reached": "Atingiu o limite de empresas do plano gratuito.",
   "store_subscription_ended_info": "A sua subscrição na aplicação terminou.",
   "free_plan_client_limit_hit": "Atingiu o limite de clientes do plano gratuito.",
-  "owner_only_sign_in_plan": "Neste plano, apenas o proprietário da conta pode iniciar sessão."
+  "owner_only_sign_in_plan": "Neste plano, apenas o proprietário da conta pode iniciar sessão.",
+  "comments_new_count": ":count novos",
+  "no_team_comments": "Nenhum comentário recente da sua equipa"
 }

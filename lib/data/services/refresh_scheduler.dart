@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:logging/logging.dart';
 
 import 'package:admin/data/repositories/auth_repository.dart';
@@ -51,6 +52,14 @@ class RefreshScheduler {
   Timer? _pushTimer;
   Completer<bool>? _pushWaiter;
   bool _pushAfterInFlight = false;
+
+  final ValueNotifier<int> _completed = ValueNotifier<int>(0);
+
+  /// Bumped each time a delta refresh lands cleanly — a timer tick, an
+  /// app-resume [triggerNow] or a pushed [requestSoon] alike. For work that
+  /// should ride the same cadence instead of keeping a clock of its own (the
+  /// comments inbox, docs/comments-and-activity.md).
+  ValueListenable<int> get completedRefreshes => _completed;
 
   /// Begin (or keep) the periodic pump. Idempotent — repeated calls (login,
   /// company switch, resume) reuse the existing timer.
@@ -144,7 +153,10 @@ class RefreshScheduler {
 
     final future = _auth
         .refresh() // delta (fullSync:false) — cheap by design
-        .then((_) => true)
+        .then((_) {
+          _completed.value++;
+          return true;
+        })
         .catchError((Object e, StackTrace st) {
           // A scheduler tick must never throw (offline / 401-in-flight /
           // parse blip). The next tick retries; a real 401 already routes

@@ -278,6 +278,15 @@ final Map<PrefKey<Object>, _Probe> _probes = {
     (s) => s.devicePrefs.write(DevicePrefKeys.appearanceSeeded, true),
     (s) => s.devicePrefs.read(DevicePrefKeys.appearanceSeeded) != true,
   ),
+  // Which teammates' comments this user has read: the next person to sign in
+  // has read nothing, and the returning user gets it back.
+  DevicePrefKeys.commentReads: _Probe(
+    (s) => s.devicePrefs.write(
+      DevicePrefKeys.commentReads,
+      '{"user":"u1","companies":{"co":{"base":1}}}',
+    ),
+    (s) => s.devicePrefs.read(DevicePrefKeys.commentReads) == null,
+  ),
 };
 
 final _certificate = CertificateFacts(

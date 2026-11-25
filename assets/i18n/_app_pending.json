@@ -2410,5 +2410,7 @@
   "free_plan_company_limit_reached": "You have reached the Free plan's company limit.",
   "store_subscription_ended_info": "Your in-app subscription has ended.",
   "free_plan_client_limit_hit": "You have reached the Free plan's client limit.",
-  "owner_only_sign_in_plan": "Only the account owner can sign in on this plan."
+  "owner_only_sign_in_plan": "Only the account owner can sign in on this plan.",
+  "comments_new_count": ":count new",
+  "no_team_comments": "No recent comments from your team"
 }

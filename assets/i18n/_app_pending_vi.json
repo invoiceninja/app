@@ -2290,5 +2290,7 @@
   "free_plan_company_limit_reached": "Bạn đã đạt giới hạn công ty của gói miễn phí.",
   "store_subscription_ended_info": "Gói đăng ký trong ứng dụng của bạn đã kết thúc.",
   "free_plan_client_limit_hit": "Bạn đã đạt giới hạn khách hàng của gói miễn phí.",
-  "owner_only_sign_in_plan": "Với gói này, chỉ chủ tài khoản mới có thể đăng nhập."
+  "owner_only_sign_in_plan": "Với gói này, chỉ chủ tài khoản mới có thể đăng nhập.",
+  "comments_new_count": ":count mới",
+  "no_team_comments": "Không có bình luận gần đây từ nhóm của bạn"
 }

@@ -14,6 +14,7 @@ import 'package:admin/app/browser_chrome.dart';
 import 'package:admin/app/purchase_notices.dart';
 import 'package:admin/app/corrupt_store_boot.dart';
 import 'package:admin/app/entity_links.dart';
+import 'package:admin/app/comments_inbox_controller.dart';
 import 'package:admin/data/services/cloudflare/cloudflare_clearance.dart';
 import 'package:admin/data/repositories/docuninja/docuninja_session.dart';
 import 'package:admin/data/services/docuninja/docuninja_api.dart';
@@ -1081,6 +1082,12 @@ class _InvoiceNinjaAppState extends State<InvoiceNinjaApp> {
         // read as `context.read<WhatsNewController?>()` for the same reason.
         ChangeNotifierProvider<WhatsNewController>.value(
           value: widget.services.whatsNew,
+        ),
+        // For the shell's comments inbox row, the phone's menu button and
+        // every record's Comments card, read as
+        // `context.read<CommentsInboxController?>()` for the same reason.
+        ChangeNotifierProvider<CommentsInboxController>.value(
+          value: widget.services.commentsInbox,
         ),
         // For the shell's Welcome host, the setup wizard, the dashboard
         // checklist, About and the command palette, read as

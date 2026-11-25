@@ -2362,5 +2362,7 @@
   "free_plan_company_limit_reached": "Pasiekėte nemokamo plano įmonių ribą.",
   "store_subscription_ended_info": "Jūsų prenumerata programoje baigėsi.",
   "free_plan_client_limit_hit": "Pasiekėte nemokamo plano klientų ribą.",
-  "owner_only_sign_in_plan": "Šiame plane prisijungti gali tik paskyros savininkas."
+  "owner_only_sign_in_plan": "Šiame plane prisijungti gali tik paskyros savininkas.",
+  "comments_new_count": ":count nauji",
+  "no_team_comments": "Nėra naujų jūsų komandos komentarų"
 }

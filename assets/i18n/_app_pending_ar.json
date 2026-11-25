@@ -2323,5 +2323,7 @@
   "free_plan_company_limit_reached": "لقد بلغت حد الشركات في الخطة المجانية.",
   "store_subscription_ended_info": "انتهى اشتراكك داخل التطبيق.",
   "free_plan_client_limit_hit": "لقد بلغت حد العملاء في الخطة المجانية.",
-  "owner_only_sign_in_plan": "لا يمكن تسجيل الدخول في هذه الخطة إلا لمالك الحساب."
+  "owner_only_sign_in_plan": "لا يمكن تسجيل الدخول في هذه الخطة إلا لمالك الحساب.",
+  "comments_new_count": ":count جديد",
+  "no_team_comments": "لا توجد تعليقات حديثة من فريقك"
 }

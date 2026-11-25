@@ -2325,5 +2325,7 @@
   "free_plan_company_limit_reached": "Osiągnięto limit firm w planie darmowym.",
   "store_subscription_ended_info": "Twoja subskrypcja w aplikacji wygasła.",
   "free_plan_client_limit_hit": "Osiągnięto limit klientów w planie darmowym.",
-  "owner_only_sign_in_plan": "W tym planie zalogować się może tylko właściciel konta."
+  "owner_only_sign_in_plan": "W tym planie zalogować się może tylko właściciel konta.",
+  "comments_new_count": ":count nowe",
+  "no_team_comments": "Brak ostatnich komentarzy od Twojego zespołu"
 }

@@ -2324,5 +2324,7 @@
   "free_plan_company_limit_reached": "Dosegli ste ograničenje tvrtki besplatnog paketa.",
   "store_subscription_ended_info": "Vaša pretplata unutar aplikacije je istekla.",
   "free_plan_client_limit_hit": "Dosegli ste ograničenje klijenata besplatnog paketa.",
-  "owner_only_sign_in_plan": "Na ovom paketu prijaviti se može samo vlasnik računa."
+  "owner_only_sign_in_plan": "Na ovom paketu prijaviti se može samo vlasnik računa.",
+  "comments_new_count": ":count novih",
+  "no_team_comments": "Nema nedavnih komentara vašeg tima"
 }

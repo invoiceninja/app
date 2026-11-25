@@ -2324,5 +2324,7 @@
   "free_plan_company_limit_reached": "Dosiahli ste limit firiem bezplatného programu.",
   "store_subscription_ended_info": "Vaše predplatné v aplikácii skončilo.",
   "free_plan_client_limit_hit": "Dosiahli ste limit klientov bezplatného programu.",
-  "owner_only_sign_in_plan": "V tomto programe sa môže prihlásiť iba vlastník účtu."
+  "owner_only_sign_in_plan": "V tomto programe sa môže prihlásiť iba vlastník účtu.",
+  "comments_new_count": ":count nové",
+  "no_team_comments": "Žiadne nedávne komentáre od vášho tímu"
 }

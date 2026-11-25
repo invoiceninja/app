@@ -7,6 +7,7 @@ import 'package:admin/app/services.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/stale_drawer_guard.dart';
 import 'package:admin/ui/features/shell/branch_company_gate.dart';
+import 'package:admin/ui/features/shell/widgets/comments_inbox_entry.dart';
 import 'package:admin/ui/features/shell/widgets/in_sidebar.dart';
 
 /// Mobile drawer that consolidates what desktop shows in the persistent
@@ -83,7 +84,8 @@ class DrawerHamburger extends StatelessWidget {
   Widget build(BuildContext context) {
     return Builder(
       builder: (context) => IconButton(
-        icon: const Icon(Icons.menu),
+        // A dot while teammates' comments wait in the drawer's inbox row.
+        icon: const CommentsInboxDot(child: Icon(Icons.menu)),
         tooltip: context.tr('menu'),
         onPressed: () => Scaffold.of(context).openDrawer(),
       ),

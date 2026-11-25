@@ -2395,5 +2395,7 @@
   "free_plan_company_limit_reached": "Ați atins limita de firme a planului gratuit.",
   "store_subscription_ended_info": "Abonamentul dumneavoastră din aplicație s-a încheiat.",
   "free_plan_client_limit_hit": "Ați atins limita de clienți a planului gratuit.",
-  "owner_only_sign_in_plan": "Pe acest plan se poate autentifica doar proprietarul contului."
+  "owner_only_sign_in_plan": "Pe acest plan se poate autentifica doar proprietarul contului.",
+  "comments_new_count": ":count noi",
+  "no_team_comments": "Niciun comentariu recent de la echipa ta"
 }

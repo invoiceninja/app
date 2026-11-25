@@ -54,6 +54,7 @@ void main() {
     'document_thumbnails': PrefScope.device,
     'list_column_widths_json': PrefScope.device,
     'account_prefs_kept_json': PrefScope.device,
+    'comment_reads_json': PrefScope.account,
   };
 
   final names = [for (final k in DevicePrefKeys.all) k.name];

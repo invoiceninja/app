@@ -2394,5 +2394,7 @@
   "free_plan_company_limit_reached": "Du har nått Gratisplanens gräns för företag.",
   "store_subscription_ended_info": "Din prenumeration i appen har upphört.",
   "free_plan_client_limit_hit": "Du har nått Gratisplanens gräns för kunder.",
-  "owner_only_sign_in_plan": "På den här nivån kan bara kontots ägare logga in."
+  "owner_only_sign_in_plan": "På den här nivån kan bara kontots ägare logga in.",
+  "comments_new_count": ":count nya",
+  "no_team_comments": "Inga nya kommentarer från ditt team"
 }

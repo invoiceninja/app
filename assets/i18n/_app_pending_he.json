@@ -2323,5 +2323,7 @@
   "free_plan_company_limit_reached": "הגעת למגבלת החברות של התוכנית החינמית.",
   "store_subscription_ended_info": "המינוי שלך מתוך האפליקציה הסתיים.",
   "free_plan_client_limit_hit": "הגעת למגבלת הלקוחות של התוכנית החינמית.",
-  "owner_only_sign_in_plan": "בתוכנית זו רק בעל החשבון יכול להתחבר."
+  "owner_only_sign_in_plan": "בתוכנית זו רק בעל החשבון יכול להתחבר.",
+  "comments_new_count": ":count חדשות",
+  "no_team_comments": "אין תגובות אחרונות מהצוות שלך"
 }

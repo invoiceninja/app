@@ -46,6 +46,21 @@ void main() {
     expect(auth.fullSyncArgs.single, isFalse);
   });
 
+  test('completedRefreshes ticks only for a refresh that landed', () async {
+    // The comments inbox rides this instead of a clock of its own.
+    final auth = _FakeAuth();
+    final s = RefreshScheduler(auth: auth, now: now);
+
+    await s.triggerNow();
+    expect(s.completedRefreshes.value, 1);
+
+    auth.throwOnRefresh = Exception('offline');
+    clock = clock.add(kMinRefreshGap);
+    await s.triggerNow();
+    expect(auth.refreshCalls, 2);
+    expect(s.completedRefreshes.value, 1);
+  });
+
   test('skips entirely when unauthenticated', () async {
     final auth = _FakeAuth(authed: false);
     final s = RefreshScheduler(auth: auth, now: now);

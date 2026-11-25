@@ -2407,5 +2407,7 @@
   "free_plan_company_limit_reached": "คุณถึงขีดจำกัดจำนวนบริษัทของแพ็กเกจฟรีแล้ว",
   "store_subscription_ended_info": "การสมัครสมาชิกภายในแอปของคุณสิ้นสุดแล้ว",
   "free_plan_client_limit_hit": "คุณถึงขีดจำกัดจำนวนลูกค้าของแพ็กเกจฟรีแล้ว",
-  "owner_only_sign_in_plan": "แผนนี้ให้เฉพาะเจ้าของบัญชีลงชื่อเข้าใช้ได้"
+  "owner_only_sign_in_plan": "แผนนี้ให้เฉพาะเจ้าของบัญชีลงชื่อเข้าใช้ได้",
+  "comments_new_count": ":count ใหม่",
+  "no_team_comments": "ไม่มีความคิดเห็นล่าสุดจากทีมของคุณ"
 }
