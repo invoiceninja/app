@@ -122,7 +122,7 @@ The full routing table, moved here from CLAUDE.md's Quick Index (which keeps a s
 | Adding / editing a settings screen, or anything in the visual invoice designer | § Settings screens + `docs/settings-screens.md` · § Visual invoice designer + `docs/invoice-designer.md` |
 | Wiring a form field, picker, or Enter-to-save | § Forms · `docs/pickers.md` · `docs/form-fields.md` |
 | What Save does next — the editor closing or staying open, a new record's editor after Save | § Forms · `docs/after-saving.md` · `lib/ui/core/edit/entity_edit_screen_scaffold.dart` |
-| Save then print — Print After Saving, ⌘P / Ctrl+P in a billing document's editor | `docs/after-saving.md` § Print After Saving runs Print PDF's own after-save path · `docs/keyboard.md` § An edit form owns its focus |
+| Save then print — Print After Saving, ⌘P / Ctrl+P in a billing document's editor | `docs/after-saving.md` § Print After Saving adds a print to a plain Save · `docs/keyboard.md` § An edit form owns its focus |
 | Keyboard type, autofill, capitalization, or a negative amount on touch | § Forms — Input types · `docs/form-fields.md` · `test/lint/field_input_types_test.dart` |
 | A picker popover or hand-rolled `OverlayPortal` that won't close on touch or Android back, the ✕, or the ▾ on a picker | `docs/popup-dismissal.md` · `lib/ui/core/widgets/picker_dismissal.dart` · `test/lint/picker_popover_wiring_test.dart` · `overlay_back_dismiss_test.dart` |
 | A picker showing a dead empty box or stuck on "Loading", or blanking when its value is archived | `docs/pickers.md` § A picker's empty state has to say something · `lib/ui/core/widgets/entity_picker_field.dart` |

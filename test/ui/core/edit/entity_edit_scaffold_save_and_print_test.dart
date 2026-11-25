@@ -133,9 +133,9 @@ void main() {
       await _tapSave(tester);
 
       expect(vm.saves, 1);
-      // The menu's edit-mode after-save path: dead-row cleanup, then the
-      // action against the saved record — not the plain onSaved.
-      expect(_events, ['cleanup', 'print:Acme Inc']);
+      // The print dispatch against the saved record, then the plain Save's
+      // own onSaved (After Saving, the reload) — while still mounted.
+      expect(_events, ['print:Acme Inc', 'saved:Acme Inc']);
     });
 
     testWidgets('off: Save only saves', (tester) async {
@@ -168,7 +168,7 @@ void main() {
       await _tapSave(tester);
 
       expect(vm.saves, 1, reason: 'Save re-saves an unchanged record');
-      expect(_events, ['cleanup', 'print:Acme']);
+      expect(_events, ['print:Acme', 'saved:Acme']);
     });
 
     testWidgets('on: a save the form refuses does not print', (tester) async {
@@ -202,9 +202,10 @@ void main() {
 
       expect(vm.saves, 1);
       // `onAfterSaveActionOnCreate` (which resolves the tmp id before it
-      // dispatches), then — the action took no navigation over — the
-      // action's save goes to the record, as the menu's does.
-      expect(_events, ['print-on-create:tmp_1', 'savedByAction:tmp_1']);
+      // dispatches), then the plain Save's onSaved — not the action's
+      // onSavedByAction, which would leave for the record whatever After
+      // Saving says.
+      expect(_events, ['print-on-create:tmp_1', 'saved:tmp_1']);
     });
 
     testWidgets('on: Enter in a field saves and prints', (tester) async {
@@ -226,7 +227,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(vm.saves, 1);
-      expect(_events, ['cleanup', 'print:Typed']);
+      expect(_events, ['print:Typed', 'saved:Typed']);
     });
 
     testWidgets('on: ⌘S saves and prints', (tester) async {
@@ -236,7 +237,7 @@ void main() {
 
       await _chord(tester, LogicalKeyboardKey.keyS);
 
-      expect(_events, ['cleanup', 'print:Acme Inc']);
+      expect(_events, ['print:Acme Inc', 'saved:Acme Inc']);
     });
   });
 

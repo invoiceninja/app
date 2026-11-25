@@ -478,8 +478,8 @@ abstract final class DevicePrefKeys {
 
   /// Whether a plain Save of a billing document that can be printed
   /// (invoice, quote, credit, recurring invoice, purchase order) also prints
-  /// it, as choosing Print PDF from the editor's menu does — Device Settings
-  /// → Forms → Print After Saving (`PrintAfterSavingController`,
+  /// it, with the print dispatch the editor menu's Print PDF runs — Device
+  /// Settings → Forms → Print After Saving (`PrintAfterSavingController`,
   /// docs/after-saving.md). Off by default. Device scope: whether this
   /// device has a printer worth sending every save to is the device's
   /// business, like [afterSaving].

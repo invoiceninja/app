@@ -4,8 +4,8 @@ import 'package:admin/data/prefs/device_prefs_store.dart';
 
 /// Owns "Print After Saving" (`DevicePrefKeys.printAfterSaving`,
 /// device-local): whether a plain Save — the button, Enter, ⌘S — of a
-/// billing document that has Print PDF also prints it, through the same
-/// after-save path as choosing Print PDF from the editor's menu
+/// billing document that has Print PDF also prints it — the whole plain Save
+/// still runs, with the menu's print dispatch added once the save succeeded
 /// (docs/after-saving.md). Off by default: a print dialog after every save
 /// is only welcome to someone who asked for it.
 ///

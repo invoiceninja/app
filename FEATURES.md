@@ -1326,7 +1326,7 @@ Field-level breakdown of every option under each settings panel. Source of truth
 | Lock after inactivity — Never / 1 / 5 / 15 / 30 / 60 minutes (local; asks the device's own authentication before turning on; hidden where the device has none — Linux, web) | — | — | ✅ | | `docs/soft-lock.md` |
 | Confirm actions — "Are you sure?" before Approve / Mark Sent / Cancel / Send Now / Archive / Delete etc. (local, on by default) | — | — | ✅ | | |
 | After Saving — Save keeps an edit screen open (Edit Record) or goes to the record (View Record); automatic is Edit Record on a tablet or desktop and View Record on a phone; an action's save (Mark Sent, Email, …) always goes to the record (local; React always stays, v1's setting was desktop-only, invoiceninja/app#202) | ✅ | ✅ | ✅ | | |
-| Print After Saving — a Save of an invoice, quote, credit, recurring invoice or purchase order also prints it, through the editor menu's Print PDF path (local, off by default) | — | — | ✅ | | |
+| Print After Saving — a Save of an invoice, quote, credit, recurring invoice or purchase order also prints it, after the save and before After Saving's navigation (local, off by default) | — | — | ✅ | | |
 | Sync (pushes queued edits, re-downloads, shows last-updated) | — | ✅ | ✅ | ✅ | ✅ |
 | Contacts sync — push client contacts to the device address book, under a label, with an All / Assigned-to-me scope (mobile only, local, off by default) | — | — | ✅ | | |
 | Phone numbers — tap to call / Message, an optional confirm, and an outside-business-hours warning in the contact's timezone (local; tap-to-call defaults on for touch, off on desktop). Also gates the billing-doc header and list-row call buttons | — | — | ✅ | | |

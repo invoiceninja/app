@@ -199,8 +199,9 @@ class EntityEditScaffold<T> extends StatelessWidget {
   /// The AFTER-SAVE action that prints this record — a billing document's
   /// Print PDF (`InvoiceAction.printPdf`, …) — or null where there is none.
   /// Non-null binds ⌘P / Ctrl+P to save, then run it ([_onAction], exactly
-  /// as choosing it from the menu), and makes a plain Save do the same while
-  /// Device Settings → Print After Saving is on (docs/after-saving.md).
+  /// as choosing it from the menu), and, while Device Settings → Print After
+  /// Saving is on, adds it to a plain Save once the save succeeded — the
+  /// plain Save otherwise unchanged (docs/after-saving.md).
   final Object? printAction;
 
   /// Drawn after the title on a wide header, before the "Unsaved" label —
@@ -309,7 +310,19 @@ class EntityEditScaffold<T> extends StatelessWidget {
   /// save, then on success toast + navigate via [onSaved]. For a SAVE-PARAM
   /// action the caller has already stashed the query on the VM, so the same
   /// save round-trip carries the action — nothing extra runs afterward.
-  Future<void> _onSave(BuildContext context, {bool viaAction = false}) async {
+  ///
+  /// [thenPrint] (a plain Save with "Print After Saving" on) runs
+  /// [printAction] between the toast and [onSaved] — awaited there, while
+  /// this editor is still mounted: [onSaved] may leave for the record (View
+  /// Record) or swap in a reloaded form (Edit Record), and the print
+  /// dispatch checks `context.mounted` after its PDF download, so started
+  /// any later it would print nothing (docs/after-saving.md).
+  Future<void> _onSave(
+    BuildContext context, {
+    bool viaAction = false,
+    bool thenPrint = false,
+  }) async {
+    final wasCreate = vm.isCreate;
     final result = await _runSave(context);
     if (result == null || !context.mounted) return;
     // On a sync-wait timeout the server hasn't confirmed yet, so a plain
@@ -320,34 +333,48 @@ class EntityEditScaffold<T> extends StatelessWidget {
         ? 'saving_in_background'
         : 'saved';
     Notify.success(context, context.tr(toastKey));
+    final toPrint = printAction;
+    if (thenPrint && toPrint != null) {
+      await _printSaved(context, result, toPrint, wasCreate: wasCreate);
+      if (!context.mounted) return;
+    }
     await (viaAction ? onSavedByAction ?? onSaved : onSaved)(context, result);
   }
 
-  /// A plain Save — the button, Enter, ⌘S, the save-failed banner's Retry.
-  /// With "Print After Saving" on and a [printAction], it is that action's
-  /// save-then-print, through [_onAction] like a menu tap, so After Saving,
-  /// the create-then-resolve-id path and offline behave as Print PDF from
-  /// the menu does; `alwaysSave` keeps Save's re-save of an unchanged record,
-  /// which the menu would skip (docs/after-saving.md).
-  Future<void> _onPlainSave(BuildContext context) {
-    final toPrint = printAction;
-    if (toPrint != null && printsAfterSave(context)) {
-      return _onAction(context, toPrint, alwaysSave: true);
+  /// Runs the menu's print dispatch against a record a plain Save just
+  /// saved: a new one through [onAfterSaveActionOnCreate], which resolves
+  /// its `tmp_` id first (`dispatchAfterSaveOnCreate`) — its "took over
+  /// navigation" answer is ignored, since the Save's own navigation follows —
+  /// and an existing one through [onAfterSaveAction].
+  Future<void> _printSaved(
+    BuildContext context,
+    T saved,
+    Object action, {
+    required bool wasCreate,
+  }) async {
+    final onCreate = onAfterSaveActionOnCreate;
+    if (wasCreate && onCreate != null) {
+      await onCreate(context, saved, action);
+    } else {
+      await onAfterSaveAction?.call(context, saved, action);
     }
-    return _onSave(context);
+  }
+
+  /// A plain Save — the button, Enter, ⌘S, the save-failed banner's Retry.
+  /// With "Print After Saving" on and a [printAction], it is still the whole
+  /// plain Save — toast, After Saving, the reload — with the print added
+  /// after the save succeeded ([_onSave]'s `thenPrint`; docs/after-saving.md).
+  Future<void> _onPlainSave(BuildContext context) {
+    final thenPrint = printAction != null && printsAfterSave(context);
+    return _onSave(context, thenPrint: thenPrint);
   }
 
   /// Overflow action-bar tap. Three buckets (see plan / CLAUDE.md):
   ///   * SAVE-PARAM  — server performs it via the save request's query.
   ///   * AFTER-SAVE  — save first, then `<E>Actions.dispatch`.
   ///   * skip-save   — unchanged existing record + after-save action:
-  ///                   dispatch directly, no redundant outbox row — unless
-  ///                   [alwaysSave], which a plain Save that prints passes.
-  Future<void> _onAction(
-    BuildContext context,
-    Object action, {
-    bool alwaysSave = false,
-  }) async {
+  ///                   dispatch directly, no redundant outbox row.
+  Future<void> _onAction(BuildContext context, Object action) async {
     if (vm.isSaving) return;
     final query = saveParamFor?.call(action);
 
@@ -373,7 +400,7 @@ class EntityEditScaffold<T> extends StatelessWidget {
 
     // AFTER-SAVE / SECOND-REQUEST.
     final wasCreate = vm.isCreate;
-    if (!wasCreate && !vm.isDirty && !alwaysSave) {
+    if (!wasCreate && !vm.isDirty) {
       // Skip-redundant-save: nothing to persist — dispatch straight away
       // (matches old admin-portal `isOld && !isChanged && isClientSide`).
       await onAfterSaveAction?.call(context, vm.draft, action);

@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import 'package:admin/app/after_saving_controller.dart';
+import 'package:admin/app/print_after_saving_controller.dart';
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/app/theme.dart';
@@ -161,6 +162,11 @@ void main() {
   late int fetches;
   late AfterSavingController afterSaving;
 
+  /// What "Print After Saving" printed: `<id>:<name>` per print, recorded
+  /// only when the editor was still mounted once the (fake) PDF download
+  /// came back — the check the real dispatch makes before it prints.
+  late List<String> printed;
+
   Future<GoRouter> pump(
     WidgetTester tester, {
     required bool stay,
@@ -171,9 +177,18 @@ void main() {
     Future<bool> Function(_Rec saved)? canKeepEditing,
     Widget Function(_Vm vm)? body,
     void Function(_Vm vm)? onBuilt,
+    bool printAfterSaving = false,
   }) async {
     built = [];
     fetches = 0;
+    printed = [];
+    Future<void> fakePrint(BuildContext ctx, _Rec saved) async {
+      // The download the real dispatch awaits before `context.mounted` —
+      // longer than a route transition, which keeps a leaving page mounted.
+      await Future<void>.delayed(const Duration(seconds: 2));
+      if (ctx.mounted) printed.add('${saved.id}:${saved.name}');
+    }
+
     tester.view.physicalSize = const Size(1400, 1000);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
@@ -206,7 +221,14 @@ void main() {
           carryEdit: (sent, edited, stored) => CarriedEdit(
             edited.name == sent.name ? stored : _Rec(stored.id, edited.name),
           ),
-          saveParamFor: (action) => {'mark_sent': 'true'},
+          saveParamFor: (action) =>
+              action == 'print' ? null : {'mark_sent': 'true'},
+          printAction: 'print',
+          onAfterSaveAction: (ctx, saved, _) => fakePrint(ctx, saved),
+          onAfterSaveActionOnCreate: (ctx, saved, _) async {
+            await fakePrint(ctx, saved);
+            return false;
+          },
           actionsBuilder: (_, _, onTap, saveButton) => Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -260,12 +282,19 @@ void main() {
       prefs: prefsWith({DevicePrefKeys.afterSaving: stay}),
     );
     addTearDown(afterSaving.dispose);
+    final printAfter = PrintAfterSavingController(
+      prefs: prefsWith({DevicePrefKeys.printAfterSaving: printAfterSaving}),
+    );
+    addTearDown(printAfter.dispose);
     await tester.pumpWidget(
       MultiProvider(
         providers: [
           Provider<Services>.value(value: _FakeServices(db)),
           ChangeNotifierProvider<AfterSavingController>.value(
             value: afterSaving,
+          ),
+          ChangeNotifierProvider<PrintAfterSavingController>.value(
+            value: printAfter,
           ),
         ],
         child: MaterialApp.router(
@@ -648,6 +677,87 @@ void main() {
       await tapSave(tester);
 
       expect(pathOf(router), '/clients/$_tmpId');
+    });
+  });
+
+  // Print After Saving adds a print to a plain Save and takes nothing away:
+  // the toast, After Saving and the reload all still happen
+  // (docs/after-saving.md § Print After Saving adds a print to a plain Save).
+  /// Save, then let the fake PDF download (2 s) come back — `pumpAndSettle`
+  /// alone stops once no frame is pending and never reaches that timer.
+  Future<void> saveAndWaitForPrint(WidgetTester tester) async {
+    await tapSave(tester);
+    await tester.pump(const Duration(seconds: 3));
+    await tester.pumpAndSettle();
+  }
+
+  group('Print After Saving', () {
+    testWidgets('Edit Record: an existing record prints, then stays open, '
+        'reloaded', (tester) async {
+      final router = await pump(tester, stay: true, printAfterSaving: true);
+      built.single.setName('Acme Inc');
+      await tester.pump();
+      await saveAndWaitForPrint(tester);
+
+      expect(printed, ['c1:Acme Inc']);
+      expect(pathOf(router), '/clients/c1/edit');
+      expect(fetches, 2, reason: 'the form reloads from the stored record');
+      expect(built, hasLength(2));
+      expect(built.last.isDirty, isFalse);
+    });
+
+    testWidgets('View Record: an existing record prints before the editor '
+        'leaves for the record', (tester) async {
+      final router = await pump(tester, stay: false, printAfterSaving: true);
+      built.single.setName('Acme Inc');
+      await tester.pump();
+      await saveAndWaitForPrint(tester);
+
+      expect(printed, ['c1:Acme Inc']);
+      expect(pathOf(router), '/clients/c1');
+    });
+
+    testWidgets('Edit Record: a new record prints, then moves to its own '
+        'edit route', (tester) async {
+      final router = await pump(
+        tester,
+        stay: true,
+        initial: '/clients/new',
+        printAfterSaving: true,
+      );
+      built.single.setName('Globex');
+      await tester.pump();
+      await saveAndWaitForPrint(tester);
+
+      expect(printed, ['$_tmpId:Globex']);
+      expect(pathOf(router), '/clients/$_tmpId/edit');
+    });
+
+    testWidgets('View Record: a new record prints, then goes to the record', (
+      tester,
+    ) async {
+      final router = await pump(
+        tester,
+        stay: false,
+        initial: '/clients/new',
+        printAfterSaving: true,
+      );
+      built.single.setName('Globex');
+      await tester.pump();
+      await saveAndWaitForPrint(tester);
+
+      expect(printed, ['$_tmpId:Globex']);
+      expect(pathOf(router), '/clients/$_tmpId');
+    });
+
+    testWidgets('off: Save prints nothing', (tester) async {
+      final router = await pump(tester, stay: false);
+      built.single.setName('Acme Inc');
+      await tester.pump();
+      await saveAndWaitForPrint(tester);
+
+      expect(printed, isEmpty);
+      expect(pathOf(router), '/clients/c1');
     });
   });
 }
