@@ -7,6 +7,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
+import 'package:admin/ui/core/widgets/in_scrollbar.dart';
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/env.dart';
 import 'package:admin/app/services.dart';
@@ -1159,9 +1160,9 @@ class _SidewaysScrollWhenNarrowState extends State<_SidewaysScrollWhenNarrow> {
         // window resize, a custom field arriving with the company — never
         // re-parents [child] and tears down the rows' editors, focus and
         // pending debounced edits. Only the scroll extent changes.
-        return Scrollbar(
+        return InScrollbar(
           controller: _scroll,
-          thumbVisibility: scrolls,
+          thumbVisibility: scrolls ? true : null,
           // Draggable everywhere. On Android it isn't by default, and there a
           // swipe that starts on a text cell is claimed by the field's own
           // drag-to-select, which leaves the thumb as the way across.

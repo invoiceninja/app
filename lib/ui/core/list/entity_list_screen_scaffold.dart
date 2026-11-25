@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:admin/ui/core/widgets/in_scrollbar.dart';
 import 'package:admin/app/router.dart'
     show
         entityRecordPath,
@@ -2378,10 +2379,10 @@ class _EntityListScreenScaffoldState<T, VM extends GenericListViewModel<T>>
           // inside it, so its scrolling never toggles a fade. Fades into the
           // surface behind the table: the panel's, embedded or standalone.
           // Directional, so RTL fades the correct edge.
-          return ScrollEdgeFades(
+          final table = ScrollEdgeFades(
             color: context.inTheme.surface,
             width: 32,
-            child: Scrollbar(
+            child: InScrollbar(
               controller: _hScroll,
               child: SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
@@ -2411,7 +2412,18 @@ class _EntityListScreenScaffoldState<T, VM extends GenericListViewModel<T>>
                           Expanded(
                             child: SizedBox(
                               width: double.infinity,
-                              child: list,
+                              // On a pointer platform its own bar would sit
+                              // at the table's far edge — off screen while
+                              // the columns overflow — so it is drawn below,
+                              // at the card's.
+                              child: pointerScrollbars
+                                  ? ScrollConfiguration(
+                                      behavior: ScrollConfiguration.of(
+                                        context,
+                                      ).copyWith(scrollbars: false),
+                                      child: list,
+                                    )
+                                  : list,
                             ),
                           ),
                       ],
@@ -2420,6 +2432,19 @@ class _EntityListScreenScaffoldState<T, VM extends GenericListViewModel<T>>
                 ),
               ),
             ),
+          );
+          // Touch draws no vertical bar here, as before.
+          if (widget.embedded || !pointerScrollbars) return table;
+          // The rows' vertical bar, on the card's edge rather than the
+          // table's: a table wider than its pane put it past the last
+          // column, out of sight until panned all the way across
+          // (docs/scrollbars.md). The rows are the one vertical scroll
+          // view under the sideways one, one level down.
+          return InScrollbar(
+            controller: _vScroll,
+            notificationPredicate: (n) =>
+                n.depth == 1 && n.metrics.axis == Axis.vertical,
+            child: table,
           );
         },
       ),

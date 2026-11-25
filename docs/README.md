@@ -81,6 +81,7 @@ read-it-first orientation for a new developer.
 - [`search-palette.md`](search-palette.md) — **The search palette (⌘K).** Why it filters and ranks on the device (the server's fallback ignores the query; an Elasticsearch hit is a translated pipe string), how a hit is parsed and tiered, Top hits and the per-group caps, the category bar, its keys, touch behaviour, and why a narrow window gets the page.
 - [`settings-screens.md`](settings-screens.md) — **Settings screens.** The main file carries the 5-second decision tree, the three style names, and the User-Details anti-pattern. Also the React-order Basic / Advanced halves of the settings nav, the phone home's grouped cards and per-row values, the one-line rule across the wide header, and the start-aligned content and tab strips.
 - [`upgrading-to-flutter-3-50.md`](upgrading-to-flutter-3-50.md) — **Upgrading to Flutter 3.50.** What was prepared on 3.47.7 (AGP 9, the no_raw_types lint, five tests), what 3.50.0 measured, the move to 3.50.0 and material_ui (2026-11-15), the move to 3.50.1 (2026-11-24), and which upgrade-day steps are still open.
+- [`scrollbars.md`](scrollbars.md) — **Scroll bars.** The pointer platforms' bolder thumb (`InScrollbar`, `pointerScrollbarTheme`), the "Always show scroll bars" device preference, and why that pin is decided per bar and never by a theme-level `thumbVisibility`, which asserts on shared or not-yet-attached controllers.
 - [`setup.md`](setup.md) — **Setup.** .
 - [`sharing-files-into-the-app.md`](sharing-files-into-the-app.md) — **Sharing files into the app.** "Share → Invoice Ninja" opens New Expense with the files attached: why the Android target is an engine-free activity and never MainActivity, the iOS App Group hand-off, the pull channel, which images get converted, and who may delete the copies — and the phone's Camera / Gallery tiles and Scan Receipt, whose photos live in the same folder.
 - [`sidebar-and-shell.md`](sidebar-and-shell.md) — **The sidebar and the page shell.** The sidebar's own chrome — safe areas, ink, the upsell gate, the customisable menu and the pinned rows — plus which widget owns a full-page host.
@@ -205,6 +206,7 @@ The full routing table, moved here from CLAUDE.md's Quick Index (which keeps a s
 | Rotating the `is_system` API token (blocked on server) | `docs/token-rotation.md` |
 | Checking what's built vs what's left | `FEATURES.md` (kept current — see § Strict rules) |
 | Working around an open upstream (Flutter/pub) bug — or undoing one later | `docs/upstream-workarounds.md` |
+| A scroll bar that is hard to see, won't stay visible, or asserts about its ScrollController / ScrollPosition | `docs/scrollbars.md` · `lib/ui/core/widgets/in_scrollbar.dart` |
 | Sizing a tap target, or a row that grew taller than you expected | `docs/touch-targets.md` · `lib/ui/core/adaptive.dart` · `docs/list-density.md` |
 | A keyboard covering a field, an invisible ripple, or sidebar spacing | `docs/sidebar-and-shell.md` · `test/lint/no_ink_widget_test.dart` |
 | A contact row reading `(no name)`, or an email address nobody typed | `docs/contacts-and-invitations.md` · `lib/data/models/value/parsing.dart` |

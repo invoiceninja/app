@@ -56,6 +56,7 @@ void main() {
     'account_prefs_kept_json': PrefScope.device,
     'comment_reads_json': PrefScope.account,
     'lock_after_inactivity_minutes': PrefScope.device,
+    'always_show_scrollbars': PrefScope.device,
   };
 
   final names = [for (final k in DevicePrefKeys.all) k.name];

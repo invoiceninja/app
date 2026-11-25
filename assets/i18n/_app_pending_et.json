@@ -2329,5 +2329,7 @@
   "no_team_comments": "Teie meeskonnalt pole hiljutisi kommentaare",
   "lock_after_inactivity": "Lukusta pärast tegevusetust",
   "lock_after_inactivity_help": "Lukustab rakenduse, kui seda pole mõnda aega kasutatud, ilma välja logimata. Ava see selle seadme sõrmejälje, näo või pääsukoodiga.",
-  "soft_lock_message": "Oled endiselt sisse logitud ja midagi sinu tööst pole kadunud. Jätkamiseks ava lukk."
+  "soft_lock_message": "Oled endiselt sisse logitud ja midagi sinu tööst pole kadunud. Jätkamiseks ava lukk.",
+  "always_show_scrollbars": "Näita kerimisribasid alati",
+  "always_show_scrollbars_help": "Hoia kerimisribad nähtaval, selle asemel et peita need, kui kerimise lõpetad"
 }

@@ -15,10 +15,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 
+import 'package:admin/app/always_show_scrollbars_controller.dart';
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/app/theme.dart';
 import 'package:admin/ui/core/detail/entity_quick_actions.dart';
+import 'package:admin/ui/core/widgets/in_scrollbar.dart';
 
 import '../_localization_helper.dart';
 import '../ui/features/shell/_shell_test_helpers.dart';
@@ -179,8 +181,11 @@ void recordScreenTest(
   List<FakeCompany> otherCompanies = const [],
   Size size = const Size(480, 2000),
   Future<void> Function(WidgetTester tester, RecordScreen screen)? beforeSettle,
+  TargetPlatformVariant? variant,
 }) {
-  testWidgets(description, (tester) async {
+  testWidgets(description, variant: variant ?? const DefaultTestVariant(), (
+    tester,
+  ) async {
     tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -200,10 +205,17 @@ void recordScreenTest(
     final mounted = RecordScreen(tester, fixture);
     try {
       await tester.pumpWidget(
-        Provider<Services>.value(
-          value: fixture.services,
+        MultiProvider(
+          providers: [
+            Provider<Services>.value(value: fixture.services),
+            // As `main.dart` provides it, for every `InScrollbar`.
+            ChangeNotifierProvider<AlwaysShowScrollbarsController>.value(
+              value: fixture.services.alwaysShowScrollbars,
+            ),
+          ],
           child: MaterialApp(
             theme: buildInTheme(InTheme.light),
+            scrollBehavior: const InScrollBehavior(),
             localizationsDelegates: kTestLocalizationsDelegates,
             supportedLocales: kTestSupportedLocales,
             home: screen(),

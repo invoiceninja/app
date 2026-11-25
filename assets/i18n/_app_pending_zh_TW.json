@@ -2329,5 +2329,7 @@
   "no_team_comments": "團隊最近沒有留言",
   "lock_after_inactivity": "閒置後鎖定",
   "lock_after_inactivity_help": "一段時間未使用時鎖定 App，但不會登出。使用此裝置的指紋、臉孔或密碼解鎖。",
-  "soft_lock_message": "您仍保持登入，進行中的工作也不會遺失。解鎖以繼續。"
+  "soft_lock_message": "您仍保持登入，進行中的工作也不會遺失。解鎖以繼續。",
+  "always_show_scrollbars": "永遠顯示捲軸",
+  "always_show_scrollbars_help": "停止捲動後仍保持捲軸可見，而不是將其隱藏"
 }

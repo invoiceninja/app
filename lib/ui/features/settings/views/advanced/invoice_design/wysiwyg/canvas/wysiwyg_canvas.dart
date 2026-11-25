@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:material_ui/material_ui.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import 'package:admin/ui/core/widgets/in_scrollbar.dart';
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/env.dart';
 import 'package:admin/app/theme.dart';
@@ -496,7 +497,7 @@ class _WysiwygCanvasState extends State<WysiwygCanvas> {
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
               onTap: () => vm.selectBlock(null),
-              child: Scrollbar(
+              child: InScrollbar(
                 controller: _scroll,
                 child: SingleChildScrollView(
                   controller: _scroll,

@@ -2330,5 +2330,7 @@
   "no_team_comments": "Brak ostatnich komentarzy od Twojego zespołu",
   "lock_after_inactivity": "Blokuj po bezczynności",
   "lock_after_inactivity_help": "Blokuje aplikację, gdy przez jakiś czas nie jest używana, bez wylogowania. Odblokuj ją odciskiem palca, twarzą lub kodem tego urządzenia.",
-  "soft_lock_message": "Nadal jesteś zalogowany i nic z tego, nad czym pracowałeś, nie zostało utracone. Odblokuj, aby kontynuować."
+  "soft_lock_message": "Nadal jesteś zalogowany i nic z tego, nad czym pracowałeś, nie zostało utracone. Odblokuj, aby kontynuować.",
+  "always_show_scrollbars": "Zawsze pokazuj paski przewijania",
+  "always_show_scrollbars_help": "Paski przewijania pozostają widoczne zamiast znikać po zakończeniu przewijania"
 }

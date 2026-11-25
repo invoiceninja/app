@@ -2329,5 +2329,7 @@
   "no_team_comments": "Geen onlangse kommentaar van jou span nie",
   "lock_after_inactivity": "Sluit ná onaktiwiteit",
   "lock_after_inactivity_help": "Sluit die toep wanneer dit 'n ruk lank nie gebruik is nie, sonder om af te meld. Ontsluit met hierdie toestel se vingerafdruk, gesig of wagkode.",
-  "soft_lock_message": "Jy is steeds aangemeld en niks waarmee jy besig was, is verlore nie. Ontsluit om voort te gaan."
+  "soft_lock_message": "Jy is steeds aangemeld en niks waarmee jy besig was, is verlore nie. Ontsluit om voort te gaan.",
+  "always_show_scrollbars": "Wys altyd rolstawe",
+  "always_show_scrollbars_help": "Hou rolstawe sigbaar in plaas daarvan om hulle te versteek wanneer jy ophou rol"
 }

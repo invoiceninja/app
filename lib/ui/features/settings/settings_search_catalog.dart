@@ -14,6 +14,7 @@ import 'package:admin/domain/file_name_pattern.dart';
 import 'package:admin/domain/terminal/terminal_eligibility.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/l10n/tap_to_pay_names.dart';
+import 'package:admin/ui/core/widgets/in_scrollbar.dart';
 import 'package:admin/ui/features/bank_accounts/views/bank_account_list_screen.dart';
 import 'package:admin/ui/features/settings/state/settings_level_controller.dart';
 import 'package:admin/ui/features/settings/views/advanced/generated_numbers/bodies/file_names_body.dart';
@@ -558,6 +559,8 @@ const _kGeneratedNumbersEntityKeys = <String>[
 /// of a gated card is listed.
 const _kDeviceSettingsKeyGates = <String, bool Function(SettingsSearchScope?)>{
   'spell_check': _spellCheckShown,
+  'always_show_scrollbars': _scrollbarsShown,
+  'always_show_scrollbars_help': _scrollbarsShown,
   // kContactsSyncSearchKeys
   'contacts': _contactsSyncShown,
   'sync_contacts_to_device': _contactsSyncShown,
@@ -597,6 +600,8 @@ bool _menuCountersTouchHelpShown(SettingsSearchScope? _) =>
     menuCountersHelpKey() == 'menu_counters_help_touch';
 
 bool _spellCheckShown(SettingsSearchScope? _) => platformSupportsSpellCheck;
+
+bool _scrollbarsShown(SettingsSearchScope? _) => pointerScrollbars;
 
 bool _contactsSyncShown(SettingsSearchScope? _) => contactsSyncSectionShown();
 

@@ -2329,5 +2329,7 @@
   "no_team_comments": "Nenhum comentário recente da sua equipa",
   "lock_after_inactivity": "Bloquear após inatividade",
   "lock_after_inactivity_help": "Bloqueia a aplicação quando não é utilizada durante algum tempo, sem terminar a sessão. Desbloqueie com a impressão digital, o rosto ou o código deste dispositivo.",
-  "soft_lock_message": "Continua com a sessão iniciada e nada do que estava a fazer se perdeu. Desbloqueie para continuar."
+  "soft_lock_message": "Continua com a sessão iniciada e nada do que estava a fazer se perdeu. Desbloqueie para continuar.",
+  "always_show_scrollbars": "Mostrar sempre as barras de deslocamento",
+  "always_show_scrollbars_help": "Manter as barras de deslocamento visíveis em vez de as ocultar quando deixa de deslocar"
 }

@@ -2412,5 +2412,7 @@
   "no_team_comments": "Ni nedavnih komentarjev vaše ekipe",
   "lock_after_inactivity": "Zakleni po neaktivnosti",
   "lock_after_inactivity_help": "Zaklene aplikacijo, ko je nekaj časa ne uporabljate, brez odjave. Odklenete jo s prstnim odtisom, obrazom ali kodo te naprave.",
-  "soft_lock_message": "Še vedno ste prijavljeni in nič od tega, kar ste delali, se ni izgubilo. Odklenite za nadaljevanje."
+  "soft_lock_message": "Še vedno ste prijavljeni in nič od tega, kar ste delali, se ni izgubilo. Odklenite za nadaljevanje.",
+  "always_show_scrollbars": "Vedno prikaži drsnike",
+  "always_show_scrollbars_help": "Drsniki ostanejo vidni, namesto da bi se skrili, ko se nehate pomikati"
 }

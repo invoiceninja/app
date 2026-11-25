@@ -2412,5 +2412,7 @@
   "no_team_comments": "Nuk ka komente të fundit nga ekipi juaj",
   "lock_after_inactivity": "Kyç pas mosveprimit",
   "lock_after_inactivity_help": "Kyç aplikacionin kur nuk përdoret për një kohë, pa dalë nga llogaria. Shkyçe me gjurmën e gishtit, fytyrën ose kodin e kësaj pajisjeje.",
-  "soft_lock_message": "Je ende i identifikuar dhe asgjë nga ajo që po bëje nuk ka humbur. Shkyç për të vazhduar."
+  "soft_lock_message": "Je ende i identifikuar dhe asgjë nga ajo që po bëje nuk ka humbur. Shkyç për të vazhduar.",
+  "always_show_scrollbars": "Shfaq gjithmonë shiritat e lëvizjes",
+  "always_show_scrollbars_help": "Mbaj shiritat e lëvizjes të dukshëm në vend që t'i fshehësh kur ndalon lëvizjen"
 }

@@ -1319,6 +1319,7 @@ Field-level breakdown of every option under each settings panel. Source of truth
 | Theme, palette and custom colours follow you to your other devices (synced with the account; the accent stays per company) | ✅ | ❌ | ✅ | | |
 | Font Size (text scale, local) | — | ✅ | ✅ | ✅ | |
 | Density — Normal / Compact for entity lists, record screens and the dashboard, for more on screen (local; Device Settings, and offered in the first-run Welcome) | — | — | ✅ | | |
+| Scroll bars on desktop and desktop web — a bolder thumb that grows with a track under the pointer, the wide table's row bar on the card's edge, and an Always Show Scroll Bars switch (local, off by default; touch unchanged) | — | — | ✅ | | |
 | Show seconds — adds seconds to the kanban cards' timers, durations past a day and time-entry start / end times (local, off by default; running timers always tick seconds) | — | — | ✅ | | |
 | Downloads folder — a desktop Download is saved straight into it, with the path and an Open action in the toast; Windows / Linux can choose the folder, macOS shows Downloads read-only (local) | — | ✅ | ✅ | | |
 | Biometric Authentication toggle | — | ✅ | ✅ | ✅ | |

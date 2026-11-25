@@ -2412,5 +2412,7 @@
   "no_team_comments": "Aucun commentaire récent de votre équipe",
   "lock_after_inactivity": "Verrouiller après inactivité",
   "lock_after_inactivity_help": "Verrouille l'application après un moment sans utilisation, sans vous déconnecter. Déverrouillez-la avec l'empreinte, le visage ou le code de cet appareil.",
-  "soft_lock_message": "Vous êtes toujours connecté et rien de ce que vous faisiez n'est perdu. Déverrouillez pour continuer."
+  "soft_lock_message": "Vous êtes toujours connecté et rien de ce que vous faisiez n'est perdu. Déverrouillez pour continuer.",
+  "always_show_scrollbars": "Toujours afficher les barres de défilement",
+  "always_show_scrollbars_help": "Garder les barres de défilement visibles au lieu de les masquer quand vous arrêtez de défiler"
 }

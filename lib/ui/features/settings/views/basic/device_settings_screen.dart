@@ -11,12 +11,14 @@ import 'package:admin/app/list_density_controller.dart';
 import 'package:admin/app/resync_controller.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/app/show_seconds_controller.dart';
+import 'package:admin/app/always_show_scrollbars_controller.dart';
 import 'package:admin/app/document_thumbnails_controller.dart';
 import 'package:admin/app/spell_check_controller.dart';
 import 'package:admin/app/text_scale_controller.dart';
 import 'package:admin/data/models/domain/company.dart';
 import 'package:admin/domain/sidebar_badge_modes.dart';
 import 'package:admin/l10n/localization.dart';
+import 'package:admin/ui/core/widgets/in_scrollbar.dart';
 import 'package:admin/ui/core/widgets/in_segmented.dart';
 import 'package:admin/ui/core/widgets/spell_check.dart';
 import 'package:admin/ui/core/widgets/watch_builder.dart';
@@ -65,6 +67,8 @@ const kDeviceSettingsAppearanceSearchKeys = <String>[
   'palette',
   'font_size',
   'display_density',
+  'always_show_scrollbars',
+  'always_show_scrollbars_help',
   'customize_colors',
   'lists_and_dashboard',
   'lists_and_dashboard_help',
@@ -310,6 +314,12 @@ class _AppearanceTab extends StatelessWidget {
             const SettingRowDivider(),
             _ListDensityRow(controller: services.listDensity),
             const SettingRowDivider(),
+            // Pointer platforms only: touch draws no scroll bar to keep.
+            if (pointerScrollbars &&
+                context.read<AlwaysShowScrollbarsController?>() != null) ...[
+              const _AlwaysShowScrollbarsRow(),
+              const SettingRowDivider(),
+            ],
             CustomizeColorsSection(controller: services.theme),
           ],
         ),
@@ -694,6 +704,29 @@ class _ListDensityRow extends StatelessWidget {
           selected: controller.isCompact,
           onChanged: controller.setCompact,
         ),
+      ),
+    );
+  }
+}
+
+/// "Always show scroll bars": keep each scroll bar's thumb drawn instead of
+/// fading it when the scrolling stops — the other half of the beta report
+/// that the scroll bar was hard to find (docs/scrollbars.md). Beside Density,
+/// the other "how the screen reads" control. Pointer platforms only.
+class _AlwaysShowScrollbarsRow extends StatelessWidget {
+  const _AlwaysShowScrollbarsRow();
+
+  @override
+  Widget build(BuildContext context) {
+    final controller = context.read<AlwaysShowScrollbarsController>();
+    return ValueListenableBuilder<bool>(
+      valueListenable: controller,
+      builder: (context, enabled, _) => SettingRow.toggle(
+        icon: const Icon(Icons.unfold_more),
+        title: context.tr('always_show_scrollbars'),
+        subtitle: context.tr('always_show_scrollbars_help'),
+        value: enabled,
+        onChanged: controller.set,
       ),
     );
   }

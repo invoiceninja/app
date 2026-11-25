@@ -2412,5 +2412,7 @@
   "no_team_comments": "Ekibinizden yakın zamanda yorum yok",
   "lock_after_inactivity": "Hareketsizlikten sonra kilitle",
   "lock_after_inactivity_help": "Uygulama bir süre kullanılmadığında, oturumu kapatmadan kilitler. Bu cihazın parmak izi, yüzü veya şifresiyle kilidi açın.",
-  "soft_lock_message": "Hâlâ oturumunuz açık ve yaptığınız hiçbir şey kaybolmadı. Devam etmek için kilidi açın."
+  "soft_lock_message": "Hâlâ oturumunuz açık ve yaptığınız hiçbir şey kaybolmadı. Devam etmek için kilidi açın.",
+  "always_show_scrollbars": "Kaydırma çubuklarını her zaman göster",
+  "always_show_scrollbars_help": "Kaydırmayı bıraktığınızda kaydırma çubuklarını gizlemek yerine görünür tut"
 }

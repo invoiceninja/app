@@ -2367,5 +2367,7 @@
   "no_team_comments": "Nincs friss megjegyzés a csapatától",
   "lock_after_inactivity": "Zárolás tétlenség után",
   "lock_after_inactivity_help": "Zárolja az alkalmazást, ha egy ideig nem használják, kijelentkezés nélkül. Az eszköz ujjlenyomatával, arcfelismerésével vagy kódjával oldható fel.",
-  "soft_lock_message": "Továbbra is be van jelentkezve, és semmi sem veszett el abból, amin dolgozott. A folytatáshoz oldja fel a zárolást."
+  "soft_lock_message": "Továbbra is be van jelentkezve, és semmi sem veszett el abból, amin dolgozott. A folytatáshoz oldja fel a zárolást.",
+  "always_show_scrollbars": "Görgetősávok megjelenítése mindig",
+  "always_show_scrollbars_help": "A görgetősávok láthatók maradnak, és nem tűnnek el, amikor abbahagyja a görgetést"
 }

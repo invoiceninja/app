@@ -12,6 +12,7 @@ import 'package:admin/domain/tasks/task_day.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/client_name_label.dart';
 import 'package:admin/ui/core/widgets/empty_state.dart';
+import 'package:admin/ui/core/widgets/in_scrollbar.dart';
 import 'package:admin/ui/core/widgets/status_pill.dart';
 import 'package:admin/ui/features/projects/widgets/project_name_label.dart';
 import 'package:admin/ui/features/tasks/view_models/task_weekly_view_model.dart';
@@ -93,29 +94,26 @@ class WeeklyGrid extends StatelessWidget {
     );
     const totalWidth = kWeeklyGridWidth;
 
-    return Scrollbar(
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: SizedBox(
-          width: totalWidth,
-          child: Column(
-            children: [
-              _headerRow(context, tokens, days, localeArg),
-              Expanded(
-                child: SingleChildScrollView(
-                  child: Column(
-                    children: [
-                      for (final task in rows)
-                        _taskRow(context, vm, tokens, task, days),
-                    ],
-                  ),
+    return _HorizontalScroll(
+      child: SizedBox(
+        width: totalWidth,
+        child: Column(
+          children: [
+            _headerRow(context, tokens, days, localeArg),
+            Expanded(
+              child: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    for (final task in rows)
+                      _taskRow(context, vm, tokens, task, days),
+                  ],
                 ),
               ),
-              // Outside the vertical scroll so it stays pinned at the bottom
-              // (still inside the horizontal SizedBox, so columns stay aligned).
-              _totalsRow(context, tokens, days, dayTotals, grandTotal),
-            ],
-          ),
+            ),
+            // Outside the vertical scroll so it stays pinned at the bottom
+            // (still inside the horizontal SizedBox, so columns stay aligned).
+            _totalsRow(context, tokens, days, dayTotals, grandTotal),
+          ],
         ),
       ),
     );
@@ -383,6 +381,41 @@ class WeeklyGrid extends StatelessWidget {
       ),
     );
   }
+}
+
+/// The grid's sideways scroll, under its own scroll bar.
+///
+/// It owns its controller: a bar with none falls back to the
+/// `PrimaryScrollController`, which no horizontal scroll view attaches to, so
+/// the first sideways scroll on a pointer platform tripped "has no
+/// ScrollPosition attached" (docs/scrollbars.md).
+class _HorizontalScroll extends StatefulWidget {
+  const _HorizontalScroll({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_HorizontalScroll> createState() => _HorizontalScrollState();
+}
+
+class _HorizontalScrollState extends State<_HorizontalScroll> {
+  final _controller = ScrollController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => InScrollbar(
+    controller: _controller,
+    child: SingleChildScrollView(
+      controller: _controller,
+      scrollDirection: Axis.horizontal,
+      child: widget.child,
+    ),
+  );
 }
 
 /// Decimal hours or `H:MM` — the two choices, each labelled by the same

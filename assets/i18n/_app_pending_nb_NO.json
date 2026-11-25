@@ -2412,5 +2412,7 @@
   "no_team_comments": "Ingen nylige kommentarer fra teamet ditt",
   "lock_after_inactivity": "Lås etter inaktivitet",
   "lock_after_inactivity_help": "Låser appen når den ikke har vært brukt på en stund, uten å logge ut. Lås opp med fingeravtrykk, ansikt eller kode på denne enheten.",
-  "soft_lock_message": "Du er fortsatt logget inn, og ingenting av det du holdt på med har gått tapt. Lås opp for å fortsette."
+  "soft_lock_message": "Du er fortsatt logget inn, og ingenting av det du holdt på med har gått tapt. Lås opp for å fortsette.",
+  "always_show_scrollbars": "Vis alltid rullefelt",
+  "always_show_scrollbars_help": "Hold rullefeltene synlige i stedet for å skjule dem når du slutter å rulle"
 }

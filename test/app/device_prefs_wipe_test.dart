@@ -194,6 +194,11 @@ final Map<PrefKey<Object>, _Probe> _probes = {
     (s) => s.showSeconds.set(true),
     (s) => !s.showSeconds.value,
   ),
+  // How this screen's scroll views read, like list density.
+  DevicePrefKeys.alwaysShowScrollbars: _Probe(
+    (s) => s.alwaysShowScrollbars.set(true),
+    (s) => !s.alwaysShowScrollbars.value,
+  ),
   // Whether this device spends a download per file on a thumbnail.
   DevicePrefKeys.documentThumbnails: _Probe(
     (s) => s.documentThumbnails.set(false),

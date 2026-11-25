@@ -2412,5 +2412,7 @@
   "no_team_comments": "Keine neuen Kommentare von Ihrem Team",
   "lock_after_inactivity": "Nach Inaktivität sperren",
   "lock_after_inactivity_help": "Sperrt die App, wenn sie eine Weile nicht benutzt wurde, ohne Sie abzumelden. Entsperren Sie sie mit Fingerabdruck, Gesicht oder Code dieses Geräts.",
-  "soft_lock_message": "Sie sind weiterhin angemeldet, und nichts von Ihrer Arbeit geht verloren. Entsperren Sie, um fortzufahren."
+  "soft_lock_message": "Sie sind weiterhin angemeldet, und nichts von Ihrer Arbeit geht verloren. Entsperren Sie, um fortzufahren.",
+  "always_show_scrollbars": "Bildlaufleisten immer anzeigen",
+  "always_show_scrollbars_help": "Bildlaufleisten sichtbar lassen, statt sie nach dem Scrollen auszublenden"
 }

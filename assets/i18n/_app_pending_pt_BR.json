@@ -2412,5 +2412,7 @@
   "no_team_comments": "Nenhum comentário recente da sua equipe",
   "lock_after_inactivity": "Bloquear após inatividade",
   "lock_after_inactivity_help": "Bloqueia o app quando ele fica um tempo sem uso, sem sair da conta. Desbloqueie com a digital, o rosto ou o código deste dispositivo.",
-  "soft_lock_message": "Você continua conectado e nada do que estava fazendo foi perdido. Desbloqueie para continuar."
+  "soft_lock_message": "Você continua conectado e nada do que estava fazendo foi perdido. Desbloqueie para continuar.",
+  "always_show_scrollbars": "Sempre mostrar as barras de rolagem",
+  "always_show_scrollbars_help": "Manter as barras de rolagem visíveis em vez de ocultá-las quando você para de rolar"
 }

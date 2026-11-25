@@ -969,6 +969,10 @@ const defaultCustomTheme = CustomTheme();
 class InRadii {
   InRadii._();
 
+  /// Marks too thin for [r1] to round as anything but a pill — a scroll
+  /// bar's thumb, 10 px wide at rest (docs/scrollbars.md).
+  static const double r0 = 3;
+
   static const double r1 = 6;
   static const double r2 = 10;
 
@@ -989,6 +993,13 @@ class InSizes {
   /// inside a phone viewport. Applied only when `Env.isTouchPrimary` — pointer
   /// platforms keep their denser metrics. See issue #11.
   static const double touchTarget = 44;
+
+  /// A pointer platform's scroll bar thumb at rest, and under the pointer or
+  /// a drag — Material's desktop 8 / 12 px made one step bolder, the fix for
+  /// the beta report that the scroll bar was hard to find
+  /// (docs/scrollbars.md). Touch platforms keep Material's.
+  static const double scrollbarThumb = 10;
+  static const double scrollbarThumbActive = 14;
 
   /// Vertical content padding of a form field. It was 14; with the label on
   /// its own line above the box the box needs no room for one, and every row

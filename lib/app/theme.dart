@@ -1,6 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 
 import 'package:admin/app/design_tokens.dart';
+import 'package:admin/app/env.dart';
 
 /// External URLs the login screen needs.
 const String kStatusUrl = 'https://status.invoiceninja.com';
@@ -35,7 +36,14 @@ const String kHostedLandingUrl = 'https://invoicing.co';
 /// surface (see [withMinContrast]), and everything drawn on a filled accent
 /// takes [InTheme.onAccent], never a hardcoded white (docs/accent-colour.md).
 /// A stock preset clears every floor, so it comes back untouched.
-ThemeData buildInTheme(InTheme baseTokens, {Color? accentOverride}) {
+///
+/// [pointerScrollbars] (default: not a touch platform, `Env.isTouchPrimary`)
+/// adds [pointerScrollbarTheme]; a touch platform keeps Material's scroll bar.
+ThemeData buildInTheme(
+  InTheme baseTokens, {
+  Color? accentOverride,
+  bool? pointerScrollbars,
+}) {
   final accent = withMinContrast(
     accentOverride ?? baseTokens.accent,
     baseTokens.surface,
@@ -308,6 +316,13 @@ ThemeData buildInTheme(InTheme baseTokens, {Color? accentOverride}) {
     // picker. M3 defaults render a sharp-cornered surface — pin the v2
     // rounded-rect (`InRadii.r2`), the design system's surface/border, and a
     // popup-row-like padding so the fly-out matches the rest of the chrome.
+    // The pointer platforms' scroll bar: thicker, in ink rather than a 10%
+    // wash, growing with a track under the pointer (docs/scrollbars.md). It
+    // never sets `thumbVisibility` — "Always show scroll bars" pins each
+    // thumb in `InScrollbar`, where a controller can be checked first.
+    scrollbarTheme: (pointerScrollbars ?? !Env.isTouchPrimary)
+        ? pointerScrollbarTheme(tokens)
+        : null,
     menuTheme: MenuThemeData(
       style: MenuStyle(
         backgroundColor: WidgetStatePropertyAll(tokens.surface),
@@ -338,6 +353,36 @@ ThemeData buildInTheme(InTheme baseTokens, {Color? accentOverride}) {
 /// per-palette `accentSoft` values were chosen at ~15% saturation against
 /// each surface — `Color.alphaBlend` reproduces that without a per-swatch
 /// lookup table.
+/// The pointer platforms' scroll bar, from [tokens] (docs/scrollbars.md):
+/// an [InSizes.scrollbarThumb] thumb in `ink3` at rest, `ink2` and
+/// [InSizes.scrollbarThumbActive] under the pointer, `ink` while dragged, over
+/// a faint track that shows only under the pointer or a drag. Rounded at
+/// [InRadii.r0] — a rounded rectangle, never a pill.
+///
+/// The theme of every stock `Scrollbar`, and what `InScrollbar` paints from.
+ScrollbarThemeData pointerScrollbarTheme(InTheme tokens) {
+  bool active(Set<WidgetState> s) =>
+      s.contains(WidgetState.hovered) || s.contains(WidgetState.dragged);
+  return ScrollbarThemeData(
+    thickness: WidgetStateProperty.resolveWith(
+      (s) => active(s) ? InSizes.scrollbarThumbActive : InSizes.scrollbarThumb,
+    ),
+    thumbColor: WidgetStateProperty.resolveWith(
+      (s) => s.contains(WidgetState.dragged)
+          ? tokens.ink
+          : s.contains(WidgetState.hovered)
+          ? tokens.ink2
+          : tokens.ink3,
+    ),
+    trackVisibility: WidgetStateProperty.resolveWith(active),
+    trackColor: WidgetStatePropertyAll(tokens.ink.withValues(alpha: 0.06)),
+    trackBorderColor: WidgetStatePropertyAll(tokens.border),
+    radius: const Radius.circular(InRadii.r0),
+    crossAxisMargin: 2,
+    interactive: true,
+  );
+}
+
 Color _deriveAccentSoft(Color accent, InTheme base) {
   final alpha = base.brightness == Brightness.light ? 0x26 : 0x33; // ~15% / 20%
   return Color.alphaBlend(accent.withAlpha(alpha), base.surface);

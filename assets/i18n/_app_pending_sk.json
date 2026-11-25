@@ -2329,5 +2329,7 @@
   "no_team_comments": "Žiadne nedávne komentáre od vášho tímu",
   "lock_after_inactivity": "Zamknúť po nečinnosti",
   "lock_after_inactivity_help": "Zamkne aplikáciu, keď sa nejaký čas nepoužíva, bez odhlásenia. Odomknete ju odtlačkom prsta, tvárou alebo kódom tohto zariadenia.",
-  "soft_lock_message": "Stále ste prihlásení a nič z rozpracovanej práce sa nestratilo. Odomknite a pokračujte."
+  "soft_lock_message": "Stále ste prihlásení a nič z rozpracovanej práce sa nestratilo. Odomknite a pokračujte.",
+  "always_show_scrollbars": "Vždy zobrazovať posúvače",
+  "always_show_scrollbars_help": "Posúvače zostanú viditeľné a po skončení posúvania sa neskryjú"
 }

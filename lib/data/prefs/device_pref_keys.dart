@@ -466,6 +466,16 @@ abstract final class DevicePrefKeys {
     PrefScope.device,
   );
 
+  /// Keep every scroll bar's thumb on screen instead of fading it once the
+  /// scrolling stops — Device Settings → Appearance, pointer platforms only
+  /// (`AlwaysShowScrollbarsController`, docs/scrollbars.md). How this
+  /// device's screen reads, like [listDensity], so it stays with the device.
+  static const alwaysShowScrollbars = PrefKey<bool>(
+    'always_show_scrollbars',
+    PrefCodec.boolean,
+    PrefScope.device,
+  );
+
   /// In the order they were added; append new keys at the end.
   static const List<PrefKey<Object>> all = [
     locale,
@@ -513,6 +523,7 @@ abstract final class DevicePrefKeys {
     accountPrefsKept,
     commentReads,
     lockAfterInactivity,
+    alwaysShowScrollbars,
   ];
 
   /// The account preferences a sign-out keeps aside for the SAME user's

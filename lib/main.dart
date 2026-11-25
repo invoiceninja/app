@@ -53,6 +53,7 @@ import 'package:admin/app/services.dart';
 import 'package:admin/app/sign_out_notice.dart';
 import 'package:admin/app/after_saving_controller.dart';
 import 'package:admin/app/show_seconds_controller.dart';
+import 'package:admin/app/always_show_scrollbars_controller.dart';
 import 'package:admin/app/document_thumbnails_controller.dart';
 import 'package:admin/app/spell_check_controller.dart';
 import 'package:admin/app/terminal_lifecycle_observer.dart';
@@ -90,6 +91,7 @@ import 'package:admin/ui/features/shell/widgets/window_frame.dart';
 import 'package:admin/ui/core/list/list_column_widths.dart';
 import 'package:admin/ui/core/list/list_density_scope.dart';
 import 'package:admin/ui/core/widgets/call_log_prompter.dart';
+import 'package:admin/ui/core/widgets/in_scrollbar.dart';
 import 'package:admin/ui/core/widgets/laid_out_traversal_policy.dart';
 import 'package:admin/ui/core/widgets/release_error_widget.dart';
 import 'package:admin/ui/core/widgets/shortcut_hint_overlay.dart';
@@ -1144,6 +1146,13 @@ class _InvoiceNinjaAppState extends State<InvoiceNinjaApp> {
         ChangeNotifierProvider<ShowSecondsController>.value(
           value: widget.services.showSeconds,
         ),
+        // Every `InScrollbar` — the scroll views' own, through
+        // `InScrollBehavior`, and the hand-placed ones — and the Device
+        // Settings switch, read through `watchAlwaysShowScrollbars(context)`
+        // (docs/scrollbars.md).
+        ChangeNotifierProvider<AlwaysShowScrollbarsController>.value(
+          value: widget.services.alwaysShowScrollbars,
+        ),
         // Document thumbnails and their Device Settings switch, read through
         // `watchDocumentThumbnails(context)` (invoiceninja/app#206).
         ChangeNotifierProvider<DocumentThumbnailsController>.value(
@@ -1224,6 +1233,11 @@ class _InvoiceNinjaAppState extends State<InvoiceNinjaApp> {
               ...GlobalMaterialLocalizations.delegates,
               ...kLegacyMaterialLocalizationsDelegates,
             ],
+            // The pointer platforms' scroll bar (docs/scrollbars.md): a
+            // scroll view's own bar is an `InScrollbar`, never a theme-level
+            // `thumbVisibility`, so "Always show scroll bars" cannot assert
+            // on a shared or not-yet-attached controller.
+            scrollBehavior: const InScrollBehavior(),
             routerConfig: _router,
             // Push the resolved variant's bg/ink to the native macOS
             // titlebar. `Theme.of(context)` here is already resolved (system

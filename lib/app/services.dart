@@ -69,6 +69,7 @@ import 'package:admin/app/sidebar_menu_controller.dart';
 import 'package:admin/app/hide_empty_panels_controller.dart';
 import 'package:admin/app/hide_unverified_users_controller.dart';
 import 'package:admin/app/show_seconds_controller.dart';
+import 'package:admin/app/always_show_scrollbars_controller.dart';
 import 'package:admin/app/document_thumbnails_controller.dart';
 import 'package:admin/app/spell_check_controller.dart';
 import 'package:admin/app/status_tabs_controller.dart';
@@ -439,6 +440,7 @@ class Services implements SidebarBadgeContext {
     required this.webAppBanner,
     required this.showSeconds,
     required this.lockAfterInactivity,
+    required this.alwaysShowScrollbars,
     required this.documentThumbnails,
     required this.downloadsFolder,
     required this.pendingCall,
@@ -965,6 +967,10 @@ class Services implements SidebarBadgeContext {
   /// Read by `SoftLockController`; the Security tab reads it through its root
   /// provider, as `LockAfterInactivityController?`.
   final LockAfterInactivityController lockAfterInactivity;
+
+  /// Whether scroll bars stay drawn instead of fading (docs/scrollbars.md).
+  /// Read through its root provider by every `InScrollbar`.
+  final AlwaysShowScrollbarsController alwaysShowScrollbars;
 
   /// Whether document lists draw thumbnails (invoiceninja/app#206).
   final DocumentThumbnailsController documentThumbnails;
@@ -1900,6 +1906,9 @@ class Services implements SidebarBadgeContext {
     final webAppBanner = WebAppBannerController(prefs: devicePrefs);
     final showSeconds = ShowSecondsController(prefs: devicePrefs);
     final lockAfterInactivity = LockAfterInactivityController(
+      prefs: devicePrefs,
+    );
+    final alwaysShowScrollbars = AlwaysShowScrollbarsController(
       prefs: devicePrefs,
     );
     final documentThumbnails = DocumentThumbnailsController(prefs: devicePrefs);
@@ -2925,6 +2934,7 @@ class Services implements SidebarBadgeContext {
       webAppBanner: webAppBanner,
       showSeconds: showSeconds,
       lockAfterInactivity: lockAfterInactivity,
+      alwaysShowScrollbars: alwaysShowScrollbars,
       documentThumbnails: documentThumbnails,
       downloadsFolder: downloadsFolder,
       pendingCall: pendingCall,

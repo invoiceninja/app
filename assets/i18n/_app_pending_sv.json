@@ -2399,5 +2399,7 @@
   "no_team_comments": "Inga nya kommentarer från ditt team",
   "lock_after_inactivity": "Lås efter inaktivitet",
   "lock_after_inactivity_help": "Låser appen när den inte har använts på ett tag, utan att logga ut. Lås upp med enhetens fingeravtryck, ansikte eller lösenkod.",
-  "soft_lock_message": "Du är fortfarande inloggad och inget av det du höll på med har gått förlorat. Lås upp för att fortsätta."
+  "soft_lock_message": "Du är fortfarande inloggad och inget av det du höll på med har gått förlorat. Lås upp för att fortsätta.",
+  "always_show_scrollbars": "Visa alltid rullningslister",
+  "always_show_scrollbars_help": "Håll rullningslisterna synliga i stället för att dölja dem när du slutar rulla"
 }

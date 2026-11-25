@@ -2412,5 +2412,7 @@
   "no_team_comments": "Geen recente opmerkingen van je team",
   "lock_after_inactivity": "Vergrendelen na inactiviteit",
   "lock_after_inactivity_help": "Vergrendelt de app als die een tijdje niet is gebruikt, zonder uit te loggen. Ontgrendel met de vingerafdruk, het gezicht of de toegangscode van dit apparaat.",
-  "soft_lock_message": "Je bent nog steeds ingelogd en er is niets verloren gegaan van waar je mee bezig was. Ontgrendel om verder te gaan."
+  "soft_lock_message": "Je bent nog steeds ingelogd en er is niets verloren gegaan van waar je mee bezig was. Ontgrendel om verder te gaan.",
+  "always_show_scrollbars": "Schuifbalken altijd tonen",
+  "always_show_scrollbars_help": "Schuifbalken zichtbaar houden in plaats van ze te verbergen als je stopt met scrollen"
 }

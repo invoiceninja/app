@@ -2329,5 +2329,7 @@
   "no_team_comments": "Nema nedavnih komentara vašeg tima",
   "lock_after_inactivity": "Zaključaj nakon neaktivnosti",
   "lock_after_inactivity_help": "Zaključava aplikaciju kad se neko vrijeme ne koristi, bez odjave. Otključajte je otiskom prsta, licem ili kodom ovog uređaja.",
-  "soft_lock_message": "I dalje ste prijavljeni i ništa od vašeg rada nije izgubljeno. Otključajte za nastavak."
+  "soft_lock_message": "I dalje ste prijavljeni i ništa od vašeg rada nije izgubljeno. Otključajte za nastavak.",
+  "always_show_scrollbars": "Uvijek prikaži trake za pomicanje",
+  "always_show_scrollbars_help": "Trake za pomicanje ostaju vidljive umjesto da se sakriju kad prestanete pomicati"
 }
