@@ -237,14 +237,23 @@ class CommentsInboxController extends ChangeNotifier {
       onError: (Object e, StackTrace st) =>
           _log.fine('comments inbox feed watch failed', e, st),
     );
+    var activationCheckDue = true;
     _fetchedAtSub = _watchFeedFetchedAt(companyId).listen(
-      (at) => _fetchedAt = at,
+      (at) {
+        _fetchedAt = at;
+        // A company just became active: make sure the window is recent, once
+        // its stored freshness is known, so the gap check can skip it when
+        // the dashboard (or anyone) wrote it a moment ago. Run directly, not
+        // through the debounce timer: a timer here outlived every test that
+        // builds `Services` and never signs out.
+        if (activationCheckDue) {
+          activationCheckDue = false;
+          unawaited(_refreshNow());
+        }
+      },
       onError: (Object e, StackTrace st) =>
           _log.fine('comments inbox freshness watch failed', e, st),
     );
-    // A company just became active: make sure the window is recent. The gap
-    // check skips it when the dashboard (or anyone) wrote it a moment ago.
-    _scheduleRefresh();
   }
 
   void _onFeed(String companyId, List<DashboardActivity>? rows) {

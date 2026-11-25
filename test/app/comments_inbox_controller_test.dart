@@ -63,7 +63,12 @@ class _Harness {
         watched.add(companyId);
         return feed.stream;
       },
-      watchFeedFetchedAt: (_) => fetchedAt.stream,
+      // A Drift watch emits the stored value (here: none yet) on listen; the
+      // activation check waits for it.
+      watchFeedFetchedAt: (_) async* {
+        yield null;
+        yield* fetchedAt.stream;
+      },
       refreshFeed: (companyId) async => refreshed.add(companyId),
       refreshCycles: cycles,
       now: () => now,
