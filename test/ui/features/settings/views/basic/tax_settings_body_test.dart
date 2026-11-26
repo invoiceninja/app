@@ -7,7 +7,6 @@ import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/app/theme.dart';
 import 'package:admin/data/models/domain/company.dart';
-import 'package:admin/data/models/domain/company_settings.dart';
 import 'package:admin/data/repositories/auth_repository.dart';
 import 'package:admin/ui/features/settings/widgets/form_section.dart';
 import 'package:admin/ui/features/settings/state/settings_level_controller.dart';
