@@ -168,7 +168,7 @@ On the day, in this order:
 | If | Then |
 |---|---|
 | a listing isn't visible after release | wait; send nothing until every link works |
-| the redirect flip fails | the page it points at before launch already lists the store links |
+| a download page isn't switched in time | its buttons still name the old app's listing, which carries the move prompt; switch it as soon as you can |
 | a GitHub, Snap or Flathub job fails | re-run it; Snap rolls back with `snapcraft release invoiceninja <previous revision> stable` |
 | F-Droid lags | expected; the email says "within a few days" |
 | purchases fail or crashes spike | turn in-app purchases off in the hosted billing, then fix forward |
@@ -193,7 +193,7 @@ v1 (`com.invoiceninja.app`) becomes **Invoice Ninja Legacy** and keeps working b
 
 - [x] Its CI can no longer replace the new app: the web build is manual only and the Snap and Flatpak workflows are gone (2026-11-19).
 - [x] The rename to Invoice Ninja Legacy, `IN Legacy` under the icon (2026-11-19, not yet released). Release it about five weeks before launch and wait until it is live everywhere: the App Store name and the Microsoft name can move to the new app only after.
-- [ ] The move release: the beta invite becomes the move prompt (re-armed for everyone, escalating towards the sunset date, always dismissible), a retired screen when the server's minimum version refuses it, no more in-app sales (Manage subscription and Restore stay), and links through the redirect. Submitted two weeks before launch, held.
+- [ ] The move release: the beta invite becomes the move prompt (re-armed for everyone, escalating towards the sunset date, always dismissible), a retired screen when the server's minimum version refuses it, no more in-app sales (Manage subscription and Restore stay), and links through invoiceninja.com's download pages. Submitted two weeks before launch, held.
 
 **v1's store listings** point at the new app from launch day: App Store promotional text (set by hand) and description, the Play short and full description, the Microsoft description (with the retirement date), and the F-Droid metadata.
 
