@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/theme.dart';
 import 'package:admin/ui/core/widgets/searchable_dropdown_field.dart';
+import 'package:admin/ui/core/widgets/wide_picker_popover.dart';
 
 import '../../../_localization_helper.dart';
 
@@ -139,6 +140,69 @@ Future<void> _pumpAt(
         ),
       ),
     ),
+  );
+  await tester.pumpAndSettle();
+}
+
+/// A picker in a [width]-px slot in a [screenWidth]-px window — at the slot's
+/// start edge, or with [endGap] at its end edge — for the cases of a popover
+/// wider than its field (invoiceninja/app#215). Opens the list.
+Future<void> _pumpSlot(
+  WidgetTester tester, {
+  required double width,
+  double screenWidth = 800,
+  double? endGap,
+  TextDirection textDirection = TextDirection.ltr,
+  ValueChanged<_Option?>? onChanged,
+}) async {
+  tester.view.physicalSize = Size(screenWidth, 600);
+  tester.view.devicePixelRatio = 1.0;
+  addTearDown(tester.view.reset);
+  final field = SizedBox(
+    key: const ValueKey('slot'),
+    width: width,
+    child: SearchableDropdownField<_Option>(
+      label: 'Item',
+      items: _items,
+      initialValue: null,
+      displayString: (o) => o.name,
+      idOf: (o) => o.id,
+      onChanged: onChanged ?? (_) {},
+    ),
+  );
+  await tester.pumpWidget(
+    MaterialApp(
+      theme: buildInTheme(InTheme.light),
+      localizationsDelegates: kTestLocalizationsDelegates,
+      supportedLocales: kTestSupportedLocales,
+      home: Directionality(
+        textDirection: textDirection,
+        child: Scaffold(
+          body: Column(
+            children: [
+              Align(
+                alignment: endGap == null
+                    ? AlignmentDirectional.topStart
+                    : AlignmentDirectional.topEnd,
+                child: Padding(
+                  padding: EdgeInsetsDirectional.only(end: endGap ?? 0),
+                  child: field,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+  await tester.pumpAndSettle();
+  // Into the field's leading 16 px - clear of the trailing arrow button,
+  // which a narrow field's centre can land on.
+  final slot = tester.getRect(find.byKey(const ValueKey('slot')));
+  await tester.tapAt(
+    textDirection == TextDirection.ltr
+        ? slot.centerLeft + const Offset(16, 0)
+        : slot.centerRight - const Offset(16, 0),
   );
   await tester.pumpAndSettle();
 }
@@ -762,6 +826,96 @@ void main() {
       // The field's own label sits between the two (`LabeledField`): the
       // popover clears it rather than covering the field's name.
       expect(tester.getBottomLeft(options).dy, closeTo(fieldTop, 32));
+    });
+  });
+
+  group('a popover wider than its field', () {
+    Rect popover(WidgetTester tester) => tester.getRect(find.byType(ListView));
+    Rect slot(WidgetTester tester) =>
+        tester.getRect(find.byKey(const ValueKey('slot')));
+
+    test('the width: a floor for narrow fields, the room, the old width', () {
+      // A narrow field gets the floor...
+      expect(pickerPopoverWidth(fieldWidth: 120, room: 800), 280);
+      // ...a wide one keeps the 360 cap...
+      expect(pickerPopoverWidth(fieldWidth: 500, room: 800), 360);
+      expect(pickerPopoverWidth(fieldWidth: 300, room: 800), 300);
+      // ...the room to the far edge caps the floor...
+      expect(pickerPopoverWidth(fieldWidth: 120, room: 192), 192);
+      // ...but never below the field's own width, which is what it had before.
+      expect(pickerPopoverWidth(fieldWidth: 120, room: 50), 120);
+    });
+
+    testWidgets('a picker in a 120 px slot opens a 280 px list', (
+      tester,
+    ) async {
+      _Option? picked;
+      await _pumpSlot(tester, width: 120, onChanged: (o) => picked = o);
+      expect(find.byType(ListView), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      final list = popover(tester);
+      expect(list.width, greaterThan(120));
+      expect(list.width, closeTo(kPickerPopoverMinWidth, 0.5));
+      // Anchored to the field's leading edge, below it.
+      expect(list.left, closeTo(slot(tester).left, 0.5));
+      expect(list.top, greaterThanOrEqualTo(slot(tester).top));
+
+      // The widened part is live. The SDK lays its options view out in a box
+      // the field's width, and a box drops every pointer outside its size -
+      // so a popover only *painted* wider would be dead past 120 px.
+      final cherry = tester.getCenter(
+        find.descendant(
+          of: find.byType(ListView),
+          matching: find.text('Cherry'),
+        ),
+      );
+      await tester.tapAt(Offset(slot(tester).left + 220, cherry.dy));
+      await tester.pumpAndSettle();
+      expect(picked?.name, 'Cherry');
+      expect(find.byType(ListView), findsNothing);
+    });
+
+    testWidgets('near the right edge of a 400 px screen it stops short of it', (
+      tester,
+    ) async {
+      // The field sits at 200-320: 200 px to the edge, less the margin.
+      await _pumpSlot(tester, width: 120, screenWidth: 400, endGap: 80);
+      expect(tester.takeException(), isNull);
+      final list = popover(tester);
+      expect(slot(tester).left, closeTo(200, 0.5));
+      expect(list.left, closeTo(200, 0.5));
+      expect(list.width, greaterThan(120));
+      expect(list.right, closeTo(400 - kPickerPopoverEdgeMargin, 0.5));
+    });
+
+    testWidgets('flush against the right edge it keeps the field width', (
+      tester,
+    ) async {
+      await _pumpSlot(tester, width: 120, screenWidth: 400, endGap: 0);
+      final list = popover(tester);
+      expect(list.width, closeTo(120, 0.5));
+      expect(list.right, lessThanOrEqualTo(400.5));
+    });
+
+    testWidgets('in RTL it grows leftward and stops short of the left edge', (
+      tester,
+    ) async {
+      // In RTL the end edge is the left one: the field sits at 80-200.
+      await _pumpSlot(
+        tester,
+        width: 120,
+        screenWidth: 400,
+        endGap: 80,
+        textDirection: TextDirection.rtl,
+      );
+      expect(tester.takeException(), isNull);
+      final list = popover(tester);
+      expect(slot(tester).right, closeTo(200, 0.5));
+      // Anchored to the field's leading (right) edge...
+      expect(list.right, closeTo(200, 0.5));
+      expect(list.width, greaterThan(120));
+      // ...and short of the far (left) edge.
+      expect(list.left, closeTo(kPickerPopoverEdgeMargin, 0.5));
     });
   });
 

@@ -4,7 +4,9 @@
 //    it shows the whole name — without costing the field its state when the
 //    tooltip comes and goes;
 //  * creating a product from the cell asks for its price and description,
-//    as the Add-items picker does, instead of making a $0 catalog entry.
+//    as the Add-items picker does, instead of making a $0 catalog entry;
+//  * the cell's options are wider than a narrow cell, so the create row and
+//    a product's name read in full (invoiceninja/app#215).
 
 import 'dart:convert';
 
@@ -16,6 +18,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:admin/data/db/app_database.dart';
 import 'package:admin/data/models/domain/billing/line_item.dart';
 import 'package:admin/ui/core/widgets/overflow_tooltip_text.dart';
+import 'package:admin/ui/core/widgets/wide_picker_popover.dart';
 import 'package:admin/ui/features/billing_shared/line_item_editor/line_item_column_config.dart';
 import 'package:admin/ui/features/billing_shared/line_item_editor/line_item_table_desktop.dart';
 
@@ -69,9 +72,10 @@ Future<void> _teardown(WidgetTester tester) async {
 void main() {
   Future<ShellFixture> pumpTable(
     WidgetTester tester,
-    List<LineItem> items,
-  ) async {
-    tester.view.physicalSize = const Size(1400, 900);
+    List<LineItem> items, {
+    double width = 1400,
+  }) async {
+    tester.view.physicalSize = Size(width, 900);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
     final fixture = await buildFixture(
@@ -87,11 +91,14 @@ void main() {
     return fixture;
   }
 
-  /// Types a name no product has into the blank row's Item cell and takes
-  /// the "Create" row the options offer for it. A near match is seeded first:
-  /// with nothing cached the cell waits on a server search before it opens,
-  /// and the fixture has no server to answer one.
-  Future<void> openCreate(WidgetTester tester, ShellFixture fixture) async {
+  /// Types a name no product has into the blank row's Item cell, leaving its
+  /// options open on the "Create" row offered for it. A near match is seeded
+  /// first: with nothing cached the cell waits on a server search before it
+  /// opens, and the fixture has no server to answer one.
+  Future<void> typeUnmatchedName(
+    WidgetTester tester,
+    ShellFixture fixture,
+  ) async {
     await tester.runAsync(
       () => fixture.db.productDao.upsertAll([
         ProductsCompanion.insert(
@@ -124,9 +131,35 @@ void main() {
       );
       await tester.pump(const Duration(milliseconds: 60));
     }
+  }
+
+  /// [typeUnmatchedName], then takes the "Create" row.
+  Future<void> openCreate(WidgetTester tester, ShellFixture fixture) async {
+    await typeUnmatchedName(tester, fixture);
     await tester.tap(find.text('Create "Widget"'));
     await _settle(tester);
   }
+
+  testWidgets("the Item cell's options are wider than the cell", (
+    tester,
+  ) async {
+    final fixture = await pumpTable(tester, const [], width: 800);
+    await typeUnmatchedName(tester, fixture);
+    // At 800 px the Item column is ~150 px, and the options used to be laid
+    // out at exactly that: "+ Create…" read "+ Erstel…" (invoiceninja/app#215).
+    final cell = tester.getRect(find.byType(TextField).first);
+    final options = tester.getRect(find.byType(ListView).last);
+    expect(cell.width, lessThan(kPickerPopoverMinWidth));
+    expect(options.width, closeTo(kPickerPopoverMinWidth, 0.5));
+    expect(options.left, closeTo(cell.left, 0.5));
+    // The create row is drawn across that width, and taking it still works.
+    final create = find.text('Create "Widget"');
+    expect(tester.getRect(create).right, lessThan(options.right));
+    await tester.tap(create);
+    await _settle(tester);
+    expect(find.text('New Product'), findsOneWidget);
+    await _teardown(tester);
+  });
 
   Finder tooltipFor(String message) =>
       find.byWidgetPredicate((w) => w is Tooltip && w.message == message);

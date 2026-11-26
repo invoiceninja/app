@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:material_ui/material_ui.dart';
 
@@ -9,6 +8,7 @@ import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/escape_observer.dart';
 import 'package:admin/ui/core/widgets/field_label.dart';
 import 'package:admin/ui/core/widgets/picker_dismissal.dart';
+import 'package:admin/ui/core/widgets/wide_picker_popover.dart';
 import 'package:admin/utils/search_fold.dart';
 
 /// Generic text-filter dropdown for long lists (countries, currencies,
@@ -808,398 +808,384 @@ class _SearchableDropdownFieldState<T extends Object>
       );
     }
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        // Size the options popover to the field's own width so it can't
-        // overflow a narrow phone; cap at 360 on wide screens (the original
-        // desktop max). The SDK anchors it to the field's leading edge, so
-        // width <= field width never spills past the far edge.
-        final fieldWidth = constraints.maxWidth.isFinite
-            ? constraints.maxWidth
-            : 360.0;
-        final popoverWidth = math.min(fieldWidth, 360.0);
-        return Padding(
-          padding: const EdgeInsets.symmetric(vertical: kFieldVerticalGap),
-          child: RawAutocomplete<_Opt<T>>(
-            textEditingController: _controller,
-            focusNode: _focusNode,
-            // Read in TWO places, and the second is the one that matters for
-            // the create row: `_select` writes the result into the field, and
-            // `_onChangedField` compares it against the field text on every
-            // keystroke — that comparison is the only thing that ever clears
-            // the SDK's `_selection`, and a pinned `_selection` is exactly
-            // CLAUDE.md's "the row goes permanently dead after one cancelled
-            // create". So this must be total over `_Opt<T>`, cheap, and must
-            // stop equalling the field text as soon as the query moves on: a
-            // non-item row returns the query it was built from, never ''.
-            displayStringForOption: (o) => switch (o) {
-              _ItemOpt<T>(:final item) => widget.displayString(item),
-              _CreateOpt<T>(:final query) => _createRowLabel(context, query),
-            },
-            // Flip above the field when there's more room there. Left at the
-            // `.down` default, a picker low on a phone screen gets whatever
-            // space is below it, floored at a 48px sliver — invisible while the
-            // popover held one row, useless now that it holds the whole list.
-            optionsViewOpenDirection: OptionsViewOpenDirection.mostSpace,
-            optionsBuilder: (value) {
-              // `_optionsFor` / `_idleOptions` stay in `T` — wrapping happens
-              // here and nowhere else, so the hoist and its `parentAgrees`
-              // guard are untouched.
-              final (items, hasExact) = _optionsFor(value.text);
-              final options = _wrap(items, value.text, hasExact: hasExact);
-              // An empty list unmounts the overlay, and `optionsViewBuilder`
-              // then never runs again to say so — without this `_optionsVisible`
-              // latches true, and a later Enter would take the "dismiss the
-              // current value" path and blur, throwing away the query the user
-              // is still typing.
-              if (options.isEmpty) _optionsVisible = false;
-              return options;
-            },
-            // setState so the field rebuilds: `_select` doesn't rebuild us, and
-            // the leading glyph is read from `_committed` during the field
-            // build — without this it lags a parent rebuild behind the text.
-            //
-            // Each case does its own work. Assigning a `final T item;` inside
-            // the switch, with the other case returning, crashes Dart 3.14's
-            // AOT compiler (Flutter 3.50) in its register allocator, and with
-            // it every release build (docs/upstream-workarounds.md § 21).
-            onSelected: (opt) {
-              switch (opt) {
-                case _CreateOpt<T>(:final query):
-                  // Backstop only — the tap and Enter paths call
-                  // `_handleCreate` directly. `_select` has already written the
-                  // row's label into the field; a cancel puts the committed
-                  // value's name back over it.
-                  unawaited(_handleCreate(query));
-                case _ItemOpt<T>(:final item):
-                  setState(() {
-                    _committed = item;
-                    _optionsVisible = false;
-                  });
-                  widget.onChanged(item);
-              }
-            },
-            fieldViewBuilder: (context, textController, focusNode, onFieldSubmitted) {
-              final committed = _committed;
-              final prefix = committed == null
-                  ? null
-                  : widget.optionLeadingBuilder?.call(context, committed);
-              // Own Material — RawAutocomplete (unlike Autocomplete) wraps
-              // its field in none, so a host without a Material ancestor
-              // throws "No Material widget found". Transparency = no visual
-              // change.
-              return Material(
-                type: MaterialType.transparency,
-                // Locked while a create is in flight. A vendor's create
-                // searches the server first, which can take seconds, and a
-                // pick made in that window would be silently overwritten
-                // when the create resolves.
-                child: IgnorePointer(
-                  ignoring: _creating,
-                  child: ExcludeFocus(
-                    excluding: _creating,
-                    child: EscapeObserver(
-                      // `DismissIntent` hides the overlay without touching
-                      // focus, so nothing else would tell us it is gone.
-                      onEscape: () => _optionsVisible = false,
-                      child: LabeledField(
-                        label: widget.label,
-                        padded: false,
-                        child: TextField(
-                          controller: textController,
-                          focusNode: focusNode,
-                          // On native touch nothing else can close the popover —
-                          // see `picker_dismissal.dart`.
-                          onTapOutside: dismissPickerOnTapOutside(focusNode),
-                          onTap: _reopenOptions,
-                          // Without this the toggle in `_reopenOptions` is
-                          // intermittent. `TextField.onTap` arrives via
-                          // `TextSelectionGestureDetectorBuilder.onUserTap`,
-                          // which `_handleTapUp` calls only on the FIRST tap of a
-                          // series (`text_selection.dart`) — so a second tap
-                          // inside `kDoubleTapTimeout` at roughly the same spot
-                          // is swallowed, and `enableInteractiveSelection: false`
-                          // means the double-tap branch does nothing either: the
-                          // tap is simply lost. Wait 300 ms and it works, which
-                          // is the worst possible behaviour for a button.
-                          //
-                          // Gated on the same flag as the toggle, not `true`: on
-                          // a typable picker the second tap of a series IS
-                          // word-select, and `_reopenOptions`' select-all would
-                          // fight it. Safe here precisely because a keyboard-less
-                          // picker has no selection to steal.
-                          onTapAlwaysCalled: _suppressKeyboard,
-                          onSubmitted: (_) => _onSubmitted(onFieldSubmitted),
-                          // A short list on a touch device needs no typing, so keep
-                          // the soft keyboard (which would cover the list) away.
-                          // `TextInputType.none` rather than `readOnly` — readOnly
-                          // also tears down the text input connection.
-                          keyboardType: _suppressKeyboard
-                              ? TextInputType.none
-                              : null,
-                          showCursor: _suppressKeyboard ? false : null,
-                          // Nothing to select on a field that can't be typed into,
-                          // and leaving it on lets a long-press raise the copy
-                          // toolbar over what is really just a button.
-                          enableInteractiveSelection: !_suppressKeyboard,
-                          decoration: InputDecoration(
-                            labelText: widget.label,
-                            hintText: widget.hintText,
-                            errorText: widget.errorText,
-                            helper: widget.helper,
-                            isDense: true,
-                            contentPadding: EdgeInsets.symmetric(
-                              horizontal: InSpacing.md(context),
-                              vertical: InSizes.fieldPadV,
-                            ),
-                            border: border,
-                            prefixIcon: prefix == null
-                                ? null
-                                : Padding(
-                                    padding: EdgeInsetsDirectional.only(
-                                      start: InSpacing.md(context),
-                                      end: InSpacing.sm,
-                                    ),
-                                    child: prefix,
-                                  ),
-                            prefixIconConstraints: const BoxConstraints(
-                              minWidth: 0,
-                              minHeight: 0,
-                            ),
-                            suffixIcon: _buildSuffix(
-                              context,
-                              tokens,
-                              textController,
-                            ),
-                            suffixIconConstraints: const BoxConstraints(
-                              minWidth: 0,
-                              minHeight: 0,
-                            ),
-                          ),
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: tokens.ink,
-                          ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: kFieldVerticalGap),
+      child: RawAutocomplete<_Opt<T>>(
+        textEditingController: _controller,
+        focusNode: _focusNode,
+        // Read in TWO places, and the second is the one that matters for
+        // the create row: `_select` writes the result into the field, and
+        // `_onChangedField` compares it against the field text on every
+        // keystroke — that comparison is the only thing that ever clears
+        // the SDK's `_selection`, and a pinned `_selection` is exactly
+        // CLAUDE.md's "the row goes permanently dead after one cancelled
+        // create". So this must be total over `_Opt<T>`, cheap, and must
+        // stop equalling the field text as soon as the query moves on: a
+        // non-item row returns the query it was built from, never ''.
+        displayStringForOption: (o) => switch (o) {
+          _ItemOpt<T>(:final item) => widget.displayString(item),
+          _CreateOpt<T>(:final query) => _createRowLabel(context, query),
+        },
+        // Flip above the field when there's more room there. Left at the
+        // `.down` default, a picker low on a phone screen gets whatever
+        // space is below it, floored at a 48px sliver — invisible while the
+        // popover held one row, useless now that it holds the whole list.
+        optionsViewOpenDirection: OptionsViewOpenDirection.mostSpace,
+        optionsBuilder: (value) {
+          // `_optionsFor` / `_idleOptions` stay in `T` — wrapping happens
+          // here and nowhere else, so the hoist and its `parentAgrees`
+          // guard are untouched.
+          final (items, hasExact) = _optionsFor(value.text);
+          final options = _wrap(items, value.text, hasExact: hasExact);
+          // An empty list unmounts the overlay, and `optionsViewBuilder`
+          // then never runs again to say so — without this `_optionsVisible`
+          // latches true, and a later Enter would take the "dismiss the
+          // current value" path and blur, throwing away the query the user
+          // is still typing.
+          if (options.isEmpty) _optionsVisible = false;
+          return options;
+        },
+        // setState so the field rebuilds: `_select` doesn't rebuild us, and
+        // the leading glyph is read from `_committed` during the field
+        // build — without this it lags a parent rebuild behind the text.
+        //
+        // Each case does its own work. Assigning a `final T item;` inside
+        // the switch, with the other case returning, crashes Dart 3.14's
+        // AOT compiler (Flutter 3.50) in its register allocator, and with
+        // it every release build (docs/upstream-workarounds.md § 21).
+        onSelected: (opt) {
+          switch (opt) {
+            case _CreateOpt<T>(:final query):
+              // Backstop only — the tap and Enter paths call
+              // `_handleCreate` directly. `_select` has already written the
+              // row's label into the field; a cancel puts the committed
+              // value's name back over it.
+              unawaited(_handleCreate(query));
+            case _ItemOpt<T>(:final item):
+              setState(() {
+                _committed = item;
+                _optionsVisible = false;
+              });
+              widget.onChanged(item);
+          }
+        },
+        fieldViewBuilder: (context, textController, focusNode, onFieldSubmitted) {
+          final committed = _committed;
+          final prefix = committed == null
+              ? null
+              : widget.optionLeadingBuilder?.call(context, committed);
+          // Own Material — RawAutocomplete (unlike Autocomplete) wraps
+          // its field in none, so a host without a Material ancestor
+          // throws "No Material widget found". Transparency = no visual
+          // change.
+          return Material(
+            type: MaterialType.transparency,
+            // Locked while a create is in flight. A vendor's create
+            // searches the server first, which can take seconds, and a
+            // pick made in that window would be silently overwritten
+            // when the create resolves.
+            child: IgnorePointer(
+              ignoring: _creating,
+              child: ExcludeFocus(
+                excluding: _creating,
+                child: EscapeObserver(
+                  // `DismissIntent` hides the overlay without touching
+                  // focus, so nothing else would tell us it is gone.
+                  onEscape: () => _optionsVisible = false,
+                  child: LabeledField(
+                    label: widget.label,
+                    padded: false,
+                    child: TextField(
+                      controller: textController,
+                      focusNode: focusNode,
+                      // On native touch nothing else can close the popover —
+                      // see `picker_dismissal.dart`.
+                      onTapOutside: dismissPickerOnTapOutside(focusNode),
+                      onTap: _reopenOptions,
+                      // Without this the toggle in `_reopenOptions` is
+                      // intermittent. `TextField.onTap` arrives via
+                      // `TextSelectionGestureDetectorBuilder.onUserTap`,
+                      // which `_handleTapUp` calls only on the FIRST tap of a
+                      // series (`text_selection.dart`) — so a second tap
+                      // inside `kDoubleTapTimeout` at roughly the same spot
+                      // is swallowed, and `enableInteractiveSelection: false`
+                      // means the double-tap branch does nothing either: the
+                      // tap is simply lost. Wait 300 ms and it works, which
+                      // is the worst possible behaviour for a button.
+                      //
+                      // Gated on the same flag as the toggle, not `true`: on
+                      // a typable picker the second tap of a series IS
+                      // word-select, and `_reopenOptions`' select-all would
+                      // fight it. Safe here precisely because a keyboard-less
+                      // picker has no selection to steal.
+                      onTapAlwaysCalled: _suppressKeyboard,
+                      onSubmitted: (_) => _onSubmitted(onFieldSubmitted),
+                      // A short list on a touch device needs no typing, so keep
+                      // the soft keyboard (which would cover the list) away.
+                      // `TextInputType.none` rather than `readOnly` — readOnly
+                      // also tears down the text input connection.
+                      keyboardType: _suppressKeyboard
+                          ? TextInputType.none
+                          : null,
+                      showCursor: _suppressKeyboard ? false : null,
+                      // Nothing to select on a field that can't be typed into,
+                      // and leaving it on lets a long-press raise the copy
+                      // toolbar over what is really just a button.
+                      enableInteractiveSelection: !_suppressKeyboard,
+                      decoration: InputDecoration(
+                        labelText: widget.label,
+                        hintText: widget.hintText,
+                        errorText: widget.errorText,
+                        helper: widget.helper,
+                        isDense: true,
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: InSpacing.md(context),
+                          vertical: InSizes.fieldPadV,
                         ),
+                        border: border,
+                        prefixIcon: prefix == null
+                            ? null
+                            : Padding(
+                                padding: EdgeInsetsDirectional.only(
+                                  start: InSpacing.md(context),
+                                  end: InSpacing.sm,
+                                ),
+                                child: prefix,
+                              ),
+                        prefixIconConstraints: const BoxConstraints(
+                          minWidth: 0,
+                          minHeight: 0,
+                        ),
+                        suffixIcon: _buildSuffix(
+                          context,
+                          tokens,
+                          textController,
+                        ),
+                        suffixIconConstraints: const BoxConstraints(
+                          minWidth: 0,
+                          minHeight: 0,
+                        ),
+                      ),
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: tokens.ink,
                       ),
                     ),
                   ),
                 ),
-              );
-            },
-            optionsViewBuilder: (context, onSelected, options) {
-              final highlightedIndex = AutocompleteHighlightedOption.of(
-                context,
-              );
-              // Hold the notifier, not the index: it is an `InheritedNotifier`,
-              // so a value captured here is a frame behind the arrow keys, and
-              // an Enter in the same event batch would act on the wrong row.
-              _highlight = context
-                  .dependOnInheritedWidgetOfExactType<
-                    AutocompleteHighlightedOption
-                  >()
-                  ?.notifier;
-              _visibleOptions = options.toList(growable: false);
-              _optionsVisible = true;
-              final resetting = _resetHighlight;
-              if (resetting) {
-                _resetHighlight = false;
-                // Post-frame: writing to the notifier during build would
-                // rebuild its dependents mid-build. Re-read `_highlight` there
-                // rather than closing over it — RawAutocomplete owns it and can
-                // be unmounted (disposing it) while this State survives.
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  if (mounted) _highlight?.value = 0;
-                });
-              }
-              final optionExtent = _optionExtent(context);
-              // The create row is always last and is pinned below the list
-              // rather than scrolled with it — as row 21 of a 280 px popover
-              // nobody would find it. It stays in `options`, so the arrow keys
-              // and Enter still reach it through the SDK's highlight.
-              final createOpt = options.isNotEmpty
-                  ? switch (options.last) {
-                      final _CreateOpt<T> c => c,
-                      _ItemOpt<T>() => null,
-                    }
-                  : null;
-              final listCount = options.length - (createOpt == null ? 0 : 1);
-              // Skip while resetting: this build still carries the old
-              // highlight, so scrolling now would animate to the row the user
-              // last arrowed to and then back to the top on the next build.
-              // `listCount`, not `options.length`: the pinned create row has
-              // nothing to scroll to.
-              if (!resetting) {
-                _scrollHighlightedIntoView(
-                  highlightedIndex,
-                  listCount,
-                  optionExtent,
+              ),
+            ),
+          );
+        },
+        optionsViewBuilder: (context, onSelected, options) {
+          final highlightedIndex = AutocompleteHighlightedOption.of(context);
+          // Hold the notifier, not the index: it is an `InheritedNotifier`,
+          // so a value captured here is a frame behind the arrow keys, and
+          // an Enter in the same event batch would act on the wrong row.
+          _highlight = context
+              .dependOnInheritedWidgetOfExactType<
+                AutocompleteHighlightedOption
+              >()
+              ?.notifier;
+          _visibleOptions = options.toList(growable: false);
+          _optionsVisible = true;
+          final resetting = _resetHighlight;
+          if (resetting) {
+            _resetHighlight = false;
+            // Post-frame: writing to the notifier during build would
+            // rebuild its dependents mid-build. Re-read `_highlight` there
+            // rather than closing over it — RawAutocomplete owns it and can
+            // be unmounted (disposing it) while this State survives.
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) _highlight?.value = 0;
+            });
+          }
+          final optionExtent = _optionExtent(context);
+          // The create row is always last and is pinned below the list
+          // rather than scrolled with it — as row 21 of a 280 px popover
+          // nobody would find it. It stays in `options`, so the arrow keys
+          // and Enter still reach it through the SDK's highlight.
+          final createOpt = options.isNotEmpty
+              ? switch (options.last) {
+                  final _CreateOpt<T> c => c,
+                  _ItemOpt<T>() => null,
+                }
+              : null;
+          final listCount = options.length - (createOpt == null ? 0 : 1);
+          // Skip while resetting: this build still carries the old
+          // highlight, so scrolling now would animate to the row the user
+          // last arrowed to and then back to the top on the next build.
+          // `listCount`, not `options.length`: the pinned create row has
+          // nothing to scroll to.
+          if (!resetting) {
+            _scrollHighlightedIntoView(
+              highlightedIndex,
+              listCount,
+              optionExtent,
+            );
+          }
+          final footer = widget.footerBuilder?.call(context);
+          final committed = _committed;
+          final committedId = committed == null ? null : widget.idOf(committed);
+          // By index, not by id: a caller can hand us duplicates (a custom
+          // field defined as `Gold,Silver,Gold`), and marking every match
+          // would show two "current" rows.
+          final committedIndex = committedId == null
+              ? -1
+              // Exhaustive for the same reason as `_highlightIsCommitted`.
+              : _visibleOptions.indexWhere(
+                  (o) => switch (o) {
+                    _ItemOpt<T>(:final item) =>
+                      widget.idOf(item) == committedId,
+                    _CreateOpt<T>() => false,
+                  },
                 );
-              }
-              final footer = widget.footerBuilder?.call(context);
-              final committed = _committed;
-              final committedId = committed == null
-                  ? null
-                  : widget.idOf(committed);
-              // By index, not by id: a caller can hand us duplicates (a custom
-              // field defined as `Gold,Silver,Gold`), and marking every match
-              // would show two "current" rows.
-              final committedIndex = committedId == null
-                  ? -1
-                  // Exhaustive for the same reason as `_highlightIsCommitted`.
-                  : _visibleOptions.indexWhere(
-                      (o) => switch (o) {
-                        _ItemOpt<T>(:final item) =>
-                          widget.idOf(item) == committedId,
-                        _CreateOpt<T>() => false,
-                      },
-                    );
-              // No Align of our own: RawAutocomplete already wraps this in a
-              // tightly-constrained Align that flips between topStart and
-              // bottomStart. A bare Align here would expand to fill that box
-              // (it only shrink-wraps under an infinite constraint), leaving
-              // the SDK's alignment nothing to move — an upward popover would
-              // detach and render at the top of the screen.
-              return BackDismissiblePickerOverlay(
-                focusNode: _focusNode,
-                child: Material(
-                  elevation: 4,
-                  // Bordered, not just elevated: in dark mode the popover's
-                  // surface is near-black against a near-black page, and
-                  // elevation alone leaves the (now full-length) list floating
-                  // with no visible edge.
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(InRadii.r2),
-                    side: BorderSide(color: tokens.border),
-                  ),
-                  clipBehavior: Clip.antiAlias,
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxHeight: 280,
-                      maxWidth: popoverWidth,
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Flexible(
-                          child: ListView.builder(
-                            shrinkWrap: true,
-                            padding: EdgeInsets.zero,
-                            controller: _optionsScrollController,
-                            itemExtent: optionExtent,
-                            itemCount: listCount,
-                            itemBuilder: (context, i) {
-                              final opt = options.elementAt(i);
-                              final item = switch (opt) {
-                                _ItemOpt<T>(:final item) => item,
-                                // Pinned below the list, never built here.
-                                _CreateOpt<T>() => null,
-                              };
-                              if (item == null) return const SizedBox.shrink();
-                              final isHighlighted = i == highlightedIndex;
-                              final label = widget.displayString(item);
-                              final isCommitted = i == committedIndex;
-                              final leading = widget.optionLeadingBuilder?.call(
-                                context,
-                                item,
-                              );
-                              final trailing = widget.optionTrailingBuilder
-                                  ?.call(context, item);
-                              return Semantics(
-                                button: true,
-                                inMutuallyExclusiveGroup: true,
-                                selected: isCommitted,
-                                child: Container(
-                                  color: isHighlighted
-                                      ? tokens.accentSoft
-                                      : null,
-                                  child: InkWell(
-                                    // Re-picking the current value can't go
-                                    // through `onSelected`: `_select` early-
-                                    // returns on an unchanged selection *before*
-                                    // hiding the overlay, so the tap would be
-                                    // dead and the popover would stay open.
-                                    // Notify and close here instead — several
-                                    // callers treat a re-pick as a real command
-                                    // (re-seed an allocation's auto-filled
-                                    // amount, re-bind a stream, retry a change
-                                    // their own handler vetoed, re-add an item
-                                    // whose chip was deleted), and every handler
-                                    // is idempotent for a same-value call.
-                                    onTap: isCommitted
-                                        ? () {
-                                            _optionsVisible = false;
-                                            widget.onChanged(item);
-                                            _focusNode.unfocus();
-                                          }
-                                        : () => onSelected(opt),
-                                    child: Padding(
-                                      padding: EdgeInsets.symmetric(
-                                        horizontal: InSpacing.md(context),
-                                        vertical: InSpacing.sm,
-                                      ),
-                                      child: Row(
-                                        children: [
-                                          if (leading != null) ...[
-                                            leading,
-                                            const SizedBox(width: InSpacing.sm),
-                                          ],
-                                          Expanded(
-                                            child: Text(
-                                              label,
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: theme.textTheme.bodyMedium
-                                                  ?.copyWith(color: tokens.ink),
-                                            ),
-                                          ),
-                                          if (trailing != null) ...[
-                                            const SizedBox(width: InSpacing.sm),
-                                            trailing,
-                                          ],
-                                          if (isCommitted &&
-                                              trailing != null &&
-                                              label.isNotEmpty)
-                                            const SizedBox(width: InSpacing.xs),
-                                          // A blank option (the custom-field
-                                          // "none" row) would show a bare tick.
-                                          if (isCommitted && label.isNotEmpty)
-                                            Icon(
-                                              Icons.check,
-                                              size: 16,
-                                              color: tokens.accent,
-                                            ),
+          // No Align of our own: RawAutocomplete already wraps this in a
+          // tightly-constrained Align that flips between topStart and
+          // bottomStart. A bare Align here would expand to fill that box
+          // (it only shrink-wraps under an infinite constraint), leaving
+          // the SDK's alignment nothing to move — an upward popover would
+          // detach and render at the top of the screen.
+          //
+          // `WidePickerPopover` draws it wider than a narrow field — at
+          // least 280, at most 360, never past the overlay's far edge.
+          return WidePickerPopover(
+            child: BackDismissiblePickerOverlay(
+              focusNode: _focusNode,
+              child: Material(
+                elevation: 4,
+                // Bordered, not just elevated: in dark mode the popover's
+                // surface is near-black against a near-black page, and
+                // elevation alone leaves the (now full-length) list floating
+                // with no visible edge.
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(InRadii.r2),
+                  side: BorderSide(color: tokens.border),
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 280),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Flexible(
+                        child: ListView.builder(
+                          shrinkWrap: true,
+                          padding: EdgeInsets.zero,
+                          controller: _optionsScrollController,
+                          itemExtent: optionExtent,
+                          itemCount: listCount,
+                          itemBuilder: (context, i) {
+                            final opt = options.elementAt(i);
+                            final item = switch (opt) {
+                              _ItemOpt<T>(:final item) => item,
+                              // Pinned below the list, never built here.
+                              _CreateOpt<T>() => null,
+                            };
+                            if (item == null) return const SizedBox.shrink();
+                            final isHighlighted = i == highlightedIndex;
+                            final label = widget.displayString(item);
+                            final isCommitted = i == committedIndex;
+                            final leading = widget.optionLeadingBuilder?.call(
+                              context,
+                              item,
+                            );
+                            final trailing = widget.optionTrailingBuilder?.call(
+                              context,
+                              item,
+                            );
+                            return Semantics(
+                              button: true,
+                              inMutuallyExclusiveGroup: true,
+                              selected: isCommitted,
+                              child: Container(
+                                color: isHighlighted ? tokens.accentSoft : null,
+                                child: InkWell(
+                                  // Re-picking the current value can't go
+                                  // through `onSelected`: `_select` early-
+                                  // returns on an unchanged selection *before*
+                                  // hiding the overlay, so the tap would be
+                                  // dead and the popover would stay open.
+                                  // Notify and close here instead — several
+                                  // callers treat a re-pick as a real command
+                                  // (re-seed an allocation's auto-filled
+                                  // amount, re-bind a stream, retry a change
+                                  // their own handler vetoed, re-add an item
+                                  // whose chip was deleted), and every handler
+                                  // is idempotent for a same-value call.
+                                  onTap: isCommitted
+                                      ? () {
+                                          _optionsVisible = false;
+                                          widget.onChanged(item);
+                                          _focusNode.unfocus();
+                                        }
+                                      : () => onSelected(opt),
+                                  child: Padding(
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: InSpacing.md(context),
+                                      vertical: InSpacing.sm,
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        if (leading != null) ...[
+                                          leading,
+                                          const SizedBox(width: InSpacing.sm),
                                         ],
-                                      ),
+                                        Expanded(
+                                          child: Text(
+                                            label,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: theme.textTheme.bodyMedium
+                                                ?.copyWith(color: tokens.ink),
+                                          ),
+                                        ),
+                                        if (trailing != null) ...[
+                                          const SizedBox(width: InSpacing.sm),
+                                          trailing,
+                                        ],
+                                        if (isCommitted &&
+                                            trailing != null &&
+                                            label.isNotEmpty)
+                                          const SizedBox(width: InSpacing.xs),
+                                        // A blank option (the custom-field
+                                        // "none" row) would show a bare tick.
+                                        if (isCommitted && label.isNotEmpty)
+                                          Icon(
+                                            Icons.check,
+                                            size: 16,
+                                            color: tokens.accent,
+                                          ),
+                                      ],
                                     ),
                                   ),
                                 ),
-                              );
-                            },
-                          ),
+                              ),
+                            );
+                          },
                         ),
-                        if (createOpt != null) ...[
-                          if (listCount > 0)
-                            Divider(height: 1, color: tokens.border),
-                          _CreateOptionRow(
-                            label: _createRowLabel(context, createOpt.query),
-                            extent: optionExtent,
-                            highlighted: highlightedIndex == listCount,
-                            onTap: () => _handleCreate(createOpt.query),
-                          ),
-                        ],
-                        if (footer != null) ...[
+                      ),
+                      if (createOpt != null) ...[
+                        if (listCount > 0)
                           Divider(height: 1, color: tokens.border),
-                          footer,
-                        ],
+                        _CreateOptionRow(
+                          label: _createRowLabel(context, createOpt.query),
+                          extent: optionExtent,
+                          highlighted: highlightedIndex == listCount,
+                          onTap: () => _handleCreate(createOpt.query),
+                        ),
                       ],
-                    ),
+                      if (footer != null) ...[
+                        Divider(height: 1, color: tokens.border),
+                        footer,
+                      ],
+                    ],
                   ),
                 ),
-              );
-            },
-          ),
-        );
-      },
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 
