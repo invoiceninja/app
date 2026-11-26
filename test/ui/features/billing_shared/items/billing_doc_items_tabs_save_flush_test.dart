@@ -6,7 +6,9 @@ import 'package:provider/provider.dart';
 
 import 'package:admin/app/default_items_tab_controller.dart';
 import 'package:admin/app/design_tokens.dart';
+import 'package:admin/app/line_item_hidden_columns_controller.dart';
 import 'package:admin/app/services.dart';
+import 'package:admin/data/prefs/device_prefs_store.dart';
 import 'package:admin/app/theme.dart';
 import 'package:admin/data/db/app_database.dart';
 import 'package:admin/data/models/domain/billing/line_item.dart';
@@ -127,6 +129,11 @@ class _FakeServices implements Services {
 
   @override
   final TaxRateRepository taxRates = _StubTaxRateRepo();
+
+  // The desktop table's hidden custom-field columns: none.
+  @override
+  final LineItemHiddenColumnsController lineItemHiddenColumns =
+      LineItemHiddenColumnsController(prefs: DevicePrefsStore(null));
 
   @override
   Formatter? formatterIfReady(String companyId) => null;

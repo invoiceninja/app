@@ -13,7 +13,7 @@ React's invoice editor draws the columns the company picked in Settings → Invo
 3. Unit Cost / Rate and Quantity / Hours are appended when missing.
 4. `$product.tax` becomes `tax_rate1..N` (N = `enabled_item_tax_rates`) at its place, or at the end when the list doesn't name it.
 5. Discount is dropped when `enable_product_discount` is off, appended when it is on — the list can neither add nor remove it.
-6. Every custom field the company defines (`product1..4` / `task1..4`) is shown: at its place if listed, appended if not. One listed but not defined is dropped. So custom fields are not reduced by this — React draws them all.
+6. Every custom field the company defines (`product1..4` / `task1..4`) is shown: at its place if listed, appended if not. One listed but not defined is dropped. So the list cannot thin the custom fields — React draws them all. Which of them the table shows is a device preference instead (§ Which custom fields the desktop table shows is a device preference).
 7. A product table drops Quantity when "Show Product Quantity" (`enable_product_quantity`) is off. A task table keeps Hours.
 8. Tax Amount, Gross Line Total and Line Total, when listed, move to the end in that order.
 9. Net Cost is dropped (React: "net cost is a read-only label on the unit cost column").
@@ -21,6 +21,18 @@ React's invoice editor draws the columns the company picked in Settings → Invo
 Which list: a task table (the Tasks tab) reads Task Columns; a quote's product table reads Quote Product Columns when `sync_invoice_quote_columns` is off (`quotes/edit/Edit.tsx`: `sync ? productColumns : productQuoteColumns`); everything else — invoice, recurring invoice, credit, purchase order, and the Expenses tab — reads Product Columns. React reads the **company** settings, not the client's cascaded ones, and so does this (`lineItemColumnsSection`).
 
 Pinned by `test/ui/features/billing_shared/line_item_table_columns_test.dart`.
+
+## Which custom fields the desktop table shows is a device preference
+
+**Every defined custom field shows until this device hides it, per company and per table kind (product or task), through the header's Edit Columns menu** — `DevicePrefKeys.lineItemHiddenColumns`, owned by `LineItemHiddenColumnsController` (`lib/app/line_item_hidden_columns_controller.dart`), which stores the hidden slots as `{"<companyId>": {"product": [1, 3], "task": [2]}}`. No row is React's behaviour exactly.
+
+Why a device choice and not the Invoice Design list (invoiceninja/app#216): React's rule means a company with four custom fields keeps a cramped table whatever its list says, and gives no way to thin them. Hiding the custom fields a saved list leaves out was tried and dropped. The server seeds `pdf_variables` with defaults for every company (`CompanySettings::defaults()`, `app/DataMapper/CompanySettings.php`), so nearly every company "has a list", and every custom field not in the seeded default would have vanished from the editor. It would also have tied what the editor shows to what the PDF prints, which are separate choices.
+
+- **Account scope**, and kept for the same user's return (`keptForReturningUser`): it names the account's companies and fields, so the next person to sign in starts with every column (docs/device-preferences.md).
+- **The table applies it** (`LineItemColumnConfig.hidingCustomSlots`, read in `_LineItemTableDesktopState._config`): only the drawn columns change; `customFields` stays whole, so the menu lists every field, and the phone cards and line editor still show them all.
+- **The menu** (`_ColumnsMenu`, a `BackDismissibleMenuAnchor`): a Custom Fields heading and a checkbox per defined field, under its company label, open to everyone, since it is this device's view. Then, for an admin or owner, a divider and the Invoice Design tab the other columns come from, named by that tab's own title (`product_columns`, `quote_product_columns`, `task_columns`). With no custom fields it is just that entry, and a non-admin with none gets no button at all.
+
+Pinned by `line_item_table_company_columns_test.dart`: every field shows by default, a toggle hides one for that company and table only, a hidden custom value is saved unchanged, and a non-admin gets the toggles without the settings entry.
 
 ## A hidden column hides a field, never its value
 
@@ -30,6 +42,7 @@ The table keeps working on the whole line: every row's `_RowState` still seeds a
 
 ## What this does differently from React, and why
 
+- **This device can hide a custom field's column** (§ Which custom fields the desktop table shows is a device preference). React cannot.
 - **No saved list is the catalog default, not an empty list.** React's `|| []` would take its empty-list path (no Line Total) for a company whose `pdf_variables` lacks the section; the settings screen shows `defaultSelected` there and the server's PDF fills the default (`PdfConfiguration::setPdfVariables`), so the table follows them. An explicitly empty list still takes React's path.
 - **Unset `sync_invoice_quote_columns` is synced.** React tests it for truthiness; the server's default is true and the settings shell already reads null as true.
 - **A variable listed twice is kept once.** Two cells cannot share one field's controller and focus node.
@@ -44,6 +57,6 @@ The table's own Line Total still shows quantity × cost, before the line's disco
 
 ## Edit Columns sits over the rows' menu
 
-The header's trailing slot (over each row's ⋮) holds an **Edit Columns** button (`line_item_edit_columns`) that goes to the Invoice Design tab the columns came from. It shows only once a company has resolved the columns, and only to an admin or owner — company settings are theirs to change. `go`, not `push`: Settings is its own shell branch, and the editor stays mounted in its own (`StatefulShellRoute.indexedStack`), draft and all.
+The header's trailing slot (over each row's ⋮) holds an **Edit Columns** button (`line_item_edit_columns`) that opens the columns menu above. Its settings entry goes to the Invoice Design tab the columns came from. That entry shows only once a company has resolved the columns, and only to an admin or owner — company settings are theirs to change. `go`, not `push`: Settings is its own shell branch, and the editor stays mounted in its own (`StatefulShellRoute.indexedStack`), draft and all.
 
 An optional line's "Optional" caption sits under the last money column drawn — Line Total, unless the company's list leaves it out, then Gross Line Total or Tax Amount; with none of them the row menu's Optional toggle is the only sign.

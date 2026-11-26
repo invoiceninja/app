@@ -112,6 +112,22 @@ class LineItemColumnConfig {
         LineItemTableColumn.lineTotal,
       ];
 
+  /// This config with the custom-field columns in [slots] left off the
+  /// desktop table — the device's choice
+  /// (`LineItemHiddenColumnsController`). [customFields] stays whole: the
+  /// line still holds them, and the table's columns menu lists them all.
+  LineItemColumnConfig hidingCustomSlots(Set<int> slots) {
+    if (slots.isEmpty) return this;
+    return copyWith(
+      tableColumns: [
+        for (final column in desktopColumns)
+          if (column.kind != LineItemTableColumnKind.custom ||
+              !slots.contains(column.slot))
+            column,
+      ],
+    );
+  }
+
   /// The custom field in [slot], or null when the company defines none
   /// there.
   LineItemCustomField? customFieldAt(int slot) {

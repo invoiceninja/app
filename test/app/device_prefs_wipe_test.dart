@@ -209,6 +209,16 @@ final Map<PrefKey<Object>, _Probe> _probes = {
     (s) => s.listColumnWidths.setWidth('invoice', 'client_id', 320),
     (s) => s.listColumnWidths.value.isEmpty,
   ),
+  // Which of the account's custom fields its line-item tables hide.
+  DevicePrefKeys.lineItemHiddenColumns: _Probe(
+    (s) => s.lineItemHiddenColumns.setHidden(
+      'co1',
+      task: false,
+      slot: 2,
+      hidden: true,
+    ),
+    (s) => s.lineItemHiddenColumns.value.isEmpty,
+  ),
   // What a signed-out user gets back on their return — the sign-out that
   // fills it must not empty it.
   DevicePrefKeys.accountPrefsKept: _Probe(

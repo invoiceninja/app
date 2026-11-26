@@ -489,6 +489,21 @@ abstract final class DevicePrefKeys {
     PrefScope.device,
   );
 
+  /// The custom-field columns the billing-doc editor's desktop line-item
+  /// table hides, per company and per table kind
+  /// (`LineItemHiddenColumnsController`, docs/line-item-columns.md § Which
+  /// custom fields the desktop table shows is a device preference): JSON
+  /// `{"<companyId>": {"product": [1, 3], "task": [2]}}`, the hidden 1-based
+  /// slots. No row shows every defined custom field, as React does. Account
+  /// scope: it names the account's companies and their fields, so the next
+  /// person to sign in starts with every column — and it is kept for the same
+  /// user's return.
+  static const lineItemHiddenColumns = PrefKey<String>(
+    'line_item_hidden_columns_json',
+    PrefCodec.string,
+    PrefScope.account,
+  );
+
   /// In the order they were added; append new keys at the end.
   static const List<PrefKey<Object>> all = [
     locale,
@@ -538,6 +553,7 @@ abstract final class DevicePrefKeys {
     lockAfterInactivity,
     alwaysShowScrollbars,
     printAfterSaving,
+    lineItemHiddenColumns,
   ];
 
   /// The account preferences a sign-out keeps aside for the SAME user's
@@ -560,6 +576,7 @@ abstract final class DevicePrefKeys {
     howToTapShown.name,
     tapToPayAnnounced.name,
     commentReads.name,
+    lineItemHiddenColumns.name,
   };
 
   /// The rows a data wipe leaves in place: the [PrefScope.device] keys and the

@@ -58,6 +58,7 @@ void main() {
     'lock_after_inactivity_minutes': PrefScope.device,
     'always_show_scrollbars': PrefScope.device,
     'print_after_saving': PrefScope.device,
+    'line_item_hidden_columns_json': PrefScope.account,
   };
 
   final names = [for (final k in DevicePrefKeys.all) k.name];

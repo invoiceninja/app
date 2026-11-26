@@ -21,6 +21,7 @@ import 'package:admin/data/models/domain/custom_field_types.dart';
 import 'package:admin/data/models/domain/product.dart';
 import 'package:admin/data/models/domain/tax_rate.dart';
 import 'package:admin/data/repositories/search_fetch.dart';
+import 'package:admin/data/static/pdf_catalogs.dart';
 import 'package:admin/domain/billing/totals_calculator.dart';
 import 'package:admin/domain/date_placeholders.dart';
 import 'package:admin/domain/product_tax_categories.dart';
@@ -404,15 +405,15 @@ class _LineItemTableDesktopState extends State<LineItemTableDesktop> {
     super.dispose();
   }
 
-  /// The header's "Edit Columns": the Invoice Design tab this table's
-  /// columns come from. Null — no button — until the company has resolved
+  /// The columns menu's settings entry: the Invoice Design tab this table's
+  /// columns come from. Null — no entry — until the company has resolved
   /// them, and for a user who can't change company settings.
   ///
   /// `go`, not `push`: Settings is its own branch, and the editor stays
   /// mounted in this one (`StatefulShellRoute.indexedStack`), draft and all,
   /// for Back to return to.
-  VoidCallback? _editColumnsAction(BuildContext context) {
-    final section = widget.config.columnsSection;
+  VoidCallback? _openColumnsSettings(BuildContext context) {
+    final section = _config.columnsSection;
     if (section == null) return null;
     final me = context.read<Services>().auth.session.value?.currentCompany;
     if (me == null || !(me.isAdmin || me.isOwner)) return null;
@@ -683,7 +684,7 @@ class _LineItemTableDesktopState extends State<LineItemTableDesktop> {
     // proxy, or the row would change what it says while it is dragged.
     final categoryKey =
         item != null &&
-            widget.config.useTaxCategories &&
+            _config.useTaxCategories &&
             !taxCategoryKeepsManualRates(item.savedTaxCategoryId)
         ? kProductTaxCategories[item.savedTaxCategoryId]
         : null;
@@ -712,7 +713,7 @@ class _LineItemTableDesktopState extends State<LineItemTableDesktop> {
       int maxLines = 1,
     }) {
       return Expanded(
-        flex: _columnFlex(widget.config, column),
+        flex: _columnFlex(_config, column),
         child: Padding(
           padding: const EdgeInsetsDirectional.only(end: _kCellPadH),
           child: Align(
@@ -729,7 +730,7 @@ class _LineItemTableDesktopState extends State<LineItemTableDesktop> {
     }
 
     Widget moneyCell(LineItemTableColumn column, String text) => Expanded(
-      flex: _columnFlex(widget.config, column),
+      flex: _columnFlex(_config, column),
       child: Align(
         alignment: AlignmentDirectional.centerEnd,
         child: LtrText(
@@ -757,7 +758,7 @@ class _LineItemTableDesktopState extends State<LineItemTableDesktop> {
             maxLines: _kDescriptionMaxLines,
           );
         case LineItemTableColumnKind.custom:
-          final custom = _customFieldOf(widget.config, column);
+          final custom = _customFieldOf(_config, column);
           if (custom == null) return null;
           return SizedBox(
             width: _customColumnWidth(custom.field),
@@ -812,8 +813,7 @@ class _LineItemTableDesktopState extends State<LineItemTableDesktop> {
           children: [
             Icon(Icons.drag_indicator, color: tokens.ink3, size: 20),
             const SizedBox(width: _kDragColWidth - 20),
-            for (final column in widget.config.desktopColumns)
-              ?snapshotOf(column),
+            for (final column in _config.desktopColumns) ?snapshotOf(column),
             const SizedBox(width: _kTrailingColWidth),
           ],
         ),
@@ -824,7 +824,7 @@ class _LineItemTableDesktopState extends State<LineItemTableDesktop> {
   /// The per-line Tax Amount / Gross Line Total, when the table draws either
   /// — null otherwise, so a table without them does none of the math.
   _LineAmountsCalc? _lineAmountsCalc() {
-    final needed = widget.config.desktopColumns.any(
+    final needed = _config.desktopColumns.any(
       (c) =>
           c.kind == LineItemTableColumnKind.taxAmount ||
           c.kind == LineItemTableColumnKind.grossLineTotal,
@@ -855,10 +855,30 @@ class _LineItemTableDesktopState extends State<LineItemTableDesktop> {
       .company
       .watchCompany(widget.companyId);
 
+  /// [LineItemTableDesktop.config] less the custom-field columns this device
+  /// hides for the company's table (`LineItemHiddenColumnsController`). The
+  /// table draws and lays out from this; [LineItemColumnConfig.customFields]
+  /// stays whole, for the header's menu.
+  LineItemColumnConfig get _config => widget.config.hidingCustomSlots(
+    context.read<Services>().lineItemHiddenColumns.hiddenSlots(
+      widget.companyId,
+      task: widget.config.isTaskTable,
+    ),
+  );
+
   @override
   Widget build(BuildContext context) {
     final tokens = context.inTheme;
     final services = context.read<Services>();
+    // Always in the tree, so a toggle in the header's menu rebuilds the table
+    // without re-parenting it.
+    return ListenableBuilder(
+      listenable: services.lineItemHiddenColumns,
+      builder: (context, _) => _buildTable(context, tokens, services),
+    );
+  }
+
+  Widget _buildTable(BuildContext context, InTheme tokens, Services services) {
     return StreamBuilder<Company?>(
       stream: _companyStream,
       builder: (context, snapshot) {
@@ -899,13 +919,27 @@ class _LineItemTableDesktopState extends State<LineItemTableDesktop> {
             mainAxisSize: MainAxisSize.min,
             children: [
               _SidewaysScrollWhenNarrow(
-                minWidth: _minTableWidth(context, widget.config),
+                minWidth: _minTableWidth(context, _config),
                 fadeColor: tokens.surface,
                 child: Column(
                   children: [
                     _ColumnHeader(
-                      config: widget.config,
-                      onEditColumns: _editColumnsAction(context),
+                      config: _config,
+                      hiddenCustomSlots: services.lineItemHiddenColumns
+                          .hiddenSlots(
+                            widget.companyId,
+                            task: widget.config.isTaskTable,
+                          ),
+                      onCustomHidden: (slot, hidden) {
+                        _flushAll();
+                        services.lineItemHiddenColumns.setHidden(
+                          widget.companyId,
+                          task: widget.config.isTaskTable,
+                          slot: slot,
+                          hidden: hidden,
+                        );
+                      },
+                      onOpenSettings: _openColumnsSettings(context),
                     ),
                     Divider(height: 1, color: tokens.border),
                     ReorderableListView.builder(
@@ -982,7 +1016,7 @@ class _LineItemTableDesktopState extends State<LineItemTableDesktop> {
                           isGhost: isGhost,
                           lastRealIndex: items.length - 1,
                           allowNewRows: widget.allowNewRows,
-                          config: widget.config,
+                          config: _config,
                           companyId: widget.companyId,
                           company: company,
                           showStockQuantity: widget.showStockQuantity,
@@ -1014,7 +1048,7 @@ class _LineItemTableDesktopState extends State<LineItemTableDesktop> {
                           isGhost: isGhost,
                           lastRealIndex: inputs.lastRealIndex,
                           allowNewRows: inputs.allowNewRows,
-                          config: widget.config,
+                          config: _config,
                           companyId: widget.companyId,
                           company: company,
                           showStockQuantity: widget.showStockQuantity,
@@ -1055,8 +1089,9 @@ class _LineItemTableDesktopState extends State<LineItemTableDesktop> {
                             // tree to take focus.
                             WidgetsBinding.instance.addPostFrameCallback((_) {
                               if (!mounted) return;
-                              final drawn = widget.config.desktopColumns
-                                  .contains(LineItemTableColumn.description);
+                              final drawn = _config.desktopColumns.contains(
+                                LineItemTableColumn.description,
+                              );
                               if (drawn && index < _rows.length) {
                                 _rows[index].notesFocus.requestFocus();
                               }
@@ -1306,12 +1341,23 @@ class _SidewaysScrollWhenNarrowState extends State<_SidewaysScrollWhenNarrow> {
 }
 
 class _ColumnHeader extends StatelessWidget {
-  const _ColumnHeader({required this.config, this.onEditColumns});
+  const _ColumnHeader({
+    required this.config,
+    required this.hiddenCustomSlots,
+    required this.onCustomHidden,
+    this.onOpenSettings,
+  });
   final LineItemColumnConfig config;
 
+  /// The custom-field slots this device hides on this table.
+  final Set<int> hiddenCustomSlots;
+
+  /// Hide (true) or show a custom field's column — the menu's checkboxes.
+  final void Function(int slot, bool hidden) onCustomHidden;
+
   /// Opens the Invoice Design tab the columns come from — null offers no
-  /// link (no company yet, or a user who can't change company settings).
-  final VoidCallback? onEditColumns;
+  /// entry (no company yet, or a user who can't change company settings).
+  final VoidCallback? onOpenSettings;
 
   @override
   Widget build(BuildContext context) {
@@ -1424,7 +1470,6 @@ class _ColumnHeader extends StatelessWidget {
       }
     }
 
-    final onEditColumns = this.onEditColumns;
     return Padding(
       padding: EdgeInsets.symmetric(
         horizontal: InSpacing.lg(context),
@@ -1434,33 +1479,102 @@ class _ColumnHeader extends StatelessWidget {
         children: [
           const SizedBox(width: _kDragColWidth),
           for (final column in config.desktopColumns) ?headerFor(column),
-          // Over the rows' ⋮: where the columns come from. The table shows
-          // the company's Invoice Design columns (docs/line-item-columns.md),
-          // so a column the user misses is one click from being added.
+          // Over the rows' ⋮: which columns show (docs/line-item-columns.md).
           SizedBox(
             width: _kTrailingColWidth,
-            child: onEditColumns == null
-                ? null
-                : IconButton(
-                    key: const ValueKey('line_item_edit_columns'),
-                    tooltip: context.tr('edit_columns'),
-                    onPressed: onEditColumns,
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints.tightFor(
-                      width: _kTrailingColWidth,
-                      height: 28,
-                    ),
-                    style: const ButtonStyle(
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                    icon: Icon(
-                      Icons.view_column_outlined,
-                      size: 18,
-                      color: tokens.ink3,
-                    ),
-                  ),
+            child: _ColumnsMenu(
+              config: config,
+              hiddenCustomSlots: hiddenCustomSlots,
+              onCustomHidden: onCustomHidden,
+              onOpenSettings: onOpenSettings,
+            ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// The header's Edit Columns menu: a checkbox per custom field the company
+/// defines — this device's choice of which the table shows, for everyone —
+/// then, for an admin or owner, the Invoice Design tab the other columns come
+/// from. Nothing at all when it would be empty.
+class _ColumnsMenu extends StatelessWidget {
+  const _ColumnsMenu({
+    required this.config,
+    required this.hiddenCustomSlots,
+    required this.onCustomHidden,
+    required this.onOpenSettings,
+  });
+
+  final LineItemColumnConfig config;
+  final Set<int> hiddenCustomSlots;
+  final void Function(int slot, bool hidden) onCustomHidden;
+  final VoidCallback? onOpenSettings;
+
+  @override
+  Widget build(BuildContext context) {
+    final customFields = config.customFields;
+    final onOpenSettings = this.onOpenSettings;
+    final section = config.columnsSection;
+    if (customFields.isEmpty && onOpenSettings == null) {
+      return const SizedBox.shrink();
+    }
+    final tokens = context.inTheme;
+    return BackDismissibleMenuAnchor(
+      consumeOutsideTap: true,
+      menuChildren: [
+        if (customFields.isNotEmpty) ...[
+          Padding(
+            padding: const EdgeInsetsDirectional.fromSTEB(12, 8, 12, 4),
+            child: Text(
+              context.tr('custom_fields'),
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: tokens.ink3,
+              ),
+            ),
+          ),
+          // The company's own words, as the column header shows them.
+          for (final custom in customFields)
+            CheckboxMenuButton(
+              key: ValueKey('line_item_column_custom_${custom.slot}'),
+              value: !hiddenCustomSlots.contains(custom.slot),
+              closeOnActivate: false,
+              onChanged: (shown) =>
+                  onCustomHidden(custom.slot, !(shown ?? false)),
+              child: Text(custom.field.label),
+            ),
+        ],
+        if (onOpenSettings != null && section != null) ...[
+          if (customFields.isNotEmpty) const Divider(height: 8),
+          MenuItemButton(
+            key: const ValueKey('line_item_columns_settings'),
+            leadingIcon: const Icon(Icons.settings_outlined, size: 18),
+            onPressed: onOpenSettings,
+            child: Text(
+              context.tr(
+                kPdfVariableSections[section]?.titleKey ?? 'invoice_design',
+              ),
+            ),
+          ),
+        ],
+      ],
+      builder: (context, controller, _) => IconButton(
+        key: const ValueKey('line_item_edit_columns'),
+        tooltip: context.tr('edit_columns'),
+        onPressed: () =>
+            controller.isOpen ? controller.close() : controller.open(),
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints.tightFor(
+          width: _kTrailingColWidth,
+          height: 28,
+        ),
+        style: const ButtonStyle(
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
+        icon: Icon(Icons.view_column_outlined, size: 18, color: tokens.ink3),
       ),
     );
   }

@@ -23,7 +23,9 @@ import '../shell/_shell_test_helpers.dart';
 /// value: the line is saved with everything it held.
 
 /// Product Columns: Item, Unit Cost, Line Total — no Description. Discounts
-/// and Show Product Quantity off, so those two columns go as well.
+/// and Show Product Quantity off, so those two columns go as well. Two custom
+/// fields, which React's rule shows whatever the list says; which of them
+/// the table shows is this device's choice.
 final _narrowed =
     const LineItemColumnConfig(
       showDiscount: true,
@@ -34,6 +36,10 @@ final _narrowed =
         enableProductDiscount: false,
         enableProductQuantity: false,
         enabledItemTaxRates: 0,
+        customFields: {
+          'product1': 'Serial|single_line_text',
+          'product2': 'Batch|single_line_text',
+        },
         settings: CompanySettings(
           pdfVariables: {
             PdfVariableSection.productColumns: [
@@ -93,29 +99,54 @@ class _HostState extends State<_Host> {
 }
 
 void main() {
-  test('the narrowed config draws Item, Unit Cost, Line Total only', () {
+  test('the narrowed config draws Item, Unit Cost, the custom fields and '
+      'Line Total', () {
     expect(_narrowed.desktopColumns, [
       LineItemTableColumn.item,
       LineItemTableColumn.unitCost,
+      const LineItemTableColumn.custom(1),
+      const LineItemTableColumn.custom(2),
       LineItemTableColumn.lineTotal,
     ]);
+    expect(_narrowed.hidingCustomSlots({1}).desktopColumns, [
+      LineItemTableColumn.item,
+      LineItemTableColumn.unitCost,
+      const LineItemTableColumn.custom(2),
+      LineItemTableColumn.lineTotal,
+    ]);
+    // The line still holds both: the phone and the dialog show them.
+    expect(_narrowed.hidingCustomSlots({1}).customFields, hasLength(2));
   });
 
   late List<List<LineItem>> emitted;
+  late Services services;
 
   Future<GoRouter> pump(
     WidgetTester tester, {
     LineItemColumnConfig? config,
     LineItemTableDesktopController? controller,
+    bool admin = true,
+    Set<int> hidden = const {},
   }) async {
     emitted = <List<LineItem>>[];
     tester.view.physicalSize = const Size(1400, 900);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
     final fixture = await buildFixture(
-      companies: [const FakeCompany(id: 'co1', name: 'Co')],
+      companies: [
+        FakeCompany(id: 'co1', name: 'Co', isAdmin: admin, isOwner: admin),
+      ],
     );
     addTearDown(fixture.dispose);
+    services = fixture.services;
+    for (final slot in hidden) {
+      await services.lineItemHiddenColumns.setHidden(
+        'co1',
+        task: false,
+        slot: slot,
+        hidden: true,
+      );
+    }
     // US dollars, so a figure renders at all — `money` is blank for a
     // currency the statics don't hold.
     await fixture.services.statics.applyStatic(<String, dynamic>{
@@ -186,12 +217,19 @@ void main() {
       expect(find.text(header), findsNothing, reason: header);
     }
     expect(find.text('Hidden note'), findsNothing);
+    // Nothing hidden on this device: every custom field shows, as React.
+    expect(find.text('SERIAL'), findsOneWidget);
+    expect(find.text('BATCH'), findsOneWidget);
     await teardown(tester);
   });
 
   testWidgets('an edit, then a save, keeps every hidden value', (tester) async {
     final controller = LineItemTableDesktopController();
-    await pump(tester, controller: controller);
+    // Serial hidden on this device.
+    await pump(tester, controller: controller, hidden: {1});
+    expect(find.text('SERIAL'), findsNothing);
+    expect(find.text('SN-1'), findsNothing);
+    expect(find.text('BATCH'), findsOneWidget);
 
     final cost = find.descendant(
       of: find.byKey(const ValueKey('unitCost')).first,
@@ -218,25 +256,94 @@ void main() {
     await teardown(tester);
   });
 
-  testWidgets('Edit Columns opens the Invoice Design tab the columns come '
-      'from', (tester) async {
-    final router = await pump(tester);
+  Future<void> openMenu(WidgetTester tester) async {
+    await tester.tap(find.byKey(const ValueKey('line_item_edit_columns')));
+    await tester.pump();
+  }
 
-    final button = find.byKey(const ValueKey('line_item_edit_columns'));
-    expect(button, findsOneWidget);
+  testWidgets('the menu hides a custom field for this company and table only', (
+    tester,
+  ) async {
+    await pump(tester);
     expect(
       find.byWidgetPredicate(
         (w) => w is Tooltip && w.message == 'Edit Columns',
       ),
       findsOneWidget,
     );
-    await tester.tap(button);
+    await openMenu(tester);
+    final serial = find.byWidgetPredicate(
+      (w) =>
+          w is CheckboxMenuButton &&
+          w.key == const ValueKey('line_item_column_custom_1'),
+    );
+    expect(tester.widget<CheckboxMenuButton>(serial).value, isTrue);
+
+    // Two frames: a menu item's activation lands a frame after the tap.
+    await tester.tap(serial);
+    await tester.pump();
+    await tester.pump();
+    expect(find.text('SERIAL'), findsNothing);
+    expect(find.text('BATCH'), findsOneWidget);
+    expect(tester.widget<CheckboxMenuButton>(serial).value, isFalse);
+    final prefs = services.lineItemHiddenColumns;
+    expect(prefs.hiddenSlots('co1', task: false), {1});
+    expect(prefs.hiddenSlots('co1', task: true), isEmpty);
+    expect(prefs.hiddenSlots('co2', task: false), isEmpty);
+
+    // And back.
+    await tester.tap(serial);
+    await tester.pump();
+    await tester.pump();
+    expect(find.text('SERIAL'), findsOneWidget);
+    expect(prefs.value, isEmpty);
+    await teardown(tester);
+  });
+
+  testWidgets('the settings entry opens the Invoice Design tab the columns '
+      'come from', (tester) async {
+    final router = await pump(tester);
+    await openMenu(tester);
+    final entry = find.byKey(const ValueKey('line_item_columns_settings'));
+    expect(
+      find.descendant(of: entry, matching: find.text('Product Columns')),
+      findsOneWidget,
+    );
+    await tester.tap(entry);
     await tester.pump();
     await tester.pump();
     expect(
       router.routerDelegate.currentConfiguration.uri.path,
       '/settings/invoice_design/product_columns',
     );
+    await teardown(tester);
+  });
+
+  testWidgets('a non-admin gets the custom-field toggles, not the settings '
+      'entry', (tester) async {
+    await pump(tester, admin: false);
+    await openMenu(tester);
+    expect(find.widgetWithText(CheckboxMenuButton, 'Serial'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('line_item_columns_settings')),
+      findsNothing,
+    );
+    await teardown(tester);
+  });
+
+  testWidgets('a non-admin with no custom fields gets no menu', (tester) async {
+    await pump(
+      tester,
+      admin: false,
+      config: const LineItemColumnConfig().forCompany(
+        const Company(
+          id: 'co1',
+          enableProductQuantity: true,
+          settings: CompanySettings(),
+        ),
+      ),
+    );
+    expect(find.byKey(const ValueKey('line_item_edit_columns')), findsNothing);
     await teardown(tester);
   });
 

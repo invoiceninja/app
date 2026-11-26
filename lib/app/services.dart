@@ -39,6 +39,7 @@ import 'package:admin/app/deep_link_router.dart';
 import 'package:admin/app/diagnostics_log.dart';
 import 'package:admin/app/entity_modules.dart';
 import 'package:admin/app/env.dart';
+import 'package:admin/app/line_item_hidden_columns_controller.dart';
 import 'package:admin/app/list_column_widths_controller.dart';
 import 'package:admin/app/list_density_controller.dart';
 import 'package:admin/app/locale_controller.dart';
@@ -415,6 +416,7 @@ class Services implements SidebarBadgeContext {
     required this.textScale,
     required this.listDensity,
     required this.listColumnWidths,
+    required this.lineItemHiddenColumns,
     required this.keyboardShortcuts,
     required this.appLocale,
     required this.companyLabels,
@@ -814,6 +816,10 @@ class Services implements SidebarBadgeContext {
   /// Column widths dragged on the wide entity lists, per entity — provided
   /// to every list by `ListColumnWidthsScope` in `main.dart`.
   final ListColumnWidthsController listColumnWidths;
+
+  /// The custom-field columns the billing-doc editor's desktop line-item
+  /// table hides, per company and table kind (docs/line-item-columns.md).
+  final LineItemHiddenColumnsController lineItemHiddenColumns;
 
   /// Device-local keyboard-shortcut overrides (Settings → Keyboard Shortcuts).
   /// Resolves user overrides over the catalog defaults and feeds all three
@@ -2417,6 +2423,9 @@ class Services implements SidebarBadgeContext {
     final textScale = TextScaleController(prefs: devicePrefs);
     final listDensity = ListDensityController(prefs: devicePrefs);
     final listColumnWidths = ListColumnWidthsController(prefs: devicePrefs);
+    final lineItemHiddenColumns = LineItemHiddenColumnsController(
+      prefs: devicePrefs,
+    );
     final keyboardShortcuts = KeyboardShortcutsController(prefs: devicePrefs);
     // Resolves the UI locale: device override → active company's
     // settings.language_id → English. Listens to the override + auth.session,
@@ -2916,6 +2925,7 @@ class Services implements SidebarBadgeContext {
       textScale: textScale,
       listDensity: listDensity,
       listColumnWidths: listColumnWidths,
+      lineItemHiddenColumns: lineItemHiddenColumns,
       keyboardShortcuts: keyboardShortcuts,
       appLocale: appLocale,
       companyLabels: companyLabels,
