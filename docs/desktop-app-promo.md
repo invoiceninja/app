@@ -26,7 +26,7 @@ A one-screen dialog on native iOS, iPadOS and Android that pitches the desktop a
 
 | Surface | Targets | Link |
 |---|---|---|
-| Native iOS / iPadOS (App Store, TestFlight) | **Mac only** | `nativeAppUrl(mac)`: TestFlight's public link today, `invoiceninja.com/app/mac` after the launch switch |
+| Native iOS / iPadOS (App Store, TestFlight) | **Mac only** | `nativeAppUrl(mac)`: TestFlight's public link today, `invoiceninja.com/apps/mac/` after the launch switch |
 | Native Android (Google Play, F-Droid) | Windows, Mac, Linux, each once it has a public listing | `nativeAppUrl(...)`: Windows waits for `kWindowsAppUrl` (null until the Microsoft Store audience is Public); Linux is Flathub |
 | Native macOS, Windows, Linux, and the web | none | (the mobile-app promo runs there; the web's banner offers the native app) |
 
@@ -55,10 +55,10 @@ Reviewed November 2026 against [Apple's App Review Guidelines](https://developer
 Windows and Linux are not mobile platforms, so the first half of 2.3.10 doesn't reach them, and many App Store apps say "also on Windows". The call is about the second half and about how reviewers apply it, literally (`docs/mobile-app-promo.md` § Store-policy review cites the rejections):
 
 - **The links name marketplaces.** Windows installs from the Microsoft Store and Linux from Flathub or the Snap Store. The promo's whole job is handing over a link, so the copied or shared URL (`flathub.org/...`, `apps.microsoft.com/...`) and its caption would put an app marketplace's name on an iPhone screen. Whether Apple's "alternative app marketplaces" means only the EU's iOS marketplaces or any app store is exactly the doubt a reviewer resolves against us.
-- **No neutral page exists yet.** `invoiceninja.com/app/windows` (the launch redirect) isn't live, there is no `/app/linux`, and the invoicing.co landing page that lists every platform isn't served yet (`HOSTED_LANDING` off, `docs/web-deploy.md`) and today links v1's Windows and Mac listings.
+- **No neutral page exists yet.** `invoiceninja.com/apps/windows/` and `/apps/linux/` are store-button pages that name the Microsoft Store, Flathub and the Snap Store, and the invoicing.co landing page that lists every platform isn't served yet (`HOSTED_LANDING` off, `docs/web-deploy.md`) and today links v1's Windows and Mac listings.
 - **The gain is small.** An iPhone owner's computer is likeliest a Mac, and the Mac is the one computer Apple's own store serves.
 
-So the Apple builds name the Mac and say "your computer" everywhere else. Revisit after launch: once `invoiceninja.com/app/windows` (and a Linux redirect) are live, offering "Windows" through that neutral link is a defensible next step, decided then, not slipped in by the launch switch, which never changes `desktopPromoTargets`' Apple branch.
+So the Apple builds name the Mac and say "your computer" everywhere else. Revisit after launch: once `invoiceninja.com/apps/windows/` links the new app, offering "Windows" through that page is a defensible next step, decided then, not slipped in by the launch switch, which never changes `desktopPromoTargets`' Apple branch.
 
 ## The card fits an iPhone SE, and lays out in the room the route gives it
 
@@ -81,4 +81,4 @@ Exactly the mobile-app promo's rules (`docs/mobile-app-promo.md` § Who sees it,
 
 ## Launch switch
 
-Nothing in this promo needs its own launch patch: it reads `nativeAppUrl`, which patch 0003 updates. After that patch, Android offers Windows (`/app/windows`) and both phones' Mac link is `/app/mac`, which must be live before the build ships (it already must, for the web banner). `kDesktopPromoEnabled` switches the whole promo off in the next build.
+Nothing in this promo needs its own launch patch: it reads `nativeAppUrl`, which patch 0003 updates. After that patch, Android offers Windows (`invoiceninja.com/apps/windows/`) and both phones' Mac link is `invoiceninja.com/apps/mac/`, whose store buttons must name the new app's listings by launch day (they already must, for the web banner). `kDesktopPromoEnabled` switches the whole promo off in the next build.

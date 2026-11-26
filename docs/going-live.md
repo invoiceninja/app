@@ -160,7 +160,7 @@ On the day, in this order:
 2. Open each listing logged out, in two storefronts, on a device that isn't a tester's. Wait until all of them load.
 3. `appimage.yml` (tag, GitHub Release, the F-Droid APKs), then `snapcraft.yml`, then Flathub's update (merge it by hand if it isn't automatic). `web.yml` only if the web app launches the same day.
 4. Turn in-app purchases on for everyone in the hosted billing.
-5. Point the redirect links (`https://invoiceninja.com/app/{ios,android,mac,windows}`) at the listings and check each with `curl -sI`.
+5. Swap the store buttons on the download pages (`https://invoiceninja.com/apps/{iphone-ipad,android,mac,windows}/`) to the new app's listings and open each one. Both apps link these pages, so they replace the old `/app/…` redirects.
 6. Release v1's move release on every store and tag it for F-Droid. Publish v1's listing text (§ Sunsetting v1).
 7. The landing page (`tools/web_deploy/landing/apps.json`, then `export_landing.sh` and a backend PR) and the website's download links.
 8. Last, once every link above works: the announcement email, the help-center page, the support macros, the note to testers, and the old repo's README.

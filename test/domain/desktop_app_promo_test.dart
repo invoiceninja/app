@@ -131,7 +131,7 @@ void main() {
         'desktop_app_promo_mac_testflight_step',
       );
       expect(
-        desktopPromoStepKey(mac, 'https://invoiceninja.com/app/mac'),
+        desktopPromoStepKey(mac, 'https://invoiceninja.com/apps/mac/'),
         'desktop_app_promo_mac_store_step',
       );
     });
