@@ -134,4 +134,75 @@ void main() {
       expect(result.map((li) => li.productKey).toList(), ['P1', 'P2']);
     });
   });
+
+  // invoiceninja/app#217: a design that prints lines in their saved order
+  // needs Move to top / bottom on a per-kind tab to pass the other kinds.
+  group('moveLineToDocumentEdge', () {
+    String keys(List<LineItem> items) =>
+        items.map((li) => li.productKey + (li.taskId ?? '')).join(',');
+
+    test('the only service goes to the end, past later products', () {
+      final t1 = _t('T1');
+      final original = [t1, _p('P1'), _p('P2')];
+
+      final result = moveLineToDocumentEdge(
+        original: original,
+        updatedSubset: [t1],
+        inSubset: _isTask,
+        index: 0,
+        toEnd: true,
+      );
+
+      expect(keys(result), 'P1,P2,T1');
+    });
+
+    test('a line moved to the top of its tab leads the document', () {
+      final t1 = _t('T1');
+      final t2 = _t('T2');
+      final original = [_p('P1'), t1, t2];
+
+      final result = moveLineToDocumentEdge(
+        original: original,
+        // The table already put T2 first among the tasks.
+        updatedSubset: [t2, t1],
+        inSubset: _isTask,
+        index: 0,
+        toEnd: false,
+      );
+
+      expect(keys(result), 'T2,P1,T1');
+    });
+
+    test('other kinds keep their order, and an edit in the subset lands', () {
+      final p1 = _p('P1');
+      final edited = p1.copyWith(productKey: 'P1x');
+      final original = [p1, _t('T1'), _p('P2'), _e('E1')];
+
+      final result = moveLineToDocumentEdge(
+        original: original,
+        updatedSubset: [edited, _p('P2')],
+        inSubset: _isProduct,
+        index: 0,
+        toEnd: true,
+      );
+
+      expect(keys(result), 'T1,P2,,P1x');
+      expect(result[2].expenseId, 'E1');
+    });
+
+    test('an index outside the subset only merges back', () {
+      final t1 = _t('T1');
+      final original = [t1, _p('P1')];
+
+      final result = moveLineToDocumentEdge(
+        original: original,
+        updatedSubset: [t1],
+        inSubset: _isTask,
+        index: 5,
+        toEnd: true,
+      );
+
+      expect(keys(result), 'T1,P1');
+    });
+  });
 }

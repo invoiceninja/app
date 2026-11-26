@@ -64,6 +64,7 @@ class LineItemEditor extends StatefulWidget {
     this.allowNewRows = true,
     this.allowOptionalLines = false,
     this.totalsInput,
+    this.documentMoves,
   });
 
   /// Company scope for the desktop table's product autocomplete +
@@ -161,6 +162,10 @@ class LineItemEditor extends StatefulWidget {
   /// The document's totals input, for the desktop table's Tax Amount and
   /// Gross Line Total columns ([LineItemTableDesktop.totalsInput]).
   final BillingTotalsInput? totalsInput;
+
+  /// Whole-document Move to top / bottom for a per-kind tab's table
+  /// ([LineItemTableDesktop.documentMoves]).
+  final LineItemDocumentMoves? documentMoves;
 
   @override
   State<LineItemEditor> createState() => _LineItemEditorState();
@@ -316,6 +321,7 @@ class _LineItemEditorState extends State<LineItemEditor> {
             allowNewRows: widget.allowNewRows,
             allowOptionalLines: widget.allowOptionalLines,
             totalsInput: widget.totalsInput,
+            documentMoves: widget.documentMoves,
           );
         }
         return LineItemCardListMobile(

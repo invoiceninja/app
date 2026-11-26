@@ -38,6 +38,8 @@ Pinned by `line_item_table_company_columns_test.dart`: every field shows by defa
 
 Only the desktop table narrows. The phone card list and the line edit dialog still show every field the line can hold (`customFields`, `taxColumnCount`, `showDiscount` on the config), because they are where anything is edited. React has no dialog to compare with.
 
+On desktop the dialog is the row menu's **More Fields** (`_editInDialog`, the same `editLineItemAt` a phone's card opens), given the table's config before `hidingCustomSlots` narrows it, so a hidden custom field or a column the company's list leaves out is still edited without leaving the editor. `line_item_document_moves_test.dart` opens it.
+
 The table keeps working on the whole line: every row's `_RowState` still seeds a controller for every field from the line (`syncFrom`), whether or not a cell is drawn, and `buildItem` reads them back. An undrawn controller is never edited, so it round-trips the line's own value. `line_item_table_company_columns_test.dart` saves a line with its Description, Quantity, Discount, taxes and a custom value all off the table and checks each survives.
 
 ## What this does differently from React, and why

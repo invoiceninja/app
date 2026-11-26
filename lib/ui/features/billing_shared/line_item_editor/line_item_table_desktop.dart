@@ -36,6 +36,7 @@ import 'package:admin/ui/core/widgets/picker_dismissal.dart';
 import 'package:admin/ui/core/widgets/scroll_edge_fades.dart';
 import 'package:admin/ui/core/widgets/spell_check.dart';
 import 'package:admin/ui/core/widgets/wide_picker_popover.dart';
+import 'package:admin/ui/features/billing_shared/line_item_editor/edit_line_item_flow.dart';
 import 'package:admin/ui/features/billing_shared/line_item_editor/line_item_column_config.dart';
 import 'package:admin/ui/features/billing_shared/line_item_editor/line_item_table_columns.dart';
 import 'package:admin/ui/features/billing_shared/line_item_find.dart';
@@ -195,6 +196,37 @@ int _taxSlotFlex(LineItemColumnConfig config, int slot) =>
 /// layout so it can register [flushPending] as a `beforeSave` hook on
 /// the VM — guarantees in-flight debounced cell edits land on the
 /// draft before the save round-trips.
+/// Where a line sits in the WHOLE document, for a table that shows one kind
+/// of line (the Products / Tasks / Expenses tabs).
+///
+/// A tab's table holds only its own kind, so on its own "Move to top" /
+/// "Move to bottom" could only reorder within that kind — and the merge back
+/// into the document pins every other kind in place. A custom design that
+/// prints the lines in their saved order (invoiceninja/app#217) needs a line
+/// to go first or last in the document, past the other kinds. With these
+/// hooks the two actions show whenever the line is not already first / last
+/// in the document, and [move] puts it there; Move up / down stay within the
+/// table.
+class LineItemDocumentMoves {
+  const LineItemDocumentMoves({
+    required this.isFirst,
+    required this.isLast,
+    required this.move,
+  });
+
+  /// Whether the table's line [index] is the document's first line.
+  final bool Function(int index) isFirst;
+
+  /// Whether the table's line [index] is the document's last non-blank line.
+  final bool Function(int index) isLast;
+
+  /// The table's lines [items], already reordered so the moved line is at
+  /// [index] (its first or last slot): write them back with that line first
+  /// ([toEnd] false) or last in the whole document.
+  final void Function(List<LineItem> items, int index, {required bool toEnd})
+  move;
+}
+
 class LineItemTableDesktopController {
   void Function()? _flushHandler;
 
@@ -244,6 +276,7 @@ class LineItemTableDesktop extends StatefulWidget {
     this.vendorDoc = false,
     this.allowOptionalLines = false,
     this.totalsInput,
+    this.documentMoves,
   });
 
   final String companyId;
@@ -302,6 +335,11 @@ class LineItemTableDesktop extends StatefulWidget {
   /// Tax Amount or Gross Line Total. Null reads the lines alone: no
   /// document discount, exclusive taxes.
   final BillingTotalsInput? totalsInput;
+
+  /// Set by a per-kind tab, so Move to top / bottom act on the whole
+  /// document — see [LineItemDocumentMoves]. Null: the table is the whole
+  /// document and they act on it directly.
+  final LineItemDocumentMoves? documentMoves;
 
   @override
   State<LineItemTableDesktop> createState() => _LineItemTableDesktopState();
@@ -649,6 +687,50 @@ class _LineItemTableDesktopState extends State<LineItemTableDesktop> {
     final rowState = _rows.removeAt(from);
     _rows.insert(to, rowState);
     _emit(next);
+  }
+
+  /// Move to top ([toEnd] false) / bottom. Within the table first, so the
+  /// row's `_RowState` stays bound to its line exactly as [_move] keeps it;
+  /// then, on a per-kind tab, to that edge of the whole document.
+  void _moveToEdge(int index, {required bool toEnd}) {
+    final moves = widget.documentMoves;
+    if (moves == null) {
+      _move(index, toEnd ? _items.length - 1 : 0);
+      return;
+    }
+    final next = List<LineItem>.from(_flushAll());
+    if (index >= next.length) return;
+    final to = toEnd ? next.length - 1 : 0;
+    if (index != to) {
+      next.insert(to, next.removeAt(index));
+      _rows.insert(to, _rows.removeAt(index));
+    }
+    // As [_emit], but the document places the line, not the merge-back.
+    _emitted = next;
+    _suppressSync = true;
+    moves.move(next, to, toEnd: toEnd);
+    _suppressSync = false;
+    setState(() => _syncRows(next));
+  }
+
+  /// More Fields: the line's full editor — the dialog a phone's card opens —
+  /// for what the table doesn't show: a custom field this device hides, a
+  /// column the company's Invoice Design list leaves out (invoiceninja/app#216).
+  Future<void> _editInDialog(int index) async {
+    final items = _flushAll();
+    if (index >= items.length) return;
+    await editLineItemAt(
+      context,
+      companyId: widget.companyId,
+      items: items,
+      index: index,
+      // Unnarrowed by the hidden custom fields: the dialog shows them all.
+      config: widget.config,
+      onChanged: (next) {
+        if (mounted) _emit(next);
+      },
+      allowOptional: widget.allowOptionalLines || items[index].isOptional,
+    );
   }
 
   void _onReorder(int oldIndex, int newIndex) {
@@ -1036,6 +1118,19 @@ class _LineItemTableDesktopState extends State<LineItemTableDesktop> {
                           canToggleOptional:
                               !isGhost &&
                               (widget.allowOptionalLines || current.isOptional),
+                          // In the inputs, not derived in the row: on a
+                          // per-kind tab they read the whole document, which
+                          // can change while this table's lines don't.
+                          canMoveTop:
+                              !isGhost &&
+                              (index > 0 ||
+                                  !(widget.documentMoves?.isFirst(index) ??
+                                      true)),
+                          canMoveBottom:
+                              !isGhost &&
+                              (index < items.length - 1 ||
+                                  !(widget.documentMoves?.isLast(index) ??
+                                      true)),
                         );
                         final cached = row.built;
                         if (cached != null && cached.inputs == inputs) {
@@ -1153,6 +1248,8 @@ class _LineItemTableDesktopState extends State<LineItemTableDesktop> {
                           },
                           onMenuAction: (action) {
                             switch (action) {
+                              case _RowAction.moreFields:
+                                unawaited(_editInDialog(index));
                               case _RowAction.createTask:
                                 _createTask(index);
                               case _RowAction.clone:
@@ -1166,9 +1263,9 @@ class _LineItemTableDesktopState extends State<LineItemTableDesktop> {
                               case _RowAction.moveDown:
                                 _move(index, index + 1);
                               case _RowAction.moveTop:
-                                _move(index, 0);
+                                _moveToEdge(index, toEnd: false);
                               case _RowAction.moveBottom:
-                                _move(index, items.length - 1);
+                                _moveToEdge(index, toEnd: true);
                               case _RowAction.remove:
                                 _remove(index);
                             }
@@ -1184,6 +1281,8 @@ class _LineItemTableDesktopState extends State<LineItemTableDesktop> {
                           // distance.
                           canCreateTask: inputs.canCreateTask,
                           canToggleOptional: inputs.canToggleOptional,
+                          canMoveTop: inputs.canMoveTop,
+                          canMoveBottom: inputs.canMoveBottom,
                           onTabFromLastCell: () {
                             if (isGhost) {
                               _addBlankRow();
@@ -1679,6 +1778,8 @@ class _RowInputs {
     required this.amounts,
     required this.canCreateTask,
     required this.canToggleOptional,
+    required this.canMoveTop,
+    required this.canMoveBottom,
   });
 
   final int index;
@@ -1698,6 +1799,8 @@ class _RowInputs {
   final _LineAmounts? amounts;
   final bool canCreateTask;
   final bool canToggleOptional;
+  final bool canMoveTop;
+  final bool canMoveBottom;
 
   @override
   bool operator ==(Object other) =>
@@ -1720,7 +1823,9 @@ class _RowInputs {
       mapEquals(other.errors, errors) &&
       other.amounts == amounts &&
       other.canCreateTask == canCreateTask &&
-      other.canToggleOptional == canToggleOptional;
+      other.canToggleOptional == canToggleOptional &&
+      other.canMoveTop == canMoveTop &&
+      other.canMoveBottom == canMoveBottom;
 
   @override
   int get hashCode => Object.hash(index, isGhost, currentItem);
@@ -1902,6 +2007,7 @@ class _RowState {
 }
 
 enum _RowAction {
+  moreFields,
   createTask,
   clone,
   toggleOptional,
@@ -1940,6 +2046,8 @@ class _Row extends StatefulWidget {
     required this.onTabFromLastCell,
     required this.canCreateTask,
     required this.canToggleOptional,
+    required this.canMoveTop,
+    required this.canMoveBottom,
   });
 
   final int index;
@@ -1978,6 +2086,10 @@ class _Row extends StatefulWidget {
   /// Offer the row's Optional toggle — see `_RowInputs.canToggleOptional`.
   final bool canToggleOptional;
 
+  /// Offer Move to top / bottom — see [LineItemDocumentMoves].
+  final bool canMoveTop;
+  final bool canMoveBottom;
+
   @override
   State<_Row> createState() => _RowStateW();
 }
@@ -2015,6 +2127,8 @@ class _RowStateW extends State<_Row> {
   VoidCallback get onTabFromLastCell => widget.onTabFromLastCell;
   bool get canCreateTask => widget.canCreateTask;
   bool get canToggleOptional => widget.canToggleOptional;
+  bool get canMoveTop => widget.canMoveTop;
+  bool get canMoveBottom => widget.canMoveBottom;
 
   @override
   Widget build(BuildContext context) {
@@ -2479,6 +2593,8 @@ class _RowStateW extends State<_Row> {
                             onSelected: onMenuAction,
                             canMoveUp: index > 0,
                             canMoveDown: index < lastRealIndex,
+                            canMoveTop: canMoveTop,
+                            canMoveBottom: canMoveBottom,
                             canCreateTask: canCreateTask,
                             allowNewRows: allowNewRows,
                             canToggleOptional: canToggleOptional,
@@ -2527,6 +2643,10 @@ class _RowStateW extends State<_Row> {
         Offset.zero & overlay.size,
       ),
       items: [
+        PopupMenuItem(
+          value: _RowAction.moreFields,
+          child: Text(ctx.tr('more_fields')),
+        ),
         if (canCreateTask) ...[
           PopupMenuItem(
             value: _RowAction.createTask,
@@ -2580,6 +2700,8 @@ class _RowMenu extends StatelessWidget {
     required this.onSelected,
     required this.canMoveUp,
     required this.canMoveDown,
+    required this.canMoveTop,
+    required this.canMoveBottom,
     required this.canCreateTask,
     required this.allowNewRows,
     required this.canToggleOptional,
@@ -2589,6 +2711,11 @@ class _RowMenu extends StatelessWidget {
   final ValueChanged<_RowAction> onSelected;
   final bool canMoveUp;
   final bool canMoveDown;
+
+  /// Wider than [canMoveUp] / [canMoveDown] on a per-kind tab: the line may
+  /// be first / last of its kind and still not of the document.
+  final bool canMoveTop;
+  final bool canMoveBottom;
   final bool canCreateTask;
 
   /// False drops "Insert Below" — see [LineItemTableDesktop.allowNewRows].
@@ -2606,6 +2733,10 @@ class _RowMenu extends StatelessWidget {
       icon: Icon(Icons.more_vert, size: 18, color: tokens.ink3),
       onSelected: onSelected,
       itemBuilder: (context) => [
+        PopupMenuItem(
+          value: _RowAction.moreFields,
+          child: Text(context.tr('more_fields')),
+        ),
         if (canCreateTask) ...[
           PopupMenuItem(
             value: _RowAction.createTask,
@@ -2624,7 +2755,7 @@ class _RowMenu extends StatelessWidget {
           ),
         if (canToggleOptional)
           _optionalMenuItem(context, isOptional: isOptional),
-        if (canMoveUp || canMoveDown) const PopupMenuDivider(),
+        if (canMoveTop || canMoveBottom) const PopupMenuDivider(),
         if (canMoveUp)
           PopupMenuItem(
             value: _RowAction.moveUp,
@@ -2635,12 +2766,12 @@ class _RowMenu extends StatelessWidget {
             value: _RowAction.moveDown,
             child: Text(context.tr('move_down')),
           ),
-        if (canMoveUp)
+        if (canMoveTop)
           PopupMenuItem(
             value: _RowAction.moveTop,
             child: Text(context.tr('move_top')),
           ),
-        if (canMoveDown)
+        if (canMoveBottom)
           PopupMenuItem(
             value: _RowAction.moveBottom,
             child: Text(context.tr('move_bottom')),

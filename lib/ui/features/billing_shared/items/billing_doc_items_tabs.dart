@@ -228,6 +228,36 @@ List<LineItem> mergeBackByType({
   return result;
 }
 
+/// [mergeBackByType], then the subset's line [index] — by identity, the object
+/// the table just placed — moved to the start of the whole list, or with
+/// [toEnd] its end (invoiceninja/app#217). Exported (top-level) so it can be
+/// unit-tested without a widget pump.
+///
+///   * Original: `[T1, P1, P2]`, tasks `[T1]`, index 0, to end
+///     → `[P1, P2, T1]`.
+///   * Original: `[P1, T1, T2]`, tasks `[T2, T1]`, index 0, to start
+///     → `[T2, P1, T1]`.
+List<LineItem> moveLineToDocumentEdge({
+  required List<LineItem> original,
+  required List<LineItem> updatedSubset,
+  required bool Function(LineItem) inSubset,
+  required int index,
+  required bool toEnd,
+}) {
+  final next = mergeBackByType(
+    original: original,
+    updatedSubset: updatedSubset,
+    inSubset: inSubset,
+  );
+  if (index < 0 || index >= updatedSubset.length) return next;
+  final line = updatedSubset[index];
+  final at = next.indexWhere((li) => identical(li, line));
+  if (at < 0) return next;
+  next.removeAt(at);
+  toEnd ? next.add(line) : next.insert(0, line);
+  return next;
+}
+
 /// Re-key [rowErrors] — keyed by index in the FULL line-item list, which is
 /// how the server names them (`line_items.3.cost`) — to the index each row has
 /// in the subset [inSubset] keeps, in list order (the order the per-tab
@@ -545,6 +575,42 @@ class _BillingDocItemsTabsState extends State<BillingDocItemsTabs>
     widget.onChanged(next);
   }
 
+  /// Move to top / bottom on [kind]'s table act on the whole document
+  /// (invoiceninja/app#217): a custom design that prints the lines in their
+  /// saved order needs a line to go first or last past the other kinds, which
+  /// the merge-back — pinning every other kind in place — can't express.
+  LineItemDocumentMoves _documentMovesFor(_LineKind kind) {
+    // Whether any non-blank line sits before ([after] false) or after the
+    // table's line [index] in the document.
+    bool anyBeyond(int index, {required bool after}) {
+      final indexes = _draftIndexes(kind);
+      if (index < 0 || index >= indexes.length) return false;
+      final at = indexes[index];
+      final lines = widget.lineItems;
+      return after
+          ? lines.skip(at + 1).any((li) => !li.isBlank)
+          : lines.take(at).any((li) => !li.isBlank);
+    }
+
+    return LineItemDocumentMoves(
+      isFirst: (index) => !anyBeyond(index, after: false),
+      isLast: (index) => !anyBeyond(index, after: true),
+      move: (items, index, {required toEnd}) {
+        _ownEdit = true;
+        widget.onChanged(
+          moveLineToDocumentEdge(
+            // The VM's draft, as [_onSubsetChanged] merges into.
+            original: widget.vm.lineItemsOf(widget.vm.draft),
+            updatedSubset: items,
+            inSubset: (li) => _predicate(kind, li),
+            index: index,
+            toEnd: toEnd,
+          ),
+        );
+      },
+    );
+  }
+
   LineItemTableDesktopController _controllerFor(_LineKind kind) {
     switch (kind) {
       case _LineKind.products:
@@ -604,6 +670,7 @@ class _BillingDocItemsTabsState extends State<BillingDocItemsTabs>
       // product line each time, all of them saved. Typed lines go on Products.
       allowNewRows: kind != _LineKind.expenses,
       allowOptionalLines: widget.allowOptionalLines,
+      documentMoves: _documentMovesFor(kind),
     );
   }
 
