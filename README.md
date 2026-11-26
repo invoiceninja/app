@@ -138,10 +138,21 @@ on-request procedure is in [`docs/integration-tests.md`](docs/integration-tests.
 
 ## Screenshots
 
-The images at the top are generated, not hand-captured, produced by
-`integration_test/screenshots_test.dart`, which boots the real app (web) against the
-demo server and captures each marketing screen. This is a **local, on-demand** task
-(needs `chromedriver`):
+![The dashboard on the desktop](samples/screenshots/desktop-dashboard.png)
+
+![An invoice in dark mode](samples/screenshots/desktop-invoice-dark.png)
+
+<p>
+  <img src="samples/screenshots/phone-dashboard.png" width="24%" alt="The dashboard on a phone">
+  <img src="samples/screenshots/phone-invoices.png" width="24%" alt="The invoices list on a phone">
+  <img src="samples/screenshots/phone-invoice.png" width="24%" alt="An invoice on a phone">
+  <img src="samples/screenshots/phone-dashboard-dark.png" width="24%" alt="The dashboard on a phone, in dark mode">
+</p>
+
+These are the real app against the demo server's sample data: the web build in Chrome's
+device emulation (a Mac at 1440×900, an iPhone at 430×932), with the dashboard's "Needs
+your attention" section switched off. `integration_test/screenshots_test.dart` captures a
+similar set locally, on demand (needs `chromedriver`):
 
 ```sh
 bash tools/capture_screenshots.sh   # writes PNGs into samples/screenshots/

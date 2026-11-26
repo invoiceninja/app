@@ -548,6 +548,10 @@ vary: the image or the JDK. Compare their build log with our `toolchain.txt`, th
     - The eight, in order: dashboard; invoices; clients; the dashboard further down (overview
       chart, invoices and quotes); the invoice report (dark); payments; the task board; the
       report gallery (dark). Each screen appears once, and two are dark to show the theme.
+    - `1.png` was retaken on 2026-11-26 without the dashboard's "Needs your attention" section,
+      to match the invoiceninja.com download pages and the README: a screenshot-only web build
+      whose `DashboardAttentionSlot` returns an empty box, never committed, in Chrome's Android
+      emulation at 360×800 ×3.
     - The demo account's products and task titles are lorem ipsum, so the product and task lists
       are left out. The task board keeps its lorem titles, because the board is the point.
   - **Changelogs:** `changelogs/<versionCode>.txt`, three identical files per release, one per
