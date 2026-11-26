@@ -587,7 +587,7 @@ It ships to every store user, whether or not they ever take a card.
   check also greps for `com.stripe`.
 - **The fork.** mek 5.7.3 has no `collectPaymentMethod` / `confirmPaymentIntent`, which the
   surcharge flow needs (read the card, let the server decide, then charge). The app pins
-  `hillelcoren/mek-packages@8f815343` (BreX900/mek-packages#171, which also fixes an Android cancel
+  `hillelcoren/mek-packages@6b0d37ed` (BreX900/mek-packages#171, which also fixes an Android cancel
   that never answered, plus two fixes of ours: a re-created engine's token handler, and an iOS
   cancel race) until a release ships it — `docs/upstream-workarounds.md` entry 19.
 

@@ -24,7 +24,7 @@ dependencies:
   mek_stripe_terminal:
     git:
       url: https://github.com/hillelcoren/mek-packages.git
-      ref: 8f8153438cd49e625e4ca141c6e1aa791198c1aa
+      ref: 6b0d37ed5acd208da2b6a4eb099cde51838532ad
       path: mek_stripe_terminal
   sentry_flutter: ^9.30.1
 

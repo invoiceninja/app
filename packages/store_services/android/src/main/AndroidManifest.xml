@@ -1,4 +1,5 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
     <!-- Stripe Terminal's merged permissions (BLUETOOTH*, ACCESS_*_LOCATION,
          ACCESS_WIFI_STATE) imply these features as required, and Play then
          hides the app from devices without them. Card readers are optional:
@@ -8,4 +9,10 @@
     <uses-feature android:name="android.hardware.wifi" android:required="false" />
     <!-- Stripe Tap to Pay adds READ_PHONE_STATE, which implies telephony. -->
     <uses-feature android:name="android.hardware.telephony" android:required="false" />
+    <!-- Stripe Terminal 5.8 declares fine location only up to Android 11, but
+         StripeTerminalPlugin.neededFor asks for it on every version: with the
+         cap, Android 12+ refuses it and no reader can connect. -->
+    <uses-permission
+        android:name="android.permission.ACCESS_FINE_LOCATION"
+        tools:remove="android:maxSdkVersion" />
 </manifest>
