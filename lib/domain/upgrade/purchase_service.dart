@@ -36,6 +36,17 @@ const Set<String> kProductPlans = {
   kProductEnterprisePlanYear20,
 };
 
+/// The product ids this app sells in [store]. Apple keeps a product id unique
+/// across every app of the developer account, and the Legacy app's record
+/// already owns the plain ones, so this app's App Store products are
+/// `v2_`-prefixed (`v2_pro_plan`, …). Play's ids are per app and stay plain.
+/// Both map back to the same plan: [planSlugOf] here and the hosted service
+/// strip the prefix.
+Set<String> productIdsFor(PurchaseStore store) =>
+    store == PurchaseStore.appStore
+    ? {for (final id in kProductPlans) 'v2_$id'}
+    : kProductPlans;
+
 /// Why the purchase sheet does not open: [unavailable] — the hosted service
 /// does not take purchases right now, or the session does not yet know its
 /// active account (a cache from before 5.1.14 has no account key until the
@@ -175,7 +186,7 @@ class PurchaseService {
   Future<void> _queryProducts() async {
     busy.value = true;
     try {
-      final resp = await _iap.queryProducts(kProductPlans);
+      final resp = await _iap.queryProducts(productIdsFor(_delivery.store));
       if (resp.error != null) {
         _log.warning('queryProductDetails: ${resp.error}');
       }

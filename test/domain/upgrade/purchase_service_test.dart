@@ -386,6 +386,37 @@ void main() {
     });
   });
 
+  test('the App Store builds ask for the v2_ ids, Play for the plain ones', () {
+    expect(productIdsFor(PurchaseStore.googlePlay), kProductPlans);
+    final apple = productIdsFor(PurchaseStore.appStore);
+    expect(apple, hasLength(kProductPlans.length));
+    expect(apple, everyElement(startsWith('v2_')));
+    expect(apple.map(planSlugOf).toSet(), kProductPlans);
+    expect(apple, contains('v2_enterprise_plan_annual_20'));
+  });
+
+  test('the sheet queries the store with its own ids', () async {
+    for (final (platform, ids) in [
+      (TargetPlatform.iOS, productIdsFor(PurchaseStore.appStore)),
+      (TargetPlatform.macOS, productIdsFor(PurchaseStore.appStore)),
+      (TargetPlatform.android, kProductPlans),
+    ]) {
+      final b = FakeBilling();
+      final a = FakeAuth(testSession());
+      final d = PurchaseDelivery(
+        apiClient: FakeApi(),
+        auth: a,
+        billing: b,
+        platform: platform,
+      );
+      final s = PurchaseService(auth: a, delivery: d);
+      await s.init();
+      expect(b.queried.single, ids, reason: '$platform');
+      await s.dispose();
+      await d.dispose();
+    }
+  });
+
   test('billingPeriodOf reads the period from the product id', () {
     for (final id in kProductPlans) {
       expect(

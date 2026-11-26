@@ -72,7 +72,7 @@ Each store needs its console step after the launch release is uploaded. Only the
 
 **In-app purchases (the new record, iOS and macOS share it):**
 
-- [ ] Try creating the product id `pro_plan` on the new record. If App Store Connect accepts it, keep v1's ten ids (`lib/domain/upgrade/purchase_service.dart`); if it refuses, the new app uses `v2_`-prefixed ids and the hosted billing strips the prefix.
+- [x] App Store product ids are **`v2_`-prefixed** on the new record: App Store Connect refused `pro_plan` (2026-11-26), since an id is unique across the developer account and v1's record owns the plain ones. The App Store builds ask for `productIdsFor(PurchaseStore.appStore)` (`lib/domain/upgrade/purchase_service.dart`): `v2_pro_plan`, `v2_pro_plan_annual`, `v2_enterprise_plan`, `v2_enterprise_plan_5` / `_10` / `_20`, `v2_enterprise_plan_annual` and `v2_enterprise_plan_annual_5` / `_10` / `_20`. Play keeps v1's plain ids. The app (`planSlugOf`) and the hosted billing (`Plans::forProduct`) strip the prefix.
 - [ ] One subscription group with v1's levels and prices, attached to the launch version.
 - [ ] App Store Server Notifications V2: the Production URL is the hosted billing endpoint (as on v1's record); set a **Sandbox** URL that is not production, on both records.
 - [ ] Privacy Policy URL, and the Terms of Use link in the description (or a custom EULA); the description names the subscriptions; the subtitle never names the other app.

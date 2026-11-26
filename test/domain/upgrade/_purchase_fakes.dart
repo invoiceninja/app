@@ -118,8 +118,13 @@ class FakeBilling implements StoreBilling {
   }
 
   @override
-  Future<StoreProductQuery> queryProducts(Set<String> ids) async =>
-      StoreProductQuery(products: products);
+  Future<StoreProductQuery> queryProducts(Set<String> ids) async {
+    queried.add(ids);
+    return StoreProductQuery(products: products);
+  }
+
+  /// Every id set [queryProducts] was asked for, in order.
+  final List<Set<String>> queried = [];
 
   @override
   Future<void> buyNonConsumable(
