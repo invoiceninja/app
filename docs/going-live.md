@@ -76,7 +76,7 @@ Each store needs its console step after the launch release is uploaded. Only the
 - [ ] One subscription group with v1's levels and prices, attached to the launch version.
 - [ ] App Store Server Notifications V2: the Production URL is the hosted billing endpoint (as on v1's record); set a **Sandbox** URL that is not production, on both records.
 - [ ] Privacy Policy URL, and the Terms of Use link in the description (or a custom EULA); the description names the subscriptions; the subtitle never names the other app.
-- [ ] App Privacy answers: crash data, contacts, photos, precise location (Tap to Pay), financial info, purchases, user content. Export compliance: the app encrypts its database (`sqlite3mc`), so answer the encryption questions deliberately and keep `ITSAppUsesNonExemptEncryption` in step.
+- [ ] App Privacy answers: crash data, contacts, photos, precise location (Tap to Pay), financial info, purchases, user content. Export compliance (decided 2026-11-26): the app encrypts only its own local database (`sqlite3mc`, AES-256) in a business app, so it takes the EAR Category 5 Part 2 **Note 4** exclusion and `ITSAppUsesNonExemptEncryption` stays `false` on iOS and macOS. Crash and diagnostic data are declared **not linked** to the user (no Sentry user is ever set), and both app privacy manifests list every type the label declares.
 - [ ] A review account on every submission of both apps: a hosted owner on the Free plan with one company, no two-factor, password login; reset it to Free before each submission.
 - [ ] Sandbox-test buy, renew, change level, cancel (the plan stays until it expires), refund and Restore on iOS and macOS before submitting.
 
