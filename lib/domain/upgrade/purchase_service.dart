@@ -36,6 +36,32 @@ const Set<String> kProductPlans = {
   kProductEnterprisePlanYear20,
 };
 
+/// The order the purchase sheet lists the plans in: Pro, then Enterprise by
+/// its number of users, each monthly before yearly. The stores answer a
+/// product query in no particular order.
+const List<String> kProductPlanOrder = [
+  kProductProPlanMonth,
+  kProductProPlanYear,
+  kProductEnterprisePlanMonth,
+  kProductEnterprisePlanYear,
+  kProductEnterprisePlanMonth5,
+  kProductEnterprisePlanYear5,
+  kProductEnterprisePlanMonth10,
+  kProductEnterprisePlanYear10,
+  kProductEnterprisePlanMonth20,
+  kProductEnterprisePlanYear20,
+];
+
+/// [products] in [kProductPlanOrder]; an id outside it goes last.
+List<StoreProduct> inPlanOrder(Iterable<StoreProduct> products) {
+  int rank(StoreProduct p) {
+    final i = kProductPlanOrder.indexOf(planSlugOf(p.id));
+    return i < 0 ? kProductPlanOrder.length : i;
+  }
+
+  return [...products]..sort((a, b) => rank(a).compareTo(rank(b)));
+}
+
 /// The product ids this app sells in [store]. Apple keeps a product id unique
 /// across every app of the developer account, and the Legacy app's record
 /// already owns the plain ones, so this app's App Store products are
@@ -190,7 +216,7 @@ class PurchaseService {
       if (resp.error != null) {
         _log.warning('queryProductDetails: ${resp.error}');
       }
-      products.value = resp.products;
+      products.value = inPlanOrder(resp.products);
     } finally {
       busy.value = false;
     }

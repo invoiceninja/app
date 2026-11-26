@@ -417,6 +417,22 @@ void main() {
     }
   });
 
+  test('the plans are listed Pro first, then Enterprise by users, monthly '
+      'before yearly, whatever order the store answers in', () {
+    expect(kProductPlanOrder.toSet(), kProductPlans);
+    StoreProduct p(String id) =>
+        StoreProduct(id: id, title: id, description: '', price: '');
+    final shuffled = [
+      for (final id in [...productIdsFor(PurchaseStore.appStore)].reversed)
+        p(id),
+      p('something_else'),
+    ];
+    expect(inPlanOrder(shuffled).map((e) => e.id), [
+      for (final id in kProductPlanOrder) 'v2_$id',
+      'something_else',
+    ]);
+  });
+
   test('billingPeriodOf reads the period from the product id', () {
     for (final id in kProductPlans) {
       expect(
