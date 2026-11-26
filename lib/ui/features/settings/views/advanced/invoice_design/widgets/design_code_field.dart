@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:re_editor/re_editor.dart';
@@ -9,6 +10,7 @@ import 'package:admin/app/design_tokens.dart';
 import 'package:admin/data/static/design_template_completions.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/key_cap.dart';
+import 'package:admin/ui/features/settings/views/advanced/invoice_design/wysiwyg/designer_pane.dart';
 
 /// Syntax-highlighting HTML editor for one custom-design template section
 /// (body / header / footer / includes / product / task). Wraps `re_editor`
@@ -80,6 +82,46 @@ class _DesignCodeFieldState extends State<DesignCodeField> {
   /// parent VM's `notifyListeners()` mid-build. The parent already owns the
   /// reseeded string (it bumped `seedRevision`), so the echo is redundant.
   bool _suppressOnChanged = false;
+
+  /// Whether this field has turned the browser's own context menu off.
+  bool _browserMenuDisabled = false;
+
+  /// Whether the mouse is over the editor.
+  bool _hovering = false;
+
+  /// The editor's own menu, on a pointer platform only: re_editor's touch
+  /// path asks for its toolbar on every long press and handle drag and
+  /// expects a non-modal overlay, which a popup menu is not — its barrier
+  /// would cover the handles. Touch keeps re_editor's toolbar-less default.
+  late final _CodeContextMenu? _contextMenu = _isTouchPlatform
+      ? null
+      : _CodeContextMenu(
+          isMounted: () => mounted,
+          onOpenChanged: _syncBrowserMenu,
+        );
+
+  static bool get _isTouchPlatform =>
+      defaultTargetPlatform == TargetPlatform.android ||
+      defaultTargetPlatform == TargetPlatform.iOS;
+
+  /// Web: the browser's menu stays off while the mouse is over the editor
+  /// *and* while ours is open — opening it moves the hit test onto the
+  /// menu's barrier, which fires the region's exit, and a second right-click
+  /// would then bring back the browser's one-line Copy.
+  void _syncBrowserMenu() {
+    if (!kIsWeb) return;
+    final disable = _hovering || (_contextMenu?.isOpen ?? false);
+    if (disable == _browserMenuDisabled) return;
+    _browserMenuDisabled = disable;
+    disable
+        ? BrowserContextMenu.disableContextMenu()
+        : BrowserContextMenu.enableContextMenu();
+  }
+
+  void _setHovering(bool hovering) {
+    _hovering = hovering;
+    _syncBrowserMenu();
+  }
 
   @override
   void initState() {
@@ -153,6 +195,9 @@ class _DesignCodeFieldState extends State<DesignCodeField> {
   @override
   void dispose() {
     HardwareKeyboard.instance.removeHandler(_onHardwareKey);
+    _hovering = false;
+    _contextMenu?.isOpen = false;
+    _syncBrowserMenu();
     _controller.dispose();
     super.dispose();
   }
@@ -200,32 +245,116 @@ class _DesignCodeFieldState extends State<DesignCodeField> {
         // follows the app (`docs/right-to-left-layout.md`).
         child: Directionality(
           textDirection: TextDirection.ltr,
-          child: CodeEditor(
-            controller: _controller,
-            wordWrap: false,
-            onChanged: (_) {
-              if (_suppressOnChanged) return;
-              widget.onChanged(_controller.text);
-            },
-            padding: EdgeInsets.all(InSpacing.sm),
-            style: CodeEditorStyle(
-              fontSize: 12,
-              fontFamily: kMonoFontFamily,
-              codeTheme: CodeHighlightTheme(
-                languages: {'xml': CodeHighlightThemeMode(mode: langXml)},
-                theme: dark ? atomOneDarkTheme : atomOneLightTheme,
+          // On web the browser's own menu would open over ours on a
+          // right-click, and its Copy reads the hidden input — one line.
+          child: MouseRegion(
+            onEnter: (_) => _setHovering(true),
+            onExit: (_) => _setHovering(false),
+            child: CodeEditor(
+              controller: _controller,
+              toolbarController: _contextMenu,
+              wordWrap: false,
+              onChanged: (_) {
+                if (_suppressOnChanged) return;
+                widget.onChanged(_controller.text);
+              },
+              padding: EdgeInsets.all(InSpacing.sm),
+              style: CodeEditorStyle(
+                fontSize: 12,
+                fontFamily: kMonoFontFamily,
+                codeTheme: CodeHighlightTheme(
+                  languages: {'xml': CodeHighlightThemeMode(mode: langXml)},
+                  theme: dark ? atomOneDarkTheme : atomOneLightTheme,
+                ),
               ),
+              indicatorBuilder:
+                  (context, editingController, chunkController, notifier) {
+                    return DefaultCodeLineNumber(
+                      controller: editingController,
+                      notifier: notifier,
+                    );
+                  },
             ),
-            indicatorBuilder:
-                (context, editingController, chunkController, notifier) {
-                  return DefaultCodeLineNumber(
-                    controller: editingController,
-                    notifier: notifier,
-                  );
-                },
           ),
         ),
       ),
+    );
+  }
+}
+
+// =============================================================================
+// Context menu
+// =============================================================================
+
+/// The editor's Cut / Copy / Paste / Select All menu, on a right-click
+/// (pointer platforms only — see `_DesignCodeFieldState._contextMenu`).
+///
+/// Without it a right-click on web opened the browser's menu, whose Copy
+/// reads the hidden text input `re_editor` keeps for the keyboard. That
+/// input holds only the line the selection starts on, so a multi-line
+/// selection copied a fragment of one line (invoiceninja/app#212). Every
+/// entry here goes through the editing controller, which copies the whole
+/// selection — the same path as Cmd/Ctrl+C.
+class _CodeContextMenu implements SelectionToolbarController {
+  _CodeContextMenu({required this.isMounted, required this.onOpenChanged});
+
+  /// Whether the field is still mounted — a pick that lands after it is
+  /// torn down must not reach its disposed controller.
+  final bool Function() isMounted;
+
+  /// Called when [isOpen] flips.
+  final VoidCallback onOpenChanged;
+
+  bool isOpen = false;
+
+  @override
+  void hide(BuildContext context) {}
+
+  @override
+  void show({
+    required BuildContext context,
+    required CodeLineEditingController controller,
+    required TextSelectionToolbarAnchors anchors,
+    Rect? renderRect,
+    required LayerLink layerLink,
+    required ValueNotifier<bool> visibility,
+  }) {
+    if (isOpen) return;
+    final labels = MaterialLocalizations.of(context);
+    final hasSelection = !controller.selection.isCollapsed;
+    PopupMenuItem<VoidCallback> item(
+      String label,
+      VoidCallback action, {
+      bool enabled = true,
+    }) => PopupMenuItem<VoidCallback>(
+      value: action,
+      enabled: enabled,
+      child: Text(label),
+    );
+    final position = menuAnchor(context, anchors.primaryAnchor & Size.zero);
+    isOpen = true;
+    onOpenChanged();
+    showMenu<VoidCallback>(
+      context: context,
+      position: position,
+      items: [
+        item(labels.cutButtonLabel, controller.cut, enabled: hasSelection),
+        item(labels.copyButtonLabel, controller.copy, enabled: hasSelection),
+        item(labels.pasteButtonLabel, controller.paste),
+        item(labels.selectAllButtonLabel, controller.selectAll),
+      ],
+    ).then(
+      (action) {
+        if (!isMounted()) return;
+        isOpen = false;
+        onOpenChanged();
+        action?.call();
+      },
+      onError: (Object _) {
+        if (!isMounted()) return;
+        isOpen = false;
+        onOpenChanged();
+      },
     );
   }
 }
