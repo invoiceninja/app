@@ -42,9 +42,10 @@ import 'package:admin/ui/core/fold_geometry.dart';
 /// 440–560 px slide-over panel. Main column: Received from (client, or an
 /// invoice while no client is chosen), Details (amount | currency, date |
 /// type, number | transaction reference), the create-only Apply to invoices
-/// table + credits + Applied / Unapplied, Tags, and the create-only Email
-/// receipt switch. Sidebar: Currency conversion, Notes, Documents, Custom
-/// fields. docs/payment-edit.md has the rules.
+/// table + credits + Applied / Unapplied (above Details once a client is
+/// chosen), Tags, and the create-only Email receipt switch. Sidebar:
+/// Currency conversion, Notes, Documents, Custom fields.
+/// docs/entering-a-payment.md has the rules.
 ///
 /// Client / Currency / Payment Type use [SearchableDropdownField] per
 /// CLAUDE.md § Forms — long-list bindings the user shouldn't have to
@@ -150,54 +151,36 @@ class _PaymentEditLayoutState extends State<PaymentEditLayout>
   }
 
   Widget _mainColumn(BuildContext context) {
+    // On a new payment with a client chosen, the invoices come straight
+    // after the client — picking them is the next step, and on a phone the
+    // Details card pushed them a screen down (invoiceninja/app#213). Until a
+    // client is chosen the Received from card's invoice picker is that step,
+    // so the Applied / Unapplied footer stays below Details. The two blocks
+    // are keyed so the move reorders them instead of remounting Details'
+    // fields.
+    final applyBlock = vm.isCreate ? _applyBlock(context) : null;
+    final applyFirst = applyBlock != null && vm.draft.clientId.isNotEmpty;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
         _ReceivedFromSection(vm: vm, formatter: formatter),
-        SizedBox(height: InSpacing.lg(context)),
-        _DetailsSection(
-          vm: vm,
-          useCommaAsDecimalPlace: _useComma,
-          formatter: formatter,
-        ),
-        if (vm.isCreate) ...[
+        if (applyFirst) ...[
           SizedBox(height: InSpacing.lg(context)),
-          StreamBuilder<String>(
-            stream: _effectiveCurrencyStream(vm.draft.clientId),
-            builder: (context, snap) {
-              final currencyId = vm.draft.currencyId.isNotEmpty
-                  ? vm.draft.currencyId
-                  : (snap.data ?? '');
-              final hasClient = vm.draft.clientId.isNotEmpty;
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Until a client is chosen the Received from card's invoice
-                  // picker is the way in; then its open invoices, ticked.
-                  if (hasClient) ...[
-                    PaymentApplyInvoicesSection(
-                      vm: vm,
-                      formatter: formatter,
-                      currencyId: currencyId,
-                    ),
-                    SizedBox(height: InSpacing.lg(context)),
-                    _CreditsSectionGate(
-                      vm: vm,
-                      formatter: formatter,
-                      currencyId: currencyId,
-                    ),
-                    SizedBox(height: InSpacing.md(context)),
-                  ],
-                  PaymentAllocationsFooter(
-                    vm: vm,
-                    formatter: formatter,
-                    currencyId: currencyId,
-                  ),
-                ],
-              );
-            },
+          applyBlock,
+        ],
+        SizedBox(height: InSpacing.lg(context)),
+        KeyedSubtree(
+          key: const ValueKey('payment-details'),
+          child: _DetailsSection(
+            vm: vm,
+            useCommaAsDecimalPlace: _useComma,
+            formatter: formatter,
           ),
+        ),
+        if (applyBlock != null && !applyFirst) ...[
+          SizedBox(height: InSpacing.lg(context)),
+          applyBlock,
         ],
         SizedBox(height: InSpacing.lg(context)),
         DashboardCardShell(
@@ -215,6 +198,49 @@ class _PaymentEditLayoutState extends State<PaymentEditLayout>
           PaymentEmailReceiptSwitch(vm: vm),
         ],
       ],
+    );
+  }
+
+  /// The create-only Apply to invoices table, credits and Applied /
+  /// Unapplied footer — placed by [_mainColumn].
+  Widget _applyBlock(BuildContext context) {
+    return KeyedSubtree(
+      key: const ValueKey('payment-apply'),
+      child: StreamBuilder<String>(
+        stream: _effectiveCurrencyStream(vm.draft.clientId),
+        builder: (context, snap) {
+          final currencyId = vm.draft.currencyId.isNotEmpty
+              ? vm.draft.currencyId
+              : (snap.data ?? '');
+          final hasClient = vm.draft.clientId.isNotEmpty;
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Until a client is chosen the Received from card's invoice
+              // picker is the way in; then its open invoices, ticked.
+              if (hasClient) ...[
+                PaymentApplyInvoicesSection(
+                  vm: vm,
+                  formatter: formatter,
+                  currencyId: currencyId,
+                ),
+                SizedBox(height: InSpacing.lg(context)),
+                _CreditsSectionGate(
+                  vm: vm,
+                  formatter: formatter,
+                  currencyId: currencyId,
+                ),
+                SizedBox(height: InSpacing.md(context)),
+              ],
+              PaymentAllocationsFooter(
+                vm: vm,
+                formatter: formatter,
+                currencyId: currencyId,
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 
