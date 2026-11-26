@@ -84,60 +84,65 @@ class TaxSettingsBody extends StatelessWidget {
       sections: [
         // ── Section A — basic toggles ────────────────────────────────────
         // Untitled: it would repeat the page's own "Tax Settings" title.
-        FormSection(
-          title: null,
-          children: [
-            // Tax-rate counts are top-level company.* fields, not
-            // settings — they have no cascade override at client/group
-            // scope, so we hide them entirely outside company scope (where
-            // `company`/`host.draft` is non-null).
-            if (isCompany && company != null && !calculateTaxes)
-              _RateCountField(
-                label: context.tr('invoice_tax_rates'),
-                value: company.enabledTaxRates,
-                onChanged: (v) =>
-                    host.updateCompany((c) => c.copyWith(enabledTaxRates: v)),
-              ),
-            if (isCompany && company != null)
-              _RateCountField(
-                label: context.tr('invoice_item_tax_rates'),
-                value: company.enabledItemTaxRates,
-                onChanged: (v) => host.updateCompany(
-                  (c) => c.copyWith(enabledItemTaxRates: v),
+        // Every field in it is company-only but Inclusive Taxes, which
+        // Calculate Taxes hides — so at group / client scope with Calculate
+        // Taxes on it has nothing to show, and the bare card drew as an
+        // empty box (invoiceninja/app#214).
+        if ((isCompany && company != null) || !calculateTaxes)
+          FormSection(
+            title: null,
+            children: [
+              // Tax-rate counts are top-level company.* fields, not
+              // settings — they have no cascade override at client/group
+              // scope, so we hide them entirely outside company scope (where
+              // `company`/`host.draft` is non-null).
+              if (isCompany && company != null && !calculateTaxes)
+                _RateCountField(
+                  label: context.tr('invoice_tax_rates'),
+                  value: company.enabledTaxRates,
+                  onChanged: (v) =>
+                      host.updateCompany((c) => c.copyWith(enabledTaxRates: v)),
                 ),
-              ),
-            if (isCompany && company != null)
-              _RateCountField(
-                label: context.tr('expense_tax_rates'),
-                value: company.enabledExpenseTaxRates,
-                onChanged: (v) => host.updateCompany(
-                  (c) => c.copyWith(enabledExpenseTaxRates: v),
+              if (isCompany && company != null)
+                _RateCountField(
+                  label: context.tr('invoice_item_tax_rates'),
+                  value: company.enabledItemTaxRates,
+                  onChanged: (v) => host.updateCompany(
+                    (c) => c.copyWith(enabledItemTaxRates: v),
+                  ),
                 ),
-              ),
-            if (!calculateTaxes)
-              OverridableSegmentedField<bool>(
-                label: context.tr('inclusive_taxes'),
-                apiKey: 'inclusive_taxes',
-                // Unset is the server's default, exclusive.
-                value: inclusive,
-                options: [
-                  (value: false, label: context.tr('exclusive')),
-                  (value: true, label: context.tr('inclusive')),
-                ],
-                // The choice worked through on a price, in the company's
-                // money; the static two-line help until the formatter loads.
-                helperText:
-                    taxWorkedExample(
-                      context,
-                      formatter,
-                      inclusive: inclusive,
-                    ) ??
-                    context.tr('exclusive_inclusive_tax_help'),
-                onChanged: (v) =>
-                    host.updateSettings((s) => s.copyWith(inclusiveTaxes: v)),
-              ),
-          ],
-        ),
+              if (isCompany && company != null)
+                _RateCountField(
+                  label: context.tr('expense_tax_rates'),
+                  value: company.enabledExpenseTaxRates,
+                  onChanged: (v) => host.updateCompany(
+                    (c) => c.copyWith(enabledExpenseTaxRates: v),
+                  ),
+                ),
+              if (!calculateTaxes)
+                OverridableSegmentedField<bool>(
+                  label: context.tr('inclusive_taxes'),
+                  apiKey: 'inclusive_taxes',
+                  // Unset is the server's default, exclusive.
+                  value: inclusive,
+                  options: [
+                    (value: false, label: context.tr('exclusive')),
+                    (value: true, label: context.tr('inclusive')),
+                  ],
+                  // The choice worked through on a price, in the company's
+                  // money; the static two-line help until the formatter loads.
+                  helperText:
+                      taxWorkedExample(
+                        context,
+                        formatter,
+                        inclusive: inclusive,
+                      ) ??
+                      context.tr('exclusive_inclusive_tax_help'),
+                  onChanged: (v) =>
+                      host.updateSettings((s) => s.copyWith(inclusiveTaxes: v)),
+                ),
+            ],
+          ),
 
         // ── Section B — Default Tax Rates ────────────────────────────────
         // Slot count is the company's `enabled_tax_rates`, read via
