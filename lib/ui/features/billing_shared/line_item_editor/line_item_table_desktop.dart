@@ -5,6 +5,7 @@ import 'package:decimal/decimal.dart';
 import 'package:flutter/foundation.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import 'package:admin/ui/core/widgets/in_scrollbar.dart';
@@ -20,6 +21,7 @@ import 'package:admin/data/models/domain/custom_field_types.dart';
 import 'package:admin/data/models/domain/product.dart';
 import 'package:admin/data/models/domain/tax_rate.dart';
 import 'package:admin/data/repositories/search_fetch.dart';
+import 'package:admin/domain/billing/totals_calculator.dart';
 import 'package:admin/domain/date_placeholders.dart';
 import 'package:admin/domain/product_tax_categories.dart';
 import 'package:admin/l10n/localization.dart';
@@ -34,6 +36,7 @@ import 'package:admin/ui/core/widgets/scroll_edge_fades.dart';
 import 'package:admin/ui/core/widgets/spell_check.dart';
 import 'package:admin/ui/core/widgets/wide_picker_popover.dart';
 import 'package:admin/ui/features/billing_shared/line_item_editor/line_item_column_config.dart';
+import 'package:admin/ui/features/billing_shared/line_item_editor/line_item_table_columns.dart';
 import 'package:admin/ui/features/billing_shared/line_item_find.dart';
 import 'package:admin/ui/features/billing_shared/line_item_editor/product_stock_label.dart';
 import 'package:admin/ui/features/billing_shared/line_item_picker/quick_product_dialog.dart';
@@ -100,22 +103,65 @@ const int _kMaxMenuOptions = 20;
 /// what can starve the flex columns, and a table without them keeps the
 /// layout it has always had at every width.
 double _minTableWidth(BuildContext context, LineItemColumnConfig config) {
-  if (config.customFields.isEmpty) return 0;
-  // Item 3 + Description 3 + Unit Cost + Quantity + Line Total, then the
-  // optional discount and tax columns — the flexes `_Row` lays out.
-  var flexUnits = 9 + (config.showDiscount ? 1 : 0);
-  for (var slot = 1; slot <= config.taxColumnCount; slot++) {
-    flexUnits += _taxSlotFlex(config, slot);
+  final columns = config.desktopColumns;
+  if (!columns.any((c) => c.kind == LineItemTableColumnKind.custom)) return 0;
+  var flexUnits = 0;
+  var fixed = 0.0;
+  for (final column in columns) {
+    final custom = _customFieldOf(config, column);
+    if (custom != null) {
+      fixed += _customColumnWidth(custom.field);
+      continue;
+    }
+    flexUnits += switch (column.kind) {
+      // Three units each here, whatever their flex: the floor the Item and
+      // Description cells were sized to before the column set moved.
+      LineItemTableColumnKind.item || LineItemTableColumnKind.description => 3,
+      _ => _columnFlex(config, column),
+    };
   }
-  var width =
-      InSpacing.lg(context) * 2 +
+  return InSpacing.lg(context) * 2 +
       _kDragColWidth +
       _kTrailingColWidth +
-      flexUnits * _kMinFlexUnitWidth;
-  for (final custom in config.customFields) {
-    width += _customColumnWidth(custom.field);
+      flexUnits * _kMinFlexUnitWidth +
+      fixed;
+}
+
+/// The company's custom field behind a custom [column], or null for any
+/// other column — and for a slot the company defines nothing in, which the
+/// table then skips.
+LineItemCustomField? _customFieldOf(
+  LineItemColumnConfig config,
+  LineItemTableColumn column,
+) => column.kind == LineItemTableColumnKind.custom
+    ? config.customFieldAt(column.slot)
+    : null;
+
+/// The flex of a flex-laid-out [column] — every column but a custom field's,
+/// which is fixed width ([_customColumnWidth]). The header, the rows and the
+/// drag proxy all read it, so they stay aligned.
+int _columnFlex(LineItemColumnConfig config, LineItemTableColumn column) =>
+    switch (column.kind) {
+      LineItemTableColumnKind.item => _kItemFlex,
+      LineItemTableColumnKind.description => _kDescriptionFlex,
+      LineItemTableColumnKind.tax => _taxSlotFlex(config, column.slot),
+      _ => 1,
+    };
+
+/// The numeric typing cell the ghost row's Tab leaves to add a row: the last
+/// of Unit Cost, Quantity and Discount the table draws.
+LineItemTableColumnKind? _lastTypingColumn(LineItemColumnConfig config) {
+  LineItemTableColumnKind? last;
+  for (final column in config.desktopColumns) {
+    switch (column.kind) {
+      case LineItemTableColumnKind.unitCost:
+      case LineItemTableColumnKind.quantity:
+      case LineItemTableColumnKind.discount:
+        last = column.kind;
+      default:
+    }
   }
-  return width;
+  return last;
 }
 
 /// Item against Description, in the header, the rows and the drag proxy
@@ -196,6 +242,7 @@ class LineItemTableDesktop extends StatefulWidget {
     this.allowNewRows = true,
     this.vendorDoc = false,
     this.allowOptionalLines = false,
+    this.totalsInput,
   });
 
   final String companyId;
@@ -248,6 +295,12 @@ class LineItemTableDesktop extends StatefulWidget {
   /// Offer each row's Optional toggle — quotes only, see
   /// `LineItemEditor.allowOptionalLines`.
   final bool allowOptionalLines;
+
+  /// The document's totals input — a line's tax depends on the document's
+  /// discount and inclusive-tax setting — read only when the columns include
+  /// Tax Amount or Gross Line Total. Null reads the lines alone: no
+  /// document discount, exclusive taxes.
+  final BillingTotalsInput? totalsInput;
 
   @override
   State<LineItemTableDesktop> createState() => _LineItemTableDesktopState();
@@ -349,6 +402,24 @@ class _LineItemTableDesktopState extends State<LineItemTableDesktop> {
     }
     _rows.clear();
     super.dispose();
+  }
+
+  /// The header's "Edit Columns": the Invoice Design tab this table's
+  /// columns come from. Null — no button — until the company has resolved
+  /// them, and for a user who can't change company settings.
+  ///
+  /// `go`, not `push`: Settings is its own branch, and the editor stays
+  /// mounted in this one (`StatefulShellRoute.indexedStack`), draft and all,
+  /// for Back to return to.
+  VoidCallback? _editColumnsAction(BuildContext context) {
+    final section = widget.config.columnsSection;
+    if (section == null) return null;
+    final me = context.read<Services>().auth.session.value?.currentCompany;
+    if (me == null || !(me.isAdmin || me.isOwner)) return null;
+    return () {
+      _flushAll();
+      GoRouter.of(context).go('/settings/invoice_design/$section');
+    };
   }
 
   /// Reconcile the local `_RowState` list to match `widget.items.length + 1`
@@ -616,34 +687,32 @@ class _LineItemTableDesktopState extends State<LineItemTableDesktop> {
             !taxCategoryKeepsManualRates(item.savedTaxCategoryId)
         ? kProductTaxCategories[item.savedTaxCategoryId]
         : null;
-    final tax = categoryKey != null
-        ? context.tr(categoryKey)
-        : taxLabel(item?.taxName1 ?? '', item?.taxRate1 ?? Decimal.zero);
-    final tax2 = categoryKey != null
-        ? ''
-        : taxLabel(item?.taxName2 ?? '', item?.taxRate2 ?? Decimal.zero);
-    final tax3 = categoryKey != null
-        ? ''
-        : taxLabel(item?.taxName3 ?? '', item?.taxRate3 ?? Decimal.zero);
+    String taxText(int slot) {
+      if (categoryKey != null) return slot == 1 ? context.tr(categoryKey) : '';
+      return taxLabel(
+        item == null ? '' : _taxNameOf(item, slot),
+        item == null ? Decimal.zero : _taxRateOf(item, slot),
+      );
+    }
 
-    final gross = item == null ? Decimal.zero : item.cost * item.quantity;
-    final total = gross == Decimal.zero
+    String money(Decimal? value) => value == null || value == Decimal.zero
         ? '—'
         : (_formatter?.money(
-                gross,
+                value,
                 zeroIsNull: true,
                 currencyId: widget.currencyId,
               ) ??
-              gross.toString());
+              value.toString());
+    final amounts = item == null ? null : _lineAmountsCalc()?.of(item);
 
     Widget cell(
+      LineItemTableColumn column,
       String text, {
-      int flex = 1,
-      AlignmentGeometry align = AlignmentDirectional.centerStart,
+      AlignmentGeometry align = AlignmentDirectional.centerEnd,
       int maxLines = 1,
     }) {
       return Expanded(
-        flex: flex,
+        flex: _columnFlex(widget.config, column),
         child: Padding(
           padding: const EdgeInsetsDirectional.only(end: _kCellPadH),
           child: Align(
@@ -659,6 +728,77 @@ class _LineItemTableDesktopState extends State<LineItemTableDesktop> {
       );
     }
 
+    Widget moneyCell(LineItemTableColumn column, String text) => Expanded(
+      flex: _columnFlex(widget.config, column),
+      child: Align(
+        alignment: AlignmentDirectional.centerEnd,
+        child: LtrText(
+          text,
+          style: moneyTextStyle(color: tokens.ink, fontSize: 13),
+        ),
+      ),
+    );
+
+    Widget? snapshotOf(LineItemTableColumn column) {
+      switch (column.kind) {
+        case LineItemTableColumnKind.item:
+          return cell(
+            column,
+            item?.productKey ?? '',
+            align: AlignmentDirectional.centerStart,
+          );
+        case LineItemTableColumnKind.description:
+          // The proxy is forced to the dragged row's size, so a tall
+          // description shows its lines rather than one centred line.
+          return cell(
+            column,
+            item?.notes ?? '',
+            align: AlignmentDirectional.centerStart,
+            maxLines: _kDescriptionMaxLines,
+          );
+        case LineItemTableColumnKind.custom:
+          final custom = _customFieldOf(widget.config, column);
+          if (custom == null) return null;
+          return SizedBox(
+            width: _customColumnWidth(custom.field),
+            child: Padding(
+              padding: const EdgeInsetsDirectional.only(end: _kCellPadH),
+              child: Text(
+                item == null
+                    ? ''
+                    : displayCustomFieldValue(
+                        type: custom.field.type,
+                        value: lineItemCustomValue(item, custom.slot),
+                        yes: context.tr('yes'),
+                        no: context.tr('no'),
+                        formatter: _formatter,
+                      ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: tokens.ink, fontSize: 13),
+              ),
+            ),
+          );
+        case LineItemTableColumnKind.unitCost:
+          return cell(column, item == null ? '' : dec(item.cost));
+        case LineItemTableColumnKind.quantity:
+          return cell(column, item == null ? '' : dec(item.quantity));
+        case LineItemTableColumnKind.discount:
+          return cell(column, item == null ? '' : dec(item.discount));
+        case LineItemTableColumnKind.tax:
+          return cell(column, taxText(column.slot));
+        case LineItemTableColumnKind.taxAmount:
+          return moneyCell(column, money(amounts?.taxAmount));
+        case LineItemTableColumnKind.grossLineTotal:
+          return moneyCell(column, money(amounts?.grossLineTotal));
+        case LineItemTableColumnKind.lineTotal:
+          return moneyCell(
+            column,
+            money(item == null ? null : item.cost * item.quantity),
+          );
+      }
+    }
+
     return Container(
       padding: EdgeInsets.symmetric(
         horizontal: InSpacing.lg(context),
@@ -672,72 +812,38 @@ class _LineItemTableDesktopState extends State<LineItemTableDesktop> {
           children: [
             Icon(Icons.drag_indicator, color: tokens.ink3, size: 20),
             const SizedBox(width: _kDragColWidth - 20),
-            cell(item?.productKey ?? '', flex: _kItemFlex),
-            // The proxy is forced to the dragged row's size, so a tall
-            // description shows its lines rather than one centred line.
-            cell(
-              item?.notes ?? '',
-              flex: _kDescriptionFlex,
-              maxLines: _kDescriptionMaxLines,
-            ),
-            for (final custom in widget.config.customFields)
-              SizedBox(
-                width: _customColumnWidth(custom.field),
-                child: Padding(
-                  padding: const EdgeInsetsDirectional.only(end: _kCellPadH),
-                  child: Text(
-                    item == null
-                        ? ''
-                        : displayCustomFieldValue(
-                            type: custom.field.type,
-                            value: lineItemCustomValue(item, custom.slot),
-                            yes: context.tr('yes'),
-                            no: context.tr('no'),
-                            formatter: _formatter,
-                          ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: tokens.ink, fontSize: 13),
-                  ),
-                ),
-              ),
-            cell(
-              item == null ? '' : dec(item.cost),
-              align: AlignmentDirectional.centerEnd,
-            ),
-            cell(
-              item == null ? '' : dec(item.quantity),
-              align: AlignmentDirectional.centerEnd,
-            ),
-            if (widget.config.showDiscount)
-              cell(
-                item == null ? '' : dec(item.discount),
-                align: AlignmentDirectional.centerEnd,
-              ),
-            if (widget.config.taxColumnCount >= 1)
-              cell(
-                tax,
-                flex: _taxSlotFlex(widget.config, 1),
-                align: AlignmentDirectional.centerEnd,
-              ),
-            if (widget.config.taxColumnCount >= 2)
-              cell(tax2, align: AlignmentDirectional.centerEnd),
-            if (widget.config.taxColumnCount >= 3)
-              cell(tax3, align: AlignmentDirectional.centerEnd),
-            Expanded(
-              child: Align(
-                alignment: AlignmentDirectional.centerEnd,
-                child: LtrText(
-                  total,
-                  style: moneyTextStyle(color: tokens.ink, fontSize: 13),
-                ),
-              ),
-            ),
+            for (final column in widget.config.desktopColumns)
+              ?snapshotOf(column),
             const SizedBox(width: _kTrailingColWidth),
           ],
         ),
       ),
     );
+  }
+
+  /// The per-line Tax Amount / Gross Line Total, when the table draws either
+  /// — null otherwise, so a table without them does none of the math.
+  _LineAmountsCalc? _lineAmountsCalc() {
+    final needed = widget.config.desktopColumns.any(
+      (c) =>
+          c.kind == LineItemTableColumnKind.taxAmount ||
+          c.kind == LineItemTableColumnKind.grossLineTotal,
+    );
+    if (!needed) return null;
+    final input =
+        widget.totalsInput ??
+        BillingTotalsInput(
+          lineItems: [
+            for (final item in _items)
+              if (!item.isOptional) item,
+          ],
+          discount: Decimal.zero,
+          isAmountDiscount: false,
+          usesInclusiveTaxes: false,
+        );
+    final precision =
+        _formatter?.precisionFor(currencyId: widget.currencyId) ?? 2;
+    return _LineAmountsCalc(input, precision);
   }
 
   /// Cached, not built in `build`: `watchCompany` returns a fresh stream per
@@ -777,6 +883,9 @@ class _LineItemTableDesktopState extends State<LineItemTableDesktop> {
         // rows with items by position — but a table that takes no new rows
         // doesn't render it.
         final itemCount = widget.allowNewRows ? _rows.length : _items.length;
+        // Once per build, and only when the columns include Tax Amount or
+        // Gross Line Total: a line's tax reads the document's subtotal.
+        final amountsCalc = _lineAmountsCalc();
         // Flat, title-less card matching the React / old-Flutter
         // references: hairline border, no header, no shadow.
         return Container(
@@ -794,7 +903,10 @@ class _LineItemTableDesktopState extends State<LineItemTableDesktop> {
                 fadeColor: tokens.surface,
                 child: Column(
                   children: [
-                    _ColumnHeader(config: widget.config),
+                    _ColumnHeader(
+                      config: widget.config,
+                      onEditColumns: _editColumnsAction(context),
+                    ),
                     Divider(height: 1, color: tokens.border),
                     ReorderableListView.builder(
                       shrinkWrap: true,
@@ -879,6 +991,7 @@ class _LineItemTableDesktopState extends State<LineItemTableDesktop> {
                           currencyId: widget.currencyId,
                           currentItem: current,
                           errors: errors,
+                          amounts: isGhost ? null : amountsCalc?.of(current),
                           canCreateTask:
                               !isGhost &&
                               widget.onCreateTaskFromLineItem != null &&
@@ -911,6 +1024,7 @@ class _LineItemTableDesktopState extends State<LineItemTableDesktop> {
                           row: row,
                           currentItem: current,
                           errors: errors,
+                          amounts: inputs.amounts,
                           services: services,
                           onCellCommit: (next) {
                             if (isGhost && next.isBlank) return;
@@ -936,9 +1050,14 @@ class _LineItemTableDesktopState extends State<LineItemTableDesktop> {
                             // user can immediately add notes after picking
                             // a product (otherwise focus stays in the
                             // autocomplete and the user has to Tab manually).
+                            // Not when the company's columns leave the
+                            // description off the table: its node is in no
+                            // tree to take focus.
                             WidgetsBinding.instance.addPostFrameCallback((_) {
                               if (!mounted) return;
-                              if (index < _rows.length) {
+                              final drawn = widget.config.desktopColumns
+                                  .contains(LineItemTableColumn.description);
+                              if (drawn && index < _rows.length) {
                                 _rows[index].notesFocus.requestFocus();
                               }
                             });
@@ -1187,8 +1306,12 @@ class _SidewaysScrollWhenNarrowState extends State<_SidewaysScrollWhenNarrow> {
 }
 
 class _ColumnHeader extends StatelessWidget {
-  const _ColumnHeader({required this.config});
+  const _ColumnHeader({required this.config, this.onEditColumns});
   final LineItemColumnConfig config;
+
+  /// Opens the Invoice Design tab the columns come from — null offers no
+  /// link (no company yet, or a user who can't change company settings).
+  final VoidCallback? onEditColumns;
 
   @override
   Widget build(BuildContext context) {
@@ -1203,11 +1326,11 @@ class _ColumnHeader extends StatelessWidget {
     // company's Custom Label for THAT word is the one that applies.
     String label(String key) => context.tr(config.labelKey(key));
     Widget cell(
+      LineItemTableColumn column,
       String label, {
-      int flex = 1,
-      AlignmentGeometry align = AlignmentDirectional.centerStart,
+      AlignmentGeometry align = AlignmentDirectional.centerEnd,
     }) => Expanded(
-      flex: flex,
+      flex: _columnFlex(config, column),
       child: Align(
         alignment: align,
         // Start-aligned data cells inset their text by the field's
@@ -1224,6 +1347,84 @@ class _ColumnHeader extends StatelessWidget {
         ),
       ),
     );
+
+    // The company's own words, verbatim — not a translation key and not a
+    // Custom Label. One line: a user label in a fixed column would otherwise
+    // wrap over two or three, so the full text is a tooltip.
+    Widget customCell(LineItemCustomField custom) => SizedBox(
+      key: ValueKey('custom_${custom.slot}'),
+      width: _customColumnWidth(custom.field),
+      child: Tooltip(
+        message: custom.field.label,
+        child: Padding(
+          padding: const EdgeInsetsDirectional.only(
+            start: _kCellPadH,
+            end: _kCellPadH,
+          ),
+          child: Text(
+            custom.field.label.toUpperCase(),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: custom.field.type == kFieldTypeSwitch
+                ? TextAlign.center
+                : TextAlign.start,
+            style: style,
+          ),
+        ),
+      ),
+    );
+
+    Widget? headerFor(LineItemTableColumn column) {
+      switch (column.kind) {
+        // `context.tr` puts the company's Custom Labels first.
+        case LineItemTableColumnKind.item:
+          return cell(
+            column,
+            label('item'),
+            align: AlignmentDirectional.centerStart,
+          );
+        case LineItemTableColumnKind.description:
+          return cell(
+            column,
+            label('description'),
+            align: AlignmentDirectional.centerStart,
+          );
+        case LineItemTableColumnKind.custom:
+          final custom = _customFieldOf(config, column);
+          return custom == null ? null : customCell(custom);
+        case LineItemTableColumnKind.unitCost:
+          return cell(column, label('unit_cost'));
+        case LineItemTableColumnKind.quantity:
+          return cell(column, label('quantity'));
+        case LineItemTableColumnKind.discount:
+          return cell(column, label('discount'));
+        // Slots 2 and 3 exist whenever the company enables 2 or 3 item tax
+        // rates (Settings → Tax Settings). The mobile edit dialog has always
+        // honoured all three; the desktop table rendered only the first, so
+        // a multi-rate company could enter one tax on a phone and not on a
+        // desktop — the same invoice totalling differently by viewport.
+        //
+        // While the company calculates taxes, slot 1 holds the line's tax
+        // category (rates only on an Override line), so it is headed so.
+        case LineItemTableColumnKind.tax:
+          return cell(
+            column,
+            config.useTaxCategories && column.slot == 1
+                ? context.tr('tax_category')
+                : config.taxColumnCount > 1
+                ? '${label('tax')} ${column.slot}'
+                : label('tax'),
+          );
+        case LineItemTableColumnKind.taxAmount:
+          return cell(column, label('tax_amount'));
+        case LineItemTableColumnKind.grossLineTotal:
+          return cell(column, label('gross_line_total'));
+        case LineItemTableColumnKind.lineTotal:
+          return cell(column, label('line_total'));
+      }
+    }
+
+    final onEditColumns = this.onEditColumns;
     return Padding(
       padding: EdgeInsets.symmetric(
         horizontal: InSpacing.lg(context),
@@ -1232,59 +1433,33 @@ class _ColumnHeader extends StatelessWidget {
       child: Row(
         children: [
           const SizedBox(width: _kDragColWidth),
-          // `context.tr` puts the company's Custom Labels first.
-          cell(label('item'), flex: _kItemFlex),
-          cell(label('description'), flex: _kDescriptionFlex),
-          // The company's own words, verbatim — not a translation key and not
-          // a Custom Label. One line: a user label in a fixed column would
-          // otherwise wrap over two or three, so the full text is a tooltip.
-          for (final custom in config.customFields)
-            SizedBox(
-              key: ValueKey('custom_${custom.slot}'),
-              width: _customColumnWidth(custom.field),
-              child: Tooltip(
-                message: custom.field.label,
-                child: Padding(
-                  padding: const EdgeInsetsDirectional.only(
-                    start: _kCellPadH,
-                    end: _kCellPadH,
+          for (final column in config.desktopColumns) ?headerFor(column),
+          // Over the rows' ⋮: where the columns come from. The table shows
+          // the company's Invoice Design columns (docs/line-item-columns.md),
+          // so a column the user misses is one click from being added.
+          SizedBox(
+            width: _kTrailingColWidth,
+            child: onEditColumns == null
+                ? null
+                : IconButton(
+                    key: const ValueKey('line_item_edit_columns'),
+                    tooltip: context.tr('edit_columns'),
+                    onPressed: onEditColumns,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints.tightFor(
+                      width: _kTrailingColWidth,
+                      height: 28,
+                    ),
+                    style: const ButtonStyle(
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    icon: Icon(
+                      Icons.view_column_outlined,
+                      size: 18,
+                      color: tokens.ink3,
+                    ),
                   ),
-                  child: Text(
-                    custom.field.label.toUpperCase(),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: custom.field.type == kFieldTypeSwitch
-                        ? TextAlign.center
-                        : TextAlign.start,
-                    style: style,
-                  ),
-                ),
-              ),
-            ),
-          cell(label('unit_cost'), align: AlignmentDirectional.centerEnd),
-          cell(label('quantity'), align: AlignmentDirectional.centerEnd),
-          if (config.showDiscount)
-            cell(label('discount'), align: AlignmentDirectional.centerEnd),
-          // Slots 2 and 3 exist whenever the company enables 2 or 3 item tax
-          // rates (Settings → Tax Settings). The mobile edit dialog has always
-          // honoured all three; the desktop table rendered only the first, so a
-          // multi-rate company could enter one tax on a phone and not on a
-          // desktop — the same invoice totalling differently by viewport.
-          //
-          // While the company calculates taxes, slot 1 holds the line's tax
-          // category (rates only on an Override line), so it is headed so.
-          for (var slot = 1; slot <= config.taxColumnCount; slot++)
-            cell(
-              config.useTaxCategories && slot == 1
-                  ? context.tr('tax_category')
-                  : config.taxColumnCount > 1
-                  ? '${label('tax')} $slot'
-                  : label('tax'),
-              flex: _taxSlotFlex(config, slot),
-              align: AlignmentDirectional.centerEnd,
-            ),
-          cell(label('line_total'), align: AlignmentDirectional.centerEnd),
-          const SizedBox(width: _kTrailingColWidth),
+          ),
         ],
       ),
     );
@@ -1305,6 +1480,42 @@ Decimal _taxRateOf(LineItem item, int slot) => switch (slot) {
   2 => item.taxRate2,
   _ => item.taxRate3,
 };
+
+/// One line's Tax Amount and Gross Line Total, as the server stores them on
+/// the line (`InvoiceItemSum::calcTaxes`): the line's share of the line taxes
+/// ([computeLineTaxAmount], the tiers the totals card adds up), and the line
+/// total plus that tax — or the line total alone with inclusive taxes, which
+/// already hold it.
+typedef _LineAmounts = ({Decimal taxAmount, Decimal grossLineTotal});
+
+class _LineAmountsCalc {
+  _LineAmountsCalc(this.input, this.precision)
+    : subtotal = computeSubtotal(input, precision);
+
+  final BillingTotalsInput input;
+  final int precision;
+  final Decimal subtotal;
+
+  _LineAmounts of(LineItem item) {
+    final tax = computeLineTaxAmount(
+      item,
+      input,
+      precision,
+      subtotal: subtotal,
+    );
+    final lineTotal = computeLineTotal(
+      item,
+      isAmountDiscount: input.isAmountDiscount,
+      precision: precision,
+    );
+    return (
+      taxAmount: tax,
+      grossLineTotal: input.usesInclusiveTaxes
+          ? lineTotal
+          : (lineTotal + tax).round(scale: precision),
+    );
+  }
+}
 
 /// What a [_Row] was built from, and the widget it was built as.
 class _BuiltRow {
@@ -1351,6 +1562,7 @@ class _RowInputs {
     required this.currencyId,
     required this.currentItem,
     required this.errors,
+    required this.amounts,
     required this.canCreateTask,
     required this.canToggleOptional,
   });
@@ -1369,6 +1581,7 @@ class _RowInputs {
   final String? currencyId;
   final LineItem currentItem;
   final Map<String, String>? errors;
+  final _LineAmounts? amounts;
   final bool canCreateTask;
   final bool canToggleOptional;
 
@@ -1391,6 +1604,7 @@ class _RowInputs {
       other.currencyId == currencyId &&
       other.currentItem == currentItem &&
       mapEquals(other.errors, errors) &&
+      other.amounts == amounts &&
       other.canCreateTask == canCreateTask &&
       other.canToggleOptional == canToggleOptional;
 
@@ -1603,6 +1817,7 @@ class _Row extends StatefulWidget {
     required this.row,
     required this.currentItem,
     required this.errors,
+    required this.amounts,
     required this.services,
     required this.onCellCommit,
     required this.onProductSelected,
@@ -1631,6 +1846,10 @@ class _Row extends StatefulWidget {
   final _RowState row;
   final LineItem currentItem;
   final Map<String, String>? errors;
+
+  /// This line's Tax Amount / Gross Line Total — null on the ghost row and
+  /// when the columns include neither.
+  final _LineAmounts? amounts;
   final Services services;
   final ValueChanged<LineItem> onCellCommit;
   final ValueChanged<Product> onProductSelected;
@@ -1802,31 +2021,26 @@ class _RowStateW extends State<_Row> {
       );
     }
 
-    Widget endTotalCell() {
-      final cost =
-          parseDecimal(row.cost.text, useCommaAsDecimalPlace: useComma) ??
-          Decimal.zero;
-      final qty = currentItem.typeId == LineItemType.task
-          ? parseHoursInput(
-                  row.quantity.text,
-                  useCommaAsDecimalPlace: useComma,
-                ) ??
-                currentItem.quantity
-          : parseDecimal(row.quantity.text, useCommaAsDecimalPlace: useComma) ??
-                Decimal.one;
-      final gross = cost * qty;
-      // Display via the company Formatter when available so the line
-      // total honors currency, thousands separator, and decimal place
-      // count (per CLAUDE.md). Falls back to a raw `Decimal.toString`
-      // before the formatter resolves.
-      final display = gross == Decimal.zero
-          ? '—'
-          : (formatter?.money(
-                  gross,
-                  zeroIsNull: true,
-                  currencyId: currencyId,
-                ) ??
-                gross.toString());
+    String moneyText(Decimal value) => value == Decimal.zero
+        ? '—'
+        : (formatter?.money(value, zeroIsNull: true, currencyId: currencyId) ??
+              value.toString());
+
+    // The money column an optional line's "Optional" caption sits under: the
+    // last of Tax Amount, Gross Line Total and Line Total the table draws —
+    // Line Total, unless the company's columns leave it out.
+    LineItemTableColumn? optionalCaptionColumn;
+    for (final column in config.desktopColumns) {
+      switch (column.kind) {
+        case LineItemTableColumnKind.taxAmount:
+        case LineItemTableColumnKind.grossLineTotal:
+        case LineItemTableColumnKind.lineTotal:
+          optionalCaptionColumn = column;
+        default:
+      }
+    }
+
+    Widget moneyCell(LineItemTableColumn column, String display) {
       final amount = LtrText(
         display,
         style: moneyTextStyle(
@@ -1837,9 +2051,11 @@ class _RowStateW extends State<_Row> {
         ),
       );
       return Expanded(
+        key: ValueKey(column.id),
+        flex: _columnFlex(config, column),
         child: Align(
           alignment: AlignmentDirectional.centerEnd,
-          child: currentItem.isOptional
+          child: currentItem.isOptional && column == optionalCaptionColumn
               ? Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.end,
@@ -1858,6 +2074,29 @@ class _RowStateW extends State<_Row> {
       );
     }
 
+    Widget endTotalCell(LineItemTableColumn column) {
+      final cost =
+          parseDecimal(row.cost.text, useCommaAsDecimalPlace: useComma) ??
+          Decimal.zero;
+      final qty = currentItem.typeId == LineItemType.task
+          ? parseHoursInput(
+                  row.quantity.text,
+                  useCommaAsDecimalPlace: useComma,
+                ) ??
+                currentItem.quantity
+          : parseDecimal(row.quantity.text, useCommaAsDecimalPlace: useComma) ??
+                Decimal.one;
+      // Display via the company Formatter when available so the line
+      // total honors currency, thousands separator, and decimal place
+      // count (per CLAUDE.md). Falls back to a raw `Decimal.toString`
+      // before the formatter resolves.
+      return moneyCell(column, moneyText(cost * qty));
+    }
+
+    // Read-only, as React draws them: what the server will store on the line.
+    // From the committed line, so they follow a typed figure once it commits.
+    Widget lineAmountCell(LineItemTableColumn column, Decimal? value) =>
+        moneyCell(column, value == null ? '—' : moneyText(value));
     // A category, not rates, while the company calculates taxes — see
     // `LineItemColumnConfig.useTaxCategories`. Committed at once on the row
     // rebuilt from its live cells, like the tax cell's pick.
@@ -1950,6 +2189,111 @@ class _RowStateW extends State<_Row> {
       );
     }
 
+    // The numeric cell whose Tab, on the ghost row, adds a row: the last of
+    // Unit Cost / Quantity / Discount the columns draw.
+    final lastTyping = isGhost ? _lastTypingColumn(config) : null;
+
+    Widget numericCell(
+      LineItemTableColumn column,
+      TextEditingController controller,
+      FocusNode focusNode,
+      String errorKey,
+    ) => Expanded(
+      key: ValueKey(column.id),
+      child: Padding(
+        padding: const EdgeInsetsDirectional.only(end: _kCellPadH),
+        child: _NumericCell(
+          controller: controller,
+          focusNode: focusNode,
+          onChanged: scheduleCommit,
+          errorText: errors?[errorKey],
+          onTabForward: column.kind == lastTyping ? onTabFromLastCell : null,
+        ),
+      ),
+    );
+
+    Widget? cellFor(LineItemTableColumn column) {
+      switch (column.kind) {
+        case LineItemTableColumnKind.item:
+          return Expanded(
+            key: ValueKey(column.id),
+            flex: _columnFlex(config, column),
+            child: Padding(
+              padding: const EdgeInsetsDirectional.only(end: _kCellPadH),
+              child: _ProductCell(
+                companyId: companyId,
+                formatter: formatter,
+                showProductDetails: widget.company?.showProductDetails ?? false,
+                showStock:
+                    widget.showStockQuantity &&
+                    (widget.company?.trackInventory ?? false),
+                controller: row.product,
+                focusNode: row.productFocus,
+                hintKey: isGhost ? 'add_an_item' : config.labelKey('product'),
+                onSelected: onProductSelected,
+                onCreateRequested: onCreateProduct,
+                onCommitText: scheduleCommit,
+              ),
+            ),
+          );
+        case LineItemTableColumnKind.description:
+          return Expanded(
+            key: ValueKey(column.id),
+            flex: _columnFlex(config, column),
+            child: Padding(
+              padding: const EdgeInsetsDirectional.only(end: _kCellPadH),
+              child: _TextCell(
+                controller: row.notes,
+                focusNode: row.notesFocus,
+                onChanged: scheduleCommit,
+                hintKey: 'description',
+                errorText: errors?['notes'],
+                maxLines: _kDescriptionMaxLines,
+                spellCheck: true,
+              ),
+            ),
+          );
+        case LineItemTableColumnKind.custom:
+          final custom = _customFieldOf(config, column);
+          return custom == null ? null : customCell(custom);
+        case LineItemTableColumnKind.unitCost:
+          return numericCell(column, row.cost, row.costFocus, 'cost');
+        case LineItemTableColumnKind.quantity:
+          return numericCell(
+            column,
+            row.quantity,
+            row.quantityFocus,
+            'quantity',
+          );
+        case LineItemTableColumnKind.discount:
+          return numericCell(
+            column,
+            row.discount,
+            row.discountFocus,
+            'discount',
+          );
+        // One cell per enabled slot. Only slot 1 used to be rendered, so a
+        // company on 2 or 3 item tax rates could not enter the others at all
+        // on desktop while the mobile dialog offered them — the same invoice
+        // totalling differently by viewport.
+        case LineItemTableColumnKind.tax:
+          return Expanded(
+            key: ValueKey(column.id),
+            flex: _columnFlex(config, column),
+            child: Padding(
+              padding: const EdgeInsetsDirectional.only(end: _kCellPadH),
+              child: taxSlot(column.slot),
+            ),
+          );
+        case LineItemTableColumnKind.taxAmount:
+          return lineAmountCell(column, widget.amounts?.taxAmount);
+        case LineItemTableColumnKind.grossLineTotal:
+          return lineAmountCell(column, widget.amounts?.grossLineTotal);
+        case LineItemTableColumnKind.lineTotal:
+          return endTotalCell(column);
+      }
+    }
+
     final body = FocusTraversalGroup(
       child: Container(
         padding: EdgeInsets.symmetric(
@@ -1986,104 +2330,13 @@ class _RowStateW extends State<_Row> {
                         ),
                       ),
                     ),
-              Expanded(
-                flex: _kItemFlex,
-                child: Padding(
-                  padding: const EdgeInsetsDirectional.only(end: _kCellPadH),
-                  child: _ProductCell(
-                    companyId: companyId,
-                    formatter: formatter,
-                    showProductDetails:
-                        widget.company?.showProductDetails ?? false,
-                    showStock:
-                        widget.showStockQuantity &&
-                        (widget.company?.trackInventory ?? false),
-                    controller: row.product,
-                    focusNode: row.productFocus,
-                    hintKey: isGhost
-                        ? 'add_an_item'
-                        : config.labelKey('product'),
-                    onSelected: onProductSelected,
-                    onCreateRequested: onCreateProduct,
-                    onCommitText: scheduleCommit,
-                  ),
-                ),
-              ),
-              Expanded(
-                flex: _kDescriptionFlex,
-                child: Padding(
-                  padding: const EdgeInsetsDirectional.only(end: _kCellPadH),
-                  child: _TextCell(
-                    controller: row.notes,
-                    focusNode: row.notesFocus,
-                    onChanged: scheduleCommit,
-                    hintKey: 'description',
-                    errorText: errors?['notes'],
-                    maxLines: _kDescriptionMaxLines,
-                    spellCheck: true,
-                  ),
-                ),
-              ),
-              for (final custom in config.customFields) customCell(custom),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsetsDirectional.only(end: _kCellPadH),
-                  child: _NumericCell(
-                    controller: row.cost,
-                    focusNode: row.costFocus,
-                    onChanged: scheduleCommit,
-                    errorText: errors?['cost'],
-                  ),
-                ),
-              ),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsetsDirectional.only(end: _kCellPadH),
-                  child: _NumericCell(
-                    controller: row.quantity,
-                    focusNode: row.quantityFocus,
-                    onChanged: scheduleCommit,
-                    errorText: errors?['quantity'],
-                    // Quantity is the last typing cell when discount is
-                    // hidden — tab forward then promotes the ghost.
-                    onTabForward: !config.showDiscount && isGhost
-                        ? onTabFromLastCell
-                        : null,
-                  ),
-                ),
-              ),
-              if (config.showDiscount)
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsetsDirectional.only(end: _kCellPadH),
-                    child: _NumericCell(
-                      controller: row.discount,
-                      focusNode: row.discountFocus,
-                      onChanged: scheduleCommit,
-                      errorText: errors?['discount'],
-                      // Discount is the last typing cell when shown.
-                      onTabForward: isGhost ? onTabFromLastCell : null,
-                    ),
-                  ),
-                ),
-              // One cell per enabled slot. Only slot 1 used to be rendered,
-              // so a company on 2 or 3 item tax rates could not enter the
-              // others at all on desktop while the mobile dialog offered them
-              // — the same invoice totalling differently by viewport.
-              //
-              // Keyed on the `Expanded`, not the cell inside it: the `Row`
-              // matches its own children, so a key one level down could not
-              // keep a tax cell's state when a column is inserted before it.
-              for (var slot = 1; slot <= config.taxColumnCount; slot++)
-                Expanded(
-                  key: ValueKey('tax_$slot'),
-                  flex: _taxSlotFlex(config, slot),
-                  child: Padding(
-                    padding: const EdgeInsetsDirectional.only(end: _kCellPadH),
-                    child: taxSlot(slot),
-                  ),
-                ),
-              endTotalCell(),
+              // The company's Invoice Design columns, in its order
+              // (`LineItemColumnConfig.desktopColumns`). Every cell is keyed
+              // on its column, on the widget the `Row` holds — a key one
+              // level down could not keep a cell's state when a column is
+              // inserted or moved before it (the company row landing, a
+              // settings change).
+              for (final column in config.desktopColumns) ?cellFor(column),
               SizedBox(
                 width: _kTrailingColWidth,
                 child: isGhost

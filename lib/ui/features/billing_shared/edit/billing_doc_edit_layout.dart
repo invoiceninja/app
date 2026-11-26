@@ -352,7 +352,7 @@ class _BillingDocEditLayoutState<T extends BillingDocFields>
     final items = vm.draft.lineItems;
     if (index < 0 || index >= items.length || items[index].isBlank) return;
     final config = _type.party == BillingDocParty.vendor
-        ? LineItemColumnConfig.minimal
+        ? LineItemColumnConfig.vendorDocument
         : billingLineItemColumnConfigFor(items[index]);
     await editLineItemAt(
       context,
@@ -1437,6 +1437,7 @@ class _ItemsEditor<T extends BillingDocFields> extends StatelessWidget {
       alwaysOfferTasksTab: type.alwaysOffersTasksTable,
       onCreateTaskFromLineItem: onCreateTask,
       allowOptionalLines: allowOptionalLines,
+      isQuote: type == BillingDocType.quote,
     );
   }
 }
@@ -1481,6 +1482,8 @@ class _VendorItemsEditorState<T extends BillingDocFields>
       items: vm.draft.lineItems,
       onChanged: vm.replaceLineItems,
       newItemFactory: emptyLineItem,
+      config: LineItemColumnConfig.vendorDocument,
+      totalsInput: vm.totalsInputOf(vm.draft),
       controller: _tableController,
       rowErrors: vm.lineItemRowErrors,
       onPickItems: widget.onPickItems,

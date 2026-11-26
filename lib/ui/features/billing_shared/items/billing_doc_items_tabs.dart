@@ -72,6 +72,7 @@ class BillingDocItemsTabs extends StatefulWidget {
     this.alwaysOfferTasksTab = false,
     this.onCreateTaskFromLineItem,
     this.allowOptionalLines = false,
+    this.isQuote = false,
   });
 
   /// For `addFlushHook` + `stripEmptyLineItems`. Type-erased to keep
@@ -108,6 +109,10 @@ class BillingDocItemsTabs extends StatefulWidget {
   /// Offer each line's Optional toggle — `BillingDocType.offersOptionalLines`.
   final bool allowOptionalLines;
 
+  /// A quote: its product tables take the company's Quote Product Columns
+  /// unless they are synced with the invoice's (`LineItemColumnConfig.isQuote`).
+  final bool isQuote;
+
   @override
   State<BillingDocItemsTabs> createState() => _BillingDocItemsTabsState();
 }
@@ -136,15 +141,18 @@ bool _isProductLine(LineItem li) => !_isExpenseLine(li) && !_isTaskLine(li);
 /// the company arrives, and starting at zero would pop the column in a beat
 /// later. Same "keep the host's config until we know better" rule the
 /// discount column has always used.
-LineItemColumnConfig _hostConfig({required bool isTaskTable}) =>
-    LineItemColumnConfig(
-      showDiscount: true,
-      taxColumnCount: 1,
-      // A client document: the server calculates its taxes when the company
-      // has Calculate Taxes on, so its lines take a tax category then.
-      useTaxCategories: true,
-      isTaskTable: isTaskTable,
-    );
+LineItemColumnConfig _hostConfig({
+  required bool isTaskTable,
+  bool isQuote = false,
+}) => LineItemColumnConfig(
+  showDiscount: true,
+  taxColumnCount: 1,
+  // A client document: the server calculates its taxes when the company
+  // has Calculate Taxes on, so its lines take a tax category then.
+  useTaxCategories: true,
+  isTaskTable: isTaskTable,
+  isQuote: isQuote,
+);
 
 /// The tab holding [line], as `vm.itemsTab` names it — set before this widget
 /// mounts, it opens on that tab (the first rule of `_initialKind`). The record
@@ -571,7 +579,14 @@ class _BillingDocItemsTabsState extends State<BillingDocItemsTabs>
       // discount column, so the tax count rides that read rather than opening
       // another subscription per editor (invoiceninja/flutter#85). The tabs'
       // own read above is a different question — which tabs exist — asked once.
-      config: _hostConfig(isTaskTable: kind == _LineKind.tasks),
+      config: _hostConfig(
+        isTaskTable: kind == _LineKind.tasks,
+        isQuote: widget.isQuote,
+      ),
+      // For the desktop table's Tax Amount / Gross Line Total columns, when
+      // the company lists them: a line's tax depends on the document's
+      // discount and inclusive-tax setting.
+      totalsInput: widget.vm.totalsInputOf(widget.vm.draft),
       controller: _controllerFor(kind),
       // Stock count is a product-selection affordance — only the products
       // tab's typeahead surfaces it (and only on invoices, via the host).

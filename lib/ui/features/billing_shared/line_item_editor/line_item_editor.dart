@@ -8,6 +8,7 @@ import 'package:admin/data/models/domain/billing/line_item.dart';
 import 'package:admin/data/models/domain/client.dart';
 import 'package:admin/data/models/domain/company.dart';
 import 'package:admin/data/models/value/currency.dart';
+import 'package:admin/domain/billing/totals_calculator.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/party_money_cell.dart';
 import 'package:admin/ui/features/billing_shared/line_item_editor/line_item_card_list_mobile.dart';
@@ -62,6 +63,7 @@ class LineItemEditor extends StatefulWidget {
     this.onCreateTaskFromLineItem,
     this.allowNewRows = true,
     this.allowOptionalLines = false,
+    this.totalsInput,
   });
 
   /// Company scope for the desktop table's product autocomplete +
@@ -155,6 +157,10 @@ class LineItemEditor extends StatefulWidget {
   /// the document's totals and marked on its row; a line that is already
   /// optional keeps its toggle wherever it is, so the flag can be cleared.
   final bool allowOptionalLines;
+
+  /// The document's totals input, for the desktop table's Tax Amount and
+  /// Gross Line Total columns ([LineItemTableDesktop.totalsInput]).
+  final BillingTotalsInput? totalsInput;
 
   @override
   State<LineItemEditor> createState() => _LineItemEditorState();
@@ -309,6 +315,7 @@ class _LineItemEditorState extends State<LineItemEditor> {
             onCreateTaskFromLineItem: widget.onCreateTaskFromLineItem,
             allowNewRows: widget.allowNewRows,
             allowOptionalLines: widget.allowOptionalLines,
+            totalsInput: widget.totalsInput,
           );
         }
         return LineItemCardListMobile(

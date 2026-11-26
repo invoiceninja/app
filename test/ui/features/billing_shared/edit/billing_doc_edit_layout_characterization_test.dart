@@ -38,12 +38,11 @@ const _settingsTab = [
   'Vendor',
   'Add tag',
 ];
-const _wideItemsTable = [
-  'Add an item…',
-  'Description',
-  '<unlabelled>',
-  '<unlabelled>',
-];
+// The ghost row's Item, Description and Unit Cost. No Quantity: the wide
+// table draws the company's Invoice Design columns as React's editor does,
+// and drops Quantity while "Show Product Quantity" is off — as it is on the
+// fixture's company (docs/line-item-columns.md).
+const _wideItemsTable = ['Add an item…', 'Description', '<unlabelled>'];
 
 /// Phone layout (390 px): tab label → field labels on that tab. No PDF tab —
 /// below `Breakpoints.wide` the PDF is the header's preview button.
