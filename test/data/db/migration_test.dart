@@ -297,6 +297,11 @@ void main() {
         'document_thumbnails',
         'list_column_widths_json',
         'account_prefs_kept_json',
+        'line_item_hidden_columns_json',
+        'print_after_saving',
+        'always_show_scrollbars',
+        'lock_after_inactivity_minutes',
+        'comment_reads_json',
       };
       for (final key in DevicePrefKeys.all) {
         if (addedAfterV12.contains(key.name)) {
