@@ -29,6 +29,7 @@ import 'package:admin/ui/core/widgets/ltr_value.dart';
 import 'package:admin/ui/features/reports/helpers/report_access.dart';
 import 'package:admin/ui/features/reports/views/reports_gallery_screen.dart';
 import 'package:admin/ui/features/settings/settings_search_catalog.dart';
+import 'package:admin/ui/features/settings/widgets/card_reader_section.dart';
 import 'package:admin/ui/features/settings/widgets/settings_search_result.dart';
 import 'package:admin/ui/features/review_prompt/review_listing.dart';
 import 'package:admin/ui/features/welcome/welcome_dialog.dart';
@@ -1021,6 +1022,7 @@ class _CommandPaletteState extends State<_CommandPalette> {
           context,
           services.auth.session.value,
         ),
+        showsCardReaders: cardReaderSectionAnswered(services),
       ),
     ).take(_kMaxSettingsHits);
     return [for (final hit in hits) _settingsRowFor(hit, l10n)];

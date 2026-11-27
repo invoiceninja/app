@@ -17,6 +17,7 @@ import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/adaptive.dart';
 import 'package:admin/ui/core/widgets/watch_builder.dart';
 import 'package:admin/ui/features/settings/settings_search_catalog.dart';
+import 'package:admin/ui/features/settings/widgets/card_reader_section.dart';
 import 'package:admin/ui/features/settings/state/settings_level_controller.dart';
 import 'package:admin/ui/features/settings/state/settings_search_controller.dart';
 import 'package:admin/ui/features/settings/view_models/settings_home_summary_view_model.dart';
@@ -371,6 +372,7 @@ class _SettingsListSidebarState extends State<SettingsListSidebar> {
         context,
         context.read<Services>().auth.session.value,
       ),
+      showsCardReaders: cardReaderSectionAnswered(context.read<Services>()),
     ),
   );
 

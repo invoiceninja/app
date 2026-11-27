@@ -607,13 +607,14 @@ bool _contactsSyncShown(SettingsSearchScope? _) => contactsSyncSectionShown();
 
 bool _homeWidgetsShown(SettingsSearchScope? _) => homeWidgetsSectionShown();
 
-bool _cardReaderShown(SettingsSearchScope? _) => cardReaderSectionShown();
+bool _cardReaderShown(SettingsSearchScope? scope) =>
+    cardReaderSectionShown() && (scope?.showsCardReaders ?? true);
 
-bool _tapToPayElsewhereShown(SettingsSearchScope? _) =>
-    cardReaderSectionShown() && !isIPhonePlatform();
+bool _tapToPayElsewhereShown(SettingsSearchScope? scope) =>
+    _cardReaderShown(scope) && !isIPhonePlatform();
 
-bool _tapToPayIPhoneShown(SettingsSearchScope? _) =>
-    cardReaderSectionShown() && isIPhonePlatform() && tapToPayRowShown();
+bool _tapToPayIPhoneShown(SettingsSearchScope? scope) =>
+    _cardReaderShown(scope) && isIPhonePlatform() && tapToPayRowShown();
 
 bool _downloadsFolderShown(SettingsSearchScope? _) =>
     downloadsFolderSectionShown();
@@ -1391,6 +1392,7 @@ class SettingsSearchScope {
     this.supportsFileNamePatterns = true,
     this.activeGatewayCount,
     this.showsChangePlan = true,
+    this.showsCardReaders = true,
   });
 
   /// [session] null (not loaded yet) fails open on hosted, matching
@@ -1406,6 +1408,7 @@ class SettingsSearchScope {
     required String? serverVersion,
     int? activeGatewayCount,
     bool showsChangePlan = true,
+    bool showsCardReaders = true,
   }) {
     final me = session?.currentCompany;
     return SettingsSearchScope(
@@ -1428,6 +1431,7 @@ class SettingsSearchScope {
           company != null && fileNamePatternsSupported(company.rawSettings),
       activeGatewayCount: activeGatewayCount,
       showsChangePlan: showsChangePlan,
+      showsCardReaders: showsCardReaders,
     );
   }
 
@@ -1437,6 +1441,10 @@ class SettingsSearchScope {
   /// Whether the Plan tab draws its Change Plan card here
   /// (`changePlanCardShown`, plan_screen.dart).
   final bool showsChangePlan;
+
+  /// Whether Device Settings draws its Card readers card here — the server
+  /// has answered for the company (`cardReaderSectionAnswered`).
+  final bool showsCardReaders;
 
   /// Editing a client's or a group's settings. A company-only page opened
   /// from there renders under the "editing client X" banner with override

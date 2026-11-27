@@ -61,8 +61,15 @@ static on `StripeTerminal`; each payment is a `TerminalPayment` from `beginPayme
   the cheap gates pass (`kCardPresentEnabled`, the mobile app with Stripe's SDK, not the demo,
   `create_payment`) — a user without that permission would get a 401. An answer stands for five
   minutes (an admin who turns Card present on sees it without a restart); a failed fetch keeps the
-  last answer and is tried again after a minute; an older server's 404 is remembered as "not here"
-  for the session. None of it toasts or reports.
+  last answer and is tried again after a minute; an older server's 404 is "not here" for an hour
+  (`unsupportedConfigRetry`), then asked again, so a server updated while the app runs turns the
+  feature on without a restart. None of it toasts or reports.
+- **Device Settings' Card readers card is drawn only once the server has answered**
+  (`cardReaderSectionAnswered`, which also gates its settings-search hits). A server without the
+  route, one that can't be reached and a user without `create_payment` get no card at all: it used
+  to render on every store build and tell a user whose server had no card payments yet to "check
+  the connection" and turn on a Card present switch their gateway didn't have. The card watches the
+  controller, so it appears by itself when an answer lands.
 - **`terminalAvailability`** (`lib/domain/terminal/terminal_eligibility.dart`, pure) adds the
   invoice (not deleted, paid, cancelled, reversed or unsaved; drafts are fine — the server marks
   them sent) and how this phone can read a card: Tap to Pay when the phone can and the gateway's

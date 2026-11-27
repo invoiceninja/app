@@ -35,10 +35,25 @@ const kCardReaderSearchKeys = <String>[
   'bluetooth_card_reader',
 ];
 
-/// Whether [CardReaderSection] renders here — and so whether settings search
-/// offers its keys: the store build of the mobile app.
+/// Whether [CardReaderSection] can render in this build: the store build of
+/// the mobile app. It draws only once the server has answered too
+/// ([cardReaderSectionAnswered]).
 bool cardReaderSectionShown() =>
     kCardPresentEnabled && Env.isMobile && StripeTerminal.isAvailable;
+
+/// Whether [CardReaderSection] draws now — and so whether settings search
+/// offers its keys: this build can, and the server has answered
+/// `terminal/config` for the active company. A server without card payments
+/// (404), one that can't be reached, and a user who can't create payments get
+/// no section at all, rather than a card about a feature their server doesn't
+/// have; it appears by itself once the server answers
+/// (`TerminalController.unsupportedConfigRetry`).
+bool cardReaderSectionAnswered(Services services) {
+  // First, so a build without the feature never touches the controller.
+  if (!cardReaderSectionShown()) return false;
+  final companyId = services.auth.session.value?.currentCompanyId;
+  return companyId != null && services.terminal.configFor(companyId) != null;
+}
 
 /// Whether the Tap to Pay row renders. On iOS only once this build is
 /// known to carry Apple's entitlement: before general availability (today's
@@ -234,6 +249,11 @@ class _CardReaderSectionState extends State<CardReaderSection> {
     return ListenableBuilder(
       listenable: _terminal,
       builder: (context, _) {
+        // Nothing until the server answers: an older server's card is not
+        // drawn, and this rebuilds into the section when it does.
+        if (!cardReaderSectionAnswered(_services)) {
+          return const SizedBox.shrink();
+        }
         final device = _terminal.device;
         final reader = _terminal.reader;
         final bluetoothReader =

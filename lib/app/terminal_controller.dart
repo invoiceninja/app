@@ -99,6 +99,11 @@ class TerminalController extends ChangeNotifier {
   static const configLifetime = Duration(minutes: 5);
   static const failedConfigRetry = Duration(minutes: 1);
 
+  /// How long a server without the route (404) is taken at its word: asked
+  /// again after this, so a server updated while the app runs turns the
+  /// feature on without a restart — at most one 404 an hour per company.
+  static const unsupportedConfigRetry = Duration(hours: 1);
+
   TerminalPlatform get platform => _platform;
   TerminalRepository get repository => _repo;
 
@@ -401,16 +406,21 @@ class TerminalController extends ChangeNotifier {
 
   /// Asks the server (and this phone) when nothing cheaper rules the
   /// feature out. Never throws and never reports. A server without the route
-  /// answers 404 — "not here", remembered for the session; any other failure
-  /// is tried again after [failedConfigRetry], and an answer is refreshed
-  /// after [configLifetime].
+  /// answers 404 — "not here", asked again after [unsupportedConfigRetry];
+  /// any other failure is tried again after [failedConfigRetry], and an
+  /// answer is refreshed after [configLifetime].
   void ensureConfig(String companyId) {
     if (!platformReady || !_canCreatePayment()) return;
     final entry = _configs[companyId];
     if (entry != null) {
-      if (entry.loading || entry.unsupported) return;
+      if (entry.loading) return;
       final age = _clock().difference(entry.fetchedAt);
-      if (age < (entry.failed ? failedConfigRetry : configLifetime)) return;
+      final wait = entry.unsupported
+          ? unsupportedConfigRetry
+          : entry.failed
+          ? failedConfigRetry
+          : configLifetime;
+      if (age < wait) return;
     }
     unawaited(_load(companyId, keep: entry?.config));
   }
@@ -875,8 +885,8 @@ class TerminalController extends ChangeNotifier {
     final device = await refreshDevice();
     if (stale() || !device.tapToPay || device.osUpdateRequired) return;
     if (!platformReady || !_canCreatePayment()) return;
-    // The same rules as anywhere else: an older server's 404 is not asked
-    // again, and a failed fetch waits its minute.
+    // The same rules as anywhere else: an older server's 404 waits its hour,
+    // and a failed fetch its minute.
     ensureConfig(companyId);
     final running = _loading[companyId];
     if (running != null) await running;

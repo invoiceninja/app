@@ -282,6 +282,39 @@ void main() {
     );
   });
 
+  test('a server without the route is asked again after an hour, and '
+      'offers the action once it has been updated', () async {
+    var now = DateTime(2026, 11, 11, 12);
+    final timed = TerminalController(
+      repository: repo,
+      platform: platform,
+      auth: auth,
+      prefs: prefs,
+      platformReady: true,
+      clock: () => now,
+    );
+    timed.ensureConfig('co_a');
+    await settle();
+    expect(timed.configState('co_a'), TerminalConfigState.serverTooOld);
+
+    now = now.add(const Duration(minutes: 59));
+    timed.ensureConfig('co_a');
+    await settle();
+    expect(repo.calls, ['config:co_a']);
+
+    now = now.add(const Duration(minutes: 2));
+    repo.configAnswer = _config();
+    timed.ensureConfig('co_a');
+    await settle();
+    expect(repo.calls, hasLength(2));
+    expect(timed.configFor('co_a'), isNotNull);
+    expect(
+      timed.availabilityFor('co_a', invoice),
+      TerminalAvailability.available,
+    );
+    timed.dispose();
+  });
+
   test(
     'a failed fetch is tried again after a minute, an answer after five',
     () async {
@@ -813,7 +846,7 @@ void main() {
       });
 
       test(
-        'an older server is asked once, however often it warms up',
+        'an older server is asked once an hour, however often it warms up',
         () async {
           repo.configAnswer = null; // 404
           await phone.warmUp('co_a');

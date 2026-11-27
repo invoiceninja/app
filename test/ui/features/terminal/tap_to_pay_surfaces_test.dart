@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:admin/app/services.dart';
 import 'package:admin/app/terminal_controller.dart';
 import 'package:admin/data/models/domain/invoice_status.dart';
@@ -10,6 +12,8 @@ import 'package:admin/ui/features/terminal/tap_to_pay_icon.dart';
 import 'package:decimal/decimal.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../shell/_shell_test_helpers.dart';
@@ -54,11 +58,15 @@ void main() {
   final iOS = TargetPlatformVariant.only(TargetPlatform.iOS);
   final android = TargetPlatformVariant.only(TargetPlatform.android);
 
-  Future<Services> fixture(WidgetTester tester) async {
+  Future<Services> fixture(
+    WidgetTester tester, {
+    http.Client? httpClient,
+  }) async {
     final f = await buildFixture(
       companies: [
         FakeCompany(id: 'co1', name: 'Acme', isAdmin: true, isOwner: true),
       ],
+      httpClient: httpClient,
     );
     addTearDown(f.dispose);
     await f.services.terminal.refreshDevice();
@@ -125,8 +133,43 @@ void main() {
     expect(quick.first.shortLabel, 'Card');
   }, variant: android);
 
-  Future<void> section(WidgetTester tester) async {
-    final services = await fixture(tester);
+  /// The server's `terminal/config`: one card-present Stripe gateway, or
+  /// [status] with the server's own body for a server without the route.
+  http.Client server({int status = 200}) => MockClient((request) async {
+    if (request.url.path != '/api/v1/terminal/config') {
+      throw http.ClientException('offline (test fixture)');
+    }
+    if (status != 200) {
+      return http.Response(
+        jsonEncode({'message': 'Route does not exist'}),
+        status,
+        headers: {'content-type': 'application/json'},
+      );
+    }
+    return http.Response(
+      jsonEncode({
+        'enabled': true,
+        'plan_ok': true,
+        'gateways': [
+          {
+            'company_gateway_id': 'cg_1',
+            'label': 'Stripe',
+            'account_country': 'us',
+            'default_currency': 'USD',
+            'card_payments_active': true,
+            'locations': [
+              {'id': 'tml_1', 'display_name': 'Main'},
+            ],
+          },
+        ],
+      }),
+      200,
+      headers: {'content-type': 'application/json'},
+    );
+  });
+
+  Future<void> section(WidgetTester tester, {int status = 200}) async {
+    final services = await fixture(tester, httpClient: server(status: status));
     await tester.pumpWidget(
       wrapWithShell(
         services,
@@ -134,7 +177,16 @@ void main() {
       ),
     );
     await tester.pump();
+    await tester.pump();
   }
+
+  testWidgets('a server without card payments (404) gets no card at all, '
+      'not one saying it couldn\'t check', (tester) async {
+    await section(tester, status: 404);
+    expect(find.text('Card readers'), findsNothing);
+    expect(find.textContaining('Tap to Pay'), findsNothing);
+    expect(find.textContaining('Couldn'), findsNothing);
+  }, variant: android);
 
   testWidgets('iOS: the card reader row has Apple\'s name and symbol, the '
       'words settings search reveals', (tester) async {
