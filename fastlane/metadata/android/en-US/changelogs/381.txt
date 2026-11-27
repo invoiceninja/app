@@ -1,0 +1,7 @@
+- Out of beta: the app is now Invoice Ninja
+- Lock after inactivity, unlocked with your device's sign-in
+- Teammates' new comments flagged, with a Comments inbox
+- Print After Saving, and Ctrl+P saves and prints
+- Line items follow your Invoice Design's columns
+- Private notes stand out on records
+- Fixes for dates, quotes, the template editor and email previews

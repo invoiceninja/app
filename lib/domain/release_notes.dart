@@ -294,6 +294,81 @@ List<ReleaseNotes> releasesToShow({
 
 const List<ReleaseNotes> kReleaseNotes = [
   ReleaseNotes(
+    version: '5.1.35',
+    highlights: [
+      ReleaseHighlight(
+        icon: Icons.rocket_launch_outlined,
+        title: 'Out of beta',
+        body:
+            'Invoice Ninja is now the public app. Thank you for testing it; '
+            "keep telling us what you'd change.",
+      ),
+      ReleaseHighlight(
+        icon: Icons.lock_clock_outlined,
+        title: 'Lock after inactivity',
+        body:
+            "Lock the app after a quiet spell and unlock it with your device's "
+            'own sign-in, without signing out.',
+        target: ReleaseHighlightRoute('/settings/device_settings'),
+      ),
+      ReleaseHighlight(
+        icon: Icons.mark_chat_unread_outlined,
+        title: 'New comments flagged',
+        body:
+            "Teammates' new comments are marked on the record, and admins get "
+            'a Comments inbox in the menu.',
+      ),
+      ReleaseHighlight(
+        icon: Icons.view_column_outlined,
+        title: 'Line item columns',
+        body:
+            "The line items table follows your Invoice Design's columns, and "
+            'you choose which custom fields it shows.',
+        target: ReleaseHighlightRoute('/invoices', module: EntityType.invoice),
+      ),
+    ],
+    items: [
+      ReleaseNoteItem(
+        'Updated: The app is out of beta, and is called Invoice Ninja on your '
+        'home screen and dock',
+      ),
+      ReleaseNoteItem(
+        'Added: Lock after inactivity (Device Settings > Security), unlocked '
+        "with your device's own sign-in, and teammates' new comments flagged "
+        'on the record with a Comments inbox for admins',
+      ),
+      ReleaseNoteItem(
+        'Added: Print After Saving (Device Settings > Forms), and Ctrl+P / '
+        'Cmd+P saves and prints in the invoice, quote, credit, recurring '
+        'invoice and purchase order editors',
+      ),
+      ReleaseNoteItem(
+        "Updated: The line items table shows your Invoice Design's columns, "
+        'Edit Columns picks the custom fields it shows, Move Top and Bottom '
+        'reach the whole document, More Fields opens the full line, and Find '
+        'works in the editor too '
+        '[#216](https://github.com/invoiceninja/flutter/issues/216) '
+        '[#217](https://github.com/invoiceninja/flutter/issues/217)',
+      ),
+      ReleaseNoteItem(
+        'Updated: Private notes stand out near the top of a record, a new '
+        "payment's invoice list follows the client "
+        '[#213](https://github.com/invoiceninja/flutter/issues/213), Log time '
+        'in the daily and weekly task views can add to an existing task, and '
+        'scroll bars are easier to find on desktop',
+      ),
+      ReleaseNoteItem(
+        'Fixed: Dates in English (UK) and other languages use the right '
+        'language, a quote with confirmed optional lines saves again, the '
+        'template editor copies a whole selection '
+        '[#212](https://github.com/invoiceninja/flutter/issues/212), the SEPA '
+        'QR code shows in email previews on web and Linux, and the app icon '
+        'stays white in Dark icon mode '
+        '[#218](https://github.com/invoiceninja/flutter/issues/218)',
+      ),
+    ],
+  ),
+  ReleaseNotes(
     version: '5.1.34',
     highlights: [
       ReleaseHighlight(
