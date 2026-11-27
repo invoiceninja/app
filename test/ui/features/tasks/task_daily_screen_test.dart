@@ -1,6 +1,7 @@
 // The Daily view's `+` was gated on `create_task`, but two more of its
-// controls create tasks too: Log time (`TaskDailyActions.logTime` opens a
-// new-task draft — in the header and on an empty day) and Duplicate yesterday
+// controls create tasks too: Log time (`TaskDailyActions.logTime` opens the
+// quick-log dialog, which creates a task when no existing one is picked — in
+// the header and on an empty day) and Duplicate yesterday
 // (`duplicateYesterday` clones yesterday's tasks). A view-only user was handed
 // both, and the server would refuse the save.
 //

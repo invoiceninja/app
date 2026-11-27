@@ -115,14 +115,16 @@ class TaskDailyHeader extends StatelessWidget {
             if (wide)
               FilledButton.icon(
                 style: FilledButton.styleFrom(minimumSize: const Size(64, 40)),
-                onPressed: () => TaskDailyActions.logTime(context, vm.day),
+                onPressed: () =>
+                    TaskDailyActions.logTime(context, vm.companyId, vm.day),
                 icon: const Icon(Icons.add, size: 18),
                 label: Text(context.tr('log_time')),
               )
             else
               IconButton.filledTonal(
                 tooltip: context.tr('log_time'),
-                onPressed: () => TaskDailyActions.logTime(context, vm.day),
+                onPressed: () =>
+                    TaskDailyActions.logTime(context, vm.companyId, vm.day),
                 icon: const Icon(Icons.add),
               ),
           ],

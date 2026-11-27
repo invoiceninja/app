@@ -248,7 +248,8 @@ class _DailyList extends StatelessWidget {
         action: mayCreate
             ? FilledButton.icon(
                 style: FilledButton.styleFrom(minimumSize: const Size(64, 44)),
-                onPressed: () => TaskDailyActions.logTime(context, vm.day),
+                onPressed: () =>
+                    TaskDailyActions.logTime(context, vm.companyId, vm.day),
                 icon: const Icon(Icons.add, size: 18),
                 label: Text(context.tr('log_time')),
               )

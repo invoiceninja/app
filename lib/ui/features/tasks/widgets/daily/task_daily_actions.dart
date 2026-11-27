@@ -1,6 +1,5 @@
 import 'package:flutter/widgets.dart';
 
-import 'package:admin/app/router.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/data/models/domain/task.dart';
 import 'package:admin/data/models/domain/time_entry.dart';
@@ -8,7 +7,7 @@ import 'package:admin/data/models/value/date.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/features/tasks/view_models/task_daily_view_model.dart';
-import 'package:admin/ui/features/tasks/view_models/task_edit_view_model.dart';
+import 'package:admin/ui/features/tasks/widgets/quick_log_time_sheet.dart';
 import 'package:admin/ui/features/tasks/widgets/task_actions.dart';
 
 /// Static dispatch for the daily-view actions (start/stop a timer, log time,
@@ -26,20 +25,13 @@ class TaskDailyActions {
     Task task,
   ) => TaskActions.toggleTimer(context, services, companyId, task);
 
-  /// Open the task editor seeded with a 30-minute entry on [day] — the daily
-  /// view's lightweight "log time" (v2 has no quick-log modal). Anchored to the
-  /// current time when [day] is today, else 09:00 on that day.
-  static void logTime(BuildContext context, Date day) {
-    final isToday = day == Date.today();
-    final base = isToday
-        ? DateTime.now()
-        : DateTime(day.year, day.month, day.day, 9);
-    final start = base.subtract(const Duration(minutes: 30));
-    final draft = emptyTask().copyWith(
-      timeLog: [TimeEntry(start: start, stop: base)],
-    );
-    goEntityCreateFullWidth(context, '/tasks', extra: draft);
-  }
+  /// Open the quick-log dialog on [day]: add a duration to an existing task,
+  /// or to a new one, without leaving the view (`quick_log_time_sheet.dart`).
+  static Future<void> logTime(
+    BuildContext context,
+    String companyId,
+    Date day,
+  ) => showQuickLogTimeSheet(context, companyId: companyId, day: day);
 
   /// Clone every task with stopped entries on the previous day into a fresh
   /// task for the focused day, each entry shifted +24h. Running source entries

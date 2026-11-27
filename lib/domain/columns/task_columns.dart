@@ -17,6 +17,7 @@ import 'package:admin/ui/core/utils/show_seconds.dart';
 import 'package:admin/ui/features/tasks/widgets/running_duration_label.dart';
 import 'package:admin/ui/features/tasks/widgets/task_status_pill.dart';
 import 'package:admin/utils/formatting.dart';
+import 'package:admin/utils/notes_html.dart';
 
 typedef TaskColumn = ColumnDefinition<Task>;
 
@@ -48,8 +49,10 @@ final List<TaskColumn> kAllTaskColumns = <TaskColumn>[
   TaskColumn(
     id: TaskFieldIds.description,
     labelKey: 'description',
-    cellBuilder: (t, _) => cellText(t.description),
-    valueBuilder: (t) => cellNonZeroString(t.description),
+    // Descriptions are HTML (the server, React and the rich editor all write
+    // markup), so the cell flattens it rather than printing `<b>` tags.
+    cellBuilder: (t, _) => cellNotes(t.description),
+    valueBuilder: (t) => cellNonZeroString(plainTextFromHtml(t.description)),
   ),
   TaskColumn(
     id: TaskFieldIds.clientId,

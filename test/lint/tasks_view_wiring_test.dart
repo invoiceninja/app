@@ -141,7 +141,8 @@ void main() {
     // `create_task`), and they keep it: a FAB may only be dropped where the
     // substitute is the SAME verb. Daily and weekly do have a second create
     // (`TaskDailyActions.logTime`, behind a `Log time` button under the same
-    // permission gate), but it pre-fills a time entry and says so, and
+    // permission gate), but it logs a duration, onto an existing task or a
+    // new one (`quick_log_time_sheet.dart`), and
     // calendar's is convert-this-event — neither is a plain new task. Kanban's
     // FAB was the one true duplicate: every column already ends in a
     // `+ New Task` that seeds that column's status, where the FAB seeded

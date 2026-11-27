@@ -1,5 +1,6 @@
 import 'package:material_ui/material_ui.dart';
 
+import 'package:admin/utils/notes_html.dart';
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/env.dart';
 import 'package:admin/data/models/domain/task.dart';
@@ -159,9 +160,11 @@ class _TaskListTileState extends State<TaskListTile> {
         (due != null && t.invoiceId.isEmpty && due.compareTo(Date.today()) < 0)
         ? due
         : null;
-    final identity = t.description.isEmpty
+    // Plain text: a description is HTML, and the row printed its tags.
+    final description = plainTextFromHtml(t.description);
+    final identity = description.isEmpty
         ? (t.number.isEmpty ? '—' : '#${t.number}')
-        : t.description;
+        : description;
     final leading = w.showAssignee || w.selecting || !Env.isTouchPrimary;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,

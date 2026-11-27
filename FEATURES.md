@@ -475,6 +475,7 @@ the honest default.
 | Task — kanban board view | ✅ | ✅ | ✅ | ✅ | |
 | Task — daily view | ✅ | ❌ | ✅ |  | |
 | Task — weekly view | ✅ | ❌ | ✅ |  | |
+| Task — Log time from the daily / weekly view: a quick-log dialog that adds a duration to an existing task or a new one, without leaving the view | 🟡 | ❌ | ✅ |  | React's `QuickLogTimeModal` only creates a new task |
 | Task — weekly view shows hours as decimal or HH:MM (toggle) | ✅ | ❌ | ✅ | | React on its develop branch (ui#3422), unreleased. v2's switch sits in the grid's Total row and is remembered per account |
 | Task — calendar view | ✅ | ❌ | ✅ |  | |
 | Task — calendar places a task on every day one of its time entries touches (hosted, or self-hosted ≥ 5.13.43, fetches the month by `activity_dates`) | ✅ | ❌ | ✅ |  | |

@@ -56,8 +56,21 @@ Widget cellText(String value, {bool bold = false}) {
 /// apps — and a table cell has one line to spend, so the markup is flattened
 /// to its words. Without this the cell printed `<p>` tags at the user, which
 /// it already did for anything authored on the web.
-Widget cellNotes(String value) =>
-    cellText(plainTextFromHtml(value, singleLine: true));
+///
+/// A cell shows one line, so a longer value also gets the whole text, line
+/// breaks kept, in a tooltip — a task described in several lines (a category
+/// line, then the detail) was otherwise unreadable past its first words.
+Widget cellNotes(String value) {
+  final line = plainTextFromHtml(value, singleLine: true);
+  if (line.isEmpty) return cellEmpty();
+  final full = plainTextFromHtml(value);
+  if (full == line && line.length <= 30) return CellText(value: line);
+  return Tooltip(
+    message: full,
+    waitDuration: InTooltip.labelDelay,
+    child: CellText(value: line),
+  );
+}
 
 /// Currency cell — resolves [currencyId] to its ISO code (e.g. "USD") from the
 /// static catalog; falls back to the raw id when the catalog lacks it (or hasn't
