@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 
@@ -146,6 +147,50 @@ void main() {
           '$path is missing sizes Windows needs (found $sizes). Regenerate it '
           'with `dart run tools/gen_app_icons.dart`.',
     );
+  });
+
+  // invoiceninja/app#218: left to `automatic`, iOS / macOS 26's Dark icon mode
+  // darkened the background showing through the envelope as well as the tile,
+  // leaving a grey envelope on black.
+  test('the Apple icons keep their dark appearance and match', () {
+    const paths = ['ios/Runner/AppIcon.icon', 'macos/AppIcon.icon'];
+    final docs = [
+      for (final path in paths)
+        jsonDecode(File('$path/icon.json').readAsStringSync())
+            as Map<String, dynamic>,
+    ];
+
+    expect(
+      jsonEncode(docs.first),
+      jsonEncode(docs.last),
+      reason: 'The iOS and macOS icon.json files must stay identical.',
+    );
+
+    Map<String, dynamic>? dark(Map<String, dynamic> node) {
+      final specializations = node['fill-specializations'] as List?;
+      return specializations
+          ?.cast<Map<String, dynamic>>()
+          .where((s) => s['appearance'] == 'dark')
+          .firstOrNull;
+    }
+
+    final layer =
+        ((docs.first['groups'] as List).first['layers'] as List).first
+            as Map<String, dynamic>;
+
+    expect(
+      dark(docs.first)?['value'],
+      isA<Map<String, dynamic>>().having(
+        (v) => v['automatic-gradient'],
+        'automatic-gradient',
+        'extended-gray:1.00000,1.00000',
+      ),
+      reason:
+          'In Dark mode the background must stay light: it is the envelope.',
+    );
+    expect(dark(layer)?['value'], {
+      'solid': 'extended-gray:0.00000,1.00000',
+    }, reason: 'In Dark mode the tile layer must stay solid black.');
   });
 }
 
