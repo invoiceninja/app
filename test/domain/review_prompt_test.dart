@@ -78,17 +78,13 @@ void main() {
       );
     });
 
-    test('kAppStoreId, once set, is the bare numeric Apple ID', () {
-      // Null until it is filled in; then digits only, or the review link
-      // reads `idid123…` and opens nothing.
-      const id = kAppStoreId;
-      if (id != null) {
-        expect(id, matches(RegExp(r'^[0-9]+$')));
-        expect(
-          reviewListingUri(ReviewChannel.appleStore).toString(),
-          'https://apps.apple.com/app/id$id?action=write-review',
-        );
-      }
+    test('kAppStoreId is the bare numeric Apple ID', () {
+      // Digits only, or the review link reads `idid123…` and opens nothing.
+      expect(kAppStoreId, matches(RegExp(r'^[0-9]+$')));
+      expect(
+        reviewListingUri(ReviewChannel.appleStore).toString(),
+        'https://apps.apple.com/app/id$kAppStoreId?action=write-review',
+      );
     });
 
     test('each channel opens its own review page', () {

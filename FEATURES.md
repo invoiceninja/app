@@ -1207,7 +1207,7 @@ Field-level breakdown of every option under each settings panel. Source of truth
 | E-invoice settings gated at Enterprise on hosted | ✅ | — | ✅ | ✅ | |
 | E-invoicing settings at company level only; PEPPOL hidden for self-hosted companies in France | ✅ | — | ✅ | | |
 | State-aware upgrade copy (trial / trialing / expired-renew / upgrade) | ✅ | ✅ | ✅ | ✅ | |
-| Hosted upgrade via App Store / Play IAP (Windows / Linux / web → portal; macOS is a store-billing build) | — | ✅ | ✅ | ✅ | Sold from the launch release; the sheet stays closed whenever the hosted billing has purchases off |
+| Hosted upgrade via App Store / Play IAP (Windows / Linux / web → portal; macOS is a store-billing build) | — | ✅ | ✅ | ✅ | Built; off at launch (no purchase UI until the hosted billing turns purchases on) |
 | Manage an App Store subscription in-app (the App Store subscriptions page on iOS and macOS, Play's on Android) | — | — | ✅ | | |
 | Store build launches without in-app purchases: no Upgrade / Buy / Restore, trial or "upgrade elsewhere" copy until the hosted config sells to the account; plan-gated prompts name the plan, limits stay stated, Manage subscription stays (desktop / web / F-Droid unchanged) | — | — | ✅ | | docs/in-app-purchases.md |
 | Move a Legacy-app Google Play subscription to the new app (the purchase sheet says the Legacy one is cancelled and its unused time refunded; Android only) | — | — | 🟡 | | App side done; the hosted config's `replaces_v1_play` is in admin-module#39 (f671a3f, S8), and the app fails closed until that deploys with `NINJA_IAP_PLAY_MIGRATION_REFUND` on |

@@ -382,8 +382,8 @@ void main() {
         controller(
           channel: ReviewChannel.appleStore,
         ).offersManualRatingTo(_session()),
-        isFalse,
-        reason: 'no App Store id yet',
+        isTrue,
+        reason: 'the App Store id is set',
       );
       expect(controller().offersManualRatingTo(null), isFalse);
     });
