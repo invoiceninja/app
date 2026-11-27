@@ -89,6 +89,19 @@
     <control>touch</control>
   </supports>
   <releases>
+    <release version="5.1.35" date="2026-11-27">
+      <description>
+        <ul>
+          <li>Out of beta: the app is now Invoice Ninja</li>
+          <li>Lock after inactivity, unlocked with your device's sign-in</li>
+          <li>Teammates' new comments flagged, with a Comments inbox</li>
+          <li>Print After Saving, and Ctrl+P saves and prints</li>
+          <li>Line items follow your Invoice Design's columns</li>
+          <li>Private notes stand out on records</li>
+          <li>Fixes for dates, quotes, the template editor and email previews</li>
+        </ul>
+      </description>
+    </release>
     <release version="5.1.34" date="2026-11-24">
       <description>
         <ul>
