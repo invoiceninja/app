@@ -2,12 +2,14 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
+import 'package:admin/app/search_focus_registry.dart';
 import 'package:admin/ui/core/utils/text_input_focus.dart';
 
-/// ⌘F / Ctrl+F — the find chord, shared by the two surfaces that answer it:
-/// a record screen (`EntityDetailScaffold`, through `DetailFindNavigator`) and
-/// a billing document's editor (`BillingDocEditLayout`). Both open find in
-/// line items (`docs/find-in-line-items.md`).
+/// ⌘F / Ctrl+F — the find chord, shared by the surfaces that answer it: a
+/// record screen (`EntityDetailScaffold`, through `DetailFindNavigator`) and a
+/// billing document's editor (`BillingDocEditLayout`) open find in line items
+/// (`docs/find-in-line-items.md`); anywhere else the shell focuses the screen's
+/// search field (`ScaffoldWithNav`, with an intent of its own).
 class FindChordIntent extends Intent {
   const FindChordIntent();
 }
@@ -15,16 +17,23 @@ class FindChordIntent extends Intent {
 /// ⌘F on Apple platforms, Ctrl+F elsewhere — one modifier each, never both:
 /// ⌃F is Cocoa's forward-a-character inside a text field.
 ///
+/// [intent] defaults to [FindChordIntent]. The shell's fallback passes its own:
+/// `Actions` resolves an intent from the focused node upward, so a shell
+/// binding to [FindChordIntent] would find a record's disabled find action
+/// again instead of its own.
+///
 /// Build the map once per surface (a `late final` field), never in `build`:
 /// a new `SingleActivator` has no `==`, so a map rebuilt every frame reads to
 /// `ShortcutManager` as a change — a re-index and a notify from every rebuild.
-Map<ShortcutActivator, Intent> findChordShortcuts() {
+Map<ShortcutActivator, Intent> findChordShortcuts({
+  Intent intent = const FindChordIntent(),
+}) {
   final apple =
       defaultTargetPlatform == TargetPlatform.macOS ||
       defaultTargetPlatform == TargetPlatform.iOS;
   return <ShortcutActivator, Intent>{
     SingleActivator(LogicalKeyboardKey.keyF, meta: apple, control: !apple):
-        const FindChordIntent(),
+        intent,
   };
 }
 
@@ -55,4 +64,38 @@ class FindChordAction extends GuardedShortcutAction<FindChordIntent> {
   @override
   bool consumesKey(FindChordIntent intent) =>
       _canFind() && super.consumesKey(intent);
+}
+
+/// The shell's ⌘F / Ctrl+F: focus the on-stage search field, as `/` does.
+/// Bound in `ScaffoldWithNav` above every record and editor, so a find in line
+/// items lower down wins wherever it is enabled. A distinct intent from
+/// [FindChordIntent] — see [findChordShortcuts].
+class FindFocusSearchIntent extends Intent {
+  const FindFocusSearchIntent();
+}
+
+/// Runs [SearchFocusRegistry.activate]. Fires from inside a text field (the
+/// chord types nothing), and is disabled — so the key falls through, to the
+/// browser on the web — while no search field is on stage.
+class FindFocusSearchAction
+    extends GuardedShortcutAction<FindFocusSearchIntent> {
+  FindFocusSearchAction(SearchFocusRegistry registry)
+    : _registry = registry,
+      super(
+        onInvoke: (_) {
+          registry.activate();
+          return null;
+        },
+        firesInTextInput: () => true,
+      );
+
+  final SearchFocusRegistry _registry;
+
+  @override
+  bool isEnabled(FindFocusSearchIntent intent) =>
+      _registry.current != null && super.isEnabled(intent);
+
+  @override
+  bool consumesKey(FindFocusSearchIntent intent) =>
+      _registry.current != null && super.consumesKey(intent);
 }

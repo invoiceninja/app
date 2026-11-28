@@ -49,7 +49,11 @@ class _KeyboardShortcutsDialog extends StatelessWidget {
         if (def.group == group)
           if (controller.effectiveBinding(def.id) case final b?)
             _Row(
-              chords: [b.displayGlyphs(mod)],
+              chords: [
+                b.displayGlyphs(mod),
+                // The shell's fixed ⌘F fallback (`ScaffoldWithNav`).
+                if (def.id == ShortcutActionIds.focusSearch) [mod, 'F'],
+              ],
               description: context.tr(def.labelKey),
             ),
     ];

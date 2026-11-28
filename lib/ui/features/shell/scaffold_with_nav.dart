@@ -21,6 +21,7 @@ import 'package:admin/domain/quick_create.dart';
 import 'package:admin/domain/tasks/tasks_view_mode.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/adaptive.dart';
+import 'package:admin/ui/core/utils/find_chord.dart';
 import 'package:admin/ui/core/utils/platform_modifier.dart';
 import 'package:admin/ui/core/utils/text_input_focus.dart';
 import 'package:admin/ui/core/widgets/cloudflare_banner.dart';
@@ -460,6 +461,15 @@ class _ScaffoldWithNavState extends State<ScaffoldWithNav> {
             _HistoryArrowIntent(AxisDirection.right),
       };
 
+  /// ⌘F / Ctrl+F where nothing below answers it: focus the screen's search
+  /// field, as `/` does. A record or an editor with line items binds the same
+  /// chord lower down to its own find, and that one wins; where its find is
+  /// disabled (no line items), the chord falls through to here. Listed after
+  /// the catalog, so a user who bound ⌘F to an action before it was reserved
+  /// keeps it. Built once — see [findChordShortcuts].
+  late final Map<ShortcutActivator, Intent> _findChordFallback =
+      findChordShortcuts(intent: const FindFocusSearchIntent());
+
   /// Navigate to an entity's create route (fired by a `create_<entity>`
   /// shortcut). No-op when the entity has no create route, its module is
   /// disabled for the active company (mirrors [_goBranch] — avoids the flash of
@@ -578,6 +588,7 @@ class _ScaffoldWithNavState extends State<ScaffoldWithNav> {
             _globalIntents,
           ),
           ..._fixedGlobalShortcuts,
+          ..._findChordFallback,
         },
         child: child!,
       ),
@@ -631,6 +642,9 @@ class _ScaffoldWithNavState extends State<ScaffoldWithNav> {
               context.read<Services>().searchFocus.activate();
               return null;
             },
+          ),
+          FindFocusSearchIntent: FindFocusSearchAction(
+            context.read<Services>().searchFocus,
           ),
           _ToggleSidebarIntent: GuardedShortcutAction<_ToggleSidebarIntent>(
             onInvoke: (_) {

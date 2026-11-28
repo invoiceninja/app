@@ -57,6 +57,8 @@ void main() {
         LogicalKeyboardKey.keyW,
         LogicalKeyboardKey.keyR,
         LogicalKeyboardKey.keyT,
+        // Find: in line items, else the screen's search field.
+        LogicalKeyboardKey.keyF,
       ]) {
         expect(reject(k, usesPrimary: true), 'shortcut_reserved', reason: '$k');
         // The same letter is fine WITHOUT the primary modifier.

@@ -53,6 +53,9 @@ final Set<LogicalKeyboardKey> _reservedWithPrimary = {
   LogicalKeyboardKey.keyW,
   LogicalKeyboardKey.keyR,
   LogicalKeyboardKey.keyT,
+  // ⌘F / Ctrl+F is find: in line items on a record or an editor, the
+  // screen's search field anywhere else (`find_chord.dart`).
+  LogicalKeyboardKey.keyF,
 };
 
 /// Keys that can't be bound unmodified (they have universal meanings).

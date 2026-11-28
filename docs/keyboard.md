@@ -87,7 +87,7 @@ with a dialog case in it.
 
 ## A record screen's own keys are a fixed map, not catalog entries
 
-`EntityDetailScaffold` binds four bare keys while a record is open: `E` (edit — withheld for a read-only record), `[` and `]` (previous / next tab) and `R` (refresh). It also binds one chord, ⌘F / Ctrl+F, which does nothing until the body binds a find through `DetailFindNavigator`, as the billing documents do (`docs/find-in-line-items.md`). A billing document's editor binds the same chord (`find_chord.dart`) over a focus owner of its own, which is also what lets the edit scaffold's ⌘S fire there with no click first. They sit in the scaffold's own `Shortcuts` map rather than in `lib/app/shortcuts/`, because the customisable catalog holds *global* shortcuts and these mean nothing off a record screen.
+`EntityDetailScaffold` binds four bare keys while a record is open: `E` (edit — withheld for a read-only record), `[` and `]` (previous / next tab) and `R` (refresh). It also binds one chord, ⌘F / Ctrl+F, which does nothing until the body binds a find through `DetailFindNavigator`, as the billing documents do (`docs/find-in-line-items.md`). Where the record's find is disabled, or nothing below binds the chord (a list, Settings, Activity), it reaches the shell, which focuses the on-stage search field as `/` does (§ ⌘F where there is no find focuses the search field). A billing document's editor binds the same chord (`find_chord.dart`) over a focus owner of its own, which is also what lets the edit scaffold's ⌘S fire there with no click first. They sit in the scaffold's own `Shortcuts` map rather than in `lib/app/shortcuts/`, because the customisable catalog holds *global* shortcuts and these mean nothing off a record screen.
 
 **The scaffold owes itself a focus owner, and for a long time did not have one.** Its map is below `_PaneRoot`'s autofocus node and below the route's scope, which is where focus sits when a record opens — and a key is offered to the focused node and its ancestors, never to descendants. So `E` did nothing until the user happened to click into the record, and `[` / `]` / `R` inherited that when they were added; the tests for them passed only because each wrapped its body in an autofocus node the app does not have. The scaffold now keeps a retained `_bodyFocus` behind a `FocusOwnerKeeper`, gated on `TickerMode` like the list's, and `focus_owner_wiring_test` pins it. The keeper takes back only focus that went *up*: a field in the body, a dialog or a sheet keeps what it took (`entity_detail_scaffold_chrome_test`, "the focus owner").
 
@@ -104,3 +104,17 @@ Two details of the bindings. `R` is `includeRepeats: false` with an in-flight gu
 ## Back is ⌘/Alt+→ in a right-to-left layout
 
 **Back is ⌘/Alt+→ in a right-to-left layout, following the `arrow_back` icon, which mirrors** — the physical arrow is bound to `_HistoryArrowIntent` and resolved against `Directionality` when it fires, and every hint takes its glyph from `historyArrowGlyph`. See `docs/right-to-left-layout.md` § The shell flips.
+
+## ⌘F where there is no find focuses the search field
+
+**⌘F / Ctrl+F anywhere a record or an editor does not answer it focuses the on-stage search field, like `/`; the shell binds it with its own intent (`FindFocusSearchIntent`), after the catalog, and the recorder reserves it.**
+
+Beta feedback (Nov 2026, on 5.1.34): "when I press Ctrl+F, nothing happens". On a billing record the chord already opened find in line items, but the invoice list, where people go to search, bound nothing. So `ScaffoldWithNav` adds `findChordShortcuts(intent: const FindFocusSearchIntent())` to its map, handled by `FindFocusSearchAction` (`lib/ui/core/utils/find_chord.dart`), which calls `SearchFocusRegistry.activate`.
+
+- **Its own intent, or a disabled find below swallows it.** `Actions` resolves an intent from the focused node upward, not from the `Shortcuts` that matched. A shell entry mapping the chord to `FindChordIntent` would find the record's disabled `FindChordAction` again and do nothing.
+- **The find in line items still wins.** A key is offered to the nearest `Shortcuts` first, so a record or an editor whose find is enabled handles the chord before the shell sees it. Where it is disabled (a record with no line items), `ShortcutManager` returns ignored, and the chord bubbles up to the shell.
+- **It fires inside a text field** (it types nothing), and is disabled while no search field is on stage, so on the web the key still reaches the browser.
+- **After the catalog.** A user who bound ⌘F to an action before it was reserved keeps that binding: the shortcut manager tries candidates for one key in map order. The recorder now rejects ⌘F (`_reservedWithPrimary`), and the `?` dialog lists ⌘F beside `/` on the Focus search row.
+
+Test: `test/ui/core/utils/find_chord_test.dart` builds the shell's layer over a record's, because the real shell cannot be pumped.
+
