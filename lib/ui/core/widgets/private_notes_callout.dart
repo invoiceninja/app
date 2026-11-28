@@ -14,7 +14,7 @@ const int kPrivateNotesCalloutLines = 4;
 
 /// The user's [PrivateNotesTone] for every callout below it. `main.dart`
 /// mounts it inside `MaterialApp.builder`, which rebuilds when the
-/// `ThemeController` notifies. Without one (a bare test) the callout is amber.
+/// `PrivateNotesToneController` notifies. Without one (a bare test) the callout is amber.
 class PrivateNotesToneScope extends InheritedWidget {
   const PrivateNotesToneScope({
     super.key,

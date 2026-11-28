@@ -536,12 +536,12 @@ void main() {
         find.descendant(of: picker, matching: find.text('Blue')),
       );
       await tester.pump();
-      expect(fixture.services.theme.privateNotesTone, PrivateNotesTone.blue);
+      expect(fixture.services.privateNotesTone.tone, PrivateNotesTone.blue);
       expect(
         tester.widget<InSegmented<PrivateNotesTone>>(picker).selected,
         PrivateNotesTone.blue,
       );
-      await fixture.services.theme.setPrivateNotesTone(PrivateNotesTone.amber);
+      await fixture.services.privateNotesTone.setTone(PrivateNotesTone.amber);
       await _dispose(tester);
     }, variant: _desktop);
   });

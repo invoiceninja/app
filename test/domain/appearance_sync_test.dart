@@ -192,90 +192,6 @@ void main() {
       expect(back.updatedAt, 42);
     });
 
-    test('the private-notes tone is part of the look, and a copy an older '
-        'build wrote reads as amber', () {
-      const blue = AppearanceRecord(
-        themeMode: 'system',
-        lightVariant: 'sand',
-        darkVariant: 'espresso',
-        privateNotesTone: 'blue',
-        updatedAt: 5,
-      );
-      expect(blue.isDefaultLook, isFalse);
-      expect(blue.sameLook(AppearanceRecord.defaults), isFalse);
-      final patch = blue.toSettingsPatch();
-      expect(patch['flutter_appearance.private_notes_tone'], 'blue');
-      final back = AppearanceRecord.fromSettings({
-        'flutter_appearance': {
-          for (final e in patch.entries) e.key.split('.').last: e.value,
-        },
-      })!;
-      expect(back.privateNotesTone, 'blue');
-      expect(back.sameLook(blue), isTrue);
-
-      final older = AppearanceRecord.fromSettings({
-        'flutter_appearance': {'theme_mode': 'dark', 'updated_at': 9},
-      })!;
-      expect(older.privateNotesTone, isNull, reason: 'says nothing, not amber');
-      expect(
-        older.toSettingsPatch().keys,
-        isNot(contains('flutter_appearance.private_notes_tone')),
-        reason: 'a null in a patch would remove the key',
-      );
-    });
-
-    // Review finding: an older build's record has no tone. Read as amber, a
-    // palette change made there (a newer stamp) reset every newer device's
-    // tone, and a tie flipped it on every company switch.
-    group('a copy from a build without the tone', () {
-      AppearanceRecord blue(int stamp) => AppearanceRecord(
-        themeMode: 'system',
-        lightVariant: 'sand',
-        darkVariant: 'espresso',
-        privateNotesTone: 'blue',
-        updatedAt: stamp,
-      );
-      AppearanceRecord older(int stamp, {String lightVariant = 'sand'}) =>
-          AppearanceRecord(
-            themeMode: 'system',
-            lightVariant: lightVariant,
-            darkVariant: 'espresso',
-            updatedAt: stamp,
-          );
-
-      test('a tie with it is the same look: nothing is adopted', () {
-        final d = decide(local: blue(10), companies: {'a': older(10)});
-        expect(d.adopt, isNull);
-        expect(d.push, isNull);
-      });
-
-      test('a newer one is adopted with the device\'s tone, and what is '
-          'pushed on carries it', () {
-        final d = decide(
-          local: blue(10),
-          companies: {
-            'a': older(20),
-            'b': older(30, lightVariant: 'mist'),
-          },
-        );
-        expect(d.adopt!.lightVariant, 'mist');
-        expect(d.adopt!.privateNotesTone, 'blue');
-        expect(d.push!.privateNotesTone, 'blue');
-        expect(
-          d.push!.toSettingsPatch()['flutter_appearance.private_notes_tone'],
-          'blue',
-        );
-      });
-
-      test('a copy that names a tone still wins as usual', () {
-        final d = decide(
-          local: blue(10),
-          companies: {'a': blue(20).withToneFallback(null).toneOf('green')},
-        );
-        expect(d.adopt!.privateNotesTone, 'green');
-      });
-    });
-
     test('a copy without a stamp, or not a map, reads as missing', () {
       expect(AppearanceRecord.fromSettings(null), isNull);
       expect(
@@ -317,15 +233,4 @@ void main() {
       expect(d?.updatedAt, 78);
     });
   });
-}
-
-extension on AppearanceRecord {
-  AppearanceRecord toneOf(String tone) => AppearanceRecord(
-    themeMode: themeMode,
-    lightVariant: lightVariant,
-    darkVariant: darkVariant,
-    custom: custom,
-    privateNotesTone: tone,
-    updatedAt: updatedAt,
-  );
 }

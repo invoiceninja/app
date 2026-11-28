@@ -72,6 +72,7 @@ import 'package:admin/app/hide_empty_panels_controller.dart';
 import 'package:admin/app/hide_unverified_users_controller.dart';
 import 'package:admin/app/show_seconds_controller.dart';
 import 'package:admin/app/always_show_scrollbars_controller.dart';
+import 'package:admin/app/private_notes_tone_controller.dart';
 import 'package:admin/app/document_thumbnails_controller.dart';
 import 'package:admin/app/spell_check_controller.dart';
 import 'package:admin/app/status_tabs_controller.dart';
@@ -445,6 +446,7 @@ class Services implements SidebarBadgeContext {
     required this.showSeconds,
     required this.lockAfterInactivity,
     required this.alwaysShowScrollbars,
+    required this.privateNotesTone,
     required this.documentThumbnails,
     required this.downloadsFolder,
     required this.pendingCall,
@@ -984,6 +986,10 @@ class Services implements SidebarBadgeContext {
   /// Whether scroll bars stay drawn instead of fading (docs/scrollbars.md).
   /// Read through its root provider by every `InScrollbar`.
   final AlwaysShowScrollbarsController alwaysShowScrollbars;
+
+  /// The private-notes callout's tone, on this device. `main.dart` hands it
+  /// down through `PrivateNotesToneScope`.
+  final PrivateNotesToneController privateNotesTone;
 
   /// Whether document lists draw thumbnails (invoiceninja/app#206).
   final DocumentThumbnailsController documentThumbnails;
@@ -1924,6 +1930,7 @@ class Services implements SidebarBadgeContext {
     final alwaysShowScrollbars = AlwaysShowScrollbarsController(
       prefs: devicePrefs,
     );
+    final privateNotesTone = PrivateNotesToneController(prefs: devicePrefs);
     final documentThumbnails = DocumentThumbnailsController(prefs: devicePrefs);
     final downloadsFolder = DownloadsFolderController(prefs: devicePrefs);
     final mobileAppPromo = MobileAppPromoController(
@@ -2954,6 +2961,7 @@ class Services implements SidebarBadgeContext {
       showSeconds: showSeconds,
       lockAfterInactivity: lockAfterInactivity,
       alwaysShowScrollbars: alwaysShowScrollbars,
+      privateNotesTone: privateNotesTone,
       documentThumbnails: documentThumbnails,
       downloadsFolder: downloadsFolder,
       pendingCall: pendingCall,

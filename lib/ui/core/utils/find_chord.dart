@@ -95,10 +95,26 @@ class FindFocusSearchAction
 
   final SearchFocusRegistry _registry;
 
+  /// A field to focus, and nothing that makes focusing it wrong:
+  ///
+  /// * the focus is not in another route over the field (a sheet over the
+  ///   list, at any navigator level — [focusIsInAnotherRoute]);
+  /// * the field can take focus: a list under a full-screen record sits in
+  ///   `Offstage` + `ExcludeFocus` and keeps its claim, and a `requestFocus`
+  ///   there does nothing, so the key would be swallowed for nothing;
+  /// * the focus is not already in a search field. With a record's embedded
+  ///   list over the main one, the chord pressed in the list's own field
+  ///   would move the typing into the pane's.
+  ///
+  /// A detached node (the settings search, opened by its `onActivate`)
+  /// passes the last two; the route check needs a context to read.
   bool get _hasTarget {
     final node = _registry.current;
-    return node != null &&
-        !focusIsInAnotherRoute(node, FocusManager.instance.primaryFocus);
+    if (node == null) return false;
+    final focus = FocusManager.instance.primaryFocus;
+    if (focus != null && _registry.holds(focus)) return false;
+    if (node.context != null && !node.canRequestFocus) return false;
+    return !focusIsInAnotherRoute(node, focus);
   }
 
   @override
@@ -110,32 +126,37 @@ class FindFocusSearchAction
       _hasTarget && super.consumesKey(intent);
 }
 
-/// Whether [focus] is inside a route of [search]'s navigator other than the
-/// one [search] is in — a sheet or another page pushed over it. Focus above
-/// that navigator (the shell's own node, the navigator's scope), in a route
-/// nested inside the field's (a master-detail pane), or anywhere else is not.
+/// Whether [focus] is inside a route other than [search]'s, of any
+/// navigator [search] sits under — a sheet or another page pushed over it, on
+/// the field's own navigator or one further up (a sheet on the branch
+/// navigator over a record pane's embedded list). Focus above a navigator
+/// (the shell's own node, a navigator's scope), in a route nested inside the
+/// field's (a master-detail pane), or anywhere else is not.
 ///
 /// Read off the focus tree, never `ModalRoute.of`: that would subscribe the
 /// search field to its route, and a field re-runs its registry claim in
 /// `didChangeDependencies`, so a sheet opening would reorder the registry. A
-/// route's `FocusScope` is a direct child of its navigator's scope.
+/// route's `FocusScope` is a direct child of its navigator's scope
+/// (`Navigator.build`, `_ModalScopeState.build`).
 bool focusIsInAnotherRoute(FocusNode search, FocusNode? focus) {
   final context = search.context;
   if (focus == null || context == null) return false;
-  final navigatorScope = context
-      .findAncestorStateOfType<NavigatorState>()
-      ?.focusNode;
-  if (navigatorScope == null || identical(focus, navigatorScope)) {
-    return false;
-  }
-  FocusNode? routeScope;
-  for (final ancestor in search.ancestors) {
-    if (identical(ancestor.parent, navigatorScope)) {
-      routeScope = ancestor;
-      break;
-    }
-  }
-  if (routeScope == null) return false;
   final chain = [focus, ...focus.ancestors];
-  return chain.contains(navigatorScope) && !chain.contains(routeScope);
+  final searchAncestors = search.ancestors.toList();
+  var navigator = context.findAncestorStateOfType<NavigatorState>();
+  while (navigator != null) {
+    final navigatorScope = navigator.focusNode;
+    if (!identical(focus, navigatorScope) && chain.contains(navigatorScope)) {
+      FocusNode? routeScope;
+      for (final ancestor in searchAncestors) {
+        if (identical(ancestor.parent, navigatorScope)) {
+          routeScope = ancestor;
+          break;
+        }
+      }
+      if (routeScope != null && !chain.contains(routeScope)) return true;
+    }
+    navigator = navigator.context.findAncestorStateOfType<NavigatorState>();
+  }
+  return false;
 }

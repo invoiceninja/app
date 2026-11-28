@@ -228,4 +228,112 @@ void main() {
     );
     expect(focusIsInAnotherRoute(state.search, null), isFalse);
   });
+
+  // Deep review: the route check looked at the field's nearest navigator
+  // only. A record pane's embedded list (its own navigator) under a sheet on
+  // the branch navigator slipped through.
+  group('a pane with its own navigator', () {
+    late FocusNode main;
+    late FocusNode embedded;
+
+    Future<void> pumpPane(WidgetTester tester, {bool hidePane = false}) async {
+      main = FocusNode(debugLabel: 'main search');
+      embedded = FocusNode(debugLabel: 'embedded search');
+      addTearDown(main.dispose);
+      addTearDown(embedded.dispose);
+      await tester.pumpWidget(
+        MaterialApp(
+          builder: (context, child) => Shortcuts(
+            shortcuts: findChordShortcuts(
+              intent: const FindFocusSearchIntent(),
+            ),
+            child: Actions(
+              actions: <Type, Action<Intent>>{
+                FindFocusSearchIntent: FindFocusSearchAction(registry),
+              },
+              child: child!,
+            ),
+          ),
+          home: Scaffold(
+            body: Column(
+              children: [
+                TextField(key: const ValueKey('main'), focusNode: main),
+                Expanded(
+                  child: ExcludeFocus(
+                    excluding: hidePane,
+                    child: Navigator(
+                      onGenerateRoute: (_) => MaterialPageRoute<void>(
+                        builder: (_) => Material(
+                          child: Column(
+                            children: [
+                              TextField(
+                                key: const ValueKey('embedded'),
+                                focusNode: embedded,
+                              ),
+                              const TextField(key: ValueKey('pane_field')),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      registry.claim(main);
+      registry.claim(embedded);
+    }
+
+    testWidgets('a field in the pane: the chord reaches the pane\'s search', (
+      tester,
+    ) async {
+      await pumpPane(tester);
+      await tester.tap(find.byKey(const ValueKey('pane_field')));
+      await tester.pump();
+      expect(await _pressFind(tester), isTrue);
+      expect(embedded.hasPrimaryFocus, isTrue);
+    });
+
+    testWidgets('a sheet over the whole page stands it down', (tester) async {
+      await pumpPane(tester);
+      showModalBottomSheet<void>(
+        context: tester.element(find.byKey(const ValueKey('main'))),
+        builder: (_) => const Padding(
+          padding: EdgeInsets.all(16),
+          child: TextField(key: ValueKey('sheet_field'), autofocus: true),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final focus = FocusManager.instance.primaryFocus!;
+      expect(focusIsInAnotherRoute(embedded, focus), isTrue);
+      expect(await _pressFind(tester), isFalse);
+      expect(embedded.hasFocus, isFalse);
+      expect(FocusManager.instance.primaryFocus, same(focus));
+    });
+
+    testWidgets('pressed in a search field, it moves nothing', (tester) async {
+      await pumpPane(tester);
+      await tester.tap(find.byKey(const ValueKey('main')));
+      await tester.pump();
+      expect(main.hasPrimaryFocus, isTrue);
+      expect(await _pressFind(tester), isFalse);
+      expect(main.hasPrimaryFocus, isTrue);
+    });
+
+    testWidgets('a field that cannot take focus does not swallow the key', (
+      tester,
+    ) async {
+      await pumpPane(tester, hidePane: true);
+      await tester.tap(find.byKey(const ValueKey('main')));
+      await tester.pump();
+      FocusManager.instance.primaryFocus?.unfocus();
+      await tester.pump();
+      expect(embedded.canRequestFocus, isFalse);
+      expect(await _pressFind(tester), isFalse);
+    });
+  });
 }

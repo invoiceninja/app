@@ -5,8 +5,8 @@
 /// the status pills are (`docs/detail-screen-layout.md` § Private notes are a
 /// callout above the comments).
 ///
-/// A leaf: no Flutter. Stored by [name] in `DevicePrefKeys.privateNotesTone`
-/// and synced in the `flutter_appearance` record.
+/// A leaf: no Flutter. Stored by [name] in `DevicePrefKeys.privateNotesTone`,
+/// on this device only (`PrivateNotesToneController`).
 enum PrivateNotesTone {
   /// `warning` — the default, the callout's tone since it shipped.
   amber,

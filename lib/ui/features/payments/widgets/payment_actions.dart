@@ -19,6 +19,7 @@ import 'package:admin/ui/core/detail/standard_entity_action_items.dart';
 import 'package:admin/ui/core/detail/standard_entity_actions.dart';
 import 'package:admin/ui/core/edit/edit_action_filter.dart';
 import 'package:admin/ui/core/sync/require_synced.dart';
+import 'package:admin/ui/core/utils/router_state.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/features/billing_shared/email/recipient_email_fix.dart';
 import 'package:admin/ui/features/invoices/widgets/detail/run_template_dialog.dart';
@@ -442,8 +443,12 @@ class PaymentActions {
           services.invoices.watchByRealId(companyId: companyId, id: id).first,
     );
     if (!context.mounted) return;
+    // Keeps the pane mode it was opened from, as `goEntityEdit` and a plain
+    // Save's `editorPathAfterCreate` do: from a full-screen payment the next
+    // one opens full screen too, not in the slide-over pane.
+    final isFull = routerStateOf(context).uri.queryParameters['view'] == 'full';
     services.stageCreateDraft('/payments', draft);
-    context.go('/payments/new');
+    context.go(isFull ? '/payments/new?view=full' : '/payments/new');
   }
 
   /// Whether any invoice [payment] is applied to is deleted — from the

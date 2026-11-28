@@ -4,7 +4,6 @@ import 'package:admin/data/db/app_database.dart';
 import 'package:admin/data/prefs/device_pref_keys.dart';
 import 'package:admin/data/prefs/device_prefs_store.dart';
 import 'package:admin/domain/appearance_sync.dart';
-import 'package:admin/domain/private_notes_tone.dart';
 import 'package:drift/native.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -322,44 +321,6 @@ void main() {
       expect(notifications, 1, reason: 'the same record is a no-op');
     });
 
-    test('the private-notes tone is stamped, persisted and adopted', () async {
-      var clock = 1000;
-      final controller = ThemeController(
-        prefs: DevicePrefsStore(db),
-        now: () => DateTime.fromMillisecondsSinceEpoch(clock),
-      );
-      expect(controller.privateNotesTone, PrivateNotesTone.amber);
-      await controller.setPrivateNotesTone(PrivateNotesTone.blue);
-      expect(controller.syncedAt, 1000);
-      expect(controller.appearance.privateNotesTone, 'blue');
-      expect((await rows())[DevicePrefKeys.privateNotesTone.name], 'blue');
-      expect((await relaunch()).privateNotesTone, PrivateNotesTone.blue);
-
-      await controller.adoptSynced(
-        controller.appearance.withUpdatedAt(2000).copyTone('green'),
-      );
-      expect(controller.privateNotesTone, PrivateNotesTone.green);
-      expect((await relaunch()).privateNotesTone, PrivateNotesTone.green);
-
-      // A tone this build doesn't know keeps the device's.
-      await controller.adoptSynced(
-        controller.appearance.withUpdatedAt(3000).copyTone('purple'),
-      );
-      expect(controller.privateNotesTone, PrivateNotesTone.green);
-
-      // So does a record that says nothing about it (an older build's).
-      await controller.adoptSynced(
-        const AppearanceRecord(
-          themeMode: 'dark',
-          lightVariant: 'sand',
-          darkVariant: 'espresso',
-          updatedAt: 4000,
-        ),
-      );
-      expect(controller.themeMode, ThemeMode.dark);
-      expect(controller.privateNotesTone, PrivateNotesTone.green);
-    });
-
     test('a value this build does not know keeps the device\'s', () async {
       final controller = newController();
       await controller.setDarkVariant(DarkVariant.carbon);
@@ -376,15 +337,4 @@ void main() {
       expect(controller.darkVariant, DarkVariant.carbon);
     });
   });
-}
-
-extension on AppearanceRecord {
-  AppearanceRecord copyTone(String tone) => AppearanceRecord(
-    themeMode: themeMode,
-    lightVariant: lightVariant,
-    darkVariant: darkVariant,
-    custom: custom,
-    privateNotesTone: tone,
-    updatedAt: updatedAt,
-  );
 }

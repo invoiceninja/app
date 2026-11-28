@@ -505,9 +505,8 @@ abstract final class DevicePrefKeys {
   );
 
   /// The tone of a record's private-notes callout (`PrivateNotesTone` by
-  /// name; unset = amber). Device scope like the palettes, so the sign-in
-  /// screen's next user starts from the last look; `ThemeController` owns it
-  /// and it syncs with them in `flutter_appearance`.
+  /// name; unset = amber), owned by `PrivateNotesToneController`. Device
+  /// scope and never synced, like text size and density.
   static const privateNotesTone = PrefKey<String>(
     'private_notes_tone',
     PrefCodec.string,

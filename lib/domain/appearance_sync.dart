@@ -1,5 +1,5 @@
-/// How the app's appearance — theme mode, both palettes, the custom colours
-/// and the private-notes tone — follows the user across devices (invoiceninja/app#199,
+/// How the app's appearance — theme mode, both palettes and the custom colours
+/// — follows the user across devices (invoiceninja/app#199,
 /// `docs/user-settings-storage.md`).
 ///
 /// A leaf: plain strings and maps, no Flutter, so the decision is testable on
@@ -23,7 +23,6 @@ class AppearanceRecord {
     required this.lightVariant,
     required this.darkVariant,
     this.custom = const {},
-    this.privateNotesTone,
     this.updatedAt,
   });
 
@@ -33,14 +32,6 @@ class AppearanceRecord {
 
   /// `{light: {token: '#RRGGBB'}, dark: {…}}` — `CustomTheme`'s JSON shape.
   final Map<String, Object?> custom;
-
-  /// The private-notes callout's tone, a `PrivateNotesTone` name — or null
-  /// for a copy that says nothing about it: one a build from before the field
-  /// wrote (its dotted-path patch never touches the key). Null is not amber:
-  /// read as amber, an older build's palette change, newer than the device's
-  /// stamp, would reset every newer device's tone. So null equals any tone
-  /// ([sameLook]), and an adoption keeps the device's ([reconcileAppearance]).
-  final String? privateNotesTone;
 
   /// Epoch ms of the change it carries (the device clock that made it). Null
   /// on the device's own copy when this account has never changed or adopted
@@ -52,7 +43,6 @@ class AppearanceRecord {
     themeMode: 'system',
     lightVariant: 'sand',
     darkVariant: 'espresso',
-    privateNotesTone: 'amber',
   );
 
   /// Same look, whatever the stamps say. An empty side of [custom] equals a
@@ -61,9 +51,6 @@ class AppearanceRecord {
       themeMode == other.themeMode &&
       lightVariant == other.lightVariant &&
       darkVariant == other.darkVariant &&
-      (privateNotesTone == null ||
-          other.privateNotesTone == null ||
-          privateNotesTone == other.privateNotesTone) &&
       const DeepCollectionEquality().equals(
         _normalizedCustom(custom),
         _normalizedCustom(other.custom),
@@ -76,21 +63,8 @@ class AppearanceRecord {
     lightVariant: lightVariant,
     darkVariant: darkVariant,
     custom: custom,
-    privateNotesTone: privateNotesTone,
     updatedAt: stamp,
   );
-
-  /// This record with [tone] where it says nothing about the tone.
-  AppearanceRecord withToneFallback(String? tone) => privateNotesTone != null
-      ? this
-      : AppearanceRecord(
-          themeMode: themeMode,
-          lightVariant: lightVariant,
-          darkVariant: darkVariant,
-          custom: custom,
-          privateNotesTone: tone,
-          updatedAt: updatedAt,
-        );
 
   /// The settings patch that writes this record: one dotted path per field,
   /// so a field a newer build added to the record survives an older build's
@@ -100,9 +74,6 @@ class AppearanceRecord {
     '$kAppearanceSettingsKey.light_variant': lightVariant,
     '$kAppearanceSettingsKey.dark_variant': darkVariant,
     '$kAppearanceSettingsKey.custom': _normalizedCustom(custom),
-    // Never written as null: a patch's null would remove the key.
-    if (privateNotesTone case final tone?)
-      '$kAppearanceSettingsKey.private_notes_tone': tone,
     '$kAppearanceSettingsKey.updated_at': updatedAt,
   };
 
@@ -122,10 +93,6 @@ class AppearanceRecord {
       custom: custom is Map
           ? {for (final e in custom.entries) e.key.toString(): e.value}
           : const {},
-      privateNotesTone: switch (raw['private_notes_tone']) {
-        final String tone when tone.isNotEmpty => tone,
-        _ => null,
-      },
       updatedAt: stamp,
     );
   }
@@ -133,7 +100,7 @@ class AppearanceRecord {
   @override
   String toString() =>
       'AppearanceRecord($themeMode, $lightVariant, $darkVariant, $custom, '
-      '$privateNotesTone, $updatedAt)';
+      '$updatedAt)';
 }
 
 Map<String, Object?> _normalizedCustom(Map<String, Object?> custom) => {
@@ -221,10 +188,8 @@ AppearanceDecision reconcileAppearance({
       (localStamp == null ||
           newest.updatedAt! > localStamp ||
           (newest.updatedAt == localStamp && !newest.sameLook(local)))) {
-    // A copy that says nothing about the tone keeps the device's, so what is
-    // adopted, and pushed on from here, carries it.
-    adopt = newest.withToneFallback(local.privateNotesTone);
-    effective = adopt;
+    adopt = newest;
+    effective = newest;
   }
 
   AppearanceRecord? push;

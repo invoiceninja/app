@@ -75,6 +75,11 @@ class SearchFocusRegistry {
     }
   }
 
+  /// Whether [node] holds a claim, regular or fallback — whether it is one of
+  /// the registered search fields.
+  bool holds(FocusNode node) =>
+      _claims.contains(node) || _fallbacks.contains(node);
+
   /// Gives [node]'s claim up, wherever it sits; whoever claimed before it
   /// becomes [current] again. A no-op for a node that holds no claim.
   void release(FocusNode node) {

@@ -221,8 +221,8 @@ final Map<PrefKey<Object>, _Probe> _probes = {
     (s) => s.lineItemHiddenColumns.value.isEmpty,
   ),
   DevicePrefKeys.privateNotesTone: _Probe(
-    (s) => s.theme.setPrivateNotesTone(PrivateNotesTone.blue),
-    (s) => s.theme.privateNotesTone == PrivateNotesTone.amber,
+    (s) => s.privateNotesTone.setTone(PrivateNotesTone.blue),
+    (s) => s.privateNotesTone.tone == PrivateNotesTone.amber,
   ),
   // What a signed-out user gets back on their return — the sign-out that
   // fills it must not empty it.

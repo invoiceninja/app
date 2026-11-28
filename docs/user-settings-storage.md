@@ -78,7 +78,7 @@ Tests: `test/data/repositories/saved_views_sync_test.dart`.
 
 ## Theme, palettes and custom colours sync as one flutter_appearance record: written to the active company, adopted newest-first from all
 
-**The theme mode, both palettes, the custom colours and the private-notes tone follow the user to their other devices as one `flutter_appearance` record. A change is written to the active company only; the newest copy across every company is adopted; an active company whose copy is older or missing is sent the device's; and only `ThemeController.adoptSynced` writes an adopted one.** Text size, density and the rest of Device Settings stay on the device. The accent colour is not in it: it stays `company_user.settings.accent_color`, per company, shared with React and v1 (`docs/accent-colour.md`).
+**The theme mode, both palettes and the custom colours follow the user to their other devices as one `flutter_appearance` record. A change is written to the active company only; the newest copy across every company is adopted; an active company whose copy is older or missing is sent the device's; and only `ThemeController.adoptSynced` writes an adopted one.** Text size, density and the rest of Device Settings stay on the device. The accent colour is not in it: it stays `company_user.settings.accent_color`, per company, shared with React and v1 (`docs/accent-colour.md`).
 
 They were device-local until invoiceninja/app#199: a user changed their colours, signed in on their other computer the next day, and found the old ones. Device Settings said so in its subtitle ("never synced to your other devices"), which nobody reads before changing a colour.
 

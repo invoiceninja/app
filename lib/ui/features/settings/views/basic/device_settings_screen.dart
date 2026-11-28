@@ -7,7 +7,7 @@ import 'package:provider/provider.dart';
 
 import 'package:admin/app/default_items_tab_controller.dart';
 import 'package:admin/app/design_tokens.dart';
-import 'package:admin/app/theme_controller.dart';
+import 'package:admin/app/private_notes_tone_controller.dart';
 import 'package:admin/domain/private_notes_tone.dart';
 import 'package:admin/app/list_density_controller.dart';
 import 'package:admin/app/resync_controller.dart';
@@ -328,7 +328,7 @@ class _AppearanceTab extends StatelessWidget {
               const _AlwaysShowScrollbarsRow(),
               const SettingRowDivider(),
             ],
-            _PrivateNotesToneRow(controller: services.theme),
+            _PrivateNotesToneRow(controller: services.privateNotesTone),
             const SettingRowDivider(),
             CustomizeColorsSection(controller: services.theme),
           ],
@@ -738,18 +738,18 @@ class _ListDensityRow extends StatelessWidget {
 /// Beta feedback (Nov 2026) asked for v1's blue back and for a choice. The
 /// four are status tones every palette carries in both brightnesses, never a
 /// free colour, so each stays legible in light and dark; the swatch is the
-/// tone's strong colour, the one the callout's lock and border use. Synced
-/// with the theme (`flutter_appearance`).
+/// tone's strong colour, the one the callout's lock and border use. On this
+/// device only, like text size and density (`PrivateNotesToneController`).
 class _PrivateNotesToneRow extends StatelessWidget {
   const _PrivateNotesToneRow({required this.controller});
 
-  final ThemeController controller;
+  final PrivateNotesToneController controller;
 
   @override
   Widget build(BuildContext context) {
-    return ListenableBuilder(
-      listenable: controller,
-      builder: (context, _) {
+    return ValueListenableBuilder<String>(
+      valueListenable: controller,
+      builder: (context, _, _) {
         final tokens = context.inTheme;
         return SettingRow(
           icon: const Icon(Icons.lock_outline),
@@ -764,8 +764,8 @@ class _PrivateNotesToneRow extends StatelessWidget {
                   swatch: privateNotesToneColors(tokens, tone).strong,
                 ),
             ],
-            selected: controller.privateNotesTone,
-            onChanged: controller.setPrivateNotesTone,
+            selected: controller.tone,
+            onChanged: controller.setTone,
           ),
         );
       },

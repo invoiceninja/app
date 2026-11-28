@@ -47,12 +47,20 @@ class _KeyboardShortcutsDialog extends StatelessWidget {
     List<_RowSpec> rowsFor(ShortcutGroup group) => [
       for (final def in kShortcutCatalog)
         if (def.group == group)
+          // Focus search keeps its row with `/` cleared: the shell's fixed
+          // ⌘F fallback (`ScaffoldWithNav`) still focuses the field.
           if (controller.effectiveBinding(def.id) case final b?)
             _Row(
               chords: [
                 b.displayGlyphs(mod),
-                // The shell's fixed ⌘F fallback (`ScaffoldWithNav`).
                 if (def.id == ShortcutActionIds.focusSearch) [mod, 'F'],
+              ],
+              description: context.tr(def.labelKey),
+            )
+          else if (def.id == ShortcutActionIds.focusSearch)
+            _Row(
+              chords: [
+                [mod, 'F'],
               ],
               description: context.tr(def.labelKey),
             ),

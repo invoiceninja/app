@@ -1201,6 +1201,7 @@ class _InvoiceNinjaAppState extends State<InvoiceNinjaApp> {
           widget.services.textScale,
           widget.services.forceRtl,
           widget.services.simulateFold,
+          widget.services.privateNotesTone,
         ]),
         builder: (context, _) => ValueListenableBuilder<Locale?>(
           // Resolved locale: device override → active company's
@@ -1455,10 +1456,10 @@ class _InvoiceNinjaAppState extends State<InvoiceNinjaApp> {
                 child: FoldSimulator(
                   enabled: widget.services.simulateFold.value,
                   child: LegacyMaterialTheme(
-                    // Device Settings → Private notes colour; this builder
-                    // rebuilds on every `ThemeController` notify.
+                    // Device Settings → Private Notes Color; the listenable
+                    // above includes its controller, so a pick rebuilds here.
                     child: PrivateNotesToneScope(
-                      tone: theme.privateNotesTone,
+                      tone: widget.services.privateNotesTone.tone,
                       child: app,
                     ),
                   ),

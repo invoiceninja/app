@@ -1320,7 +1320,7 @@ Field-level breakdown of every option under each settings panel. Source of truth
 |---|---|---|---|---|---|
 | Theme (light / dark / system, local) | — | ✅ | ✅ | ✅ | |
 | Theme, palette and custom colours follow you to your other devices (synced with the account; the accent stays per company) | ✅ | ❌ | ✅ | | |
-| Private notes colour: the callout on a record and in the editor in amber, blue, green or red, each a status tone legible in every light and dark palette (Device Settings → Appearance; synced with the theme) | — | — | ✅ | | Beta feedback: v1's blue back, and a choice |
+| Private notes colour: the callout on a record and in the editor in amber, blue, green or red, each a status tone legible in every light and dark palette (Device Settings → Appearance; on this device, like text size) | — | — | ✅ | | Beta feedback: v1's blue back, and a choice |
 | Font Size (text scale, local) | — | ✅ | ✅ | ✅ | |
 | Density — Normal / Compact for entity lists, record screens and the dashboard, for more on screen (local; Device Settings, and offered in the first-run Welcome) | — | — | ✅ | | |
 | Scroll bars on desktop and desktop web — a bolder thumb that grows with a track under the pointer, the wide table's row bar on the card's edge, and an Always Show Scroll Bars switch (local, off by default; touch unchanged) | — | — | ✅ | | |
