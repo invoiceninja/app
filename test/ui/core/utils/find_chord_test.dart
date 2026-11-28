@@ -204,7 +204,9 @@ void main() {
     expect(focus.context, isNotNull);
     expect(focusIsInAnotherRoute(state.search, focus), isTrue);
 
-    expect(await _pressFind(tester), isFalse);
+    // Consumed on native (an unconsumed ⌘F beeps on macOS), but moves
+    // nothing.
+    expect(await _pressFind(tester), isTrue);
     expect(state.search.hasFocus, isFalse);
     expect(
       find.descendant(of: sheetField, matching: find.byType(EditableText)),
@@ -310,7 +312,7 @@ void main() {
       await tester.pumpAndSettle();
       final focus = FocusManager.instance.primaryFocus!;
       expect(focusIsInAnotherRoute(embedded, focus), isTrue);
-      expect(await _pressFind(tester), isFalse);
+      expect(await _pressFind(tester), isTrue, reason: 'a native no-op');
       expect(embedded.hasFocus, isFalse);
       expect(FocusManager.instance.primaryFocus, same(focus));
     });
@@ -320,11 +322,11 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('main')));
       await tester.pump();
       expect(main.hasPrimaryFocus, isTrue);
-      expect(await _pressFind(tester), isFalse);
+      expect(await _pressFind(tester), isTrue, reason: 'a native no-op');
       expect(main.hasPrimaryFocus, isTrue);
     });
 
-    testWidgets('a field that cannot take focus does not swallow the key', (
+    testWidgets('a field that cannot take focus is not focused', (
       tester,
     ) async {
       await pumpPane(tester, hidePane: true);
@@ -333,7 +335,10 @@ void main() {
       FocusManager.instance.primaryFocus?.unfocus();
       await tester.pump();
       expect(embedded.canRequestFocus, isFalse);
-      expect(await _pressFind(tester), isFalse);
+      final before = FocusManager.instance.primaryFocus;
+      expect(await _pressFind(tester), isTrue, reason: 'a native no-op');
+      expect(embedded.hasFocus, isFalse);
+      expect(FocusManager.instance.primaryFocus, same(before));
     });
   });
 }

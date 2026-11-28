@@ -396,15 +396,67 @@ void main() {
       );
     });
 
-    test('a booking is still claimed, never continued', () {
-      // On its due date a block across now is a booking (`_isBooking`).
+    test('an untouched booking is still claimed, never continued', () {
+      // One block on its due date, as long as the estimate the scheduling
+      // sheets seed from it: nobody has worked it, and continuing it would
+      // bill the unworked part. Claimed as before.
+      final booking = TimeEntry(
+        start: DateTime(2026, 9, 14, 11),
+        stop: DateTime(2026, 9, 14, 11, 30),
+      );
       final plan = planTaskStart(
-        [rounded],
+        [booking],
         now: now,
         dueDate: Date(2026, 9, 14),
+        estimatedSeconds: 30 * 60,
         roundUpSeconds: quarter,
       );
       expect(plan.outcome, TaskStartOutcome.claim);
+    });
+
+    // Ship review: book 11:00–12:00 today, Start at 11:05 (claimed), Stop at
+    // 11:22 (rounded to 11:05–11:35), Start at 11:25. The block reads as a
+    // booking on its due date, and the claim moved its start to now — the
+    // worked time gone.
+    test('a booked block that was worked is continued, not claimed', () {
+      final worked = TimeEntry(
+        start: DateTime(2026, 9, 14, 11, 5),
+        stop: DateTime(2026, 9, 14, 11, 35),
+      );
+      final plan = planTaskStart(
+        [worked],
+        now: now,
+        dueDate: Date(2026, 9, 14),
+        estimatedSeconds: 60 * 60,
+        roundUpSeconds: quarter,
+      );
+      expect(plan.outcome, TaskStartOutcome.resume);
+      expect(plan.entries.single.start, worked.start);
+      expect(plan.entries.single.isRunning, isTrue);
+    });
+
+    // Ship review: an exact stop the server has not rounded yet (offline, or
+    // Stop then Start in the editor). Appending passed every local check, and
+    // the server then rounded the old entry into the new one.
+    test('an exact stop not rounded yet is measured as the server will '
+        'round it', () {
+      final exact = TimeEntry(
+        start: DateTime(2026, 9, 14, 11),
+        stop: DateTime(2026, 9, 14, 11, 22),
+      );
+      final plan = planTaskStart([exact], now: now, roundUpSeconds: quarter);
+      expect(plan.outcome, TaskStartOutcome.resume);
+      expect(plan.entries.single.start, exact.start);
+
+      // Past its rounded end (11:30), a new entry is clear of it.
+      expect(
+        planTaskStart(
+          [exact],
+          now: DateTime(2026, 9, 14, 11, 31),
+          roundUpSeconds: quarter,
+        ).outcome,
+        TaskStartOutcome.append,
+      );
     });
   });
 

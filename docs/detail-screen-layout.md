@@ -72,7 +72,7 @@ Beta feedback (Nov 2026), after the callout shipped in amber: bring back v1's bl
 - **Blue is `partial`, not `sent`.** In these palettes `sent` is amber, the same fill as `warning`. The palette test caught the first mapping.
 - **The choice reaches the callout through `PrivateNotesToneScope`,** mounted by `main.dart` inside `MaterialApp.builder`, whose listenable includes the controller. The callout takes no `Services`. Without a scope (a bare test) it is amber.
 - **Not in `flutter_appearance`, on purpose.** It was first added to that record, and a review found it could not be synced safely there. The record has one stamp. Builds from before the field push the record without it, a dotted patch that keeps whatever tone the target company held, under a newer stamp. So a stale tone came back with a fresh stamp, and with two companies a new device flipped colour on every switch. Syncing it properly needs a stamp of its own, the whole reconcile again for one cosmetic setting. It stays on the device, like text size and density, until synced preferences move to `company_user.flutter_settings`.
-- **Per user, not per company.** The beta user asked for an administrator's setting. The server has no company-level place for it.
+- **Per device, not per user or company.** It is `PrefScope.device`, like text size, so it is shared by whoever uses the device and kept by a sign-out. The beta user asked for an administrator's setting; the server has no company-level place for it.
 
 ## A record whose Details card is alone splits it in two
 

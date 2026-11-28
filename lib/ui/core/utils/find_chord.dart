@@ -85,13 +85,7 @@ class FindFocusSearchAction
     extends GuardedShortcutAction<FindFocusSearchIntent> {
   FindFocusSearchAction(SearchFocusRegistry registry)
     : _registry = registry,
-      super(
-        onInvoke: (_) {
-          registry.activate();
-          return null;
-        },
-        firesInTextInput: () => true,
-      );
+      super(onInvoke: (_) => null, firesInTextInput: () => true);
 
   final SearchFocusRegistry _registry;
 
@@ -101,14 +95,15 @@ class FindFocusSearchAction
   ///   list, at any navigator level — [focusIsInAnotherRoute]);
   /// * the field can take focus: a list under a full-screen record sits in
   ///   `Offstage` + `ExcludeFocus` and keeps its claim, and a `requestFocus`
-  ///   there does nothing, so the key would be swallowed for nothing;
+  ///   there does nothing;
   /// * the focus is not already in a search field. With a record's embedded
   ///   list over the main one, the chord pressed in the list's own field
   ///   would move the typing into the pane's.
   ///
-  /// A detached node (the settings search, opened by its `onActivate`)
-  /// passes the last two; the route check needs a context to read.
-  bool get _hasTarget {
+  /// A node that has never been attached (the settings search before its
+  /// first build, opened by its `onActivate`) has no context to check, and is
+  /// taken as focusable and in the current route.
+  bool get _usable {
     final node = _registry.current;
     if (node == null) return false;
     final focus = FocusManager.instance.primaryFocus;
@@ -117,13 +112,26 @@ class FindFocusSearchAction
     return !focusIsInAnotherRoute(node, focus);
   }
 
+  /// Whether the chord is this action's to answer. On the web, only when it
+  /// will focus something: otherwise the browser's own find gets the key. On
+  /// native, whenever a search field is registered, as a silent no-op when it
+  /// is not [_usable]: an unconsumed ⌘F goes on to the macOS menu's Edit ›
+  /// Find…, which beeps.
+  bool get _answers => kIsWeb ? _usable : _registry.current != null;
+
   @override
   bool isEnabled(FindFocusSearchIntent intent) =>
-      _hasTarget && super.isEnabled(intent);
+      _answers && super.isEnabled(intent);
 
   @override
   bool consumesKey(FindFocusSearchIntent intent) =>
-      _hasTarget && super.consumesKey(intent);
+      _answers && super.consumesKey(intent);
+
+  @override
+  Object? invoke(FindFocusSearchIntent intent) {
+    if (_usable) _registry.activate();
+    return null;
+  }
 }
 
 /// Whether [focus] is inside a route other than [search]'s, of any

@@ -362,6 +362,61 @@ bool _isUnworkedPastBooking(
   return stop.difference(only.start!).inSeconds == estimatedSeconds;
 }
 
+/// The last entry of [sorted] when a Start now falls inside the tail the
+/// server's round-up adds to it, else null (invoiceninja/app#220).
+///
+/// The server rounds every entry's end UP to [roundUpSeconds] on save
+/// (`TaskRepository::roundTimeLog`), so a timer stopped at 09:07 is stored as
+/// 09:00–09:15, and a new entry at 09:10 overlaps it. The end is measured as
+/// the server will round it, `start + ceil(length / n) · n`, not as stored:
+/// an exact stop the server has not echoed yet (offline, a Start before the
+/// echo, Stop then Start in the editor before Save) would otherwise pass here,
+/// append, and be rounded by the server into an overlap that the next save is
+/// refused for. An end already rounded is unchanged by rounding again.
+///
+/// Three things are not a tail:
+///
+/// * an end a whole interval or more away — today's typed 09:00–17:00
+///   timesheet row straddles now too, and reopening it would turn the hours
+///   typed into a timer from 09:00;
+/// * an **untouched booking** on its due date — one entry whose length is the
+///   estimate both scheduling sheets seed from it (the shape
+///   [_isUnworkedPastBooking] reads). Continuing that would bill the unworked
+///   part of the block; it is claimed as before. A booked block that was
+///   claimed, worked and stopped no longer has the estimate's length, so it is
+///   continued rather than claimed, which kept its start and threw the worked
+///   time away. Residual: worked time that, once rounded, exactly matches the
+///   estimate is still claimed (with Undo);
+/// * anything while a timer was running ([closedRunning]).
+TimeEntry? _roundingTail(
+  List<TimeEntry> sorted, {
+  required DateTime now,
+  required int roundUpSeconds,
+  required Date? dueDate,
+  required int estimatedSeconds,
+  required bool closedRunning,
+}) {
+  if (roundUpSeconds <= 1 || closedRunning || sorted.isEmpty) return null;
+  final last = sorted.last;
+  final start = last.start;
+  final stop = last.stop;
+  if (start == null || stop == null || start.isAfter(now)) return null;
+  final length = stop.difference(start).inSeconds;
+  if (length < 0) return null;
+  final rounded = start.add(
+    Duration(seconds: (length / roundUpSeconds).ceil() * roundUpSeconds),
+  );
+  if (!rounded.isAfter(now)) return null;
+  if (rounded.difference(now).inSeconds >= roundUpSeconds) return null;
+  final untouchedBooking =
+      sorted.length == 1 &&
+      dueDate != null &&
+      estimatedSeconds > 0 &&
+      _localDate(last) == dueDate &&
+      length == estimatedSeconds;
+  return untouchedBooking ? null : last;
+}
+
 /// How late the booked block is, or null when the task is not
 /// [TaskScheduleState.late]. Measured from the booking's **start**, which is
 /// the time the user promised to be there.
@@ -435,6 +490,24 @@ TaskStartPlan planTaskStart(
   TaskStartPlan legal(TaskStartPlan plan) =>
       timeLogProblem(plan.entries) == null ? plan : blocked();
 
+  // The rounding tail (invoiceninja/app#220), checked before the bookings:
+  // see [_roundingTail]. Its entry runs on, from its own start.
+  if (_roundingTail(
+        log,
+        now: now,
+        roundUpSeconds: roundUpSeconds,
+        dueDate: dueDate,
+        estimatedSeconds: estimatedSeconds,
+        closedRunning: justClosed.isNotEmpty,
+      )
+      case final last?) {
+    return legal((
+      outcome: TaskStartOutcome.resume,
+      entries: [...log]..[log.length - 1] = last.copyWith(stop: null),
+      claimed: null,
+    ));
+  }
+
   if (booked.length > 1) return blocked();
 
   if (booked.isEmpty) {
@@ -454,29 +527,6 @@ TaskStartPlan planTaskStart(
         ]),
         claimed: claimed,
       ));
-    }
-    // The rounding tail (invoiceninja/app#220). The server rounds every
-    // entry's end UP to [roundUpSeconds] on save, so a timer stopped at 09:07
-    // is stored as 09:00–09:15, and a Start at 09:10 would overlap it. When
-    // the last entry is worked time ending less than one interval from now,
-    // it can only be that tail — a typed 09:00–17:00 timesheet row ends hours
-    // away, and reopening that would throw away the hours typed — so the
-    // entry runs on instead. A booking never gets here (`booked` is empty).
-    if (roundUpSeconds > 1 && justClosed.isEmpty && log.isNotEmpty) {
-      final last = log.last;
-      final start = last.start;
-      final stop = last.stop;
-      if (start != null &&
-          stop != null &&
-          !start.isAfter(now) &&
-          stop.isAfter(now) &&
-          stop.difference(now).inSeconds < roundUpSeconds) {
-        return legal((
-          outcome: TaskStartOutcome.resume,
-          entries: [...log]..[log.length - 1] = last.copyWith(stop: null),
-          claimed: null,
-        ));
-      }
     }
     // A new entry starts blank and billable, as the server's own `start`
     // writes it (`[time(), 0, "", true]`, `TaskRepository::start`) and as

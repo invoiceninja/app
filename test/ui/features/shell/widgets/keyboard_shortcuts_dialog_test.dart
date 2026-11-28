@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/services.dart';
 import 'package:admin/app/shortcuts/keyboard_shortcuts_controller.dart';
+import 'package:admin/app/shortcuts/shortcut_catalog.dart';
 import 'package:admin/app/theme.dart';
 import 'package:admin/ui/core/utils/platform_modifier.dart';
 import 'package:admin/ui/features/shell/widgets/keyboard_shortcuts_dialog.dart';
@@ -22,10 +23,14 @@ class _FakeServices implements Services {
   dynamic noSuchMethod(Invocation invocation) => throw UnimplementedError();
 }
 
-Future<void> _open(WidgetTester tester) async {
+Future<void> _open(
+  WidgetTester tester, {
+  void Function(KeyboardShortcutsController)? setUp,
+}) async {
   // No `db` — the controller resolves catalog defaults purely in memory.
   final shortcuts = KeyboardShortcutsController();
   addTearDown(shortcuts.dispose);
+  setUp?.call(shortcuts);
   await tester.pumpWidget(
     Provider<Services>.value(
       value: _FakeServices(shortcuts),
@@ -102,6 +107,17 @@ void main() {
         find.text('Shortcuts are disabled while typing in a field.'),
         findsOneWidget,
       );
+    });
+
+    // The shell's fixed ⌘F fallback still focuses the search field with `/`
+    // cleared, so the row stays — with ⌘F alone.
+    testWidgets('Focus search keeps its row with / cleared', (tester) async {
+      await _open(
+        tester,
+        setUp: (c) => c.clearBinding(ShortcutActionIds.focusSearch),
+      );
+      expect(find.text('Focus the search field'), findsOneWidget);
+      expect(find.text('/'), findsNothing);
     });
 
     testWidgets('Close button dismisses the dialog', (tester) async {

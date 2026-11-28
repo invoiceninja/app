@@ -474,7 +474,7 @@ the honest default.
 |---|---|---|---|---|---|
 | Task — list | ✅ | ✅ | ✅ | ✅ | 🟡 |
 | Task — kanban board view | ✅ | ✅ | ✅ | ✅ | |
-| Task — Start / Resume inside the rounded-up tail of the entry just stopped continues that entry instead of refusing an overlap (round-up interval from client → group → company; never a booking or a typed block), with Undo | ❌ | ❌ | ✅ | | invoiceninja/app#220 |
+| Task — Start / Resume inside the rounded-up tail of the entry just stopped continues that entry instead of refusing an overlap (round-up interval from client → group → company; never a booking or a typed block), with Undo | — | — | ✅ | | invoiceninja/app#220 |
 | Task — daily view | ✅ | ❌ | ✅ |  | |
 | Task — weekly view | ✅ | ❌ | ✅ |  | |
 | Task — Log time from the daily / weekly view: a quick-log dialog that adds a duration to an existing task or a new one, without leaving the view | 🟡 | ❌ | ✅ |  | React's `QuickLogTimeModal` only creates a new task |

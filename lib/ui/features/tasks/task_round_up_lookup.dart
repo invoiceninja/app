@@ -3,9 +3,10 @@ import 'package:admin/domain/tasks/task_rounding.dart';
 
 /// [taskRoundUpSeconds] for a task of [clientId], read from the rows the app
 /// already holds — the client, its group, the company — so it makes no
-/// request. A row not loaded yet is skipped, as the server's cascade would
-/// fall through to the next level. Never throws: 1 (no rounding) on failure,
-/// which only means a Start in the rounding tail stays blocked, as before.
+/// request. A row not loaded yet is skipped, so a client or group override
+/// the app has not seen falls back to the next level down; the server reads
+/// the real rows. That errs safe: a missed interval only leaves a Start in
+/// the tail blocked, as before. Never throws: 1 (no rounding) on failure.
 Future<int> lookupTaskRoundUpSeconds(
   Services services, {
   required String companyId,

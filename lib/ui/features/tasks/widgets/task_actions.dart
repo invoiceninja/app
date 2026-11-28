@@ -21,7 +21,6 @@ import 'package:admin/domain/quick_create.dart';
 import 'package:admin/domain/run_template.dart';
 import 'package:admin/domain/tasks/task_day.dart';
 import 'package:admin/domain/tasks/task_schedule.dart';
-import 'package:admin/ui/features/tasks/task_round_up_lookup.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/dialogs/confirm_start_scheduled_dialog.dart';
 import 'package:admin/ui/core/detail/activity_note_actions.dart';
@@ -39,6 +38,7 @@ import 'package:admin/ui/features/billing_shared/add_unbilled/unbilled_line_item
 import 'package:admin/ui/features/billing_shared/seed_billing_create_defaults.dart';
 import 'package:admin/ui/features/invoices/view_models/invoice_edit_view_model.dart';
 import 'package:admin/ui/features/invoices/widgets/detail/run_template_dialog.dart';
+import 'package:admin/ui/features/tasks/task_round_up_lookup.dart';
 import 'package:admin/utils/formatting.dart';
 
 /// Action set surfaced for a task. Mirrors `ProductAction` — only the
@@ -901,7 +901,11 @@ class TaskActions {
           startedMsg,
           detail: switch (result) {
             TaskStartResult.claimed => claimedDetail,
-            TaskStartResult.resumed => resumedMsg ?? movedDetail,
+            // Both, when a resume also moved the card's status.
+            TaskStartResult.resumed => [
+              resumedMsg,
+              movedDetail,
+            ].nonNulls.join(' · ').ifNotEmpty,
             _ => movedDetail,
           },
           action: NotifyAction(
@@ -1089,4 +1093,9 @@ class _TaskInvoiceContext {
       projectsById: projectsById,
     );
   }
+}
+
+extension on String {
+  /// Null for an empty string, so a toast gets no blank detail line.
+  String? get ifNotEmpty => isEmpty ? null : this;
 }
