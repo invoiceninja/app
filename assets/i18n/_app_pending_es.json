@@ -2423,5 +2423,6 @@
   "color_amber": "Ámbar",
   "color_blue": "Azul",
   "color_green": "Verde",
-  "color_red": "Rojo"
+  "color_red": "Rojo",
+  "continued_time_entry": "Continuando la entrada de tiempo desde las :time"
 }

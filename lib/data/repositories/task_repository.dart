@@ -544,12 +544,20 @@ class TaskRepository extends BaseEntityRepository<Task, TaskApi>
   /// `builtInTaskStatusKey` lives in `lib/ui` and `layering_test` forbids
   /// reaching it from here. The bulk toolbar passes neither, so a bulk start
   /// never moves a status.
+  ///
+  /// [roundUpSeconds] is the server's round-up interval for this task's client
+  /// (`taskRoundUpSeconds`), resolved by the caller from the rows it already
+  /// watches: with it, a Start inside the rounded tail of the entry just
+  /// stopped continues that entry ([TaskStartResult.resumed]) instead of being
+  /// blocked as an overlap (invoiceninja/app#220). The default, 1, never
+  /// resumes.
   Future<TaskStartResult> startTimer({
     required String companyId,
     required String taskId,
     bool confirmClaim = false,
     String? claimStatusId,
     String? startStatusId,
+    int roundUpSeconds = 1,
   }) async {
     final row = await db.taskDao
         .watchById(companyId: companyId, id: taskId)
@@ -571,6 +579,7 @@ class TaskRepository extends BaseEntityRepository<Task, TaskApi>
       now: now(),
       dueDate: task.dueDate,
       estimatedSeconds: task.estimatedSeconds,
+      roundUpSeconds: roundUpSeconds,
     );
     if (plan.outcome == TaskStartOutcome.blocked) {
       return TaskStartResult.blocked;
@@ -589,6 +598,7 @@ class TaskRepository extends BaseEntityRepository<Task, TaskApi>
       next = next.copyWith(statusId: claimStatusId);
     }
     await save(companyId: companyId, task: next);
+    if (plan.outcome == TaskStartOutcome.resume) return TaskStartResult.resumed;
     return plan.claimed == null
         ? TaskStartResult.started
         : TaskStartResult.claimed;
@@ -1089,6 +1099,10 @@ enum TaskStartResult {
 
   /// A booking became the running entry. The caller should offer Undo.
   claimed,
+
+  /// The last entry, whose end the server had rounded up past now, runs
+  /// again ([TaskStartOutcome.resume]). The caller should offer Undo.
+  resumed,
 
   /// A booking sits on another calendar day, or has already passed unworked.
   /// **Nothing was written.** Ask, then call again with `confirmClaim: true`.

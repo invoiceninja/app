@@ -2340,5 +2340,6 @@
   "color_amber": "Кехлибарен",
   "color_blue": "Син",
   "color_green": "Зелен",
-  "color_red": "Червен"
+  "color_red": "Червен",
+  "continued_time_entry": "Продължава записът на времето от :time"
 }

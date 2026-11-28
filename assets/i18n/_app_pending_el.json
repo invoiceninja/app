@@ -2340,5 +2340,6 @@
   "color_amber": "Κεχριμπαρένιο",
   "color_blue": "Μπλε",
   "color_green": "Πράσινο",
-  "color_red": "Κόκκινο"
+  "color_red": "Κόκκινο",
+  "continued_time_entry": "Συνέχιση της καταχώρισης χρόνου από τις :time"
 }

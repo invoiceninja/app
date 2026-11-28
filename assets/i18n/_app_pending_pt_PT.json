@@ -2340,5 +2340,6 @@
   "color_amber": "Âmbar",
   "color_blue": "Azul",
   "color_green": "Verde",
-  "color_red": "Vermelho"
+  "color_red": "Vermelho",
+  "continued_time_entry": "A continuar o registo de tempo das :time"
 }

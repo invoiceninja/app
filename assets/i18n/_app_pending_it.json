@@ -2423,5 +2423,6 @@
   "color_amber": "Ambra",
   "color_blue": "Blu",
   "color_green": "Verde",
-  "color_red": "Rosso"
+  "color_red": "Rosso",
+  "continued_time_entry": "Si riprende la registrazione del tempo dalle :time"
 }

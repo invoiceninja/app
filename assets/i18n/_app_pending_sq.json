@@ -2423,5 +2423,6 @@
   "color_amber": "Qelibar",
   "color_blue": "Blu",
   "color_green": "Jeshile",
-  "color_red": "E kuqe"
+  "color_red": "E kuqe",
+  "continued_time_entry": "Po vazhdon regjistrimi i kohës nga :time"
 }

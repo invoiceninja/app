@@ -2424,5 +2424,6 @@
   "color_amber": "Dzintara",
   "color_blue": "Zila",
   "color_green": "Zaļa",
-  "color_red": "Sarkana"
+  "color_red": "Sarkana",
+  "continued_time_entry": "Turpina laika ierakstu no :time"
 }

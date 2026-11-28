@@ -2340,5 +2340,6 @@
   "color_amber": "Jantarna",
   "color_blue": "Plava",
   "color_green": "Zelena",
-  "color_red": "Crvena"
+  "color_red": "Crvena",
+  "continued_time_entry": "Nastavlja se vremenski zapis od :time"
 }

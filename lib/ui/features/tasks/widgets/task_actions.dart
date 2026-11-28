@@ -21,6 +21,7 @@ import 'package:admin/domain/quick_create.dart';
 import 'package:admin/domain/run_template.dart';
 import 'package:admin/domain/tasks/task_day.dart';
 import 'package:admin/domain/tasks/task_schedule.dart';
+import 'package:admin/ui/features/tasks/task_round_up_lookup.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/dialogs/confirm_start_scheduled_dialog.dart';
 import 'package:admin/ui/core/detail/activity_note_actions.dart';
@@ -800,6 +801,22 @@ class TaskActions {
     final startedMsg = context.tr('started_task');
     final claimedDetail = context.tr('booking_moved_to_now');
     final blockedMsg = context.tr('task_time_log_blocks_start');
+    final military =
+        services.formatterIfReady(companyId)?.settings.enableMilitaryTime ??
+        false;
+    String resumedDetail(DateTime start) {
+      final local = start.toLocal();
+      return context.tr('continued_time_entry', {
+        'time': formatTimeOfDay(local.hour, local.minute, military: military),
+      });
+    }
+
+    // The entry the rounding tail would continue, named in the toast. Read
+    // before the write, like everything else here.
+    final lastEntry = sortTimeLog(task.timeLog).lastOrNull;
+    final resumedMsg = lastEntry?.start == null
+        ? null
+        : resumedDetail(lastEntry!.start!);
     final undoLabel = context.tr('undo');
     final formatter = services.formatterIfReady(companyId);
 
@@ -830,12 +847,21 @@ class TaskActions {
                 : inProgress.name,
           });
 
+    // The server's round-up interval for this client: a Start inside the
+    // rounded tail of the entry just stopped continues it (#220).
+    final roundUpSeconds = await lookupTaskRoundUpSeconds(
+      services,
+      companyId: companyId,
+      clientId: task.clientId,
+    );
+
     Future<TaskStartResult> start({bool confirmed = false}) =>
         services.tasks.startTimer(
           companyId: companyId,
           taskId: task.id,
           confirmClaim: confirmed,
           startStatusId: startStatusId,
+          roundUpSeconds: roundUpSeconds,
         );
 
     var result = await start();
@@ -868,13 +894,16 @@ class TaskActions {
         toasts?.success(startedMsg);
       case TaskStartResult.started:
       case TaskStartResult.claimed:
-        // The same Undo either way: it puts back the log and the status, so a
+      case TaskStartResult.resumed:
+        // The same Undo every way: it puts back the log and the status, so a
         // start that moved a card can be taken back as a whole.
         toasts?.success(
           startedMsg,
-          detail: result == TaskStartResult.claimed
-              ? claimedDetail
-              : movedDetail,
+          detail: switch (result) {
+            TaskStartResult.claimed => claimedDetail,
+            TaskStartResult.resumed => resumedMsg ?? movedDetail,
+            _ => movedDetail,
+          },
           action: NotifyAction(
             undoLabel,
             () => unawaited(

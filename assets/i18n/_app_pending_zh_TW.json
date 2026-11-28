@@ -2340,5 +2340,6 @@
   "color_amber": "琥珀色",
   "color_blue": "藍色",
   "color_green": "綠色",
-  "color_red": "紅色"
+  "color_red": "紅色",
+  "continued_time_entry": "繼續從 :time 開始的時間記錄"
 }

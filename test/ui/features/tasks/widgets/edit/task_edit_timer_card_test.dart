@@ -63,6 +63,41 @@ void main() {
     TaskEditTimerCard(vm: vm, locked: locked, allowBillable: allowBillable),
   );
 
+  // invoiceninja/app#220: the form's Start / Resume inside the rounding tail
+  // of the entry just stopped continues that entry, keeping its note.
+  group('the rounding tail', () {
+    final rounded = TimeEntry(
+      start: now.subtract(const Duration(minutes: 7)),
+      stop: now.add(const Duration(minutes: 8)),
+      description: 'Boiler',
+    );
+
+    test('with the client\'s interval, Resume continues the entry', () async {
+      final vm = TaskEditViewModel(
+        repo: TaskRepository(db: db, api: _FakeTasksApi()),
+        companyId: 'co',
+        now: () => now,
+        existing: emptyTask().copyWith(id: 't1', timeLog: [rounded]),
+        roundUpLookup: (_) async => 15 * 60,
+      );
+      addTearDown(vm.dispose);
+      await Future<void>.delayed(Duration.zero);
+      vm.resumeTimer();
+      expect(vm.draft.timeLog, hasLength(1));
+      final entry = vm.draft.timeLog.single;
+      expect(entry.isRunning, isTrue);
+      expect(entry.start, rounded.start);
+      expect(entry.description, 'Boiler', reason: 'not the blank seed');
+    });
+
+    test('without one, the overlap still refuses the start', () {
+      final vm = vmWith([rounded]);
+      addTearDown(vm.dispose);
+      vm.resumeTimer();
+      expect(vm.draft.timeLog, [rounded]);
+    });
+  });
+
   group('the clock', () {
     testWidgets('collapses when nothing runs — no 0:00:00', (tester) async {
       await pumpCard(tester, vmWith([worked(2)]));

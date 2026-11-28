@@ -135,6 +135,52 @@ void main() {
     TimeEntry block(DateTime start, Duration length) =>
         TimeEntry(start: start, stop: start.add(length));
 
+    // invoiceninja/app#220: an entry the server rounded up past now.
+    test('inside the rounding tail of the entry just stopped, that entry '
+        'runs on', () async {
+      final repo = makeRepo();
+      final now = DateTime.now();
+      final start = now.subtract(const Duration(minutes: 10));
+      final created = await repo.create(
+        companyId: 'co',
+        draft: task(
+          timeLog: [
+            TimeEntry(
+              start: start,
+              stop: now.add(const Duration(minutes: 5)),
+              description: 'kept',
+            ),
+          ],
+        ),
+      );
+
+      expect(
+        await repo.startTimer(companyId: 'co', taskId: created.entity.id),
+        TaskStartResult.blocked,
+        reason: 'no interval passed: the overlap is refused, as before',
+      );
+      expect(
+        await repo.startTimer(
+          companyId: 'co',
+          taskId: created.entity.id,
+          roundUpSeconds: 15 * 60,
+        ),
+        TaskStartResult.resumed,
+      );
+      final stored = await repo
+          .watch(companyId: 'co', id: created.entity.id)
+          .first;
+      expect(stored!.timeLog, hasLength(1));
+      final entry = stored.timeLog.single;
+      expect(entry.isRunning, isTrue);
+      expect(
+        entry.start!.millisecondsSinceEpoch ~/ 1000,
+        start.millisecondsSinceEpoch ~/ 1000,
+      );
+      expect(entry.description, 'kept');
+      expect(stored.isRunning, isTrue);
+    });
+
     test('a live booking becomes the running entry — no second row', () async {
       final repo = makeRepo();
       final now = DateTime.now();

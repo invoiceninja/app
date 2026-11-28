@@ -2339,5 +2339,6 @@
   "color_amber": "ពណ៌លឿងទុំ",
   "color_blue": "ខៀវ",
   "color_green": "បៃតង",
-  "color_red": "ក្រហម"
+  "color_red": "ក្រហម",
+  "continued_time_entry": "កំពុងបន្តការកត់ត្រាពេលវេលាចាប់ពី :time"
 }

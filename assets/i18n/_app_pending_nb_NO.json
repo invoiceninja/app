@@ -2423,5 +2423,6 @@
   "color_amber": "Rav",
   "color_blue": "Blå",
   "color_green": "Grønn",
-  "color_red": "Rød"
+  "color_red": "Rød",
+  "continued_time_entry": "Fortsetter tidsregistreringen fra :time"
 }

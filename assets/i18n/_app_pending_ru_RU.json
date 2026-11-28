@@ -2423,5 +2423,6 @@
   "color_amber": "Янтарный",
   "color_blue": "Синий",
   "color_green": "Зелёный",
-  "color_red": "Красный"
+  "color_red": "Красный",
+  "continued_time_entry": "Продолжается запись времени с :time"
 }

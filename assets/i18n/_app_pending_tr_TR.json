@@ -2423,5 +2423,6 @@
   "color_amber": "Kehribar",
   "color_blue": "Mavi",
   "color_green": "Yeşil",
-  "color_red": "Kırmızı"
+  "color_red": "Kırmızı",
+  "continued_time_entry": ":time itibarıyla zaman kaydına devam ediliyor"
 }

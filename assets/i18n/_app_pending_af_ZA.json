@@ -2340,5 +2340,6 @@
   "color_amber": "Amber",
   "color_blue": "Blou",
   "color_green": "Groen",
-  "color_red": "Rooi"
+  "color_red": "Rooi",
+  "continued_time_entry": "Gaan voort met die tydinskrywing van :time"
 }

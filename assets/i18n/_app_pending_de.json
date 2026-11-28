@@ -2423,5 +2423,6 @@
   "color_amber": "Bernstein",
   "color_blue": "Blau",
   "color_green": "Grün",
-  "color_red": "Rot"
+  "color_red": "Rot",
+  "continued_time_entry": "Der Zeiteintrag ab :time wird fortgesetzt"
 }

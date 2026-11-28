@@ -2339,5 +2339,6 @@
   "color_amber": "كهرماني",
   "color_blue": "أزرق",
   "color_green": "أخضر",
-  "color_red": "أحمر"
+  "color_red": "أحمر",
+  "continued_time_entry": "متابعة إدخال الوقت من :time"
 }

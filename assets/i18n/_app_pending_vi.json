@@ -2306,5 +2306,6 @@
   "color_amber": "Hổ phách",
   "color_blue": "Xanh dương",
   "color_green": "Xanh lá",
-  "color_red": "Đỏ"
+  "color_red": "Đỏ",
+  "continued_time_entry": "Đang tiếp tục mục thời gian từ :time"
 }

@@ -2423,5 +2423,6 @@
   "color_amber": "สีอำพัน",
   "color_blue": "สีน้ำเงิน",
   "color_green": "สีเขียว",
-  "color_red": "สีแดง"
+  "color_red": "สีแดง",
+  "continued_time_entry": "กำลังบันทึกเวลาต่อจาก :time"
 }

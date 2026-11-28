@@ -2423,5 +2423,6 @@
   "color_amber": "Jantarová",
   "color_blue": "Modrá",
   "color_green": "Zelená",
-  "color_red": "Červená"
+  "color_red": "Červená",
+  "continued_time_entry": "Pokračuje časový záznam od :time"
 }

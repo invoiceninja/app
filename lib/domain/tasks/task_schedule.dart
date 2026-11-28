@@ -103,6 +103,13 @@ enum TaskStartOutcome {
   /// direction — whichever is claimed, the running entry still precedes the
   /// others. The caller must send the user to the time log.
   blocked,
+
+  /// The last entry was stopped moments ago and the server rounded its end
+  /// *up* past now (`task_round_to_nearest` with `task_round_up`), so a new
+  /// entry would overlap it. That entry runs again instead, from its own
+  /// start, description and all; the server rounds it once more when it
+  /// stops (invoiceninja/app#220). The caller offers Undo.
+  resume,
 }
 
 /// The outcome plus the log it implies. [entries] is left untouched for
@@ -388,6 +395,7 @@ TaskStartPlan planTaskStart(
   required DateTime now,
   Date? dueDate,
   int estimatedSeconds = 0,
+  int roundUpSeconds = 1,
 }) {
   final sorted = sortTimeLog(entries);
 
@@ -446,6 +454,29 @@ TaskStartPlan planTaskStart(
         ]),
         claimed: claimed,
       ));
+    }
+    // The rounding tail (invoiceninja/app#220). The server rounds every
+    // entry's end UP to [roundUpSeconds] on save, so a timer stopped at 09:07
+    // is stored as 09:00–09:15, and a Start at 09:10 would overlap it. When
+    // the last entry is worked time ending less than one interval from now,
+    // it can only be that tail — a typed 09:00–17:00 timesheet row ends hours
+    // away, and reopening that would throw away the hours typed — so the
+    // entry runs on instead. A booking never gets here (`booked` is empty).
+    if (roundUpSeconds > 1 && justClosed.isEmpty && log.isNotEmpty) {
+      final last = log.last;
+      final start = last.start;
+      final stop = last.stop;
+      if (start != null &&
+          stop != null &&
+          !start.isAfter(now) &&
+          stop.isAfter(now) &&
+          stop.difference(now).inSeconds < roundUpSeconds) {
+        return legal((
+          outcome: TaskStartOutcome.resume,
+          entries: [...log]..[log.length - 1] = last.copyWith(stop: null),
+          claimed: null,
+        ));
+      }
     }
     // A new entry starts blank and billable, as the server's own `start`
     // writes it (`[time(), 0, "", true]`, `TaskRepository::start`) and as

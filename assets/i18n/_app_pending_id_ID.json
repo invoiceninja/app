@@ -2341,5 +2341,6 @@
   "color_amber": "Kuning amber",
   "color_blue": "Biru",
   "color_green": "Hijau",
-  "color_red": "Merah"
+  "color_red": "Merah",
+  "continued_time_entry": "Melanjutkan entri waktu dari :time"
 }

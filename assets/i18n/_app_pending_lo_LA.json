@@ -2423,5 +2423,6 @@
   "color_amber": "ສີອຳພັນ",
   "color_blue": "ສີຟ້າ",
   "color_green": "ສີຂຽວ",
-  "color_red": "ສີແດງ"
+  "color_red": "ສີແດງ",
+  "continued_time_entry": "ກຳລັງສືບຕໍ່ການບັນທຶກເວລາຈາກ :time"
 }

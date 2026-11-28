@@ -2423,5 +2423,6 @@
   "color_amber": "Jantarna",
   "color_blue": "Modra",
   "color_green": "Zelena",
-  "color_red": "Rdeča"
+  "color_red": "Rdeča",
+  "continued_time_entry": "Nadaljuje se časovni vnos od :time"
 }

@@ -2423,5 +2423,6 @@
   "color_amber": "琥珀色",
   "color_blue": "蓝色",
   "color_green": "绿色",
-  "color_red": "红色"
+  "color_red": "红色",
+  "continued_time_entry": "继续从 :time 开始的时间记录"
 }

@@ -32,13 +32,39 @@ class TaskEditViewModel extends GenericEditViewModel<Task> {
     super.sync,
     super.connectivity,
     super.useCommaAsDecimalPlace,
+    this.roundUpLookup,
   }) : super(
          initialDraft: cloneFrom ?? existing ?? emptyTask(),
          original: existing,
          companyId: companyId,
-       );
+       ) {
+    _prefetchRoundUp(draft.clientId);
+  }
 
   final TaskRepository repo;
+
+  /// The server's round-up interval for a client (`taskRoundUpSeconds`), so
+  /// [startTimer] can continue the entry whose end the server rounded past
+  /// now instead of refusing an overlap (invoiceninja/app#220). Looked up once
+  /// per client, ahead of the tap, because [startTimer] is synchronous; until
+  /// an answer lands it is 1, which never continues — the behaviour before.
+  final Future<int> Function(String clientId)? roundUpLookup;
+  final Map<String, int> _roundUpByClient = <String, int>{};
+
+  void _prefetchRoundUp(String clientId) {
+    final lookup = roundUpLookup;
+    if (lookup == null || _roundUpByClient.containsKey(clientId)) return;
+    _roundUpByClient[clientId] = 1;
+    lookup(clientId).then((seconds) {
+      _roundUpByClient[clientId] = seconds;
+    }, onError: (Object _) {}).ignore();
+  }
+
+  @override
+  void updateDraft(Task next) {
+    super.updateDraft(next);
+    _prefetchRoundUp(next.clientId);
+  }
 
   /// Files picked on the create form upload under the new record's id on
   /// Save (docs/attaching-documents.md).
@@ -259,12 +285,14 @@ class TaskEditViewModel extends GenericEditViewModel<Task> {
       now: now(),
       dueDate: draft.dueDate,
       estimatedSeconds: draft.estimatedSeconds,
+      roundUpSeconds: _roundUpByClient[draft.clientId] ?? 1,
     );
     if (plan.outcome == TaskStartOutcome.blocked) return;
     final entries = <TimeEntry>[...plan.entries];
-    // The caller's seed wins over the plan's carried-over description; a claim
-    // keeps the booking's own, which is the note the user wrote when booking.
-    if (plan.claimed == null) {
+    // The caller's seed wins over the plan's carried-over description on a new
+    // entry; a claim keeps the booking's own, which is the note the user wrote
+    // when booking, and a resume keeps the entry it continues.
+    if (plan.outcome == TaskStartOutcome.append) {
       entries[entries.length - 1] = entries.last.copyWith(
         description: description,
         billable: billable,

@@ -2340,5 +2340,6 @@
   "color_amber": "Merevaik",
   "color_blue": "Sinine",
   "color_green": "Roheline",
-  "color_red": "Punane"
+  "color_red": "Punane",
+  "continued_time_entry": "Jätkatakse ajakannet alates :time"
 }

@@ -2410,5 +2410,6 @@
   "color_amber": "Bärnsten",
   "color_blue": "Blå",
   "color_green": "Grön",
-  "color_red": "Röd"
+  "color_red": "Röd",
+  "continued_time_entry": "Fortsätter tidsposten från :time"
 }

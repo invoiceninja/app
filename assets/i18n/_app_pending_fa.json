@@ -2424,5 +2424,6 @@
   "color_amber": "کهربایی",
   "color_blue": "آبی",
   "color_green": "سبز",
-  "color_red": "قرمز"
+  "color_red": "قرمز",
+  "continued_time_entry": "ادامه ثبت زمان از :time"
 }

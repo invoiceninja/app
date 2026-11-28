@@ -2423,5 +2423,6 @@
   "color_amber": "Килибарна",
   "color_blue": "Сина",
   "color_green": "Зелена",
-  "color_red": "Црвена"
+  "color_red": "Црвена",
+  "continued_time_entry": "Се продолжува записот за време од :time"
 }

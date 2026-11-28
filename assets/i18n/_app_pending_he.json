@@ -2339,5 +2339,6 @@
   "color_amber": "ענבר",
   "color_blue": "כחול",
   "color_green": "ירוק",
-  "color_red": "אדום"
+  "color_red": "אדום",
+  "continued_time_entry": "ממשיך את רישום הזמן מ-:time"
 }

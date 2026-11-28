@@ -13,6 +13,7 @@ import 'package:admin/ui/core/edit/edit_action_filter.dart';
 import 'package:admin/ui/core/edit/carry_edit_entities.dart';
 import 'package:admin/ui/core/edit/entity_edit_screen_scaffold.dart';
 import 'package:admin/ui/core/widgets/formatter_host_mixin.dart';
+import 'package:admin/ui/features/tasks/task_round_up_lookup.dart';
 import 'package:admin/ui/features/tasks/view_models/task_edit_view_model.dart';
 import 'package:admin/ui/features/tasks/widgets/edit/task_edit_layout.dart';
 import 'package:admin/ui/features/tasks/widgets/task_actions.dart';
@@ -98,6 +99,11 @@ class _TaskEditScreenState extends State<TaskEditScreen>
               false,
           sync: services.sync,
           connectivity: services.connectivity,
+          roundUpLookup: (clientId) => lookupTaskRoundUpSeconds(
+            services,
+            companyId: companyId,
+            clientId: clientId,
+          ),
         );
         // Seed the project picker on first build. Fire-and-forget — the
         // watch resolves the project once Drift has it, then runs the

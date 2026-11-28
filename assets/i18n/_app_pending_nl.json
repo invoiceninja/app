@@ -2423,5 +2423,6 @@
   "color_amber": "Amber",
   "color_blue": "Blauw",
   "color_green": "Groen",
-  "color_red": "Rood"
+  "color_red": "Rood",
+  "continued_time_entry": "De tijdregistratie vanaf :time loopt verder"
 }

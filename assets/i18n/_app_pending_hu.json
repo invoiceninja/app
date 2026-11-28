@@ -2378,5 +2378,6 @@
   "color_amber": "Borostyán",
   "color_blue": "Kék",
   "color_green": "Zöld",
-  "color_red": "Piros"
+  "color_red": "Piros",
+  "continued_time_entry": "A :time óta tartó időbejegyzés folytatódik"
 }

@@ -2340,5 +2340,6 @@
   "color_amber": "Ambre",
   "color_blue": "Blau",
   "color_green": "Verd",
-  "color_red": "Vermell"
+  "color_red": "Vermell",
+  "continued_time_entry": "Es continua l'entrada de temps de les :time"
 }

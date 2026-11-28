@@ -2341,5 +2341,6 @@
   "color_amber": "Meripihka",
   "color_blue": "Sininen",
   "color_green": "Vihreä",
-  "color_red": "Punainen"
+  "color_red": "Punainen",
+  "continued_time_entry": "Jatketaan aikakirjausta klo :time alkaen"
 }

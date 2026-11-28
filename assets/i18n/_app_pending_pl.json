@@ -2341,5 +2341,6 @@
   "color_amber": "Bursztynowy",
   "color_blue": "Niebieski",
   "color_green": "Zielony",
-  "color_red": "Czerwony"
+  "color_red": "Czerwony",
+  "continued_time_entry": "Kontynuacja wpisu czasu od :time"
 }

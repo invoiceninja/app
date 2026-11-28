@@ -2423,5 +2423,6 @@
   "color_amber": "琥珀",
   "color_blue": "青",
   "color_green": "緑",
-  "color_red": "赤"
+  "color_red": "赤",
+  "continued_time_entry": ":time からの時間記録を継続します"
 }

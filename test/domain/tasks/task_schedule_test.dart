@@ -327,6 +327,87 @@ void main() {
     });
   });
 
+  // invoiceninja/app#220: the server rounds every entry's end UP on save, so
+  // a timer stopped at 11:22 with 15-minute rounding is stored as 11:15–11:30
+  // ... and a Start before 11:30 overlapped it, and was refused.
+  group('planTaskStart in the rounding tail', () {
+    final now = DateTime(2026, 9, 14, 11, 25);
+    const quarter = 15 * 60;
+    // Worked 11:00–11:22, rounded up to 11:30.
+    final rounded = TimeEntry(
+      start: DateTime(2026, 9, 14, 11),
+      stop: DateTime(2026, 9, 14, 11, 30),
+      description: 'Fixing the boiler',
+      billable: false,
+    );
+    final earlier = block(DateTime(2026, 9, 14, 9), const Duration(hours: 1));
+
+    test('continues the entry whose rounded end is still ahead', () {
+      final plan = planTaskStart(
+        [earlier, rounded],
+        now: now,
+        roundUpSeconds: quarter,
+      );
+      expect(plan.outcome, TaskStartOutcome.resume);
+      expect(plan.claimed, isNull);
+      expect(plan.entries, hasLength(2));
+      expect(plan.entries.first, earlier);
+      final resumed = plan.entries.last;
+      expect(resumed.start, rounded.start, reason: 'its own start');
+      expect(resumed.isRunning, isTrue);
+      expect(resumed.description, 'Fixing the boiler');
+      expect(resumed.billable, isFalse);
+      expect(timeLogProblem(plan.entries), isNull);
+    });
+
+    test('without round-up it stays blocked, as before', () {
+      expect(
+        planTaskStart([earlier, rounded], now: now).outcome,
+        TaskStartOutcome.blocked,
+      );
+    });
+
+    test('a typed block that ends hours away is never reopened', () {
+      // Today's 09:00–17:00 timesheet row: reopening it would throw away the
+      // hours typed, so it stays the dead end it was.
+      final typed = block(DateTime(2026, 9, 14, 9), const Duration(hours: 8));
+      expect(
+        planTaskStart([typed], now: now, roundUpSeconds: quarter).outcome,
+        TaskStartOutcome.blocked,
+      );
+    });
+
+    test('an end a whole interval or more ahead is not a rounding tail', () {
+      final long = TimeEntry(
+        start: DateTime(2026, 9, 14, 11),
+        stop: now.add(const Duration(seconds: quarter)),
+      );
+      expect(
+        planTaskStart([long], now: now, roundUpSeconds: quarter).outcome,
+        TaskStartOutcome.blocked,
+      );
+    });
+
+    test('an entry that has already ended appends a new one', () {
+      final done = block(DateTime(2026, 9, 14, 10), const Duration(hours: 1));
+      expect(
+        planTaskStart([done], now: now, roundUpSeconds: quarter).outcome,
+        TaskStartOutcome.append,
+      );
+    });
+
+    test('a booking is still claimed, never continued', () {
+      // On its due date a block across now is a booking (`_isBooking`).
+      final plan = planTaskStart(
+        [rounded],
+        now: now,
+        dueDate: Date(2026, 9, 14),
+        roundUpSeconds: quarter,
+      );
+      expect(plan.outcome, TaskStartOutcome.claim);
+    });
+  });
+
   group('planTaskStart', () {
     final now = DateTime(2026, 9, 14, 11, 30);
     final today = Date(2026, 9, 14);

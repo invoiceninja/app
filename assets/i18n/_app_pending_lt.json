@@ -2378,5 +2378,6 @@
   "color_amber": "Gintarinė",
   "color_blue": "Mėlyna",
   "color_green": "Žalia",
-  "color_red": "Raudona"
+  "color_red": "Raudona",
+  "continued_time_entry": "Tęsiamas laiko įrašas nuo :time"
 }

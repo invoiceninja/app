@@ -2411,5 +2411,6 @@
   "color_amber": "Chihlimbar",
   "color_blue": "Albastru",
   "color_green": "Verde",
-  "color_red": "Roșu"
+  "color_red": "Roșu",
+  "continued_time_entry": "Se continuă înregistrarea timpului de la :time"
 }
