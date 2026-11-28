@@ -171,9 +171,11 @@ class PaymentEditScreen extends StatelessWidget {
         // Enter Payment opens the next payment's editor offline too, where
         // the id is still `tmp_` and the generic path would send the user
         // to this payment's record over it. Taking over navigation also
-        // skips the scaffold's toast, so the save is confirmed here.
+        // skips the scaffold's toast, so the save is confirmed here, in the
+        // scaffold's own words for an action's save: "Saved", which is true
+        // offline too, where "created" would not be.
         if (a == PaymentAction.newPayment) {
-          Notify.success(ctx, ctx.tr('created_payment'));
+          Notify.success(ctx, ctx.tr('saved'));
           await PaymentActions.dispatch(
             ctx,
             services,

@@ -46,37 +46,40 @@ class _HarnessState extends State<_Harness> {
 
   @override
   Widget build(BuildContext context) => MaterialApp(
-    home: Shortcuts(
+    // The shell's layer sits ABOVE the navigator, as `ScaffoldWithNav` sits
+    // above its branch navigators: a sheet's keys bubble up to it.
+    builder: (context, child) => Shortcuts(
       shortcuts: shellMap,
       child: Actions(
         actions: <Type, Action<Intent>>{
           FindFocusSearchIntent: FindFocusSearchAction(widget.registry),
         },
-        child: Scaffold(
-          body: Column(
-            children: [
-              TextField(key: const ValueKey('search'), focusNode: search),
-              Expanded(
-                child: Shortcuts(
-                  shortcuts: recordMap,
-                  child: Actions(
-                    actions: <Type, Action<Intent>>{
-                      FindChordIntent: FindChordAction(
-                        onFind: widget.onFind,
-                        canFind: widget.canFind,
-                      ),
-                    },
-                    child: Focus(
-                      focusNode: record,
-                      autofocus: true,
-                      child: const TextField(key: ValueKey('record_field')),
-                    ),
+        child: child!,
+      ),
+    ),
+    home: Scaffold(
+      body: Column(
+        children: [
+          TextField(key: const ValueKey('search'), focusNode: search),
+          Expanded(
+            child: Shortcuts(
+              shortcuts: recordMap,
+              child: Actions(
+                actions: <Type, Action<Intent>>{
+                  FindChordIntent: FindChordAction(
+                    onFind: widget.onFind,
+                    canFind: widget.canFind,
                   ),
+                },
+                child: Focus(
+                  focusNode: record,
+                  autofocus: true,
+                  child: const TextField(key: ValueKey('record_field')),
                 ),
               ),
-            ],
+            ),
           ),
-        ),
+        ],
       ),
     ),
   );
@@ -177,5 +180,52 @@ void main() {
 
     expect(await _pressFind(tester), isFalse);
     expect(state.record.hasPrimaryFocus, isTrue);
+  });
+
+  // Review finding: a bottom sheet on the branch navigator leaves the list
+  // under it registered, and ⌘F typed in the sheet's field focused the list's
+  // search behind the barrier.
+  testWidgets('stands down while the focus is in a sheet over the list', (
+    tester,
+  ) async {
+    final state = await pump(tester);
+    final inApp = tester.element(find.byKey(const ValueKey('search')));
+    showModalBottomSheet<void>(
+      context: inApp,
+      builder: (_) => const Padding(
+        padding: EdgeInsets.all(16),
+        child: TextField(key: ValueKey('sheet_field'), autofocus: true),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final sheetField = find.byKey(const ValueKey('sheet_field'));
+    expect(sheetField, findsOneWidget);
+    final focus = FocusManager.instance.primaryFocus!;
+    expect(focus.context, isNotNull);
+    expect(focusIsInAnotherRoute(state.search, focus), isTrue);
+
+    expect(await _pressFind(tester), isFalse);
+    expect(state.search.hasFocus, isFalse);
+    expect(
+      find.descendant(of: sheetField, matching: find.byType(EditableText)),
+      findsOneWidget,
+    );
+    expect(FocusManager.instance.primaryFocus, same(focus));
+
+    Navigator.of(inApp).pop();
+    await tester.pumpAndSettle();
+    expect(await _pressFind(tester), isTrue);
+    expect(state.search.hasPrimaryFocus, isTrue);
+  });
+
+  testWidgets('a focus in the same route, or above the navigator, is not '
+      'another route', (tester) async {
+    final state = await pump(tester);
+    expect(focusIsInAnotherRoute(state.search, state.record), isFalse);
+    expect(
+      focusIsInAnotherRoute(state.search, FocusManager.instance.rootScope),
+      isFalse,
+    );
+    expect(focusIsInAnotherRoute(state.search, null), isFalse);
   });
 }

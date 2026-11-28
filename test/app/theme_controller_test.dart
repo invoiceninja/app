@@ -346,6 +346,18 @@ void main() {
         controller.appearance.withUpdatedAt(3000).copyTone('purple'),
       );
       expect(controller.privateNotesTone, PrivateNotesTone.green);
+
+      // So does a record that says nothing about it (an older build's).
+      await controller.adoptSynced(
+        const AppearanceRecord(
+          themeMode: 'dark',
+          lightVariant: 'sand',
+          darkVariant: 'espresso',
+          updatedAt: 4000,
+        ),
+      );
+      expect(controller.themeMode, ThemeMode.dark);
+      expect(controller.privateNotesTone, PrivateNotesTone.green);
     });
 
     test('a value this build does not know keeps the device\'s', () async {

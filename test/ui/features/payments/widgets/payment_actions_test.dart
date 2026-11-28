@@ -399,6 +399,13 @@ void main() {
       expect(present(items, PaymentAction.edit), isTrue);
     });
 
+    testWidgets('is not offered on a deleted payment, which is read-only', (
+      tester,
+    ) async {
+      final items = await resolveItems(tester, _payment(isDeleted: true));
+      expect(present(items, PaymentAction.newPayment), isFalse);
+    });
+
     testWidgets('is on the edit screen too, where it saves first', (
       tester,
     ) async {

@@ -76,7 +76,11 @@ class FindFocusSearchIntent extends Intent {
 
 /// Runs [SearchFocusRegistry.activate]. Fires from inside a text field (the
 /// chord types nothing), and is disabled — so the key falls through, to the
-/// browser on the web — while no search field is on stage.
+/// browser on the web — while no search field is on stage, or while the focus
+/// is in another route of the search field's navigator
+/// ([focusIsInAnotherRoute]): a bottom sheet over a list, where the list's
+/// field stays registered, and focusing it would put the typing behind the
+/// sheet's barrier.
 class FindFocusSearchAction
     extends GuardedShortcutAction<FindFocusSearchIntent> {
   FindFocusSearchAction(SearchFocusRegistry registry)
@@ -91,11 +95,47 @@ class FindFocusSearchAction
 
   final SearchFocusRegistry _registry;
 
+  bool get _hasTarget {
+    final node = _registry.current;
+    return node != null &&
+        !focusIsInAnotherRoute(node, FocusManager.instance.primaryFocus);
+  }
+
   @override
   bool isEnabled(FindFocusSearchIntent intent) =>
-      _registry.current != null && super.isEnabled(intent);
+      _hasTarget && super.isEnabled(intent);
 
   @override
   bool consumesKey(FindFocusSearchIntent intent) =>
-      _registry.current != null && super.consumesKey(intent);
+      _hasTarget && super.consumesKey(intent);
+}
+
+/// Whether [focus] is inside a route of [search]'s navigator other than the
+/// one [search] is in — a sheet or another page pushed over it. Focus above
+/// that navigator (the shell's own node, the navigator's scope), in a route
+/// nested inside the field's (a master-detail pane), or anywhere else is not.
+///
+/// Read off the focus tree, never `ModalRoute.of`: that would subscribe the
+/// search field to its route, and a field re-runs its registry claim in
+/// `didChangeDependencies`, so a sheet opening would reorder the registry. A
+/// route's `FocusScope` is a direct child of its navigator's scope.
+bool focusIsInAnotherRoute(FocusNode search, FocusNode? focus) {
+  final context = search.context;
+  if (focus == null || context == null) return false;
+  final navigatorScope = context
+      .findAncestorStateOfType<NavigatorState>()
+      ?.focusNode;
+  if (navigatorScope == null || identical(focus, navigatorScope)) {
+    return false;
+  }
+  FocusNode? routeScope;
+  for (final ancestor in search.ancestors) {
+    if (identical(ancestor.parent, navigatorScope)) {
+      routeScope = ancestor;
+      break;
+    }
+  }
+  if (routeScope == null) return false;
+  final chain = [focus, ...focus.ancestors];
+  return chain.contains(navigatorScope) && !chain.contains(routeScope);
 }

@@ -132,7 +132,8 @@ class PaymentActions {
         kind: PaymentAction.edit,
         onTap: () => onTap(PaymentAction.edit),
       ),
-      if (canCreatePayment)
+      // Not from a deleted payment: its record is read-only (one banner).
+      if (canCreatePayment && !payment.isDeleted)
         EntityActionItem(
           kind: PaymentAction.newPayment,
           icon: Icons.payments_outlined,
