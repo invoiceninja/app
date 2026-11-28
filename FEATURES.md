@@ -412,6 +412,7 @@ the honest default.
 | Payment — invoice pickers show each invoice's open amount on the right, never cut off, and match it when typed | 🟡 | ✅ | ✅ | | React's label shows the invoice total, not its balance, and searches the number only |
 | Payment — currency conversion: the converted amount is editable and sets the rate (6 places); the section opens itself when the company's Convert currency setting is on | ✅ | ✅ | ✅ | | React takes no notice of the setting; v1 rounds the rate to 2 places |
 | Payment — apply unapplied funds to the oldest unpaid invoice from the record, naming the invoice and the amount before anything moves | — | — | ✅ | | It applied on one tap before; an allocation cannot be undone from the app |
+| Payment — Enter Payment from a payment (record tile, menu, and the editor, where it saves first): the next payment for the same client, with what its invoices still owe allocated (the client alone while the payment is unsynced) | — | — | ✅ | | Beta feedback: several payments in a row, or one invoice paid by cash + card + cheque |
 | Payment — refund (partial / full) | ✅ | ✅ | ✅ | ✅ | |
 | Payment — email receipt | ✅ | ✅ | ✅ | ✅ | |
 | Email — no address on file: inline Add email (writes the invited contact), bulk sends skip those documents; recurring Send Now offers Send anyway (the invoice is still created) | ✅ | — | ✅ | | |

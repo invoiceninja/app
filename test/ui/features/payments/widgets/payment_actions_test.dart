@@ -1,7 +1,10 @@
 import 'package:material_ui/material_ui.dart';
+import 'package:decimal/decimal.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:admin/data/models/api/invoice_api_model.dart';
 import 'package:admin/data/models/api/payment_api_model.dart';
+import 'package:admin/data/models/domain/invoice.dart';
 import 'package:admin/data/models/domain/payment.dart';
 import 'package:admin/domain/payment_status.dart';
 import 'package:admin/ui/core/detail/entity_detail_actions_row.dart';
@@ -269,14 +272,21 @@ void main() {
       expect(PaymentActions.isLifecycle(PaymentAction.sendEmail), isFalse);
     });
 
-    test('only refund navigates unconditionally after a create', () {
-      expect(PaymentActions.navigatesOnCreate(PaymentAction.refund), isTrue);
-      expect(PaymentActions.navigatesOnCreate(PaymentAction.edit), isFalse);
-      expect(
-        PaymentActions.navigatesOnCreate(PaymentAction.sendEmail),
-        isFalse,
-      );
-    });
+    test(
+      'refund and Enter Payment navigate unconditionally after a create',
+      () {
+        expect(PaymentActions.navigatesOnCreate(PaymentAction.refund), isTrue);
+        expect(
+          PaymentActions.navigatesOnCreate(PaymentAction.newPayment),
+          isTrue,
+        );
+        expect(PaymentActions.navigatesOnCreate(PaymentAction.edit), isFalse);
+        expect(
+          PaymentActions.navigatesOnCreate(PaymentAction.sendEmail),
+          isFalse,
+        );
+      },
+    );
   });
 
   // Regression: on a new payment the action bar's Send Email saved the
@@ -338,6 +348,203 @@ void main() {
       final items = await editItems(tester, isCreate: false);
       expect(present(items, PaymentAction.addComment), isTrue);
       expect(present(items, PaymentAction.logCall), isTrue);
+    });
+  });
+
+  // Beta feedback (Nov 2026): after recording a payment, a way to enter the
+  // next one, or the rest of the same invoice paid another way, without going
+  // back through the menu.
+  group('Enter Payment from a payment', () {
+    Future<List<EntityActionItem<PaymentAction>>> itemsAs(
+      WidgetTester tester,
+      FakeCompany company,
+    ) async {
+      final fixture = await buildFixture(companies: [company]);
+      addTearDown(fixture.dispose);
+      late List<EntityActionItem<PaymentAction>> items;
+      await tester.pumpWidget(
+        wrapWithShell(
+          fixture.services,
+          Builder(
+            builder: (context) {
+              items = PaymentActions.itemsFor(context, _payment(), (_) {});
+              return const SizedBox.shrink();
+            },
+          ),
+        ),
+      );
+      return items;
+    }
+
+    testWidgets('is offered to a user who may create payments', (tester) async {
+      final items = await itemsAs(
+        tester,
+        const FakeCompany(id: 'co1', name: 'Co'),
+      );
+      expect(enabled(items, PaymentAction.newPayment), isTrue);
+    });
+
+    testWidgets('is not offered without create_payment', (tester) async {
+      final items = await itemsAs(
+        tester,
+        const FakeCompany(
+          id: 'co1',
+          name: 'Co',
+          isOwner: false,
+          isAdmin: false,
+          permissions: 'view_payment,edit_payment',
+        ),
+      );
+      expect(present(items, PaymentAction.newPayment), isFalse);
+      expect(present(items, PaymentAction.edit), isTrue);
+    });
+
+    testWidgets('is on the edit screen too, where it saves first', (
+      tester,
+    ) async {
+      final fixture = await buildFixture(
+        companies: [const FakeCompany(id: 'co1', name: 'Co')],
+      );
+      addTearDown(fixture.dispose);
+      late List<EntityActionItem<PaymentAction>> items;
+      await tester.pumpWidget(
+        wrapWithShell(
+          fixture.services,
+          Builder(
+            builder: (context) {
+              items = PaymentActions.editScreenItemsFor(
+                context,
+                _payment(),
+                (_) {},
+                isCreate: true,
+              );
+              return const SizedBox.shrink();
+            },
+          ),
+        ),
+      );
+      expect(present(items, PaymentAction.newPayment), isTrue);
+    });
+  });
+
+  group('anotherPaymentDraft', () {
+    Payment stored({
+      String id = 'pay1',
+      String clientId = 'cl1',
+      bool isDirty = false,
+      List<PaymentableApi> paymentables = const [
+        PaymentableApi(invoiceId: 'inv1', amount: '60'),
+      ],
+    }) => Payment.fromApi(PaymentApi(id: id, clientId: clientId, amount: '60'))
+        .copyWith(
+          isDirty: isDirty,
+          paymentables: [for (final p in paymentables) Paymentable.fromApi(p)],
+        );
+
+    Invoice invoice(
+      String id, {
+      String balance = '40',
+      bool isDeleted = false,
+      bool isDirty = false,
+    }) => Invoice.fromApi(
+      InvoiceApi(
+        id: id,
+        clientId: 'cl1',
+        balance: balance,
+        isDeleted: isDeleted,
+      ),
+    ).copyWith(isDirty: isDirty);
+
+    Future<Payment> draftFor(
+      Payment payment, {
+      String? resolved,
+      Payment? fromDrift,
+      Map<String, Invoice> invoices = const {},
+    }) => anotherPaymentDraft(
+      payment,
+      resolveId: (id) async => resolved ?? id,
+      readPayment: (_) async => fromDrift,
+      readInvoice: (id) async => invoices[id],
+    );
+
+    test('allocates what each invoice it paid still owes', () async {
+      final payment = stored(
+        paymentables: const [
+          PaymentableApi(invoiceId: 'inv1', amount: '60'),
+          PaymentableApi(invoiceId: 'inv2', amount: '10'),
+          // A second row for the same invoice (a refund, a re-apply).
+          PaymentableApi(invoiceId: 'inv1', amount: '5'),
+          PaymentableApi(creditId: 'cr1', amount: '5'),
+        ],
+      );
+      final draft = await draftFor(
+        payment,
+        fromDrift: payment,
+        invoices: {
+          'inv1': invoice('inv1'),
+          'inv2': invoice('inv2', balance: '0'),
+        },
+      );
+
+      expect(draft.id, isEmpty);
+      expect(draft.clientId, 'cl1');
+      expect(draft.paymentables, hasLength(1));
+      expect(draft.paymentables.single.invoiceId, 'inv1');
+      expect(draft.paymentables.single.amount, Decimal.parse('40'));
+    });
+
+    test('skips a deleted invoice and one with a queued change', () async {
+      final payment = stored(
+        paymentables: const [
+          PaymentableApi(invoiceId: 'inv1', amount: '60'),
+          PaymentableApi(invoiceId: 'inv2', amount: '60'),
+          PaymentableApi(invoiceId: 'inv3', amount: '60'),
+        ],
+      );
+      final draft = await draftFor(
+        payment,
+        fromDrift: payment,
+        invoices: {
+          'inv1': invoice('inv1', isDeleted: true),
+          'inv2': invoice('inv2', isDirty: true),
+        },
+      );
+
+      expect(draft.clientId, 'cl1');
+      expect(draft.paymentables, isEmpty);
+    });
+
+    test('an unsynced payment carries only the client: its invoices still hold '
+        'the balance from before it', () async {
+      final offline = stored(id: 'tmp_abc');
+      final draft = await draftFor(
+        offline,
+        fromDrift: stored(),
+        invoices: {'inv1': invoice('inv1', balance: '100')},
+      );
+      expect(draft.clientId, 'cl1');
+      expect(draft.paymentables, isEmpty);
+
+      final queued = stored(isDirty: true);
+      final queuedDraft = await draftFor(
+        queued,
+        fromDrift: queued,
+        invoices: {'inv1': invoice('inv1', balance: '100')},
+      );
+      expect(queuedDraft.clientId, 'cl1');
+      expect(queuedDraft.paymentables, isEmpty);
+    });
+
+    test('a new payment whose create landed reads the stored copy', () async {
+      // The editor hands over the draft under its `tmp_` id; the create has
+      // drained, so the id resolves and the server's copy is read.
+      final draft = await draftFor(
+        stored(id: 'tmp_abc', paymentables: const []),
+        resolved: 'pay1',
+        fromDrift: stored(),
+        invoices: {'inv1': invoice('inv1', balance: '15')},
+      );
+      expect(draft.paymentables.single.amount, Decimal.parse('15'));
     });
   });
 }

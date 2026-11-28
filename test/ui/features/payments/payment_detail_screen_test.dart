@@ -185,10 +185,13 @@ void main() {
       // Its status rides in the header — it used to be nowhere on the screen.
       expect(find.text('Partially Unapplied'), findsOneWidget);
 
-      // $250 is on it that pays for nothing yet, so Apply leads the tiles.
-      for (final label in ['Apply', 'Email', 'Refund', 'Client']) {
+      // $250 is on it that pays for nothing yet, so Apply leads the tiles,
+      // then the next payment (beta feedback, Nov 2026). Four fit a narrow
+      // strip, so Client goes under More: the header links the client too.
+      for (final label in ['Apply', '+ Payment', 'Email', 'Refund']) {
         expect(_tile(label), findsOneWidget, reason: label);
       }
+      expect(_tile('Client'), findsNothing);
 
       // Standing: what came in and what was applied, always; the rest only
       // when there is some.
@@ -236,7 +239,9 @@ void main() {
       expect(find.text('Unapplied'), findsNothing);
       expect(_tile('Apply'), findsNothing);
       // The tiles that do apply are still there.
+      expect(_tile('+ Payment'), findsOneWidget);
       expect(_tile('Email'), findsOneWidget);
+      expect(_tile('Client'), findsOneWidget);
     },
   );
 
@@ -303,8 +308,9 @@ void main() {
       // An allocation is an edit, and a refund is admin-only on the server.
       expect(_tile('Apply'), findsNothing);
       expect(_tile('Refund'), findsNothing);
-      // Opening the client is still theirs to do.
+      // Opening the client is still theirs to do; entering a payment is not.
       expect(_tile('Client'), findsOneWidget);
+      expect(_tile('+ Payment'), findsNothing);
     },
     company: const FakeCompany(
       id: 'co1',

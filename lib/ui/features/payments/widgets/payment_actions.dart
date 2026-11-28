@@ -1,11 +1,14 @@
+import 'package:decimal/decimal.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import 'package:admin/app/router.dart';
 import 'package:admin/app/services.dart';
+import 'package:admin/data/models/domain/invoice.dart';
 import 'package:admin/data/models/domain/payment.dart';
 import 'package:admin/domain/entity_type.dart';
+import 'package:admin/domain/quick_create.dart';
 import 'package:admin/domain/run_template.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/detail/activity_note_actions.dart';
@@ -19,12 +22,18 @@ import 'package:admin/ui/core/sync/require_synced.dart';
 import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/features/billing_shared/email/recipient_email_fix.dart';
 import 'package:admin/ui/features/invoices/widgets/detail/run_template_dialog.dart';
+import 'package:admin/ui/features/payments/view_models/payment_edit_view_model.dart';
 import 'package:admin/ui/features/payments/widgets/payment_apply.dart';
 
 /// Action set surfaced for a payment. Refund opens a dedicated sub-route at
 /// `/payments/:id/refund`.
 enum PaymentAction {
   edit,
+
+  /// A new payment for the same client, with what this one's invoices still
+  /// owe allocated — the next instalment, or the rest paid another way. From
+  /// the editor it saves first, so it is also "save and enter another".
+  newPayment,
 
   /// Quick-action strip only — see [PaymentActions.quickItemsFor]. Not in
   /// [PaymentActions.itemsFor], so it reaches neither the `⋮` menu, the list
@@ -68,6 +77,7 @@ class PaymentActions {
   static bool navigatesOnCreate(PaymentAction action) {
     switch (action) {
       case PaymentAction.refund:
+      case PaymentAction.newPayment:
         return true;
       default:
         return false;
@@ -111,6 +121,10 @@ class PaymentActions {
     // `RefundPaymentRequest::authorize` is `isAdmin()` and nothing else, so
     // edit rights do not buy a refund.
     final isAdminOrOwner = (me?.isAdmin ?? false) || (me?.isOwner ?? false);
+    // The module and `create_payment`, as the client's New Payment asks.
+    final canCreatePayment =
+        (me?.moduleEnabled(EntityType.payment) ?? false) &&
+        (me?.can(createPermissionFor(EntityType.payment)) ?? false);
 
     return [
       editActionItem(
@@ -118,6 +132,14 @@ class PaymentActions {
         kind: PaymentAction.edit,
         onTap: () => onTap(PaymentAction.edit),
       ),
+      if (canCreatePayment)
+        EntityActionItem(
+          kind: PaymentAction.newPayment,
+          icon: Icons.payments_outlined,
+          label: context.tr('new_payment'),
+          enabled: true,
+          onTap: () => onTap(PaymentAction.newPayment),
+        ),
       EntityActionItem(
         kind: PaymentAction.refund,
         icon: Icons.replay_outlined,
@@ -273,6 +295,7 @@ class PaymentActions {
         // Only while there is money on it that pays for nothing yet.
         applies: payment.hasUnappliedFunds && payment.clientId.isNotEmpty,
       ),
+      ?pick(PaymentAction.newPayment, '+ ${context.tr('payment')}'),
       ?pick(PaymentAction.sendEmail, context.tr('email')),
       ?pick(PaymentAction.refund, context.tr('refund')),
       ?pick(PaymentAction.viewClient, context.tr('client')),
@@ -289,6 +312,8 @@ class PaymentActions {
     switch (action) {
       case PaymentAction.edit:
         goEntityEdit(context, '/payments', payment.id);
+      case PaymentAction.newPayment:
+        await _enterAnother(context, services, companyId, payment);
       case PaymentAction.apply:
         await applyPaymentToOldestInvoice(
           context,
@@ -396,6 +421,30 @@ class PaymentActions {
     }
   }
 
+  /// [PaymentAction.newPayment]: stage [anotherPaymentDraft] and open the
+  /// editor on it. `/payments/new` defaults to the slide-over sidebar; staging
+  /// bumps the route's seed generation, so a create form already on screen
+  /// (Enter Payment from the editor of a new payment) is recreated, not
+  /// reused.
+  static Future<void> _enterAnother(
+    BuildContext context,
+    Services services,
+    String companyId,
+    Payment payment,
+  ) async {
+    final draft = await anotherPaymentDraft(
+      payment,
+      resolveId: services.payments.resolveId,
+      readPayment: (id) =>
+          services.payments.watchByRealId(companyId: companyId, id: id).first,
+      readInvoice: (id) =>
+          services.invoices.watchByRealId(companyId: companyId, id: id).first,
+    );
+    if (!context.mounted) return;
+    services.stageCreateDraft('/payments', draft);
+    context.go('/payments/new');
+  }
+
   /// Whether any invoice [payment] is applied to is deleted — from the
   /// payment's own `invoices` include first, then the local invoices table.
   static Future<bool> _linkedInvoiceDeleted(
@@ -416,4 +465,55 @@ class PaymentActions {
     }
     return false;
   }
+}
+
+/// The next payment after [payment] (Enter Payment on a payment): the same
+/// client, with each invoice it paid that still owes something allocated its
+/// balance. Beta feedback (Nov 2026): entering several payments in a row, or
+/// one invoice paid partly in cash and partly by card or cheque, meant going
+/// back through the menu for each.
+///
+/// The balances are read only from a payment the server has applied (a real
+/// id and no queued change). Its reply refetches its invoices before the save
+/// returns (`PaymentRepository._refreshRelated`); offline, an invoice row
+/// still holds the balance from before this payment, and seeding that would
+/// ask for the whole invoice again. Then the draft carries the client alone,
+/// and the editor's invoice list follows it. An invoice with a queued change
+/// of its own is skipped for the same reason.
+Future<Payment> anotherPaymentDraft(
+  Payment payment, {
+  required Future<String> Function(String id) resolveId,
+  required Future<Payment?> Function(String id) readPayment,
+  required Future<Invoice?> Function(String id) readInvoice,
+}) async {
+  final id = await resolveId(payment.id);
+  final stored = id.isEmpty || id.startsWith('tmp_')
+      ? null
+      : await readPayment(id);
+  final paymentables = <Paymentable>[];
+  if (stored != null && !stored.isDirty) {
+    final seen = <String>{};
+    for (final allocation in stored.paymentables) {
+      final invoiceId = allocation.invoiceId;
+      if (invoiceId.isEmpty || !seen.add(invoiceId)) continue;
+      final invoice = await readInvoice(invoiceId);
+      if (invoice == null ||
+          invoice.isDeleted ||
+          invoice.isDirty ||
+          invoice.balance <= Decimal.zero) {
+        continue;
+      }
+      paymentables.add(
+        Paymentable(
+          invoiceId: invoiceId,
+          amount: invoice.balance,
+          refunded: Decimal.zero,
+        ),
+      );
+    }
+  }
+  return emptyPayment().copyWith(
+    clientId: (stored ?? payment).clientId,
+    paymentables: paymentables,
+  );
 }

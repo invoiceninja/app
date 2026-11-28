@@ -13,6 +13,7 @@ import 'package:admin/ui/features/payments/seed_payment_create_defaults.dart';
 import 'package:admin/ui/features/payments/view_models/payment_edit_view_model.dart';
 import 'package:admin/ui/features/payments/widgets/edit/payment_edit_layout.dart';
 import 'package:admin/ui/features/invoices/widgets/invoice_actions.dart';
+import 'package:admin/ui/core/widgets/notify.dart';
 import 'package:admin/ui/features/payments/widgets/payment_actions.dart';
 
 class PaymentEditScreen extends StatelessWidget {
@@ -164,9 +165,24 @@ class PaymentEditScreen extends StatelessWidget {
       },
       // Create-mode: resolve the tmp id to the real one so Refund keeps its
       // navigation instead of the detail redirect.
-      onAfterSaveActionOnCreate: (ctx, saved, a) {
+      onAfterSaveActionOnCreate: (ctx, saved, a) async {
         final services = ctx.read<Services>();
         final companyId = services.auth.session.value!.currentCompanyId;
+        // Enter Payment opens the next payment's editor offline too, where
+        // the id is still `tmp_` and the generic path would send the user
+        // to this payment's record over it. Taking over navigation also
+        // skips the scaffold's toast, so the save is confirmed here.
+        if (a == PaymentAction.newPayment) {
+          Notify.success(ctx, ctx.tr('created_payment'));
+          await PaymentActions.dispatch(
+            ctx,
+            services,
+            companyId,
+            saved,
+            PaymentAction.newPayment,
+          );
+          return true;
+        }
         return dispatchAfterSaveOnCreate<Payment, PaymentAction>(
           ctx,
           saved: saved,
