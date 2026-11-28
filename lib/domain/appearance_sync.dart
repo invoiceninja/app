@@ -1,5 +1,5 @@
-/// How the app's appearance — theme mode, both palettes and the custom colours
-/// — follows the user across devices (invoiceninja/app#199,
+/// How the app's appearance — theme mode, both palettes, the custom colours
+/// and the private-notes tone — follows the user across devices (invoiceninja/app#199,
 /// `docs/user-settings-storage.md`).
 ///
 /// A leaf: plain strings and maps, no Flutter, so the decision is testable on
@@ -23,6 +23,7 @@ class AppearanceRecord {
     required this.lightVariant,
     required this.darkVariant,
     this.custom = const {},
+    this.privateNotesTone = 'amber',
     this.updatedAt,
   });
 
@@ -32,6 +33,10 @@ class AppearanceRecord {
 
   /// `{light: {token: '#RRGGBB'}, dark: {…}}` — `CustomTheme`'s JSON shape.
   final Map<String, Object?> custom;
+
+  /// The private-notes callout's tone, a `PrivateNotesTone` name. A record
+  /// written before the field existed reads as the default, amber.
+  final String privateNotesTone;
 
   /// Epoch ms of the change it carries (the device clock that made it). Null
   /// on the device's own copy when this account has never changed or adopted
@@ -51,6 +56,7 @@ class AppearanceRecord {
       themeMode == other.themeMode &&
       lightVariant == other.lightVariant &&
       darkVariant == other.darkVariant &&
+      privateNotesTone == other.privateNotesTone &&
       const DeepCollectionEquality().equals(
         _normalizedCustom(custom),
         _normalizedCustom(other.custom),
@@ -63,6 +69,7 @@ class AppearanceRecord {
     lightVariant: lightVariant,
     darkVariant: darkVariant,
     custom: custom,
+    privateNotesTone: privateNotesTone,
     updatedAt: stamp,
   );
 
@@ -74,6 +81,7 @@ class AppearanceRecord {
     '$kAppearanceSettingsKey.light_variant': lightVariant,
     '$kAppearanceSettingsKey.dark_variant': darkVariant,
     '$kAppearanceSettingsKey.custom': _normalizedCustom(custom),
+    '$kAppearanceSettingsKey.private_notes_tone': privateNotesTone,
     '$kAppearanceSettingsKey.updated_at': updatedAt,
   };
 
@@ -93,6 +101,10 @@ class AppearanceRecord {
       custom: custom is Map
           ? {for (final e in custom.entries) e.key.toString(): e.value}
           : const {},
+      privateNotesTone: _stringOf(
+        raw['private_notes_tone'],
+        defaults.privateNotesTone,
+      ),
       updatedAt: stamp,
     );
   }
@@ -100,7 +112,7 @@ class AppearanceRecord {
   @override
   String toString() =>
       'AppearanceRecord($themeMode, $lightVariant, $darkVariant, $custom, '
-      '$updatedAt)';
+      '$privateNotesTone, $updatedAt)';
 }
 
 Map<String, Object?> _normalizedCustom(Map<String, Object?> custom) => {

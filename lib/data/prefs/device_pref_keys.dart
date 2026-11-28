@@ -504,6 +504,16 @@ abstract final class DevicePrefKeys {
     PrefScope.account,
   );
 
+  /// The tone of a record's private-notes callout (`PrivateNotesTone` by
+  /// name; unset = amber). Device scope like the palettes, so the sign-in
+  /// screen's next user starts from the last look; `ThemeController` owns it
+  /// and it syncs with them in `flutter_appearance`.
+  static const privateNotesTone = PrefKey<String>(
+    'private_notes_tone',
+    PrefCodec.string,
+    PrefScope.device,
+  );
+
   /// In the order they were added; append new keys at the end.
   static const List<PrefKey<Object>> all = [
     locale,
@@ -554,6 +564,7 @@ abstract final class DevicePrefKeys {
     alwaysShowScrollbars,
     printAfterSaving,
     lineItemHiddenColumns,
+    privateNotesTone,
   ];
 
   /// The account preferences a sign-out keeps aside for the SAME user's

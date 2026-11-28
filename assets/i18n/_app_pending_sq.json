@@ -2417,5 +2417,11 @@
   "lock_after_inactivity_help": "Kyç aplikacionin kur nuk përdoret për një kohë, pa dalë nga llogaria. Shkyçe me gjurmën e gishtit, fytyrën ose kodin e kësaj pajisjeje.",
   "soft_lock_message": "Je ende i identifikuar dhe asgjë nga ajo që po bëje nuk ka humbur. Shkyç për të vazhduar.",
   "always_show_scrollbars": "Shfaq gjithmonë shiritat e lëvizjes",
-  "always_show_scrollbars_help": "Mbaj shiritat e lëvizjes të dukshëm në vend që t'i fshehësh kur ndalon lëvizjen"
+  "always_show_scrollbars_help": "Mbaj shiritat e lëvizjes të dukshëm në vend që t'i fshehësh kur ndalon lëvizjen",
+  "private_notes_color": "Ngjyra e shënimeve private",
+  "private_notes_color_help": "Theksimi pas shënimeve private të një regjistrimi",
+  "color_amber": "Qelibar",
+  "color_blue": "Blu",
+  "color_green": "Jeshile",
+  "color_red": "E kuqe"
 }

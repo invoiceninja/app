@@ -7,6 +7,8 @@ import 'package:provider/provider.dart';
 
 import 'package:admin/app/default_items_tab_controller.dart';
 import 'package:admin/app/design_tokens.dart';
+import 'package:admin/app/theme_controller.dart';
+import 'package:admin/domain/private_notes_tone.dart';
 import 'package:admin/app/list_density_controller.dart';
 import 'package:admin/app/resync_controller.dart';
 import 'package:admin/app/services.dart';
@@ -20,6 +22,7 @@ import 'package:admin/domain/sidebar_badge_modes.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/ui/core/widgets/in_scrollbar.dart';
 import 'package:admin/ui/core/widgets/in_segmented.dart';
+import 'package:admin/ui/core/widgets/private_notes_callout.dart';
 import 'package:admin/ui/core/widgets/spell_check.dart';
 import 'package:admin/ui/core/widgets/watch_builder.dart';
 import 'package:admin/ui/features/settings/settings_actions.dart';
@@ -70,6 +73,8 @@ const kDeviceSettingsAppearanceSearchKeys = <String>[
   'display_density',
   'always_show_scrollbars',
   'always_show_scrollbars_help',
+  'private_notes_color',
+  'private_notes_color_help',
   'customize_colors',
   'lists_and_dashboard',
   'lists_and_dashboard_help',
@@ -323,6 +328,8 @@ class _AppearanceTab extends StatelessWidget {
               const _AlwaysShowScrollbarsRow(),
               const SettingRowDivider(),
             ],
+            _PrivateNotesToneRow(controller: services.theme),
+            const SettingRowDivider(),
             CustomizeColorsSection(controller: services.theme),
           ],
         ),
@@ -723,6 +730,45 @@ class _ListDensityRow extends StatelessWidget {
           onChanged: controller.setCompact,
         ),
       ),
+    );
+  }
+}
+
+/// The highlight behind a record's private notes (`PrivateNotesCallout`).
+/// Beta feedback (Nov 2026) asked for v1's blue back and for a choice. The
+/// four are status tones every palette carries in both brightnesses, never a
+/// free colour, so each stays legible in light and dark; the swatch is the
+/// tone's strong colour, the one the callout's lock and border use. Synced
+/// with the theme (`flutter_appearance`).
+class _PrivateNotesToneRow extends StatelessWidget {
+  const _PrivateNotesToneRow({required this.controller});
+
+  final ThemeController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: controller,
+      builder: (context, _) {
+        final tokens = context.inTheme;
+        return SettingRow(
+          icon: const Icon(Icons.lock_outline),
+          title: context.tr('private_notes_color'),
+          subtitle: context.tr('private_notes_color_help'),
+          control: InSegmented<PrivateNotesTone>(
+            segments: [
+              for (final tone in PrivateNotesTone.values)
+                InSegment(
+                  value: tone,
+                  label: context.tr('color_${tone.name}'),
+                  swatch: privateNotesToneColors(tokens, tone).strong,
+                ),
+            ],
+            selected: controller.privateNotesTone,
+            onChanged: controller.setPrivateNotesTone,
+          ),
+        );
+      },
     );
   }
 }

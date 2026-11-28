@@ -2417,5 +2417,11 @@
   "lock_after_inactivity_help": "しばらく使用しないとアプリをロックします（サインアウトはしません）。このデバイスの指紋、顔、またはパスコードでロックを解除します。",
   "soft_lock_message": "サインインしたままで、作業中の内容も失われていません。続けるにはロックを解除してください。",
   "always_show_scrollbars": "スクロールバーを常に表示",
-  "always_show_scrollbars_help": "スクロールを止めてもスクロールバーを隠さずに表示したままにします"
+  "always_show_scrollbars_help": "スクロールを止めてもスクロールバーを隠さずに表示したままにします",
+  "private_notes_color": "非公開備考の色",
+  "private_notes_color_help": "レコードの非公開備考の背景の強調色",
+  "color_amber": "琥珀",
+  "color_blue": "青",
+  "color_green": "緑",
+  "color_red": "赤"
 }

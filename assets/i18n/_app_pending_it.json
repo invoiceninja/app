@@ -2417,5 +2417,11 @@
   "lock_after_inactivity_help": "Blocca l'app quando non viene usata per un po', senza disconnetterti. Sbloccala con l'impronta, il volto o il codice di questo dispositivo.",
   "soft_lock_message": "Sei ancora connesso e nulla di ciò che stavi facendo è andato perso. Sblocca per continuare.",
   "always_show_scrollbars": "Mostra sempre le barre di scorrimento",
-  "always_show_scrollbars_help": "Mantieni visibili le barre di scorrimento invece di nasconderle quando smetti di scorrere"
+  "always_show_scrollbars_help": "Mantieni visibili le barre di scorrimento invece di nasconderle quando smetti di scorrere",
+  "private_notes_color": "Colore delle note private",
+  "private_notes_color_help": "L'evidenziazione dietro le note private di un record",
+  "color_amber": "Ambra",
+  "color_blue": "Blu",
+  "color_green": "Verde",
+  "color_red": "Rosso"
 }

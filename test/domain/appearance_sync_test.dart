@@ -192,6 +192,33 @@ void main() {
       expect(back.updatedAt, 42);
     });
 
+    test('the private-notes tone is part of the look, and a copy an older '
+        'build wrote reads as amber', () {
+      const blue = AppearanceRecord(
+        themeMode: 'system',
+        lightVariant: 'sand',
+        darkVariant: 'espresso',
+        privateNotesTone: 'blue',
+        updatedAt: 5,
+      );
+      expect(blue.isDefaultLook, isFalse);
+      expect(blue.sameLook(AppearanceRecord.defaults), isFalse);
+      final patch = blue.toSettingsPatch();
+      expect(patch['flutter_appearance.private_notes_tone'], 'blue');
+      final back = AppearanceRecord.fromSettings({
+        'flutter_appearance': {
+          for (final e in patch.entries) e.key.split('.').last: e.value,
+        },
+      })!;
+      expect(back.privateNotesTone, 'blue');
+      expect(back.sameLook(blue), isTrue);
+
+      final older = AppearanceRecord.fromSettings({
+        'flutter_appearance': {'theme_mode': 'dark', 'updated_at': 9},
+      })!;
+      expect(older.privateNotesTone, 'amber');
+    });
+
     test('a copy without a stamp, or not a map, reads as missing', () {
       expect(AppearanceRecord.fromSettings(null), isNull);
       expect(

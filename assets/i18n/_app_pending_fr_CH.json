@@ -2335,5 +2335,11 @@
   "lock_after_inactivity_help": "Verrouille l'application après un moment sans utilisation, sans vous déconnecter. Déverrouillez-la avec l'empreinte, le visage ou le code de cet appareil.",
   "soft_lock_message": "Vous êtes toujours connecté et rien de ce que vous faisiez n'est perdu. Déverrouillez pour continuer.",
   "always_show_scrollbars": "Toujours afficher les barres de défilement",
-  "always_show_scrollbars_help": "Garder les barres de défilement visibles au lieu de les masquer quand vous arrêtez de défiler"
+  "always_show_scrollbars_help": "Garder les barres de défilement visibles au lieu de les masquer quand vous arrêtez de défiler",
+  "private_notes_color": "Couleur des notes privées",
+  "private_notes_color_help": "La surbrillance derrière les notes privées d'une fiche",
+  "color_amber": "Ambre",
+  "color_blue": "Bleu",
+  "color_green": "Vert",
+  "color_red": "Rouge"
 }

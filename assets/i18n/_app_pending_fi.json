@@ -2335,5 +2335,11 @@
   "lock_after_inactivity_help": "Lukitsee sovelluksen, kun sitä ei ole käytetty hetkeen, kirjaamatta ulos. Avaa lukitus tämän laitteen sormenjäljellä, kasvoilla tai pääsykoodilla.",
   "soft_lock_message": "Olet yhä kirjautuneena, eikä mitään tekemääsi ole menetetty. Jatka avaamalla lukitus.",
   "always_show_scrollbars": "Näytä vierityspalkit aina",
-  "always_show_scrollbars_help": "Pidä vierityspalkit näkyvissä sen sijaan, että ne piilotetaan vierityksen loputtua"
+  "always_show_scrollbars_help": "Pidä vierityspalkit näkyvissä sen sijaan, että ne piilotetaan vierityksen loputtua",
+  "private_notes_color": "Yksityisten muistiinpanojen väri",
+  "private_notes_color_help": "Korostus tietueen yksityisten muistiinpanojen takana",
+  "color_amber": "Meripihka",
+  "color_blue": "Sininen",
+  "color_green": "Vihreä",
+  "color_red": "Punainen"
 }

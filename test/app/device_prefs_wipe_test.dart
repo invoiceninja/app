@@ -16,6 +16,7 @@ import 'package:admin/data/repositories/auth_repository.dart';
 import 'package:admin/data/services/tls/certificate_facts.dart';
 import 'package:admin/domain/contacts_sync/contacts_sync_types.dart';
 import 'package:admin/domain/entity_type.dart';
+import 'package:admin/domain/private_notes_tone.dart';
 import 'package:admin/domain/sidebar_badge_modes.dart';
 import 'package:admin/domain/sidebar_menu.dart';
 import 'package:admin/domain/tasks/kanban_prefs.dart';
@@ -218,6 +219,10 @@ final Map<PrefKey<Object>, _Probe> _probes = {
       hidden: true,
     ),
     (s) => s.lineItemHiddenColumns.value.isEmpty,
+  ),
+  DevicePrefKeys.privateNotesTone: _Probe(
+    (s) => s.theme.setPrivateNotesTone(PrivateNotesTone.blue),
+    (s) => s.theme.privateNotesTone == PrivateNotesTone.amber,
   ),
   // What a signed-out user gets back on their return — the sign-out that
   // fills it must not empty it.

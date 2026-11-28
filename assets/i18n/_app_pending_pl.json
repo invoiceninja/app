@@ -2335,5 +2335,11 @@
   "lock_after_inactivity_help": "Blokuje aplikację, gdy przez jakiś czas nie jest używana, bez wylogowania. Odblokuj ją odciskiem palca, twarzą lub kodem tego urządzenia.",
   "soft_lock_message": "Nadal jesteś zalogowany i nic z tego, nad czym pracowałeś, nie zostało utracone. Odblokuj, aby kontynuować.",
   "always_show_scrollbars": "Zawsze pokazuj paski przewijania",
-  "always_show_scrollbars_help": "Paski przewijania pozostają widoczne zamiast znikać po zakończeniu przewijania"
+  "always_show_scrollbars_help": "Paski przewijania pozostają widoczne zamiast znikać po zakończeniu przewijania",
+  "private_notes_color": "Kolor prywatnych notatek",
+  "private_notes_color_help": "Wyróżnienie pod prywatnymi notatkami rekordu",
+  "color_amber": "Bursztynowy",
+  "color_blue": "Niebieski",
+  "color_green": "Zielony",
+  "color_red": "Czerwony"
 }

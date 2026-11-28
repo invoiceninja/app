@@ -2334,5 +2334,11 @@
   "lock_after_inactivity_help": "Bloqueia a aplicação quando não é utilizada durante algum tempo, sem terminar a sessão. Desbloqueie com a impressão digital, o rosto ou o código deste dispositivo.",
   "soft_lock_message": "Continua com a sessão iniciada e nada do que estava a fazer se perdeu. Desbloqueie para continuar.",
   "always_show_scrollbars": "Mostrar sempre as barras de deslocamento",
-  "always_show_scrollbars_help": "Manter as barras de deslocamento visíveis em vez de as ocultar quando deixa de deslocar"
+  "always_show_scrollbars_help": "Manter as barras de deslocamento visíveis em vez de as ocultar quando deixa de deslocar",
+  "private_notes_color": "Cor das notas privadas",
+  "private_notes_color_help": "O destaque por trás das notas privadas de um registo",
+  "color_amber": "Âmbar",
+  "color_blue": "Azul",
+  "color_green": "Verde",
+  "color_red": "Vermelho"
 }

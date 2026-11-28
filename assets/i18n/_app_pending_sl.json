@@ -2417,5 +2417,11 @@
   "lock_after_inactivity_help": "Zaklene aplikacijo, ko je nekaj časa ne uporabljate, brez odjave. Odklenete jo s prstnim odtisom, obrazom ali kodo te naprave.",
   "soft_lock_message": "Še vedno ste prijavljeni in nič od tega, kar ste delali, se ni izgubilo. Odklenite za nadaljevanje.",
   "always_show_scrollbars": "Vedno prikaži drsnike",
-  "always_show_scrollbars_help": "Drsniki ostanejo vidni, namesto da bi se skrili, ko se nehate pomikati"
+  "always_show_scrollbars_help": "Drsniki ostanejo vidni, namesto da bi se skrili, ko se nehate pomikati",
+  "private_notes_color": "Barva osebnih zaznamkov",
+  "private_notes_color_help": "Poudarek za osebnimi zaznamki zapisa",
+  "color_amber": "Jantarna",
+  "color_blue": "Modra",
+  "color_green": "Zelena",
+  "color_red": "Rdeča"
 }

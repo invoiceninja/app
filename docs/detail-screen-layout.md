@@ -44,7 +44,7 @@ Once the header has scrolled away, the scaffold's fixed bar shows `compactTitleF
 
 Beta feedback (Nov 2026): the account information users keep in Private Notes ("on credit hold", "always add their PO number", "call Jane before invoicing") was being overlooked. In the profile it was the last card above the tabs — on a phone at 390 × 844 below the standing card, the comments and two or three profile cards, so it started off the first screen, and in a bordered card that looked like every other. v1 drew it as an `IconMessage` with a lock at the head of the invoice, client and vendor overviews, and its desktop editor showed the vendor's private notes under a purchase order's vendor picker.
 
-**The callout.** A lock, the label "Private Notes" (`private_notes`, Transifex), and the words — flattened from the stored HTML with `plainTextFromHtml`, so `<p></p>`, `<p> </p>` and whitespace draw nothing at all. The tone is fixed: `InTheme.warningSoft` fill, `warning` lock and a `warning` border at 45 %. A user-chosen highlight colour was asked for and deliberately not built — a free colour would have to be checked against both brightnesses, the six palettes and the accent, and the fixed tone already is. The text is clamped (`ClampedText`, four lines on a record, three in the editor) with the in-place More, so an essay never decides where the tabs start.
+**The callout.** A lock, the label "Private Notes" (`private_notes`, Transifex), and the words — flattened from the stored HTML with `plainTextFromHtml`, so `<p></p>`, `<p> </p>` and whitespace draw nothing at all. The tone is the user's, from four (§ The private-notes tone is one of four status tones, never a free colour): amber by default, an `InTheme.warningSoft` fill, `warning` lock and a `warning` border at 45 %. The text is clamped (`ClampedText`, four lines on a record, three in the editor) with the in-place More, so an essay never decides where the tabs start.
 
 **Why that slot.** The record order (identity, quick actions, standing, comments, profile) is kept; the alert is a new slot between standing and comments rather than a card inside any of them:
 
@@ -62,6 +62,17 @@ Beta feedback (Nov 2026): the account information users keep in Private Notes ("
 **The editor's account alert.** `BillingDocPartyNotes` (under the client picker; the vendor picker on a purchase order; phone tabbed layout and desktop panel alike) draws the party's private notes as the same callout, with its public notes as a plain `NotesBlock` under it. It reads the party through `services.clients.watch` / `services.vendors.watch` — Drift only, so it works offline and follows a re-pick, a `/refresh` top-up or an inline-created client's sync. It was already mounted unconditionally after the picker, so the alert appearing or going never moves the picker in the tree (`billing_doc_party_notes_test` pins the picker's element across three picks, on a phone and a desktop width).
 
 Tests: `test/ui/core/widgets/private_notes_callout_test.dart` (blank / whitespace / markup-only draw nothing and cost no height, theme tone, clamp, copy); the five billing record screen tests and the client and vendor screen tests (callout under the standing card and above the profile, once); `billing_doc_party_notes_test.dart` (editor alert, selection changes).
+
+## The private-notes tone is one of four status tones, never a free colour
+
+**Device Settings → Appearance → Private Notes Color picks the callout's tone — amber (the default), blue, green or red — each the soft fill and strong colour of a status tone every palette defines (`privateNotesToneColors`: `warning`, `partial`, `paid`, `overdue`), with the words in `ink`; it is stored as `DevicePrefKeys.privateNotesTone`, owned by `ThemeController`, and synced in `flutter_appearance`.**
+
+Beta feedback (Nov 2026), after the callout shipped in amber: bring back v1's blue, and let the colour be chosen. A free colour was turned down the first time, and still is: it would have to be checked against both brightnesses, every palette and the accent. The status tones already are, because the status pills use them. `private_notes_callout_test` holds every palette to four distinct fills with the ink at 4.5 : 1 or better on each.
+
+- **Blue is `partial`, not `sent`.** In these palettes `sent` is amber, the same fill as `warning`. The palette test caught the first mapping.
+- **The choice reaches the callout through `PrivateNotesToneScope`,** mounted by `main.dart` inside `MaterialApp.builder`, which rebuilds when the `ThemeController` notifies. The callout takes no `Services`. Without a scope (a bare test) it is amber.
+- **It is part of the look.** `AppearanceRecord.privateNotesTone` joins `sameLook`, the settings patch (`flutter_appearance.private_notes_tone`) and `adoptSynced`. A record an older build wrote has no such key and reads as amber. An older build's dotted-path patch never removes the key. A tone this build does not know keeps the device's.
+- **Per user, not per company.** The beta user asked for an administrator's setting. The server has no company-level place for it, and a per-company copy of one user's look is what `flutter_appearance` was built to avoid (`docs/user-settings-storage.md`).
 
 ## A record whose Details card is alone splits it in two
 

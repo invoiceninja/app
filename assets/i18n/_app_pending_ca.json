@@ -2334,5 +2334,11 @@
   "lock_after_inactivity_help": "Bloqueja l'aplicació quan no s'ha fet servir durant una estona, sense tancar la sessió. Desbloqueja-la amb l'empremta, la cara o el codi d'aquest dispositiu.",
   "soft_lock_message": "Encara tens la sessió iniciada i no s'ha perdut res del que feies. Desbloqueja per continuar.",
   "always_show_scrollbars": "Mostra sempre les barres de desplaçament",
-  "always_show_scrollbars_help": "Mantén visibles les barres de desplaçament en lloc d'amagar-les quan deixes de desplaçar-te"
+  "always_show_scrollbars_help": "Mantén visibles les barres de desplaçament en lloc d'amagar-les quan deixes de desplaçar-te",
+  "private_notes_color": "Color de les notes privades",
+  "private_notes_color_help": "El ressaltat darrere de les notes privades d'un registre",
+  "color_amber": "Ambre",
+  "color_blue": "Blau",
+  "color_green": "Verd",
+  "color_red": "Vermell"
 }

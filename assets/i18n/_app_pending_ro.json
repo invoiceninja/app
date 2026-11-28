@@ -2405,5 +2405,11 @@
   "lock_after_inactivity_help": "Blochează aplicația când nu este folosită o vreme, fără deconectare. Deblocați-o cu amprenta, fața sau codul acestui dispozitiv.",
   "soft_lock_message": "Sunteți în continuare conectat și nimic din ce lucrați nu s-a pierdut. Deblocați pentru a continua.",
   "always_show_scrollbars": "Afișează mereu barele de derulare",
-  "always_show_scrollbars_help": "Barele de derulare rămân vizibile în loc să se ascundă când nu mai derulați"
+  "always_show_scrollbars_help": "Barele de derulare rămân vizibile în loc să se ascundă când nu mai derulați",
+  "private_notes_color": "Culoarea notelor particulare",
+  "private_notes_color_help": "Evidențierea din spatele notelor particulare ale unei înregistrări",
+  "color_amber": "Chihlimbar",
+  "color_blue": "Albastru",
+  "color_green": "Verde",
+  "color_red": "Roșu"
 }

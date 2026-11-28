@@ -2300,5 +2300,11 @@
   "lock_after_inactivity_help": "Khóa ứng dụng khi không được dùng một lúc, mà không đăng xuất. Mở khóa bằng vân tay, khuôn mặt hoặc mật mã của thiết bị này.",
   "soft_lock_message": "Bạn vẫn đang đăng nhập và không mất gì trong những việc bạn đang làm. Mở khóa để tiếp tục.",
   "always_show_scrollbars": "Luôn hiển thị thanh cuộn",
-  "always_show_scrollbars_help": "Giữ thanh cuộn hiển thị thay vì ẩn đi khi bạn ngừng cuộn"
+  "always_show_scrollbars_help": "Giữ thanh cuộn hiển thị thay vì ẩn đi khi bạn ngừng cuộn",
+  "private_notes_color": "Màu ghi chú riêng",
+  "private_notes_color_help": "Màu nền làm nổi bật ghi chú riêng của một bản ghi",
+  "color_amber": "Hổ phách",
+  "color_blue": "Xanh dương",
+  "color_green": "Xanh lá",
+  "color_red": "Đỏ"
 }

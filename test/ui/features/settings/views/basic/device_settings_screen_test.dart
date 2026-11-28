@@ -18,6 +18,7 @@ import 'package:admin/app/theme.dart';
 import 'package:admin/data/models/domain/enabled_modules.dart';
 import 'package:admin/data/services/device_contacts_service.dart';
 import 'package:admin/domain/entity_type.dart';
+import 'package:admin/domain/private_notes_tone.dart';
 import 'package:admin/domain/sidebar_badge_modes.dart';
 import 'package:admin/domain/sidebar_menu.dart';
 import 'package:admin/ui/core/widgets/in_segmented.dart';
@@ -502,6 +503,45 @@ void main() {
       // The same words in either brightness — never "for light mode".
       expect(find.text('Background tint'), findsOneWidget);
       await fixture.services.theme.setThemeMode(ThemeMode.system);
+      await _dispose(tester);
+    }, variant: _desktop);
+  });
+
+  // Beta feedback (Nov 2026): v1's blue for private notes, and a choice.
+  group('private notes colour', () {
+    testWidgets('four tones by their own colour; a pick is the theme\'s', (
+      tester,
+    ) async {
+      final fixture = await _fixture();
+      await _pump(tester, fixture, width: 1440);
+      final picker = find.byType(InSegmented<PrivateNotesTone>);
+      expect(picker, findsOneWidget);
+      final tokens = InTheme.light;
+      final segments = tester
+          .widget<InSegmented<PrivateNotesTone>>(picker)
+          .segments;
+      expect([for (final s in segments) s.value], PrivateNotesTone.values);
+      expect(
+        [for (final s in segments) s.label],
+        ['Amber', 'Blue', 'Green', 'Red'],
+      );
+      expect(segments[1].swatch, tokens.partial);
+      expect(
+        tester.widget<InSegmented<PrivateNotesTone>>(picker).selected,
+        PrivateNotesTone.amber,
+      );
+      expect(find.text('Private Notes Color'), findsOneWidget);
+
+      await tester.tap(
+        find.descendant(of: picker, matching: find.text('Blue')),
+      );
+      await tester.pump();
+      expect(fixture.services.theme.privateNotesTone, PrivateNotesTone.blue);
+      expect(
+        tester.widget<InSegmented<PrivateNotesTone>>(picker).selected,
+        PrivateNotesTone.blue,
+      );
+      await fixture.services.theme.setPrivateNotesTone(PrivateNotesTone.amber);
       await _dispose(tester);
     }, variant: _desktop);
   });

@@ -2335,5 +2335,11 @@
   "lock_after_inactivity_help": "Kunci aplikasi saat tidak digunakan beberapa saat, tanpa keluar. Buka kunci dengan sidik jari, wajah, atau kode sandi perangkat ini.",
   "soft_lock_message": "Anda masih masuk dan tidak ada pekerjaan yang hilang. Buka kunci untuk melanjutkan.",
   "always_show_scrollbars": "Selalu tampilkan bilah gulir",
-  "always_show_scrollbars_help": "Biarkan bilah gulir tetap terlihat alih-alih menyembunyikannya saat Anda berhenti menggulir"
+  "always_show_scrollbars_help": "Biarkan bilah gulir tetap terlihat alih-alih menyembunyikannya saat Anda berhenti menggulir",
+  "private_notes_color": "Warna catatan pribadi",
+  "private_notes_color_help": "Sorotan di balik catatan pribadi sebuah catatan",
+  "color_amber": "Kuning amber",
+  "color_blue": "Biru",
+  "color_green": "Hijau",
+  "color_red": "Merah"
 }

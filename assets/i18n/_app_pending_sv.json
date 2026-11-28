@@ -2404,5 +2404,11 @@
   "lock_after_inactivity_help": "Låser appen när den inte har använts på ett tag, utan att logga ut. Lås upp med enhetens fingeravtryck, ansikte eller lösenkod.",
   "soft_lock_message": "Du är fortfarande inloggad och inget av det du höll på med har gått förlorat. Lås upp för att fortsätta.",
   "always_show_scrollbars": "Visa alltid rullningslister",
-  "always_show_scrollbars_help": "Håll rullningslisterna synliga i stället för att dölja dem när du slutar rulla"
+  "always_show_scrollbars_help": "Håll rullningslisterna synliga i stället för att dölja dem när du slutar rulla",
+  "private_notes_color": "Färg på privata anteckningar",
+  "private_notes_color_help": "Markeringen bakom en posts privata anteckningar",
+  "color_amber": "Bärnsten",
+  "color_blue": "Blå",
+  "color_green": "Grön",
+  "color_red": "Röd"
 }

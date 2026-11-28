@@ -2417,5 +2417,11 @@
   "lock_after_inactivity_help": "Uygulama bir süre kullanılmadığında, oturumu kapatmadan kilitler. Bu cihazın parmak izi, yüzü veya şifresiyle kilidi açın.",
   "soft_lock_message": "Hâlâ oturumunuz açık ve yaptığınız hiçbir şey kaybolmadı. Devam etmek için kilidi açın.",
   "always_show_scrollbars": "Kaydırma çubuklarını her zaman göster",
-  "always_show_scrollbars_help": "Kaydırmayı bıraktığınızda kaydırma çubuklarını gizlemek yerine görünür tut"
+  "always_show_scrollbars_help": "Kaydırmayı bıraktığınızda kaydırma çubuklarını gizlemek yerine görünür tut",
+  "private_notes_color": "Özel notların rengi",
+  "private_notes_color_help": "Bir kaydın özel notlarının arkasındaki vurgu",
+  "color_amber": "Kehribar",
+  "color_blue": "Mavi",
+  "color_green": "Yeşil",
+  "color_red": "Kırmızı"
 }

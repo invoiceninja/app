@@ -59,6 +59,7 @@ void main() {
     'always_show_scrollbars': PrefScope.device,
     'print_after_saving': PrefScope.device,
     'line_item_hidden_columns_json': PrefScope.account,
+    'private_notes_tone': PrefScope.device,
   };
 
   final names = [for (final k in DevicePrefKeys.all) k.name];

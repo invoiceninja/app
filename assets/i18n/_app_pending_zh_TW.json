@@ -2334,5 +2334,11 @@
   "lock_after_inactivity_help": "一段時間未使用時鎖定 App，但不會登出。使用此裝置的指紋、臉孔或密碼解鎖。",
   "soft_lock_message": "您仍保持登入，進行中的工作也不會遺失。解鎖以繼續。",
   "always_show_scrollbars": "永遠顯示捲軸",
-  "always_show_scrollbars_help": "停止捲動後仍保持捲軸可見，而不是將其隱藏"
+  "always_show_scrollbars_help": "停止捲動後仍保持捲軸可見，而不是將其隱藏",
+  "private_notes_color": "私人筆記顏色",
+  "private_notes_color_help": "記錄中私人筆記的醒目提示顏色",
+  "color_amber": "琥珀色",
+  "color_blue": "藍色",
+  "color_green": "綠色",
+  "color_red": "紅色"
 }

@@ -2417,5 +2417,11 @@
   "lock_after_inactivity_help": "Zamkne aplikaci, když se nějakou dobu nepoužívá, bez odhlášení. Odemknete ji otiskem prstu, obličejem nebo kódem tohoto zařízení.",
   "soft_lock_message": "Stále jste přihlášeni a nic z rozpracované práce se neztratilo. Odemkněte a pokračujte.",
   "always_show_scrollbars": "Vždy zobrazovat posuvníky",
-  "always_show_scrollbars_help": "Posuvníky zůstanou viditelné a po skončení posouvání se neskryjí"
+  "always_show_scrollbars_help": "Posuvníky zůstanou viditelné a po skončení posouvání se neskryjí",
+  "private_notes_color": "Barva soukromých poznámek",
+  "private_notes_color_help": "Zvýraznění za soukromými poznámkami záznamu",
+  "color_amber": "Jantarová",
+  "color_blue": "Modrá",
+  "color_green": "Zelená",
+  "color_red": "Červená"
 }

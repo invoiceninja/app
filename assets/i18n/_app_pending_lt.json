@@ -2372,5 +2372,11 @@
   "lock_after_inactivity_help": "Užrakina programą, kai ji kurį laiką nenaudojama, neatjungiant jūsų. Atrakinkite šio įrenginio piršto atspaudu, veidu arba kodu.",
   "soft_lock_message": "Vis dar esate prisijungę ir niekas iš to, ką darėte, neprarasta. Atrakinkite, kad tęstumėte.",
   "always_show_scrollbars": "Visada rodyti slinkties juostas",
-  "always_show_scrollbars_help": "Slinkties juostos lieka matomos, užuot pasislėpusios, kai nustojate slinkti"
+  "always_show_scrollbars_help": "Slinkties juostos lieka matomos, užuot pasislėpusios, kai nustojate slinkti",
+  "private_notes_color": "Privačių užrašų spalva",
+  "private_notes_color_help": "Paryškinimas po įrašo privačiais užrašais",
+  "color_amber": "Gintarinė",
+  "color_blue": "Mėlyna",
+  "color_green": "Žalia",
+  "color_red": "Raudona"
 }

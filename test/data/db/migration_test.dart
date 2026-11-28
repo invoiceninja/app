@@ -302,6 +302,7 @@ void main() {
         'always_show_scrollbars',
         'lock_after_inactivity_minutes',
         'comment_reads_json',
+        'private_notes_tone',
       };
       for (final key in DevicePrefKeys.all) {
         if (addedAfterV12.contains(key.name)) {

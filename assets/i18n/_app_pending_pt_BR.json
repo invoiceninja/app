@@ -2417,5 +2417,11 @@
   "lock_after_inactivity_help": "Bloqueia o app quando ele fica um tempo sem uso, sem sair da conta. Desbloqueie com a digital, o rosto ou o código deste dispositivo.",
   "soft_lock_message": "Você continua conectado e nada do que estava fazendo foi perdido. Desbloqueie para continuar.",
   "always_show_scrollbars": "Sempre mostrar as barras de rolagem",
-  "always_show_scrollbars_help": "Manter as barras de rolagem visíveis em vez de ocultá-las quando você para de rolar"
+  "always_show_scrollbars_help": "Manter as barras de rolagem visíveis em vez de ocultá-las quando você para de rolar",
+  "private_notes_color": "Cor das notas privadas",
+  "private_notes_color_help": "O destaque atrás das notas privadas de um registro",
+  "color_amber": "Âmbar",
+  "color_blue": "Azul",
+  "color_green": "Verde",
+  "color_red": "Vermelho"
 }

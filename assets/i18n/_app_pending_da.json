@@ -2338,5 +2338,11 @@
   "lock_after_inactivity_help": "Lås appen, når den ikke har været brugt i et stykke tid, uden at logge ud. Lås op med denne enheds fingeraftryk, ansigt eller adgangskode.",
   "soft_lock_message": "Du er stadig logget ind, og intet af det, du arbejdede på, er gået tabt. Lås op for at fortsætte.",
   "always_show_scrollbars": "Vis altid rullepaneler",
-  "always_show_scrollbars_help": "Hold rullepaneler synlige i stedet for at skjule dem, når du holder op med at rulle"
+  "always_show_scrollbars_help": "Hold rullepaneler synlige i stedet for at skjule dem, når du holder op med at rulle",
+  "private_notes_color": "Farve på private noter",
+  "private_notes_color_help": "Fremhævningen bag en posts private noter",
+  "color_amber": "Rav",
+  "color_blue": "Blå",
+  "color_green": "Grøn",
+  "color_red": "Rød"
 }

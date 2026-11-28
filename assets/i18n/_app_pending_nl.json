@@ -2417,5 +2417,11 @@
   "lock_after_inactivity_help": "Vergrendelt de app als die een tijdje niet is gebruikt, zonder uit te loggen. Ontgrendel met de vingerafdruk, het gezicht of de toegangscode van dit apparaat.",
   "soft_lock_message": "Je bent nog steeds ingelogd en er is niets verloren gegaan van waar je mee bezig was. Ontgrendel om verder te gaan.",
   "always_show_scrollbars": "Schuifbalken altijd tonen",
-  "always_show_scrollbars_help": "Schuifbalken zichtbaar houden in plaats van ze te verbergen als je stopt met scrollen"
+  "always_show_scrollbars_help": "Schuifbalken zichtbaar houden in plaats van ze te verbergen als je stopt met scrollen",
+  "private_notes_color": "Kleur van privénotities",
+  "private_notes_color_help": "De markering achter de privénotities van een record",
+  "color_amber": "Amber",
+  "color_blue": "Blauw",
+  "color_green": "Groen",
+  "color_red": "Rood"
 }

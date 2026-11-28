@@ -2,12 +2,15 @@
 // are a callout above the comments. Beta feedback (Nov 2026): account
 // information kept in Private Notes was being overlooked.
 
+import 'dart:math' as math;
+
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:admin/app/design_tokens.dart';
 import 'package:admin/app/theme.dart';
+import 'package:admin/domain/private_notes_tone.dart';
 import 'package:admin/ui/core/widgets/private_notes_callout.dart';
 
 import '../../../_localization_helper.dart';
@@ -87,6 +90,79 @@ void main() {
         tokens.warning,
       );
     }
+  });
+
+  // Beta feedback (Nov 2026): v1's blue, and a choice. Every tone is a soft
+  // fill of a status colour both brightnesses define, with the theme's ink on
+  // it, so the words stay as legible as on the default amber.
+  testWidgets('is drawn in the tone the scope above it names', (tester) async {
+    for (final tokens in [InTheme.light, InTheme.dark]) {
+      for (final tone in PrivateNotesTone.values) {
+        await _pump(
+          tester,
+          PrivateNotesToneScope(
+            tone: tone,
+            child: const PrivateNotesCallout(notes: 'On credit hold'),
+          ),
+          tokens: tokens,
+        );
+        await tester.pumpAndSettle();
+        final expected = privateNotesToneColors(tokens, tone);
+        final decoration =
+            tester.widget<DecoratedBox>(find.byKey(_calloutKey)).decoration
+                as BoxDecoration;
+        expect(decoration.color, expected.soft, reason: '$tone');
+        expect(
+          tester.widget<Icon>(find.byIcon(Icons.lock_outline)).color,
+          expected.strong,
+          reason: '$tone',
+        );
+        final text = tester.widget<Text>(find.text('On credit hold'));
+        expect(text.style?.color, tokens.ink, reason: '$tone');
+      }
+    }
+  });
+
+  // Every palette, both brightnesses: four distinguishable fills, and the
+  // words (ink) on each as legible as body text needs (WCAG AA, 4.5:1).
+  test('in every palette the four tones are four fills the text reads on', () {
+    double luminance(Color c) {
+      double channel(double v) => v <= 0.03928
+          ? v / 12.92
+          : math.pow((v + 0.055) / 1.055, 2.4).toDouble();
+      return 0.2126 * channel(c.r) +
+          0.7152 * channel(c.g) +
+          0.0722 * channel(c.b);
+    }
+
+    double contrast(Color a, Color b) {
+      final la = luminance(a), lb = luminance(b);
+      return (math.max(la, lb) + 0.05) / (math.min(la, lb) + 0.05);
+    }
+
+    final palettes = <(String, InTheme)>[
+      for (final v in LightVariant.values) ('light ${v.name}', v.tokens),
+      for (final v in DarkVariant.values) ('dark ${v.name}', v.tokens),
+    ];
+    for (final (name, tokens) in palettes) {
+      final fills = {
+        for (final tone in PrivateNotesTone.values)
+          privateNotesToneColors(tokens, tone).soft,
+      };
+      expect(fills, hasLength(PrivateNotesTone.values.length), reason: name);
+      for (final tone in PrivateNotesTone.values) {
+        final soft = privateNotesToneColors(tokens, tone).soft;
+        expect(
+          contrast(tokens.ink, soft),
+          greaterThanOrEqualTo(4.5),
+          reason: '$name $tone',
+        );
+      }
+    }
+    expect(
+      privateNotesToneColors(InTheme.light, PrivateNotesTone.blue).soft,
+      InTheme.light.partialSoft,
+    );
   });
 
   for (final (name, notes) in [

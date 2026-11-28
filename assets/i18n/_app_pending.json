@@ -2420,5 +2420,11 @@
   "lock_after_inactivity_help": "Lock the app when it hasn't been used for a while, without signing out. Unlock with this device's fingerprint, face or passcode.",
   "soft_lock_message": "You're still signed in, and nothing you were doing is lost. Unlock to carry on.",
   "always_show_scrollbars": "Always Show Scroll Bars",
-  "always_show_scrollbars_help": "Keep scroll bars visible instead of hiding them when you stop scrolling"
+  "always_show_scrollbars_help": "Keep scroll bars visible instead of hiding them when you stop scrolling",
+  "private_notes_color": "Private Notes Color",
+  "private_notes_color_help": "The highlight behind a record's private notes",
+  "color_amber": "Amber",
+  "color_blue": "Blue",
+  "color_green": "Green",
+  "color_red": "Red"
 }

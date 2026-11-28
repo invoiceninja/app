@@ -2418,5 +2418,11 @@
   "lock_after_inactivity_help": "Bloķē lietotni, ja tā kādu laiku nav lietota, neizrakstoties. Atbloķējiet ar šīs ierīces pirksta nospiedumu, seju vai piekļuves kodu.",
   "soft_lock_message": "Jūs joprojām esat pierakstījies, un nekas no paveiktā nav zaudēts. Atbloķējiet, lai turpinātu.",
   "always_show_scrollbars": "Vienmēr rādīt ritjoslas",
-  "always_show_scrollbars_help": "Ritjoslas paliek redzamas, nevis tiek paslēptas, kad pārtraucat ritināt"
+  "always_show_scrollbars_help": "Ritjoslas paliek redzamas, nevis tiek paslēptas, kad pārtraucat ritināt",
+  "private_notes_color": "Privāto piezīmju krāsa",
+  "private_notes_color_help": "Izcēlums aiz ieraksta privātajām piezīmēm",
+  "color_amber": "Dzintara",
+  "color_blue": "Zila",
+  "color_green": "Zaļa",
+  "color_red": "Sarkana"
 }

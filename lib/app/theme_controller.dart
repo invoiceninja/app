@@ -6,6 +6,7 @@ import 'package:admin/app/design_tokens.dart';
 import 'package:admin/data/prefs/device_pref_keys.dart';
 import 'package:admin/data/prefs/device_prefs_store.dart';
 import 'package:admin/domain/appearance_sync.dart';
+import 'package:admin/domain/private_notes_tone.dart';
 
 /// Owns the user's theme preferences — the [ThemeMode] choice (System / Light
 /// / Dark), the two palette sub-variants and the custom colour overrides —
@@ -18,7 +19,10 @@ import 'package:admin/domain/appearance_sync.dart';
 /// [ListenableBuilder]. A change to any of the three fields rebuilds
 /// `MaterialApp.router`'s `themeMode` / `theme` / `darkTheme`.
 ///
-/// The four follow the user across devices (invoiceninja/app#199): every
+/// It also owns the private-notes callout's tone
+/// (`DevicePrefKeys.privateNotesTone`), which is part of the same look.
+///
+/// All of them follow the user across devices (invoiceninja/app#199): every
 /// setter stamps [syncedAt] (`DevicePrefKeys.appearanceSyncedAt`), and the
 /// `AppearanceSyncController` writes the stamped [appearance] up to the
 /// account and hands a newer one back through [adoptSynced].
@@ -41,6 +45,7 @@ class ThemeController extends ChangeNotifier {
   LightVariant _lightVariant = _defaultLight;
   DarkVariant _darkVariant = _defaultDark;
   CustomTheme _customTheme = defaultCustomTheme;
+  PrivateNotesTone _privateNotesTone = PrivateNotesTone.fallback;
   int? _syncedAt;
 
   // Memoised resolved palettes (selected preset + the side's overrides).
@@ -56,6 +61,7 @@ class ThemeController extends ChangeNotifier {
   LightVariant get lightVariant => _lightVariant;
   DarkVariant get darkVariant => _darkVariant;
   CustomTheme get customTheme => _customTheme;
+  PrivateNotesTone get privateNotesTone => _privateNotesTone;
 
   /// When this account last changed or adopted the appearance on this
   /// device (epoch ms), or null when it never has — a sign-out forgets it.
@@ -67,6 +73,7 @@ class ThemeController extends ChangeNotifier {
     lightVariant: _lightVariant.name,
     darkVariant: _darkVariant.name,
     custom: (jsonDecode(_customTheme.toJson()) as Map).cast<String, Object?>(),
+    privateNotesTone: _privateNotesTone.name,
     updatedAt: _syncedAt,
   );
 
@@ -120,7 +127,16 @@ class ThemeController extends ChangeNotifier {
     final syncedAt = _parseStamp(
       _prefs.read(DevicePrefKeys.appearanceSyncedAt),
     );
+    final tone =
+        PrivateNotesTone.fromName(
+          _prefs.read(DevicePrefKeys.privateNotesTone),
+        ) ??
+        PrivateNotesTone.fallback;
     var changed = false;
+    if (tone != _privateNotesTone) {
+      _privateNotesTone = tone;
+      changed = true;
+    }
     if (syncedAt != _syncedAt) {
       _syncedAt = syncedAt;
       changed = true;
@@ -156,6 +172,15 @@ class ThemeController extends ChangeNotifier {
     _stampLocalChange();
     notifyListeners();
     await _prefs.write(DevicePrefKeys.themeMode, _serializeMode(mode));
+    await _persistStamp();
+  }
+
+  Future<void> setPrivateNotesTone(PrivateNotesTone tone) async {
+    if (_privateNotesTone == tone) return;
+    _privateNotesTone = tone;
+    _stampLocalChange();
+    notifyListeners();
+    await _prefs.write(DevicePrefKeys.privateNotesTone, tone.name);
     await _persistStamp();
   }
 
@@ -252,11 +277,14 @@ class ThemeController extends ChangeNotifier {
     final light = _parseLightVariant(record.lightVariant) ?? _lightVariant;
     final dark = _parseDarkVariant(record.darkVariant) ?? _darkVariant;
     final custom = CustomTheme.fromJson(jsonEncode(record.custom));
+    final tone =
+        PrivateNotesTone.fromName(record.privateNotesTone) ?? _privateNotesTone;
     final changed =
         mode != _themeMode ||
         light != _lightVariant ||
         dark != _darkVariant ||
         custom != _customTheme ||
+        tone != _privateNotesTone ||
         record.updatedAt != _syncedAt;
     if (!changed) return;
     _themeMode = mode;
@@ -264,12 +292,14 @@ class ThemeController extends ChangeNotifier {
     _lightVariant = light;
     _darkVariant = dark;
     _setCustomTheme(custom);
+    _privateNotesTone = tone;
     _syncedAt = record.updatedAt;
     notifyListeners();
     await _prefs.write(DevicePrefKeys.themeMode, _serializeMode(mode));
     await _prefs.write(DevicePrefKeys.lightVariant, light.name);
     await _prefs.write(DevicePrefKeys.darkVariant, dark.name);
     await _persistCustomTheme();
+    await _prefs.write(DevicePrefKeys.privateNotesTone, tone.name);
     await _persistStamp();
   }
 

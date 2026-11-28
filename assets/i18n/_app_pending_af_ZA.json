@@ -2334,5 +2334,11 @@
   "lock_after_inactivity_help": "Sluit die toep wanneer dit 'n ruk lank nie gebruik is nie, sonder om af te meld. Ontsluit met hierdie toestel se vingerafdruk, gesig of wagkode.",
   "soft_lock_message": "Jy is steeds aangemeld en niks waarmee jy besig was, is verlore nie. Ontsluit om voort te gaan.",
   "always_show_scrollbars": "Wys altyd rolstawe",
-  "always_show_scrollbars_help": "Hou rolstawe sigbaar in plaas daarvan om hulle te versteek wanneer jy ophou rol"
+  "always_show_scrollbars_help": "Hou rolstawe sigbaar in plaas daarvan om hulle te versteek wanneer jy ophou rol",
+  "private_notes_color": "Kleur van privaat notas",
+  "private_notes_color_help": "Die agtergrond agter 'n rekord se privaat notas",
+  "color_amber": "Amber",
+  "color_blue": "Blou",
+  "color_green": "Groen",
+  "color_red": "Rooi"
 }

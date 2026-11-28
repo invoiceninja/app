@@ -84,6 +84,7 @@ import 'package:admin/domain/upgrade/client_usage.dart';
 import 'package:admin/domain/upgrade/purchase_offer.dart';
 import 'package:admin/domain/upgrade/store_build.dart';
 import 'package:admin/l10n/company_labels_scope.dart';
+import 'package:admin/ui/core/widgets/private_notes_callout.dart';
 import 'package:admin/app/legacy_material_theme.dart';
 import 'package:admin/l10n/localization.dart';
 import 'package:admin/l10n/supported_locales.dart';
@@ -1453,7 +1454,14 @@ class _InvoiceNinjaAppState extends State<InvoiceNinjaApp> {
                 // middle, where no device reports one (docs/foldables.md).
                 child: FoldSimulator(
                   enabled: widget.services.simulateFold.value,
-                  child: LegacyMaterialTheme(child: app),
+                  child: LegacyMaterialTheme(
+                    // Device Settings → Private notes colour; this builder
+                    // rebuilds on every `ThemeController` notify.
+                    child: PrivateNotesToneScope(
+                      tone: theme.privateNotesTone,
+                      child: app,
+                    ),
+                  ),
                 ),
               );
               // Debug Panel → Force right-to-left: overrides the direction

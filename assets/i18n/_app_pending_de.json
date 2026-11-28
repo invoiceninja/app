@@ -2417,5 +2417,11 @@
   "lock_after_inactivity_help": "Sperrt die App, wenn sie eine Weile nicht benutzt wurde, ohne Sie abzumelden. Entsperren Sie sie mit Fingerabdruck, Gesicht oder Code dieses Geräts.",
   "soft_lock_message": "Sie sind weiterhin angemeldet, und nichts von Ihrer Arbeit geht verloren. Entsperren Sie, um fortzufahren.",
   "always_show_scrollbars": "Bildlaufleisten immer anzeigen",
-  "always_show_scrollbars_help": "Bildlaufleisten sichtbar lassen, statt sie nach dem Scrollen auszublenden"
+  "always_show_scrollbars_help": "Bildlaufleisten sichtbar lassen, statt sie nach dem Scrollen auszublenden",
+  "private_notes_color": "Farbe der internen Notizen",
+  "private_notes_color_help": "Die Hervorhebung hinter den internen Notizen eines Datensatzes",
+  "color_amber": "Bernstein",
+  "color_blue": "Blau",
+  "color_green": "Grün",
+  "color_red": "Rot"
 }
